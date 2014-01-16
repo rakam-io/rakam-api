@@ -1,0 +1,29 @@
+<<<<<<< HEAD
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+.gradle/
+build/
+target/
+
+mods/
+=======
+*.class
+*.log
+
+# sbt specific
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+
+# Scala-IDE specific
+.scala_dependencies
+>>>>>>> f372f986f3aeb0218bc2ed3adb744e5abac10445

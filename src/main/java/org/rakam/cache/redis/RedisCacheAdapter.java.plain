@@ -1,0 +1,67 @@
+package org.rakam.cache.redis;
+
+
+import com.hazelcast.core.AtomicNumber;
+import org.rakam.cache.SimpleCacheAdapter;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Response;
+import redis.clients.jedis.Transaction;
+
+import java.util.ArrayList;
+import java.util.List;
+
+
+/**
+ * Created by buremba on 21/12/13.
+ */
+public class RedisCacheAdapter extends SimpleCacheAdapter {
+    private static final Jedis client = new Jedis("localhost");
+
+
+    public RedisCacheAdapter() {
+        super();
+    }
+
+    @Override
+    public String get(String key) {
+        return client.get(key);
+    }
+
+    @Override
+    public AtomicNumber getCounter(String key) {
+        return null;
+    }
+
+    @Override
+    public List<Integer> getMultiCounts(List<String> keys) {
+        Transaction trans = client.multi();
+        for(String key : keys)
+            trans.scard(key);
+        List<Response<?>> result = trans.execGetResponse();
+
+        List<Integer> counts = new ArrayList();
+        for (Response r : result)
+            counts.add((int)r.get());
+        return counts;
+    }
+
+    @Override
+    public void set(String key, String value) {
+        client.set(key, value);
+    }
+
+    @Override
+    public void increment(String key) {
+        client.incr(key);
+    }
+
+    @Override
+    public void addSet(String key, String value) {
+        client.sadd(key, value);
+    }
+
+    @Override
+    public int countSet(String key) {
+        return 0;
+    }
+}
