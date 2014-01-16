@@ -17,9 +17,9 @@ Rakam collects your data and continuously aggregate it by using your pre-aggrega
 
 TODO
 ------------
-UDP data collection API.
-Scripting support. (MVEL)
-Postgresql database support as an alternative to Cassandra.
+* UDP data collection API.
+* Scripting support. (MVEL)
+* Postgresql database support as an alternative to Cassandra.
 
 Contribution
 ------------
