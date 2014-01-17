@@ -14,11 +14,11 @@ import java.io.Serializable;
 
 public class SpanDateTime implements Serializable {
     private final static PeriodFormatter formatter = new PeriodFormatterBuilder()
-            .appendYears().appendSuffix("y")
-            .appendMonths().appendSuffix("m")
-            .appendWeeks().appendSuffix("w")
-            .appendDays().appendSuffix("d")
-            .appendHours().appendSuffix("h")
+            .appendYears().appendSuffix("year")
+            .appendMonths().appendSuffix("month")
+            .appendWeeks().appendSuffix("week")
+            .appendDays().appendSuffix("day")
+            .appendHours().appendSuffix("hour")
             .appendMinutes().appendSuffix("min")
             .toFormatter();
     private final Period period;

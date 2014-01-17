@@ -4,7 +4,6 @@ import org.joda.time.DateTime;
 import org.vertx.java.core.json.JsonObject;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -18,7 +17,10 @@ public abstract class SimpleCacheAdapter {
 
     public abstract void set(String key, String value);
 
-    public abstract Map<Long, Integer>  getMultiCounts(UUID agg_rule, List<Long> keys);
+    public abstract JsonObject getMultiSetCounts(UUID id);
+
+    public abstract JsonObject  getMultiCounts(UUID agg_rule, List<Long> keys);
+    public abstract JsonObject  getMultiSetCounts(UUID agg_rule, List<Long> keys);
 
     public abstract void increment(UUID key, DateTime dateTime);
     public abstract void increment(UUID key);

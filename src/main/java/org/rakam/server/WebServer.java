@@ -27,12 +27,11 @@ public class WebServer extends Verticle {
                 if (httpServerRequest.path().equals("/_analyze")) {
                     String uuid_str = queryParams.get("_uuid");
                     if (uuid_str != null) {
+                        final String debug = queryParams.get("_debug");
                         vertx.eventBus().send("analysis", MultiMaptoJsonObject(queryParams), new Handler<Message<JsonObject>>() {
                             @Override
                             public void handle(Message<JsonObject> event) {
                                 httpServerRequest.response().putHeader("Content-Type", "application/json; charset=utf-8");
-                                String debug = queryParams.get("_debug");
-
                                 httpServerRequest.response().end(debug != null && debug.equals("true") ? event.body().encodePrettily() : event.body().encode());
                             }
                         });
@@ -64,8 +63,11 @@ public class WebServer extends Verticle {
     public JsonObject MultiMaptoJsonObject(MultiMap map) {
         JsonObject obj = new JsonObject();
         for (Map.Entry<String, String> item : map) {
+            String key = item.getKey();
 
-            obj.putString(item.getKey(), item.getValue());
+            // _* is reserved for commands so we don't include to event properties.
+            if(!key.startsWith("_"))
+                obj.putString(item.getKey(), item.getValue());
 
         }
         obj.putString("accepted_reply", "aggregation.acceptedReplyAddress");

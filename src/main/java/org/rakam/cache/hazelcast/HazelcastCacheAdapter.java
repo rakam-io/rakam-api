@@ -2,14 +2,15 @@ package org.rakam.cache.hazelcast;
 
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.core.*;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IAtomicLong;
+import com.hazelcast.core.IMap;
+import com.hazelcast.core.ISet;
 import org.joda.time.DateTime;
 import org.rakam.cache.SimpleCacheAdapter;
 import org.vertx.java.core.json.JsonObject;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -27,15 +28,19 @@ public class HazelcastCacheAdapter extends SimpleCacheAdapter {
 
     @Override
     public void addToGroupByItem(UUID aggregation, String groupBy, String item) {
-        IMap<String, ISet> map = hazelcast.getMap(aggregation.toString());
-        map.get(groupBy).add(item);
+        IAtomicLong counter = hazelcast.getAtomicLong(aggregation.toString() + ":" + item);
+        if (counter.getAndIncrement()==0) {
+            hazelcast.getSet(aggregation.toString() + ":" + "::" + "keys").add(item);
+        }
     }
 
     @Override
     public void addToGroupByItem(UUID aggregation, DateTime dateTime, String groupBy, String item) {
         long timestamp = dateTime.getMillis();
-        IMap<Long, IMap<String, ISet>> map = hazelcast.getMap(aggregation.toString());
-        map.get(timestamp).get(groupBy).add(item);
+        IAtomicLong counter = hazelcast.getAtomicLong(aggregation.toString() + ":" + timestamp + ":" + item);
+        if (counter.getAndIncrement()==0) {
+            hazelcast.getSet(aggregation.toString() + ":" + timestamp + "::" + "keys").add(item);
+        }
     }
 
     @Override
@@ -68,17 +73,50 @@ public class HazelcastCacheAdapter extends SimpleCacheAdapter {
     }
 
     @Override
-    public Map<Long, Integer> getMultiCounts(UUID id, List<Long> keys) {
-        IMap<Long, ISet> map = hazelcast.getMap(id.toString());
-        Map<Long, Integer> counts = new HashMap();
+    public JsonObject getMultiSetCounts(UUID id, List<Long> keys) {
+        JsonObject counts = new JsonObject();
         for(Long key : keys) {
-            counts.put(key, map.get(key).size());
+            ISet<String> map = hazelcast.getSet(id.toString() + ":" + key + "::keys");
+            JsonObject keyObj = new JsonObject();
+            counts.putObject(Long.toString(key), keyObj);
+
+            for (String set: map) {
+                long counter = hazelcast.getAtomicLong(id.toString() + ":" + key + ":" + set).get();
+                keyObj.putNumber(set, counter);
+            }
+        }
+        return counts;
+    }
+
+    @Override
+    public JsonObject getMultiSetCounts(UUID id) {
+        JsonObject counts = new JsonObject();
+        ISet<String> map = hazelcast.getSet(id.toString() + "::keys");
+
+        for (String set: map) {
+            long counter = hazelcast.getAtomicLong(id.toString() + ":" + set).get();
+            counts.putNumber(set, counter);
+        }
+
+        return counts;
+    }
+
+    @Override
+    public JsonObject getMultiCounts(UUID id, List<Long> keys) {
+        JsonObject counts = new JsonObject();
+        for(Long key : keys) {
+            IAtomicLong s = hazelcast.getAtomicLong(id.toString() + ":" + key);
+            counts.putNumber(Long.toString(key), s == null ? 0 : s.get());
         }
         return counts;
     }
 
     @Override
     public void increment(UUID key, DateTime dateTime) {
+        /* IMap<Long, IAtomicLong> map = hazelcast.getMap(key.toString());
+        IAtomicLong a = map.get(dateTime.getMillis());
+        if(a==null)
+            a = .incrementAndGet(); */
         hazelcast.getAtomicLong(key.toString() + ":" + dateTime.getMillis()).incrementAndGet();;
     }
 

@@ -93,14 +93,19 @@ public class AggregationLogic extends Verticle implements Handler<Message<JsonOb
                     if(groupBy==null)
                         cacheAdapter.increment(aggregation.id);
                     else {
+                        String item = m.getString(groupBy);
+                        if (item!=null)
                         cacheAdapter.addToGroupByItem(aggregation.id, groupBy, m.getString(groupBy));
                     }
                     break;
                 case ANALYSIS_TIMESERIES:
                     if(groupBy==null)
                         cacheAdapter.increment(aggregation.id, ((TimeSeriesAggregationRule) aggregation).interval.spanCurrentTimestamp());
-                    else
-                        cacheAdapter.addToGroupByItem(aggregation.id, ((TimeSeriesAggregationRule) aggregation).interval.spanCurrentTimestamp(), groupBy, m.getString(groupBy));
+                    else {
+                        String item = m.getString(groupBy);
+                        if(item!=null)
+                            cacheAdapter.addToGroupByItem(aggregation.id, ((TimeSeriesAggregationRule) aggregation).interval.spanCurrentTimestamp(), groupBy, m.getString(groupBy));
+                    }
                     break;
             }
         }
