@@ -1,17 +1,16 @@
 package org.rakam.constant;
 
 
-import java.io.Serializable;
-
 /**
  * Created by buremba on 21/12/13.
  */
 
-public enum Analysis implements Serializable {
+public enum Analysis {
     ANALYSIS_METRIC(0),
     ANALYSIS_TIMESERIES(1);
 
     public final int id;
+    public static final int ID = 1;
     Analysis(int id) {
         this.id = id;
     }

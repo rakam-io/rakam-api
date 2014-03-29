@@ -3,6 +3,7 @@ package org.rakam.database;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -13,7 +14,8 @@ public abstract class DatabaseAdapter {
     public abstract void setupDatabase();
     public abstract void destroy();
 
-    public abstract UUID createActor(String project, String actor_id, byte[] properties);
+    public abstract Actor createActor(String project, String actor_id, byte[] properties);
+    public abstract void addPropertyToActor(Actor actor, Map<String, String> props);
 
 
     public abstract UUID addEvent(String project, int time_cabin, String actor_id, byte[] data);

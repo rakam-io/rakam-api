@@ -4,10 +4,12 @@ import com.hazelcast.config.Config;
 import com.hazelcast.config.FileSystemXmlConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import org.rakam.analysis.AggregationRuleListFactory;
 import org.rakam.analysis.AnalysisVerticle;
-import org.rakam.analysis.model.AggregationRule;
+import org.rakam.analysis.model.AggregationRuleList;
 import org.rakam.analysis.model.MetricAggregationRule;
 import org.rakam.analysis.model.TimeSeriesAggregationRule;
+import org.rakam.constant.AggregationType;
 import org.rakam.server.WebServer;
 import org.rakam.util.SpanDateTime;
 import org.rakam.worker.aggregation.AggregationLogic;
@@ -19,7 +21,8 @@ import org.vertx.java.platform.Verticle;
 
 import java.io.FileNotFoundException;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by buremba on 21/12/13.
@@ -29,14 +32,6 @@ public class ServiceStarter extends Verticle {
     String projectRoot = System.getProperty("user.dir");
 
     public void start(final Future<Void> startedResult) {
-
-        /*
-        final JsonObject obj = new JsonObject();
-        obj.putBoolean("auto-redeploy", true);
-        obj.putString("-cluster", "");
-        obj.putString("-cluster-port", "5701");
-        obj.putString("-cluster-host", "192.168.0.15");
-        */
 
         fillTrackerPreAggregation();
 
@@ -90,6 +85,7 @@ public class ServiceStarter extends Verticle {
         Config cfg = null;
         try {
             cfg = new FileSystemXmlConfig(String.valueOf(Paths.get(System.getProperty("user.dir"), "config", "hazelcast.xml")));
+            cfg.getSerializationConfig().addDataSerializableFactory(AggregationRuleListFactory.ID, new AggregationRuleListFactory());
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             System.exit(1);
@@ -100,19 +96,20 @@ public class ServiceStarter extends Verticle {
         clientConfig.getGroupConfig().setName("analytics").setPassword("");
         HazelcastInstance instance =  HazelcastClient.newHazelcastClient(clientConfig);
         */
-        Map<String, List<AggregationRule>> aggregation_map = instance.getMap("aggregation.rules");
+        Map<String, AggregationRuleList> aggregation_map = instance.getMap("aggregation.rules");
 
-        Map<String, AggregationRule> test = instance.getMap("test");
-        MetricAggregationRule az= new MetricAggregationRule(UUID.fromString("dd93140c-df8c-4813-bc40-b9bd8a805e90"));
-        test.put("test", az);
+        AggregationRuleList aggs = new AggregationRuleList();
+        String projectId = "e74607921dad4803b998";
+        //aggs.add(new MetricAggregationRule(projectId, AggregationType.COUNT_X, "test"));
+        aggs.add(new MetricAggregationRule(projectId, AggregationType.SUM_X, "test"));
+        aggs.add(new MetricAggregationRule(projectId, AggregationType.MAXIMUM_X, "test"));
+        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.SELECT_UNIQUE_Xs, SpanDateTime.fromPeriod("1min"), "referral", null, "referral"));
 
-        List<AggregationRule> aggs = new ArrayList();
-        aggs.add(new MetricAggregationRule(UUID.fromString("dd93140c-df8c-4813-bc40-b9bd8a805e90")));
         HashMap<String, String> a = new HashMap();
         a.put("a", "a");
-        aggs.add(new MetricAggregationRule(UUID.fromString("e7460792-1dad-4803-b998-1e58c31e55c1"), a));
-        aggs.add(new TimeSeriesAggregationRule(UUID.fromString("243bf77f-2a7c-4a6f-a60f-91ab31ec19d2"), SpanDateTime.fromPeriod("1min")));
-        aggs.add(new TimeSeriesAggregationRule(UUID.fromString("243bf77f-2a7c-4a6f-a60f-91ab31ec29d2"), SpanDateTime.fromPeriod("1min"), null, "a"));
+        aggs.add(new MetricAggregationRule(projectId, AggregationType.AVERAGE_X, "test", a));
+        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.COUNT_X, SpanDateTime.fromPeriod("1min"), "referral"));
+        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.COUNT, SpanDateTime.fromPeriod("1min"), null, null, "a"));
 
         // tracker_id -> aggregation rules
         aggregation_map.put("e74607921dad4803b998", aggs);

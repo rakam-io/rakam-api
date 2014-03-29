@@ -1,10 +1,9 @@
 package org.rakam.cache;
 
-import org.joda.time.DateTime;
 import org.vertx.java.core.json.JsonObject;
 
+import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Created by buremba on 21/12/13.
@@ -17,27 +16,27 @@ public abstract class SimpleCacheAdapter {
 
     public abstract void set(String key, String value);
 
-    public abstract JsonObject getMultiSetCounts(UUID id);
+    public abstract JsonObject  getMultiCounts(String agg_rule, List<Long> keys);
+    public abstract JsonObject  getMultiSetCounts(String agg_rule, List<Long> keys);
 
-    public abstract JsonObject  getMultiCounts(UUID agg_rule, List<Long> keys);
-    public abstract JsonObject  getMultiSetCounts(UUID agg_rule, List<Long> keys);
+    public abstract int getSetCount(String key);
+    public abstract Iterator getSetIterator(String key);
 
-    public abstract void increment(UUID key, DateTime dateTime);
-    public abstract void increment(UUID key);
+    public abstract Long incrementCounter(String key);
 
-    public abstract void addSet(String key, String value);
+    public SimpleCacheAdapter() {};
 
-    public abstract int countSet(String key);
+    public abstract void addGroupByItem(String aggregation, String groupBy, String item);
 
-    public SimpleCacheAdapter() {
-        //
-    };
-
-    public abstract void addToGroupByItem(UUID aggregation, String groupBy, String item);
-
-    public abstract void addToGroupByItem(UUID aggregation, DateTime dateTime, String groupBy, String item);
+    public abstract void addGroupByItem(String aggregation, String groupBy, String item, Long incrementBy);
 
     public abstract JsonObject getActorProperties(String project, String actor_id);
 
     public abstract void addActorProperties(String project, String actor_id, JsonObject properties);
+
+    public abstract Long incrementCounter(String key, long increment);
+
+    public abstract void setCounter(String s, long target);
+
+    public abstract void addToSet(String setName, String item);
 }

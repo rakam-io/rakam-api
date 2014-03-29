@@ -3,48 +3,6 @@
         <name>analytics</name>
         <password></password>
     </group>
-    <map name="aggregation.rules">
-        <near-cache>
-            <!--
-                Maximum number of seconds for each entry to stay in the near cache. Entries that are
-                older than <time-to-live-seconds> will get automatically evicted from the near cache.
-                Any integer between 0 and Integer.MAX_VALUE. 0 means infinite. Default is 0.
-            -->
-            <time-to-live-seconds>0</time-to-live-seconds>
+    <management-center enabled="true">http://localhost:8080/mancenter</management-center>
 
-            <!--
-                Maximum number of seconds each entry can stay in the near cache as untouched (not-read).
-                Entries that are not read (touched) more than <max-idle-seconds> value will get removed
-                from the near cache.
-                Any integer between 0 and Integer.MAX_VALUE. 0 means
-                Integer.MAX_VALUE. Default is 0.
-            -->
-            <max-idle-seconds>60</max-idle-seconds>
-
-            <!--
-                Valid values are:
-                NONE (no extra eviction, <time-to-live-seconds> may still apply),
-                LRU  (Least Recently Used),
-                LFU  (Least Frequently Used).
-                NONE is the default.
-                Regardless of the eviction policy used, <time-to-live-seconds> will still apply.
-            -->
-            <eviction-policy>LRU</eviction-policy>
-
-            <!--
-                Maximum size of the near cache. When max size is reached,
-                cache is evicted based on the policy defined.
-                Any integer between 0 and Integer.MAX_VALUE. 0 means
-                Integer.MAX_VALUE. Default is 0.
-            -->
-            <max-size>0</max-size>
-
-            <!--
-                Should the cached entries get evicted if the entries are changed (updated or removed).
-                true of false. Default is true.
-            -->
-            <invalidate-on-change>true</invalidate-on-change>
-
-        </near-cache>
-    </map>
 </hazelcast>

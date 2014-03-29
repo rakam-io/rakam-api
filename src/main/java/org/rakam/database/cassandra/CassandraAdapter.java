@@ -6,6 +6,7 @@ import org.rakam.model.Actor;
 import org.rakam.model.Event;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -21,12 +22,14 @@ public class CassandraAdapter extends DatabaseAdapter {
     private final PreparedStatement get_actor_property;
     private final PreparedStatement add_event;
     private final PreparedStatement create_actor;
+    private final PreparedStatement update_actor;
 
     public CassandraAdapter() {
         session.execute("use analytics");
         get_actor_property = session.prepare("select properties from actor where project = ? and id = ? limit 1");
         add_event = session.prepare("insert into event (project, time_cabin, actor_id, time, data) values (?, ?, ?, now(), ?);");
         create_actor = session.prepare("insert into actor (project, id, properties) values (?, ?, ?);");
+        update_actor = session.prepare("update actor set properties = ? where project = ? and id = ? ;");
     }
 
     @Override
@@ -43,8 +46,26 @@ public class CassandraAdapter extends DatabaseAdapter {
     }
 
     @Override
-    public UUID createActor(String project, String actor_id, byte[] properties) {
-        ResultSetFuture future = session.executeAsync(create_actor.bind(project, actor_id, ByteBuffer.wrap(properties)));
+    public Actor createActor(String project, String actor_id, byte[] properties) {
+        ResultSetFuture future = session.executeAsync(create_actor.bind(project, actor_id, properties!=null ? ByteBuffer.wrap(properties) : null));
+        try {
+            future.get(3, TimeUnit.SECONDS);
+            return new Actor(project, actor_id);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+        } catch (ExecutionException e) {
+            future.cancel(true);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+        }
+        return null;
+    }
+
+    @Override
+    public void addPropertyToActor(Actor actor, Map<String, String> props) {
+        for(Map.Entry<String, String> item : props.entrySet())
+            actor.properties.putString(item.getKey(), item.getValue());
+        ResultSetFuture future = session.executeAsync(update_actor.bind(ByteBuffer.wrap(actor.properties.encode().getBytes()), actor.project, actor.id));
         try {
             future.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
@@ -54,7 +75,6 @@ public class CassandraAdapter extends DatabaseAdapter {
         } catch (InterruptedException e) {
             future.cancel(true);
         }
-        return null;
     }
 
     @Override
@@ -77,7 +97,13 @@ public class CassandraAdapter extends DatabaseAdapter {
         ResultSetFuture future = session.executeAsync(get_actor_property.bind(project, actorId));
         try {
             Row actor = future.get(3, TimeUnit.SECONDS).one();
-            return new Actor(project, actorId, actor.getBytes("properties").array());
+            if(actor==null)
+                return null;
+            ByteBuffer props = actor.getBytes("properties");
+            if (props!=null)
+                return new Actor(project, actorId, props.array());
+            else
+                return new Actor(project, actorId);
         } catch (TimeoutException e) {
             future.cancel(true);
         } catch (ExecutionException e) {
