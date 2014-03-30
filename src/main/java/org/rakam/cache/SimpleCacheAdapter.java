@@ -39,4 +39,6 @@ public abstract class SimpleCacheAdapter {
     public abstract void setCounter(String s, long target);
 
     public abstract void addToSet(String setName, String item);
+
+    public abstract void setActorProperties(String project, String actor_id, JsonObject properties);
 }

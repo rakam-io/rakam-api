@@ -18,6 +18,7 @@ import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -54,6 +55,14 @@ public class AggregationLogic extends Verticle implements Handler<Message<JsonOb
         String project = message.getString("_tracker");
         String actor_id = message.getString("_user");
 
+
+         /*
+            The current implementation change cabins monthly.
+            However the interval must be determined by the system by taking account of data frequency
+         */
+        int time_cabin = Calendar.getInstance().get(Calendar.MONTH);
+        databaseAdapter.addEvent(project, time_cabin, actor_id, message.encode().getBytes());
+
         Actor actor = null;
         if (actor_id != null) {
             JsonObject actor_cache_props = cacheAdapter.getActorProperties(project, actor_id);
@@ -62,6 +71,7 @@ public class AggregationLogic extends Verticle implements Handler<Message<JsonOb
                 if(actor==null) {
                     actor = databaseAdapter.createActor(project, actor_id, null);
                 }
+                cacheAdapter.setActorProperties(project, actor_id, actor.properties);
             } else {
                 actor = new Actor(project, actor_id, actor_cache_props);
             }
@@ -69,7 +79,9 @@ public class AggregationLogic extends Verticle implements Handler<Message<JsonOb
 
 
         aggregate(project, message, actor);
-        m.reply();
+        JsonObject a = new JsonObject();
+        a.putBoolean("success", true);
+        m.reply(a);
     }
 
     /*
@@ -122,7 +134,8 @@ public class AggregationLogic extends Verticle implements Handler<Message<JsonOb
             cacheAdapter.addToSet(id+":keys", groupByValue);
             cacheAdapter.incrementCounter(id + ":" + groupByValue);
         } else if(type == AggregationType.SELECT_UNIQUE_Xs) {
-            cacheAdapter.addToSet(id + ":" + groupByValue, type_target);
+            if(type_target!=null)
+                cacheAdapter.addToSet(id + ":" + groupByValue, type_target);
             cacheAdapter.addToSet(id+":keys", groupByValue);
         } else if (target == null)
             return;

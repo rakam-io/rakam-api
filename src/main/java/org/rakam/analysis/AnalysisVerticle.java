@@ -1,7 +1,7 @@
 package org.rakam.analysis;
 
 import com.hazelcast.core.IMap;
-import org.rakam.analysis.fetch.CacheFetcher;
+import org.rakam.analysis.event.CacheFetcher;
 import org.rakam.analysis.model.AggregationRule;
 import org.rakam.analysis.model.AggregationRuleList;
 import org.rakam.cache.CacheAdapterFactory;

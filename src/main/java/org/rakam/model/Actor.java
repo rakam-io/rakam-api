@@ -1,6 +1,9 @@
 package org.rakam.model;
 
+import org.rakam.util.JsonHelper;
 import org.vertx.java.core.json.JsonObject;
+
+import java.util.Map;
 
 /**
  * Created by buremba on 21/12/13.
@@ -31,5 +34,11 @@ public class Actor {
         this.id = actorId;
         this.project = projectId;
         this.properties = properties;
+    }
+
+    public Actor(String project, String actorId, Map<String, String> props) {
+        this.id = actorId;
+        this.project = project;
+        this.properties = JsonHelper.generate(props);
     }
 }

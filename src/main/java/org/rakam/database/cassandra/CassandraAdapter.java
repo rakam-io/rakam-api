@@ -29,7 +29,7 @@ public class CassandraAdapter extends DatabaseAdapter {
         get_actor_property = session.prepare("select properties from actor where project = ? and id = ? limit 1");
         add_event = session.prepare("insert into event (project, time_cabin, actor_id, time, data) values (?, ?, ?, now(), ?);");
         create_actor = session.prepare("insert into actor (project, id, properties) values (?, ?, ?);");
-        update_actor = session.prepare("update actor set properties = ? where project = ? and id = ? ;");
+        update_actor = session.prepare("update actor set properties = properties + ? where project = ? and id = ? ;");
     }
 
     @Override
@@ -46,8 +46,8 @@ public class CassandraAdapter extends DatabaseAdapter {
     }
 
     @Override
-    public Actor createActor(String project, String actor_id, byte[] properties) {
-        ResultSetFuture future = session.executeAsync(create_actor.bind(project, actor_id, properties!=null ? ByteBuffer.wrap(properties) : null));
+    public Actor createActor(String project, String actor_id, Map<String,String> properties) {
+        ResultSetFuture future = session.executeAsync(create_actor.bind(project, actor_id, properties));
         try {
             future.get(3, TimeUnit.SECONDS);
             return new Actor(project, actor_id);
@@ -62,10 +62,8 @@ public class CassandraAdapter extends DatabaseAdapter {
     }
 
     @Override
-    public void addPropertyToActor(Actor actor, Map<String, String> props) {
-        for(Map.Entry<String, String> item : props.entrySet())
-            actor.properties.putString(item.getKey(), item.getValue());
-        ResultSetFuture future = session.executeAsync(update_actor.bind(ByteBuffer.wrap(actor.properties.encode().getBytes()), actor.project, actor.id));
+    public void addPropertyToActor(String project, String actor_id, Map<String, String> props) {
+        ResultSetFuture future = session.executeAsync(update_actor.bind(props, project, actor_id));
         try {
             future.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
@@ -99,10 +97,10 @@ public class CassandraAdapter extends DatabaseAdapter {
             Row actor = future.get(3, TimeUnit.SECONDS).one();
             if(actor==null)
                 return null;
-            ByteBuffer props = actor.getBytes("properties");
-            if (props!=null)
-                return new Actor(project, actorId, props.array());
-            else
+            Map<String, String> props = actor.getMap("properties", String.class, String.class);
+            if (props!=null) {
+                return new Actor(project, actorId, props);
+            } else
                 return new Actor(project, actorId);
         } catch (TimeoutException e) {
             future.cancel(true);

@@ -14,9 +14,10 @@ public abstract class DatabaseAdapter {
     public abstract void setupDatabase();
     public abstract void destroy();
 
-    public abstract Actor createActor(String project, String actor_id, byte[] properties);
-    public abstract void addPropertyToActor(Actor actor, Map<String, String> props);
+    public abstract Actor createActor(String project, String actor_id, Map<String, String> properties);
 
+
+    public abstract void addPropertyToActor(String project, String actor_id, Map<String, String> props);
 
     public abstract UUID addEvent(String project, int time_cabin, String actor_id, byte[] data);
 

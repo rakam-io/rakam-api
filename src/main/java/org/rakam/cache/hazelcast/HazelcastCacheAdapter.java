@@ -17,12 +17,16 @@ import java.util.List;
  */
 
 public class HazelcastCacheAdapter extends SimpleCacheAdapter {
-    private final HazelcastInstance hazelcast;
+    private static HazelcastInstance hazelcast;
 
     public HazelcastCacheAdapter() {
         ClientConfig clientConfig = new ClientConfig();
         clientConfig.getGroupConfig().setName("analytics").setPassword("");
         hazelcast =  HazelcastClient.newHazelcastClient(clientConfig);
+    }
+
+    public static HazelcastInstance getAdapter() {
+        return hazelcast;
     }
 
     @Override
@@ -43,13 +47,13 @@ public class HazelcastCacheAdapter extends SimpleCacheAdapter {
 
     @Override
     public JsonObject getActorProperties(String project, String actor_id) {
-        IMap<String, JsonObject> map = hazelcast.getMap(project.toString()+":actor-prop");
+        IMap<String, JsonObject> map = hazelcast.getMap(project+":actor-prop");
         return map.get(actor_id);
     }
 
     @Override
     public void addActorProperties(String project, String actor_id, JsonObject properties) {
-        IMap<String, JsonObject> map = hazelcast.getMap(project.toString()+":actor-prop");
+        IMap<String, JsonObject> map = hazelcast.getMap(project+":actor-prop");
         map.put(actor_id, properties);
     }
 
@@ -66,6 +70,11 @@ public class HazelcastCacheAdapter extends SimpleCacheAdapter {
     @Override
     public void addToSet(String setName, String item) {
         hazelcast.getSet(setName).add(item);
+    }
+
+    @Override
+    public void setActorProperties(String project, String actor_id, JsonObject properties) {
+        hazelcast.getMap(project+":actor-prop").put(actor_id, properties);
     }
 
     @Override

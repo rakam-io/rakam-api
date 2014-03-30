@@ -103,13 +103,13 @@ public class ServiceStarter extends Verticle {
         //aggs.add(new MetricAggregationRule(projectId, AggregationType.COUNT_X, "test"));
         aggs.add(new MetricAggregationRule(projectId, AggregationType.SUM_X, "test"));
         aggs.add(new MetricAggregationRule(projectId, AggregationType.MAXIMUM_X, "test"));
-        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.SELECT_UNIQUE_Xs, SpanDateTime.fromPeriod("1min"), "referral", null, "referral"));
+        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.SELECT_UNIQUE_Xs, SpanDateTime.fromPeriod("1min"), "baska", null, "referral"));
 
         HashMap<String, String> a = new HashMap();
         a.put("a", "a");
         aggs.add(new MetricAggregationRule(projectId, AggregationType.AVERAGE_X, "test", a));
         aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.COUNT_X, SpanDateTime.fromPeriod("1min"), "referral"));
-        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.COUNT, SpanDateTime.fromPeriod("1min"), null, null, "a"));
+        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.COUNT, SpanDateTime.fromPeriod("1min"), null, null));
 
         // tracker_id -> aggregation rules
         aggregation_map.put("e74607921dad4803b998", aggs);
