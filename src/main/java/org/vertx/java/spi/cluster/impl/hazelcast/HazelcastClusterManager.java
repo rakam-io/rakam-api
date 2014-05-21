@@ -167,7 +167,8 @@ class HazelcastClusterManager implements ClusterManager, MembershipListener {
     }
   }
 
-  private InputStream getConfigStream() {
+
+    private InputStream getConfigStream() {
     ClassLoader ctxClsLoader = Thread.currentThread().getContextClassLoader();
     InputStream is = null;
     if (ctxClsLoader != null) {

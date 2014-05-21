@@ -25,4 +25,10 @@ public enum AggregationType {
         }
         throw new IllegalArgumentException("Invalid id");
     }
+
+    public static AggregationType get(String name){
+        if(name!=null)
+            name = name.toUpperCase();
+        return AggregationType.valueOf(name);
+    }
 }

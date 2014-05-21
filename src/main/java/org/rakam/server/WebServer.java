@@ -1,8 +1,11 @@
 package org.rakam.server;
 
+import com.esotericsoftware.kryo.Kryo;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import org.rakam.util.JsonHelper;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.MultiMap;
+import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.json.JsonObject;
@@ -17,8 +20,11 @@ import java.util.Map;
 
 
 public class WebServer extends Verticle {
+    Kryo kryo = new Kryo();
+
 
     public void start() {
+        kryo.register(JsonObject.class);
 
         vertx.createHttpServer().requestHandler(new Handler<HttpServerRequest>() {
             @Override
@@ -30,21 +36,30 @@ public class WebServer extends Verticle {
                 //json.putString("accepted_reply", "aggregation.acceptedReplyAddress");
 
                 String requestPath = httpServerRequest.path();
-                if (requestPath.equals("/_analyze")) {
-                    String uuid_str = queryParams.get("_rule");
-                    if (uuid_str != null) {
+                if (requestPath.equals("/collect")) {
+                    if (tracker_id == null) {
+                        returnError(httpServerRequest, "tracker id is required", 400);
+                        return;
+                    }
+
+                    vertx.eventBus().send("request.orderQueue", json, new Handler<Message<JsonObject>>() {
+                        public void handle(Message<JsonObject> message) {
+                            httpServerRequest.response().end("1");
+                        }
+                    });
+                } else if (requestPath.equals("/analyze")) {
+                    String ruleId = queryParams.get("id");
+                    if (ruleId != null) {
                         final String debug = queryParams.get("_debug");
-                        vertx.eventBus().send("analysis", json, new Handler<Message<JsonObject>>() {
+                        vertx.eventBus().send("analysisRequest", json, new Handler<Message<JsonObject>>() {
                             @Override
                             public void handle(Message<JsonObject> event) {
                                 httpServerRequest.response().end(debug != null && debug.equals("true") ? event.body().encodePrettily() : event.body().encode());
                             }
                         });
-                    } else {
-                        returnError(httpServerRequest, "rule id is required", 400);
-                    }
-                    return;
-                } else if (requestPath.equals("/_setProperty")) {
+                    } else
+                        returnError(httpServerRequest, "aggregation rule id is required", 400);
+                } else if (requestPath.equals("/_actor/set")) {
                     String user_id = queryParams.get("_user");
 
                     if (user_id != null) {
@@ -54,54 +69,78 @@ public class WebServer extends Verticle {
                             if (!key.startsWith("_"))
                                 event.put(item.getKey(), item.getValue());
                         }
-                        //databaseAdapter.addPropertyToActor(tracker_id, user_id, event);
                         httpServerRequest.response().end("1");
                     } else {
                         returnError(httpServerRequest, "_user, property and value parameters are required", 400);
                     }
-                } else if (requestPath.equals("/ttl")) {
-                    String type = queryParams.get("_type");
-                    String value = queryParams.get("type");
-                    String ttl_str = queryParams.get("ttl");
-                    Integer ttl;
-                    if (type == null || value == null) {
-                        returnError(httpServerRequest, "type and value parameters are required", 400);
-                        return;
-                    }
-                    JsonObject obj = new JsonObject();
-                    obj.putString("tracker", tracker_id);
-                    obj.putString("type", type);
-                    obj.putString("value", value);
-                    if (ttl_str == null)
-                        ttl = 15;
-                    else
-                        try {
-                            ttl = Integer.parseInt(ttl_str);
-                        } catch (NumberFormatException e) {
-                            returnError(httpServerRequest, "ttl value must be an integer.", 400);
+                } else if (requestPath.startsWith("/rule")) {
+                    final JsonObject main = new JsonObject();
+
+                    if (requestPath.equals("/rule/add")) {
+                        main.putString("_action", "add");
+
+                        if (!httpServerRequest.method().equals("POST")) {
+                            returnError(httpServerRequest, "POST request is required.", 400);
                             return;
                         }
-                    obj.putNumber("ttl", ttl);
-                    vertx.eventBus().send("aggregation.orderQueue", json);
-                } else if (requestPath.equals("/")) {
+                        httpServerRequest.bodyHandler(new Handler<Buffer>() {
+                            @Override
+                            public void handle(Buffer buff) {
+                                String contentType = httpServerRequest.headers().get("Content-Type");
+                                JsonObject json;
+                                if ("application/x-www-form-urlencoded".equals(contentType)) {
+                                    QueryStringDecoder qsd = new QueryStringDecoder(buff.toString(), false);
+                                    json = new JsonObject();
+                                } else if ("application/json".equals(contentType)) {
+                                    json = new JsonObject(buff.toString());
+                                } else {
+                                    returnError(httpServerRequest, "content type must be one of [application/x-www-form-urlencoded, application/json]", 400);
+                                    return;
+                                }
 
-                    if (tracker_id == null) {
-                        returnError(httpServerRequest, "tracker id is required", 400);
-                        return;
-                    }
-
-                    JsonObject event = new JsonObject();
-                    for (Map.Entry<String, String> item : queryParams) {
-                        String key = item.getKey();
-                        if (!key.startsWith("_"))
-                            event.putString(item.getKey(), item.getValue());
-                    }
-
-                    vertx.eventBus().send("aggregation.orderQueue", json, new Handler<Message<JsonObject>>() {
-                        public void handle(Message<JsonObject> message) {
-                            httpServerRequest.response().end(message.body().encode());
+                                main.putObject("rule", json);
+                                vertx.eventBus().send("analysisRuleCrud", main, new Handler<Message<JsonObject>>() {
+                                    @Override
+                                    public void handle(Message<JsonObject> event) {
+                                        httpServerRequest.response().end(event.body().encode());
+                                    }
+                                });
+                            }
+                        });
+                    } else if (requestPath.equals("/rule/list")) {
+                        if (!httpServerRequest.method().equals("POST")) {
+                            returnError(httpServerRequest, "POST request is required.", 400);
+                            return;
                         }
-                    });
+                        main.putString("_action", "list");
+                        httpServerRequest.bodyHandler(new Handler<Buffer>() {
+                            @Override
+                            public void handle(Buffer buff) {
+                                String contentType = httpServerRequest.headers().get("Content-Type");
+                                JsonObject json;
+                                if ("application/json".equals(contentType)) {
+                                    json = new JsonObject(buff.toString());
+                                } else {
+                                    returnError(httpServerRequest, "content type must be one of [application/json]", 400);
+                                    return;
+                                }
+                                main.putObject("rule", json);
+
+                                String project = json.getString("project");
+                                if (project == null) {
+                                    returnError(httpServerRequest, "project parameter must be specified.", 400);
+                                    return;
+                                }
+                                main.putString("project", project);
+                                vertx.eventBus().send("analysisRuleCrud", main, new Handler<Message<JsonObject>>() {
+                                    @Override
+                                    public void handle(Message<JsonObject> event) {
+                                        httpServerRequest.response().end(event.body().encode());
+                                    }
+                                });
+                            }
+                        });
+                    }
 
                 } else {
                     httpServerRequest.response().end("404");

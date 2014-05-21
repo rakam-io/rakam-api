@@ -26,6 +26,11 @@ import java.io.IOException;
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
+/*
+ * I used IdentifiedDataSerializable in order to prevent from reflection,
+ * Hazelcast identifies the class by matching factoryId values.
+ * @author <http://github.com/buremba> Burak Emre Kabakcı
+ */
 class HazelcastServerID extends ServerID implements IdentifiedDataSerializable {
 
   public HazelcastServerID() {

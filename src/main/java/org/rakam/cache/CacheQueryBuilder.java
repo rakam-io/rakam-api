@@ -1,7 +1,5 @@
 package org.rakam.cache;
 
-import org.apache.commons.codec.binary.Base64;
-import org.json.simple.JSONObject;
 import org.rakam.constant.AggregationType;
 
 import java.util.HashMap;
@@ -28,8 +26,8 @@ public class CacheQueryBuilder {
 
 
         return new String(baos.toByteArray());*/
-        String jso = JSONObject.toJSONString(filters);
-         new String(Base64.encodeBase64(jso.getBytes()));
+        //String jso = JSONObject.toJSONString(filters);
+         //new String(Base64.encodeBase64(jso.getBytes()));
 
         return projectId+aggType.id+selectField+groupBy;
     }

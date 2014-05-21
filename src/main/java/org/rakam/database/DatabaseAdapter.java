@@ -3,29 +3,33 @@ package org.rakam.database;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
 
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Created by buremba on 21/12/13.
  */
-public abstract class DatabaseAdapter {
+public interface DatabaseAdapter {
+    void setupDatabase();
+    void destroy();
+    Actor createActor(String project, String actor_id, Map<String, String> properties);
+    void addPropertyToActor(String project, String actor_id, Map<String, String> props);
+    UUID addEvent(String project, int time_cabin, String actor_id, byte[] data);
+    void addEventAsync(String project, int time_cabin, String actor_id, byte[] data);
+    Actor getActor(String project, String actorId);
+    Event getEvent(UUID eventId);
+    void combineActors(String actor1, String actor2);
+    void flushDatabase();
 
-    public abstract void setupDatabase();
-    public abstract void destroy();
+    void addSet(String key, String item);
+    void addSet(String key, Set<String> items);
+    void incrementCounter(String key);
+    long getCounter(String key);
+    Set<String> getSet(String key);
+    void incrementCounter(String key, long incrementBy);
 
-    public abstract Actor createActor(String project, String actor_id, Map<String, String> properties);
+    int getSetCount(String key);
 
+    Iterator<String> getSetIterator(String key);
 
-    public abstract void addPropertyToActor(String project, String actor_id, Map<String, String> props);
-
-    public abstract UUID addEvent(String project, int time_cabin, String actor_id, byte[] data);
-
-
-    public abstract Actor getActor(String project, String actorId);
-
-    public abstract Event getEvent(UUID eventId);
-    public abstract void combineActors(String actor1, String actor2);
-    public abstract void flushDatabase();
-
+    Map<String, Long> getMultiCounts(Collection<String> keys);
 }

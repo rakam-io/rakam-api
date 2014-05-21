@@ -11,7 +11,7 @@ public class HazelcastServerIDFactory implements DataSerializableFactory {
 
     @Override
     public IdentifiedDataSerializable create(int typeId) {
-        if(typeId==0)
+        if (typeId == 0)
             return new HazelcastServerID();
         else
             throw new IllegalStateException("HazelcastServerID instance couldn't identified");

@@ -13,7 +13,7 @@ Requirements
 Features / Goals
 ------------
 Rakam is a modular data-warehouse API supports pre-aggregation and real-time features.
-Rakam collects your data and continuously aggregate it by using your pre-aggregation rules. Also you may run a batch data analysis job on your saved data and combine the results to your newly created pre-aggregation rule.
+Rakam collects your data and continuously aggregate it by using your pre-aggregation rules. Also you may run a batch data analysis job on your saved data and combine the results to your newly created pre-aggregation aggRule.
 
 TODO
 ------------

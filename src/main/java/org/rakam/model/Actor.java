@@ -11,34 +11,34 @@ import java.util.Map;
 public class Actor {
     public final String id;
     public final String project;
-    public final JsonObject properties;
+    public final JsonObject data;
 
-    public Actor(String project, String actorId, byte[] properties) {
+    public Actor(String project, String actorId, byte[] data) {
         this.id = actorId;
         this.project = project;
-        this.properties = new JsonObject(new String(properties));
+        this.data = new JsonObject(new String(data));
     }
     public Actor(String project, String actorId) {
         this.id = actorId;
         this.project = project;
-        this.properties = new JsonObject();
+        this.data = null;
     }
 
     public Actor(String projectId, String actorId, String properties) {
         this.id = actorId;
         this.project = projectId;
-        this.properties = new JsonObject(new String(properties));
+        this.data = new JsonObject(new String(properties));
     }
 
     public Actor(String projectId, String actorId, JsonObject properties) {
         this.id = actorId;
         this.project = projectId;
-        this.properties = properties;
+        this.data = properties;
     }
 
     public Actor(String project, String actorId, Map<String, String> props) {
         this.id = actorId;
         this.project = project;
-        this.properties = JsonHelper.generate(props);
+        this.data = JsonHelper.generate(props);
     }
 }

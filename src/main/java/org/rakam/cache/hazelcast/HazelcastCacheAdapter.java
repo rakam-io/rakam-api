@@ -5,28 +5,23 @@ import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IAtomicLong;
 import com.hazelcast.core.IMap;
-import com.hazelcast.core.ISet;
 import org.rakam.cache.SimpleCacheAdapter;
 import org.vertx.java.core.json.JsonObject;
 
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
 /**
  * Created by buremba on 21/12/13.
  */
 
-public class HazelcastCacheAdapter extends SimpleCacheAdapter {
+public class HazelcastCacheAdapter implements SimpleCacheAdapter {
     private static HazelcastInstance hazelcast;
 
     public HazelcastCacheAdapter() {
         ClientConfig clientConfig = new ClientConfig();
         clientConfig.getGroupConfig().setName("analytics").setPassword("");
         hazelcast =  HazelcastClient.newHazelcastClient(clientConfig);
-    }
-
-    public static HazelcastInstance getAdapter() {
-        return hazelcast;
     }
 
     @Override
@@ -47,7 +42,7 @@ public class HazelcastCacheAdapter extends SimpleCacheAdapter {
 
     @Override
     public JsonObject getActorProperties(String project, String actor_id) {
-        IMap<String, JsonObject> map = hazelcast.getMap(project+":actor-prop");
+        IMap<String, JsonObject> map = hazelcast.getMap(project + ":actor-prop");
         return map.get(actor_id);
     }
 
@@ -73,41 +68,24 @@ public class HazelcastCacheAdapter extends SimpleCacheAdapter {
     }
 
     @Override
+    public void addToSet(String setName, Collection<String> items) {
+        hazelcast.getSet(setName).addAll(items);
+    }
+
+    @Override
     public void setActorProperties(String project, String actor_id, JsonObject properties) {
         hazelcast.getMap(project+":actor-prop").put(actor_id, properties);
     }
 
     @Override
-    public String get(String key) {
-        return null;
-    }
+    public void flush() {
 
+    }
 
     @Override
     public Long getCounter(String key) {
         return hazelcast.getAtomicLong(key).get();
 
-    }
-
-    @Override
-    public void set(String key, String value) {
-
-    }
-
-    @Override
-    public JsonObject getMultiSetCounts(String id, List<Long> keys) {
-        JsonObject counts = new JsonObject();
-        for(Long key : keys) {
-            ISet<String> map = hazelcast.getSet(id + ":" + key + ":keys");
-            JsonObject keyObj = new JsonObject();
-            counts.putObject(Long.toString(key), keyObj);
-
-            for (String set: map) {
-                long counter = hazelcast.getAtomicLong(id + ":" + key + ":" + set).get();
-                keyObj.putNumber(set, counter);
-            }
-        }
-        return counts;
     }
 
     @Override
@@ -121,18 +99,10 @@ public class HazelcastCacheAdapter extends SimpleCacheAdapter {
     }
 
     @Override
-    public JsonObject getMultiCounts(String id, List<Long> keys) {
-        JsonObject counts = new JsonObject();
-        for(Long key : keys) {
-            IAtomicLong s = hazelcast.getAtomicLong(id + ":" + key);
-            counts.putNumber(Long.toString(key), s == null ? 0 : s.get());
-        }
-        return counts;
-    }
-
-    @Override
     public Long incrementCounter(String key) {
         return hazelcast.getAtomicLong(key.toString()).incrementAndGet();
     }
+
+
 
 }

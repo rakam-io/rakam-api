@@ -1,6 +1,6 @@
 package org.rakam.analysis.actor;
 
-import org.rakam.analysis.model.AggregationRule;
+import org.rakam.analysis.rule.aggregation.AggregationRule;
 import org.rakam.cache.hazelcast.HazelcastCacheAdapter;
 import org.vertx.java.core.json.JsonObject;
 
