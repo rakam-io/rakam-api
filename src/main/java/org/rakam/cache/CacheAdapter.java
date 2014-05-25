@@ -8,7 +8,7 @@ import java.util.Iterator;
 /**
  * Created by buremba on 21/12/13.
  */
-public interface SimpleCacheAdapter {
+public interface CacheAdapter {
 
     public abstract Long getCounter(String key);
     public abstract int getSetCount(String key);

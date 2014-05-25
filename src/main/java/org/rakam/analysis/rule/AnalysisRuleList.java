@@ -1,6 +1,7 @@
 package org.rakam.analysis.rule;
 
 import org.rakam.analysis.rule.aggregation.AggregationRule;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
 import org.rakam.constant.AggregationType;
@@ -30,6 +31,5 @@ public class AnalysisRuleList extends HashSet<AnalysisRule> implements Serializa
         }
         return super.add(rule);
     }
-
 
 }

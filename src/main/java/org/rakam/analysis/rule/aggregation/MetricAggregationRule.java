@@ -11,12 +11,6 @@ import org.rakam.constant.Analysis;
 public class MetricAggregationRule extends AggregationRule {
     public static final Analysis TYPE = Analysis.ANALYSIS_METRIC;
 
-    public MetricAggregationRule(String projectId, AggregationType type) {
-        super(projectId, type);
-        if (type!=AggregationType.COUNT)
-            throw new UnsupportedOperationException("'select' field must be specified if the AggregationType is not COUNT.");
-    }
-
     public MetricAggregationRule(String projectId, AggregationType type, FieldScript select) {
         super(projectId, type, select);
         this.id = buildId();

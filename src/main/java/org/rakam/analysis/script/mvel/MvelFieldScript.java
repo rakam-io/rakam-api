@@ -15,6 +15,7 @@ import java.lang.reflect.Modifier;
  * Created by buremba on 04/05/14.
  */
 public class MvelFieldScript extends FieldScript {
+    final boolean userData;
     private final static ParserConfiguration parserConfiguration = new ParserConfiguration();
     static {
         parserConfiguration.addPackageImport("java.util");
@@ -30,11 +31,23 @@ public class MvelFieldScript extends FieldScript {
     public MvelFieldScript(String script) {
         super(script);
         this.script = MVEL.compileExpression(script, new ParserContext(parserConfiguration));
+        userData = script.startsWith("_user.");
     }
 
     @Override
-    public String extract(JsonObject obj) {
-        return (String) MVEL.executeExpression(script, obj);
+    public boolean requiresUser() {
+        return userData;
+    }
+
+    @Override
+    public String extract(JsonObject event, JsonObject user) {
+        if(!userData || user==null) {
+            return (String) MVEL.executeExpression(script, event);
+        }else {
+            for(String key : user.getFieldNames())
+                event.putString(key, "_user."+user.getString(key));
+            return (String) MVEL.executeExpression(script, event);
+        }
     }
 
     @Override

@@ -1,13 +1,13 @@
 package org.rakam.collection;
 
-import org.rakam.analysis.rule.AnalysisRule;
+import org.rakam.ServiceStarter;
 import org.rakam.analysis.rule.AnalysisRuleList;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
-import org.rakam.cache.SimpleCacheAdapter;
+import org.rakam.cache.CacheAdapter;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.database.DatabaseAdapter;
-import org.rakam.database.cassandra.CassandraAdapter;
 import org.rakam.util.SpanTime;
 
 import java.util.HashSet;
@@ -18,8 +18,8 @@ import java.util.Map;
  * Created by buremba on 14/05/14.
  */
 public class PeriodicCollector {
-    final static SimpleCacheAdapter cacheAdapter = CollectionRequestHandler.cacheAdapter;
-    final static DatabaseAdapter databaseAdapter = new CassandraAdapter();
+    final static CacheAdapter cacheAdapter = CollectionWorker.localCacheAdapter;
+    final static DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
 
     public static void process(Map.Entry entry) {
         AnalysisRuleList value = (AnalysisRuleList) entry.getValue();
@@ -43,20 +43,25 @@ public class PeriodicCollector {
                         databaseAdapter.incrementCounter(sum_id + ":" + mrule.interval.current(), cacheAdapter.getCounter(sum_id));
                         databaseAdapter.incrementCounter(count_id + ":" + mrule.interval.current(), cacheAdapter.getCounter(count_id));
                         break;
-                    case SELECT_UNIQUE_Xs:
+                    case SELECT_UNIQUE_X:
                     case COUNT_UNIQUE_X:
                         Iterator<String> keys = cacheAdapter.getSetIterator(key + "::keys");
-                        HashSet<String> s = new HashSet();
-                        while (keys.hasNext()) {
-                            String item = keys.next();
-                            s.add(item);
-                            Iterator<String> it = cacheAdapter.getSetIterator(key + ":" + item);
-                            HashSet<String> set = new HashSet();
-                            while (it.hasNext())
-                                set.add(it.next());
-                            databaseAdapter.addSet(key + ":" + item, set);
+                        if(keys!=null) {
+                            HashSet<String> s = new HashSet();
+                            while (keys.hasNext()) {
+                                String item = keys.next();
+                                s.add(item);
+                                Iterator<String> it = cacheAdapter.getSetIterator(key + ":" + item);
+                                if(it!=null) {
+                                    HashSet<String> set = new HashSet();
+                                    while (it.hasNext())
+                                        set.add(it.next());
+                                    databaseAdapter.addSet(key + ":" + item, set);
+                                }
+                            }
+                            databaseAdapter.addSet(key + "::keys", s);
+
                         }
-                        databaseAdapter.addSet(key + "::keys", s);
                 }
             }
             cacheAdapter.flush();

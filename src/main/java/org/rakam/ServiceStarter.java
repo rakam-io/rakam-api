@@ -1,21 +1,27 @@
 package org.rakam;
 
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import com.hazelcast.config.Config;
 import com.hazelcast.config.FileSystemXmlConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import org.rakam.analysis.AnalysisRequestHandler;
 import org.rakam.analysis.AnalysisRuleCrudHandler;
-import org.rakam.collection.CollectionRequestHandler;
+import org.rakam.cache.DistributedAnalysisRuleMap;
+import org.rakam.collection.CollectionWorker;
+import org.rakam.collection.PeriodicCollector;
 import org.rakam.server.WebServer;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Future;
-import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.core.Handler;
+import org.vertx.java.core.logging.Logger;
 import org.vertx.java.platform.Verticle;
 
 import java.io.FileNotFoundException;
 import java.nio.file.Paths;
+import java.util.Map;
 
 /**
  * Created by buremba on 21/12/13.
@@ -23,7 +29,7 @@ import java.nio.file.Paths;
 
 public class ServiceStarter extends Verticle {
     int cpuCore = Runtime.getRuntime().availableProcessors();
-    String projectRoot = System.getProperty("user.dir");
+    public static Injector injector = Guice.createInjector(new ServiceRecipe());
 
     public void start(final Future<Void> startedResult) {
         /*
@@ -53,7 +59,7 @@ public class ServiceStarter extends Verticle {
 
         startHazelcast();
 
-        //org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
+        org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
 
         container.deployVerticle(WebServer.class.getName(), cpuCore, new AsyncResultHandler<String>() {
             public void handle(AsyncResult<String> deployResult) {
@@ -66,9 +72,22 @@ public class ServiceStarter extends Verticle {
             }
         });
 
-        vertx.eventBus().registerHandler("analysisRequest", new AnalysisRequestHandler());
-        vertx.eventBus().registerHandler("analysisRuleCrud", new AnalysisRuleCrudHandler());
+        final Logger logger = container.logger();
+        long timerID = vertx.setPeriodic(1000, new Handler<Long>() {
+            public void handle(Long timerID) {
+                long first = System.currentTimeMillis();
+                for(Map.Entry item : DistributedAnalysisRuleMap.entrySet())
+                    PeriodicCollector.process(item);
+                //logger.info("periodic collector time: "+(System.currentTimeMillis() - first));
+            }
+        });
+        container.deployWorkerVerticle(CollectionWorker.class.getName(), 10);
 
+        vertx.eventBus().registerHandler("aggregationRuleReplication", new DistributedAnalysisRuleMap());
+        vertx.eventBus().registerHandler("analysisRequest", new AnalysisRequestHandler());
+        vertx.eventBus().registerHandler("analysisRuleCrud", new AnalysisRuleCrudHandler(vertx.eventBus()));
+
+        /*
         JsonObject queue_config = new JsonObject();
         queue_config.putString("address", "request.orderQueue");
         //queue_config.putNumber("process_timeout", 300000);
@@ -87,7 +106,7 @@ public class ServiceStarter extends Verticle {
                     asyncResult.cause().printStackTrace();
                 }
             }
-        });
+        }); */
     }
 
     public void startHazelcast() {

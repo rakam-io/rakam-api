@@ -12,7 +12,8 @@ public abstract class FieldScript implements Serializable {
     public FieldScript(String fieldKey) {
         this.fieldKey = fieldKey;
     }
-    public abstract String extract(JsonObject obj);
+    public abstract String extract(JsonObject event, JsonObject actor_data);
     public abstract boolean contains(JsonObject obj);
     public abstract String toString();
+    public abstract boolean requiresUser();
 }

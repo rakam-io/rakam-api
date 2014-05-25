@@ -11,7 +11,7 @@ public enum AggregationType {
     MINIMUM_X(4),
     MAXIMUM_X(5),
     AVERAGE_X(6),
-    SELECT_UNIQUE_Xs(7);
+    SELECT_UNIQUE_X(7);
 
     public final int id;
     AggregationType(int id) {

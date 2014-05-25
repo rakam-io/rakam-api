@@ -4,9 +4,10 @@ package org.rakam.constant;
  * Created by buremba on 19/05/14.
  */
 public enum AnalysisRuleStrategy {
-    ALL(0),
-    REAL_TIME(1),
-    BATCH(2);
+    REAL_TIME_BATCH_CONCURRENT(1),
+    REAL_TIME(2),
+    BATCH(3),
+    REAL_TIME_AFTER_BATCH(4);
 
     public final int id;
     AnalysisRuleStrategy(int id) {

@@ -1,7 +1,6 @@
 package org.rakam.analysis;
 
-import org.rakam.analysis.rule.AnalysisRule;
-import org.rakam.analysis.rule.GaugeRule;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
 import org.rakam.analysis.script.FieldScript;
@@ -35,9 +34,7 @@ public class AnalysisQueryParser {
         if (project == null)
             throw new IllegalArgumentException("project id is required.");
 
-        if (analysisType == Analysis.ANALYSIS_GAUGE) {
-            rule = new GaugeRule(project);
-        } else if (analysisType == Analysis.ANALYSIS_TIMESERIES || analysisType == Analysis.ANALYSIS_METRIC) {
+        if (analysisType == Analysis.ANALYSIS_TIMESERIES || analysisType == Analysis.ANALYSIS_METRIC) {
             FilterScript filter = getFilter(json, "filter");
             FieldScript groupBy = getField(json, "group_by");
             FieldScript select = getField(json, "select");

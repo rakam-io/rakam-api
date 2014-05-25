@@ -1,17 +1,19 @@
 package org.rakam.cache.local;
 
-import org.rakam.cache.SimpleCacheAdapter;
+import org.rakam.cache.CacheAdapter;
 import org.vertx.java.core.json.JsonObject;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by buremba on 21/05/14.
  */
-public class LocalCacheAdapter implements SimpleCacheAdapter {
-    static HashMap<String, AtomicLong> counters = new HashMap();
-    static HashMap<String, Set<String>> sets = new HashMap();
+public class LocalCacheAdapter implements CacheAdapter {
+    static Map<String, AtomicLong> counters = new ConcurrentHashMap();
+    static Map<String, Set<String>> sets = new ConcurrentHashMap();
 
     @Override
     public Long getCounter(String key) {
@@ -28,7 +30,8 @@ public class LocalCacheAdapter implements SimpleCacheAdapter {
 
     @Override
     public Iterator<String> getSetIterator(String key) {
-        return sets.get(key).iterator();
+        Set<String> s = sets.get(key);
+        return (s==null) ? null : s.iterator();
     }
 
     @Override
@@ -79,12 +82,24 @@ public class LocalCacheAdapter implements SimpleCacheAdapter {
 
     @Override
     public void addToSet(String setName, String item) {
-        sets.get(setName).add(item);
+        Set<String> s = sets.get(setName);
+        if(s==null) {
+            s = new ConcurrentSkipListSet();
+            s.add(item);
+            sets.put(setName, s);
+        }else
+            s.add(item);
     }
 
     @Override
     public void addToSet(String setName, Collection<String> items) {
-        sets.get(setName).addAll(items);
+        Set<String> s = sets.get(setName);
+        if(s==null) {
+            s = new ConcurrentSkipListSet();
+            s.addAll(items);
+            sets.put(setName, s);
+        }else
+            s.addAll(items);
     }
 
     @Override

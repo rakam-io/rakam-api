@@ -1,4 +1,4 @@
-package org.rakam.analysis.rule;
+package org.rakam.analysis.rule.aggregation;
 
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
@@ -15,7 +15,7 @@ import java.io.IOException;
 public abstract class AnalysisRule implements DataSerializable {
     public String project;
     public String id;
-    public AnalysisRuleStrategy strategy = AnalysisRuleStrategy.ALL;
+    public AnalysisRuleStrategy strategy = AnalysisRuleStrategy.REAL_TIME_AFTER_BATCH;
     public boolean batch_status = false;
 
     public abstract Analysis analysisType();

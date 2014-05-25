@@ -3,9 +3,15 @@ package org.rakam.database.cassandra;
 import com.datastax.driver.core.*;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.inject.Inject;
+import org.apache.log4j.Logger;
+import org.rakam.analysis.AnalysisQueryParser;
+import org.rakam.analysis.rule.AnalysisRuleList;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
+import org.vertx.java.core.json.JsonObject;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -19,7 +25,7 @@ import java.util.concurrent.TimeoutException;
 
 public class CassandraAdapter implements DatabaseAdapter {
 
-    private Session session = Cluster.builder().addContactPoint("127.0.0.1").build().connect();
+    private Session session = Cluster.builder().addContactPoint("127.0.0.1").build().connect("analytics");
 
     private final PreparedStatement get_actor_property;
     private final PreparedStatement add_event;
@@ -31,10 +37,14 @@ public class CassandraAdapter implements DatabaseAdapter {
     private final PreparedStatement get_set_sql;
     private final PreparedStatement get_multi_set_sql;
     private final PreparedStatement get_multi_count_sql;
+    private final PreparedStatement set_aggregation_rules;
+    private final PreparedStatement add_aggregation_rule;
+    private final PreparedStatement delete_aggregation_rule;
 
+    final static Logger logger = Logger.getLogger("Cassandra");
 
+    @Inject
     public CassandraAdapter() {
-        session.execute("use analytics");
         get_actor_property = session.prepare("select properties from actor where project = ? and id = ? limit 1");
         add_event = session.prepare("insert into event (project, time_cabin, actor_id, time, data) values (?, ?, ?, now(), ?);");
         create_actor = session.prepare("insert into actor (project, id, properties) values (?, ?, ?);");
@@ -45,6 +55,9 @@ public class CassandraAdapter implements DatabaseAdapter {
         get_multi_set_sql = session.prepare("select id, value from aggregated_set where id in ?");
         get_multi_count_sql = session.prepare("select id, value from aggregated_counter where id in ?");
         set_set_sql = session.prepare("update aggregated_set set value = value + ? where id = ?");
+        set_aggregation_rules = session.prepare("select * from agg_rules");
+        add_aggregation_rule = session.prepare("update agg_rules set rules = rules + ? where project = ?");
+        delete_aggregation_rule = session.prepare("update agg_rules set rules = rules - ? where project = ?");
     }
 
     @Override
@@ -57,7 +70,8 @@ public class CassandraAdapter implements DatabaseAdapter {
 
     }
 
-    public void destroy() {
+    @Override
+    public void flushDatabase() {
         session.execute("drop keyspace analytics");
     }
 
@@ -94,19 +108,6 @@ public class CassandraAdapter implements DatabaseAdapter {
     @Override
     public UUID addEvent(String project, int time_cabin, String actor_id, byte[] data) {
         ResultSetFuture future = session.executeAsync(add_event.bind(project, time_cabin, actor_id, ByteBuffer.wrap(data)));
-
-        /*Futures.addCallback(future, new FutureCallback<ResultSet>() {
-            @Override
-            public void onSuccess(@Nullable com.datastax.driver.core.ResultSet resultSet) {
-                // do nothing
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                System.out.printf("Failed with: %s\n", throwable);
-            }
-        });*/
-
         try {
             future.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
@@ -133,12 +134,6 @@ public class CassandraAdapter implements DatabaseAdapter {
         });
     }
 
-    public void addRule(String project, String rule) {
-        HashSet<String> a = new HashSet();
-        a.add(rule);
-        session.execute("update agg_rules set rules = rules + ? where project = ?", a, project);
-    }
-
     @Override
     public Actor getActor(String project, String actorId) {
         ResultSetFuture future = session.executeAsync(get_actor_property.bind(project, actorId));
@@ -146,9 +141,9 @@ public class CassandraAdapter implements DatabaseAdapter {
             Row actor = future.get(3, TimeUnit.SECONDS).one();
             if(actor==null)
                 return null;
-            Map<String, String> props = actor.getMap("properties", String.class, String.class);
+            Map<String, Object> props = actor.getMap("properties", String.class, Object.class);
             if (props!=null) {
-                return new Actor(project, actorId, props);
+                return new Actor(project, actorId, new JsonObject(props));
             } else
                 return new Actor(project, actorId);
         } catch (TimeoutException e) {
@@ -168,11 +163,6 @@ public class CassandraAdapter implements DatabaseAdapter {
 
     @Override
     public void combineActors(String actor1, String actor2) {
-
-    }
-
-    @Override
-    public void flushDatabase() {
 
     }
 
@@ -212,16 +202,33 @@ public class CassandraAdapter implements DatabaseAdapter {
 
     @Override
     public int getSetCount(String key) {
-        return session.execute(get_set_sql.bind(key)).one().getSet("value", String.class).size();
+        Row a = session.execute(get_set_sql.bind(key)).one();
+        return (a==null) ? 0 : a.getSet("value", String.class).size();
     }
 
     @Override
     public Iterator<String> getSetIterator(String key) {
-        return session.execute(get_set_sql.bind(key)).one().getSet("value", String.class).iterator();
+        Row a = session.execute(get_set_sql.bind(key)).one();
+        return (a!=null) ? a.getSet("value", String.class).iterator() : new Iterator<String>() {
+            @Override
+            public boolean hasNext() {
+                return false;
+            }
+
+            @Override
+            public String next() {
+                return null;
+            }
+
+            @Override
+            public void remove() {
+
+            }
+        };
     }
 
     @Override
-    public Map<String, Long> getMultiCounts(Collection<String> keys) {
+    public Map<String, Long> getCounters(Collection<String> keys) {
         Iterator<Row> it = session.execute(get_multi_count_sql.bind(keys)).iterator();
         Map<String, Long> l = new HashMap();
         while(it.hasNext()) {
@@ -229,5 +236,62 @@ public class CassandraAdapter implements DatabaseAdapter {
             l.put(item.getString("id"), item.getLong("value"));
         }
         return l;
+    }
+
+    @Override
+    public void addRule(AnalysisRule rule) {
+        HashSet<String> a = new HashSet();
+        a.add(rule.toJson().encode());
+        session.execute(add_aggregation_rule.bind(a, rule.project));
+    }
+
+    @Override
+    public void deleteRule(AnalysisRule rule) {
+        HashSet<String> a = new HashSet();
+        a.add(rule.toJson().encode());
+        session.execute(add_aggregation_rule.bind(a, rule.project));
+
+        Iterator<Row> rows;
+        LinkedList<String> list;
+
+        rows = session.execute("select id from aggregated_set").iterator();
+        list = new LinkedList();
+        while(rows.hasNext()) {
+            Row row = rows.next();
+            String key = row.getString("id");
+            if(key.startsWith(rule.project))
+                list.add(key);
+        }
+        session.execute("delete from aggregated_set where key in ?", list);
+
+        rows = session.execute("select id from aggregated_counter").iterator();
+        list = new LinkedList();
+        while(rows.hasNext()) {
+            Row row = rows.next();
+            String key = row.getString("id");
+            if(key.startsWith(rule.project))
+                list.add(key);
+        }
+        session.execute("delete from aggregated_counter where key in ?", list);
+    }
+
+    @Override
+    public Map<String, AnalysisRuleList> getAllRules() {
+        List<Row> rows = session.execute(set_aggregation_rules.bind()).all();
+        HashMap<String, AnalysisRuleList> map = new HashMap();
+        for(Row row : rows) {
+            AnalysisRuleList rules = new AnalysisRuleList();
+            for(String json_rule : row.getSet("rules", String.class)) {
+                try {
+                    AnalysisRule rule = AnalysisQueryParser.parse(new JsonObject(json_rule));
+                    rules.add(rule);
+                } catch (IllegalArgumentException e) {
+                    logger.error("analysis rule couldn't parsed: "+json_rule, e);
+                }
+            }
+
+            map.put(row.getString("project"), rules);
+        }
+        return map;
     }
 }

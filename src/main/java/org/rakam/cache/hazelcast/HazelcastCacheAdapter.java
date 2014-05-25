@@ -2,10 +2,10 @@ package org.rakam.cache.hazelcast;
 
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IAtomicLong;
-import com.hazelcast.core.IMap;
-import org.rakam.cache.SimpleCacheAdapter;
+import com.hazelcast.core.*;
+import org.rakam.cache.MessageListener;
+import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.PubSubAdapter;
 import org.vertx.java.core.json.JsonObject;
 
 import java.util.Collection;
@@ -15,8 +15,9 @@ import java.util.Iterator;
  * Created by buremba on 21/12/13.
  */
 
-public class HazelcastCacheAdapter implements SimpleCacheAdapter {
+public class HazelcastCacheAdapter implements CacheAdapter, PubSubAdapter {
     private static HazelcastInstance hazelcast;
+
 
     public HazelcastCacheAdapter() {
         ClientConfig clientConfig = new ClientConfig();
@@ -104,5 +105,24 @@ public class HazelcastCacheAdapter implements SimpleCacheAdapter {
     }
 
 
+    @Override
+    public String subscribe(String id, final MessageListener run) {
+        ITopic topic = hazelcast.getTopic(id);
+        return topic.addMessageListener(new com.hazelcast.core.MessageListener() {
+            @Override
+            public void onMessage(Message message) {
+                run.onMessage(message);
+            }
+        });
+    }
 
+    @Override
+    public void publish(String id, String message) {
+        hazelcast.getTopic(id).publish(message);
+    }
+
+    @Override
+    public void desubscribe(String id, String subscription_id) {
+        hazelcast.getTopic(id).removeMessageListener(subscription_id);
+    }
 }

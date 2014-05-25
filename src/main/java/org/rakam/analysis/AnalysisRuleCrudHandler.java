@@ -1,14 +1,14 @@
 package org.rakam.analysis;
 
-import com.hazelcast.core.IMap;
 import database.cassandra.CassandraBatchProcessor;
-import org.rakam.analysis.rule.AnalysisRule;
+import org.rakam.ServiceStarter;
 import org.rakam.analysis.rule.AnalysisRuleList;
-import org.rakam.cache.CacheAdapterFactory;
-import org.rakam.cache.SimpleCacheAdapter;
-import org.rakam.cache.hazelcast.HazelcastCacheAdapter;
-import org.rakam.database.cassandra.CassandraAdapter;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.cache.DistributedAnalysisRuleMap;
+import org.rakam.constant.AnalysisRuleStrategy;
+import org.rakam.database.DatabaseAdapter;
 import org.vertx.java.core.Handler;
+import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
@@ -22,11 +22,14 @@ import java.util.logging.Logger;
  */
 public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
     private static Logger LOGGER = Logger.getLogger("AnalysisRuleCrudHandler");
+    private final EventBus eventBus;
 
-    CassandraAdapter databaseAdapter = new CassandraAdapter();
-    SimpleCacheAdapter cacheAdapter = new HazelcastCacheAdapter();
-    IMap<String, AnalysisRuleList> cacheAggs = CacheAdapterFactory.getAggregationMap();
+    DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
     ExecutorService pool = Executors.newCachedThreadPool();
+
+    public AnalysisRuleCrudHandler(EventBus eventBus) {
+        this.eventBus = eventBus;
+    }
 
 
     @Override
@@ -37,11 +40,30 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             event.reply(add(obj.getObject("rule")));
         else if(action.equals("list"))
             event.reply(list(obj.getString("project")));
+        else if(action.equals("delete"))
+            event.reply(delete(obj.getObject("rule")));
+    }
+
+    private JsonObject delete(final JsonObject rule_obj) {
+        AnalysisRule rule;
+        JsonObject ret = new JsonObject();
+        try {
+            rule = AnalysisQueryParser.parse(rule_obj);
+        } catch(IllegalArgumentException e) {
+            ret.putString("error", e.getMessage());
+            ret.putNumber("error_code", 400);
+            return ret;
+        }
+
+        databaseAdapter.deleteRule(rule);
+
+        ret.putBoolean("success", true);
+        return ret;
     }
 
     private JsonObject list(String project) {
         JsonObject ret = new JsonObject();
-        AnalysisRuleList rules = cacheAggs.get(project);
+        AnalysisRuleList rules = DistributedAnalysisRuleMap.get(project);
         JsonArray json = new JsonArray();
         if(rules!=null)
             for(AnalysisRule rule : rules) {
@@ -61,8 +83,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             ret.putNumber("error_code", 400);
             return ret;
         }
-        obj.removeField("project");
-        AnalysisRuleList list = cacheAggs.get(rule.project);
+        AnalysisRuleList list = DistributedAnalysisRuleMap.get(rule.project);
         if(list==null)
             list = new AnalysisRuleList();
         if(!list.add(rule)) {
@@ -71,30 +92,33 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             return ret;
         }
 
-        cacheAggs.put(rule.project, list);
-
-
-        final AnalysisRuleList finalList = list;
         pool.submit(new Runnable() {
             @Override
             public void run() {
-                databaseAdapter.addRule(rule.project, obj.encode());
-                LOGGER.info("Running Hadoop Job on Spark..");
-                CassandraBatchProcessor.processRule(rule);
-                LOGGER.info("Hadoop Job executed on Spark.");
+                LOGGER.info("Processing the rule.");
+                JsonObject request = new JsonObject().putNumber("operation", DistributedAnalysisRuleMap.ADD).putString("project", rule.project).putObject("rule", obj);
+                databaseAdapter.addRule(rule);
+                if(rule.strategy == AnalysisRuleStrategy.REAL_TIME_BATCH_CONCURRENT) {
+                    eventBus.publish("aggregationRuleReplication", request);
+                    CassandraBatchProcessor.processRule(rule);
+                    rule.batch_status = true;
+                }else
+                if(rule.strategy == AnalysisRuleStrategy.REAL_TIME_AFTER_BATCH) {
+                    CassandraBatchProcessor.processRule(rule);
+                    eventBus.publish("aggregationRuleReplication", request);
+                    rule.batch_status = true;
+                }else
+                if(rule.strategy == AnalysisRuleStrategy.BATCH) {
+                    CassandraBatchProcessor.processRule(rule);
+                    rule.batch_status = true;
+                } else
+                if(rule.strategy == AnalysisRuleStrategy.REAL_TIME)
+                    eventBus.publish("aggregationRuleReplication", request);
 
-                LOGGER.info("Exporting data from database to cache.");
-                try {
-                    CassandraBatchProcessor.exportCurrentToCache(cacheAdapter, rule);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                rule.batch_status = true;
-                cacheAggs.put(rule.project, finalList);
                 LOGGER.info("Rule is processed.");
             }
         });
-        ret.putString("status", "analysis rule successfully saved.");
+        ret.putString("status", "analysis rule successfully queued.");
         return ret;
     }
 }

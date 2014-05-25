@@ -7,8 +7,7 @@ package org.rakam.constant;
 
 public enum Analysis {
     ANALYSIS_METRIC(0),
-    ANALYSIS_TIMESERIES(1),
-    ANALYSIS_GAUGE(2);
+    ANALYSIS_TIMESERIES(1);
 
     public final int id;
     Analysis(int id) {

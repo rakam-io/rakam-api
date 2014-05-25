@@ -12,7 +12,9 @@ import org.apache.spark.SparkContext
 import org.vertx.java.core.json.JsonObject
 import org.vertx.java.core.json.JsonArray
 import java.util.{TimeZone, Calendar, UUID}
-import java.lang.Long
+import java.{util, lang}
+import java.lang.Integer
+import java.lang.String
 import scala.collection.JavaConversions._
 import org.rakam.constant.AggregationType._
 import scala.collection.mutable.ArrayBuffer
@@ -22,16 +24,13 @@ import org.apache.cassandra.utils.ByteBufferUtil
 import com.datastax.driver.core.Cluster
 import org.rakam.constant.{Analysis, AggregationType}
 import java.io.{ObjectOutputStream, ByteArrayOutputStream}
-import java.util
 import org.rakam.model.Event
 import org.rakam.model.Actor
 import org.rakam.analysis.script.FieldScript
-import org.rakam.analysis.rule.AnalysisRule
-import org.rakam.analysis.rule.aggregation.AggregationRule
-import org.rakam.analysis.rule.aggregation.MetricAggregationRule
-import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule
-import org.rakam.cache.SimpleCacheAdapter
+import org.rakam.analysis.rule.aggregation.{AnalysisRule, AggregationRule, MetricAggregationRule, TimeSeriesAggregationRule}
+import org.rakam.cache.CacheAdapter
 import org.rakam.database.BatchProcessor
+import org.rakam.util.Serializer
 
 object CassandraBatchProcessor extends BatchProcessor {
   val sc = new SparkContext("local[2]", "CQLTestApp", System.getenv("SPARK_HOME"), SparkContext.jarOfClass(this.getClass))
@@ -108,8 +107,8 @@ object CassandraBatchProcessor extends BatchProcessor {
           actor_props.toMap.foreach(item => {
             val key = item._1
             item._2 match {
-              case value if value.isInstanceOf[java.lang.String] => event.data.putString("_user." + key, value.asInstanceOf[java.lang.String])
-              case value if value.isInstanceOf[java.lang.Number] => event.data.putNumber("_user." + key, value.asInstanceOf[java.lang.Number])
+              case value if value.isInstanceOf[lang.String] => event.data.putString("_user." + key, value.asInstanceOf[lang.String])
+              case value if value.isInstanceOf[lang.Number] => event.data.putNumber("_user." + key, value.asInstanceOf[lang.Number])
               case _ => throw new IllegalStateException("couldn't find the type of actor property.")
             }
 
@@ -122,7 +121,7 @@ object CassandraBatchProcessor extends BatchProcessor {
   private def getLongFromEvent = (select: FieldScript) => {
     (event: Event) => {
       try {
-        Long.parseLong(select.extract(event.data))
+        lang.Long.parseLong(select.extract(event.data, null))
       } catch {
         case e: NumberFormatException => 0
       }
@@ -134,11 +133,8 @@ object CassandraBatchProcessor extends BatchProcessor {
   }
 
   private def getStringFromEvent(select: FieldScript) = {
-    (event: Event) => select.extract(event.data)
+    (event: Event) => select.extract(event.data, null)
   }
-
-  private def getStringFromEvent(event: Event, select: FieldScript): String = select.extract(event.data)
-
 
   override def processRule(rule: AnalysisRule) {
     if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
@@ -149,14 +145,14 @@ object CassandraBatchProcessor extends BatchProcessor {
 
       var eventRdd = createEventRDD()
 
-      if ((ruleFilter != null && ruleFilter.hasUser()) ||
+      if ((ruleFilter != null && ruleFilter.requiresUser()) ||
         ruleSelect != null && ruleSelect.fieldKey.startsWith("_user.") ||
         (ruleGroupBy != null && ruleGroupBy.fieldKey.startsWith("_user.")))
         eventRdd = this.joinActorProperties(createEventRDD())
 
 
       if (aggRule.filters != null)
-        eventRdd = eventRdd.filter(e => ruleFilter.test(e.data))
+        eventRdd = eventRdd.filter(e => ruleFilter.test(e.data, null))
 
       if (aggRule.isInstanceOf[MetricAggregationRule] && aggRule.groupBy == null) {
         val result: Any = aggRule.`type` match {
@@ -167,7 +163,7 @@ object CassandraBatchProcessor extends BatchProcessor {
           case MAXIMUM_X => eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.max(_, _))
           case COUNT_UNIQUE_X => eventRdd.map(getStringFromEvent(ruleSelect)).distinct().count()
           case AVERAGE_X => eventRdd.map(getLongFromEvent(ruleSelect)).mean()
-          case SELECT_UNIQUE_Xs => eventRdd.groupBy(getStringFromEvent(ruleGroupBy)).map(e => (e._1, e._2.map(getStringFromEvent(ruleSelect)).distinct)).collect()
+          case SELECT_UNIQUE_X => eventRdd.groupBy(getStringFromEvent(ruleGroupBy)).map(e => (e._1, e._2.map(getStringFromEvent(ruleSelect)).distinct)).collect()
           case _ => throw new IllegalStateException("unknown aggregation pre-aggregation aggRule type")
         }
         println(result)
@@ -198,12 +194,12 @@ object CassandraBatchProcessor extends BatchProcessor {
             // and the output format can be used as an Int
             if (rule.groupBy == null)
               (event: Event) => {
-                val a = ((((event.id.timestamp()/10000000)+epochMillis).toInt / interval) * interval)
+                val a = ((((event.id.timestamp() / 10000000) + epochMillis).toInt / interval) * interval)
                 a
               }
             else {
               val ruleGroupByFunc = getStringFromEvent(rule.groupBy)
-              (event: Event) => ((((event.id.timestamp() / interval) * interval) / 1000).toInt, ruleGroupByFunc(event))
+              (event: Event) => (((((event.id.timestamp() / 10000000) + epochMillis).toInt / interval) * interval), ruleGroupByFunc(event))
             }
           }
           case _ => throw new IllegalStateException("couldn't recognize pre-aggregation aggRule")
@@ -227,7 +223,7 @@ object CassandraBatchProcessor extends BatchProcessor {
           case AVERAGE_X => {
             eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.map(getLongFromEvent(ruleSelect)).sum / x._2.length))
           }
-          case SELECT_UNIQUE_Xs => {
+          case SELECT_UNIQUE_X => {
             eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.map(getStringFromEvent(ruleSelect)).distinct))
           }
           case _ => {
@@ -239,22 +235,22 @@ object CassandraBatchProcessor extends BatchProcessor {
 
         val ruleId = aggRule.id
         val output = result.map {
-          case (timestamp: Int, count: Integer) => {
+          case (timestamp: Integer, count: Number) => {
             val outKey: java.util.Map[String, ByteBuffer] = new java.util.HashMap()
-            outKey.put("id", ByteBufferUtil.bytes(ruleId+":"+timestamp))
+            outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestamp))
 
             val outVal = new java.util.LinkedList[ByteBuffer]
             outVal.add(ByteBufferUtil.bytes(count.longValue()))
 
             (outKey, outVal)
           }
-          case (timestampGroupBy: (Int, String), items: ArrayBuffer[String]) => {
-            val outKey: java.util.Map[String, ByteBuffer] = new java.util.HashMap()
-            outKey.put("id", ByteBufferUtil.bytes(ruleId+":"+timestampGroupBy._1+":"+timestampGroupBy._2))
+          case (timestampGroupBy: (Integer, String), items: ArrayBuffer[String]) => {
+            val outKey: java.util.Map[lang.String, ByteBuffer] = new java.util.HashMap()
+            outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestampGroupBy._1 + ":" + timestampGroupBy._2))
 
             val outVal = new java.util.LinkedList[ByteBuffer]
 
-            val data: java.util.Set[java.lang.String] = items.toSet[String]
+            val data: java.util.Set[String] = items.toSet[String]
             val byteOut = new ByteArrayOutputStream()
             val out = new ObjectOutputStream(byteOut)
             out.writeObject(data)
@@ -262,19 +258,45 @@ object CassandraBatchProcessor extends BatchProcessor {
             outVal.add(ByteBuffer.wrap(byteOut.toByteArray))
             (outKey, outVal)
           }
+          case (timestamp: Integer, items: ArrayBuffer[String]) => {
+            val outKey: java.util.Map[lang.String, ByteBuffer] = new java.util.HashMap()
+            outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestamp))
+
+            val outVal = new java.util.LinkedList[ByteBuffer]
+            outVal.add(Serializer.serialize(items.toList))
+            (outKey, outVal)
+          }
+          case (timestampGroupBy: (Integer, String), items: ArrayBuffer[String]) => {
+            val outKey: java.util.Map[lang.String, ByteBuffer] = new java.util.HashMap()
+            outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestampGroupBy._1 + ":" + timestampGroupBy._2))
+
+            Serializer.serialize(items)
+
+            val outVal = new java.util.LinkedList[ByteBuffer]
+            outVal.add(Serializer.serialize(items.toList))
+            (outKey, outVal)
+          }
+          case (timestampGroupBy: (Integer, String), items: Number) => {
+            val outKey: java.util.Map[String, ByteBuffer] = new java.util.HashMap()
+            outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestampGroupBy._1 + ":" + timestampGroupBy._2))
+
+            val outVal = new java.util.LinkedList[ByteBuffer]
+            outVal.add(ByteBufferUtil.bytes(items.longValue()))
+            (outKey, outVal)
+          }
           case _ => throw new IllegalStateException("rdd type couldn't identified")
         }
 
-        var outputQuery : String = null
-        var outputTable : String = null
-        if(rule.analysisType()==Analysis.ANALYSIS_METRIC || rule.analysisType()==Analysis.ANALYSIS_TIMESERIES) {
+        var outputQuery: String = null
+        var outputTable: String = null
+        if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
           val mrule = rule.asInstanceOf[AggregationRule]
-          if(mrule.`type`!=SELECT_UNIQUE_Xs && mrule.`type`!=COUNT_UNIQUE_X ) {
+          if (mrule.`type` != SELECT_UNIQUE_X && mrule.`type` != COUNT_UNIQUE_X) {
             outputQuery = "UPDATE " + KeySpace + ".aggregated_counter SET value = value + ?"
             outputTable = "aggregated_counter"
           }
         }
-        if(outputTable==null) {
+        if (outputTable == null) {
           outputQuery = "UPDATE " + KeySpace + ".aggregated_set SET value = ?"
           outputTable = "aggregated_set"
         }
@@ -302,21 +324,20 @@ object CassandraBatchProcessor extends BatchProcessor {
   val counter_sql = db_session.prepare("select value from aggregated_counter where id = ?")
   val set_sql = db_session.prepare("select value from aggregated_set where id = ?")
 
-  private def getCounter(id : String) : Long = {
+  private def getCounter(id: String): Long = {
     val row = db_session.execute(counter_sql.bind(id)).one()
-    return if(row==null) 0 else row.getLong("value")
+    return if (row == null) 0 else row.getLong("value")
   }
 
-  private def getSet(id : String) : util.Set[java.lang.String] = {
+  private def getSet(id: String): util.Set[lang.String] = {
     val row = db_session.execute(counter_sql.bind(id)).one()
-    return if(row==null) null else row.getSet("value", classOf[java.lang.String])
-
+    return if (row == null) null else row.getSet("value", classOf[lang.String])
 
 
   }
 
   @throws(classOf[Exception])
-  override def exportCurrentToCache(cacheAdapter: SimpleCacheAdapter, rule: AnalysisRule) = {
+  override def exportCurrentToCache(cacheAdapter: CacheAdapter, rule: AnalysisRule) = {
     if (rule.analysisType == Analysis.ANALYSIS_METRIC || rule.analysisType == Analysis.ANALYSIS_TIMESERIES) {
       val mrule = rule.asInstanceOf[AggregationRule]
       mrule.`type` match {
@@ -339,8 +360,8 @@ object CassandraBatchProcessor extends BatchProcessor {
           }
           cacheAdapter.incrementCounter(count_id, getCounter(count_id))
           cacheAdapter.incrementCounter(count_id, getCounter(sum_id))
-        case SELECT_UNIQUE_Xs | COUNT_UNIQUE_X =>
-          getSet(rule.id+"::keys").foreach(item => {
+        case SELECT_UNIQUE_X | COUNT_UNIQUE_X =>
+          getSet(rule.id + "::keys").foreach(item => {
             val key = rule.id + ":" + item
             cacheAdapter.addToSet(key, getSet(key))
           })

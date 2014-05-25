@@ -2,7 +2,6 @@ package org.rakam.analysis.rule.aggregation;
 
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import org.rakam.analysis.rule.AnalysisRule;
 import org.rakam.analysis.script.FieldScript;
 import org.rakam.analysis.script.FilterScript;
 import org.rakam.constant.AggregationType;

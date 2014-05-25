@@ -7,9 +7,9 @@ import org.rakam.database.DatabaseAdapter;
 import org.rakam.database.cassandra.CassandraAdapter;
 
 /**
- * Created by buremba on 12/05/14.
+ * Created by buremba on 25/05/14.
  */
-public class test extends AbstractModule {
+public class ServiceRecipe extends AbstractModule {
     @Override
     protected void configure() {
         bind(DatabaseAdapter.class).to(CassandraAdapter.class);

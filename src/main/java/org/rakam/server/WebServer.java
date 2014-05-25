@@ -1,6 +1,7 @@
 package org.rakam.server;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import org.rakam.util.JsonHelper;
 import org.vertx.java.core.Handler;
@@ -11,6 +12,7 @@ import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -42,7 +44,12 @@ public class WebServer extends Verticle {
                         return;
                     }
 
-                    vertx.eventBus().send("request.orderQueue", json, new Handler<Message<JsonObject>>() {
+                    ByteArrayOutputStream by = new ByteArrayOutputStream();
+                    Output out = new Output(by);
+                    kryo.writeObject(out, json);
+
+
+                    vertx.eventBus().send("collectionRequest", out.getBuffer(), new Handler<Message<JsonObject>>() {
                         public void handle(Message<JsonObject> message) {
                             httpServerRequest.response().end("1");
                         }

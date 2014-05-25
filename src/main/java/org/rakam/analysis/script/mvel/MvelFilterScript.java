@@ -26,22 +26,25 @@ public class MvelFilterScript extends FilterScript {
         }
     }
     private final Serializable script;
-    private final boolean hasUser;
+    private final boolean requiresUser;
 
     public MvelFilterScript(String script) {
         this.script = MVEL.compileExpression(script, new ParserContext(parserConfiguration));
-        hasUser = script.contains("_user.");
+        requiresUser = script.contains("_user.");
     }
 
     @Override
-    public boolean test(JsonObject obj) {
+    public boolean test(JsonObject obj, JsonObject user) {
+        if(requiresUser && user!=null)
+            for(String key : user.getFieldNames())
+                obj.putString("_user."+key, user.getString(key));
         Object ret = MVEL.executeExpression(script, obj);
         return ret!=null && !ret.equals(false);
     }
 
     @Override
-    public boolean hasUser() {
-        return hasUser;
+    public boolean requiresUser() {
+        return requiresUser;
     }
 
     @Override
