@@ -2,12 +2,10 @@ package org.rakam;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.hazelcast.config.Config;
-import com.hazelcast.config.FileSystemXmlConfig;
-import com.hazelcast.core.Hazelcast;
-import com.hazelcast.core.HazelcastInstance;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.rakam.analysis.AnalysisRequestHandler;
 import org.rakam.analysis.AnalysisRuleCrudHandler;
+import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.DistributedAnalysisRuleMap;
 import org.rakam.collection.CollectionWorker;
 import org.rakam.collection.PeriodicCollector;
@@ -16,12 +14,15 @@ import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
-import org.vertx.java.core.logging.Logger;
+import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.json.JsonObject;
+import org.vertx.java.core.spi.cluster.ClusterManager;
+import org.vertx.java.core.spi.cluster.NodeListener;
 import org.vertx.java.platform.Verticle;
+import org.vertx.java.platform.impl.DefaultPlatformManager;
 
-import java.io.FileNotFoundException;
-import java.nio.file.Paths;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * Created by buremba on 21/12/13.
@@ -29,9 +30,18 @@ import java.util.Map;
 
 public class ServiceStarter extends Verticle {
     int cpuCore = Runtime.getRuntime().availableProcessors();
-    public static Injector injector = Guice.createInjector(new ServiceRecipe());
+    public static Injector injector;
+    public static JsonObject conf;
+    public static String server_id;
+    public long collectionCollectorTimer;
+    public static Logger logging = Logger.getLogger(ServiceStarter.class.getName());
+    CacheAdapter cacheAdapter;
 
     public void start(final Future<Void> startedResult) {
+        conf = container.config();
+        JsonArray plugins = conf.getArray("plugins");
+        injector = Guice.createInjector(new ServiceRecipe(plugins));
+        cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
         /*
         try {
             Class.forName("org.apache.hive.jdbc.HiveDriver");
@@ -57,8 +67,6 @@ public class ServiceStarter extends Verticle {
         */
         //Logger.getGlobal().setLevel(Level.WARNING);
 
-        startHazelcast();
-
         org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
 
         container.deployVerticle(WebServer.class.getName(), cpuCore, new AsyncResultHandler<String>() {
@@ -72,62 +80,55 @@ public class ServiceStarter extends Verticle {
             }
         });
 
-        final Logger logger = container.logger();
-        long timerID = vertx.setPeriodic(1000, new Handler<Long>() {
+        collectionCollectorTimer = vertx.setPeriodic(1000, new Handler<Long>() {
             public void handle(Long timerID) {
-                long first = System.currentTimeMillis();
+                //long first = System.currentTimeMillis();
                 for(Map.Entry item : DistributedAnalysisRuleMap.entrySet())
                     PeriodicCollector.process(item);
-                //logger.info("periodic collector time: "+(System.currentTimeMillis() - first));
+                //System.out.print(" "+(System.currentTimeMillis() - first)+" ");
             }
         });
-        container.deployWorkerVerticle(CollectionWorker.class.getName(), 10);
-
+        container.deployWorkerVerticle(CollectionWorker.class.getName());
         vertx.eventBus().registerHandler("aggregationRuleReplication", new DistributedAnalysisRuleMap());
         vertx.eventBus().registerHandler("analysisRequest", new AnalysisRequestHandler());
         vertx.eventBus().registerHandler("analysisRuleCrud", new AnalysisRuleCrudHandler(vertx.eventBus()));
 
-        /*
-        JsonObject queue_config = new JsonObject();
-        queue_config.putString("address", "request.orderQueue");
-        //queue_config.putNumber("process_timeout", 300000);
-        container.deployModule("io.vertx~mod-work-queue~2.1.0-SNAPSHOT", queue_config, 1, new AsyncResultHandler<String>() {
-            public void handle(AsyncResult<String> asyncResult) {
-                if (asyncResult.succeeded()) {
-                    container.deployWorkerVerticle(CollectionRequestHandler.class.getName(), new JsonObject(), cpuCore, false, new AsyncResultHandler<String>() {
-                        @Override
-                        public void handle(AsyncResult<String> asyncResult1) {
-                            if (asyncResult1.failed())
-                                asyncResult1.cause().printStackTrace();
-
-                        }
-                    });
-                } else {
-                    asyncResult.cause().printStackTrace();
-                }
-            }
-        }); */
-    }
-
-    public void startHazelcast() {
-        Config cfg = null;
         try {
-            cfg = new FileSystemXmlConfig(String.valueOf(Paths.get(System.getProperty("user.dir"), "config", "hazelcast.xml")));
-            //cfg.getSerializationConfig().addDataSerializableFactory(AggregationRuleListFactory.ID, new AggregationRuleListFactory());
-        } catch (FileNotFoundException e) {
+            final DefaultPlatformManager mgr = (DefaultPlatformManager) FieldUtils.readField(container, "mgr", true);
+            final ClusterManager cluster = (ClusterManager) FieldUtils.readField(mgr, "clusterManager", true);
+            server_id = cluster.getNodeID();
+            cluster.nodeListener(new NodeListener() {
+                @Override
+                public void nodeAdded(String nodeID) {
+                    logging.finest("say welcome to +"+nodeID+"!");
+                }
+                @Override
+                public void nodeLeft(String nodeID) {
+
+                    logging.fine("it seems "+nodeID+" is down. checking last check-in timestamp.");
+                    long downTimestamp = cacheAdapter.getCounter(nodeID);
+                    logging.fine("node "+nodeID+" is down until "+downTimestamp);
+                    return;
+                    /*
+                    for(Map.Entry<String, AnalysisRuleList> pair : DistributedAnalysisRuleMap.entrySet()) {
+                        String project = pair.getKey();
+                        for(AnalysisRule rule : pair.getValue()) {
+                            CassandraBatchProcessor.processRule(rule, downTimestamp, downTimestamp+1);
+                        }
+                    }
+                    */
+                }
+            });
+
+        } catch (IllegalAccessException e) {
             e.printStackTrace();
-            System.exit(1);
         }
-        HazelcastInstance instance = Hazelcast.newHazelcastInstance(cfg);
-        /*
-        ClientConfig clientConfig = new ClientConfig();
-        clientConfig.getGroupConfig().setName("analytics").setPassword("");
-        HazelcastInstance instance =  HazelcastClient.newHazelcastClient(clientConfig);
-        */
+
+        startedResult.complete();
     }
 
     public void stop() {
-
+        vertx.cancelTimer(collectionCollectorTimer);
     }
 
 }

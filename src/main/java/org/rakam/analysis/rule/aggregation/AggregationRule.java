@@ -72,14 +72,15 @@ public abstract class AggregationRule extends AnalysisRule {
         JsonObject json = new JsonObject();
         json.putString("id", id);
         json.putString("project", project);
-        json.putString("type", analysisType().name());
+        json.putString("strategy", strategy.name());
+        json.putString("analysis", analysisType().name().replaceFirst("ANALYSIS_", ""));
         if(select!=null)
             json.putString("select", select.toString());
         if(groupBy!=null)
             json.putString("group_by", groupBy.toString());
         if(filters!=null)
             json.putString("filters", filters.toString());
-        json.putString("aggregation_type", type.name());
+        json.putString("aggregation", type.name());
         return json;
     }
 

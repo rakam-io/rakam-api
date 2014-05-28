@@ -6,10 +6,12 @@ import org.rakam.analysis.rule.aggregation.AggregationRule;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
+import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.DistributedAnalysisRuleMap;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.AnalysisRuleStrategy;
 import org.rakam.database.DatabaseAdapter;
+import org.rakam.database.KeyValueStorage;
 import org.rakam.util.SpanTime;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
@@ -26,6 +28,7 @@ import java.util.LinkedList;
  */
 public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
     private static final DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
+    private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
 
     @Override
     public void handle(Message<JsonObject> event) {
@@ -108,15 +111,15 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
             json.putNumber("result", databaseAdapter.getSetCount(rule_id));
         }else
         if(rule.type==AggregationType.SELECT_UNIQUE_X) {
-            selectUnique(json, rule_id, query);
+            selectUnique(json, rule_id, query, cacheAdapter);
         }
         return json;
 
     }
 
-    public static void selectUnique(JsonObject json, String rule_id, JsonObject query) {
+    public static void selectUnique(JsonObject json, String rule_id, JsonObject query, KeyValueStorage adapter) {
         JsonArray arr = new JsonArray();
-        Iterator<String> c = databaseAdapter.getSetIterator(rule_id);
+        Iterator<String> c = adapter.getSetIterator(rule_id);
 
         String offset = query.getString("offset");
         int count = 0;
@@ -131,19 +134,14 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
         json.putNumber("count", count);
     }
 
-    public static void countUnique(JsonObject json, String rule_id, JsonObject query) {
-        int c = databaseAdapter.getSetCount(rule_id);
-        json.putNumber("result", c);
-    }
-
-    public static JsonObject selectUniqueGrouping(String rule_id, JsonObject query) {
+    public static JsonObject selectUniqueGrouping(String rule_id, JsonObject query, KeyValueStorage adapter) {
         JsonObject resobj = new JsonObject();
-        Iterator list = databaseAdapter.getSetIterator(rule_id + "::keys");
+        Iterator list = adapter.getSetIterator(rule_id + "::keys");
         while(list.hasNext()) {
             String item = (String) list.next();
 
             JsonArray arr = new JsonArray();
-            Iterator<String> c = databaseAdapter.getSetIterator(rule_id+":"+item);
+            Iterator<String> c = adapter.getSetIterator(rule_id+":"+item);
 
             String offset = query.getString("offset");
             int count = 0;
@@ -158,14 +156,12 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
         return resobj;
     }
 
-    public static JsonObject countUniqueGrouping(String rule_id, JsonObject query) {
+    public static JsonObject countUniqueGrouping(String rule_id, KeyValueStorage adapter) {
         JsonObject resobj = new JsonObject();
-        Iterator list = databaseAdapter.getSetIterator(rule_id + "::keys");
+        Iterator list = adapter.getSetIterator(rule_id + "::keys");
         while(list.hasNext()) {
             String item = (String) list.next();
-
-            JsonArray arr = new JsonArray();
-            int c = databaseAdapter.getSetCount(rule_id + ":" + item);
+            int c = adapter.getSetCount(rule_id + ":" + item);
             resobj.putNumber(item, c);
         }
         return resobj;
@@ -208,7 +204,7 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
 
         }else
         if(rule.type==AggregationType.SELECT_UNIQUE_X) {
-            selectUniqueGrouping(rule_id, query);
+            selectUniqueGrouping(rule_id, query, cacheAdapter);
         }
         return json;
 
@@ -218,6 +214,8 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
     public static JsonObject fetchTimeSeries(JsonObject json, TimeSeriesAggregationRule rule, String start, String end, Integer items, JsonObject query)  {
         String rule_id = rule.id;
         SpanTime interval = rule.interval;
+
+        int now = interval.spanCurrent().current();
 
         LinkedList<Integer> keys = new LinkedList();
 
@@ -321,12 +319,12 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
             if (rule.groupBy==null)
                 for(Integer time: keys) {
                     JsonObject j = new JsonObject();
-                    selectUnique(j, rule_id+":"+time, query);
+                    selectUnique(j, rule_id+":"+time, query, now==time ? cacheAdapter : databaseAdapter);
                     results.putObject(time.toString(), j);
                 }
             else
                 for(Integer time: keys) {
-                    results.putObject(time.toString(), selectUniqueGrouping(rule_id+":"+time, query));
+                    results.putObject(time+"000", selectUniqueGrouping(rule_id+":"+time, query,  now==time ? cacheAdapter : databaseAdapter));
                 }
         }else
         if(rule.type == AggregationType.COUNT_UNIQUE_X){
@@ -334,13 +332,16 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
 
             if (rule.groupBy==null)
                 for(Integer time: keys) {
+                    KeyValueStorage adapter = now==time ? cacheAdapter : databaseAdapter;
                     JsonObject j = new JsonObject();
-                    countUnique(j, rule_id + ":" + time, query);
+                    int c = adapter.getSetCount(rule_id + ":" + time);
+                    j.putNumber("result", c);
+
                     results.putObject(time.toString(), j);
                 }
             else
                 for(Integer time: keys)
-                    results.putObject(time.toString(), countUniqueGrouping(rule_id+":"+time, query));
+                    results.putObject(time+"000", countUniqueGrouping(rule_id+":"+time, now==time ? cacheAdapter : databaseAdapter));
 
         } else {
 
@@ -348,16 +349,19 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
                 Iterator<Integer> it = keys.iterator();
                 JsonObject j = new JsonObject();
                 for(Integer cabin: keys) {
-                    j.putNumber(String.valueOf(((long)cabin)*1000), databaseAdapter.getCounter(rule_id+":"+cabin));
+                    j.putNumber(String.valueOf(((long)cabin)*1000), (now==cabin ? cacheAdapter : databaseAdapter).getCounter(rule_id+":"+cabin));
                 }
                 results = j;
             } else {
                 JsonObject j = new JsonObject();
                 for(Integer cabin: keys) {
-                    JsonArray arr = new JsonArray();
-                    for(String item : databaseAdapter.getSet(rule_id+":"+cabin))
-                        arr.addString(item);
-                    j.putArray(String.valueOf(((long)cabin)*1000), arr);
+                    JsonObject arr = new JsonObject();
+                    KeyValueStorage adapter = (now==cabin ? cacheAdapter : databaseAdapter);
+                    for(String item : adapter.getSet(rule_id+":"+cabin+"::keys")) {
+                        arr.putNumber(item, adapter.getCounter(rule_id+":"+cabin+":"+item));
+                    }
+
+                    j.putObject(String.valueOf(((long)cabin)*1000), arr);
                 }
                 results = j;
             }

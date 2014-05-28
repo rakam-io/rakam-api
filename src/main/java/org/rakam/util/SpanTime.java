@@ -36,6 +36,10 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
     }
 
     public static SpanTime fromPeriod(String str) {
+        try {
+            return new SpanTime(Integer.parseInt(str));
+        } catch (NumberFormatException e) {}
+
         Matcher match = parser.matcher(str);
         int p = 0;
         if (match.find())
@@ -52,8 +56,10 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
                         p += 60 * 60 * 24 * num;
                     } else if (period.endsWith("hour")) {
                         p += 60 * 60 * num;
-                    } else if (period.equals("min")) {
+                    } else if (period.equals("minute")) {
                         p += 60 * num;
+                    } else if (period.equals("second")) {
+                        p += num;
                     }
                 }
             }

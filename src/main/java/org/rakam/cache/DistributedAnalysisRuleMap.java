@@ -25,6 +25,7 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
     public final static int ADD = 0;
     public final static int DELETE = 1;
     public final static int UPDATE = 2;
+    private static long timestampCursor = System.currentTimeMillis();
 
     public static AnalysisRuleList get(String project) {
         return map.get(project);
@@ -40,6 +41,10 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
     public void handle(Message<JsonObject> message) {
         JsonObject json = message.body();
         String project = json.getString("project");
+        Long timestamp = json.getLong("timestamp");
+        if(timestamp!=null && timestamp<timestampCursor)
+            throw new IllegalArgumentException("timestamp for event must be provided");;
+        timestampCursor = timestamp;
         AnalysisRuleList rules = map.get(project);
         if(rules==null) {
             rules = new AnalysisRuleList();
@@ -50,10 +55,10 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
         } else if (json.getInteger("operation") == DELETE) {
             rules.remove(AnalysisQueryParser.parse(json.getObject("rule")));
         } else if (json.getInteger("operation") == UPDATE) {
+            // The API level doesn't support UPDATE request so this code is unnecessary currently
             AnalysisRule base = AnalysisQueryParser.parse(json.getObject("old_rule"));
             AnalysisRule new_rule = AnalysisQueryParser.parse(json.getObject("new_rule"));
-            if (rules.contains(base)) {
-                rules.remove(base);
+            if (rules.remove(base)) {
                 rules.add(new_rule);
             } else {
                 throw new IllegalArgumentException("rule doesn't exist");

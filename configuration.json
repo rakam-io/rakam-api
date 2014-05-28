@@ -1,0 +1,6 @@
+{
+    "plugins" : [
+        "org.rakam.plugin.geoip.GeoIPEventMapper"
+    ],
+    "geoip_location" : "/Users/buremba/Code/rakam/data/GeoIP.dat"
+}

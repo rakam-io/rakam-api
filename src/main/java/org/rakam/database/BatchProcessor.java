@@ -8,5 +8,6 @@ import org.rakam.cache.CacheAdapter;
  */
 public interface BatchProcessor {
     public void processRule(AnalysisRule rule);
+    public void processRule(AnalysisRule rule, long start_time, long end_time);
     public void exportCurrentToCache(CacheAdapter cacheAdapter, AnalysisRule rule);
 }

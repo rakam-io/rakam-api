@@ -55,7 +55,24 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             return ret;
         }
 
-        databaseAdapter.deleteRule(rule);
+        JsonObject request = new JsonObject()
+                .putNumber("operation", DistributedAnalysisRuleMap.DELETE)
+                .putString("project", rule.project).putObject("rule", rule.toJson())
+                .putNumber("timestamp", System.currentTimeMillis());
+
+        switch (rule.strategy) {
+            case REAL_TIME:
+                eventBus.publish("aggregationRuleReplication", request);
+                break;
+            case REAL_TIME_AFTER_BATCH:
+            case REAL_TIME_BATCH_CONCURRENT:
+                eventBus.publish("aggregationRuleReplication", request);
+                databaseAdapter.deleteRule(rule);
+                break;
+            case BATCH:
+                databaseAdapter.deleteRule(rule);
+                break;
+        }
 
         ret.putBoolean("success", true);
         return ret;
@@ -96,7 +113,10 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             @Override
             public void run() {
                 LOGGER.info("Processing the rule.");
-                JsonObject request = new JsonObject().putNumber("operation", DistributedAnalysisRuleMap.ADD).putString("project", rule.project).putObject("rule", obj);
+                JsonObject request = new JsonObject()
+                        .putNumber("operation", DistributedAnalysisRuleMap.ADD)
+                        .putString("project", rule.project).putObject("rule", obj)
+                        .putNumber("timestamp", System.currentTimeMillis());
                 databaseAdapter.addRule(rule);
                 if(rule.strategy == AnalysisRuleStrategy.REAL_TIME_BATCH_CONCURRENT) {
                     eventBus.publish("aggregationRuleReplication", request);

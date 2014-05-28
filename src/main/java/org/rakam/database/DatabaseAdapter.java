@@ -10,7 +10,7 @@ import java.util.*;
 /**
  * Created by buremba on 21/12/13.
  */
-public interface DatabaseAdapter {
+public interface DatabaseAdapter extends KeyValueStorage {
     void setupDatabase();
     void flushDatabase();
 
@@ -21,16 +21,8 @@ public interface DatabaseAdapter {
     Actor getActor(String project, String actorId);
     Event getEvent(UUID eventId);
     void combineActors(String actor1, String actor2);
-
-    void addSet(String key, String item);
-    void addSet(String key, Set<String> items);
-    Set<String> getSet(String key);
     int getSetCount(String key);
     Iterator<String> getSetIterator(String key);
-
-    void incrementCounter(String key);
-    long getCounter(String key);
-    void incrementCounter(String key, long incrementBy);
     Map<String, Long> getCounters(Collection<String> keys);
 
     Map<String, AnalysisRuleList> getAllRules();

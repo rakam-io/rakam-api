@@ -4,6 +4,7 @@ import com.datastax.driver.core.*;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.rakam.analysis.AnalysisQueryParser;
 import org.rakam.analysis.rule.AnalysisRuleList;
@@ -174,7 +175,7 @@ public class CassandraAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public void addSet(String key, Set<String> items) {
+    public void addSet(String key, Collection<String> items) {
         session.execute(set_set_sql.bind(items, key));
     }
 
@@ -184,7 +185,7 @@ public class CassandraAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public long getCounter(String key) {
+    public Long getCounter(String key) {
         Row a = session.execute(get_counter_sql.bind(key)).one();
         return (a==null) ? 0 : a.getLong("value");
     }
@@ -198,6 +199,11 @@ public class CassandraAdapter implements DatabaseAdapter {
     @Override
     public void incrementCounter(String key, long incrementBy) {
         session.execute(set_counter_sql.bind(incrementBy, key));
+    }
+
+    @Override
+    public void setCounter(String s, long target) {
+        throw new NotImplementedException();
     }
 
     @Override

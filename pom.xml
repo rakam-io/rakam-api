@@ -118,6 +118,11 @@
             <version>4.0-beta4</version>
         </dependency>
         <dependency>
+            <groupId>com.maxmind.geoip</groupId>
+            <artifactId>geoip-api</artifactId>
+            <version>1.2.13</version>
+        </dependency>
+        <dependency>
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo</artifactId>
             <version>2.24.0</version>

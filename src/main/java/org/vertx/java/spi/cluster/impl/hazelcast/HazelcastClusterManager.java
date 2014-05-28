@@ -73,6 +73,7 @@ class HazelcastClusterManager implements ClusterManager, MembershipListener {
     if (cfg == null) {
       log.warn("Cannot find cluster configuration on classpath. Using default hazelcast configuration");
     }
+    cfg =  new Config();
     cfg.getSerializationConfig().addDataSerializableFactory(1, new HazelcastServerIDFactory());
     hazelcast = Hazelcast.newHazelcastInstance(cfg);
     nodeID = hazelcast.getCluster().getLocalMember().getUuid();

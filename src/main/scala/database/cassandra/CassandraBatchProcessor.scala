@@ -11,7 +11,7 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.SparkContext
 import org.vertx.java.core.json.JsonObject
 import org.vertx.java.core.json.JsonArray
-import java.util.{TimeZone, Calendar, UUID}
+import java.util.{Date, TimeZone, Calendar, UUID}
 import java.{util, lang}
 import java.lang.Integer
 import java.lang.String
@@ -31,6 +31,8 @@ import org.rakam.analysis.rule.aggregation.{AnalysisRule, AggregationRule, Metri
 import org.rakam.cache.CacheAdapter
 import org.rakam.database.BatchProcessor
 import org.rakam.util.Serializer
+import java.text.SimpleDateFormat
+import com.apple.jobjc.NativeObjectLifecycleManager.Nothing
 
 object CassandraBatchProcessor extends BatchProcessor {
   val sc = new SparkContext("local[2]", "CQLTestApp", System.getenv("SPARK_HOME"), SparkContext.jarOfClass(this.getClass))
@@ -40,23 +42,6 @@ object CassandraBatchProcessor extends BatchProcessor {
   val cPort: String = "9160"
   val KeySpace = "analytics"
 
-  val hadoopEventJob = new Job()
-  hadoopEventJob.setInputFormatClass(classOf[CqlPagingInputFormat])
-  ConfigHelper.setInputInitialAddress(hadoopEventJob.getConfiguration(), cHost)
-  ConfigHelper.setInputRpcPort(hadoopEventJob.getConfiguration(), cPort)
-  ConfigHelper.setInputColumnFamily(hadoopEventJob.getConfiguration(), KeySpace, "event")
-  ConfigHelper.setInputPartitioner(hadoopEventJob.getConfiguration(), "Murmur3Partitioner")
-  CqlConfigHelper.setInputCQLPageRowSize(hadoopEventJob.getConfiguration(), "3")
-
-
-  val hadoopActorJob = new Job()
-  hadoopActorJob.setInputFormatClass(classOf[CqlPagingInputFormat])
-  ConfigHelper.setInputInitialAddress(hadoopActorJob.getConfiguration(), cHost)
-  ConfigHelper.setInputRpcPort(hadoopActorJob.getConfiguration(), cPort)
-  ConfigHelper.setInputColumnFamily(hadoopActorJob.getConfiguration(), KeySpace, "actor")
-  ConfigHelper.setInputPartitioner(hadoopActorJob.getConfiguration(), "Murmur3Partitioner")
-  CqlConfigHelper.setInputCQLPageRowSize(hadoopActorJob.getConfiguration(), "3")
-
   /*
     TimeUUID stores timestamp values starting from 1982. We need to convert it to standard unix timestamp
    */
@@ -65,23 +50,71 @@ object CassandraBatchProcessor extends BatchProcessor {
   uuidEpoch.set(1582, 9, 15, 0, 0, 0)
   val epochMillis: Int = (uuidEpoch.getTime.getTime / 1000).toInt
 
-  private def createEventRDD(): RDD[Event] = {
-    val rawEventRdd = sc.newAPIHadoopRDD(hadoopEventJob.getConfiguration(),
+  private def createActorJob(): Job = {
+    val hadoopActorJob = new Job()
+    hadoopActorJob.setInputFormatClass(classOf[CqlPagingInputFormat])
+    ConfigHelper.setInputInitialAddress(hadoopActorJob.getConfiguration(), cHost)
+    ConfigHelper.setInputRpcPort(hadoopActorJob.getConfiguration(), cPort)
+    ConfigHelper.setInputColumnFamily(hadoopActorJob.getConfiguration(), KeySpace, "actor")
+    ConfigHelper.setInputPartitioner(hadoopActorJob.getConfiguration(), "Murmur3Partitioner")
+    CqlConfigHelper.setInputCQLPageRowSize(hadoopActorJob.getConfiguration(), "3")
+    hadoopActorJob
+  }
+
+  private def createEventJob(start: Long, end: Long, outputTable: String, outputQuery: String): Job = {
+    val hadoopEventJob = new Job()
+    hadoopEventJob.setInputFormatClass(classOf[CqlPagingInputFormat])
+    ConfigHelper.setInputInitialAddress(hadoopEventJob.getConfiguration(), cHost)
+    ConfigHelper.setInputRpcPort(hadoopEventJob.getConfiguration(), cPort)
+    ConfigHelper.setInputColumnFamily(hadoopEventJob.getConfiguration(), KeySpace, "event")
+    ConfigHelper.setInputPartitioner(hadoopEventJob.getConfiguration(), "Murmur3Partitioner")
+    CqlConfigHelper.setInputCQLPageRowSize(hadoopEventJob.getConfiguration(), "3")
+
+    hadoopEventJob.setOutputFormatClass(classOf[CqlOutputFormat])
+    CqlConfigHelper.setOutputCql(hadoopEventJob.getConfiguration(), outputQuery)
+    ConfigHelper.setOutputColumnFamily(hadoopEventJob.getConfiguration(), KeySpace, outputTable)
+    ConfigHelper.setOutputInitialAddress(hadoopEventJob.getConfiguration(), cHost)
+    ConfigHelper.setOutputRpcPort(hadoopEventJob.getConfiguration(), cPort)
+    ConfigHelper.setOutputPartitioner(hadoopEventJob.getConfiguration(), "Murmur3Partitioner")
+    var where = ""
+    if (start >= 0) {
+      where += " time > minTimeuuid('" + new SimpleDateFormat("yyyy-MM-DD HH:mm+SS00").format(new Date(start)) + "') "
+    }
+    if (end >= 0)
+      where += " time > maxTimeuuid('" + new SimpleDateFormat("yyyy-MM-DD HH:mm+SS00").format(new Date(end)) + "')"
+    if (!where.eq(""))
+      CqlConfigHelper.setInputWhereClauses(hadoopEventJob.getConfiguration(), where)
+    hadoopEventJob
+  }
+
+  private def createEventRDD(job: Job): RDD[Event] = {
+    CqlConfigHelper.setInputCQLPageRowSize(job.getConfiguration(), "3")
+
+    val rawEventRdd = sc.newAPIHadoopRDD(job.getConfiguration(),
       classOf[CqlPagingInputFormat], classOf[java.util.Map[String, ByteBuffer]], classOf[java.util.Map[String, ByteBuffer]])
     rawEventRdd.map({
       case (key, value) => {
-        val time = key.get("time")
-        val raw_data = value.get("data")
-        val data = if (raw_data != null) new JsonObject(ByteBufferUtil.string(raw_data)) else null
-        val raw_actor = value.get("actor_id")
-        val actor = if (raw_actor != null) ByteBufferUtil.string(raw_actor) else null
-        new Event(new UUID(time.getLong(), time.getLong()), ByteBufferUtil.string(key.get("project")), actor, data)
+        try {
+          val time = key.get("time")
+          val raw_data = value.get("data")
+          val data = if (raw_data != null) new JsonObject(ByteBufferUtil.string(raw_data)) else null
+          val raw_actor = value.get("actor_id")
+          val actor = if (raw_actor != null) ByteBufferUtil.string(raw_actor) else null
+          new Event(new UUID(time.getLong(), time.getLong()), ByteBufferUtil.string(key.get("project")), actor, data)
+        } catch {
+          case e: Exception => {
+            e.printStackTrace()
+            null
+          }
+
+        }
+
       }
     })
   }
 
   private def createActorRDD(): RDD[Actor] = {
-    val rawActorRdd = sc.newAPIHadoopRDD(hadoopActorJob.getConfiguration(),
+    val rawActorRdd = sc.newAPIHadoopRDD(createActorJob().getConfiguration(),
       classOf[CqlPagingInputFormat], classOf[java.util.Map[String, ByteBuffer]], classOf[java.util.Map[String, ByteBuffer]])
     rawActorRdd.map({
       case (key, value) => {
@@ -137,18 +170,37 @@ object CassandraBatchProcessor extends BatchProcessor {
   }
 
   override def processRule(rule: AnalysisRule) {
+    this.processRule(rule, -1, -1);
+  }
+
+  override def processRule(rule: AnalysisRule, start_time: Long, end_time: Long) {
     if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
       val aggRule = rule.asInstanceOf[AggregationRule]
       val ruleSelect = aggRule.select
       val ruleGroupBy = aggRule.groupBy
       val ruleFilter = aggRule.filters
 
-      var eventRdd = createEventRDD()
+      var outputQuery: String = null
+      var outputTable: String = null
+      if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
+        val mrule = rule.asInstanceOf[AggregationRule]
+        if (mrule.`type` != SELECT_UNIQUE_X && mrule.`type` != COUNT_UNIQUE_X) {
+          outputQuery = "UPDATE " + KeySpace + ".aggregated_counter SET value = value + ?"
+          outputTable = "aggregated_counter"
+        }
+      }
+      if (outputTable == null) {
+        outputQuery = "UPDATE " + KeySpace + ".aggregated_set SET value = ?"
+        outputTable = "aggregated_set"
+      }
+
+      val eventJob = createEventJob(start_time, start_time, outputTable, outputQuery)
+      var eventRdd = createEventRDD(eventJob)
 
       if ((ruleFilter != null && ruleFilter.requiresUser()) ||
         ruleSelect != null && ruleSelect.fieldKey.startsWith("_user.") ||
         (ruleGroupBy != null && ruleGroupBy.fieldKey.startsWith("_user.")))
-        eventRdd = this.joinActorProperties(createEventRDD())
+        eventRdd = this.joinActorProperties(eventRdd)
 
 
       if (aggRule.filters != null)
@@ -287,33 +339,12 @@ object CassandraBatchProcessor extends BatchProcessor {
           case _ => throw new IllegalStateException("rdd type couldn't identified")
         }
 
-        var outputQuery: String = null
-        var outputTable: String = null
-        if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
-          val mrule = rule.asInstanceOf[AggregationRule]
-          if (mrule.`type` != SELECT_UNIQUE_X && mrule.`type` != COUNT_UNIQUE_X) {
-            outputQuery = "UPDATE " + KeySpace + ".aggregated_counter SET value = value + ?"
-            outputTable = "aggregated_counter"
-          }
-        }
-        if (outputTable == null) {
-          outputQuery = "UPDATE " + KeySpace + ".aggregated_set SET value = ?"
-          outputTable = "aggregated_set"
-        }
-
-        CqlConfigHelper.setOutputCql(hadoopEventJob.getConfiguration(), outputQuery)
-        hadoopEventJob.setOutputFormatClass(classOf[CqlOutputFormat])
-        ConfigHelper.setOutputColumnFamily(hadoopEventJob.getConfiguration(), KeySpace, outputTable)
-        ConfigHelper.setOutputInitialAddress(hadoopEventJob.getConfiguration(), cHost)
-        ConfigHelper.setOutputRpcPort(hadoopEventJob.getConfiguration(), cPort)
-        ConfigHelper.setOutputPartitioner(hadoopEventJob.getConfiguration(), "Murmur3Partitioner")
-
         output.saveAsNewAPIHadoopFile(
           KeySpace,
           classOf[java.util.Map[String, ByteBuffer]],
           classOf[java.util.List[ByteBuffer]],
           classOf[CqlOutputFormat],
-          hadoopEventJob.getConfiguration()
+          eventJob.getConfiguration()
         )
       }
     }
@@ -363,10 +394,11 @@ object CassandraBatchProcessor extends BatchProcessor {
         case SELECT_UNIQUE_X | COUNT_UNIQUE_X =>
           getSet(rule.id + "::keys").foreach(item => {
             val key = rule.id + ":" + item
-            cacheAdapter.addToSet(key, getSet(key))
+            cacheAdapter.addSet(key, getSet(key))
           })
       }
     }
 
   }
+
 }

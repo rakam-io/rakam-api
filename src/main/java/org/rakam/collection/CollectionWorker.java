@@ -2,6 +2,8 @@ package org.rakam.collection;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
+import com.google.inject.Binding;
+import com.google.inject.TypeLiteral;
 import org.apache.log4j.Logger;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.rule.AnalysisRuleList;
@@ -17,28 +19,41 @@ import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
+import org.rakam.plugin.CollectionMapperPlugin;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by buremba on 21/05/14.
  */
 public class CollectionWorker extends Verticle implements Handler<Message<byte[]>> {
-    //final ExecutorService executor = new ThreadPoolExecutor(5, 20, 0, MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+    final ExecutorService executor = new ThreadPoolExecutor(5, 20, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
     final public static CacheAdapter localCacheAdapter = new LocalCacheAdapter();
     private CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
     private DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
     Kryo kryo = new Kryo();
     static Logger logger = Logger.getLogger(CollectionWorker.class.getName());
+    List<CollectionMapperPlugin> mappers;
 
     public void start() {
         vertx.eventBus().registerLocalHandler("collectionRequest", this);
         kryo.register(JsonObject.class);
+        mappers = new ArrayList();
+        for(Binding<CollectionMapperPlugin> mapper : ServiceStarter.injector.findBindingsByType(new TypeLiteral<CollectionMapperPlugin>() {})) {
+            mappers.add(mapper.getProvider().get());
+        }
+
     }
 
     @Override
@@ -46,19 +61,21 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
         Input in = new Input(data.body());
         final JsonObject message = kryo.readObject(in, JsonObject.class);
 
-        /* executor.submit(new Runnable() {
+        for(CollectionMapperPlugin mapper : mappers) {
+            if(!mapper.map(message))
+                data.reply("0".getBytes());
+        }
+
+        executor.submit(new Runnable() {
             @Override
             public void run() {
                 try{
-
+                    data.reply(process(message));
                 } catch (Exception e) {
                     logger.error("error while processing collection request", e);
                 }
             }
-        }); */
-
-        data.reply(process(message));
-
+        });
     }
 
     public byte[] process(final JsonObject message) {
@@ -81,7 +98,7 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
         /*ByteArrayOutputStream by = new ByteArrayOutputStream();
         Output out = new Output(by, 150);
         kryo.writeObject(out, message);*/
-        databaseAdapter.addEventAsync(project, time_cabin, actor_id, message.encode().getBytes());
+        databaseAdapter.addEvent(project, time_cabin, actor_id, message.encode().getBytes());
 
         aggregate(project, message, actor_id);
         return "1".getBytes();
@@ -154,15 +171,14 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
             localCacheAdapter.addGroupByItem(id, groupByColumn, groupByValue);
             return;
         } else if (type == AggregationType.SELECT_UNIQUE_X || type == AggregationType.COUNT_UNIQUE_X) {
-            if (type_target != null)
-                localCacheAdapter.addToSet(id + ":" + type_target, groupByValue);
-            localCacheAdapter.addToSet(id + "::keys", type_target);
+            localCacheAdapter.addSet(id + ":" + (type_target != null ? type_target : "null"), groupByValue);
+            localCacheAdapter.addSet(id + "::keys", type_target);
         } else if (target == null)
             return;
 
         if (type == AggregationType.COUNT_X) {
             localCacheAdapter.addGroupByItem(id, groupByColumn, groupByValue);
-        } else if (type == AggregationType.SUM_X || type == AggregationType.AVERAGE_X) {
+        } else if (type == AggregationType.SUM_X) {
             localCacheAdapter.addGroupByItem(id, groupByColumn, groupByValue, target);
         } else if (type == AggregationType.MINIMUM_X || type == AggregationType.MAXIMUM_X) {
             Long key = localCacheAdapter.getCounter(id + ":" + groupByValue + ":" + target);
@@ -179,7 +195,7 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
             if (type_target != null)
                 localCacheAdapter.incrementCounter(id);
         }
-        if (type == AggregationType.SUM_X || type == AggregationType.AVERAGE_X) {
+        if (type == AggregationType.SUM_X) {
             Long target = null;
             try {
                 target = Long.parseLong(type_target);
@@ -203,7 +219,7 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
             }
         } else if (type == AggregationType.COUNT_UNIQUE_X || type == AggregationType.SELECT_UNIQUE_X) {
             if (type_target != null)
-                localCacheAdapter.addToSet(id, type_target);
+                localCacheAdapter.addSet(id, type_target);
         }
     }
 }

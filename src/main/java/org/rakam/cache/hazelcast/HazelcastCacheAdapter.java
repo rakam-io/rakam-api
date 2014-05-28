@@ -2,14 +2,17 @@ package org.rakam.cache.hazelcast;
 
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
+import com.hazelcast.config.FileSystemXmlConfig;
 import com.hazelcast.core.*;
-import org.rakam.cache.MessageListener;
 import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.MessageListener;
 import org.rakam.cache.PubSubAdapter;
 import org.vertx.java.core.json.JsonObject;
 
+import java.io.FileNotFoundException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  * Created by buremba on 21/12/13.
@@ -19,9 +22,10 @@ public class HazelcastCacheAdapter implements CacheAdapter, PubSubAdapter {
     private static HazelcastInstance hazelcast;
 
 
-    public HazelcastCacheAdapter() {
+    public HazelcastCacheAdapter() throws FileNotFoundException {
         ClientConfig clientConfig = new ClientConfig();
-        clientConfig.getGroupConfig().setName("analytics").setPassword("");
+        FileSystemXmlConfig config = new FileSystemXmlConfig("cluster.xml");
+        clientConfig.getGroupConfig().setName("dev").setPassword("dev-pass");
         hazelcast =  HazelcastClient.newHazelcastClient(clientConfig);
     }
 
@@ -54,8 +58,8 @@ public class HazelcastCacheAdapter implements CacheAdapter, PubSubAdapter {
     }
 
     @Override
-    public Long incrementCounter(String key, long increment) {
-        return hazelcast.getAtomicLong(key).getAndAdd(increment);
+    public void incrementCounter(String key, long increment) {
+        hazelcast.getAtomicLong(key).addAndGet(increment);
     }
 
     @Override
@@ -64,12 +68,12 @@ public class HazelcastCacheAdapter implements CacheAdapter, PubSubAdapter {
     }
 
     @Override
-    public void addToSet(String setName, String item) {
+    public void addSet(String setName, String item) {
         hazelcast.getSet(setName).add(item);
     }
 
     @Override
-    public void addToSet(String setName, Collection<String> items) {
+    public void addSet(String setName, Collection<String> items) {
         hazelcast.getSet(setName).addAll(items);
     }
 
@@ -100,8 +104,14 @@ public class HazelcastCacheAdapter implements CacheAdapter, PubSubAdapter {
     }
 
     @Override
-    public Long incrementCounter(String key) {
-        return hazelcast.getAtomicLong(key.toString()).incrementAndGet();
+    public Set<String> getSet(String key) {
+        return hazelcast.getSet(key);
+    }
+
+    @Override
+    public void incrementCounter(String key) {
+        hazelcast.getAtomicLong(key.toString()).incrementAndGet();
+        return;
     }
 
 

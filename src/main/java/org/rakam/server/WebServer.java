@@ -38,6 +38,9 @@ public class WebServer extends Verticle {
                 //json.putString("accepted_reply", "aggregation.acceptedReplyAddress");
 
                 String requestPath = httpServerRequest.path();
+                //RouteMatcher matcher = new RouteMatcher();
+                //matcher.get("")
+
                 if (requestPath.equals("/collect")) {
                     if (tracker_id == null) {
                         returnError(httpServerRequest, "tracker id is required", 400);

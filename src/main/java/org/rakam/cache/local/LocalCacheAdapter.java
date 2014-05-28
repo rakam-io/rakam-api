@@ -35,29 +35,39 @@ public class LocalCacheAdapter implements CacheAdapter {
     }
 
     @Override
-    public Long incrementCounter(String key) {
+    public Set<String> getSet(String key) {
+        return sets.get(key);
+    }
+
+    @Override
+    public void incrementCounter(String key) {
         AtomicLong a = counters.get(key);
         if(a==null) {
             counters.put(key, new AtomicLong(1));
-            return 1L;
         }else {
-            return a.incrementAndGet();
+            a.incrementAndGet();
         }
     }
 
     @Override
     public void addGroupByItem(String aggregation, String groupBy, String item) {
         AtomicLong counter = counters.get(aggregation + ":" + item);
-        if (counter.getAndIncrement()==0) {
-            sets.get(aggregation + "::" + "keys").add(item);
+        if(counter==null) {
+            counters.put(aggregation + ":" + item, new AtomicLong(1));
+            addSet(aggregation + "::keys", item);
+        }else {
+            counter.incrementAndGet();
         }
     }
 
     @Override
     public void addGroupByItem(String aggregation, String groupBy, String item, Long incrementBy) {
         AtomicLong counter = counters.get(aggregation + ":" + item);
-        if (counter.getAndAdd(incrementBy)==0) {
-            sets.get(aggregation + "::" + "keys").add(item);
+        if(counter==null) {
+            counters.put(aggregation + ":" + item, new AtomicLong(incrementBy));
+            addSet(aggregation + "::" + "keys", item);
+        }else {
+            counter.addAndGet(incrementBy);
         }
     }
 
@@ -71,8 +81,8 @@ public class LocalCacheAdapter implements CacheAdapter {
     }
 
     @Override
-    public Long incrementCounter(String key, long increment) {
-        return counters.get(key).incrementAndGet();
+    public void incrementCounter(String key, long increment) {
+        counters.get(key).incrementAndGet();
     }
 
     @Override
@@ -81,7 +91,7 @@ public class LocalCacheAdapter implements CacheAdapter {
     }
 
     @Override
-    public void addToSet(String setName, String item) {
+    public void addSet(String setName, String item) {
         Set<String> s = sets.get(setName);
         if(s==null) {
             s = new ConcurrentSkipListSet();
@@ -92,7 +102,7 @@ public class LocalCacheAdapter implements CacheAdapter {
     }
 
     @Override
-    public void addToSet(String setName, Collection<String> items) {
+    public void addSet(String setName, Collection<String> items) {
         Set<String> s = sets.get(setName);
         if(s==null) {
             s = new ConcurrentSkipListSet();
