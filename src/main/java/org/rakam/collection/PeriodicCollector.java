@@ -21,7 +21,7 @@ import java.util.Set;
  * Created by buremba on 14/05/14.
  */
 public class PeriodicCollector {
-    final static CacheAdapter fastCacheAdapter = CollectionWorker.localCacheAdapter;
+    final static KeyValueStorage fastCacheAdapter = CollectionWorker.activeStorageAdapter;
     final static CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
     final static DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
 
@@ -57,9 +57,13 @@ public class PeriodicCollector {
                         moveCounters(previous_key, cacheAdapter, databaseAdapter);
                         break;
                     case SELECT_UNIQUE_X:
-                    case COUNT_UNIQUE_X:
                         moveSets(now_key, fastCacheAdapter, cacheAdapter);
                         moveSets(previous_key, cacheAdapter, databaseAdapter);
+                        break;
+                    case COUNT_UNIQUE_X:
+                        moveSet(now_key, fastCacheAdapter, cacheAdapter);
+                        moveSet(previous_key, cacheAdapter, databaseAdapter);
+
                 }
             else
                 switch (mrule.type) {
@@ -79,7 +83,7 @@ public class PeriodicCollector {
         }
 
         fastCacheAdapter.flush();
-        cacheAdapter.setCounter(ServiceStarter.server_id, System.currentTimeMillis() / 1000);
+        cacheAdapter.setCounter(Integer.toString(ServiceStarter.server_id), System.currentTimeMillis() / 1000);
     }
 
 
@@ -90,6 +94,7 @@ public class PeriodicCollector {
             for (String k : keys) {
                 moveCounters(key + ":" + k, from, to);
             }
+            from.removeSet(key + "::keys");
         }
     }
     public static void moveGroupBySet(String key, KeyValueStorage from, KeyValueStorage to) {
@@ -98,12 +103,23 @@ public class PeriodicCollector {
             to.addSet(key + "::keys", keys);
             for (String k : keys) {
                 to.addSet(key + ":" + k, from.getSet(key+":"+k));
+                from.removeSet(key + ":" + k);
             }
+            from.removeSet(key + "::keys");
         }
     }
 
     public static void moveCounters(String key, KeyValueStorage from, KeyValueStorage to) {
-        to.incrementCounter(key, from.getCounter(key));
+        Long co = from.getCounter(key);
+        if(co!=null) {
+            to.incrementCounter(key, from.getCounter(key));
+            from.removeCounter(key);
+        }
+    }
+
+    public static void moveSet(String key, KeyValueStorage from, KeyValueStorage to) {
+        to.addSet(key, from.getSet(key));
+        from.removeSet(key);
     }
 
     public static void moveSets(String key, KeyValueStorage from, KeyValueStorage to) {
@@ -120,8 +136,10 @@ public class PeriodicCollector {
                         set.add(it.next());
                     to.addSet(key + ":" + item, set);
                 }
+                from.removeSet(key + ":" + item);
             }
             to.addSet(key + "::keys", s);
+            from.removeSet(key + "::keys");
 
         }
     }

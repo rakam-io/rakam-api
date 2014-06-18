@@ -34,7 +34,7 @@ public class ServiceRecipe extends AbstractModule {
                     try {
                         clazz = Class.forName((String) plugin);
                     } catch (ClassNotFoundException e) {
-                        logger.log(Level.WARNING, "Plugin class couldn't found", e);
+                        logger.log(Level.WARNING, "plugin class couldn't found", e);
                         continue;
                     }
                     for (Class c : clazz.getInterfaces()) {

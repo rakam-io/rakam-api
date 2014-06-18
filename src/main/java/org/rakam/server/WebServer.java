@@ -2,7 +2,6 @@ package org.rakam.server;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
-import io.netty.handler.codec.http.QueryStringDecoder;
 import org.rakam.util.JsonHelper;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.MultiMap;
@@ -32,6 +31,8 @@ public class WebServer extends Verticle {
             @Override
             public void handle(final HttpServerRequest httpServerRequest) {
                 httpServerRequest.response().putHeader("Content-Type", "application/json; charset=utf-8");
+                httpServerRequest.response().putHeader("Access-Control-Allow-Origin", "*");
+                httpServerRequest.response().putHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
                 final MultiMap queryParams = httpServerRequest.params();
                 String tracker_id = queryParams.get("_tracker");
                 JsonObject json = JsonHelper.generate(queryParams);
@@ -84,72 +85,26 @@ public class WebServer extends Verticle {
                         returnError(httpServerRequest, "_user, property and value parameters are required", 400);
                     }
                 } else if (requestPath.startsWith("/rule")) {
-                    final JsonObject main = new JsonObject();
-
                     if (requestPath.equals("/rule/add")) {
-                        main.putString("_action", "add");
-
                         if (!httpServerRequest.method().equals("POST")) {
                             returnError(httpServerRequest, "POST request is required.", 400);
                             return;
                         }
-                        httpServerRequest.bodyHandler(new Handler<Buffer>() {
-                            @Override
-                            public void handle(Buffer buff) {
-                                String contentType = httpServerRequest.headers().get("Content-Type");
-                                JsonObject json;
-                                if ("application/x-www-form-urlencoded".equals(contentType)) {
-                                    QueryStringDecoder qsd = new QueryStringDecoder(buff.toString(), false);
-                                    json = new JsonObject();
-                                } else if ("application/json".equals(contentType)) {
-                                    json = new JsonObject(buff.toString());
-                                } else {
-                                    returnError(httpServerRequest, "content type must be one of [application/x-www-form-urlencoded, application/json]", 400);
-                                    return;
-                                }
-
-                                main.putObject("rule", json);
-                                vertx.eventBus().send("analysisRuleCrud", main, new Handler<Message<JsonObject>>() {
-                                    @Override
-                                    public void handle(Message<JsonObject> event) {
-                                        httpServerRequest.response().end(event.body().encode());
-                                    }
-                                });
-                            }
-                        });
+                        httpServerRequest.bodyHandler(createHandler(httpServerRequest, "add", "analysisRuleCrud"));
                     } else if (requestPath.equals("/rule/list")) {
                         if (!httpServerRequest.method().equals("POST")) {
                             returnError(httpServerRequest, "POST request is required.", 400);
                             return;
                         }
-                        main.putString("_action", "list");
-                        httpServerRequest.bodyHandler(new Handler<Buffer>() {
-                            @Override
-                            public void handle(Buffer buff) {
-                                String contentType = httpServerRequest.headers().get("Content-Type");
-                                JsonObject json;
-                                if ("application/json".equals(contentType)) {
-                                    json = new JsonObject(buff.toString());
-                                } else {
-                                    returnError(httpServerRequest, "content type must be one of [application/json]", 400);
-                                    return;
-                                }
-                                main.putObject("rule", json);
-
-                                String project = json.getString("project");
-                                if (project == null) {
-                                    returnError(httpServerRequest, "project parameter must be specified.", 400);
-                                    return;
-                                }
-                                main.putString("project", project);
-                                vertx.eventBus().send("analysisRuleCrud", main, new Handler<Message<JsonObject>>() {
-                                    @Override
-                                    public void handle(Message<JsonObject> event) {
-                                        httpServerRequest.response().end(event.body().encode());
-                                    }
-                                });
-                            }
-                        });
+                        httpServerRequest.bodyHandler(createHandler(httpServerRequest, "list", "analysisRuleCrud"));
+                    } else if (requestPath.equals("/rule/get")) {
+                        if (!httpServerRequest.method().equals("POST")) {
+                            returnError(httpServerRequest, "POST request is required.", 400);
+                            return;
+                        }
+                        httpServerRequest.bodyHandler(createHandler(httpServerRequest, "get", "analysisRuleCrud"));
+                    } else {
+                        returnError(httpServerRequest, "404.", 404);
                     }
 
                 } else {
@@ -172,6 +127,30 @@ public class WebServer extends Verticle {
         obj.putNumber("error_code", statusCode);
         httpServerRequest.response().putHeader("Content-Type", "application/json; charset=utf-8");
         httpServerRequest.response().end(obj.encode());
+    }
+
+    private Handler<Buffer> createHandler(final HttpServerRequest httpServerRequest, final String action, final String endPoint) {
+        Handler<Buffer> handler = new Handler<Buffer>() {
+            @Override
+            public void handle(Buffer buff) {
+                String contentType = httpServerRequest.headers().get("Content-Type");
+                JsonObject json;
+                if ("application/json".equals(contentType)) {
+                    json = new JsonObject(buff.toString());
+                } else {
+                    returnError(httpServerRequest, "content type must be one of [application/json]", 400);
+                    return;
+                }
+
+                vertx.eventBus().send(endPoint, new JsonObject().putObject("request", json).putString("action", action), new Handler<Message<JsonObject>>() {
+                    @Override
+                    public void handle(Message<JsonObject> event) {
+                        httpServerRequest.response().end(event.body().encode());
+                    }
+                });
+            }
+        };
+        return handler;
     }
 
 

@@ -35,6 +35,10 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
         return map.entrySet();
     }
 
+    public static Set<String> keys() {
+        return map.keySet();
+    }
+
     // check operation timestamp and compare the current version
     // because the request may be processed unordered and it may cause data loss.
     @Override

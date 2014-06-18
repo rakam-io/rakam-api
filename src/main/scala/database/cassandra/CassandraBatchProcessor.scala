@@ -29,12 +29,12 @@ import org.rakam.model.Actor
 import org.rakam.analysis.script.FieldScript
 import org.rakam.analysis.rule.aggregation.{AnalysisRule, AggregationRule, MetricAggregationRule, TimeSeriesAggregationRule}
 import org.rakam.cache.CacheAdapter
-import org.rakam.database.BatchProcessor
+import org.rakam.database.{DatabaseAdapter, BatchProcessor}
 import org.rakam.util.Serializer
 import java.text.SimpleDateFormat
-import com.apple.jobjc.NativeObjectLifecycleManager.Nothing
+import org.rakam.ServiceStarter
 
-object CassandraBatchProcessor extends BatchProcessor {
+object CassandraBatchProcessor {
   val sc = new SparkContext("local[2]", "CQLTestApp", System.getenv("SPARK_HOME"), SparkContext.jarOfClass(this.getClass))
   val db_session = Cluster.builder.addContactPoint("127.0.0.1").build.connect
 
@@ -169,11 +169,12 @@ object CassandraBatchProcessor extends BatchProcessor {
     (event: Event) => select.extract(event.data, null)
   }
 
-  override def processRule(rule: AnalysisRule) {
+
+  def processRule(rule: AnalysisRule) {
     this.processRule(rule, -1, -1);
   }
 
-  override def processRule(rule: AnalysisRule, start_time: Long, end_time: Long) {
+  def processRule(rule: AnalysisRule, start_time: Long, end_time: Long) {
     if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
       val aggRule = rule.asInstanceOf[AggregationRule]
       val ruleSelect = aggRule.select
@@ -364,40 +365,6 @@ object CassandraBatchProcessor extends BatchProcessor {
     val row = db_session.execute(counter_sql.bind(id)).one()
     return if (row == null) null else row.getSet("value", classOf[lang.String])
 
-
-  }
-
-  @throws(classOf[Exception])
-  override def exportCurrentToCache(cacheAdapter: CacheAdapter, rule: AnalysisRule) = {
-    if (rule.analysisType == Analysis.ANALYSIS_METRIC || rule.analysisType == Analysis.ANALYSIS_TIMESERIES) {
-      val mrule = rule.asInstanceOf[AggregationRule]
-      mrule.`type` match {
-        case COUNT | COUNT_X | MAXIMUM_X | MINIMUM_X | SUM_X =>
-          var active_rule_id: String = null
-          if (rule.analysisType == Analysis.ANALYSIS_TIMESERIES)
-            active_rule_id = rule.id + ":" + rule.asInstanceOf[TimeSeriesAggregationRule].interval.spanCurrent.current
-          else
-            active_rule_id = rule.id
-
-          cacheAdapter.incrementCounter(active_rule_id, getCounter(active_rule_id))
-        case AVERAGE_X =>
-          var sum_id: String = MetricAggregationRule.buildId(rule.project, AggregationType.SUM_X, mrule.select, mrule.filters, mrule.groupBy)
-          var count_id: String = MetricAggregationRule.buildId(rule.project, AggregationType.COUNT_X, mrule.select, mrule.filters, mrule.groupBy)
-          var calc: Long = 0L
-          if (rule.analysisType == Analysis.ANALYSIS_TIMESERIES) {
-            calc = (rule.asInstanceOf[TimeSeriesAggregationRule]).interval.spanCurrent.current
-            count_id += ":" + calc
-            sum_id += ":" + calc
-          }
-          cacheAdapter.incrementCounter(count_id, getCounter(count_id))
-          cacheAdapter.incrementCounter(count_id, getCounter(sum_id))
-        case SELECT_UNIQUE_X | COUNT_UNIQUE_X =>
-          getSet(rule.id + "::keys").foreach(item => {
-            val key = rule.id + ":" + item
-            cacheAdapter.addSet(key, getSet(key))
-          })
-      }
-    }
 
   }
 

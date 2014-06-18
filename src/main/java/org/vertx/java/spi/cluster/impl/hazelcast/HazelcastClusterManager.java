@@ -40,7 +40,7 @@ import java.util.Set;
  * 
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-class HazelcastClusterManager implements ClusterManager, MembershipListener {
+public class HazelcastClusterManager implements ClusterManager, MembershipListener {
 
   private static final Logger log = LoggerFactory.getLogger(HazelcastClusterManager.class);
   // Hazelcast config file
@@ -53,6 +53,7 @@ class HazelcastClusterManager implements ClusterManager, MembershipListener {
 
   private HazelcastInstance hazelcast;
   private String nodeID;
+  public int nodeIntId;
   private NodeListener nodeListener;
   private boolean active;
 
@@ -63,6 +64,10 @@ class HazelcastClusterManager implements ClusterManager, MembershipListener {
   	this.vertx = vertx;
     // We have our own shutdown hook and need to ensure ours runs before Hazelcast is shutdown
     System.setProperty("hazelcast.shutdownhook.enabled", "false");
+  }
+
+  public int getID() {
+      return nodeIntId;
   }
 
   public synchronized void join() {
@@ -76,10 +81,18 @@ class HazelcastClusterManager implements ClusterManager, MembershipListener {
     cfg =  new Config();
     cfg.getSerializationConfig().addDataSerializableFactory(1, new HazelcastServerIDFactory());
     hazelcast = Hazelcast.newHazelcastInstance(cfg);
+    nodeIntId = (int) hazelcast.getAtomicLong("nodeID").incrementAndGet();
     nodeID = hazelcast.getCluster().getLocalMember().getUuid();
+    IMap<String, Integer> map = hazelcast.getMap("nodeIDs");
+    map.put(nodeID, nodeIntId);
+
     hazelcast.getCluster().addMembershipListener(this);
 
     active = true;
+  }
+
+  public int getNodeIntID(String id) {
+      return (int) hazelcast.getMap("nodeIDs").get(id);
   }
 
 	/**

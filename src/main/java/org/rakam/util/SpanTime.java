@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  */
 
 public class SpanTime implements com.hazelcast.nio.serialization.DataSerializable {
-    private final static Pattern parser = Pattern.compile("^(?:([0-9]+)(month)s?)? ?(?:([0-9]+)(week)s?)? ?(?:([0-9]+)(day)s?)? ?(?:([0-9]+)(hour)s?)? ?(?:([0-9]+)(min)s?)?$");
+    private final static Pattern parser = Pattern.compile("^(?:([0-9]+)(month)s?)? ?(?:([0-9]+)(week)s?)? ?(?:([0-9]+)(day)s?)? ?(?:([0-9]+)(hour)s?)? ?(?:([0-9]+)(minute)s?)?$");
 
     public int period;
     private int cursor = -1;
@@ -48,17 +48,17 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
                 if (num_str != null) {
                     int num = Integer.parseInt(num_str);
                     String period = match.group(i + 1);
-                    if (period.equals("month")) {
+                    if (period.startsWith("month")) {
                         p += 60 * 60 * 24 * 7 * 30 * num;
-                    } else if (period.equals("week")) {
+                    } else if (period.startsWith("week")) {
                         p += 60 * 60 * 24 * 7 * num;
-                    } else if (period.equals("day")) {
+                    } else if (period.startsWith("day")) {
                         p += 60 * 60 * 24 * num;
-                    } else if (period.endsWith("hour")) {
+                    } else if (period.startsWith("hour")) {
                         p += 60 * 60 * num;
-                    } else if (period.equals("minute")) {
+                    } else if (period.startsWith("minute")) {
                         p += 60 * num;
-                    } else if (period.equals("second")) {
+                    } else if (period.startsWith("second")) {
                         p += num;
                     }
                 }

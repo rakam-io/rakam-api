@@ -16,8 +16,7 @@ public interface DatabaseAdapter extends KeyValueStorage {
 
     Actor createActor(String project, String actor_id, Map<String, String> properties);
     void addPropertyToActor(String project, String actor_id, Map<String, String> props);
-    UUID addEvent(String project, int time_cabin, String actor_id, byte[] data);
-    void addEventAsync(String project, int time_cabin, String actor_id, byte[] data);
+    UUID addEvent(String project, String actor_id, byte[] data);
     Actor getActor(String project, String actorId);
     Event getEvent(UUID eventId);
     void combineActors(String actor1, String actor2);
@@ -28,4 +27,8 @@ public interface DatabaseAdapter extends KeyValueStorage {
     Map<String, AnalysisRuleList> getAllRules();
     void addRule(AnalysisRule rule);
     void deleteRule(AnalysisRule rule);
+    public void processRule(AnalysisRule rule);
+    public void processRule(AnalysisRule rule, long start_time, long end_time);
+    public void batch(int start_time, int end_time, int nodeId);
+    public void batch(int start_time, int nodeId);
 }

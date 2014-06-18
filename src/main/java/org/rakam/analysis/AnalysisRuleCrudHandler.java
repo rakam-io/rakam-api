@@ -35,13 +35,22 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
     @Override
     public void handle(Message<JsonObject> event) {
         final JsonObject obj = event.body();
-        String action = obj.getString("_action");
+        String action = obj.getString("action");
+        JsonObject request = obj.getObject("request");
+        String project = request.getString("project");
+        if (project == null) {
+            event.reply(new JsonObject().putString("error", "project parameter must be specified.").putNumber("status", 400));
+            return;
+        }
+
         if (action.equals("add"))
-            event.reply(add(obj.getObject("rule")));
+            event.reply(add(request.getObject("rule")));
         else if(action.equals("list"))
-            event.reply(list(obj.getString("project")));
+            event.reply(list(request.getString("project")));
         else if(action.equals("delete"))
-            event.reply(delete(obj.getObject("rule")));
+            event.reply(delete(request.getObject("rule")));
+        else if(action.equals("get"))
+            event.reply(get(request.getString("project"), request.getString("rule")));
     }
 
     private JsonObject delete(final JsonObject rule_obj) {
@@ -88,6 +97,18 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             }
         ret.putArray("rules", json);
         return ret;
+    }
+
+    private JsonObject get(String project, String ruleId) {
+        AnalysisRuleList rules = DistributedAnalysisRuleMap.get(project);
+        if(rules!=null)
+            for(AnalysisRule rule : rules) {
+                if(rule.id.equals(ruleId))
+                    return rule.toJson();
+            }
+        else
+            return new JsonObject().putString("error", "project doesn't exists");
+        return new JsonObject().putString("error", "rule doesn't exists");
     }
 
     public JsonObject add(final JsonObject obj) {

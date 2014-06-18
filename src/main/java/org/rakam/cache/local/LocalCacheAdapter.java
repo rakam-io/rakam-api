@@ -102,6 +102,16 @@ public class LocalCacheAdapter implements CacheAdapter {
     }
 
     @Override
+    public void removeSet(String setName) {
+
+    }
+
+    @Override
+    public void removeCounter(String setName) {
+
+    }
+
+    @Override
     public void addSet(String setName, Collection<String> items) {
         Set<String> s = sets.get(setName);
         if(s==null) {

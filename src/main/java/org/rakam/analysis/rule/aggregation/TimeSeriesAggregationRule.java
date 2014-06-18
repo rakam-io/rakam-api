@@ -52,11 +52,7 @@ public class TimeSeriesAggregationRule extends AggregationRule {
     }
 
     public String buildId() {
-        return project+type+select+groupBy+filters+interval;
-    }
-
-    public static String buildId(String project, AggregationType agg_type, FieldScript select, FilterScript filters, FieldScript groupBy, SpanTime interval) {
-        return project+agg_type+select+groupBy+filters+interval;
+        return project+TYPE.id+type.id+(select==null ? "" : select)+(groupBy==null ? "" : groupBy)+(filters==null ? "" : filters)+interval;
     }
 
     public JsonObject toJson() {

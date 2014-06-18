@@ -333,11 +333,8 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
             if (rule.groupBy==null)
                 for(Integer time: keys) {
                     KeyValueStorage adapter = now==time ? cacheAdapter : databaseAdapter;
-                    JsonObject j = new JsonObject();
                     int c = adapter.getSetCount(rule_id + ":" + time);
-                    j.putNumber("result", c);
-
-                    results.putObject(time.toString(), j);
+                    results.putNumber(time+"000", c);
                 }
             else
                 for(Integer time: keys)
@@ -349,7 +346,7 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
                 Iterator<Integer> it = keys.iterator();
                 JsonObject j = new JsonObject();
                 for(Integer cabin: keys) {
-                    j.putNumber(String.valueOf(((long)cabin)*1000), (now==cabin ? cacheAdapter : databaseAdapter).getCounter(rule_id+":"+cabin));
+                    j.putNumber(cabin+"000", (now==cabin ? cacheAdapter : databaseAdapter).getCounter(rule_id+":"+cabin));
                 }
                 results = j;
             } else {

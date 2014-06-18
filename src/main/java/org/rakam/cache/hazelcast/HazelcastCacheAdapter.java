@@ -24,7 +24,7 @@ public class HazelcastCacheAdapter implements CacheAdapter, PubSubAdapter {
 
     public HazelcastCacheAdapter() throws FileNotFoundException {
         ClientConfig clientConfig = new ClientConfig();
-        FileSystemXmlConfig config = new FileSystemXmlConfig("cluster.xml");
+        FileSystemXmlConfig config = new FileSystemXmlConfig("config/cluster.xml");
         clientConfig.getGroupConfig().setName("dev").setPassword("dev-pass");
         hazelcast =  HazelcastClient.newHazelcastClient(clientConfig);
     }
@@ -73,13 +73,24 @@ public class HazelcastCacheAdapter implements CacheAdapter, PubSubAdapter {
     }
 
     @Override
+    public void removeSet(String setName) {
+        hazelcast.getSet(setName).clear();
+    }
+
+    @Override
+    public void removeCounter(String setName) {
+        hazelcast.getAtomicLong(setName).set(0);
+    }
+
+    @Override
     public void addSet(String setName, Collection<String> items) {
-        hazelcast.getSet(setName).addAll(items);
+        if(items!=null)
+            hazelcast.getSet(setName).addAll(items);
     }
 
     @Override
     public void setActorProperties(String project, String actor_id, JsonObject properties) {
-        hazelcast.getMap(project+":actor-prop").put(actor_id, properties);
+        hazelcast.getMap(project+":actor-prop").set(actor_id, properties);
     }
 
     @Override

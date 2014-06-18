@@ -27,11 +27,11 @@ public class MetricAggregationRule extends AggregationRule {
     }
 
     public String buildId() {
-        return project+type+select+groupBy+filters;
+        return project+TYPE.id+type.id+(select==null ? "" : select)+(groupBy==null ? "" : groupBy)+(filters==null ? "" : filters);
     }
 
     public static String buildId(String project, AggregationType agg_type, FieldScript select, FilterScript filters, FieldScript groupBy) {
-        return project+agg_type+select+groupBy+filters;
+        return project+TYPE.id+agg_type.id+select+groupBy+filters;
     }
 
     @Override
