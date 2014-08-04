@@ -25,4 +25,10 @@ public class JsonHelper {
         }
         return obj;
     }
+
+    public static JsonObject returnError(String message) {
+        JsonObject j = new JsonObject();
+        j.putString("error", message);
+        return j;
+    }
 }

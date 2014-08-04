@@ -2,6 +2,10 @@ package org.rakam;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.hazelcast.core.MemberAttributeEvent;
+import com.hazelcast.core.MembershipEvent;
+import com.hazelcast.core.MembershipListener;
+import com.hazelcast.instance.HazelcastInstanceProxy;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.rakam.analysis.AnalysisRequestHandler;
 import org.rakam.analysis.AnalysisRuleCrudHandler;
@@ -17,10 +21,9 @@ import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.spi.cluster.NodeListener;
+import org.vertx.java.core.spi.cluster.ClusterManager;
 import org.vertx.java.platform.Verticle;
 import org.vertx.java.platform.impl.DefaultPlatformManager;
-import org.vertx.java.spi.cluster.impl.hazelcast.HazelcastClusterManager;
 
 import java.util.Map;
 import java.util.logging.Logger;
@@ -37,6 +40,7 @@ public class ServiceStarter extends Verticle {
     public long collectionCollectorTimer;
     public static Logger logging = Logger.getLogger(ServiceStarter.class.getName());
     CacheAdapter cacheAdapter;
+    private HazelcastInstanceProxy hazelcast;
 
     public void start(final Future<Void> startedResult) {
         conf = container.config();
@@ -84,7 +88,7 @@ public class ServiceStarter extends Verticle {
         collectionCollectorTimer = vertx.setPeriodic(2000, new Handler<Long>() {
             public void handle(Long timerID) {
                 //long first = System.currentTimeMillis();
-                for(Map.Entry item : DistributedAnalysisRuleMap.entrySet())
+                for (Map.Entry item : DistributedAnalysisRuleMap.entrySet())
                     PeriodicCollector.process(item);
                 //System.out.print(" "+(System.currentTimeMillis() - first)+" ");
             }
@@ -96,29 +100,36 @@ public class ServiceStarter extends Verticle {
 
         try {
             final DefaultPlatformManager mgr = (DefaultPlatformManager) FieldUtils.readField(container, "mgr", true);
-            final HazelcastClusterManager cluster = (HazelcastClusterManager) FieldUtils.readField(mgr, "clusterManager", true);
-            server_id = cluster.getID();
-            cluster.nodeListener(new NodeListener() {
-                @Override
-                public void nodeAdded(String nodeID) {
-                    logging.finest("say welcome to +"+nodeID+"!");
-                }
-                @Override
-                public void nodeLeft(String nodeID) {
-                    int intId = cluster.getNodeIntID(nodeID);
-                    logging.fine("it seems "+intId+" is down. checking last check-in timestamp.");
-                    long downTimestamp = cacheAdapter.getCounter(Integer.toString(intId));
-                    logging.fine("node "+intId+" is down until "+downTimestamp);
-
-                    DatabaseAdapter dbAdapter = injector.getInstance(DatabaseAdapter.class);
-                    dbAdapter.batch((int) downTimestamp, intId);
-
-                }
-            });
-
+            final ClusterManager cluster = (ClusterManager) FieldUtils.readField(mgr, "clusterManager", true);
+            this.hazelcast = (HazelcastInstanceProxy) FieldUtils.readField(cluster, "hazelcast", true);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
+
+        server_id = (int) hazelcast.getAtomicLong("server_id").incrementAndGet();
+        hazelcast.getCluster().addMembershipListener(new MembershipListener() {
+            @Override
+            public void memberAdded(MembershipEvent membershipEvent) {
+                String nodeID = membershipEvent.getMember().getUuid();
+                logging.finest("say welcome to +" + nodeID + "!");
+            }
+
+            @Override
+            public void memberRemoved(MembershipEvent membershipEvent) {
+                String nodeID = membershipEvent.getMember().getUuid();
+                logging.fine("it seems " + nodeID + " is down. checking last check-in timestamp.");
+                long downTimestamp = cacheAdapter.getCounter(nodeID);
+                logging.fine("node " + nodeID + " is down until " + downTimestamp);
+
+                DatabaseAdapter dbAdapter = injector.getInstance(DatabaseAdapter.class);
+                dbAdapter.batch((int) downTimestamp, (int) server_id);
+            }
+
+            @Override
+            public void memberAttributeChanged(MemberAttributeEvent memberAttributeEvent) {
+
+            }
+        });
 
         startedResult.complete();
     }
@@ -128,3 +139,5 @@ public class ServiceStarter extends Verticle {
     }
 
 }
+
+

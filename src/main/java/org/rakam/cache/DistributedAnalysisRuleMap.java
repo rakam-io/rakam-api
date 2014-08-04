@@ -1,10 +1,10 @@
 package org.rakam.cache;
 
 import org.rakam.ServiceStarter;
-import org.rakam.analysis.AnalysisQueryParser;
+import org.rakam.analysis.AnalysisRuleParser;
 import org.rakam.analysis.rule.AnalysisRuleList;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.database.DatabaseAdapter;
+import org.rakam.database.AnalysisRuleDatabase;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> {
     final static Map<String, AnalysisRuleList> map;
     static {
-        map = new ConcurrentHashMap(ServiceStarter.injector.getInstance(DatabaseAdapter.class).getAllRules());
+        map = new ConcurrentHashMap(ServiceStarter.injector.getInstance(AnalysisRuleDatabase.class).getAllRules());
     }
 
     public final static int ADD = 0;
@@ -47,7 +47,7 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
         String project = json.getString("project");
         Long timestamp = json.getLong("timestamp");
         if(timestamp!=null && timestamp<timestampCursor)
-            throw new IllegalArgumentException("timestamp for event must be provided");;
+            throw new IllegalArgumentException("timestamp for event must be provided");
         timestampCursor = timestamp;
         AnalysisRuleList rules = map.get(project);
         if(rules==null) {
@@ -55,13 +55,13 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
             map.put(project, rules);
         }
         if (json.getInteger("operation") == ADD) {
-            rules.add(AnalysisQueryParser.parse(json.getObject("rule")));
+            rules.add(AnalysisRuleParser.parse(json.getObject("rule")));
         } else if (json.getInteger("operation") == DELETE) {
-            rules.remove(AnalysisQueryParser.parse(json.getObject("rule")));
+            rules.remove(AnalysisRuleParser.parse(json.getObject("rule")));
         } else if (json.getInteger("operation") == UPDATE) {
             // The API level doesn't support UPDATE request so this code is unnecessary currently
-            AnalysisRule base = AnalysisQueryParser.parse(json.getObject("old_rule"));
-            AnalysisRule new_rule = AnalysisQueryParser.parse(json.getObject("new_rule"));
+            AnalysisRule base = AnalysisRuleParser.parse(json.getObject("old_rule"));
+            AnalysisRule new_rule = AnalysisRuleParser.parse(json.getObject("new_rule"));
             if (rules.remove(base)) {
                 rules.add(new_rule);
             } else {

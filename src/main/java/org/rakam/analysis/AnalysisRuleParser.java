@@ -18,12 +18,12 @@ import org.vertx.java.core.json.JsonObject;
 /**
  * Created by buremba on 15/01/14.
  */
-public class AnalysisQueryParser {
+public class AnalysisRuleParser {
 
     public static AnalysisRule parse(JsonObject json) throws IllegalArgumentException {
         AnalysisRule rule;
         String project = json.getString("project");
-        if(json.getString("analysis")==null)
+        if (json.getString("analysis") == null)
             throw new IllegalArgumentException("analysis type is required.");
         Analysis analysisType;
         try {
@@ -35,10 +35,10 @@ public class AnalysisQueryParser {
             throw new IllegalArgumentException("project id is required.");
 
         if (analysisType == Analysis.ANALYSIS_TIMESERIES || analysisType == Analysis.ANALYSIS_METRIC) {
-            FilterScript filter = getFilter(json, "filter");
-            FieldScript groupBy = getField(json, "group_by");
-            FieldScript select = getField(json, "select");
-            if(json.getString("aggregation")==null)
+            FilterScript filter = getFilter(json.getObject("filter"));
+            FieldScript groupBy = getField(json.getField("group_by"));
+            FieldScript select = getField(json.getField("select"));
+            if (json.getString("aggregation") == null)
                 throw new IllegalArgumentException("aggregation type is required.");
             AggregationType aggType;
             try {
@@ -48,8 +48,11 @@ public class AnalysisQueryParser {
             }
             if (aggType == null)
                 throw new IllegalArgumentException("aggregation type is required.");
+            if (aggType != AggregationType.COUNT && select == null)
+                throw new IllegalArgumentException("select attribute is required if aggregation type is not COUNT.");
+
             if (groupBy != null && select == null)
-                throw new IllegalArgumentException("select attribute is required when using grouping.");
+                select = groupBy;
 
             if (analysisType == Analysis.ANALYSIS_TIMESERIES) {
                 String interval = json.getString("interval");
@@ -61,43 +64,41 @@ public class AnalysisQueryParser {
             } else {
                 throw new IllegalStateException("aggregation analysis type couldn't identified");
             }
-        }else {
+        } else {
             throw new IllegalStateException("analysis type couldn't identified");
         }
         String strategy = json.getString("strategy");
-        if(strategy!=null)
+        if (strategy != null)
             try {
                 rule.strategy = AnalysisRuleStrategy.get(strategy);
-            } catch(IllegalArgumentException e) {
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("strategy couldn't identified.");
             }
-
         return rule;
     }
 
-    private static FieldScript getField(JsonObject json, String key) {
-        Object qGroupBy = json.getField(key);
-        if (qGroupBy != null) {
-            if (qGroupBy instanceof JsonObject) {
-                String script = ((JsonObject) qGroupBy).getString("script");
+    public static FieldScript getField(Object field) {
+        if (field != null) {
+            if (field instanceof JsonObject) {
+                String script = ((JsonObject) field).getString("script");
                 if (script != null)
                     return new MvelFieldScript(script);
-            } else if (qGroupBy instanceof String) {
-                return new SimpleFieldScript((String) qGroupBy);
+            } else if (field instanceof String) {
+                return new SimpleFieldScript((String) field);
             }
         }
         return null;
     }
 
-    private static FilterScript getFilter(JsonObject json, String key) {
-        JsonObject qFilter = json.getObject("filter");
-        if (qFilter != null) {
-            String script = qFilter.getString("script");
+    public static FilterScript getFilter(JsonObject field) {
+        if (field != null) {
+            String script = field.getString("script");
             if (script != null)
                 return new MvelFilterScript(script);
             else
-                return new SimpleFilterScript(qFilter.toMap());
+                return new SimpleFilterScript(field.toMap());
         }
+
         return null;
     }
 }

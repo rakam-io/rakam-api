@@ -6,7 +6,7 @@ import org.rakam.analysis.rule.AnalysisRuleList;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.cache.DistributedAnalysisRuleMap;
 import org.rakam.constant.AnalysisRuleStrategy;
-import org.rakam.database.DatabaseAdapter;
+import org.rakam.database.AnalysisRuleDatabase;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
@@ -24,7 +24,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
     private static Logger LOGGER = Logger.getLogger("AnalysisRuleCrudHandler");
     private final EventBus eventBus;
 
-    DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
+    AnalysisRuleDatabase databaseAdapter = ServiceStarter.injector.getInstance(AnalysisRuleDatabase.class);
     ExecutorService pool = Executors.newCachedThreadPool();
 
     public AnalysisRuleCrudHandler(EventBus eventBus) {
@@ -44,7 +44,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         }
 
         if (action.equals("add"))
-            event.reply(add(request.getObject("rule")));
+            event.reply(add(request));
         else if(action.equals("list"))
             event.reply(list(request.getString("project")));
         else if(action.equals("delete"))
@@ -57,7 +57,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         AnalysisRule rule;
         JsonObject ret = new JsonObject();
         try {
-            rule = AnalysisQueryParser.parse(rule_obj);
+            rule = AnalysisRuleParser.parse(rule_obj);
         } catch(IllegalArgumentException e) {
             ret.putString("error", e.getMessage());
             ret.putNumber("error_code", 400);
@@ -115,7 +115,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         final AnalysisRule rule;
         JsonObject ret = new JsonObject();
         try {
-            rule = AnalysisQueryParser.parse(obj);
+            rule = AnalysisRuleParser.parse(obj);
         } catch(IllegalArgumentException e) {
             ret.putString("error", e.getMessage());
             ret.putNumber("error_code", 400);

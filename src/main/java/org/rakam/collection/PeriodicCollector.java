@@ -7,21 +7,20 @@ import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
 import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.hazelcast.models.AverageCounter;
 import org.rakam.constant.Analysis;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.database.KeyValueStorage;
 import org.rakam.util.SpanTime;
 
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * Created by buremba on 14/05/14.
  */
-public class PeriodicCollector {
-    final static KeyValueStorage fastCacheAdapter = CollectionWorker.activeStorageAdapter;
+public class    PeriodicCollector {
+    final static CacheAdapter fastCacheAdapter = CollectionWorker.activeStorageAdapter;
     final static CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
     final static DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
 
@@ -30,9 +29,10 @@ public class PeriodicCollector {
 
         for (AnalysisRule rule : value) {
             AggregationRule mrule;
+            Analysis analysisType = rule.analysisType();
             String previous_key;
             String now_key;
-            if (rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
+            if (analysisType == Analysis.ANALYSIS_TIMESERIES) {
                 mrule = (AggregationRule) rule;
                 SpanTime time = new SpanTime(((TimeSeriesAggregationRule) rule).interval.period).span((int) (System.currentTimeMillis() / 1000));
                 int now = time.current();
@@ -41,8 +41,8 @@ public class PeriodicCollector {
                 now_key = mrule.id + ":" + now;
             } else if (rule.analysisType() == Analysis.ANALYSIS_METRIC) {
                 mrule = (MetricAggregationRule) rule;
-                previous_key = mrule.id;
                 now_key = mrule.id;
+                previous_key = null;
             } else {
                 throw new IllegalStateException();
             }
@@ -54,15 +54,20 @@ public class PeriodicCollector {
                     case MINIMUM_X:
                     case SUM_X:
                         moveCounters(now_key, fastCacheAdapter, cacheAdapter);
-                        moveCounters(previous_key, cacheAdapter, databaseAdapter);
+                        if (analysisType == Analysis.ANALYSIS_TIMESERIES)
+                            moveCounters(previous_key, cacheAdapter, databaseAdapter);
                         break;
-                    case SELECT_UNIQUE_X:
-                        moveSets(now_key, fastCacheAdapter, cacheAdapter);
-                        moveSets(previous_key, cacheAdapter, databaseAdapter);
+                    case AVERAGE_X:
+                        // TODO
+                        moveAverageCounters(now_key, fastCacheAdapter, cacheAdapter);
+                        if (analysisType == Analysis.ANALYSIS_TIMESERIES)
+                            moveAverageCounters(previous_key, cacheAdapter, databaseAdapter);
                         break;
-                    case COUNT_UNIQUE_X:
+                    case UNIQUE_X:
                         moveSet(now_key, fastCacheAdapter, cacheAdapter);
-                        moveSet(previous_key, cacheAdapter, databaseAdapter);
+                        if (analysisType == Analysis.ANALYSIS_TIMESERIES)
+                            moveSet(previous_key, cacheAdapter, databaseAdapter);
+                        break;
 
                 }
             else
@@ -72,41 +77,61 @@ public class PeriodicCollector {
                     case MAXIMUM_X:
                     case MINIMUM_X:
                     case SUM_X:
-                        moveGroupByCounter(now_key, fastCacheAdapter, cacheAdapter);
-                        moveGroupByCounter(previous_key, cacheAdapter, databaseAdapter);
+                        moveGroupByOrderedCounter(now_key, fastCacheAdapter, cacheAdapter);
+                        if (analysisType == Analysis.ANALYSIS_TIMESERIES)
+                            moveGroupByOrderedCounter(previous_key, cacheAdapter, databaseAdapter);
                         break;
-                    case SELECT_UNIQUE_X:
-                    case COUNT_UNIQUE_X:
+                    case AVERAGE_X:
+                        moveGroupByOrderedAverageCounter(now_key, fastCacheAdapter, cacheAdapter);
+                        if (analysisType == Analysis.ANALYSIS_TIMESERIES)
+                            moveGroupByOrderedCounter(previous_key, cacheAdapter, databaseAdapter);
+                    case UNIQUE_X:
                         moveGroupBySet(now_key, fastCacheAdapter, cacheAdapter);
-                        moveGroupBySet(previous_key, cacheAdapter, databaseAdapter);
+                        if (analysisType == Analysis.ANALYSIS_TIMESERIES)
+                            moveGroupBySet(previous_key, cacheAdapter, databaseAdapter);
                 }
+
         }
 
         fastCacheAdapter.flush();
-        cacheAdapter.setCounter(Integer.toString(ServiceStarter.server_id), System.currentTimeMillis() / 1000);
+        cacheAdapter.setCounter(Long.toString(ServiceStarter.server_id), System.currentTimeMillis() / 1000);
     }
 
+    private static void moveAverageCounters(String now_key, CacheAdapter fastCacheAdapter, CacheAdapter cacheAdapter) {
+        AverageCounter averageCounter = fastCacheAdapter.getAverageCounter(now_key);
+        cacheAdapter.incrementAverageCounter(now_key, averageCounter.getSum(), averageCounter.getCount());
+    }
 
-    public static void moveGroupByCounter(String key, KeyValueStorage from, KeyValueStorage to) {
-        Set<String> keys = from.getSet(key + "::keys");
-        if(keys!=null) {
-            to.addSet(key + "::keys", keys);
+    private static void moveGroupByOrderedAverageCounter(String key, CacheAdapter from, CacheAdapter to) {
+        Set<String> keys = from.getSet(key);
+        if (keys != null) {
             for (String k : keys) {
-                moveCounters(key + ":" + k, from, to);
+                Long counter = from.getCounter(key + ":count:" + k);
+                Long sum = from.getCounter(key + ":sum:" + k);
+                if (counter != null) {
+                    to.incrementGroupByAverageCounter(key, k, sum, counter);
+                    from.removeCounter(key + ":" + k);
+                }
             }
-            from.removeSet(key + "::keys");
         }
     }
-    public static void moveGroupBySet(String key, KeyValueStorage from, KeyValueStorage to) {
-        Set<String> keys = from.getSet(key + "::keys");
-        if(keys!=null) {
-            to.addSet(key + "::keys", keys);
-            for (String k : keys) {
-                to.addSet(key + ":" + k, from.getSet(key+":"+k));
-                from.removeSet(key + ":" + k);
+
+    private static void moveGroupByOrderedCounter(String key, CacheAdapter from, CacheAdapter to) {
+        Map<String, Long> groupByCounters = from.getGroupByCounters(key);
+        if (groupByCounters != null)
+            for (Map.Entry<String, Long> k : groupByCounters.entrySet()) {
+                to.addGroupByCounter(key, k.getKey(), k.getValue());
             }
-            from.removeSet(key + "::keys");
+        from.removeGroupByCounters(key);
+    }
+
+    public static void moveGroupBySet(String key, CacheAdapter from, CacheAdapter to) {
+        Map<String, Set<String>> groupByStrings = from.getGroupByStrings(key);
+        if(groupByStrings!=null)
+        for(Map.Entry<String, Set<String>> item : groupByStrings.entrySet()) {
+            to.addGroupByString(key, item.getKey(), item.getValue());
         }
+        from.removeGroupByStrings(key);
     }
 
     public static void moveCounters(String key, KeyValueStorage from, KeyValueStorage to) {
@@ -120,27 +145,5 @@ public class PeriodicCollector {
     public static void moveSet(String key, KeyValueStorage from, KeyValueStorage to) {
         to.addSet(key, from.getSet(key));
         from.removeSet(key);
-    }
-
-    public static void moveSets(String key, KeyValueStorage from, KeyValueStorage to) {
-        Iterator<String> keys = from.getSetIterator(key + "::keys");
-        if (keys != null) {
-            HashSet<String> s = new HashSet();
-            while (keys.hasNext()) {
-                String item = keys.next();
-                s.add(item);
-                Iterator<String> it = from.getSetIterator(key + ":" + item);
-                if (it != null) {
-                    HashSet<String> set = new HashSet();
-                    while (it.hasNext())
-                        set.add(it.next());
-                    to.addSet(key + ":" + item, set);
-                }
-                from.removeSet(key + ":" + item);
-            }
-            to.addSet(key + "::keys", s);
-            from.removeSet(key + "::keys");
-
-        }
     }
 }

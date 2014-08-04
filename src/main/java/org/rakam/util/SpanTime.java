@@ -35,7 +35,7 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
         return (now - cursor) / period;
     }
 
-    public static SpanTime fromPeriod(String str) {
+    public static SpanTime fromPeriod(String str) throws IllegalArgumentException {
         try {
             return new SpanTime(Integer.parseInt(str));
         } catch (NumberFormatException e) {}
@@ -64,7 +64,7 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
                 }
             }
         if (p == 0)
-                throw new IllegalArgumentException("couldn't parse interval string");
+                throw new IllegalArgumentException("couldn't parse interval string. usage [*month, *week, *day, *hour, *minute, *second], ");
         return new SpanTime(p);
     }
 

@@ -1,8 +1,0 @@
-<hazelcast xmlns="http://www.hazelcast.com/schema/config">
-    <group>
-        <name>dev</name>
-        <password>dev-pass</password>
-    </group>
-    <management-center enabled="true">http://localhost:8080/mancenter</management-center>
-
-</hazelcast>

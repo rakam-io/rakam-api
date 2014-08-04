@@ -2,6 +2,7 @@ package org.rakam.analysis.rule.aggregation;
 
 import org.rakam.analysis.script.FieldScript;
 import org.rakam.analysis.script.FilterScript;
+import org.rakam.cache.hazelcast.RakamDataSerializableFactory;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 
@@ -26,16 +27,21 @@ public class MetricAggregationRule extends AggregationRule {
         this.id = buildId();
     }
 
-    public String buildId() {
-        return project+TYPE.id+type.id+(select==null ? "" : select)+(groupBy==null ? "" : groupBy)+(filters==null ? "" : filters);
+    public MetricAggregationRule() {
+
     }
 
-    public static String buildId(String project, AggregationType agg_type, FieldScript select, FilterScript filters, FieldScript groupBy) {
-        return project+TYPE.id+agg_type.id+select+groupBy+filters;
+    private String buildId() {
+        return project+TYPE.id+type.id+(select==null ? "" : select)+(groupBy==null ? "" : groupBy)+(filters==null ? "" : filters);
     }
 
     @Override
     public Analysis analysisType() {
         return TYPE;
+    }
+
+    @Override
+    public int getId() {
+        return RakamDataSerializableFactory.METRIC_AGGREGATION_RULE;
     }
 }

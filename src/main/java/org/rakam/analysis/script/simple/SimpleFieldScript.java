@@ -25,7 +25,7 @@ public class SimpleFieldScript extends FieldScript {
 
     @Override
     public boolean contains(JsonObject obj) {
-        return obj.containsField(fieldKey);
+        return obj.getField(fieldKey)!=null;
     }
 
     @Override

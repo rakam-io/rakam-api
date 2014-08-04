@@ -5,14 +5,13 @@ import org.rakam.analysis.rule.AnalysisRuleList;
 import org.rakam.analysis.rule.aggregation.AggregationRule;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
-import org.rakam.analysis.script.FieldScript;
 import org.rakam.analysis.script.FilterScript;
+import org.rakam.cache.ActorCacheAdapter;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.DistributedAnalysisRuleMap;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.database.DatabaseAdapter;
-import org.rakam.database.KeyValueStorage;
 import org.rakam.model.Actor;
 import org.vertx.java.core.json.JsonObject;
 
@@ -22,24 +21,31 @@ import java.util.concurrent.ConcurrentMap;
  * Created by buremba on 05/06/14.
  */
 public class Aggregator {
-    final private CacheAdapter cacheAdapter;
+    final private CacheAdapter l1cacheAdapter;
+    final private CacheAdapter l2cacheAdapter;
+    private ActorCacheAdapter actorCache;
     private DatabaseAdapter databaseAdapter;
     private final static ConcurrentMap<String, JsonObject> lruCache = new ConcurrentLinkedHashMap.Builder()
             .maximumWeightedCapacity(10000)
             .build();
 
-    final private KeyValueStorage storageAdapter;
-
-    public Aggregator(KeyValueStorage storage, CacheAdapter cache, DatabaseAdapter database) {
-        storageAdapter = storage;
-        cacheAdapter = cache;
+    public Aggregator(CacheAdapter l1Cache, CacheAdapter l2Cache, DatabaseAdapter database) {
+        l1cacheAdapter = l1Cache;
+        l2cacheAdapter = l2Cache;
+        actorCache = (ActorCacheAdapter) l2cacheAdapter;
         databaseAdapter = database;
+    }
+    public Aggregator(CacheAdapter l1Cache, CacheAdapter l2Cache, DatabaseAdapter database, ActorCacheAdapter actor) {
+        l1cacheAdapter = l1Cache;
+        l2cacheAdapter = l2Cache;
+        databaseAdapter = database;
+        actorCache = actor;
     }
 
     /*
     Find pre-aggregation rules and match with the event.
     If it matches update the appropriate counter.
-*/
+    */
     public void aggregate(String project, JsonObject m, String actor_id, int timestamp) {
 
         AnalysisRuleList aggregations = DistributedAnalysisRuleMap.get(project);
@@ -58,85 +64,90 @@ public class Aggregator {
 
                 if (filters != null && !filters.test(m, actor_props))
                     continue;
-                FieldScript groupBy = aggregation.groupBy;
+
+
                 String key = analysis_rule.id;
                 if (analysis_rule.analysisType() == Analysis.ANALYSIS_TIMESERIES)
                     key += ":" + ((TimeSeriesAggregationRule) analysis_rule).interval.span(timestamp).current();
 
-                if (groupBy == null) {
+                if (aggregation.groupBy!=null) {
+                    String groupByValue = aggregation.groupBy!=null ? aggregation.groupBy.extract(m, actor_props) : null;
+                    aggregateByGrouping(key, aggregation.select == null ? null : aggregation.select.extract(m, actor_props), aggregation.type, aggregation.groupBy.fieldKey, groupByValue);
+                }else {
                     aggregateByNonGrouping(key, aggregation.select == null ? null : aggregation.select.extract(m, actor_props), aggregation.type);
-                } else {
-                    String item = groupBy.extract(m, actor_props);
-                    if (item != null)
-                        aggregateByGrouping(key, aggregation.select == null ? null : aggregation.select.extract(m, actor_props), aggregation.type, groupBy.fieldKey, item);
                 }
             }
         }
     }
 
     public void aggregateByGrouping(String id, String type_target, AggregationType type, String groupByColumn, String groupByValue) {
-
+        String groupBySaveValue = groupByValue == null ? "null" : groupByValue;
+        type_target = type_target==null ? "null" : type_target;
         switch (type) {
             case COUNT:
-                storageAdapter.addGroupByItem(id, groupByColumn, groupByValue);
+                l1cacheAdapter.addGroupByCounter(id, groupBySaveValue);
                 break;
-            case SELECT_UNIQUE_X:
-            case COUNT_UNIQUE_X:
-                storageAdapter.addSet(id + ":" + groupByValue, (type_target != null ? type_target : "null"));
-                storageAdapter.addSet(id + "::keys", groupByValue);
+            case UNIQUE_X:
+                l1cacheAdapter.addGroupByString(id, groupBySaveValue, type_target);
                 break;
             case COUNT_X:
-                storageAdapter.addGroupByItem(id, groupByColumn, groupByValue);
+                if (groupByValue!=null)
+                    l1cacheAdapter.addGroupByCounter(id, groupBySaveValue);
             default:
-                Long target = null;
                 try {
-                    target = Long.parseLong(type_target, 10);
+                    Long target = Long.parseLong(type_target, 10);
+                    switch (type) {
+                        case SUM_X:
+                            l1cacheAdapter.addGroupByCounter(id, groupByColumn, target);
+                        case MINIMUM_X:
+                        case MAXIMUM_X:
+                            Long key = l1cacheAdapter.getCounter(id + ":" + groupBySaveValue + ":" + target);
+                            if (type == AggregationType.MAXIMUM_X ? target > key : target < key)
+                                l1cacheAdapter.setCounter(id, target);
+                            l1cacheAdapter.addGroupByCounter(id, groupByColumn);
+                        case AVERAGE_X:
+                            l1cacheAdapter.incrementGroupByAverageCounter(id, groupBySaveValue, target, 1);
+                    }
                 } catch (NumberFormatException e) {}
-
-                if (type == AggregationType.SUM_X) {
-                    storageAdapter.addGroupByItem(id, groupByColumn, groupByValue, target);
-                } else if (type == AggregationType.MINIMUM_X || type == AggregationType.MAXIMUM_X) {
-                    Long key = storageAdapter.getCounter(id + ":" + groupByValue + ":" + target);
-                    if (type == AggregationType.MAXIMUM_X ? target > key : target < key)
-                        storageAdapter.setCounter(id, target);
-                    storageAdapter.addGroupByItem(id, groupByColumn, groupByValue);
-                }
         }
-
     }
 
     public void aggregateByNonGrouping(String id, String type_target, AggregationType type) {
-        if (type == AggregationType.COUNT) {
-            storageAdapter.incrementCounter(id);
-        } else if (type == AggregationType.COUNT_X) {
-            if (type_target != null)
-                storageAdapter.incrementCounter(id);
-        }
-        if (type == AggregationType.SUM_X) {
-            Long target = null;
-            try {
-                target = Long.parseLong(type_target);
-            } catch (NumberFormatException e) {
-            }
 
-            if (target != null)
-                storageAdapter.incrementCounter(id, target);
+        switch (type) {
+            case COUNT:
+                l1cacheAdapter.incrementCounter(id);
+                break;
+            case COUNT_X:
+                if (type_target != null)
+                    l1cacheAdapter.incrementCounter(id);
+                break;
+            case SUM_X:
+                try {
+                    Long target = Long.parseLong(type_target);
+                    l1cacheAdapter.incrementCounter(id, target);
+                } catch (NumberFormatException e) {}
+                break;
+            case MINIMUM_X:
+            case MAXIMUM_X:
+                try {
+                    Long target = Long.parseLong(type_target);
+                    Long key = l1cacheAdapter.getCounter(id + ":" + target);
+                    if (type == AggregationType.MAXIMUM_X ? target > key : target < key)
+                        l1cacheAdapter.setCounter(id, target);
+                } catch (NumberFormatException e) { }
+                break;
+            case UNIQUE_X:
+                if (type_target != null)
+                 l1cacheAdapter.addSet(id, type_target);
+                break;
+            case AVERAGE_X:
+                try {
+                    Long target = Long.parseLong(type_target);
+                    l1cacheAdapter.incrementAverageCounter(id, target, 1);
+                } catch (NumberFormatException e) { }
+                break;
 
-        } else if (type == AggregationType.MINIMUM_X || type == AggregationType.MAXIMUM_X) {
-            Long target;
-            try {
-                target = Long.parseLong(type_target);
-            } catch (NumberFormatException e) {
-                return;
-            }
-
-            Long key = storageAdapter.getCounter(id + ":" + target);
-            if (type == AggregationType.MAXIMUM_X ? target > key : target < key)
-                storageAdapter.setCounter(id, target);
-
-        } else if (type == AggregationType.COUNT_UNIQUE_X || type == AggregationType.SELECT_UNIQUE_X) {
-            if (type_target != null)
-                storageAdapter.addSet(id, type_target);
         }
     }
 
@@ -146,12 +157,12 @@ public class Aggregator {
             if (lru_actor != null)
                 return lru_actor;
 
-            JsonObject actor = cacheAdapter.getActorProperties(project, actor_id);
+            JsonObject actor = actorCache.getActorProperties(project, actor_id);
             if (actor == null) {
                 Actor act = databaseAdapter.getActor(project, actor_id);
                 if (act != null) {
                     actor = act.data;
-                    cacheAdapter.setActorProperties(project, actor_id, actor);
+                    actorCache.setActorProperties(project, actor_id, actor);
                     lruCache.put(project + ":" + actor_id, actor);
                 } else {
                     actor = databaseAdapter.createActor(project, actor_id, null).data;

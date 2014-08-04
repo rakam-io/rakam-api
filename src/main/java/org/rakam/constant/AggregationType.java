@@ -6,12 +6,11 @@ package org.rakam.constant;
 public enum AggregationType {
     COUNT(0),
     COUNT_X(1),
-    COUNT_UNIQUE_X(2),
+    UNIQUE_X(2),
     SUM_X(3),
     MINIMUM_X(4),
     MAXIMUM_X(5),
-    AVERAGE_X(6),
-    SELECT_UNIQUE_X(7);
+    AVERAGE_X(6);
 
     public final int id;
     AggregationType(int id) {

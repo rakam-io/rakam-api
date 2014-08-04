@@ -23,7 +23,7 @@ public class AggregationRuleTest {
         aggs.add(new MetricAggregationRule(projectId, AggregationType.COUNT_X, new SimpleFieldScript("test")));
         aggs.add(new MetricAggregationRule(projectId, AggregationType.SUM_X, new SimpleFieldScript("test")));
         aggs.add(new MetricAggregationRule(projectId, AggregationType.MAXIMUM_X, new SimpleFieldScript("test")));
-        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.SELECT_UNIQUE_X, SpanTime.fromPeriod("1min"),  new SimpleFieldScript("baska"), null,  new SimpleFieldScript("referral")));
+        aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.UNIQUE_X, SpanTime.fromPeriod("1min"),  new SimpleFieldScript("baska"), null,  new SimpleFieldScript("referral")));
 
         HashMap<String, Object> a = new HashMap();
         a.put("a", "a");

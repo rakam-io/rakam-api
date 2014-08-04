@@ -1,7 +1,6 @@
 package org.rakam.database;
 
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.cache.CacheAdapter;
 
 /**
  * Created by buremba on 12/05/14.
@@ -9,5 +8,5 @@ import org.rakam.cache.CacheAdapter;
 public interface BatchProcessor {
     public void processRule(AnalysisRule rule);
     public void processRule(AnalysisRule rule, long start_time, long end_time);
-    public void exportCurrentToCache(CacheAdapter cacheAdapter, AnalysisRule rule);
+    public void exportCurrentToCache(org.rakam.cache.CacheAdapter cacheAdapter, AnalysisRule rule);
 }

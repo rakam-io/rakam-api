@@ -4,6 +4,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import org.rakam.analysis.script.FieldScript;
 import org.rakam.analysis.script.FilterScript;
+import org.rakam.cache.hazelcast.RakamDataSerializableFactory;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.util.SpanTime;
@@ -51,7 +52,7 @@ public class TimeSeriesAggregationRule extends AggregationRule {
         interval = new SpanTime(in.readInt());
     }
 
-    public String buildId() {
+    private String buildId() {
         return project+TYPE.id+type.id+(select==null ? "" : select)+(groupBy==null ? "" : groupBy)+(filters==null ? "" : filters)+interval;
     }
 
@@ -59,5 +60,17 @@ public class TimeSeriesAggregationRule extends AggregationRule {
         JsonObject json = super.toJson();
         json.putString("interval", interval.toString());
         return json;
+    }
+
+    public boolean isMultipleInterval(TimeSeriesAggregationRule rule) {
+        if(this.equals(new TimeSeriesAggregationRule(rule.project, rule.type, interval, rule.select, rule.filters, rule.groupBy)))
+            return rule.interval.period % rule.interval.period == 0;
+        else
+            return false;
+    }
+
+    @Override
+    public int getId() {
+        return RakamDataSerializableFactory.TIMESERIES_AGGREGATION_RULE;
     }
 }

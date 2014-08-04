@@ -9,7 +9,6 @@ import org.rakam.ServiceStarter;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.local.LocalCacheAdapter;
 import org.rakam.database.DatabaseAdapter;
-import org.rakam.database.KeyValueStorage;
 import org.rakam.plugin.CollectionMapperPlugin;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
@@ -29,7 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class CollectionWorker extends Verticle implements Handler<Message<byte[]>> {
     final ExecutorService executor = new ThreadPoolExecutor(5, 50, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
-    public static KeyValueStorage activeStorageAdapter = new LocalCacheAdapter();
+    public static CacheAdapter activeStorageAdapter = new LocalCacheAdapter();
     private CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
     private DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
     final private Aggregator aggregator = new Aggregator(activeStorageAdapter, cacheAdapter, databaseAdapter);
@@ -57,14 +56,11 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
                 data.reply("0".getBytes());
         }
 
-        executor.submit(new Runnable() {
-            @Override
-            public void run() {
-                try{
-                    data.reply(process(message));
-                } catch (Exception e) {
-                    logger.error("error while processing collection request", e);
-                }
+        executor.submit(() -> {
+            try{
+                data.reply(process(message));
+            } catch (Exception e) {
+                logger.error("error while processing collection request", e);
             }
         });
     }
@@ -88,7 +84,7 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
         /*ByteArrayOutputStream by = new ByteArrayOutputStream();
         Output out = new Output(by, 150);
         kryo.writeObject(out, message);*/
-        databaseAdapter.addEvent(project, actor_id, message.encode().getBytes());
+        databaseAdapter.addEvent(project, actor_id, message);
 
         aggregator.aggregate(project, message, actor_id, (int) (System.currentTimeMillis() / 1000));
         return "1".getBytes();

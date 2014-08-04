@@ -4,6 +4,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import org.rakam.analysis.script.FieldScript;
 import org.rakam.analysis.script.FilterScript;
+import org.rakam.constant.AggregationAnalysis;
 import org.rakam.constant.AggregationType;
 import org.vertx.java.core.json.JsonObject;
 
@@ -23,14 +24,19 @@ public abstract class AggregationRule extends AnalysisRule {
         this(projectId, type, null, null, null);
     }
 
+    protected AggregationRule() {}
+
     @Override
-    public boolean equals(Object object)
-    {
+    public boolean equals(Object object) {
         return object != null && object instanceof AggregationRule && ((AggregationRule) object).id.equals(id);
     }
 
     public AggregationRule(String project, AggregationType type, FieldScript select) {
         this(project, type, select, null, null);
+    }
+
+    public boolean canAnalyze(AggregationAnalysis analysis) {
+       return analysis.getAggregationType().equals(this.type);
     }
 
     public AggregationRule(String project, AggregationType type, FieldScript select, FilterScript filters) {
@@ -83,6 +89,4 @@ public abstract class AggregationRule extends AnalysisRule {
         json.putString("aggregation", type.name());
         return json;
     }
-
-    public abstract String buildId();
 }

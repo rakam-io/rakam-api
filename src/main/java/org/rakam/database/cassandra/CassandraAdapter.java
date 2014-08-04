@@ -6,12 +6,14 @@ import database.cassandra.CassandraBatchProcessor;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.rakam.ServiceStarter;
-import org.rakam.analysis.AnalysisQueryParser;
+import org.rakam.analysis.AnalysisRuleParser;
 import org.rakam.analysis.rule.AnalysisRuleList;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.DistributedAnalysisRuleMap;
+import org.rakam.cache.hazelcast.models.AverageCounter;
 import org.rakam.collection.Aggregator;
+import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
@@ -27,7 +29,7 @@ import java.util.concurrent.TimeoutException;
  * Created by buremba on 21/12/13.
  */
 
-public class CassandraAdapter implements DatabaseAdapter {
+public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, AnalysisRuleDatabase {
 
     private Session session = Cluster.builder().addContactPoint("127.0.0.1").build().connect("analytics");
 
@@ -115,10 +117,9 @@ public class CassandraAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public UUID addEvent(String project, String actor_id, byte[] data) {
+    public void addEvent(String project, String actor_id, JsonObject data) {
         long m = System.currentTimeMillis();
-        session.execute(add_event.bind(project, actor_id, (int) m / 1000, ServiceStarter.server_id, (int) ((m % 1000) + 1000 * Thread.currentThread().getId()), ByteBuffer.wrap(data))).one();
-        return null;
+        session.execute(add_event.bind(project, actor_id, (int) m / 1000, ServiceStarter.server_id, (int) ((m % 1000) + 1000 * Thread.currentThread().getId()), ByteBuffer.wrap(data.encode().getBytes()))).one();
     }
 
     @Override
@@ -167,21 +168,125 @@ public class CassandraAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public void addGroupByItem(String aggregation, String groupBy, String item) {
-        addGroupByItem(aggregation, groupBy, item, 1L);
+    public boolean isOrdered() {
+        return false;
     }
 
     @Override
-    public void addGroupByItem(String aggregation, String groupBy, String item, Long incrementBy) {
-        session.execute(set_counter_sql.bind(incrementBy, aggregation + ":" + groupBy + ":" + item));
-        Set<String> set = getSet(aggregation + ":" + groupBy + "::keys");
-        set.add(item);
-        session.execute(set_set_sql.bind(set, aggregation + ":" + groupBy + "::keys"));
+    public void addGroupByCounter(String aggregation, String groupBy) {
+        addGroupByCounter(aggregation, groupBy, 1L);
+    }
+
+    @Override
+    public void addGroupByCounter(String id, String groupBy, long incrementBy) {
+        session.execute(set_counter_sql.bind(incrementBy, id + ":" + groupBy));
+        Set<String> set = new HashSet(getSet(id + "::keys"));
+        set.add(groupBy);
+        session.execute(set_set_sql.bind(set, id + "::keys"));
     }
 
     @Override
     public void flush() {
+        throw new NotImplementedException();
+    }
 
+    @Override
+    public void addGroupByString(String id, String groupByValue, String type_target) {
+        addSet(id + ":" + groupByValue, type_target);
+        addSet(id + "::keys", groupByValue);
+    }
+
+    @Override
+    public void addGroupByString(String id, String groupByValue, Collection<String> s) {
+        addSet(id + ":" + groupByValue, s);
+        addSet(id + "::keys", groupByValue);
+    }
+
+    @Override
+    public void removeGroupByCounters(String key) {
+        for(String item : getSet(key + "::keys")) {
+            removeCounter(key + ":" + item);
+        }
+        removeSet(key + "::keys");
+    }
+
+    @Override
+    public Map<String, Long> getGroupByCounters(String key) {
+        HashMap<String, Long> map = new HashMap<>();
+        for(String item : getSet(key + "::keys")) {
+            map.put(item, getCounter(key + ":" + item).longValue());
+        }
+        return map;
+    }
+
+    @Override
+    public Map<String, Set<String>> getGroupByStrings(String key) {
+        HashMap<String, Set<String>> map = new HashMap<>();
+        for(String item : getSet(key + "::keys")) {
+            map.put(item, getSet(key + ":" + item));
+        }
+        return map;
+    }
+
+    @Override
+    public Map<String, Set<String>> getGroupByStrings(String key, int limit) {
+        HashMap<String, Set<String>> map = new HashMap<>();
+        Iterator<String> set = getSet(key + "::keys").iterator();
+        int i = 0;
+        while(i++<limit && set.hasNext()) {
+            String item = set.next();
+            map.put(item, getSet(key + ":" + item));
+        }
+        return map;
+    }
+
+    @Override
+    public Map<String, Long> getGroupByCounters(String key, int limit) {
+        HashMap<String, Long> map = new HashMap<>();
+        Iterator<String> iterator = getSet(key + "::keys").iterator();
+        int i = 0;
+        while(i++<limit && iterator.hasNext()) {
+            String item = iterator.next();
+            map.put(item, getCounter(key+":"+item).longValue());
+        }
+        return map;
+
+    }
+
+    @Override
+    public void incrementGroupByAverageCounter(String id, String key, long sum, long counter) {
+        throw new NotImplementedException();
+    }
+
+    @Override
+    public void incrementAverageCounter(String id, long sum, long counter) {
+        incrementCounter(id+":sum", sum);
+        incrementCounter(id+":count", counter);
+    }
+
+    @Override
+    public AverageCounter getAverageCounter(String id) {
+        return new AverageCounter(getCounter(id+":sum"), getCounter(id + ":count"));
+    }
+
+    @Override
+    public void removeGroupByStrings(String key) {
+        for(String item : getSet(key + "::keys")) {
+            removeSet(key + ":" + item);
+        }
+        removeSet(key + "::keys");
+    }
+
+    @Override
+    public Map<String, Long> getGroupByStringsCounts(String key, Integer limit) {
+        HashMap<String, Long> map = new HashMap<>();
+        Iterator<String> set = getSet(key + "::keys").iterator();
+        int i = 0;
+        while(i++<limit && set.hasNext()) {
+            String item = set.next();
+            map.put(item, (long) getSet(key + ":" + item).size());
+        }
+        return map;
     }
 
     @Override
@@ -217,26 +322,6 @@ public class CassandraAdapter implements DatabaseAdapter {
         return (a == null) ? 0 : a.getSet("value", String.class).size();
     }
 
-    @Override
-    public Iterator<String> getSetIterator(String key) {
-        Row a = session.execute(get_set_sql.bind(key)).one();
-        return (a != null) ? a.getSet("value", String.class).iterator() : new Iterator<String>() {
-            @Override
-            public boolean hasNext() {
-                return false;
-            }
-
-            @Override
-            public String next() {
-                return null;
-            }
-
-            @Override
-            public void remove() {
-
-            }
-        };
-    }
 
     @Override
     public Map<String, Long> getCounters(Collection<String> keys) {
@@ -304,7 +389,7 @@ public class CassandraAdapter implements DatabaseAdapter {
             AnalysisRuleList rules = new AnalysisRuleList();
             for (String json_rule : row.getSet("rules", String.class)) {
                 try {
-                    AnalysisRule rule = AnalysisQueryParser.parse(new JsonObject(json_rule));
+                    AnalysisRule rule = AnalysisRuleParser.parse(new JsonObject(json_rule));
                     rules.add(rule);
                 } catch (IllegalArgumentException e) {
                     logger.error("analysis rule couldn't parsed: " + json_rule, e);
@@ -335,5 +420,4 @@ public class CassandraAdapter implements DatabaseAdapter {
     public void batch(int start_time, int nodeId) {
         _batch(session.execute(batch_filter.bind(start_time, nodeId)).iterator());
     }
-
 }

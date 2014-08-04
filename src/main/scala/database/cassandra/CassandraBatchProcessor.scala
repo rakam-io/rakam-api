@@ -185,7 +185,7 @@ object CassandraBatchProcessor {
       var outputTable: String = null
       if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
         val mrule = rule.asInstanceOf[AggregationRule]
-        if (mrule.`type` != SELECT_UNIQUE_X && mrule.`type` != COUNT_UNIQUE_X) {
+        if (mrule.`type` != UNIQUE_X && mrule.`type` != UNIQUE_X) {
           outputQuery = "UPDATE " + KeySpace + ".aggregated_counter SET value = value + ?"
           outputTable = "aggregated_counter"
         }
@@ -214,12 +214,11 @@ object CassandraBatchProcessor {
           case SUM_X => eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
           case MINIMUM_X => eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.min(_, _))
           case MAXIMUM_X => eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.max(_, _))
-          case COUNT_UNIQUE_X => eventRdd.map(getStringFromEvent(ruleSelect)).distinct().count()
+          //case COUNT_UNIQUE_X => eventRdd.map(getStringFromEvent(ruleSelect)).distinct().count()
           case AVERAGE_X => eventRdd.map(getLongFromEvent(ruleSelect)).mean()
-          case SELECT_UNIQUE_X => eventRdd.groupBy(getStringFromEvent(ruleGroupBy)).map(e => (e._1, e._2.map(getStringFromEvent(ruleSelect)).distinct)).collect()
+          case UNIQUE_X => eventRdd.groupBy(getStringFromEvent(ruleGroupBy)).map(e => (e._1, e._2.map(getStringFromEvent(ruleSelect)).distinct)).collect()
           case _ => throw new IllegalStateException("unknown aggregation pre-aggregation aggRule type")
         }
-        println(result)
 
         val serialized = result match {
           case result if result.isInstanceOf[Long] => ByteBufferUtil.bytes(result.asInstanceOf[Long])
@@ -270,14 +269,11 @@ object CassandraBatchProcessor {
           // since we use stable Scala 2.10 branch this code may return IllegalArgumentException
           // so the filter above will remain until we switch to 2.11 branch
           // see: https://issues.scala-lang.org/browse/SI-6908
-          case COUNT_UNIQUE_X => {
-            eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.map(getStringFromEvent(ruleSelect)).distinct.length))
-          }
           case AVERAGE_X => {
             eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.map(getLongFromEvent(ruleSelect)).sum / x._2.length))
           }
-          case SELECT_UNIQUE_X => {
-            eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.map(getStringFromEvent(ruleSelect)).distinct))
+          case UNIQUE_X => {
+            eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.map(getStringFromEvent(ruleSelect)).distinct)) // distinct.length for counting
           }
           case _ => {
             throw new IllegalStateException("unknown aggregation type")
