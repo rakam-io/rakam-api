@@ -15,7 +15,7 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
     private final static Pattern parser = Pattern.compile("^(?:([0-9]+)(month)s?)? ?(?:([0-9]+)(week)s?)? ?(?:([0-9]+)(day)s?)? ?(?:([0-9]+)(hour)s?)? ?(?:([0-9]+)(minute)s?)?$");
 
     public int period;
-    private int cursor = -1;
+    private transient int cursor = -1;
 
 
     public SpanTime(int p) {
@@ -94,6 +94,23 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
     public SpanTime span(int now) {
         cursor = (now / period) * period;
         return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof SpanTime)) return false;
+
+        SpanTime spanTime = (SpanTime) o;
+
+        if (period != spanTime.period) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return period;
     }
 
     @Override

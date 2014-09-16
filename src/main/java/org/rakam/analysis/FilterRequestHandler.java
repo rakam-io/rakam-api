@@ -8,15 +8,22 @@ import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
 
 /**
- * Created by buremba <Burak Emre Kabakcı> on 03/09/14 02:02.
+ * Created by buremba <Burak Emre Kabakcı> on 03/09/14 02:12.
  */
-public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
+public class FilterRequestHandler implements Handler<Message<JsonObject>> {
     private static final DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
     private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
 
     @Override
     public void handle(Message<JsonObject> event) {
-        JsonObject query = event.body();
-        event.reply(new EventAnalyzer(cacheAdapter, databaseAdapter).handle(query));
+        String address = event.address();
+        switch (address) {
+            case "actorFilterRequest":
+                event.reply(new ActorFilter(cacheAdapter, databaseAdapter).handle(event.body()));
+                break;
+            case "eventFilterRequest":
+                event.reply(new EventFilter(cacheAdapter, databaseAdapter).handle(event.body()));
+                break;
+        }
     }
 }

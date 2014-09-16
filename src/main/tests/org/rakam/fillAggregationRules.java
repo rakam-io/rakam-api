@@ -1,21 +1,22 @@
 package org.rakam;
 
-import org.rakam.analysis.rule.AnalysisRuleList;
+import org.rakam.analysis.query.simple.SimpleFieldScript;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
-import org.rakam.analysis.script.simple.SimpleFieldScript;
 import org.rakam.constant.AggregationType;
 import org.rakam.util.SpanTime;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
  * Created by buremba on 04/05/14.
  */
 public class fillAggregationRules {
-    public static void fill(Map<String, AnalysisRuleList> aggregation_map) {
-        AnalysisRuleList aggs = new AnalysisRuleList();
+    public static void fill(Map<String, HashSet<AnalysisRule>> aggregation_map) {
+        HashSet<AnalysisRule> aggs = new HashSet<AnalysisRule>();
         String projectId = "e74607921dad4803b998";
         aggs.add(new MetricAggregationRule(projectId, AggregationType.COUNT_X, new SimpleFieldScript("test")));
         aggs.add(new MetricAggregationRule(projectId, AggregationType.SUM_X, new SimpleFieldScript("test")));

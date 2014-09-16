@@ -5,7 +5,7 @@ import org.vertx.java.core.json.JsonObject;
 /**
  * Created by buremba on 21/12/13.
  */
-public class Actor {
+public class Actor implements Entry {
     public final String id;
     public final String project;
     public final JsonObject data;
@@ -27,5 +27,9 @@ public class Actor {
         this.id = actorId;
         this.project = projectId;
         this.data = properties;
+    }
+
+    public <T> T getAttribute(String attr) {
+        return data.getField(attr);
     }
 }

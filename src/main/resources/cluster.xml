@@ -8,6 +8,12 @@
         <property name="hazelcast.wait.seconds.before.join">0</property>
         <property name="hazelcast.logging.type">jdk</property>
     </properties>
+    <!--<map name="default">-->
+        <!--<map-store enabled="true">-->
+            <!--<class-name>org.rakam.cache.hazelcast.CassandraStore</class-name>-->
+            <!--<write-delay-seconds>2</write-delay-seconds>-->
+        <!--</map-store>-->
+    <!--</map>-->
 
     <serialization>
         <data-serializable-factories>

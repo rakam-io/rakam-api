@@ -2,13 +2,12 @@ package org.rakam.model;
 
 import org.vertx.java.core.json.JsonObject;
 
-import java.io.Serializable;
 import java.util.UUID;
 
 /**
  * Created by buremba on 21/12/13.
  */
-public class Event implements Serializable {
+public class Event implements Entry {
     public final UUID id;
     public final String project;
     public final String actor;
@@ -19,5 +18,9 @@ public class Event implements Serializable {
         this.project = name;
         this.actor = actor;
         this.data = data;
+    }
+
+    public <T> T getAttribute(String attr) {
+        return data.getField(attr);
     }
 }

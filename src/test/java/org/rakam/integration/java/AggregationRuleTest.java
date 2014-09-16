@@ -1,15 +1,18 @@
 package org.rakam.integration.java;
 
 import org.junit.Test;
-import org.rakam.analysis.rule.AnalysisRuleList;
+import org.rakam.analysis.query.simple.SimpleFieldScript;
+import org.rakam.analysis.query.simple.SimpleFilterScript;
+import org.rakam.analysis.query.simple.predicate.FilterPredicates;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
-import org.rakam.analysis.script.simple.SimpleFieldScript;
-import org.rakam.analysis.script.simple.SimpleFilterScript;
 import org.rakam.constant.AggregationType;
+import org.rakam.model.Entry;
 import org.rakam.util.SpanTime;
 
-import java.util.HashMap;
+import java.util.HashSet;
+import java.util.function.Predicate;
 
 /**
  * Created by buremba on 19/01/14.
@@ -18,16 +21,15 @@ public class AggregationRuleTest {
 
     @Test
     public void testAdding() {
-        AnalysisRuleList aggs = new AnalysisRuleList();
+        HashSet<AnalysisRule> aggs = new HashSet<AnalysisRule>();
         String projectId = "e74607921dad4803b998";
         aggs.add(new MetricAggregationRule(projectId, AggregationType.COUNT_X, new SimpleFieldScript("test")));
         aggs.add(new MetricAggregationRule(projectId, AggregationType.SUM_X, new SimpleFieldScript("test")));
         aggs.add(new MetricAggregationRule(projectId, AggregationType.MAXIMUM_X, new SimpleFieldScript("test")));
         aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.UNIQUE_X, SpanTime.fromPeriod("1min"),  new SimpleFieldScript("baska"), null,  new SimpleFieldScript("referral")));
 
-        HashMap<String, Object> a = new HashMap();
-        a.put("a", "a");
-        aggs.add(new MetricAggregationRule(projectId, AggregationType.AVERAGE_X, new SimpleFieldScript("test"), new SimpleFilterScript(a)));
+        Predicate<Entry> eq = FilterPredicates.eq("ali", "veli");
+        aggs.add(new MetricAggregationRule(projectId, AggregationType.AVERAGE_X, new SimpleFieldScript("test"), new SimpleFilterScript(eq, false)));
         aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.COUNT_X, SpanTime.fromPeriod("1min"),  new SimpleFieldScript("referral")));
         aggs.add(new TimeSeriesAggregationRule(projectId, AggregationType.COUNT, SpanTime.fromPeriod("1min"), null, null));
 

@@ -1,18 +1,21 @@
 package org.rakam.database.cassandra;
 
-import com.datastax.driver.core.*;
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
 import database.cassandra.CassandraBatchProcessor;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.AnalysisRuleParser;
-import org.rakam.analysis.rule.AnalysisRuleList;
+import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.DistributedAnalysisRuleMap;
 import org.rakam.cache.hazelcast.models.AverageCounter;
-import org.rakam.collection.Aggregator;
+import org.rakam.collection.EventAggregator;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
@@ -20,10 +23,15 @@ import org.rakam.model.Event;
 import org.vertx.java.core.json.JsonObject;
 
 import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Created by buremba on 21/12/13.
@@ -49,14 +57,14 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     private final PreparedStatement batch_filter_range;
     private final PreparedStatement batch_filter;
 
-    final static Logger logger = Logger.getLogger("Cassandra");
+    final static Logger logger = Logger.getLogger(CassandraAdapter.class.getName());
 
     @Inject
     public CassandraAdapter() {
         get_actor_property = session.prepare("select properties from actor where project = ? and id = ? limit 1");
-        add_event = session.prepare("insert into event1 (project, actor_id, timestamp, node_id, sequence, data) values (?, ?, ?, ?, ?, ?);");
+        add_event = session.prepare("insert into event (project, actor_id, timestamp, node_id, sequence, data) values (?, ?, ?, ?, ?, ?);");
         create_actor = session.prepare("insert into actor (project, id, properties) values (?, ?, ?);");
-        update_actor = session.prepare("update actor set properties = properties + ? where project = ? and id = ? ;");
+        update_actor = session.prepare("update actor set properties = properties + ? where project = ? and id = ?;");
         get_counter_sql = session.prepare("select value from aggregated_counter where id = ?");
         set_counter_sql = session.prepare("update aggregated_counter set value = value + ? where id = ?");
         get_set_sql = session.prepare("select value from aggregated_set where id = ?");
@@ -66,8 +74,8 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
         set_aggregation_rules = session.prepare("select * from agg_rules");
         add_aggregation_rule = session.prepare("update agg_rules set rules = rules + ? where project = ?");
         delete_aggregation_rule = session.prepare("update agg_rules set rules = rules - ? where project = ?");
-        //batch_filter_range = session.prepare("select timestamp, data, actor_id from event1 where timestamp > ? and timestamp < ? and node_id = ? limit 1000000 allow filtering");
-        batch_filter = session.prepare("select timestamp, data, actor_id from event1 where timestamp = ? and node_id = ? limit 1000000 allow filtering");
+        //batch_filter_range = session.prepare("select timestamp, data, actor_id from event where timestamp > ? and timestamp < ? and node_id = ? limit 1000000 allow filtering");
+        batch_filter = session.prepare("select timestamp, data, actor_id from event where project = ? and node_id = ? and timestamp = ? limit 1000000 allow filtering");
         batch_filter_range = null;
     }
 
@@ -75,9 +83,10 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     public void setupDatabase() {
         session.execute("create keyspace analytics WITH replication = {'class':'SimpleStrategy', 'replication_factor':1};");
         session.execute("use analytics");
-        session.execute("create table actor ( project varchar, id varchar, properties map<text, text>, PRIMARY KEY(id, project) );");
+        session.execute("create table actor ( project varchar, id varchar, created_at timestamp, last_seen timestamp, properties map<text, text>, PRIMARY KEY(id, project) );");
         session.execute("create table agg_rules ( project varchar, properties set<text>, PRIMARY KEY(project) );");
-        session.execute("create table event ( project varchar, time_cabin int, time timeuuid, actor_id varchar, data map<text, text>, PRIMARY KEY((project, time_cabin), time) );");
+        session.execute("create table agg_rules ( project varchar, properties set<text>, PRIMARY KEY(project) );");
+        session.execute("create table event ( project varchar, node_id int, sequence int, timestamp int, actor_id varchar, data blob, PRIMARY KEY((project, node_id, sequence) );");
 
     }
 
@@ -88,32 +97,13 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
 
     @Override
     public Actor createActor(String project, String actor_id, Map<String, String> properties) {
-        ResultSetFuture future = session.executeAsync(create_actor.bind(project, actor_id, properties));
-        try {
-            future.get(3, TimeUnit.SECONDS);
-            return new Actor(project, actor_id);
-        } catch (TimeoutException e) {
-            future.cancel(true);
-        } catch (ExecutionException e) {
-            future.cancel(true);
-        } catch (InterruptedException e) {
-            future.cancel(true);
-        }
-        return null;
+        session.execute(create_actor.bind(project, actor_id, properties));
+        return new Actor(project, actor_id);
     }
 
     @Override
-    public void addPropertyToActor(String project, String actor_id, Map<String, String> props) {
-        ResultSetFuture future = session.executeAsync(update_actor.bind(props, project, actor_id));
-        try {
-            future.get(3, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            future.cancel(true);
-        } catch (ExecutionException e) {
-            future.cancel(true);
-        } catch (InterruptedException e) {
-            future.cancel(true);
-        }
+    public void addPropertyToActor(String project, String actor_id, Map<String, Object> props) {
+        session.execute(update_actor.bind(props, project, actor_id));
     }
 
     @Override
@@ -382,11 +372,11 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
-    public Map<String, AnalysisRuleList> getAllRules() {
+    public Map<String, HashSet<AnalysisRule>> getAllRules() {
         List<Row> rows = session.execute(set_aggregation_rules.bind()).all();
-        HashMap<String, AnalysisRuleList> map = new HashMap();
+        HashMap<String, HashSet<AnalysisRule>> map = new HashMap();
         for (Row row : rows) {
-            AnalysisRuleList rules = new AnalysisRuleList();
+            HashSet<AnalysisRule> rules = new HashSet();
             for (String json_rule : row.getSet("rules", String.class)) {
                 try {
                     AnalysisRule rule = AnalysisRuleParser.parse(new JsonObject(json_rule));
@@ -402,12 +392,12 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
-    public void batch(int start_time, int end_time, int node_id) {
+    public void batch(String project, int start_time, int end_time, int node_id) {
         _batch(session.execute(batch_filter_range.bind(start_time, end_time, node_id)).iterator());
     }
 
     private void _batch(Iterator<Row> it) {
-        Aggregator worker = new Aggregator(this, ServiceStarter.injector.getInstance(CacheAdapter.class), this);
+        EventAggregator worker = new EventAggregator(this, ServiceStarter.injector.getInstance(CacheAdapter.class), this);
         while (it.hasNext()) {
             Row r = it.next();
             JsonObject event = new JsonObject(new String(r.getBytes("data").array()));
@@ -417,7 +407,17 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
-    public void batch(int start_time, int nodeId) {
-        _batch(session.execute(batch_filter.bind(start_time, nodeId)).iterator());
+    public void batch(String project, int start_time, int nodeId) {
+        _batch(session.execute(batch_filter.bind(project, start_time, nodeId)).iterator());
+    }
+
+    @Override
+    public Actor[] filterActors(FilterScript filter, int limit, String orderByColumn) {
+        return CassandraBatchProcessor.filterActors(filter, limit, orderByColumn);
+    }
+
+    @Override
+    public Event[] filterEvents(FilterScript filter, int limit, String orderByColumn) {
+        return CassandraBatchProcessor.filterEvents(filter, limit, orderByColumn);
     }
 }

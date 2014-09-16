@@ -7,26 +7,22 @@ import java.text.SimpleDateFormat;
  * Created by buremba <Burak Emre Kabakcı> on 22/07/14 01:09.
  */
 public class ConversionUtil {
-    public static Integer toInt(Object expectInt, Integer elseInt) throws IllegalArgumentException {
+    public static Long toLong(Object expectInt, Long elseInt) throws IllegalArgumentException {
         if (expectInt!=null) {
             if (expectInt instanceof Number)
-                return (Integer) expectInt;
+                return ((Number) expectInt).longValue();
             else
                 try {
-                    return Integer.parseInt((String) expectInt);
+                    return Long.parseLong((String) expectInt);
                 } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException();
+                    return null;
                 }
         }
         return elseInt;
     }
 
-    public static Integer toInt(Object expectInt) throws IllegalArgumentException {
-        Integer integer = toInt(expectInt, null);
-        if(integer==null)
-            throw new IllegalArgumentException();
-        else
-            return integer;
+    public static Long toLong(Object expectInt) throws IllegalArgumentException {
+        return toLong(expectInt, null);
     }
 
     public static Integer parseDate(String str) {

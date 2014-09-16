@@ -4,39 +4,34 @@ package database.cassandra
  * Created by buremba on 13/05/14.
  */
 
+import java.io.{ByteArrayOutputStream, ObjectOutputStream}
+import java.lang
 import java.nio.ByteBuffer
-import org.apache.cassandra.hadoop.cql3.{CqlOutputFormat, CqlPagingInputFormat, CqlConfigHelper}
-import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.SparkContext._
-import org.apache.spark.SparkContext
-import org.vertx.java.core.json.JsonObject
-import org.vertx.java.core.json.JsonArray
-import java.util.{Date, TimeZone, Calendar, UUID}
-import java.{util, lang}
-import java.lang.Integer
-import java.lang.String
-import scala.collection.JavaConversions._
-import org.rakam.constant.AggregationType._
-import scala.collection.mutable.ArrayBuffer
-import org.apache.spark.rdd.RDD
-import org.apache.cassandra.hadoop.ConfigHelper
-import org.apache.cassandra.utils.ByteBufferUtil
-import com.datastax.driver.core.Cluster
-import org.rakam.constant.{Analysis, AggregationType}
-import java.io.{ObjectOutputStream, ByteArrayOutputStream}
-import org.rakam.model.Event
-import org.rakam.model.Actor
-import org.rakam.analysis.script.FieldScript
-import org.rakam.analysis.rule.aggregation.{AnalysisRule, AggregationRule, MetricAggregationRule, TimeSeriesAggregationRule}
-import org.rakam.cache.CacheAdapter
-import org.rakam.database.{DatabaseAdapter, BatchProcessor}
-import org.rakam.util.Serializer
 import java.text.SimpleDateFormat
-import org.rakam.ServiceStarter
+import java.util._
+
+import com.datastax.driver.core.Cluster
+import org.apache.cassandra.hadoop.ConfigHelper
+import org.apache.cassandra.hadoop.cql3.{CqlConfigHelper, CqlOutputFormat, CqlPagingInputFormat}
+import org.apache.cassandra.utils.ByteBufferUtil
+import org.apache.hadoop.mapreduce.Job
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.spark.rdd.RDD
+import org.rakam.analysis.rule.aggregation.{AggregationRule, AnalysisRule, MetricAggregationRule, TimeSeriesAggregationRule}
+import org.rakam.analysis.query.{FieldScript, FilterScript}
+import org.rakam.constant.AggregationType._
+import org.rakam.constant.Analysis
+import org.rakam.model.{Actor, Event}
+import org.rakam.util.ConversionUtil;
+import org.rakam.util.Serializer
+import org.vertx.java.core.json.{JsonArray, JsonObject}
+
+import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
 
 object CassandraBatchProcessor {
-  val sc = new SparkContext("local[2]", "CQLTestApp", System.getenv("SPARK_HOME"), SparkContext.jarOfClass(this.getClass))
-  val db_session = Cluster.builder.addContactPoint("127.0.0.1").build.connect
+  val sc = new SparkContext("local[2]", "CQLTestApp", System.getenv("SPARK_HOME"))
 
   val cHost: String = "localhost"
   val cPort: String = "9160"
@@ -50,6 +45,7 @@ object CassandraBatchProcessor {
   uuidEpoch.set(1582, 9, 15, 0, 0, 0)
   val epochMillis: Int = (uuidEpoch.getTime.getTime / 1000).toInt
 
+
   private def createActorJob(): Job = {
     val hadoopActorJob = new Job()
     hadoopActorJob.setInputFormatClass(classOf[CqlPagingInputFormat])
@@ -61,7 +57,7 @@ object CassandraBatchProcessor {
     hadoopActorJob
   }
 
-  private def createEventJob(start: Long, end: Long, outputTable: String, outputQuery: String): Job = {
+  private def createEventJob(start: Option[Long] = None, end: Option[Long] = None, outputTable: Option[String] = None, outputQuery: Option[String] = None): Job = {
     val hadoopEventJob = new Job()
     hadoopEventJob.setInputFormatClass(classOf[CqlPagingInputFormat])
     ConfigHelper.setInputInitialAddress(hadoopEventJob.getConfiguration(), cHost)
@@ -71,17 +67,19 @@ object CassandraBatchProcessor {
     CqlConfigHelper.setInputCQLPageRowSize(hadoopEventJob.getConfiguration(), "3")
 
     hadoopEventJob.setOutputFormatClass(classOf[CqlOutputFormat])
-    CqlConfigHelper.setOutputCql(hadoopEventJob.getConfiguration(), outputQuery)
-    ConfigHelper.setOutputColumnFamily(hadoopEventJob.getConfiguration(), KeySpace, outputTable)
-    ConfigHelper.setOutputInitialAddress(hadoopEventJob.getConfiguration(), cHost)
-    ConfigHelper.setOutputRpcPort(hadoopEventJob.getConfiguration(), cPort)
-    ConfigHelper.setOutputPartitioner(hadoopEventJob.getConfiguration(), "Murmur3Partitioner")
-    var where = ""
-    if (start >= 0) {
-      where += " time > minTimeuuid('" + new SimpleDateFormat("yyyy-MM-DD HH:mm+SS00").format(new Date(start)) + "') "
+    if(outputTable.isDefined) {
+      CqlConfigHelper.setOutputCql(hadoopEventJob.getConfiguration(), outputQuery.get)
+      ConfigHelper.setOutputColumnFamily(hadoopEventJob.getConfiguration(), KeySpace, outputTable.get)
+      ConfigHelper.setOutputInitialAddress(hadoopEventJob.getConfiguration(), cHost)
+      ConfigHelper.setOutputRpcPort(hadoopEventJob.getConfiguration(), cPort)
+      ConfigHelper.setOutputPartitioner(hadoopEventJob.getConfiguration(), "Murmur3Partitioner")
     }
-    if (end >= 0)
-      where += " time > maxTimeuuid('" + new SimpleDateFormat("yyyy-MM-DD HH:mm+SS00").format(new Date(end)) + "')"
+    var where = ""
+    if (start.isDefined) {
+      where += " time > minTimeuuid('" + new SimpleDateFormat("yyyy-MM-DD HH:mm+SS00").format(new Date(start.get)) + "') "
+    }
+    if (end.isDefined)
+      where += " time > maxTimeuuid('" + new SimpleDateFormat("yyyy-MM-DD HH:mm+SS00").format(new Date(end.get)) + "')"
     if (!where.eq(""))
       CqlConfigHelper.setInputWhereClauses(hadoopEventJob.getConfiguration(), where)
     hadoopEventJob
@@ -113,23 +111,23 @@ object CassandraBatchProcessor {
     })
   }
 
-  private def createActorRDD(): RDD[Actor] = {
-    val rawActorRdd = sc.newAPIHadoopRDD(createActorJob().getConfiguration(),
+  private def createActorRDD(job : Job): RDD[Actor] = {
+    val rawActorRdd = sc.newAPIHadoopRDD(job.getConfiguration(),
       classOf[CqlPagingInputFormat], classOf[java.util.Map[String, ByteBuffer]], classOf[java.util.Map[String, ByteBuffer]])
     rawActorRdd.map({
       case (key, value) => {
         val prop = value.get("properties")
         if (prop == null)
-          new Actor(ByteBufferUtil.string(key.get("project")), ByteBufferUtil.string(key.get("id")))
+          new Actor(ByteBufferUtil.string(key.get("_tracking")), ByteBufferUtil.string(key.get("id")))
         else
-          new Actor(ByteBufferUtil.string(key.get("project")), ByteBufferUtil.string(key.get("id")), ByteBufferUtil.string(prop))
+          new Actor(ByteBufferUtil.string(key.get("_tracking")), ByteBufferUtil.string(key.get("id")), ByteBufferUtil.string(prop))
 
       }
     })
   }
 
   private def joinActorProperties(eventRdd: RDD[Event]): RDD[Event] = {
-    val actorRdd = createActorRDD().map(a => (a.id, a.data))
+    val actorRdd = createActorRDD(createActorJob()).map(a => (a.id, a.data))
     actorRdd.count()
     eventRdd.collect()
     eventRdd.map(e => (e.actor, e)).join(actorRdd).map(
@@ -151,27 +149,40 @@ object CassandraBatchProcessor {
     )
   }
 
-  private def getLongFromEvent = (select: FieldScript) => {
+  private def getLongFromEvent = (select: FieldScript[String]) => {
     (event: Event) => {
-      try {
-        lang.Long.parseLong(select.extract(event.data, null))
-      } catch {
-        case e: NumberFormatException => 0
-      }
+      ConversionUtil.toLong(select.extract(event.data, null), 0L).asInstanceOf[Long]
     }
   }
 
-  private def containsKeyFromEvent = (select: FieldScript) => {
-    (event: Event) => select.contains(event.data)
+  private def containsKeyFromEvent = (select: FieldScript[String]) => {
+    (event: Event) => select.contains(event.data, null)
   }
 
-  private def getStringFromEvent(select: FieldScript) = {
-    (event: Event) => select.extract(event.data, null)
-  }
-
+  private def getStringFromEvent(select: FieldScript[String]) = (event: Event) => select.extract(event.data, null)
 
   def processRule(rule: AnalysisRule) {
-    this.processRule(rule, -1, -1);
+    this.processRule(rule, -1, -1)
+  }
+
+  def filterEvents(filter : FilterScript, limit : Int, sortBy : String) = {
+    val eventJob = createEventJob()
+    var eventRdd = createEventRDD(eventJob)
+    eventRdd = eventRdd.filter(e => filter.test(e.data))
+    if(sortBy != null)
+      eventRdd.top(limit)(Ordering.by(e => e.data.getValue(sortBy)))
+    else
+      eventRdd.take(limit)
+  }
+
+  def filterActors(filter : FilterScript, limit : Int, sortBy : String = null) = {
+    val actorJob = createActorJob()
+    var actorRdd = createActorRDD(actorJob)
+    actorRdd = actorRdd.filter(e => filter.test(e.data))
+    if(sortBy != null)
+      actorRdd.top(limit)(Ordering.by(e => e.data.getValue(sortBy)))
+    else
+      actorRdd.take(limit)
   }
 
   def processRule(rule: AnalysisRule, start_time: Long, end_time: Long) {
@@ -195,45 +206,53 @@ object CassandraBatchProcessor {
         outputTable = "aggregated_set"
       }
 
-      val eventJob = createEventJob(start_time, start_time, outputTable, outputQuery)
+      val eventJob = createEventJob(Some(start_time), Some(start_time), Some(outputTable), Some(outputQuery))
       var eventRdd = createEventRDD(eventJob)
+      val dbSession = Cluster.builder.addContactPoint("127.0.0.1").build.connect
+      val set = dbSession.prepare("UPDATE " + KeySpace + ".aggregated_set SET value = ? where project = ? and id = ?")
+      val counter = dbSession.prepare("UPDATE " + KeySpace + ".aggregated_counter SET value = ? where project = ? and id = ?")
 
       if ((ruleFilter != null && ruleFilter.requiresUser()) ||
-        ruleSelect != null && ruleSelect.fieldKey.startsWith("_user.") ||
-        (ruleGroupBy != null && ruleGroupBy.fieldKey.startsWith("_user.")))
+        ruleSelect != null && ruleSelect.requiresUser() ||
+        (ruleGroupBy != null && ruleGroupBy.requiresUser()))
         eventRdd = this.joinActorProperties(eventRdd)
 
 
       if (aggRule.filters != null)
-        eventRdd = eventRdd.filter(e => ruleFilter.test(e.data, null))
+        eventRdd = eventRdd.filter(e => ruleFilter.test(e.data))
 
       if (aggRule.isInstanceOf[MetricAggregationRule] && aggRule.groupBy == null) {
-        val result: Any = aggRule.`type` match {
-          case COUNT => eventRdd.count()
-          case COUNT_X => eventRdd.filter(containsKeyFromEvent(ruleSelect)).count()
-          case SUM_X => eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
-          case MINIMUM_X => eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.min(_, _))
-          case MAXIMUM_X => eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.max(_, _))
-          //case COUNT_UNIQUE_X => eventRdd.map(getStringFromEvent(ruleSelect)).distinct().count()
-          case AVERAGE_X => eventRdd.map(getLongFromEvent(ruleSelect)).mean()
-          case UNIQUE_X => eventRdd.groupBy(getStringFromEvent(ruleGroupBy)).map(e => (e._1, e._2.map(getStringFromEvent(ruleSelect)).distinct)).collect()
-          case _ => throw new IllegalStateException("unknown aggregation pre-aggregation aggRule type")
-        }
 
-        val serialized = result match {
-          case result if result.isInstanceOf[Long] => ByteBufferUtil.bytes(result.asInstanceOf[Long])
-          case result if result.isInstanceOf[Double] => ByteBufferUtil.bytes(result.asInstanceOf[Double])
-          case result if result.isInstanceOf[RDD[Any]] => {
-            val list: java.util.List[Object] = result.asInstanceOf[RDD[Object]].collect().toList
-            ByteBufferUtil.bytes(new JsonArray(list).encode())
+        aggRule.`type` match {
+          case COUNT => dbSession.execute(counter.bind(eventRdd.count(), rule.project, rule.id))
+          case COUNT_X => {
+            val count: Long = eventRdd.filter(containsKeyFromEvent(ruleSelect)).count()
+            dbSession.execute(counter.bind(count, rule.project, rule.id))
           }
-          case _ => throw new IllegalStateException("couldn't serialize MetricAggregationRule result")
+          case SUM_X => {
+            val reduce: Long = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
+            dbSession.execute(counter.bind(reduce, rule.project, rule.id))
+          }
+          case MINIMUM_X => {
+            val reduce: Long = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.min(_, _))
+            dbSession.execute(counter.bind(reduce, rule.project, rule.id))
+          }
+          case MAXIMUM_X => {
+            val reduce: Long = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.max(_, _))
+            dbSession.execute(counter.bind(reduce, rule.project, rule.id))
+          }
+          case AVERAGE_X => {
+            val sum = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
+            val count = eventRdd.filter(containsKeyFromEvent(ruleSelect)).count()
+            dbSession.execute(counter.bind(sum, rule.project, rule.id+":sum"))
+            dbSession.execute(counter.bind(count, rule.project, rule.id+":count"))
+          }
+          case UNIQUE_X => {
+            val collect: Array[String] = eventRdd.map(getStringFromEvent(ruleSelect)).distinct().collect
+            dbSession.execute(set.bind(collect, rule.project, rule.id))
+          }
         }
 
-        val session = Cluster.builder.addContactPoint("127.0.0.1").build.connect
-        val query = session.prepare("UPDATE " + KeySpace + ".aggregated SET data = ? where project = ? and id = ? and timecabin = 0")
-          .bind(serialized, aggRule.project, aggRule.id)
-        session.execute(query)
       } else {
         val groupByFunc = aggRule match {
           case rule if rule.isInstanceOf[MetricAggregationRule] => getStringFromEvent(rule.groupBy)
@@ -258,8 +277,8 @@ object CassandraBatchProcessor {
         }
 
         val result: RDD[Any] = aggRule.`type` match {
-          case COUNT => eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.length))
-          case COUNT_X => eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.length))
+          case COUNT => eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.size))
+          case COUNT_X => eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.size))
           case SUM_X => eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.map(getLongFromEvent(ruleSelect)).reduce(_ + _)))
           case MINIMUM_X => eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.map(getLongFromEvent(ruleSelect)).reduce(Math.min(_, _))))
           case MAXIMUM_X => {
@@ -270,17 +289,15 @@ object CassandraBatchProcessor {
           // so the filter above will remain until we switch to 2.11 branch
           // see: https://issues.scala-lang.org/browse/SI-6908
           case AVERAGE_X => {
-            eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.map(getLongFromEvent(ruleSelect)).sum / x._2.length))
+            eventRdd.groupBy(groupByFunc).map(x => (x._1, x._2.map(getLongFromEvent(ruleSelect)).sum / x._2.size))
           }
           case UNIQUE_X => {
-            eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.map(getStringFromEvent(ruleSelect)).distinct)) // distinct.length for counting
+            eventRdd.filter(containsKeyFromEvent(ruleSelect)).groupBy(groupByFunc).map(x => (x._1, x._2.map(getStringFromEvent(ruleSelect)).stream.distinct)) // distinct.length for counting
           }
           case _ => {
             throw new IllegalStateException("unknown aggregation type")
           }
         }
-
-        //result.foreach(x => println(x))
 
         val ruleId = aggRule.id
         val output = result.map {
@@ -345,23 +362,6 @@ object CassandraBatchProcessor {
         )
       }
     }
-  }
-
-
-  db_session.execute("use analytics")
-  val counter_sql = db_session.prepare("select value from aggregated_counter where id = ?")
-  val set_sql = db_session.prepare("select value from aggregated_set where id = ?")
-
-  private def getCounter(id: String): Long = {
-    val row = db_session.execute(counter_sql.bind(id)).one()
-    return if (row == null) 0 else row.getLong("value")
-  }
-
-  private def getSet(id: String): util.Set[lang.String] = {
-    val row = db_session.execute(counter_sql.bind(id)).one()
-    return if (row == null) null else row.getSet("value", classOf[lang.String])
-
-
   }
 
 }

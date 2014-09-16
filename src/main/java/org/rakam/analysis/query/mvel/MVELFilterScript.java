@@ -1,9 +1,9 @@
-package org.rakam.analysis.script.mvel;
+package org.rakam.analysis.query.mvel;
 
 import org.mvel2.MVEL;
 import org.mvel2.ParserConfiguration;
 import org.mvel2.ParserContext;
-import org.rakam.analysis.script.FilterScript;
+import org.rakam.analysis.query.FilterScript;
 import org.rakam.util.UnboxedMathUtils;
 import org.vertx.java.core.json.JsonObject;
 
@@ -14,7 +14,7 @@ import java.lang.reflect.Modifier;
 /**
  * Created by buremba on 04/05/14.
  */
-public class MvelFilterScript extends FilterScript {
+public class MVELFilterScript extends FilterScript {
     private final static ParserConfiguration parserConfiguration = new ParserConfiguration();
     static {
         parserConfiguration.addPackageImport("java.util");
@@ -28,16 +28,13 @@ public class MvelFilterScript extends FilterScript {
     private final Serializable script;
     private final boolean requiresUser;
 
-    public MvelFilterScript(String script) {
+    public MVELFilterScript(String script) {
         this.script = MVEL.compileExpression(script, new ParserContext(parserConfiguration));
         requiresUser = script.contains("_user.");
     }
 
     @Override
-    public boolean test(JsonObject obj, JsonObject user) {
-        if(requiresUser && user!=null)
-            for(String key : user.getFieldNames())
-                obj.putString("_user."+key, user.getString(key));
+    public boolean test(JsonObject obj) {
         Object ret = MVEL.executeExpression(script, obj);
         return ret!=null && !ret.equals(false);
     }
@@ -47,7 +44,6 @@ public class MvelFilterScript extends FilterScript {
         return requiresUser;
     }
 
-    @Override
     public String toString() {
         return script.toString().trim();
     }

@@ -3,7 +3,11 @@ package org.rakam.cache.hazelcast;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.XmlClientConfigBuilder;
-import com.hazelcast.core.*;
+import com.hazelcast.core.DistributedObject;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
+import com.hazelcast.core.Message;
 import org.rakam.cache.ActorCacheAdapter;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.MessageListener;
@@ -11,11 +15,19 @@ import org.rakam.cache.PubSubAdapter;
 import org.rakam.cache.hazelcast.models.AverageCounter;
 import org.rakam.cache.hazelcast.models.Counter;
 import org.rakam.cache.hazelcast.models.SimpleCounter;
-import org.rakam.cache.hazelcast.operations.*;
+import org.rakam.cache.hazelcast.operations.AddAllStringSetOperation;
+import org.rakam.cache.hazelcast.operations.AddStringSetOperation;
+import org.rakam.cache.hazelcast.operations.AverageCounterIncrementOperation;
+import org.rakam.cache.hazelcast.operations.CounterIncrementOperation;
+import org.rakam.cache.hazelcast.operations.GetStringCountsOperation;
 import org.vertx.java.core.json.JsonObject;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by buremba on 21/12/13.

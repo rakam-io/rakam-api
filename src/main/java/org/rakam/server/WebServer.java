@@ -3,6 +3,7 @@ package org.rakam.server;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
 import org.rakam.util.JsonHelper;
+import org.vertx.java.core.Handler;
 import org.vertx.java.core.MultiMap;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServerRequest;
@@ -11,7 +12,6 @@ import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
 import java.io.ByteArrayOutputStream;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -25,24 +25,59 @@ public class WebServer extends Verticle {
 
     public WebServer() {
         routeMatcher = new RouteMatcher();
-        routeMatcher.get("/collect", request -> {
+        routeMatcher.get("/event", getCollectHandler());
+        routeMatcher.get("/actor", getSetActorHandler());
+
+        routeMatcher.get("/analyze/timeseries/compute", timeseriesComputeRequest());
+
+        routeMatcher.get("/analyze", getAnalyzeRequest());
+        routeMatcher.post("/analyze", postAnalyzeRequest());
+
+        routeMatcher.get("/filter/actor", request -> sendEvent(request, "actorFilterRequest", JsonHelper.generate(request.params())));
+        routeMatcher.get("/filter/event", request -> sendEvent(request, "eventFilterRequest", JsonHelper.generate(request.params())));
+
+        routeMatcher.getStartsWith("/analysis_rule/", getRuleHandler());
+        routeMatcher.postStartsWith("/analysis_rule/", postRuleHandler());
+
+        routeMatcher.noMatch(request -> request.response().setStatusCode(404).end("404"));
+    }
+
+    private Handler<HttpServerRequest> timeseriesComputeRequest() {
+        return request -> {
             final MultiMap queryParams = request.params();
             JsonObject json = JsonHelper.generate(queryParams);
             String tracker_id = queryParams.get("_tracker");
+
             if (tracker_id == null) {
                 returnError(request, "tracker id is required", 400);
                 return;
             }
 
-            ByteArrayOutputStream by = new ByteArrayOutputStream();
-            Output out = new Output(by);
+            sendRawEvent(request, "collectEvent", json);
+        };
+    }
 
-            kryo.writeObject(out, json);
+    private Handler<HttpServerRequest> getCollectHandler() {
+        return request -> {
+            final MultiMap queryParams = request.params();
+            JsonObject json = JsonHelper.generate(queryParams);
+            String tracker_id = queryParams.get("_tracker");
 
-            vertx.eventBus().send("collectionRequest", out.getBuffer(), (Message<byte[]> message) -> request.response().end("1"));
-        });
-        routeMatcher.get("/analyze", request -> sendEvent(request, "analysisRequest", JsonHelper.generate(request.params())));
-        routeMatcher.post("/analyze", request -> request.bodyHandler(buff -> {
+            if (tracker_id == null) {
+                returnError(request, "tracker id is required", 400);
+                return;
+            }
+
+            sendRawEvent(request, "collectEvent", json);
+        };
+    }
+
+    private Handler<HttpServerRequest> getAnalyzeRequest() {
+        return request -> sendEvent(request, "analysisRequest", JsonHelper.generate(request.params()));
+    }
+
+    private Handler<HttpServerRequest> postAnalyzeRequest() {
+        return request -> request.bodyHandler(buff -> {
             String contentType = request.headers().get("Content-Type");
             JsonObject json;
             if ("application/json".equals(contentType)) {
@@ -53,33 +88,54 @@ public class WebServer extends Verticle {
             }
 
             sendEvent(request, "analysisRequest", json);
-        }));
-        routeMatcher.get("/_actor/set", request -> {
+        });
+    }
+
+    private Handler<HttpServerRequest> getSetActorHandler() {
+        return request -> {
             final MultiMap queryParams = request.params();
 
             String user_id = queryParams.get("_user");
+            String tracker = queryParams.get("_tracker");
 
-            if (user_id != null) {
-                HashMap<String, String> event = new HashMap();
-                for (Map.Entry<String, String> item : queryParams) {
-                    String key = item.getKey();
-                    if (!key.startsWith("_"))
-                        event.put(item.getKey(), item.getValue());
-                }
-                request.response().end("1");
-            } else {
-                returnError(request, "_user, property and value parameters are required", 400);
+            if (user_id == null) {
+                returnError(request, "_user parameter is required", 400);
+                return;
             }
-        });
 
-        routeMatcher.getStartsWith("/rule/", request -> {
+            if (tracker == null) {
+                returnError(request, "_tracker parameter is required", 400);
+                return;
+            }
+
+            JsonObject attrs = new JsonObject();
+            for (Map.Entry<String, String> item : queryParams) {
+                String key = item.getKey();
+                if (!key.startsWith("_"))
+                    attrs.putString(item.getKey(), item.getValue());
+            }
+
+            JsonObject json = new JsonObject().putString("user", user_id).putString("tracker", tracker).putObject("attrs", attrs);
+
+            sendRawEvent(request, "collectActor", json);
+        };
+    }
+
+    private Handler<HttpServerRequest> getRuleHandler() {
+        return request -> {
             final String action = request.path().substring(6);
 
-            JsonObject json = new JsonObject().putObject("request", JsonHelper.generate(request.params())).putString("action", action);
+            JsonObject json = new JsonObject()
+                    .putObject("request", JsonHelper.generate(request.params()))
+                    .putString("action", action);
             sendEvent(request, "analysisRuleCrud", json);
-        });
-        routeMatcher.postStartsWith("/rule/", request -> {
-            final String action = request.path().substring(6);
+        };
+    }
+
+    private Handler<HttpServerRequest> postRuleHandler() {
+        return request -> {
+            final String action = request.path().substring(request.path().lastIndexOf("/")+1);
+
             request.bodyHandler(buff -> {
                 String contentType = request.headers().get("Content-Type");
                 JsonObject json;
@@ -90,15 +146,16 @@ public class WebServer extends Verticle {
                         returnError(request, "json couldn't decoded.", 401);
                         return;
                     }
-
                 } else {
                     returnError(request, "content type must be one of [application/json]", 400);
                     return;
                 }
+                if(!json.containsField("_tracking")) {
+                    json.putString("_tracking", request.params().get("_tracking"));
+                }
                 sendEvent(request, "analysisRuleCrud", new JsonObject().putObject("request", json).putString("action", action));
             });
-        });
-        routeMatcher.noMatch(request -> request.response().end("<h1>404</h1>"));
+        };
     }
 
     public void start() {
@@ -121,5 +178,15 @@ public class WebServer extends Verticle {
         });
     }
 
+    public void sendRawEvent(final HttpServerRequest request, final String address, final JsonObject json) {
+        ByteArrayOutputStream by = new ByteArrayOutputStream();
+        Output out = new Output(by);
+        kryo.writeObject(out, json);
 
+        Handler<Message<byte[]>> replyHandler = (Message<byte[]> event) -> {
+            String chunk = new String(event.body());
+            request.response().end(chunk);
+        };
+        vertx.eventBus().send(address, out.getBuffer(), replyHandler);
+    }
 }

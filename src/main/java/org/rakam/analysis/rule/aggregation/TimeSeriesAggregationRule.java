@@ -2,8 +2,8 @@ package org.rakam.analysis.rule.aggregation;
 
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
-import org.rakam.analysis.script.FieldScript;
-import org.rakam.analysis.script.FilterScript;
+import org.rakam.analysis.query.FieldScript;
+import org.rakam.analysis.query.FilterScript;
 import org.rakam.cache.hazelcast.RakamDataSerializableFactory;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
@@ -29,10 +29,29 @@ public class TimeSeriesAggregationRule extends AggregationRule {
         this.interval = interval;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof TimeSeriesAggregationRule)) return false;
+        if (!super.equals(o)) return false;
+
+        TimeSeriesAggregationRule that = (TimeSeriesAggregationRule) o;
+
+        if (!interval.equals(that.interval)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + interval.hashCode();
+        return result;
+    }
+
     public TimeSeriesAggregationRule(String projectId, AggregationType type, SpanTime interval, FieldScript select, FilterScript filters, FieldScript groupBy) {
         super(projectId, type, select, filters, groupBy);
         this.interval = interval;
-        this.id = buildId();
     }
 
     @Override
@@ -50,10 +69,6 @@ public class TimeSeriesAggregationRule extends AggregationRule {
     public void readData(ObjectDataInput in) throws IOException {
         super.readData(in);
         interval = new SpanTime(in.readInt());
-    }
-
-    private String buildId() {
-        return project+TYPE.id+type.id+(select==null ? "" : select)+(groupBy==null ? "" : groupBy)+(filters==null ? "" : filters)+interval;
     }
 
     public JsonObject toJson() {

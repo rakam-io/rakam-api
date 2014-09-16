@@ -15,80 +15,99 @@ import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
-import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Created by buremba on 21/05/14.
  */
 public class CollectionWorker extends Verticle implements Handler<Message<byte[]>> {
-    final ExecutorService executor = new ThreadPoolExecutor(5, 50, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
-    public static CacheAdapter activeStorageAdapter = new LocalCacheAdapter();
+    final ExecutorService executor = new ThreadPoolExecutor(5, 50, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue());
+
+    public static CacheAdapter localStorageAdapter = new LocalCacheAdapter();
     private CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
     private DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
-    final private Aggregator aggregator = new Aggregator(activeStorageAdapter, cacheAdapter, databaseAdapter);
+
+    final private EventAggregator eventAggregator = new EventAggregator(localStorageAdapter, cacheAdapter, databaseAdapter);
+
     Kryo kryo = new Kryo();
     static Logger logger = Logger.getLogger(CollectionWorker.class.getName());
-    List<CollectionMapperPlugin> mappers;
+    static List<CollectionMapperPlugin> mappers = new LinkedList();
+    static {
+        List<Binding<CollectionMapperPlugin>> bindingsByType = ServiceStarter.injector.findBindingsByType(new TypeLiteral<CollectionMapperPlugin>() {});
+        mappers.addAll(bindingsByType.stream().map(mapper -> mapper.getProvider().get()).collect(Collectors.toList()));
+    }
 
     public void start() {
-        vertx.eventBus().registerLocalHandler("collectionRequest", this);
+        vertx.eventBus().registerLocalHandler("collectEvent", this);
+        vertx.eventBus().registerLocalHandler("collectActor", this);
         kryo.register(JsonObject.class);
-        mappers = new ArrayList();
-        for(Binding<CollectionMapperPlugin> mapper : ServiceStarter.injector.findBindingsByType(new TypeLiteral<CollectionMapperPlugin>() {})) {
-            mappers.add(mapper.getProvider().get());
-        }
-
     }
 
     @Override
     public void handle(final Message<byte[]> data) {
-        Input in = new Input(data.body());
-        final JsonObject message = kryo.readObject(in, JsonObject.class);
-
-        for(CollectionMapperPlugin mapper : mappers) {
-            if(!mapper.map(message))
-                data.reply("0".getBytes());
+        if(data.address().equals("collectEvent")) {
+            executor.submit(createEventCollectionTask(data));
+        }else
+        if(data.address().equals("collectActor")) {
+            executor.submit(createActorCollectionTask(data));
+        }else {
+            logger.error("unknown collection type");
+            data.reply("0".getBytes());
         }
-
-        executor.submit(() -> {
-            try{
-                data.reply(process(message));
-            } catch (Exception e) {
-                logger.error("error while processing collection request", e);
-            }
-        });
     }
 
-    public byte[] process(final JsonObject message) {
-        String project = message.getString("_tracker");
-        String actor_id = message.getString("_user");
+    private Runnable createEventCollectionTask(final Message<byte[]> data) {
+        return () -> {
+            try {
+                final JsonObject message = kryo.readObject(new Input(data.body()), JsonObject.class);
 
-        Iterator<String> it = message.getFieldNames().iterator();
-        while(it.hasNext()) {
-            String key = it.next();
-            if (key.startsWith("_"))
-                it.remove();
-        }
+                mappers.stream().filter(mapper -> !mapper.map(message)).forEach(mapper -> data.reply("0".getBytes()));
 
-         /*
-            The current implementation change cabins monthly.
-            However the interval must be determined by the system by taking account of data frequency
-         */
+                String project = message.getString("_tracker");
+                String actor_id = message.getString("_user");
 
-        /*ByteArrayOutputStream by = new ByteArrayOutputStream();
-        Output out = new Output(by, 150);
-        kryo.writeObject(out, message);*/
-        databaseAdapter.addEvent(project, actor_id, message);
+                Iterator<String> it = message.getFieldNames().iterator();
+                while(it.hasNext()) {
+                    String key = it.next();
+                    if (key.startsWith("_"))
+                        it.remove();
+                }
 
-        aggregator.aggregate(project, message, actor_id, (int) (System.currentTimeMillis() / 1000));
-        return "1".getBytes();
-      
+                databaseAdapter.addEvent(project, actor_id, message);
+
+                eventAggregator.aggregate(project, message, actor_id, (int) (System.currentTimeMillis() / 1000));
+
+                data.reply("1".getBytes());
+            } catch (Exception e) {
+                data.reply("0".getBytes());
+                logger.error("error while processing event collection request", e);
+            }
+        };
+    }
+
+    public Runnable createActorCollectionTask(final Message<byte[]> data) {
+        return () -> {
+            try {
+                final JsonObject message = kryo.readObject(new Input(data.body()), JsonObject.class);
+
+                String tracker = message.getString("tracker");
+                String actor_id = message.getString("user");
+
+                JsonObject attributes = message.getObject("attrs");
+                databaseAdapter.addPropertyToActor(tracker, actor_id, attributes.toMap());
+                data.reply("1".getBytes());
+            } catch (Exception e) {
+                data.reply("0".getBytes());
+                logger.error("error while processing event collection request", e);
+            }
+        };
     }
 
 

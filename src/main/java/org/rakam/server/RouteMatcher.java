@@ -40,7 +40,7 @@ public class RouteMatcher implements Handler<HttpServerRequest> {
                 route(request, deleteBindings);
                 break;
             case "OPTIONS":
-                route(request, optionsBindings);
+                request.response().end("1");
                 break;
             case "HEAD":
                 route(request, headBindings);
@@ -131,8 +131,18 @@ public class RouteMatcher implements Handler<HttpServerRequest> {
 
     private void route(HttpServerRequest request, List<PatternBinding> bindings) {
         for (PatternBinding binding: bindings) {
+//            int endIndex = request.path().indexOf("/", 1);
+//            String path;
+//            if(endIndex>-1) {
+//                String trackingCode = request.path().substring(1, endIndex);
+//                path = request.path().substring(endIndex);
+//                request.params().add("_tracking", trackingCode);
+//            }else {
+//                path = request.path();
+//            }
             if((!binding.startsWith && binding.pattern.equals(request.path())) ||
                     (binding.startsWith && request.path().startsWith(binding.pattern))) {
+
                 binding.handler.handle(request);
                 return;
             }

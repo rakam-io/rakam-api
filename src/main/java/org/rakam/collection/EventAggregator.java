@@ -1,11 +1,10 @@
 package org.rakam.collection;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import org.rakam.analysis.rule.AnalysisRuleList;
+import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AggregationRule;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
-import org.rakam.analysis.script.FilterScript;
 import org.rakam.cache.ActorCacheAdapter;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.cache.DistributedAnalysisRuleMap;
@@ -13,14 +12,16 @@ import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
+import org.rakam.util.ConversionUtil;
 import org.vertx.java.core.json.JsonObject;
 
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentMap;
 
 /**
  * Created by buremba on 05/06/14.
  */
-public class Aggregator {
+public class EventAggregator {
     final private CacheAdapter l1cacheAdapter;
     final private CacheAdapter l2cacheAdapter;
     private ActorCacheAdapter actorCache;
@@ -29,13 +30,13 @@ public class Aggregator {
             .maximumWeightedCapacity(10000)
             .build();
 
-    public Aggregator(CacheAdapter l1Cache, CacheAdapter l2Cache, DatabaseAdapter database) {
+    public EventAggregator(CacheAdapter l1Cache, CacheAdapter l2Cache, DatabaseAdapter database) {
         l1cacheAdapter = l1Cache;
         l2cacheAdapter = l2Cache;
         actorCache = (ActorCacheAdapter) l2cacheAdapter;
         databaseAdapter = database;
     }
-    public Aggregator(CacheAdapter l1Cache, CacheAdapter l2Cache, DatabaseAdapter database, ActorCacheAdapter actor) {
+    public EventAggregator(CacheAdapter l1Cache, CacheAdapter l2Cache, DatabaseAdapter database, ActorCacheAdapter actor) {
         l1cacheAdapter = l1Cache;
         l2cacheAdapter = l2Cache;
         databaseAdapter = database;
@@ -48,31 +49,38 @@ public class Aggregator {
     */
     public void aggregate(String project, JsonObject m, String actor_id, int timestamp) {
 
-        AnalysisRuleList aggregations = DistributedAnalysisRuleMap.get(project);
+        HashSet<AnalysisRule> aggregations = DistributedAnalysisRuleMap.get(project);
 
         if (aggregations == null)
             return;
 
         JsonObject actor_props = null;
+
         for (AnalysisRule analysis_rule : aggregations) {
             if (analysis_rule.analysisType() == Analysis.ANALYSIS_METRIC || analysis_rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
                 AggregationRule aggregation = (AggregationRule) analysis_rule;
 
                 FilterScript filters = aggregation.filters;
-                if ((filters != null && filters.requiresUser()) || (aggregation.select != null) && aggregation.select.requiresUser() || (aggregation.groupBy != null) && aggregation.groupBy.requiresUser())
-                    actor_props = get_actor_properties(project, actor_id);
+                if ((filters != null && filters.requiresUser()) ||
+                        ((aggregation.select != null) && aggregation.select.requiresUser()) ||
+                        ((aggregation.groupBy != null) && aggregation.groupBy.requiresUser())) {
+                    JsonObject actor_properties = get_actor_properties(project, actor_id);
+                    for (String s : actor_properties.getFieldNames()) {
+                        m.putValue("_user."+s, actor_properties.getValue(s));
+                    }
+                }
 
-                if (filters != null && !filters.test(m, actor_props))
+                if (filters != null && !filters.test(m))
                     continue;
 
 
-                String key = analysis_rule.id;
+                String key = analysis_rule.id();
                 if (analysis_rule.analysisType() == Analysis.ANALYSIS_TIMESERIES)
                     key += ":" + ((TimeSeriesAggregationRule) analysis_rule).interval.span(timestamp).current();
 
                 if (aggregation.groupBy!=null) {
                     String groupByValue = aggregation.groupBy!=null ? aggregation.groupBy.extract(m, actor_props) : null;
-                    aggregateByGrouping(key, aggregation.select == null ? null : aggregation.select.extract(m, actor_props), aggregation.type, aggregation.groupBy.fieldKey, groupByValue);
+                    aggregateByGrouping(key, aggregation.select == null ? null : aggregation.select.extract(m, actor_props), aggregation.type, groupByValue);
                 }else {
                     aggregateByNonGrouping(key, aggregation.select == null ? null : aggregation.select.extract(m, actor_props), aggregation.type);
                 }
@@ -80,33 +88,33 @@ public class Aggregator {
         }
     }
 
-    public void aggregateByGrouping(String id, String type_target, AggregationType type, String groupByColumn, String groupByValue) {
-        String groupBySaveValue = groupByValue == null ? "null" : groupByValue;
+    public void aggregateByGrouping(String id, String type_target, AggregationType type, String groupByValue) {
+        groupByValue = groupByValue == null ? "null" : groupByValue;
         type_target = type_target==null ? "null" : type_target;
         switch (type) {
             case COUNT:
-                l1cacheAdapter.addGroupByCounter(id, groupBySaveValue);
+                l1cacheAdapter.addGroupByCounter(id, groupByValue);
                 break;
             case UNIQUE_X:
-                l1cacheAdapter.addGroupByString(id, groupBySaveValue, type_target);
+                l1cacheAdapter.addGroupByString(id, groupByValue, type_target);
                 break;
             case COUNT_X:
                 if (groupByValue!=null)
-                    l1cacheAdapter.addGroupByCounter(id, groupBySaveValue);
+                    l1cacheAdapter.addGroupByCounter(id, groupByValue);
             default:
                 try {
-                    Long target = Long.parseLong(type_target, 10);
+                    Long target = ConversionUtil.toLong(type_target, 10L);
                     switch (type) {
                         case SUM_X:
-                            l1cacheAdapter.addGroupByCounter(id, groupByColumn, target);
+                            l1cacheAdapter.addGroupByCounter(id, groupByValue, target);
                         case MINIMUM_X:
                         case MAXIMUM_X:
-                            Long key = l1cacheAdapter.getCounter(id + ":" + groupBySaveValue + ":" + target);
+                            Long key = l1cacheAdapter.getCounter(id + ":" + groupByValue + ":" + target);
                             if (type == AggregationType.MAXIMUM_X ? target > key : target < key)
                                 l1cacheAdapter.setCounter(id, target);
-                            l1cacheAdapter.addGroupByCounter(id, groupByColumn);
+                            l1cacheAdapter.addGroupByCounter(id, groupByValue);
                         case AVERAGE_X:
-                            l1cacheAdapter.incrementGroupByAverageCounter(id, groupBySaveValue, target, 1);
+                            l1cacheAdapter.incrementGroupByAverageCounter(id, groupByValue, target, 1);
                     }
                 } catch (NumberFormatException e) {}
         }
@@ -124,14 +132,13 @@ public class Aggregator {
                 break;
             case SUM_X:
                 try {
-                    Long target = Long.parseLong(type_target);
-                    l1cacheAdapter.incrementCounter(id, target);
+                    l1cacheAdapter.incrementCounter(id, ConversionUtil.toLong(type_target));
                 } catch (NumberFormatException e) {}
                 break;
             case MINIMUM_X:
             case MAXIMUM_X:
                 try {
-                    Long target = Long.parseLong(type_target);
+                    Long target = ConversionUtil.toLong(type_target);
                     Long key = l1cacheAdapter.getCounter(id + ":" + target);
                     if (type == AggregationType.MAXIMUM_X ? target > key : target < key)
                         l1cacheAdapter.setCounter(id, target);
@@ -143,7 +150,7 @@ public class Aggregator {
                 break;
             case AVERAGE_X:
                 try {
-                    Long target = Long.parseLong(type_target);
+                    Long target = ConversionUtil.toLong(type_target);
                     l1cacheAdapter.incrementAverageCounter(id, target, 1);
                 } catch (NumberFormatException e) { }
                 break;

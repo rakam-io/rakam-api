@@ -1,19 +1,25 @@
 package org.rakam.analysis;
 
+import org.elasticsearch.common.collect.Tuple;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
-import org.rakam.analysis.script.FieldScript;
-import org.rakam.analysis.script.FilterScript;
-import org.rakam.analysis.script.mvel.MvelFieldScript;
-import org.rakam.analysis.script.mvel.MvelFilterScript;
-import org.rakam.analysis.script.simple.SimpleFieldScript;
-import org.rakam.analysis.script.simple.SimpleFilterScript;
+import org.rakam.analysis.query.FieldScript;
+import org.rakam.analysis.query.FilterScript;
+import org.rakam.analysis.query.mvel.MVELFieldScript;
+import org.rakam.analysis.query.mvel.MVELFilterScript;
+import org.rakam.analysis.query.simple.predicate.*;
+import org.rakam.analysis.query.simple.SimpleFieldScript;
+import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.constant.AnalysisRuleStrategy;
 import org.rakam.util.SpanTime;
+import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.json.JsonElement;
 import org.vertx.java.core.json.JsonObject;
+
+import java.util.function.Predicate;
 
 /**
  * Created by buremba on 15/01/14.
@@ -22,7 +28,7 @@ public class AnalysisRuleParser {
 
     public static AnalysisRule parse(JsonObject json) throws IllegalArgumentException {
         AnalysisRule rule;
-        String project = json.getString("project");
+        String project = json.getString("_tracking");
         if (json.getString("analysis") == null)
             throw new IllegalArgumentException("analysis type is required.");
         Analysis analysisType;
@@ -32,7 +38,7 @@ public class AnalysisRuleParser {
             throw new IllegalAccessError("analysis type does not exist.");
         }
         if (project == null)
-            throw new IllegalArgumentException("project id is required.");
+            throw new IllegalArgumentException("tracking id is required.");
 
         if (analysisType == Analysis.ANALYSIS_TIMESERIES || analysisType == Analysis.ANALYSIS_METRIC) {
             FilterScript filter = getFilter(json.getObject("filter"));
@@ -82,7 +88,7 @@ public class AnalysisRuleParser {
             if (field instanceof JsonObject) {
                 String script = ((JsonObject) field).getString("script");
                 if (script != null)
-                    return new MvelFieldScript(script);
+                    return new MVELFieldScript(script);
             } else if (field instanceof String) {
                 return new SimpleFieldScript((String) field);
             }
@@ -90,15 +96,87 @@ public class AnalysisRuleParser {
         return null;
     }
 
-    public static FilterScript getFilter(JsonObject field) {
-        if (field != null) {
-            String script = field.getString("script");
-            if (script != null)
-                return new MvelFilterScript(script);
-            else
-                return new SimpleFilterScript(field.toMap());
+    public static Tuple<Predicate, Boolean> generatePredicate(JsonElement from) {
+        Predicate to = null;
+        boolean requiresUser = false;
+
+        if (from.isArray()) {
+            for (Object item : from.asArray()) {
+                if (item instanceof JsonArray) {
+                    JsonArray item1 = (JsonArray) item;
+                    String field = item1.get(0);
+                    if (field.startsWith("_user.")) {
+                        requiresUser = true;
+                    }
+                    Predicate predicate = createPredicate(item1.get(1), field, item1.get(2));
+                    to = to == null ? predicate : to.and(predicate);
+                } else if (item instanceof JsonObject) {
+                    Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate((JsonElement) item);
+                    Predicate predicate = predicateBooleanTuple.v1();
+                    requiresUser = requiresUser || predicateBooleanTuple.v2();
+                    to = to == null ? predicate : to.or(predicate);
+                }
+            }
+        } else {
+            JsonObject jsonObject = from.asObject();
+            for (String fieldName : jsonObject.getFieldNames()) {
+                Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate(jsonObject.getElement(fieldName));
+                Predicate predicate = predicateBooleanTuple.v1();
+                requiresUser = requiresUser || predicateBooleanTuple.v2();
+                switch (fieldName) {
+                    case "AND":
+                        to = to == null ? predicate : to.or(predicate);
+                        break;
+                    case "OR":
+                        to = to == null ? predicate : to.or(predicate);
+                        break;
+                    default:
+                        throw new IllegalArgumentException();
+                }
+            }
+        }
+        return new Tuple(to, requiresUser);
+    }
+
+    private static Predicate createPredicate(String operator, String field, Object argument) {
+        switch (operator) {
+            case "$lte":
+                return FilterPredicates.lte(field, ((Number) argument).longValue());
+            case "$lt":
+                return FilterPredicates.lt(field, ((Number) argument).longValue());
+            case "$gt":
+                return FilterPredicates.gt(field, ((Number) argument).longValue());
+            case "$gte":
+                return FilterPredicates.gte(field, ((Number) argument).longValue());
+            case "$contains":
+                return FilterPredicates.contains(field);
+            case "$eq":
+                return FilterPredicates.eq(field, argument);
+            case "$in":
+                return FilterPredicates.in(field, ((JsonArray) argument).toArray());
+            case "$ne":
+                return FilterPredicates.ne(field, argument);
+            case "$regex":
+                return FilterPredicates.regex(field, (String) argument);
+            case "$starts_with":
+                return FilterPredicates.starts_with(field, (String) argument);
+            default:
+                throw new IllegalArgumentException();
+        }
+    }
+
+    public static FilterScript getFilter(JsonElement field) {
+        if (field == null) {
+            return null;
+        }
+        if (field.isObject()) {
+            String script = ((JsonObject) field).getString("script");
+            if (script != null) {
+                return new MVELFilterScript(script);
+            }
         }
 
-        return null;
+        Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate(field);
+        return new SimpleFilterScript(predicateBooleanTuple.v1(), predicateBooleanTuple.v2());
     }
 }

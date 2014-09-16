@@ -4,6 +4,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.query.FilterScript;
 import org.rakam.cache.hazelcast.models.AverageCounter;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
@@ -37,7 +38,7 @@ public class ElasticSearchAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public void addPropertyToActor(String project, String actor_id, Map<String, String> props) {
+    public void addPropertyToActor(String project, String actor_id, Map<String, Object> props) {
 
     }
 
@@ -133,13 +134,23 @@ public class ElasticSearchAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public void batch(int start_time, int end_time, int nodeId) {
+    public void batch(String project, int start_time, int end_time, int nodeId) {
 
     }
 
     @Override
-    public void batch(int start_time, int nodeId) {
+    public void batch(String project, int start_time, int nodeId) {
 
+    }
+
+    @Override
+    public Actor[] filterActors(FilterScript filter, int limit, String orderByColumn) {
+        return new Actor[0];
+    }
+
+    @Override
+    public Event[] filterEvents(FilterScript filter, int limit, String orderByColumn) {
+        return new Event[0];
     }
 
     @Override
