@@ -8,11 +8,11 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
+import org.rakam.analysis.AverageCounter;
 import org.rakam.cache.ActorCacheAdapter;
-import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.DistributedCacheAdapter;
 import org.rakam.cache.MessageListener;
 import org.rakam.cache.PubSubAdapter;
-import org.rakam.cache.hazelcast.models.AverageCounter;
 import org.rakam.cache.hazelcast.models.Counter;
 import org.rakam.cache.hazelcast.models.SimpleCounter;
 import org.rakam.cache.hazelcast.operations.AddAllStringSetOperation;
@@ -33,24 +33,12 @@ import java.util.Set;
  * Created by buremba on 21/12/13.
  */
 
-public class HazelcastCacheAdapter implements CacheAdapter, ActorCacheAdapter, PubSubAdapter {
+public class HazelcastCacheAdapter implements DistributedCacheAdapter, ActorCacheAdapter, PubSubAdapter {
     private static HazelcastInstance hazelcast;
-
-    public final static boolean ORDERED = true;
 
     public HazelcastCacheAdapter() throws IOException {
         ClientConfig clientConfig = new XmlClientConfigBuilder("config/hazelcast-client.xml").build();
         hazelcast =  HazelcastClient.newHazelcastClient(clientConfig);
-    }
-
-    @Override
-    public boolean isOrdered() {
-        return ORDERED;
-    }
-
-    @Override
-    public void addGroupByCounter(String id, String groupBy) {
-        addGroupByCounter(id, groupBy, 1);
     }
 
     @Override
@@ -124,7 +112,7 @@ public class HazelcastCacheAdapter implements CacheAdapter, ActorCacheAdapter, P
     }
 
     @Override
-    public Long getCounter(String key) {
+    public long getCounter(String key) {
         return hazelcast.getAtomicLong(key).get();
     }
 
@@ -166,7 +154,7 @@ public class HazelcastCacheAdapter implements CacheAdapter, ActorCacheAdapter, P
 
 
     @Override
-    public void addGroupByCounter(String id, String key, long counter) {
+    public void incrementGroupBySimpleCounter(String id, String key, long counter) {
         IMap<String, SimpleCounter> map = hazelcast.getMap(id);
         map.executeOnKey(key, new CounterIncrementOperation(counter));
     }
@@ -244,6 +232,23 @@ public class HazelcastCacheAdapter implements CacheAdapter, ActorCacheAdapter, P
         for(int i=0; i<limit && i<aThis.length; i++) {
             Map.Entry<String, Integer> aThi = aThis[i];
             stringLongLinkedHashMap.put(aThi.getKey(), aThi.getValue().longValue());
+        }
+        return stringLongLinkedHashMap;
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String key) {
+         return getGroupByAverageCounters(key, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String key, int limit) {
+        IMap<String, AverageCounter> map = hazelcast.getMap(key);
+        Map.Entry<String, AverageCounter>[] values = map.entrySet(new LimitPredicate("this", limit)).toArray(new Map.Entry[0]);
+        Arrays.sort(values, (o1, o2) -> o2.getValue().compareTo(o1.getValue()));
+        LinkedHashMap<String, AverageCounter> stringLongLinkedHashMap = new LinkedHashMap<>(Math.min(limit, values.length));
+        for(int i=0; i<values.length && i<limit; i++) {
+            stringLongLinkedHashMap.put(values[i].getKey(), values[i].getValue());
         }
         return stringLongLinkedHashMap;
     }

@@ -5,7 +5,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import org.rakam.cache.hazelcast.RakamDataSerializableFactory;
-import org.rakam.cache.hazelcast.models.AverageCounter;
+import org.rakam.analysis.AverageCounter;
 
 import java.io.IOException;
 import java.util.Map;

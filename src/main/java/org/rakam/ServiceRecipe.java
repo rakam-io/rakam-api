@@ -2,7 +2,7 @@ package org.rakam;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.TypeLiteral;
-import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.DistributedCacheAdapter;
 import org.rakam.cache.hazelcast.HazelcastCacheAdapter;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
@@ -27,7 +27,7 @@ public class ServiceRecipe extends AbstractModule {
     @Override
     protected void configure() {
         bind(DatabaseAdapter.class).to(CassandraAdapter.class);
-        bind(CacheAdapter.class).to(HazelcastCacheAdapter.class);
+        bind(DistributedCacheAdapter.class).to(HazelcastCacheAdapter.class);
         bind(AnalysisRuleDatabase.class).to(CassandraAdapter.class);
         if (plugins != null)
             for (Object plugin : plugins) {

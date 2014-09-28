@@ -14,7 +14,7 @@ import java.lang.reflect.Modifier;
 /**
  * Created by buremba on 04/05/14.
  */
-public class MVELFilterScript extends FilterScript {
+public class MVELFilterScript implements FilterScript {
     private final static ParserConfiguration parserConfiguration = new ParserConfiguration();
     static {
         parserConfiguration.addPackageImport("java.util");
@@ -25,11 +25,13 @@ public class MVELFilterScript extends FilterScript {
             }
         }
     }
-    private final Serializable script;
+    private final Serializable compiledScript;
+    private final String script;
     private final boolean requiresUser;
 
     public MVELFilterScript(String script) {
-        this.script = MVEL.compileExpression(script, new ParserContext(parserConfiguration));
+        this.script = script;
+        this.compiledScript = MVEL.compileExpression(script, new ParserContext(parserConfiguration));
         requiresUser = script.contains("_user.");
     }
 
@@ -44,7 +46,8 @@ public class MVELFilterScript extends FilterScript {
         return requiresUser;
     }
 
-    public String toString() {
-        return script.toString().trim();
+    @Override
+    public org.vertx.java.core.json.JsonElement toJson() {
+        return new JsonObject().putString("script", script);
     }
 }

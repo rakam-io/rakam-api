@@ -1,6 +1,7 @@
 package org.rakam.analysis.query.simple.predicate;
 
 import org.rakam.model.Entry;
+import org.vertx.java.core.json.JsonArray;
 
 import java.util.Arrays;
 import java.util.function.Predicate;
@@ -65,5 +66,10 @@ public class InPredicate<T extends Entry> extends AbstractRichPredicate<T> {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public JsonArray toJson() {
+        return new JsonArray().addString(attribute).addString("$gte").addArray(new JsonArray(Arrays.asList(value)));
     }
 }

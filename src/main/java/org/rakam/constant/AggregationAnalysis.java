@@ -31,13 +31,17 @@ public enum AggregationAnalysis {
         return AggregationAnalysis.valueOf(name);
     }
 
-    public AggregationType getAggregationType() {
+    public AggregationType[] getAnalyzableAggregationTypes() {
         switch (this) {
             case SELECT_UNIQUE_X:
             case COUNT_UNIQUE_X:
-                return AggregationType.UNIQUE_X;
+                return new AggregationType[]{AggregationType.UNIQUE_X};
+            case COUNT_X:
+                return new AggregationType[]{AggregationType.COUNT_X, AggregationType.AVERAGE_X};
+            case SUM_X:
+                return new AggregationType[]{AggregationType.SUM_X, AggregationType.AVERAGE_X};
             default:
-                return AggregationType.get(this.id);
+                return new AggregationType[]{AggregationType.get(this.id)};
         }
     }
 }

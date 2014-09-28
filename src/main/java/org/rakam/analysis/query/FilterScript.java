@@ -7,7 +7,8 @@ import java.io.Serializable;
 /**
  * Created by buremba on 04/05/14.
  */
-public abstract class FilterScript implements Serializable {
+public interface FilterScript extends Serializable {
     public abstract boolean test(JsonObject event);
     public abstract boolean requiresUser();
+    public abstract <Val> Val toJson();
 }

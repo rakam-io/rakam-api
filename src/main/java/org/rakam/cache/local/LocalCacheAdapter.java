@@ -1,10 +1,15 @@
 package org.rakam.cache.local;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.rakam.analysis.AverageCounter;
 import org.rakam.cache.CacheAdapter;
-import org.rakam.cache.hazelcast.models.AverageCounter;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,13 +18,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * Created by buremba on 21/05/14.
  */
 public class LocalCacheAdapter implements CacheAdapter {
-    public final static boolean ORDERED = false;
-
-    final static Map<String, AtomicLong> counters = new ConcurrentHashMap();
-    final static Map<String, Set<String>> sets = new ConcurrentHashMap();
+    protected final Map<String, AtomicLong> counters = new ConcurrentHashMap();
+    protected final Map<String, Set<String>> sets = new ConcurrentHashMap();
 
     @Override
-    public Long getCounter(String key) {
+    public long getCounter(String key) {
         AtomicLong a = counters.get(key);
         return (a==null) ? 0 : a.get();
     }
@@ -48,17 +51,7 @@ public class LocalCacheAdapter implements CacheAdapter {
     }
 
     @Override
-    public boolean isOrdered() {
-        return ORDERED;
-    }
-
-    @Override
-    public void addGroupByCounter(String aggregation, String groupBy) {
-        addGroupByCounter(aggregation, groupBy, 1L);
-    }
-
-    @Override
-    public void addGroupByCounter(String aggregation, String groupBy, long incrementBy) {
+    public void incrementGroupBySimpleCounter(String aggregation, String groupBy, long incrementBy) {
         AtomicLong counter = counters.get(aggregation + ":" + groupBy);
         if(counter==null) {
             counters.put(aggregation + ":" + groupBy, new AtomicLong(incrementBy));
@@ -82,7 +75,11 @@ public class LocalCacheAdapter implements CacheAdapter {
 
     @Override
     public void setCounter(String s, long target) {
-        counters.get(s).set(target);
+        AtomicLong atomicLong = counters.get(s);
+        if(atomicLong==null)
+            counters.put(s, new AtomicLong(target));
+        else
+            atomicLong.set(target);
     }
 
     @Override
@@ -146,7 +143,7 @@ public class LocalCacheAdapter implements CacheAdapter {
     @Override
     public Map<String, Set<String>> getGroupByStrings(String key) {
         Set<String> set = getSet(key + "::keys");
-        HashMap<String, Set<String>> stringHashMap = new HashMap<>(set.size());
+        Map<String, Set<String>> stringHashMap = new HashMap<>(set.size());
 
         for(String item : set) {
             stringHashMap.put(item, getSet(key+":"+item));
@@ -163,7 +160,7 @@ public class LocalCacheAdapter implements CacheAdapter {
         int i = 0;
         while(i++<limit && set.hasNext()) {
             String item = set.next();
-            stringHashMap.put(item, getSet(item+":"+item));
+            stringHashMap.put(item, getSet(item + ":" + item));
         }
         return stringHashMap;
     }
@@ -178,7 +175,7 @@ public class LocalCacheAdapter implements CacheAdapter {
         int i = 0;
         while(i++<limit && it.hasNext()) {
             String item = it.next();
-            stringLongHashMap.put(item, getCounter(key + ":" + item).longValue());
+            stringLongHashMap.put(item, getCounter(key + ":" + item));
         }
         return stringLongHashMap;
     }
@@ -190,9 +187,9 @@ public class LocalCacheAdapter implements CacheAdapter {
 
     @Override
     public void incrementGroupByAverageCounter(String id, String groupByValue, long sum, long counter) {
-        incrementCounter(id + ":sum:" + groupByValue, sum);
-        incrementCounter(id + ":count:" + groupByValue, counter);
-        addSet(id, groupByValue);
+        incrementCounter(id + ":" + groupByValue + ":sum", sum);
+        incrementCounter(id + ":" + groupByValue + ":count", counter);
+        addSet(id+"::keys", groupByValue);
     }
 
     @Override
@@ -212,7 +209,9 @@ public class LocalCacheAdapter implements CacheAdapter {
 
     @Override
     public AverageCounter getAverageCounter(String id) {
-        return new AverageCounter(getCounter(id+":sum"), getCounter(id+":count"));
+        Long counter = getCounter(id + ":sum");
+        Long counter1 = getCounter(id + ":count");
+        return counter!=null && counter1!=null ? new AverageCounter(counter, counter1) : null;
     }
 
     @Override
@@ -227,5 +226,25 @@ public class LocalCacheAdapter implements CacheAdapter {
     @Override
     public Map<String, Long> getGroupByStringsCounts(String key, Integer limit) {
         throw new NotImplementedException();
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String rule_id) {
+        return getGroupByAverageCounters(rule_id, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String key, int limit) {
+        Set<String> set = getSet(key + "::keys");
+        HashMap<String, AverageCounter> stringLongHashMap = new HashMap<>(set.size());
+        if(set==null) return null;
+
+        Iterator<String> it = set.iterator();
+        int i = 0;
+        while(i++<limit && it.hasNext()) {
+            String item = it.next();
+            stringLongHashMap.put(item, getAverageCounter(key + ":" + item));
+        }
+        return stringLongHashMap;
     }
 }

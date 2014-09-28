@@ -1,6 +1,7 @@
 package org.rakam.analysis.query.simple.predicate;
 
 import org.rakam.model.Entry;
+import org.vertx.java.core.json.JsonObject;
 
 import java.util.function.Predicate;
 
@@ -37,5 +38,12 @@ public class NegatePredicate<T extends Entry> implements RichPredicate<T> {
 
         }
         return false;
+    }
+
+    @Override
+    public JsonObject toJson() {
+        JsonObject jsonObject = new JsonObject();
+        Object value = predicate instanceof RichPredicate ? ((RichPredicate) predicate).toJson() : predicate.toString();
+        return jsonObject.putValue("NOT", value);
     }
 }

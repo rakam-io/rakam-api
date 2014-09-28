@@ -30,6 +30,6 @@ public class Actor implements Entry {
     }
 
     public <T> T getAttribute(String attr) {
-        return data.getField(attr);
+        return data==null ? null : data.getField(attr);
     }
 }

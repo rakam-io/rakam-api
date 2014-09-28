@@ -1,7 +1,7 @@
 package org.rakam.database;
 
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.query.FilterScript;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
@@ -18,9 +18,9 @@ public interface DatabaseAdapter extends CacheAdapter {
     void setupDatabase();
     void flushDatabase();
 
-    Actor createActor(String project, String actor_id, Map<String, String> properties);
+    Actor createActor(String project, String actor_id, Map<String, Object> properties);
     void addPropertyToActor(String project, String actor_id, Map<String, Object> props);
-    void addEvent(String project, String actor_id, JsonObject data);
+    void addEvent(String project, String event_id, JsonObject data);
     Actor getActor(String project, String actorId);
     Event getEvent(UUID eventId);
     void combineActors(String actor1, String actor2);

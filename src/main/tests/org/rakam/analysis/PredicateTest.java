@@ -4,7 +4,7 @@ import org.junit.Test;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.vertx.java.core.json.JsonObject;
 
-import static org.junit.Assert.assertEquals;
+import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.rakam.analysis.AnalysisRuleParser.generatePredicate;
 

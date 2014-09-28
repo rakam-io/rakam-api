@@ -14,14 +14,17 @@ public class FilterRequestHandler implements Handler<Message<JsonObject>> {
     private static final DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
     private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
 
+    public static final String ACTOR_FILTER_IDENTIFIER = "actorFilterRequest";
+    public static final String EVENT_FILTER_IDENTIFIER = "eventFilterRequest";
+
     @Override
     public void handle(Message<JsonObject> event) {
         String address = event.address();
         switch (address) {
-            case "actorFilterRequest":
+            case ACTOR_FILTER_IDENTIFIER:
                 event.reply(new ActorFilter(cacheAdapter, databaseAdapter).handle(event.body()));
                 break;
-            case "eventFilterRequest":
+            case EVENT_FILTER_IDENTIFIER:
                 event.reply(new EventFilter(cacheAdapter, databaseAdapter).handle(event.body()));
                 break;
         }

@@ -59,6 +59,11 @@ public class MVELFieldScript implements FieldScript {
     }
 
     @Override
+    public JsonObject toJson() {
+        return new JsonObject().putString("script", script);
+    }
+
+    @Override
     public Object extract(JsonObject event, JsonObject user) {
         if(userData) {
             event.mergeIn(user);

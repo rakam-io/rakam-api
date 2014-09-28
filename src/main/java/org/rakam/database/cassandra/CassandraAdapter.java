@@ -10,11 +10,11 @@ import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.AnalysisRuleParser;
+import org.rakam.analysis.AverageCounter;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.cache.CacheAdapter;
-import org.rakam.cache.DistributedAnalysisRuleMap;
-import org.rakam.cache.hazelcast.models.AverageCounter;
+import org.rakam.cluster.MemberShipListener;
 import org.rakam.collection.EventAggregator;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import static org.rakam.cache.DistributedAnalysisRuleMap.keys;
+import static org.rakam.util.DateUtil.UTCTime;
 
 /**
  * Created by buremba on 21/12/13.
@@ -93,12 +96,13 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public void flushDatabase() {
         session.execute("drop keyspace analytics");
+        setupDatabase();
     }
 
     @Override
-    public Actor createActor(String project, String actor_id, Map<String, String> properties) {
+    public Actor createActor(String project, String actor_id, Map<String, Object> properties) {
         session.execute(create_actor.bind(project, actor_id, properties));
-        return new Actor(project, actor_id);
+        return new Actor(project, actor_id, new JsonObject(properties));
     }
 
     @Override
@@ -108,8 +112,8 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
 
     @Override
     public void addEvent(String project, String actor_id, JsonObject data) {
-        long m = System.currentTimeMillis();
-        session.execute(add_event.bind(project, actor_id, (int) m / 1000, ServiceStarter.server_id, (int) ((m % 1000) + 1000 * Thread.currentThread().getId()), ByteBuffer.wrap(data.encode().getBytes()))).one();
+        int m = UTCTime();
+        session.execute(add_event.bind(project, actor_id, m, MemberShipListener.getServerId(), (int) ((m % 1000) + 1000 * Thread.currentThread().getId()), ByteBuffer.wrap(data.encode().getBytes()))).one();
     }
 
     @Override
@@ -158,17 +162,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
-    public boolean isOrdered() {
-        return false;
-    }
-
-    @Override
-    public void addGroupByCounter(String aggregation, String groupBy) {
-        addGroupByCounter(aggregation, groupBy, 1L);
-    }
-
-    @Override
-    public void addGroupByCounter(String id, String groupBy, long incrementBy) {
+    public void incrementGroupBySimpleCounter(String id, String groupBy, long incrementBy) {
         session.execute(set_counter_sql.bind(incrementBy, id + ":" + groupBy));
         Set<String> set = new HashSet(getSet(id + "::keys"));
         set.add(groupBy);
@@ -204,7 +198,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     public Map<String, Long> getGroupByCounters(String key) {
         HashMap<String, Long> map = new HashMap<>();
         for(String item : getSet(key + "::keys")) {
-            map.put(item, getCounter(key + ":" + item).longValue());
+            map.put(item, getCounter(key + ":" + item));
         }
         return map;
     }
@@ -237,7 +231,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
         int i = 0;
         while(i++<limit && iterator.hasNext()) {
             String item = iterator.next();
-            map.put(item, getCounter(key+":"+item).longValue());
+            map.put(item, getCounter(key+":"+item));
         }
         return map;
 
@@ -251,7 +245,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public void incrementAverageCounter(String id, long sum, long counter) {
         incrementCounter(id+":sum", sum);
-        incrementCounter(id+":count", counter);
+        incrementCounter(id + ":count", counter);
     }
 
     @Override
@@ -285,7 +279,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
-    public Long getCounter(String key) {
+    public long getCounter(String key) {
         Row a = session.execute(get_counter_sql.bind(key)).one();
         return (a == null) ? 0 : a.getLong("value");
     }
@@ -372,14 +366,15 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
-    public Map<String, HashSet<AnalysisRule>> getAllRules() {
+    public Map<String, Set<AnalysisRule>> getAllRules() {
         List<Row> rows = session.execute(set_aggregation_rules.bind()).all();
-        HashMap<String, HashSet<AnalysisRule>> map = new HashMap();
+        HashMap<String, Set<AnalysisRule>> map = new HashMap();
         for (Row row : rows) {
             HashSet<AnalysisRule> rules = new HashSet();
             for (String json_rule : row.getSet("rules", String.class)) {
                 try {
-                    AnalysisRule rule = AnalysisRuleParser.parse(new JsonObject(json_rule));
+                    JsonObject json = new JsonObject(json_rule);
+                    AnalysisRule rule = AnalysisRuleParser.parse(json);
                     rules.add(rule);
                 } catch (IllegalArgumentException e) {
                     logger.error("analysis rule couldn't parsed: " + json_rule, e);
@@ -401,7 +396,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
         while (it.hasNext()) {
             Row r = it.next();
             JsonObject event = new JsonObject(new String(r.getBytes("data").array()));
-            for (String project : DistributedAnalysisRuleMap.keys())
+            for (String project : keys())
                 worker.aggregate(project, event, r.getString("actor"), (int) (r.getLong("timestamp") / 1000));
         }
     }
@@ -419,5 +414,25 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public Event[] filterEvents(FilterScript filter, int limit, String orderByColumn) {
         return CassandraBatchProcessor.filterEvents(filter, limit, orderByColumn);
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String rule_id) {
+        return getGroupByAverageCounters(rule_id, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String key, int limit) {
+        Set<String> set = getSet(key + "::keys");
+        HashMap<String, AverageCounter> stringLongHashMap = new HashMap<>(set.size());
+        if(set==null) return null;
+
+        Iterator<String> it = set.iterator();
+        int i = 0;
+        while(i++<limit && it.hasNext()) {
+            String item = it.next();
+            stringLongHashMap.put(item, getAverageCounter(key + ":" + item));
+        }
+        return stringLongHashMap;
     }
 }

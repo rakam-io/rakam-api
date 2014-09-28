@@ -12,16 +12,20 @@ import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
-import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
+
+import static org.rakam.util.DateUtil.UTCTime;
 
 /**
  * Created by buremba on 07/05/14.
  */
 public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
     private static Logger LOGGER = Logger.getLogger("AnalysisRuleCrudHandler");
+    public static final String IDENTIFIER = "analysisRuleCrud";
+
     private final Vertx vertx;
 
     AnalysisRuleDatabase ruleDatabaseAdapter = ServiceStarter.injector.getInstance(AnalysisRuleDatabase.class);
@@ -70,7 +74,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         JsonObject request = new JsonObject()
                 .putNumber("operation", DistributedAnalysisRuleMap.DELETE)
                 .putString("_tracking", rule.project).putObject("rule", rule.toJson())
-                .putNumber("timestamp", System.currentTimeMillis());
+                .putNumber("timestamp", UTCTime());
 
         switch (rule.strategy) {
             case REAL_TIME:
@@ -92,7 +96,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
 
     private JsonObject list(String project) {
         JsonObject ret = new JsonObject();
-        HashSet<AnalysisRule> rules = DistributedAnalysisRuleMap.get(project);
+        Set<AnalysisRule> rules = DistributedAnalysisRuleMap.get(project);
         JsonArray json = new JsonArray();
         if(rules!=null)
             for(AnalysisRule rule : rules) {
@@ -103,7 +107,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
     }
 
     private JsonObject get(String project, String ruleId) {
-        HashSet<AnalysisRule> rules = DistributedAnalysisRuleMap.get(project);
+        Set<AnalysisRule> rules = DistributedAnalysisRuleMap.get(project);
         if(rules!=null)
             for(AnalysisRule rule : rules) {
                 if(rule.id().equals(ruleId))
@@ -124,7 +128,8 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             ret.putNumber("error_code", 400);
             return ret;
         }
-        if(DistributedAnalysisRuleMap.get(rule.project).contains(rule)) {
+        Set<AnalysisRule> rules = DistributedAnalysisRuleMap.get(rule.project);
+        if(rules !=null && rules.contains(rule)) {
             ret.putString("error", "the rule already exists.");
             ret.putNumber("error_code", 200);
             return ret;
@@ -135,16 +140,16 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             JsonObject request = new JsonObject()
                     .putNumber("operation", DistributedAnalysisRuleMap.ADD)
                     .putString("_tracking", rule.project).putObject("rule", obj)
-                    .putNumber("timestamp", System.currentTimeMillis());
+                    .putNumber("timestamp", UTCTime());
             ruleDatabaseAdapter.addRule(rule);
             if(rule.strategy == AnalysisRuleStrategy.REAL_TIME_BATCH_CONCURRENT) {
-                vertx.eventBus().publish("aggregationRuleReplication", request);
+                vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
                 databaseAdapter.processRule(rule);
                 updateBatchStatus(rule);
             }else
             if(rule.strategy == AnalysisRuleStrategy.REAL_TIME_AFTER_BATCH) {
                 databaseAdapter.processRule(rule);
-                vertx.eventBus().publish("aggregationRuleReplication", request);
+                vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
                 updateBatchStatus(rule);
             }else
             if(rule.strategy == AnalysisRuleStrategy.BATCH) {
@@ -171,8 +176,8 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
     private void updateBatchStatus(AnalysisRule rule) {
         rule.batch_status = true;
         vertx.eventBus().publish("aggregationRuleReplication", new JsonObject()
-                .putNumber("operation", DistributedAnalysisRuleMap.UPDATE)
+                .putNumber("operation", DistributedAnalysisRuleMap.UPDATE_BATCH)
                 .putString("_tracking", rule.project).putObject("rule", rule.toJson())
-                .putNumber("timestamp", System.currentTimeMillis()));
+                .putNumber("timestamp", UTCTime()));
     }
 }

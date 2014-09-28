@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.rakam.util.DateUtil.UTCTime;
+
 /**
  * Created by buremba on 21/12/13.
  */
@@ -35,7 +37,7 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
         return (now - cursor) / period;
     }
 
-    public static SpanTime fromPeriod(String str) throws IllegalArgumentException {
+    public static SpanTime fromString(String str) throws IllegalArgumentException {
         try {
             return new SpanTime(Integer.parseInt(str));
         } catch (NumberFormatException e) {}
@@ -68,14 +70,18 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
         return new SpanTime(p);
     }
 
-    public SpanTime getPrevious() {
+    public SpanTime previous() {
         if (cursor == -1)
             throw new IllegalStateException("you must set cursor timestamp before using this method");
         cursor -= period;
         return this;
     }
 
-    public SpanTime getNext() {
+    public SpanTime copy() {
+        return new SpanTime(period, cursor);
+    }
+
+    public SpanTime next() {
         if (cursor == -1)
             throw new IllegalStateException("you must set cursor timestamp before using this method");
         cursor += period;
@@ -88,7 +94,7 @@ public class SpanTime implements com.hazelcast.nio.serialization.DataSerializabl
 
 
     public SpanTime spanCurrent() {
-        return span((int) (System.currentTimeMillis() / 1000));
+        return span(UTCTime());
     }
 
     public SpanTime span(int now) {

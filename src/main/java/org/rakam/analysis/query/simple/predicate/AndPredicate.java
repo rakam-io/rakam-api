@@ -1,5 +1,8 @@
 package org.rakam.analysis.query.simple.predicate;
 
+import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.json.JsonObject;
+
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -96,4 +99,15 @@ public class AndPredicate extends AbstractConnectorPredicate {
         }
     }
 
+    @Override
+    public JsonObject toJson() {
+        JsonArray objects = new JsonArray();
+        for (Predicate predicate : predicates) {
+            if(predicate instanceof RichPredicate)
+                objects.add(((RichPredicate) predicate).toJson());
+            else
+                objects.add(predicate.toString());
+        }
+        return new JsonObject().putArray("AND", objects);
+    }
 }

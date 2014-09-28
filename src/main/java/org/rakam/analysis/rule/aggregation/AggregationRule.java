@@ -9,6 +9,7 @@ import org.rakam.constant.AggregationType;
 import org.vertx.java.core.json.JsonObject;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * Created by buremba on 16/01/14.
@@ -19,11 +20,29 @@ public abstract class AggregationRule extends AnalysisRule {
     public AggregationType type;
     public FieldScript<String> select;
 
-    public AggregationRule(String projectId, AggregationType type)   {
-        this(projectId, type, null, null, null);
+    protected AggregationRule() {
     }
 
-    protected AggregationRule() {}
+    public AggregationRule(String project, AggregationType type, FieldScript select) {
+        this(project, type, select, null, null);
+    }
+
+    public AggregationRule(String project, AggregationType type) {
+        this(project, type, null, null, null);
+    }
+
+
+    public AggregationRule(String project, AggregationType type, FieldScript select, FilterScript filters) {
+        this(project, type, select, filters, null);
+    }
+
+    public AggregationRule(String project, AggregationType type, FieldScript select, FilterScript filters, FieldScript groupBy) {
+        this.groupBy = groupBy;
+        this.type = type;
+        this.select = select;
+        this.filters = filters;
+        this.project = project;
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -51,29 +70,14 @@ public abstract class AggregationRule extends AnalysisRule {
         return result;
     }
 
-    public AggregationRule(String project, AggregationType type, FieldScript select) {
-        this(project, type, select, null, null);
-    }
-
+    @Override
     public boolean canAnalyze(AggregationAnalysis analysis) {
-       return analysis.getAggregationType().equals(this.type);
+        return Arrays.asList(analysis.getAnalyzableAggregationTypes()).contains(type);
     }
 
-    public AggregationRule(String project, AggregationType type, FieldScript select, FilterScript filters) {
-        this(project, type, select, filters, null);
-    }
-
-    public AggregationRule(String project, AggregationType type, FieldScript select, FilterScript filters, FieldScript groupBy) {
-        super();
-        this.groupBy = groupBy;
-        this.type = type;
-        this.select = select;
-        this.filters = filters;
-        this.project = project;
-    }
 
     public void readData(ObjectDataInput in) throws IOException {
-        filters  = in.readObject();
+        filters = in.readObject();
         groupBy = in.readObject();
         select = in.readObject();
         type = AggregationType.get(in.readShort());
@@ -91,16 +95,15 @@ public abstract class AggregationRule extends AnalysisRule {
 
     public JsonObject toJson() {
         JsonObject json = new JsonObject();
-        json.putString("id", id());
         json.putString("_tracking", project);
         json.putString("strategy", strategy.name());
         json.putString("analysis", analysisType().name().replaceFirst("ANALYSIS_", ""));
-        if(select!=null)
-            json.putString("select", select.toString());
-        if(groupBy!=null)
-            json.putString("group_by", groupBy.toString());
-        if(filters!=null)
-            json.putString("filters", filters.toString());
+        if (select != null)
+            json.putValue("select", select.toJson());
+        if (groupBy != null)
+            json.putString("group_by", groupBy.toJson());
+        if (filters != null)
+            json.putString("filters", filters.toJson());
         json.putString("aggregation", type.name());
         return json;
     }

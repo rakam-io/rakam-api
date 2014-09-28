@@ -3,7 +3,7 @@ package org.rakam.cache.hazelcast;
 import com.hazelcast.nio.serialization.DataSerializableFactory;
 import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
-import org.rakam.cache.hazelcast.models.AverageCounter;
+import org.rakam.analysis.AverageCounter;
 import org.rakam.cache.hazelcast.models.SimpleCounter;
 import org.rakam.cache.hazelcast.operations.*;
 

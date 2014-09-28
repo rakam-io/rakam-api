@@ -1,16 +1,16 @@
 package org.rakam.analysis;
 
 import org.elasticsearch.common.collect.Tuple;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
-import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.query.mvel.MVELFieldScript;
 import org.rakam.analysis.query.mvel.MVELFilterScript;
-import org.rakam.analysis.query.simple.predicate.*;
 import org.rakam.analysis.query.simple.SimpleFieldScript;
 import org.rakam.analysis.query.simple.SimpleFilterScript;
+import org.rakam.analysis.query.simple.predicate.FilterPredicates;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
+import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.constant.AnalysisRuleStrategy;
@@ -64,7 +64,7 @@ public class AnalysisRuleParser {
                 String interval = json.getString("interval");
                 if (interval == null)
                     throw new IllegalArgumentException("interval is required for time-series.");
-                rule = new TimeSeriesAggregationRule(project, aggType, SpanTime.fromPeriod(interval), select, filter, groupBy);
+                rule = new TimeSeriesAggregationRule(project, aggType, SpanTime.fromString(interval).period, select, filter, groupBy);
             } else if (analysisType == Analysis.ANALYSIS_METRIC) {
                 rule = new MetricAggregationRule(project, aggType, select, filter, groupBy);
             } else {

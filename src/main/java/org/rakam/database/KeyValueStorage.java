@@ -12,7 +12,7 @@ public interface KeyValueStorage {
     public void addSet(String setName, String item);
     public void removeSet(String setName);
     public void removeCounter(String setName);
-    public Long getCounter(String key);
+    public long getCounter(String key);
     public int getSetCount(String key);
     public Set<String> getSet(String key);
     public void incrementCounter(String key);

@@ -12,6 +12,13 @@ import org.rakam.constant.Analysis;
 public class MetricAggregationRule extends AggregationRule {
     public static final Analysis TYPE = Analysis.ANALYSIS_METRIC;
 
+    public MetricAggregationRule(String projectId, AggregationType type) {
+        super(projectId, type, null);
+        if(type != AggregationType.COUNT) {
+            throw new IllegalArgumentException("select parameter must be provided.");
+        }
+    }
+
     public MetricAggregationRule(String projectId, AggregationType type, FieldScript select) {
         super(projectId, type, select);
     }

@@ -7,7 +7,6 @@ import org.rakam.analysis.query.FilterScript;
 import org.rakam.cache.hazelcast.RakamDataSerializableFactory;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
-import org.rakam.util.SpanTime;
 import org.vertx.java.core.json.JsonObject;
 
 import java.io.IOException;
@@ -17,15 +16,25 @@ import java.io.IOException;
  */
 public class TimeSeriesAggregationRule extends AggregationRule {
     public static final Analysis TYPE = Analysis.ANALYSIS_TIMESERIES;
-    public SpanTime interval;
+    public int interval;
 
-    public TimeSeriesAggregationRule(String projectId, AggregationType type, SpanTime interval, FieldScript select) {
+    public TimeSeriesAggregationRule(String projectId, AggregationType type, int interval) {
+        super(projectId, type);
+        this.interval = interval;
+    }
+
+    public TimeSeriesAggregationRule(String projectId, AggregationType type, int interval, FieldScript select) {
         super(projectId, type, select);
         this.interval = interval;
     }
 
-    public TimeSeriesAggregationRule(String projectId, AggregationType type, SpanTime interval, FieldScript select, FilterScript filters) {
+    public  TimeSeriesAggregationRule(String projectId, AggregationType type, int interval, FieldScript select, FilterScript filters) {
         super(projectId, type, select, filters);
+        this.interval = interval;
+    }
+
+    public  TimeSeriesAggregationRule(String projectId, AggregationType type, int interval, FieldScript select, FilterScript filters, FieldScript groupBy) {
+        super(projectId, type, select, filters, groupBy);
         this.interval = interval;
     }
 
@@ -37,7 +46,7 @@ public class TimeSeriesAggregationRule extends AggregationRule {
 
         TimeSeriesAggregationRule that = (TimeSeriesAggregationRule) o;
 
-        if (!interval.equals(that.interval)) return false;
+        if (interval!=that.interval) return false;
 
         return true;
     }
@@ -45,13 +54,8 @@ public class TimeSeriesAggregationRule extends AggregationRule {
     @Override
     public int hashCode() {
         int result = super.hashCode();
-        result = 31 * result + interval.hashCode();
+        result = 31 * result + interval;
         return result;
-    }
-
-    public TimeSeriesAggregationRule(String projectId, AggregationType type, SpanTime interval, FieldScript select, FilterScript filters, FieldScript groupBy) {
-        super(projectId, type, select, filters, groupBy);
-        this.interval = interval;
     }
 
     @Override
@@ -62,26 +66,26 @@ public class TimeSeriesAggregationRule extends AggregationRule {
     @Override
     public void writeData(ObjectDataOutput out) throws IOException {
         super.writeData(out);
-        interval.writeData(out);
+        out.writeInt(interval);
     }
 
     @Override
     public void readData(ObjectDataInput in) throws IOException {
         super.readData(in);
-        interval = new SpanTime(in.readInt());
+        interval = in.readInt();
     }
 
     public JsonObject toJson() {
         JsonObject json = super.toJson();
-        json.putString("interval", interval.toString());
+        json.putNumber("interval", interval);
         return json;
     }
 
     public boolean isMultipleInterval(TimeSeriesAggregationRule rule) {
-        if(this.equals(new TimeSeriesAggregationRule(rule.project, rule.type, interval, rule.select, rule.filters, rule.groupBy)))
-            return rule.interval.period % rule.interval.period == 0;
-        else
-            return false;
+        return rule.project.equals(project) &&
+                rule.type.equals(type) && rule.select.equals(select) &&
+                rule.filters.equals(filters) && rule.groupBy.equals(groupBy)
+                && interval % rule.interval == 0;
     }
 
     @Override

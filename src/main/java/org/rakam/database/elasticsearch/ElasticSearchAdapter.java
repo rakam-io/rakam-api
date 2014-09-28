@@ -3,9 +3,9 @@ package org.rakam.database.elasticsearch;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.cache.hazelcast.models.AverageCounter;
+import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.AverageCounter;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
@@ -33,7 +33,7 @@ public class ElasticSearchAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public Actor createActor(String project, String actor_id, Map<String, String> properties) {
+    public Actor createActor(String project, String actor_id, Map<String, Object> properties) {
         return null;
     }
 
@@ -89,8 +89,8 @@ public class ElasticSearchAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public Long getCounter(String key) {
-        return null;
+    public long getCounter(String key) {
+        return 0;
     }
 
     @Override
@@ -154,17 +154,7 @@ public class ElasticSearchAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public boolean isOrdered() {
-        return false;
-    }
-
-    @Override
-    public void addGroupByCounter(String aggregation, String groupBy) {
-
-    }
-
-    @Override
-    public void addGroupByCounter(String aggregation, String groupBy, long incrementBy) {
+    public void incrementGroupBySimpleCounter(String aggregation, String groupBy, long incrementBy) {
 
     }
 
@@ -225,6 +215,16 @@ public class ElasticSearchAdapter implements DatabaseAdapter {
 
     @Override
     public Map<String, Long> getGroupByStringsCounts(String key, Integer items) {
+        return null;
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String rule_id) {
+        return null;
+    }
+
+    @Override
+    public Map<String, AverageCounter> getGroupByAverageCounters(String key, int limit) {
         return null;
     }
 }

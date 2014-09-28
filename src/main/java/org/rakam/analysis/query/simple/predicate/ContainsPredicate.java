@@ -1,6 +1,7 @@
 package org.rakam.analysis.query.simple.predicate;
 
 import org.rakam.model.Entry;
+import org.vertx.java.core.json.JsonArray;
 
 import java.util.function.Predicate;
 
@@ -32,5 +33,10 @@ public class ContainsPredicate<T extends Entry> extends AbstractRichPredicate<T>
     @Override
     public boolean isSubSet(Predicate predicate) {
         return equals(predicate);
+    }
+
+    @Override
+    public JsonArray toJson() {
+        return new JsonArray().addString(attribute).addString("$contains");
     }
 }

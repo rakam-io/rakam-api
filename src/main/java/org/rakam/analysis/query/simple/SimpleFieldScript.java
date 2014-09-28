@@ -38,17 +38,20 @@ public class SimpleFieldScript<T> implements FieldScript<T> {
     }
 
     @Override
+    public String toJson() {
+        return fieldKey;
+    }
+
+    @Override
     public T extract(JsonObject event, JsonObject user) {
-        return userData!=null ? user.getField(userData) : event.getField(fieldKey);
+        if (userData != null)
+            return user == null ? null : user.getField(userData);
+        return event.getField(fieldKey);
     }
 
     @Override
     public boolean contains(JsonObject event, JsonObject user) {
-        return extract(event, user)!=null;
+        return extract(event, user) != null;
     }
 
-    @Override
-    public String toString() {
-        return fieldKey;
-    }
 }

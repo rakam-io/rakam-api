@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.google.common.base.Objects;
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AggregationRule;
@@ -20,7 +21,6 @@ import org.vertx.java.core.json.JsonObject;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.rakam.util.ConversionUtil.parseDate;
+import static org.rakam.util.DateUtil.UTCTime;
 import static org.rakam.util.JsonHelper.returnError;
 
 /**
@@ -42,110 +43,102 @@ public class EventAnalyzer {
         this.cacheAdapter = cacheAdapter;
     }
 
-    public JsonObject handle(JsonObject query) {
-        String tracker = query.getString("tracker");
+    JsonObject parseQuery(AggregationAnalysis aggAnalysis, String tracker, JsonObject query) {
+        Set<AnalysisRule> rules = DistributedAnalysisRuleMap.get(tracker);
 
-        final AggregationAnalysis aggAnalysis;
+        Analysis analysis;
         try {
-            aggAnalysis = AggregationAnalysis.get(query.getString("aggregation"));
-        } catch (IllegalArgumentException|NullPointerException e) {
-            return returnError("aggregation parameter is empty or doesn't exist.");
+            analysis = Analysis.get(query.getString("analysis"));
+        } catch (IllegalArgumentException e) {
+            return returnError("analysis parameter is empty or doesn't exist.");
         }
+        if (rules == null)
+            return returnError("tracker id is not exist.");
 
-        if (tracker == null) {
-            return returnError("tracker parameter is required.");
-        }
+        if (analysis == null)
+            return returnError("analysis type is required.");
 
-        HashSet<AnalysisRule> rules = DistributedAnalysisRuleMap.get(tracker);
-        if(!query.containsField("_id")) {
-            Analysis analysis;
-            try {
-                analysis = Analysis.get(query.getString("analysis"));
-            } catch (IllegalArgumentException e) {
-                return returnError("analysis parameter is empty or doesn't exist.");
-            }
-            if (rules == null) {
-                return returnError("tracker id is not exist.");
-            }
-            if (analysis == null) {
-                return returnError("analysis type is required.");
-            }
-            if (aggAnalysis == null) {
-                return returnError("aggregation analysis type is required.");
-            }
-            FieldScript group_by = AnalysisRuleParser.getField(query.getString("group_by"));
-            FieldScript select = AnalysisRuleParser.getField(query.getString("select"));
-            FilterScript filter = AnalysisRuleParser.getFilter(query.getObject("filter"));
+        if (aggAnalysis == null)
+            return returnError("aggregation analysis type is required.");
 
+        FieldScript group_by = AnalysisRuleParser.getField(query.getString("group_by"));
+        FieldScript select = AnalysisRuleParser.getField(query.getString("select"));
+        FilterScript filter = AnalysisRuleParser.getFilter(query.getObject("filter"));
 
-            if (analysis == Analysis.ANALYSIS_TIMESERIES) {
-
-                String intervalStr = query.getString("interval");
+        switch (analysis) {
+            case ANALYSIS_TIMESERIES:
+                Integer intervalStr = query.getInteger("interval");
                 SpanTime interval;
                 if (intervalStr != null)
-                    try {
-                        interval = SpanTime.fromPeriod(intervalStr);
-                    } catch (IllegalArgumentException e) {
-                        return returnError(e.getMessage());
-                    }
+                    interval = new SpanTime(intervalStr);
                 else {
                     return returnError("interval parameter required for timeseries.");
                 }
 
                 for (AnalysisRule rule : rules) {
                     if (rule instanceof TimeSeriesAggregationRule) {
-                        TimeSeriesAggregationRule tRule = new TimeSeriesAggregationRule(tracker, aggAnalysis.getAggregationType(), interval, select, filter, group_by);
+                        TimeSeriesAggregationRule r = (TimeSeriesAggregationRule) rule;
+                        TimeSeriesAggregationRule tRule = new TimeSeriesAggregationRule(tracker, r.type, interval.period, select, filter, group_by);
                         if (rule.equals(tRule)) {
                             return fetch(tRule, query, aggAnalysis);
-                        }else
-                        if (((TimeSeriesAggregationRule) rule).isMultipleInterval(tRule)) {
+                        } else if (r.isMultipleInterval(tRule)) {
                             return combineTimeSeries(((TimeSeriesAggregationRule) rule), query, interval, aggAnalysis);
+                        } else if (rule.canAnalyze(aggAnalysis)) {
+                            // todo
                         }
                     }
                 }
-            } else if (analysis == Analysis.ANALYSIS_METRIC) {
+                break;
+            case ANALYSIS_METRIC:
                 for (AnalysisRule rule : rules) {
                     if (rule instanceof MetricAggregationRule) {
-                        MetricAggregationRule mRule = new MetricAggregationRule(tracker, aggAnalysis.getAggregationType(), select, filter, group_by);
-                        if (rule.equals(mRule)) {
-                            return fetch(mRule, query, aggAnalysis);
+                        AggregationType rType = ((MetricAggregationRule) rule).type;
+                        MetricAggregationRule mRule = new MetricAggregationRule(tracker, rType, select, filter, group_by);
+                        if (rule.equals(mRule) && rule.canAnalyze(aggAnalysis)) {
+                            return fetch((AggregationRule) rule, query, aggAnalysis);
                         }
                     }
                 }
-            }
-        }else {
+                break;
+            default:
+                throw new IllegalArgumentException();
+
+        }
+        return returnError("aggregation rule couldn't found. you have to create rule in order the perform this query.");
+    }
+
+    public JsonObject analyze(AggregationAnalysis aggAnalysis, String tracker, JsonObject query) {
+        Set<AnalysisRule> rules = DistributedAnalysisRuleMap.get(tracker);
+
+        if (!query.containsField("_id")) {
+            return parseQuery(aggAnalysis, tracker, query);
+        } else {
             Optional<AnalysisRule> rule = rules.stream().filter(x -> x.id().equals(query.getString("_id"))).findAny();
 
-            if(rule.isPresent()) {
-                AnalysisRule mRule = rule.get();
-                    if(mRule instanceof AggregationRule) {
-                        if(!((AggregationRule) mRule).canAnalyze(aggAnalysis))
-                            return returnError("cannot analyze");
-                        else
-                            if (mRule instanceof MetricAggregationRule)
-                                return fetch((MetricAggregationRule) mRule, query, aggAnalysis);
-                            else if (rule.get() instanceof TimeSeriesAggregationRule)
-                                return fetch((TimeSeriesAggregationRule) mRule, query, aggAnalysis);
-                    }
+            if (rule.isPresent()) {
+                if (rule.get() instanceof AggregationRule) {
+                    AggregationRule mRule = (AggregationRule) rule.get();
+                    if (!mRule.canAnalyze(aggAnalysis))
+                        return returnError("cannot analyze");
+                    return fetch(mRule, query, aggAnalysis);
+                }
             }
-            if(!rule.isPresent())
-                returnError("aggregation rule couldn't found.");
 
+            return returnError("aggregation rule couldn't found. you have to create rule in order the perform this query.");
 
         }
 
-        return returnError("aggregation rule couldn't found. you have to create rule in order the perform this query.");
     }
 
     private JsonObject combineTimeSeries(TimeSeriesAggregationRule mRule, JsonObject query, SpanTime interval, AggregationAnalysis aggAnalysis) {
         JsonObject calculatedResult = new JsonObject();
         Long items = ConversionUtil.toLong(query.getField("items"), 10L);
-        if(items==null)
+        if (items == null)
             return returnError("items parameter is not numeric");
 
         List<Integer> keys;
         try {
-            keys = getTimeFrame(query.getField("frame"), interval, query.getString("start"), query.getString("end"));
+            keys = getTimeFrame(query.getField("frame"), interval.period, query.getString("start"), query.getString("end"));
         } catch (IllegalArgumentException e) {
             return returnError(e.getMessage());
         }
@@ -155,42 +148,40 @@ public class EventAnalyzer {
                 case COUNT:
                 case COUNT_X:
                 case SUM_X:
-                    for(Integer key : keys) {
-                        JsonObject result = new JsonObject();
+                    for (Integer key : keys) {
                         LinkedList<Integer> objects = new LinkedList<>();
-                        for(int i=key; i<key+interval.period; i+=mRule.interval.period)
+                        for (int i = key; i < key + interval.period; i += mRule.interval)
                             objects.add(i);
 
-                        fetchNonGroupingTimeSeries(result, mRule, objects, aggAnalysis);
+                        JsonObject result = fetchNonGroupingTimeSeries(mRule, objects, aggAnalysis);
                         long sum = 0;
-                        for(String field : result.getFieldNames())
+                        for (String field : result.getFieldNames())
                             sum += result.getNumber(field).longValue();
 
-                        calculatedResult.putNumber(key+"000", sum);
+                        calculatedResult.putNumber(key + "000", sum);
                     }
                     break;
                 case MINIMUM_X:
                 case MAXIMUM_X:
-                    for(Integer key : keys) {
-                        JsonObject result = new JsonObject();
+                    for (Integer key : keys) {
                         LinkedList<Integer> objects = new LinkedList<>();
-                        for(int i=key; i<key+interval.period; i+=mRule.interval.period)
+                        for (int i = key; i < key + interval.period; i += mRule.interval)
                             objects.add(i);
 
-                        fetchNonGroupingTimeSeries(result, mRule, objects, aggAnalysis);
-                        long val = mRule.type==AggregationType.MINIMUM_X ? Integer.MAX_VALUE : Integer.MIN_VALUE;
-                        for(String field : result.getFieldNames())
-                            if(mRule.type==AggregationType.MINIMUM_X)
+                        JsonObject result = fetchNonGroupingTimeSeries(mRule, objects, aggAnalysis);
+                        long val = mRule.type == AggregationType.MINIMUM_X ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+                        for (String field : result.getFieldNames())
+                            if (mRule.type == AggregationType.MINIMUM_X)
                                 val = Math.min(result.getNumber(field).longValue(), val);
                             else
                                 val = Math.max(result.getNumber(field).longValue(), val);
 
-                        calculatedResult.putNumber(key+"000", val);
+                        calculatedResult.putNumber(key + "000", val);
                     }
 
                     break;
                 case AVERAGE_X:
-
+                    // todo
                     break;
                 case UNIQUE_X:
                     // TODO
@@ -202,43 +193,41 @@ public class EventAnalyzer {
                 case COUNT:
                 case COUNT_X:
                 case SUM_X:
-                    for(Integer key : keys) {
-                        JsonObject result = new JsonObject();
-                        LinkedList<Integer> objects = new LinkedList<>();
-                        for(int i=key; i<key+interval.period; i+=mRule.interval.period)
+                    for (Integer key : keys) {
+                        LinkedList<Integer> objects = new LinkedList();
+                        for (int i = key; i < key + interval.period; i += mRule.interval)
                             objects.add(i);
 
-                        fetchGroupingTimeSeries(result, mRule, objects, aggAnalysis, items.intValue());
+                        JsonObject result = fetchGroupingTimeSeries(mRule, objects, aggAnalysis, items.intValue());
                         HashMap<String, Object> sum = new HashMap<>();
-                        for(String timestamp : result.getFieldNames()) {
+                        for (String timestamp : result.getFieldNames()) {
                             JsonObject timestampItems = result.getObject(timestamp);
-                            for(String item : timestampItems.getFieldNames()) {
+                            for (String item : timestampItems.getFieldNames()) {
                                 Long existingCounter = (Long) sum.getOrDefault(item, 0L);
                                 Long newCounter = timestampItems.getLong(item);
-                                sum.put(item, existingCounter+newCounter);
+                                sum.put(item, existingCounter + newCounter);
                             }
                         }
-                        calculatedResult.putObject(key+"000", new JsonObject(sum));
+                        calculatedResult.putObject(key + "000", new JsonObject(sum));
 
                     }
                     break;
                 case MINIMUM_X:
                 case MAXIMUM_X:
-                    for(Integer key : keys) {
-                        JsonObject result = new JsonObject();
+                    for (Integer key : keys) {
                         LinkedList<Integer> objects = new LinkedList<>();
-                        for(int i=key; i<key+interval.period; i+=mRule.interval.period)
+                        for (int i = key; i < key + interval.period; i += mRule.interval)
                             objects.add(i);
 
-                        fetchNonGroupingTimeSeries(result, mRule, objects, aggAnalysis);
-                        long val = mRule.type==AggregationType.MINIMUM_X ? Integer.MAX_VALUE : Integer.MIN_VALUE;
-                        for(String field : result.getFieldNames())
-                            if(mRule.type==AggregationType.MINIMUM_X)
+                        JsonObject result = fetchNonGroupingTimeSeries(mRule, objects, aggAnalysis);
+                        long val = mRule.type == AggregationType.MINIMUM_X ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+                        for (String field : result.getFieldNames())
+                            if (mRule.type == AggregationType.MINIMUM_X)
                                 val = Math.min(result.getNumber(field).longValue(), val);
                             else
                                 val = Math.max(result.getNumber(field).longValue(), val);
 
-                        calculatedResult.putNumber(key+"000", val);
+                        calculatedResult.putNumber(key + "000", val);
                     }
 
                     break;
@@ -260,66 +249,73 @@ public class EventAnalyzer {
 
     }
 
-    private JsonObject fetch(AggregationRule mRule, JsonObject query, AggregationAnalysis aggAnalysis) {
-        JsonObject result = new JsonObject();
+    private JsonObject fetch(AggregationRule rule, JsonObject query, AggregationAnalysis aggAnalysis) {
+        Object result;
         Long items = ConversionUtil.toLong(query.getField("items"), 10L);
-        if(items==null)
+        if (items == null)
             return returnError("items parameter is not numeric");
 
 
-        if (mRule instanceof MetricAggregationRule) {
-            if (mRule.groupBy != null) {
-                fetchGroupingMetric(result, mRule, aggAnalysis, items.intValue());
+        if (rule instanceof MetricAggregationRule) {
+            if (rule.groupBy != null) {
+                result = fetchGroupingMetric(rule, aggAnalysis, items.intValue());
             } else {
-                fetchNonGroupingMetric(result, mRule, aggAnalysis);
+                result = fetchNonGroupingMetric(rule, aggAnalysis);
             }
-        } else if (mRule instanceof TimeSeriesAggregationRule) {
-            Collection<Integer> keys;
-            try {
-                keys = getTimeFrame(query.getField("frame"), ((TimeSeriesAggregationRule) mRule).interval, query.getString("start"), query.getString("end"));
-            } catch (IllegalArgumentException e) {
-                return returnError(e.getMessage());
-            }
+        } else {
+            if (rule instanceof TimeSeriesAggregationRule) {
+                Collection<Integer> keys;
+                try {
+                    keys = getTimeFrame(query.getField("frame"), ((TimeSeriesAggregationRule) rule).interval, query.getField("start"), query.getField("end"));
+                } catch (IllegalArgumentException e) {
+                    return returnError(e.getMessage());
+                }
 
-            if (mRule.groupBy == null)
-                fetchNonGroupingTimeSeries(result, (TimeSeriesAggregationRule) mRule, keys, aggAnalysis);
-            else
-                fetchGroupingTimeSeries(result, (TimeSeriesAggregationRule) mRule, keys, aggAnalysis, items.intValue());
+                if (rule.groupBy == null)
+                    result = fetchNonGroupingTimeSeries((TimeSeriesAggregationRule) rule, keys, aggAnalysis);
+                else
+                    result = fetchGroupingTimeSeries((TimeSeriesAggregationRule) rule, keys, aggAnalysis, items.intValue());
+            } else {
+                throw new IllegalArgumentException();
+            }
         }
 
-        JsonObject json = new JsonObject().putObject("result", result);
-        if (!mRule.batch_status && mRule.strategy != AnalysisRuleStrategy.REAL_TIME)
+        JsonObject json = new JsonObject().putValue("result", result);
+        if (!rule.batch_status && rule.strategy != AnalysisRuleStrategy.REAL_TIME)
             json.putString("info", "batch results are not combined yet");
 
         return json;
     }
 
 
-    public void fetchNonGroupingMetric(JsonObject json, AggregationRule rule, AggregationAnalysis aggAnalysis) {
+    public Object fetchNonGroupingMetric(AggregationRule rule, AggregationAnalysis aggAnalysis) {
         String rule_id = rule.id();
         switch (aggAnalysis) {
-            case COUNT:
-            case COUNT_X:
             case SUM_X:
+                if (aggAnalysis.id != rule.type.id) {
+                    return cacheAdapter.getAverageCounter(rule_id).getSum();
+                }
+            case COUNT_X:
+                if (aggAnalysis.id != rule.type.id) {
+                    return cacheAdapter.getAverageCounter(rule_id).getCount();
+                }
+            case COUNT:
             case MAXIMUM_X:
             case MINIMUM_X:
-                json.putNumber("result", databaseAdapter.getCounter(rule_id));
-                break;
+                return cacheAdapter.getCounter(rule_id);
             case AVERAGE_X:
-                json.putNumber("result", cacheAdapter.getAverageCounter(rule_id).getValue());
-                break;
+                return cacheAdapter.getAverageCounter(rule_id).getValue();
             case COUNT_UNIQUE_X:
-                json.putNumber("result", databaseAdapter.getSetCount(rule_id));
-                break;
+                return cacheAdapter.getSetCount(rule_id);
             case SELECT_UNIQUE_X:
-                json.putArray("result", new JsonArray(cacheAdapter.getSet(rule_id).toArray()));
-                break;
+                return new JsonArray(cacheAdapter.getSet(rule_id).toArray());
         }
+        return null;
     }
 
-    public void fetchGroupingMetric(JsonObject json, AggregationRule rule, AggregationAnalysis aggAnalysis, Integer items) {
+    public Object fetchGroupingMetric(AggregationRule rule, AggregationAnalysis aggAnalysis, Integer items) {
         String rule_id = rule.id();
-
+        JsonObject json = new JsonObject();
         switch (aggAnalysis) {
             case COUNT:
             case COUNT_X:
@@ -339,60 +335,102 @@ public class EventAnalyzer {
 
                 break;
             case AVERAGE_X:
-                for (Map.Entry<String, Long> item : cacheAdapter.getGroupByCounters(rule_id).entrySet()) {
-                    json.putNumber(item.getKey(), item.getValue());
+                for (Map.Entry<String, AverageCounter> item : cacheAdapter.getGroupByAverageCounters(rule_id).entrySet()) {
+                    json.putNumber(item.getKey(), item.getValue().getValue());
                 }
 
                 break;
             case COUNT_UNIQUE_X:
-                for(Map.Entry<String, Long> item : cacheAdapter.getGroupByStringsCounts(rule_id, items).entrySet()) {
+                for (Map.Entry<String, Long> item : cacheAdapter.getGroupByStringsCounts(rule_id, items).entrySet()) {
                     json.putNumber(item.getKey(), item.getValue());
                 }
                 break;
             case SELECT_UNIQUE_X:
-                for(Map.Entry<String, Set<String>> item : cacheAdapter.getGroupByStrings(rule_id, items).entrySet()) {
+                for (Map.Entry<String, Set<String>> item : cacheAdapter.getGroupByStrings(rule_id, items).entrySet()) {
                     json.putArray(item.getKey(), new JsonArray(item.getValue().toArray()));
                 }
                 break;
         }
-
+        return json;
     }
 
-    public void fetchNonGroupingTimeSeries(JsonObject results, TimeSeriesAggregationRule rule, Collection<Integer> keys, AggregationAnalysis aggAnalysis) {
+    public JsonObject fetchNonGroupingTimeSeries(TimeSeriesAggregationRule rule, Collection<Integer> keys, AggregationAnalysis aggAnalysis) {
+        JsonObject results = new JsonObject();
+        int now = new SpanTime(rule.interval).spanCurrent().current();
         String rule_id = rule.id();
-        int now = rule.interval.spanCurrent().current();
 
         switch (aggAnalysis) {
+            case MAXIMUM_X:
+            case MINIMUM_X:
+                for (Integer time : keys) {
+                    CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
+                    results.putNumber(time + "000", Objects.firstNonNull(adapter.getCounter(rule_id + ":" + time), 0));
+                }
+                break;
+            case SUM_X:
+                if (aggAnalysis.id != rule.type.id) {
+                    for (Integer time : keys) {
+                        CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
+                        AverageCounter counter = adapter.getAverageCounter(rule_id+":"+time);
+                        results.putNumber(time + "000", counter==null ? 0 : counter.getSum());
+                    }
+                }else {
+                    for (Integer time : keys) {
+                        CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
+                        results.putNumber(time + "000", Objects.firstNonNull(adapter.getCounter(rule_id + ":" + time), 0));
+                    }
+                }
+                break;
+            case COUNT_X:
+                if (aggAnalysis.id != rule.type.id) {
+                    for (Integer time : keys) {
+                        CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
+                        AverageCounter counter = adapter.getAverageCounter(rule_id+":"+time);
+                        results.putNumber(time + "000", counter==null ? 0 : counter.getCount());
+                    }
+                }else {
+                    for (Integer time : keys) {
+                        CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
+                        results.putNumber(time + "000", Objects.firstNonNull(adapter.getCounter(rule_id + ":" + time), 0));
+                    }
+                }
+                break;
             case SELECT_UNIQUE_X:
                 for (Integer time : keys) {
                     CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
-                    results.putArray(time + "000", new JsonArray(adapter.getSet(rule_id + ":" + time).toArray()));
+                    Set<String> set = adapter.getSet(rule_id + ":" + time);
+                    results.putArray(time + "000", set==null ? new JsonArray() : new JsonArray(set.toArray()));
                 }
                 break;
             case COUNT_UNIQUE_X:
                 for (Integer time : keys) {
-                    CacheAdapter    adapter = now == time ? cacheAdapter : databaseAdapter;
+                    CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
                     results.putNumber(time + "000", adapter.getSetCount(rule_id + ":" + time));
                 }
                 break;
             case AVERAGE_X:
                 for (Integer time : keys) {
-                    CacheAdapter    adapter = now == time ? cacheAdapter : databaseAdapter;
-                    results.putNumber(time + "000", adapter.getAverageCounter(rule_id + ":" + time).getValue());
+                    CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
+                    AverageCounter averageCounter = adapter.getAverageCounter(rule_id + ":" + time);
+                    results.putNumber(time + "000", averageCounter!=null ? averageCounter.getValue() : 0);
+                }
+                break;
+            case COUNT:
+                for (Integer time : keys) {
+                    CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
+                    results.putNumber(time + "000", Objects.firstNonNull(adapter.getCounter(rule_id + ":" + time), 0));
                 }
                 break;
             default:
-                for (Integer time : keys) {
-                    CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
-                    results.putNumber(time + "000", adapter.getCounter(rule_id + ":" + time));
-                }
-                break;
+                throw new IllegalStateException();
         }
+        return results;
     }
 
-    public void fetchGroupingTimeSeries(JsonObject results, TimeSeriesAggregationRule rule, Collection<Integer> keys, AggregationAnalysis aggAnalysis, Integer items) {
+    public JsonObject fetchGroupingTimeSeries(TimeSeriesAggregationRule rule, Collection<Integer> keys, AggregationAnalysis aggAnalysis, Integer items) {
+        JsonObject results = new JsonObject();
+        int now = new SpanTime(rule.interval).spanCurrent().current();
         String rule_id = rule.id();
-        int now = rule.interval.spanCurrent().current();
 
         switch (aggAnalysis) {
             case SELECT_UNIQUE_X:
@@ -429,9 +467,10 @@ public class EventAnalyzer {
                 }
                 break;
         }
+        return results;
     }
 
-    public static List<Integer> getTimeFrame(Object items_obj, SpanTime interval, String start, String end) throws IllegalArgumentException {
+    public static List<Integer> getTimeFrame(Object items_obj, int period, Object start, Object end) throws IllegalArgumentException {
         Integer items;
         if (items_obj != null) {
             if (items_obj instanceof Number)
@@ -455,40 +494,54 @@ public class EventAnalyzer {
         Integer s_timestamp = null;
         Integer e_timestamp = null;
         if (start != null) {
-            s_timestamp = parseDate(start);
-            if (s_timestamp == null) {
-                throw new IllegalArgumentException("couldn't parse start time.");
+            if(start instanceof Number) {
+                s_timestamp = ((Number) start).intValue();
+            }else {
+                s_timestamp = parseDate(start.toString());
+                if (s_timestamp == null) {
+                    throw new IllegalArgumentException("couldn't parse start time.");
+                }
             }
         }
 
         if (end != null) {
-            e_timestamp = parseDate(end);
+            if(start instanceof Number) {
+                e_timestamp = ((Number) end).intValue();
+            }else {
+                e_timestamp = parseDate(end.toString());
+                if (s_timestamp == null) {
+                    throw new IllegalArgumentException("couldn't parse end time.");
+                }
+            }
             if (e_timestamp == null) {
                 throw new IllegalArgumentException("couldn't parse end time.");
             }
         }
 
+        SpanTime interval = new SpanTime(period);
+
         if (s_timestamp != null && e_timestamp != null) {
-            SpanTime starting_point = interval.span(s_timestamp);
-            int ending_point = interval.span(e_timestamp).current();
-            if (starting_point.current() > ending_point) {
+            SpanTime point = interval.span(s_timestamp);
+            int ending_point = interval.copy().span(e_timestamp).current();
+            if (point.current() > ending_point) {
                 throw new IllegalArgumentException("start time must be lower than end time.");
             }
 
-            if (starting_point.untilTimeFrame(ending_point) > 100) {
+            if (point.untilTimeFrame(ending_point) > 100) {
                 throw new IllegalArgumentException("there is more than 100 items between start and times.");
             }
 
-            while (true) {
-                keys.add(starting_point.current());
-                starting_point = starting_point.getNext();
-                if (starting_point.current() > ending_point)
+            while(true) {
+                int current = point.current();
+                if (current > ending_point)
                     break;
+                point.next();
+                keys.add(current);
             }
 
         } else if (s_timestamp != null && items_obj != null) {
             SpanTime starting_point = interval.span(s_timestamp);
-            int ending_point = (int) (System.currentTimeMillis() / 1000);
+            int ending_point = UTCTime();
             if (starting_point.current() > ending_point) {
                 throw new IllegalArgumentException("start time must be lower than end time.");
             }
@@ -499,7 +552,7 @@ public class EventAnalyzer {
 
             for (int i = 0; i < items; i++) {
                 keys.add(starting_point.current());
-                starting_point = starting_point.getNext();
+                starting_point = starting_point.next();
                 if (starting_point.current() > ending_point)
                     break;
             }
@@ -508,12 +561,12 @@ public class EventAnalyzer {
 
             for (int i = 1; i < items; i++) {
                 keys.add(ending_point.current());
-                ending_point = ending_point.getPrevious();
+                ending_point = ending_point.previous();
             }
         } else if (items_obj != null) {
             keys.add(interval.spanCurrent().current());
             for (int i = 1; i < items; i++) {
-                interval = interval.getPrevious();
+                interval = interval.previous();
                 keys.addFirst(interval.current());
             }
         } else {

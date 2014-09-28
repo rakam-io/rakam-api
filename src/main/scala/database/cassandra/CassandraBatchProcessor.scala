@@ -5,10 +5,10 @@ package database.cassandra
  */
 
 import java.io.{ByteArrayOutputStream, ObjectOutputStream}
-import java.lang
+import java.lang.{Long => JLong, Number => JNumber, String => JString}
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
-import java.util._
+import java.util.{Calendar, Date, TimeZone, UUID}
 
 import com.datastax.driver.core.Cluster
 import org.apache.cassandra.hadoop.ConfigHelper
@@ -18,14 +18,13 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
-import org.rakam.analysis.rule.aggregation.{AggregationRule, AnalysisRule, MetricAggregationRule, TimeSeriesAggregationRule}
 import org.rakam.analysis.query.{FieldScript, FilterScript}
+import org.rakam.analysis.rule.aggregation.{AnalysisRule, AggregationRule, MetricAggregationRule, TimeSeriesAggregationRule}
 import org.rakam.constant.AggregationType._
 import org.rakam.constant.Analysis
 import org.rakam.model.{Actor, Event}
-import org.rakam.util.ConversionUtil;
-import org.rakam.util.Serializer
-import org.vertx.java.core.json.{JsonArray, JsonObject}
+import org.rakam.util.{ConversionUtil, Serializer}
+import org.vertx.java.core.json.JsonObject
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -138,8 +137,8 @@ object CassandraBatchProcessor {
           actor_props.toMap.foreach(item => {
             val key = item._1
             item._2 match {
-              case value if value.isInstanceOf[lang.String] => event.data.putString("_user." + key, value.asInstanceOf[lang.String])
-              case value if value.isInstanceOf[lang.Number] => event.data.putNumber("_user." + key, value.asInstanceOf[lang.Number])
+              case value if value.isInstanceOf[JString] => event.data.putString("_user." + key, value.asInstanceOf[JString])
+              case value if value.isInstanceOf[JNumber] => event.data.putNumber("_user." + key, value.asInstanceOf[JNumber])
               case _ => throw new IllegalStateException("couldn't find the type of actor property.")
             }
 
@@ -224,26 +223,29 @@ object CassandraBatchProcessor {
       if (aggRule.isInstanceOf[MetricAggregationRule] && aggRule.groupBy == null) {
 
         aggRule.`type` match {
-          case COUNT => dbSession.execute(counter.bind(eventRdd.count(), rule.project, rule.id))
+          case COUNT => {
+            val count: JLong = eventRdd.count()
+            dbSession.execute(counter.bind(count, rule.project, rule.id))
+          }
           case COUNT_X => {
-            val count: Long = eventRdd.filter(containsKeyFromEvent(ruleSelect)).count()
+            val count: JLong = eventRdd.filter(containsKeyFromEvent(ruleSelect)).count()
             dbSession.execute(counter.bind(count, rule.project, rule.id))
           }
           case SUM_X => {
-            val reduce: Long = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
+            val reduce: JLong = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
             dbSession.execute(counter.bind(reduce, rule.project, rule.id))
           }
           case MINIMUM_X => {
-            val reduce: Long = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.min(_, _))
+            val reduce: JLong = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.min(_, _))
             dbSession.execute(counter.bind(reduce, rule.project, rule.id))
           }
           case MAXIMUM_X => {
-            val reduce: Long = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.max(_, _))
+            val reduce: JLong = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(Math.max(_, _))
             dbSession.execute(counter.bind(reduce, rule.project, rule.id))
           }
           case AVERAGE_X => {
-            val sum = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
-            val count = eventRdd.filter(containsKeyFromEvent(ruleSelect)).count()
+            val sum : JLong = eventRdd.map(getLongFromEvent(ruleSelect)).reduce(_ + _)
+            val count : JLong= eventRdd.filter(containsKeyFromEvent(ruleSelect)).count()
             dbSession.execute(counter.bind(sum, rule.project, rule.id+":sum"))
             dbSession.execute(counter.bind(count, rule.project, rule.id+":count"))
           }
@@ -259,7 +261,7 @@ object CassandraBatchProcessor {
           case rule if rule.isInstanceOf[TimeSeriesAggregationRule] => {
             // first 1000 is to convert second to millisecond
             // the other 1000s are to convert UUID timestamp from microsecond to second
-            val interval = rule.asInstanceOf[TimeSeriesAggregationRule].interval.period
+            val interval = rule.asInstanceOf[TimeSeriesAggregationRule].interval
             // it's better to use Int as group by key instead of Long because of performance issues.
             // since we do not need millisecond part of timestamp convert it to second
             // and the output format can be used as an Int
@@ -299,7 +301,7 @@ object CassandraBatchProcessor {
           }
         }
 
-        val ruleId = aggRule.id
+        val ruleId = rule.id
         val output = result.map {
           case (timestamp: Integer, count: Number) => {
             val outKey: java.util.Map[String, ByteBuffer] = new java.util.HashMap()
@@ -311,7 +313,7 @@ object CassandraBatchProcessor {
             (outKey, outVal)
           }
           case (timestampGroupBy: (Integer, String), items: ArrayBuffer[String]) => {
-            val outKey: java.util.Map[lang.String, ByteBuffer] = new java.util.HashMap()
+            val outKey: java.util.Map[JString, ByteBuffer] = new java.util.HashMap()
             outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestampGroupBy._1 + ":" + timestampGroupBy._2))
 
             val outVal = new java.util.LinkedList[ByteBuffer]
@@ -325,7 +327,7 @@ object CassandraBatchProcessor {
             (outKey, outVal)
           }
           case (timestamp: Integer, items: ArrayBuffer[String]) => {
-            val outKey: java.util.Map[lang.String, ByteBuffer] = new java.util.HashMap()
+            val outKey: java.util.Map[JString, ByteBuffer] = new java.util.HashMap()
             outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestamp))
 
             val outVal = new java.util.LinkedList[ByteBuffer]
@@ -333,7 +335,7 @@ object CassandraBatchProcessor {
             (outKey, outVal)
           }
           case (timestampGroupBy: (Integer, String), items: ArrayBuffer[String]) => {
-            val outKey: java.util.Map[lang.String, ByteBuffer] = new java.util.HashMap()
+            val outKey: java.util.Map[JString, ByteBuffer] = new java.util.HashMap()
             outKey.put("id", ByteBufferUtil.bytes(ruleId + ":" + timestampGroupBy._1 + ":" + timestampGroupBy._2))
 
             Serializer.serialize(items)

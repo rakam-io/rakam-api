@@ -11,4 +11,5 @@ public interface FieldScript<T> extends Serializable {
     public abstract T extract(JsonObject event, JsonObject user);
     public abstract boolean contains(JsonObject obj, JsonObject user);
     public abstract boolean requiresUser();
+    <Val> Val toJson();
 }

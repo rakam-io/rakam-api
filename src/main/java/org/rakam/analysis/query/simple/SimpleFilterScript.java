@@ -1,6 +1,7 @@
 package org.rakam.analysis.query.simple;
 
 import org.rakam.analysis.query.FilterScript;
+import org.rakam.analysis.query.simple.predicate.RichPredicate;
 import org.vertx.java.core.json.JsonObject;
 
 import java.util.function.Predicate;
@@ -8,7 +9,7 @@ import java.util.function.Predicate;
 /**
  * Created by buremba on 05/05/14.
  */
-public class SimpleFilterScript extends FilterScript {
+public class SimpleFilterScript implements FilterScript {
     final boolean requiresUser;
     public Predicate predicate;
 
@@ -45,5 +46,13 @@ public class SimpleFilterScript extends FilterScript {
     @Override
     public boolean requiresUser() {
         return requiresUser;
+    }
+
+    @Override
+    public <Val> Val toJson() {
+        if(predicate instanceof RichPredicate) {
+            return (Val) ((RichPredicate) predicate).toJson();
+        }
+        return (Val) predicate.toString();
     }
 }

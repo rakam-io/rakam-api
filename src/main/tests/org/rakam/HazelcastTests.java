@@ -8,12 +8,17 @@ import com.hazelcast.config.Config;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
-import com.hazelcast.mapreduce.*;
-import org.rakam.cache.hazelcast.models.SimpleCounter;
+import com.hazelcast.mapreduce.Context;
+import com.hazelcast.mapreduce.Job;
+import com.hazelcast.mapreduce.JobCompletableFuture;
+import com.hazelcast.mapreduce.JobTracker;
+import com.hazelcast.mapreduce.KeyValueSource;
+import com.hazelcast.mapreduce.Mapper;
+import com.hazelcast.mapreduce.Reducer;
 import org.rakam.cache.hazelcast.LimitPredicate;
+import org.rakam.cache.hazelcast.models.SimpleCounter;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,12 +40,7 @@ public class HazelcastTests {
 
         Map.Entry<String, SimpleCounter>[] values = (Map.Entry<String, SimpleCounter>[]) map.entrySet(new LimitPredicate("this", 10)).toArray(new Map.Entry[0]);
         long l1 = System.currentTimeMillis();
-        Arrays.sort(values, new Comparator<Map.Entry<String, SimpleCounter>>() {
-            @Override
-            public int compare(Map.Entry<String, SimpleCounter> o1, Map.Entry<String, SimpleCounter> o2) {
-                return o2.getValue().compareTo(o1.getValue());
-            }
-        });
+        Arrays.sort(values, (o1, o2) -> o2.getValue().compareTo(o1.getValue()));
 
         long l = System.currentTimeMillis();
         JobTracker tracker = hz1.getJobTracker("myJobTracker");
