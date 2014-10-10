@@ -2,11 +2,13 @@ package org.rakam.analysis;
 
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.cache.hazelcast.hyperloglog.HLLWrapper;
 import org.rakam.cache.local.LocalCacheAdapter;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
+import org.rakam.util.HLLWrapperImpl;
 import org.rakam.util.NotImplementedException;
 import org.vertx.java.core.json.JsonObject;
 
@@ -100,7 +102,7 @@ public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter,
 
     @Override
     public void incrementCounter(String key, long increment) {
-        counters.computeIfAbsent(key, k -> new AtomicLong()).incrementAndGet();
+        counters.computeIfAbsent(key, k -> new AtomicLong()).addAndGet(increment);
     }
 
     @Override
@@ -115,53 +117,57 @@ public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter,
 
     @Override
     public void addSet(String setName, String item) {
-
+        super.addSet(setName, item);
     }
 
     @Override
     public void removeSet(String setName) {
-
+        super.removeSet(setName);
     }
 
     @Override
     public void removeCounter(String setName) {
-
+        super.removeCounter(setName);
     }
 
     @Override
-    public long getCounter(String key) {
-        return 0;
+    public Long getCounter(String key) {
+        return super.getCounter(key);
     }
 
     @Override
     public int getSetCount(String key) {
-        return 0;
+        return super.getSetCount(key);
+    }
+
+    @Override
+    public Map<String, Long> getCounters(Collection<String> keys) {
+        HashMap<String, Long> map = new HashMap<String, Long>(keys.size());
+        for (String key : keys) {
+            map.put(key, counters.get(key).longValue());
+        }
+        return map;
     }
 
     @Override
     public Set<String> getSet(String key) {
-        return null;
+        return super.getSet(key);
     }
 
     @Override
     public void incrementCounter(String key) {
-
+        super.incrementCounter(key);
     }
 
     @Override
     public void addSet(String setName, Collection<String> items) {
-
+        super.addSet(setName, items);
     }
 
     @Override
     public void flush() {
         actors.clear();
         events.clear();
-    }
-
-    @Override
-    public Map<String, Long> getCounters(Collection<String> keys) {
-        return null;
     }
 
     @Override
@@ -206,6 +212,15 @@ public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter,
             });
         });
         return l.stream().toArray(Event[]::new);
+    }
+
+    @Override
+    public HLLWrapper createHLLFromSets(String... keys) {
+        HLLWrapperImpl hllWrapper = new HLLWrapperImpl();
+        for (String key : keys) {
+            getSet(key).forEach(hllWrapper::add);
+        }
+        return hllWrapper;
     }
 
 }

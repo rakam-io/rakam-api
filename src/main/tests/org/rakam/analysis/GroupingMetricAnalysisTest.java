@@ -181,104 +181,130 @@ public class GroupingMetricAnalysisTest extends RakamTestHelper {
     @Test
     public void testAverageXAggregation_whenSumX() {
         String projectId = randomString(10);
-        MetricAggregationRule rule = new MetricAggregationRule(projectId, AVERAGE_X, new SimpleFieldScript<String>("test"));
+        MetricAggregationRule rule = new MetricAggregationRule(projectId, AVERAGE_X, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
-        for (long i = 0; i <= 10000; i++) {
-            eventAggregator.aggregate(projectId, new JsonObject().putNumber("test", i), "actor" + i, UTCTime());
+        for (long i = 0; i < 10000; i++) {
+            JsonObject m = new JsonObject().putNumber("test", i).putString("key1", "value" + i % 10);
+            eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
 
         JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson());
         JsonObject data = eventAnalyzer.analyze(AggregationAnalysis.SUM_X, projectId, query);
-        assertEqualsFunction(((long) ((1 + 10000) * (10000 / 2))), () -> data.getLong("result").longValue(), data);
+        JsonObject jsonObject = new JsonObject();
+        for (int i = 0; i < 10; i++) {
+            jsonObject.putNumber("value"+i, 4995000L+(i*1000));
+        }
+        assertEquals(data, new JsonObject().putObject("result", jsonObject));
     }
 
     @Test
     public void testAverageXAggregation_whenCountX() {
         String projectId = randomString(10);
-        MetricAggregationRule rule = new MetricAggregationRule(projectId, AVERAGE_X, new SimpleFieldScript<String>("test"));
+        MetricAggregationRule rule = new MetricAggregationRule(projectId, AVERAGE_X, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            eventAggregator.aggregate(projectId, new JsonObject().putNumber("test", i), "actor" + i, UTCTime());
+            JsonObject m = new JsonObject().putNumber("test", i).putString("key1", "value" + i % 10);
+            eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
 
         JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson());
         JsonObject data = eventAnalyzer.analyze(AggregationAnalysis.COUNT_X, projectId, query);
-        assertEqualsFunction(10000L, () -> data.getLong("result").longValue(), data);
+        JsonObject jsonObject = new JsonObject();
+        for (int i = 0; i < 10; i++) {
+            jsonObject.putNumber("value"+i, 1000L);
+        }
+        assertEquals(data, new JsonObject().putObject("result", jsonObject));
     }
 
     @Test
     public void testUniqueXAggregation_countUniqueX() {
         String projectId = randomString(10);
-        MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("test"));
+        MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            eventAggregator.aggregate(projectId, new JsonObject().putNumber("test", i%100), "actor" + i, UTCTime());
+            JsonObject m = new JsonObject().putString("test", "value"+i).putString("key1", "value" + i % 10);
+            eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
 
         JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson());
         JsonObject data = eventAnalyzer.analyze(AggregationAnalysis.COUNT_UNIQUE_X, projectId, query);
-        assertEqualsFunction(100, () -> data.getNumber("result"), data);
+        JsonObject jsonObject = new JsonObject();
+        for (int i = 0; i < 10; i++) {
+            jsonObject.putNumber("value"+i, 1000L);
+        }
+        assertEquals(data, new JsonObject().putObject("result", jsonObject));
     }
 
     @Test
     public void testUniqueXAggregation_selectUniqueX() {
         String projectId = randomString(10);
-        MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("test"));
+        MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            eventAggregator.aggregate(projectId, new JsonObject().putString("test", "test" + (i % 100)), "actor" + i, UTCTime());
+            JsonObject m = new JsonObject().putString("test", "value"+i % 100).putString("key1", "value" + i % 10);
+            eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
 
         JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson());
         JsonObject data = eventAnalyzer.analyze(AggregationAnalysis.SELECT_UNIQUE_X, projectId, query);
-        JsonArray result = data.getArray("result");
+        JsonObject result = data.getObject("result");
         assertNotNull(result);
 
-        for (long i = 0; i < 100; i++) {
-            assertTrue(result.contains("test" + i));
+        for (long i = 0; i < 10; i++) {
+            JsonArray array = result.getArray("value" + i);
+            for (int i1 = 0; i1 < 10; i1++) {
+                assertTrue(array.contains("value" + (i1 * 10 + i)));
+            }
+            assertEquals(array.size(), 10);
         }
-        assertEquals(100, result.size());
+        assertEquals(result.getFieldNames().size(), 10);
     }
 
     @Test
     public void testUniqueXAggregation_attributeBelongsUser() {
         String projectId = randomString(10);
-        MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("_user.test"));
+        MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("_user.test"), null, new SimpleFieldScript<String>("_user.key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         for (int i = 0; i < 100; i++) {
             HashMap<String, Object> map = new HashMap<>();
-            map.put("test", "value" + (i % 10));
+            map.put("test", "value" + (i % 20));
+            map.put("key1", "value" + (i % 10));
             databaseAdapter.createActor(projectId, "actor" + i, map);
         }
 
         for (long i = 0; i < 10000; i++) {
-            eventAggregator.aggregate(projectId, new JsonObject().putString("actor", "actor" + (i % 100)), "actor" + i, UTCTime());
+            JsonObject actor = new JsonObject().putString("actor", "actor" + (i % 100));
+            eventAggregator.aggregate(projectId, actor, "actor" + i, UTCTime());
         }
 
         DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
 
         JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson());
         JsonObject data = eventAnalyzer.analyze(AggregationAnalysis.SELECT_UNIQUE_X, projectId, query);
-        JsonArray result = data.getArray("result");
+        JsonObject result = data.getObject("result");
         assertNotNull(result);
 
         for (long i = 0; i < 10; i++) {
-            assertTrue(result.contains("value" + i));
+            JsonArray array = result.getArray("value" + i);
+            for (int i1 = 0; i1 < 2; i1++) {
+                assertTrue(array.contains("value" + (i1 * 10 + i)));
+            }
+            assertEquals(array.size(), 2);
         }
-        assertEquals(10, result.size());
+        assertEquals(result.getFieldNames().size(), 10);
     }
 
     @Before

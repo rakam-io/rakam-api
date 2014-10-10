@@ -145,8 +145,8 @@ public class PeriodicCollector {
 
     private void moveCounters(String key, KeyValueStorage from, KeyValueStorage to) {
         Long co = from.getCounter(key);
-        if(co!=null) {
-            to.incrementCounter(key, from.getCounter(key));
+        if(co!=null && co>0) {
+            to.incrementCounter(key, co);
             from.removeCounter(key);
         }
     }

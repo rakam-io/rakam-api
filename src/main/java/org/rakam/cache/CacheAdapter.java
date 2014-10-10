@@ -1,6 +1,7 @@
 package org.rakam.cache;
 
 import org.rakam.analysis.AverageCounter;
+import org.rakam.cache.hazelcast.hyperloglog.HLLWrapper;
 import org.rakam.cache.hazelcast.models.Counter;
 import org.rakam.cache.hazelcast.models.SimpleCounter;
 import org.rakam.database.KeyValueStorage;
@@ -14,6 +15,8 @@ import java.util.Set;
  */
 public interface CacheAdapter extends KeyValueStorage {
     void incrementGroupBySimpleCounter(String aggregation, String groupBy, long incrementBy);
+    void setGroupBySimpleCounter(String aggregation, String groupBy, long l);
+    Long getGroupBySimpleCounter(String aggregation, String groupBy);
     void addGroupByString(String id, String groupByValue, String s);
     void addGroupByString(String id, String groupByValue, Collection<String> s);
     void removeGroupByCounters(String key);
@@ -21,8 +24,11 @@ public interface CacheAdapter extends KeyValueStorage {
     Map<String, Set<String>> getGroupByStrings(String key);
     Map<String, Set<String>> getGroupByStrings(String key, int limit);
 
+    Map<String, HLLWrapper> estimateGroupByStrings(String key, int limit);
+
     Map<String, Long> getGroupByCounters(String key, int limit);
     void incrementGroupByAverageCounter(String id, String key, long sum, long counter);
+
     void incrementAverageCounter(String id, long sum, long counter);
     AverageCounter getAverageCounter(String id);
     void removeGroupByStrings(String key);
@@ -31,6 +37,8 @@ public interface CacheAdapter extends KeyValueStorage {
     Map<String, AverageCounter> getGroupByAverageCounters(String rule_id);
 
     Map<String, AverageCounter> getGroupByAverageCounters(String key, int limit);
+
+    HLLWrapper createHLLFromSets(String... keys);
 
     default void addAll(Map<String, Counter> counters) {
         for (Map.Entry<String, Counter> entry : counters.entrySet()) {

@@ -17,9 +17,13 @@ public abstract class AnalysisRule implements IdentifiedDataSerializable {
 
     public abstract Analysis analysisType();
     public abstract JsonObject toJson();
+    private String id;
 
     public String id() {
-        return toJson().encode();
+        if(id==null) {
+            id = toJson().encode();
+        }
+        return id;
     }
 
     @Override

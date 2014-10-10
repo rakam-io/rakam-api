@@ -8,23 +8,30 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
+import com.hazelcast.map.EntryBackupProcessor;
+import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.query.PagingPredicate;
 import org.rakam.analysis.AverageCounter;
 import org.rakam.cache.ActorCacheAdapter;
 import org.rakam.cache.DistributedCacheAdapter;
 import org.rakam.cache.MessageListener;
 import org.rakam.cache.PubSubAdapter;
+import org.rakam.cache.hazelcast.hyperloglog.HLLWrapper;
 import org.rakam.cache.hazelcast.models.Counter;
 import org.rakam.cache.hazelcast.models.SimpleCounter;
 import org.rakam.cache.hazelcast.operations.AddAllStringSetOperation;
 import org.rakam.cache.hazelcast.operations.AddStringSetOperation;
 import org.rakam.cache.hazelcast.operations.AverageCounterIncrementOperation;
 import org.rakam.cache.hazelcast.operations.CounterIncrementOperation;
+import org.rakam.cache.hazelcast.operations.CounterSetOperation;
 import org.rakam.cache.hazelcast.operations.GetStringCountsOperation;
+import org.rakam.util.HLLWrapperImpl;
 import org.vertx.java.core.json.JsonObject;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -112,7 +119,7 @@ public class HazelcastCacheAdapter implements DistributedCacheAdapter, ActorCach
     }
 
     @Override
-    public long getCounter(String key) {
+    public Long getCounter(String key) {
         return hazelcast.getAtomicLong(key).get();
     }
 
@@ -159,6 +166,18 @@ public class HazelcastCacheAdapter implements DistributedCacheAdapter, ActorCach
         map.executeOnKey(key, new CounterIncrementOperation(counter));
     }
 
+    @Override
+    public void setGroupBySimpleCounter(String aggregation, String groupBy, long l) {
+        IMap<String, SimpleCounter> map = hazelcast.getMap(aggregation);
+        map.executeOnKey(groupBy, new CounterSetOperation(l));
+    }
+
+    @Override
+    public Long getGroupBySimpleCounter(String aggregation, String groupBy) {
+        IMap<String, SimpleCounter> map = hazelcast.getMap(aggregation);
+        return map.get(groupBy).getValue();
+    }
+
 
     @Override
     public Map<String, Long> getGroupByCounters(String id) {
@@ -181,6 +200,29 @@ public class HazelcastCacheAdapter implements DistributedCacheAdapter, ActorCach
             stringLongLinkedHashMap.put(values[i].getKey(), values[i].getValue());
         }
         return stringLongLinkedHashMap;
+    }
+
+    @Override
+    public Map<String, HLLWrapper> estimateGroupByStrings(String key, int limit) {
+        IMap<String, Set<String>> map = hazelcast.getMap(key);
+        final LinkedHashMap<String, HLLWrapper> hashMap = new LinkedHashMap<>();
+        map.executeOnEntries(new EntryProcessor<String, Set<String>>() {
+            @Override
+            public HLLWrapper process(Map.Entry<String, Set<String>> entry) {
+                final HLLWrapperImpl hllWrapper = new HLLWrapperImpl();
+                entry.getValue().forEach(hllWrapper::add);
+                return hllWrapper;
+            }
+
+            @Override
+            public EntryBackupProcessor getBackupProcessor() {
+                return null;
+            }
+        }, new PagingPredicate(limit)).entrySet().stream()
+                .sorted(Comparator.comparing(e -> ((HLLWrapper) e.getValue()).cardinality()))
+                .forEach(e->hashMap.put(e.getKey(), (HLLWrapper) e.getValue()));
+
+        return hashMap;
     }
 
     @Override
@@ -251,6 +293,16 @@ public class HazelcastCacheAdapter implements DistributedCacheAdapter, ActorCach
             stringLongLinkedHashMap.put(values[i].getKey(), values[i].getValue());
         }
         return stringLongLinkedHashMap;
+    }
+
+    @Override
+    public HLLWrapper createHLLFromSets(String... keys) {
+        // TODO: change to parallel computing
+        HLLWrapperImpl hllWrapper = new HLLWrapperImpl();
+        for (String key : keys) {
+            getSet(key).forEach(hllWrapper::add);
+        }
+        return hllWrapper;
     }
 
 }

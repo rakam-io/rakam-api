@@ -28,7 +28,7 @@ public class AnalysisRuleParser {
 
     public static AnalysisRule parse(JsonObject json) throws IllegalArgumentException {
         AnalysisRule rule;
-        String project = json.getString("_tracking");
+        String project = json.getString("tracking");
         if (json.getString("analysis") == null)
             throw new IllegalArgumentException("analysis type is required.");
         Analysis analysisType;
@@ -61,10 +61,7 @@ public class AnalysisRuleParser {
                 select = groupBy;
 
             if (analysisType == Analysis.ANALYSIS_TIMESERIES) {
-                String interval = json.getString("interval");
-                if (interval == null)
-                    throw new IllegalArgumentException("interval is required for time-series.");
-                rule = new TimeSeriesAggregationRule(project, aggType, SpanTime.fromString(interval).period, select, filter, groupBy);
+                rule = new TimeSeriesAggregationRule(project, aggType, getPeriod(json.getField("interval")), select, filter, groupBy);
             } else if (analysisType == Analysis.ANALYSIS_METRIC) {
                 rule = new MetricAggregationRule(project, aggType, select, filter, groupBy);
             } else {
@@ -81,6 +78,21 @@ public class AnalysisRuleParser {
                 throw new IllegalArgumentException("strategy couldn't identified.");
             }
         return rule;
+    }
+
+    public static int getPeriod(Object interval) {
+        if (interval == null)
+            throw new IllegalArgumentException("interval is required for time-series.");
+        int period;
+        if(interval instanceof String) {
+            period = SpanTime.fromString((String) interval).period;
+        }else
+        if(interval instanceof Number) {
+            period = ((Number) interval).intValue();
+        }else {
+            throw new IllegalArgumentException("interval parameter must be either string of number");
+        }
+        return period;
     }
 
     public static FieldScript getField(Object field) {

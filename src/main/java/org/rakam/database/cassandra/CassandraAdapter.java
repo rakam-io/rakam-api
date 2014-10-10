@@ -14,12 +14,14 @@ import org.rakam.analysis.AverageCounter;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.hazelcast.hyperloglog.HLLWrapper;
 import org.rakam.cluster.MemberShipListener;
 import org.rakam.collection.EventAggregator;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
+import org.rakam.util.HLLWrapperImpl;
 import org.vertx.java.core.json.JsonObject;
 
 import java.nio.ByteBuffer;
@@ -170,6 +172,16 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
+    public void setGroupBySimpleCounter(String aggregation, String groupBy, long l) {
+        setCounter(aggregation+":"+groupBy, l);
+    }
+
+    @Override
+    public Long getGroupBySimpleCounter(String aggregation, String groupBy) {
+        return getCounter(aggregation+":"+groupBy);
+    }
+
+    @Override
     public void flush() {
         throw new NotImplementedException();
     }
@@ -220,6 +232,21 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
         while(i++<limit && set.hasNext()) {
             String item = set.next();
             map.put(item, getSet(key + ":" + item));
+        }
+        return map;
+    }
+
+    @Override
+    public Map<String, HLLWrapper> estimateGroupByStrings(String key, int limit) {
+        // TODO: we will change this implementation to new Cassandra custom functions feature when Cassandra 3 is released
+        Map<String, HLLWrapper> map = new HashMap<>();
+        Iterator<String> set = getSet(key + "::keys").iterator();
+        int i = 0;
+        while(i++<limit && set.hasNext()) {
+            String item = set.next();
+            HLLWrapperImpl hllWrapper = new HLLWrapperImpl();
+            getSet(key + ":" + item).forEach(hllWrapper::add);
+            map.put(item, hllWrapper);
         }
         return map;
     }
@@ -279,7 +306,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     }
 
     @Override
-    public long getCounter(String key) {
+    public Long getCounter(String key) {
         Row a = session.execute(get_counter_sql.bind(key)).one();
         return (a == null) ? 0 : a.getLong("value");
     }
@@ -287,7 +314,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public Set<String> getSet(String key) {
         Row a = session.execute(get_set_sql.bind(key)).one();
-        return (a == null) ? new HashSet<String>() : a.getSet("value", String.class);
+        return (a == null) ? null : a.getSet("value", String.class);
     }
 
     @Override
@@ -414,6 +441,16 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public Event[] filterEvents(FilterScript filter, int limit, String orderByColumn) {
         return CassandraBatchProcessor.filterEvents(filter, limit, orderByColumn);
+    }
+
+    @Override
+    public HLLWrapper createHLLFromSets(String... keys) {
+        // TODO: we will change this implementation to new Cassandra custom functions feature when Cassandra 3 is released
+        HLLWrapperImpl hllWrapper = new HLLWrapperImpl();
+        for (String key : keys) {
+            getSet(key).forEach(hllWrapper::add);
+        }
+        return hllWrapper;
     }
 
     @Override

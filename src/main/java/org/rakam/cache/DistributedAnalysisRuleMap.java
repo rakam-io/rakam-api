@@ -64,10 +64,7 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
     @Override
     public void handle(Message<JsonObject> message) {
         JsonObject json = message.body();
-        String project = json.getString("_tracking");
-        String id = json.getString("_id");
-        if (id == null)
-            throw new IllegalArgumentException("id for event must be provided");
+        String project = json.getString("tracking");
 
         switch (json.getInteger("operation")) {
             case ADD:

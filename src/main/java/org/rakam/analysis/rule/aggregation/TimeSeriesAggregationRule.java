@@ -10,6 +10,7 @@ import org.rakam.constant.Analysis;
 import org.vertx.java.core.json.JsonObject;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Created by buremba on 16/01/14.
@@ -83,8 +84,8 @@ public class TimeSeriesAggregationRule extends AggregationRule {
 
     public boolean isMultipleInterval(TimeSeriesAggregationRule rule) {
         return rule.project.equals(project) &&
-                rule.type.equals(type) && rule.select.equals(select) &&
-                rule.filters.equals(filters) && rule.groupBy.equals(groupBy)
+                rule.type.equals(type) && Objects.equals(rule.select, select) &&
+                Objects.equals(rule.filters, filters) && Objects.equals(rule.groupBy, groupBy)
                 && interval % rule.interval == 0;
     }
 

@@ -1,6 +1,6 @@
 Rakam
 =======
-A distributed real-time analytics service.
+An high level distributed analytics service with stream processing capabilities.
 
 Please note that it’s currently under development and not ready for production.
 
@@ -17,11 +17,12 @@ Rakam collects your data and continuously aggregate it by using your pre-aggrega
 
 TODO
 ------------
-* UDP data collection API.
+* UDP and TCP (Thrift interface) data collection API.
 * Distributed PostgreSQL database support as an alternative to Cassandra.
-* Tests (Current Status: %60)
-* Real-time module
-* Time-series merging implementation
+* Event mapper plugins (ip-to-geolocation, social media profile mapper)
+* Funnel implementation
+* Retention implementation
+* Exactly-once event processing 
 
 Contribution
 ------------

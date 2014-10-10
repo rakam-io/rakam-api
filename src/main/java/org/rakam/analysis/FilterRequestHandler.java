@@ -2,6 +2,7 @@ package org.rakam.analysis;
 
 import org.rakam.ServiceStarter;
 import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.DistributedCacheAdapter;
 import org.rakam.database.DatabaseAdapter;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
@@ -12,7 +13,7 @@ import org.vertx.java.core.json.JsonObject;
  */
 public class FilterRequestHandler implements Handler<Message<JsonObject>> {
     private static final DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
-    private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
+    private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(DistributedCacheAdapter.class);
 
     public static final String ACTOR_FILTER_IDENTIFIER = "actorFilterRequest";
     public static final String EVENT_FILTER_IDENTIFIER = "eventFilterRequest";

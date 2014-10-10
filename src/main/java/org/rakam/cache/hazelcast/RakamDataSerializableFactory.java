@@ -23,6 +23,7 @@ public class RakamDataSerializableFactory implements DataSerializableFactory {
     public static final int METRIC_AGGREGATION_RULE = 8;
     public static final int TIMESERIES_AGGREGATION_RULE = 9;
     public static final int GET_STRING_COUNTS_OPERATION = 10;
+    public static final int COUNTER_SET_OPERATION = 10;
 
     @Override
     public IdentifiedDataSerializable create(int typeId) {
@@ -46,6 +47,8 @@ public class RakamDataSerializableFactory implements DataSerializableFactory {
             return new MetricAggregationRule();
         }else if (typeId == GET_STRING_COUNTS_OPERATION) {
             return new GetStringCountsOperation();
+        }else if (typeId == COUNTER_SET_OPERATION) {
+            return new CounterSetOperation();
         } else {
             return null;
         }

@@ -3,7 +3,6 @@ package org.rakam.analysis;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.cache.DistributedAnalysisRuleMap;
-import org.rakam.constant.AnalysisRuleStrategy;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
 import org.vertx.java.core.Handler;
@@ -42,20 +41,20 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         final JsonObject obj = event.body();
         String action = obj.getString("action");
         JsonObject request = obj.getObject("request");
-        String project = request.getString("_tracking");
+        String project = request.getString("tracking");
         if (project == null) {
-            event.reply(new JsonObject().putString("error", "_tracking parameter must be specified.").putNumber("status", 400));
+            event.reply(new JsonObject().putString("error", "tracking parameter must be specified.").putNumber("status", 400));
             return;
         }
 
         if (action.equals("add"))
             event.reply(add(request));
         else if(action.equals("list"))
-            event.reply(list(request.getString("_tracking")));
+            event.reply(list(request.getString("tracking")));
         else if(action.equals("delete"))
             event.reply(delete(request.getObject("rule")));
         else if(action.equals("get"))
-            event.reply(get(request.getString("_tracking"), request.getString("rule")));
+            event.reply(get(request.getString("tracking"), request.getString("rule")));
         else
             event.reply(new JsonObject().putString("error", "unknown endpoint. available endpoints: [add, list, delete, get]"));
     }
@@ -73,7 +72,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
 
         JsonObject request = new JsonObject()
                 .putNumber("operation", DistributedAnalysisRuleMap.DELETE)
-                .putString("_tracking", rule.project).putObject("rule", rule.toJson())
+                .putString("tracking", rule.project).putObject("rule", rule.toJson())
                 .putNumber("timestamp", UTCTime());
 
         switch (rule.strategy) {
@@ -139,32 +138,36 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             LOGGER.info("Processing the rule.");
             JsonObject request = new JsonObject()
                     .putNumber("operation", DistributedAnalysisRuleMap.ADD)
-                    .putString("_tracking", rule.project).putObject("rule", obj)
+                    .putString("tracking", rule.project).putObject("rule", obj)
                     .putNumber("timestamp", UTCTime());
             ruleDatabaseAdapter.addRule(rule);
-            if(rule.strategy == AnalysisRuleStrategy.REAL_TIME_BATCH_CONCURRENT) {
-                vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
-                databaseAdapter.processRule(rule);
-                updateBatchStatus(rule);
-            }else
-            if(rule.strategy == AnalysisRuleStrategy.REAL_TIME_AFTER_BATCH) {
-                databaseAdapter.processRule(rule);
-                vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
-                updateBatchStatus(rule);
-            }else
-            if(rule.strategy == AnalysisRuleStrategy.BATCH) {
-                databaseAdapter.processRule(rule);
-                updateBatchStatus(rule);
-            } else
-            if(rule.strategy == AnalysisRuleStrategy.REAL_TIME) {
-                vertx.eventBus().publish("aggregationRuleReplication", request);
-            } else
-            if(rule.strategy == AnalysisRuleStrategy.BATCH_PERIODICALLY) {
-                Integer batch_interval = obj.getInteger("batch_interval");
-                if(batch_interval==null) {
-                    ret.putString("error", "batch_interval is required when analysis strategy is BATCH_PERIODICALLY");
-                }
+            switch (rule.strategy) {
+                case REAL_TIME_BATCH_CONCURRENT:
+                    vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
+                    databaseAdapter.processRule(rule);
+                    updateBatchStatus(rule);
+                    break;
+                case REAL_TIME_AFTER_BATCH:
+                    databaseAdapter.processRule(rule);
+                    vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
+                    updateBatchStatus(rule);
+                    break;
+                case BATCH:
+                    databaseAdapter.processRule(rule);
+                    updateBatchStatus(rule);
+                    break;
+                case REAL_TIME:
+                    vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
+                    break;
+                case BATCH_PERIODICALLY:
+                    Integer batch_interval = obj.getInteger("batch_interval");
+                    if (batch_interval == null) {
+                        ret.putString("error", "batch_interval is required when analysis strategy is BATCH_PERIODICALLY");
+                    }
 //                vertx.setPeriodic(batch_interval, l -> databaseAdapter.processRule(rule));
+                    break;
+                default:
+                    throw new IllegalStateException();
             }
 
             LOGGER.info("Rule is processed.");
@@ -177,7 +180,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         rule.batch_status = true;
         vertx.eventBus().publish("aggregationRuleReplication", new JsonObject()
                 .putNumber("operation", DistributedAnalysisRuleMap.UPDATE_BATCH)
-                .putString("_tracking", rule.project).putObject("rule", rule.toJson())
+                .putString("tracking", rule.project).putObject("rule", rule.toJson())
                 .putNumber("timestamp", UTCTime()));
     }
 }

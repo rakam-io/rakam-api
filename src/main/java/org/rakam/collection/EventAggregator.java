@@ -94,7 +94,13 @@ public class EventAggregator {
                 }
 
                 if (aggregation.groupBy != null) {
-                    String groupByValue = aggregation.groupBy != null ? aggregation.groupBy.extract(m, actor_props) : null;
+                    String groupByValue;
+                    if (aggregation.groupBy != null) {
+                        Object extract = aggregation.groupBy.extract(m, actor_props);
+                        groupByValue = extract != null ? extract.toString() : null;
+                    } else {
+                        groupByValue = null;
+                    }
                     Object type_target = aggregation.select == null ? null : aggregation.select.extract(m, actor_props);
                     aggregateByGrouping(adapter, key, type_target, aggregation.type, groupByValue);
                 } else {
@@ -105,18 +111,22 @@ public class EventAggregator {
     }
 
     public void aggregateByGrouping(CacheAdapter adapter, String id, Object type_target, AggregationType type, String groupByValue) {
-        groupByValue = groupByValue == null ? "null" : groupByValue;
-        type_target = type_target == null ? "null" : type_target;
+        if (groupByValue == null)
+            return;
+        if (type == AggregationType.COUNT) {
+            adapter.incrementGroupBySimpleCounter(id, groupByValue, 1);
+            return;
+        }
+        if (type_target == null) {
+            return;
+        }
+
         switch (type) {
-            case COUNT:
-                adapter.incrementGroupBySimpleCounter(id, groupByValue, 1);
-                break;
             case UNIQUE_X:
                 adapter.addGroupByString(id, groupByValue, type_target.toString());
                 break;
             case COUNT_X:
-                if (groupByValue != null)
-                    adapter.incrementGroupBySimpleCounter(id, groupByValue, 1);
+                adapter.incrementGroupBySimpleCounter(id, groupByValue, 1);
             default:
                 Long target = ConversionUtil.toLong(type_target);
                 if (target != null) {
@@ -126,21 +136,21 @@ public class EventAggregator {
                             break;
                         case MAXIMUM_X:
                             Long key = adapter.getCounter(id + ":" + groupByValue);
-                            if (target > key)
+                            if (key==null || target > key)
                                 adapter.setCounter(id, target);
                             adapter.incrementGroupBySimpleCounter(id, groupByValue, 1);
                             break;
                         case MINIMUM_X:
-                            key = adapter.getCounter(id + ":" + groupByValue);
-                            if (target < key)
-                                adapter.setCounter(id, target);
-                            adapter.incrementGroupBySimpleCounter(id, groupByValue, 1);
+                            key = adapter.getGroupBySimpleCounter(id, groupByValue);
+                            if (key == null || target < key)
+                                adapter.setGroupBySimpleCounter(id, groupByValue, target);
                             break;
                         case AVERAGE_X:
                             adapter.incrementGroupByAverageCounter(id, groupByValue, target, 1);
                             break;
                     }
                 }
+
         }
     }
 
@@ -155,30 +165,29 @@ public class EventAggregator {
                     adapter.incrementCounter(id);
                 break;
             case SUM_X:
-                try {
-                    adapter.incrementCounter(id, ConversionUtil.toLong(type_target));
-                } catch (NumberFormatException e) {
-                }
+                Long aLong = ConversionUtil.toLong(type_target);
+                if (aLong != null)
+                    adapter.incrementCounter(id, aLong);
+
                 break;
             case MINIMUM_X:
             case MAXIMUM_X:
-                try {
-                    Long target = ConversionUtil.toLong(type_target);
+                Long target = ConversionUtil.toLong(type_target);
+                if (target != null) {
                     Long key = adapter.getCounter(id);
                     if (key == null || (type == AggregationType.MAXIMUM_X ? target > key : target < key))
                         adapter.setCounter(id, target);
-                } catch (NumberFormatException e) {
                 }
+
                 break;
             case UNIQUE_X:
                 if (type_target != null)
                     adapter.addSet(id, type_target.toString());
                 break;
             case AVERAGE_X:
-                try {
-                    Long target = ConversionUtil.toLong(type_target);
+                target = ConversionUtil.toLong(type_target);
+                if (target != null) {
                     adapter.incrementAverageCounter(id, target, 1);
-                } catch (NumberFormatException e) {
                 }
                 break;
 

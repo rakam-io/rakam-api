@@ -33,7 +33,41 @@ public class WebServer extends Verticle {
     public WebServer() {
         routeMatcher = new RouteMatcher();
 
-        mapRequest("/event", CollectionWorker.collectEvent);
+        routeMatcher.get("/event", request -> sendRawEvent(request, CollectionWorker.collectEvent, JsonHelper.generate(request.params())));
+        routeMatcher.post("/event", request -> {
+            request.bodyHandler(buff -> {
+                String contentType = request.headers().get("Content-Type");
+                final JsonObject json;
+                if ("application/json".equals(contentType)) {
+                    try {
+                        json = new JsonObject(buff.toString());
+                    } catch (DecodeException e) {
+                        returnError(request, "json couldn't decoded.", 401);
+                        return;
+                    }
+                } else {
+                    returnError(request, "content type must be one of [application/json]", 400);
+                    return;
+                }
+                ByteArrayOutputStream by = new ByteArrayOutputStream();
+                Output out = new Output(by);
+                kryo.writeObject(out, json);
+
+                vertx.eventBus().send(CollectionWorker.collectEvent, by.toByteArray(), (Message<JsonObject> event) -> {
+                    final Number status = json.getNumber("status");
+                    if(status!=null) {
+                        request.response().setStatusCode(status.shortValue());
+                    }
+
+                    vertx.eventBus().send(CollectionWorker.collectEvent, out.getBuffer(), (Message<byte[]> e) -> {
+                            String chunk = new String(e.body());
+                            request.response().end(chunk);
+                    });
+                });
+
+            });
+        });
+
         mapRequest("/actor", CollectionWorker.collectActor);
         mapRequest("/analyze/timeseries/compute", AnalysisRequestHandler.EVENT_ANALYSIS_IDENTIFIER);
         mapRequest("/analyze", AnalysisRequestHandler.EVENT_ANALYSIS_IDENTIFIER);
@@ -79,6 +113,10 @@ public class WebServer extends Verticle {
             }
             vertx.eventBus().send(address, container!=null ? container.putObject("request", json) : json, (Message<JsonObject> event) -> {
                 String debug = json.getString("_debug");
+                final Number status = json.getNumber("status");
+                if(status!=null) {
+                    request.response().setStatusCode(status.shortValue());
+                }
                 request.response().end(debug != null && debug.equals("true") ? event.body().encodePrettily() : event.body().encode());
             });
 
@@ -89,6 +127,7 @@ public class WebServer extends Verticle {
         JsonObject obj = new JsonObject();
         obj.putString("error", message);
         obj.putNumber("error_code", statusCode);
+        httpServerRequest.response().setStatusCode(statusCode);
         httpServerRequest.response().putHeader("Content-Type", "application/json; charset=utf-8");
         httpServerRequest.response().end(obj.encode());
     }
@@ -99,7 +138,11 @@ public class WebServer extends Verticle {
 
     private void sendEvent(final HttpServerRequest request, final String address, final JsonObject json) {
         vertx.eventBus().send(address, json, (Message<JsonObject> event) -> {
-            String debug = json.getString("_debug");
+            final String debug = json.getString("_debug");
+            final Number status = json.getNumber("status");
+            if(status!=null) {
+                request.response().setStatusCode(status.shortValue());
+            }
             request.response().end(debug != null && debug.equals("true") ? event.body().encodePrettily() : event.body().encode());
         });
     }

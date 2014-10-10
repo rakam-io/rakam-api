@@ -11,7 +11,7 @@ import java.io.IOException;
  * Created by buremba <Burak Emre Kabakcı> on 20/07/14 06:38.
  */
 public class SimpleCounter implements IdentifiedDataSerializable, Counter {
-    private Long value;
+    private long value;
 
     public SimpleCounter(long i) {
         this.value = i;
@@ -23,6 +23,10 @@ public class SimpleCounter implements IdentifiedDataSerializable, Counter {
 
     public void increment(long sum) {
         value += sum;
+    }
+
+    public void setValue(long l) {
+       value = l;
     }
 
 

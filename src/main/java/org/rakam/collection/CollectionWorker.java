@@ -54,7 +54,7 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
     private long collectorTimerId;
 
     public void start() {
-        vertx.eventBus().registerLocalHandler(collectActor, this);
+        vertx.eventBus().registerLocalHandler(collectEvent, this);
         vertx.eventBus().registerLocalHandler(collectActor, this);
 
         final PeriodicCollector periodicCollector = new PeriodicCollector(localStorageAdapter, cacheAdapter, databaseAdapter);

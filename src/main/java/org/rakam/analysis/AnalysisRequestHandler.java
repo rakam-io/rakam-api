@@ -2,6 +2,7 @@ package org.rakam.analysis;
 
 import org.rakam.ServiceStarter;
 import org.rakam.cache.CacheAdapter;
+import org.rakam.cache.DistributedCacheAdapter;
 import org.rakam.constant.AggregationAnalysis;
 import org.rakam.database.DatabaseAdapter;
 import org.vertx.java.core.Handler;
@@ -17,7 +18,7 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
     public final static String EVENT_ANALYSIS_IDENTIFIER = "analysisRequest";
 
     private static final DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
-    private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(CacheAdapter.class);
+    private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(DistributedCacheAdapter.class);
 
     @Override
     public void handle(Message<JsonObject> event) {
@@ -25,9 +26,9 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
 
         final AggregationAnalysis aggAnalysis;
         try {
-            aggAnalysis = AggregationAnalysis.get(query.getString("aggregation"));
+            aggAnalysis = AggregationAnalysis.get(query.getString("analysis_type"));
         } catch (IllegalArgumentException|NullPointerException e) {
-            event.reply(returnError("aggregation parameter is empty or doesn't exist."));
+            event.reply(returnError("analysis_type parameter is empty or doesn't exist."));
             return;
         }
 

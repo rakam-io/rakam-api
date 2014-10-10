@@ -24,7 +24,6 @@ public interface DatabaseAdapter extends CacheAdapter {
     Actor getActor(String project, String actorId);
     Event getEvent(UUID eventId);
     void combineActors(String actor1, String actor2);
-    int getSetCount(String key);
     Map<String, Long> getCounters(Collection<String> keys);
     public void processRule(AnalysisRule rule);
     public void processRule(AnalysisRule rule, long start_time, long end_time);
