@@ -7,7 +7,6 @@ public enum AnalysisRuleStrategy {
     REAL_TIME_BATCH_CONCURRENT(1),
     REAL_TIME(2),
     BATCH(3),
-    REAL_TIME_AFTER_BATCH(4),
     BATCH_PERIODICALLY(5);
 
     public final int id;

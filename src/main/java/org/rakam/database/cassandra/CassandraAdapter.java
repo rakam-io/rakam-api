@@ -448,7 +448,9 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
         // TODO: we will change this implementation to new Cassandra custom functions feature when Cassandra 3 is released
         HLLWrapperImpl hllWrapper = new HLLWrapperImpl();
         for (String key : keys) {
-            getSet(key).forEach(hllWrapper::add);
+            final Set<String> set = getSet(key);
+            if(set!=null)
+                set.forEach(hllWrapper::add);
         }
         return hllWrapper;
     }

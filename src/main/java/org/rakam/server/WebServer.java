@@ -112,12 +112,12 @@ public class WebServer extends Verticle {
                 return;
             }
             vertx.eventBus().send(address, container!=null ? container.putObject("request", json) : json, (Message<JsonObject> event) -> {
-                String debug = json.getString("_debug");
+                Boolean debug = json.getBoolean("_debug");
                 final Number status = json.getNumber("status");
                 if(status!=null) {
                     request.response().setStatusCode(status.shortValue());
                 }
-                request.response().end(debug != null && debug.equals("true") ? event.body().encodePrettily() : event.body().encode());
+                request.response().end(debug != null && debug ? event.body().encodePrettily() : event.body().encode());
             });
 
         });

@@ -79,7 +79,6 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             case REAL_TIME:
                 vertx.eventBus().publish("aggregationRuleReplication", request);
                 break;
-            case REAL_TIME_AFTER_BATCH:
             case REAL_TIME_BATCH_CONCURRENT:
                 vertx.eventBus().publish("aggregationRuleReplication", request);
                 ruleDatabaseAdapter.deleteRule(rule);
@@ -145,11 +144,6 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
                 case REAL_TIME_BATCH_CONCURRENT:
                     vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
                     databaseAdapter.processRule(rule);
-                    updateBatchStatus(rule);
-                    break;
-                case REAL_TIME_AFTER_BATCH:
-                    databaseAdapter.processRule(rule);
-                    vertx.eventBus().publish(DistributedAnalysisRuleMap.IDENTIFIER, request);
                     updateBatchStatus(rule);
                     break;
                 case BATCH:

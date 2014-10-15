@@ -34,7 +34,6 @@ public abstract class AnalysisRule implements IdentifiedDataSerializable {
         AnalysisRule that = (AnalysisRule) o;
 
         if (!project.equals(that.project)) return false;
-        if (strategy != that.strategy) return false;
 
         return true;
     }
