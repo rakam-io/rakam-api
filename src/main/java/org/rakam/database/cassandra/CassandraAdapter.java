@@ -166,7 +166,8 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public void incrementGroupBySimpleCounter(String id, String groupBy, long incrementBy) {
         session.execute(set_counter_sql.bind(incrementBy, id + ":" + groupBy));
-        Set<String> set = new HashSet(getSet(id + "::keys"));
+        final Set<String> set1 = getSet(id + "::keys");
+        Set<String> set = set1==null ? new HashSet() : new HashSet(set1);
         set.add(groupBy);
         session.execute(set_set_sql.bind(set, id + "::keys"));
     }
@@ -254,14 +255,18 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public Map<String, Long> getGroupByCounters(String key, int limit) {
         HashMap<String, Long> map = new HashMap<>();
-        Iterator<String> iterator = getSet(key + "::keys").iterator();
-        int i = 0;
-        while(i++<limit && iterator.hasNext()) {
-            String item = iterator.next();
-            map.put(item, getCounter(key+":"+item));
+        final Set<String> set = getSet(key + "::keys");
+        if (set != null) {
+            Iterator<String> iterator = set.iterator();
+            int i = 0;
+            while(i++<limit && iterator.hasNext()) {
+                String item = iterator.next();
+                map.put(item, getCounter(key+":"+item));
+            }
+            return map;
+        }else {
+            return null;
         }
-        return map;
-
     }
 
     @Override

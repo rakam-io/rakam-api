@@ -21,7 +21,9 @@ public abstract class AnalysisRule implements IdentifiedDataSerializable {
 
     public String id() {
         if(id==null) {
-            id = toJson().encode();
+            final JsonObject jsonObject = toJson();
+            jsonObject.removeField("strategy");
+            id = jsonObject.encode();
         }
         return id;
     }

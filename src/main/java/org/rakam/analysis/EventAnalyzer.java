@@ -21,7 +21,6 @@ import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -263,7 +262,7 @@ public class EventAnalyzer {
                                 sum.put(item, existingCounter + timestampItems.getLong(item));
                             }
                         }
-                        calculatedResult.putObject(LocalDate.ofEpochDay(key).format(formatter), new JsonObject(sum));
+                        calculatedResult.putObject(Instant.ofEpochSecond(key).atZone(timezone).format(formatter), new JsonObject(sum));
                     }
                     break;
                 case MINIMUM_X:
