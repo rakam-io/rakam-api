@@ -1,15 +1,15 @@
 package org.rakam.analysis.query.simple.predicate;
 
-import org.rakam.model.Entry;
 import org.rakam.util.ValidationUtil;
 import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.json.JsonObject;
 
 import java.util.function.Predicate;
 
 /**
 * Created by buremba <Burak Emre Kabakcı> on 15/09/14 13:54.
 */
-public class GreaterEqualPredicate<T extends Entry> extends AbstractRichPredicate<T> {
+public class GreaterEqualPredicate extends AbstractRichPredicate {
 
     protected final long value;
 
@@ -35,8 +35,8 @@ public class GreaterEqualPredicate<T extends Entry> extends AbstractRichPredicat
     }
 
     @Override
-    public boolean test(T entry) {
-        final Number entryValue = entry.getAttribute(attribute);
+    public boolean test(JsonObject entry) {
+        final Number entryValue = entry.getNumber(attribute);
         if (entryValue == null) {
             return false;
         }

@@ -103,7 +103,7 @@ public abstract class AggregationRule extends AnalysisRule {
         if (groupBy != null)
             json.putString("group_by", groupBy.toJson());
         if (filters != null)
-            json.putString("filters", filters.toJson());
+            json.putValue("filter", filters.toJson());
         json.putString("aggregation", type.name());
         return json;
     }

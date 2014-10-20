@@ -20,6 +20,8 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
     private static final DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
     private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(DistributedCacheAdapter.class);
 
+    final EventAnalyzer eventAnalyzer = new EventAnalyzer(cacheAdapter, databaseAdapter);
+
     @Override
     public void handle(Message<JsonObject> event) {
         JsonObject query = event.body();
@@ -39,7 +41,7 @@ public class AnalysisRequestHandler implements Handler<Message<JsonObject>> {
             return;
         }
 
-        event.reply(new EventAnalyzer(cacheAdapter, databaseAdapter).analyze(aggAnalysis, tracker, query));
+        event.reply(eventAnalyzer.analyze(aggAnalysis, tracker, query));
 
     }
 }

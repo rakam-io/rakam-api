@@ -6,10 +6,10 @@ import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Created by buremba on 22/12/13.
@@ -20,7 +20,7 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
     public final static int DELETE = 1;
     public final static int UPDATE_BATCH = 2;
 
-    static Map<String, Set<AnalysisRule>> map = new HashMap();
+    static Map<String, Set<AnalysisRule>> map = new ConcurrentHashMap<>();
 
     public static synchronized void merge(Map<String, Set<AnalysisRule>> rules) {
         rules.forEach((k, v) -> map.put(k, v));
@@ -39,7 +39,7 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
     }
 
     public synchronized static void add(String project, AnalysisRule rule) {
-        map.computeIfAbsent(project, x -> new HashSet()).add(rule);
+        map.computeIfAbsent(project, x -> new ConcurrentSkipListSet<>()).add(rule);
     }
 
     public synchronized static void remove(String project, AnalysisRule rule) {

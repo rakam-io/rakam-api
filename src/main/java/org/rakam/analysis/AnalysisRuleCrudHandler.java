@@ -123,13 +123,13 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             rule = AnalysisRuleParser.parse(obj);
         } catch(IllegalArgumentException e) {
             ret.putString("error", e.getMessage());
-            ret.putNumber("error_code", 400);
+            ret.putNumber("status", 400);
             return ret;
         }
         Set<AnalysisRule> rules = DistributedAnalysisRuleMap.get(rule.project);
         if(rules !=null && rules.contains(rule)) {
             ret.putString("error", "the rule already exists.");
-            ret.putNumber("error_code", 200);
+            ret.putNumber("status", 400);
             return ret;
         }
 

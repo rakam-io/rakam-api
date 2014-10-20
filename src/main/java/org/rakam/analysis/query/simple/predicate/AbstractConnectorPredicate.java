@@ -1,12 +1,14 @@
 package org.rakam.analysis.query.simple.predicate;
 
+import org.vertx.java.core.json.JsonObject;
+
 import java.util.function.Predicate;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 14/09/14 22:36.
  */
-abstract class AbstractConnectorPredicate<T> implements ConnectorPredicate {
-    Predicate<T>[] predicates;
+abstract class AbstractConnectorPredicate implements ConnectorPredicate {
+    Predicate<JsonObject>[] predicates;
 
     public AbstractConnectorPredicate(Predicate predicate1, Predicate predicate2, Predicate... predicates) {
         if (predicates.length > 0) {
@@ -20,7 +22,7 @@ abstract class AbstractConnectorPredicate<T> implements ConnectorPredicate {
     }
 
     @Override
-    public Predicate<T>[] getPredicates() {
+    public Predicate<JsonObject>[] getPredicates() {
         return predicates;
     }
 

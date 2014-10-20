@@ -8,7 +8,7 @@ import java.util.function.Predicate;
 /**
 * Created by buremba <Burak Emre Kabakcı> on 15/09/14 13:54.
 */
-public class NegatePredicate<T extends Entry> implements RichPredicate<T> {
+public class NegatePredicate<T extends Entry> implements RichPredicate {
 
     protected Predicate predicate;
 
@@ -27,7 +27,7 @@ public class NegatePredicate<T extends Entry> implements RichPredicate<T> {
     }
 
     @Override
-    public boolean test(T entry) {
+    public boolean test(JsonObject entry) {
         return !predicate.test(entry);
     }
 

@@ -267,12 +267,11 @@ object CassandraBatchProcessor {
             // and the output format can be used as an Int
             if (rule.groupBy == null)
               (event: Event) => {
-                val a = ((((event.id.timestamp() / 10000000) + epochMillis).toInt / interval) * interval)
-                a
+                interval.span(((event.id.timestamp() / 10000000) + epochMillis).toInt).current
               }
             else {
               val ruleGroupByFunc = getStringFromEvent(rule.groupBy)
-              (event: Event) => (((((event.id.timestamp() / 10000000) + epochMillis).toInt / interval) * interval), ruleGroupByFunc(event))
+              (event: Event) => (interval.span(((event.id.timestamp() / 10000000) + epochMillis).toInt).current(), ruleGroupByFunc(event))
             }
           }
           case _ => throw new IllegalStateException("couldn't recognize pre-aggregation aggRule")

@@ -11,6 +11,7 @@ import org.rakam.cache.DistributedCacheAdapter;
 import org.rakam.cache.local.LocalCacheAdapter;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.plugin.CollectionMapperPlugin;
+import org.rakam.util.DateUtil;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
@@ -25,13 +26,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.rakam.util.DateUtil.UTCTime;
-
 /**
  * Created by buremba on 21/05/14.
  */
 public class CollectionWorker extends Verticle implements Handler<Message<byte[]>> {
-    final ExecutorService executor = new ThreadPoolExecutor(5, 50, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue());
+    public static final ExecutorService executor = new ThreadPoolExecutor(35, 50, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue());
 
     public LocalCacheAdapter localStorageAdapter = new LocalCacheAdapter();
     private DistributedCacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(DistributedCacheAdapter.class);
@@ -42,13 +41,21 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
 
     final private EventAggregator eventAggregator = new EventAggregator(localStorageAdapter, cacheAdapter, databaseAdapter);
 
-    static Kryo kryo = new Kryo();
+    final static ThreadLocal<Kryo> kryoContainer = new ThreadLocal<Kryo>(){
+        @Override
+        protected Kryo initialValue() {
+            final Kryo kryo = new Kryo();
+            kryo.register(JsonObject.class, 10);
+            return kryo;
+        }
+    };
+
     static Logger logger = Logger.getLogger(CollectionWorker.class.getName());
     static List<CollectionMapperPlugin> mappers = new LinkedList();
     static {
         List<Binding<CollectionMapperPlugin>> bindingsByType = ServiceStarter.injector.findBindingsByType(new TypeLiteral<CollectionMapperPlugin>() {});
         mappers.addAll(bindingsByType.stream().map(mapper -> mapper.getProvider().get()).collect(Collectors.toList()));
-        kryo.register(JsonObject.class);
+
     }
 
     private long collectorTimerId;
@@ -80,46 +87,46 @@ public class CollectionWorker extends Verticle implements Handler<Message<byte[]
     }
 
     private Runnable createEventCollectionTask(final Message<byte[]> data) {
-        return () -> {
-            try {
-                final JsonObject message = kryo.readObject(new Input(data.body()), JsonObject.class);
+        return new CustomThread.CustomRunnable() {
+            @Override
+            public void run() {
+                final Kryo kryo = kryoContainer.get();
+                try {
+                    final JsonObject message = kryo.readObject(new Input(data.body()), JsonObject.class);
 
-                mappers.stream().filter(mapper -> !mapper.map(message)).forEach(mapper -> data.reply("0".getBytes()));
+                    mappers.stream().filter(mapper -> !mapper.map(message)).forEach(mapper -> data.reply("0".getBytes()));
 
-                String project = message.getString("_tracker");
-                String actor_id = message.getString("_user");
+                    String project = message.getString("_tracker");
+                    if(project==null) {
+                        data.reply("0".getBytes());
+                        return;
+                    }
+                    String actor_id = message.getString("_user");
 
-                Integer time = message.getInteger("_time");
-                if(time==null) {
-                    time = UTCTime();
-                }
-
-
-                Iterator<String> it = message.getFieldNames().iterator();
-                while(it.hasNext()) {
-                    String key = it.next();
-                    if (key.startsWith("_")) {
-                        it.remove();
+                    Iterator<String> it = message.getFieldNames().iterator();
+                    while(it.hasNext()) {
+                        String key = it.next();
+                        if (key.startsWith("_")) {
+                            it.remove();
+                        }
                     }
 
+                    databaseAdapter.addEvent(project, actor_id, message);
+                    eventAggregator.aggregate(project, message, actor_id, DateUtil.UTCTime());
+
+                    data.reply("1".getBytes());
+                } catch (Exception e) {
+                    data.reply("0".getBytes());
+                    logger.error("error while processing event collection request on thread "+Thread.currentThread().getId(), e);
                 }
-
-
-                databaseAdapter.addEvent(project, actor_id, message);
-
-                eventAggregator.aggregate(project, message, actor_id, time);
-
-                data.reply("1".getBytes());
-            } catch (Exception e) {
-                data.reply("0".getBytes());
-                logger.error("error while processing event collection request", e);
             }
         };
     }
 
     public Runnable createActorCollectionTask(final Message<byte[]> data) {
-        return () -> {
+        return () -> {Thread.currentThread().getStackTrace()[2].getLineNumber();
             try {
+                final Kryo kryo = kryoContainer.get();
                 final JsonObject message = kryo.readObject(new Input(data.body()), JsonObject.class);
 
                 String tracker = message.getString("tracker");

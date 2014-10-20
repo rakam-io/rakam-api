@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import org.elasticsearch.common.collect.Tuple;
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.query.mvel.MVELFieldScript;
@@ -14,7 +13,8 @@ import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.constant.AnalysisRuleStrategy;
-import org.rakam.util.SpanTime;
+import org.rakam.util.Interval;
+import org.rakam.util.Tuple;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonElement;
 import org.vertx.java.core.json.JsonObject;
@@ -61,7 +61,7 @@ public class AnalysisRuleParser {
                 select = groupBy;
 
             if (analysisType == Analysis.ANALYSIS_TIMESERIES) {
-                rule = new TimeSeriesAggregationRule(project, aggType, getPeriod(json.getField("interval")), select, filter, groupBy);
+                rule = new TimeSeriesAggregationRule(project, aggType, getInterval(json.getField("interval")), select, filter, groupBy);
             } else if (analysisType == Analysis.ANALYSIS_METRIC) {
                 rule = new MetricAggregationRule(project, aggType, select, filter, groupBy);
             } else {
@@ -80,19 +80,14 @@ public class AnalysisRuleParser {
         return rule;
     }
 
-    public static int getPeriod(Object interval) {
+    public static Interval getInterval(Object interval) {
         if (interval == null)
             throw new IllegalArgumentException("interval is required for time-series.");
-        int period;
         if(interval instanceof String) {
-            period = SpanTime.fromString((String) interval).period;
-        }else
-        if(interval instanceof Number) {
-            period = ((Number) interval).intValue();
+            return Interval.parse((String) interval);
         }else {
             throw new IllegalArgumentException("interval parameter must be either string of number");
         }
-        return period;
     }
 
     public static FieldScript getField(Object field) {
@@ -173,7 +168,7 @@ public class AnalysisRuleParser {
             case "$starts_with":
                 return FilterPredicates.starts_with(field, (String) argument);
             default:
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("undefined operator "+operator);
         }
     }
 

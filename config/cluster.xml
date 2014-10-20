@@ -1,0 +1,50 @@
+<hazelcast xsi:schemaLocation="http://www.hazelcast.com/schema/config hazelcast-basic.xsd"
+           xmlns="http://www.hazelcast.com/schema/config"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <properties>
+        <property name="hazelcast.mancenter.enabled">false</property>
+        <property name="hazelcast.memcache.enabled">false</property>
+        <property name="hazelcast.rest.enabled">false</property>
+        <property name="hazelcast.wait.seconds.before.join">0</property>
+        <property name="hazelcast.logging.type">jdk</property>
+    </properties>
+    <!--<map name="default">-->
+        <!--<map-store enabled="true">-->
+            <!--<class-name>org.rakam.cache.hazelcast.CassandraStore</class-name>-->
+            <!--<write-delay-seconds>2</write-delay-seconds>-->
+        <!--</map-store>-->
+    <!--</map>-->
+
+    <serialization>
+        <data-serializable-factories>
+            <data-serializable-factory factory-id="100">
+                org.rakam.cache.hazelcast.hyperloglog.operations.HyperLogLogSerializerFactory
+            </data-serializable-factory>
+            <data-serializable-factory factory-id="1">
+                org.rakam.cache.hazelcast.RakamDataSerializableFactory
+            </data-serializable-factory>
+            <data-serializable-factory factory-id="103">
+                org.rakam.cache.hazelcast.treemap.operations.TreeMapSerializerFactory
+            </data-serializable-factory>
+        </data-serializable-factories>
+        <portable-factories>
+            <portable-factory factory-id="100">org.rakam.cache.hazelcast.hyperloglog.client.HyperLogLogPortableFactory</portable-factory>
+            <portable-factory factory-id="103">org.rakam.cache.hazelcast.treemap.client.TreeMapPortableFactory</portable-factory>
+        </portable-factories>
+    </serialization>
+
+    <services>
+        <service enabled="true">
+            <name>rakam:hyperLogLogService</name>
+            <class-name>org.rakam.cache.hazelcast.hyperloglog.HyperLogLogService</class-name>
+        </service>
+        <service enabled="true">
+            <name>rakam:treeSetService</name>
+            <class-name>org.rakam.cache.hazelcast.treeset.TreeSetService</class-name>
+        </service>
+        <service enabled="true">
+            <name>rakam:treeMapService</name>
+            <class-name>org.rakam.cache.hazelcast.treemap.TreeMapService</class-name>
+        </service>
+    </services>
+</hazelcast>

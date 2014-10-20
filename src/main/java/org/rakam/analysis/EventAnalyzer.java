@@ -16,7 +16,7 @@ import org.rakam.constant.Analysis;
 import org.rakam.constant.AnalysisRuleStrategy;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.util.ConversionUtil;
-import org.rakam.util.SpanTime;
+import org.rakam.util.Interval;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
@@ -81,9 +81,9 @@ public class EventAnalyzer {
 
         switch (analysis) {
             case ANALYSIS_TIMESERIES:
-                final int interval;
+                final Interval interval;
                 try {
-                    interval = AnalysisRuleParser.getPeriod(query.getField("interval"));
+                    interval = AnalysisRuleParser.getInterval(query.getField("interval"));
                 } catch (IllegalArgumentException e) {
                     return returnError(e.getMessage());
                 }
@@ -143,8 +143,8 @@ public class EventAnalyzer {
 
     }
 
-    private JsonObject combineTimeSeries(TimeSeriesAggregationRule mRule, JsonObject query, int interval, AggregationAnalysis aggAnalysis) {
-        JsonObject calculatedResult = new JsonObject();
+    private JsonObject combineTimeSeries(TimeSeriesAggregationRule mRule, JsonObject query, Interval interval, AggregationAnalysis aggAnalysis) {
+        JsonObject json = new JsonObject();
         Long items = ConversionUtil.toLong(query.getField("items"), 10L);
         if (items == null)
             return returnError("items parameter is not numeric");
@@ -156,6 +156,15 @@ public class EventAnalyzer {
             return returnError(e.getMessage());
         }
 
+        final long numberOfSubIntervals = interval.divide(interval);
+        int nowKey = mRule.interval.spanCurrent().current();
+
+        final JsonObject metadata = new JsonObject()
+                .putString("start_date", Instant.ofEpochSecond(keys.get(0)).atZone(timezone).format(formatter))
+                .putString("end_date", Instant.ofEpochSecond(keys.get(keys.size() - 1)).atZone(timezone).format(formatter));
+        json.putObject("metadata", metadata);
+
+        JsonObject calculatedResult = new JsonObject();
         if (mRule.groupBy == null)
             switch (aggAnalysis) {
                 case COUNT:
@@ -190,35 +199,37 @@ public class EventAnalyzer {
 
                     break;
                 case AVERAGE_X:
-                    int now = new SpanTime(mRule.interval).spanCurrent().current();
-
                     for (Integer key : keys) {
                         long sum = 0;
                         long count = 0;
-                        for (int time = key; time < key + interval; time += mRule.interval) {
-                            CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
-                            AverageCounter averageCounter = adapter.getAverageCounter(mRule.id() + ":" + time);
+                        final Interval.StatefulSpanTime span = interval.span(key);
+
+                        for (long i = 0; i < numberOfSubIntervals; i++) {
+                            CacheAdapter adapter = nowKey == span.current() ? cacheAdapter : databaseAdapter;
+                            AverageCounter averageCounter = adapter.getAverageCounter(mRule.id() + ":" + span.current());
                             if (averageCounter != null) {
                                 sum += averageCounter.getSum();
                                 count += averageCounter.getCount();
                             }
+                            span.next();
                         }
                         calculatedResult.putNumber(Instant.ofEpochSecond(key).atZone(timezone).format(formatter), count > 0 ? sum / count : 0);
                     }
                     break;
                 case COUNT_UNIQUE_X:
-                    now = new SpanTime(mRule.interval).spanCurrent().current();
-
                     for (Integer key : keys) {
                         ArrayList<String> itemKeys = new ArrayList<>();
                         HLLWrapper hll = null;
-                        for (int time = key; time < key + interval; time += mRule.interval) {
-                            if (now != time)
-                                itemKeys.add(mRule.id() + ":" + time);
-                            else
-                                hll = cacheAdapter.createHLLFromSets(mRule.id() + ":" + time);
 
+                        final Interval.StatefulSpanTime span = interval.span(key);
+                        for (long i = 0; i < numberOfSubIntervals; i++) {
+                            if (nowKey != span.current())
+                                itemKeys.add(mRule.id() + ":" + span.current());
+                            else
+                                hll = cacheAdapter.createHLLFromSets(mRule.id() + ":" + span.current());
+                            span.next();
                         }
+
                         if (itemKeys.size() > 0) {
                             HLLWrapper dbHll = databaseAdapter.createHLLFromSets(itemKeys.stream().toArray(String[]::new));
                             if (hll == null)
@@ -230,16 +241,17 @@ public class EventAnalyzer {
                     }
                     break;
                 case SELECT_UNIQUE_X:
-                    now = new SpanTime(mRule.interval).spanCurrent().current();
-
                     for (Integer key : keys) {
                         Set<String> set = new HashSet<>();
-                        for (int time = key; time < key + interval; time += mRule.interval) {
-                            CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
-                            Set<String> itemSet = adapter.getSet(mRule.id() + ":" + time);
+
+                        final Interval.StatefulSpanTime span = interval.span(key);
+                        for (long i = 0; i < numberOfSubIntervals; i++) {
+                            CacheAdapter adapter = nowKey == span.current() ? cacheAdapter : databaseAdapter;
+                            Set<String> itemSet = adapter.getSet(mRule.id() + ":" + span.current());
                             if (itemSet != null) {
                                 set.addAll(itemSet);
                             }
+                            span.next();
                         }
                         calculatedResult.putArray(Instant.ofEpochSecond(key).atZone(timezone).format(formatter), new JsonArray(set.stream().toArray(String[]::new)));
                     }
@@ -287,14 +299,14 @@ public class EventAnalyzer {
 
                     break;
                 case AVERAGE_X:
-                    int now = new SpanTime(mRule.interval).spanCurrent().current();
-
                     for (Integer key : keys) {
 
                         Map<String, AverageCounter> groups = new HashMap<>();
-                        for (int time = key; time < key + interval; time += mRule.interval) {
-                            CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
-                            Map<String, AverageCounter> averageCounter = adapter.getGroupByAverageCounters(mRule.id() + ":" + time);
+
+                        final Interval.StatefulSpanTime span = interval.span(key);
+                        for (long i = 0; i < numberOfSubIntervals; i++) {
+                            CacheAdapter adapter = nowKey == span.current() ? cacheAdapter : databaseAdapter;
+                            Map<String, AverageCounter> averageCounter = adapter.getGroupByAverageCounters(mRule.id() + ":" + span.current());
                             if (averageCounter != null) {
                                 averageCounter.forEach((k, counter) -> groups.compute(k, (gk, v) -> {
                                     if (v == null)
@@ -303,6 +315,7 @@ public class EventAnalyzer {
                                     return counter;
                                 }));
                             }
+                            span.next();
                         }
 
                         calculatedResult.putObject(Instant.ofEpochSecond(key).atZone(timezone).format(formatter), new JsonObject(groups.entrySet().stream()
@@ -312,13 +325,14 @@ public class EventAnalyzer {
 
                     break;
                 case COUNT_UNIQUE_X:
-                    now = new SpanTime(mRule.interval).spanCurrent().current();
-
                     for (Integer key : keys) {
                         Map<String, HLLWrapper> hll = null;
-                        for (int time = key; time < key + interval; time += mRule.interval) {
-                            CacheAdapter adapter = now != time ? databaseAdapter : cacheAdapter;
-                            Map<String, HLLWrapper> dbHll = adapter.estimateGroupByStrings(mRule.id() + ":" + time, items.intValue());
+
+
+                        final Interval.StatefulSpanTime span = interval.span(key);
+                        for (long i = 0; i < numberOfSubIntervals; i++) {
+                            CacheAdapter adapter = nowKey != span.current() ? databaseAdapter : cacheAdapter;
+                            Map<String, HLLWrapper> dbHll = adapter.estimateGroupByStrings(mRule.id() + ":" + span.next(), items.intValue());
                             if (hll == null) {
                                 hll = dbHll;
                             } else {
@@ -329,6 +343,7 @@ public class EventAnalyzer {
                                     });
                                 }
                             }
+                            span.next();
                         }
                         final JsonObject grouped = new JsonObject();
                         hll.forEach((k, v) -> grouped.putNumber(k, v.cardinality()));
@@ -336,13 +351,13 @@ public class EventAnalyzer {
                     }
                     break;
                 case SELECT_UNIQUE_X:
-                    now = new SpanTime(mRule.interval).spanCurrent().current();
-
                     for (Integer key : keys) {
                         JsonObject map = new JsonObject();
-                        for (int time = key; time < key + interval; time += mRule.interval) {
-                            CacheAdapter adapter = now == time ? cacheAdapter : databaseAdapter;
-                            Map<String, Set<String>> itemSet = adapter.getGroupByStrings(mRule.id() + ":" + time, items.intValue());
+
+                        final Interval.StatefulSpanTime span = interval.span(key);
+                        for (long i = 0; i < numberOfSubIntervals; i++) {
+                            CacheAdapter adapter = nowKey == span.current() ? cacheAdapter : databaseAdapter;
+                            Map<String, Set<String>> itemSet = adapter.getGroupByStrings(mRule.id() + ":" + span.current(), items.intValue());
                             for (Map.Entry<String, Set<String>> entry : itemSet.entrySet()) {
                                 final JsonArray field = map.getArray(entry.getKey());
                                 if(field!=null) {
@@ -351,6 +366,7 @@ public class EventAnalyzer {
                                     map.putArray(entry.getKey(), new JsonArray(entry.getValue().toArray()));
                                 }
                             }
+                            span.next();
                         }
                         calculatedResult.putObject(Instant.ofEpochSecond(key).atZone(timezone).format(formatter), map);
                     }
@@ -359,7 +375,7 @@ public class EventAnalyzer {
             }
         }
 
-        JsonObject json = new JsonObject().putObject("result", calculatedResult);
+        json.putObject("result", calculatedResult);
         if (!mRule.batch_status && mRule.strategy != AnalysisRuleStrategy.REAL_TIME)
             json.putString("info", "batch results are not combined yet");
 
@@ -367,11 +383,15 @@ public class EventAnalyzer {
 
     }
 
-    private static List<Integer> getTimestampsBetween(int key, int interval, int period) {
+    private static List<Integer> getTimestampsBetween(int startingPoint, Interval interval, Interval period) {
         LinkedList<Integer> objects = new LinkedList();
-        int until = key + interval;
-        for (int i = key; i < until; i += period)
-            objects.add(i);
+
+        final int until = interval.span(startingPoint).next().current();
+        final Interval.StatefulSpanTime span = period.span(startingPoint);
+        while(span.current() < until) {
+            objects.add(span.current());
+            span.next();
+        }
         return objects;
     }
 
@@ -381,7 +401,7 @@ public class EventAnalyzer {
         if (items == null)
             return returnError("items parameter is not numeric");
 
-
+        JsonObject json = new JsonObject();
         if (rule instanceof MetricAggregationRule) {
             if (rule.groupBy != null) {
                 result = fetchGroupingMetric(rule, aggAnalysis, items.intValue());
@@ -390,7 +410,7 @@ public class EventAnalyzer {
             }
         } else {
             if (rule instanceof TimeSeriesAggregationRule) {
-                Collection<Integer> keys;
+                List<Integer> keys;
                 try {
                     keys = getTimeFrame(query.getField("frame"), ((TimeSeriesAggregationRule) rule).interval, query.getField("start"), query.getField("end"));
                 } catch (IllegalArgumentException e) {
@@ -401,12 +421,17 @@ public class EventAnalyzer {
                     result = fetchNonGroupingTimeSeries((TimeSeriesAggregationRule) rule, keys, aggAnalysis);
                 else
                     result = fetchGroupingTimeSeries((TimeSeriesAggregationRule) rule, keys, aggAnalysis, items.intValue());
+
+                final JsonObject metadata = new JsonObject()
+                        .putString("start_date", Instant.ofEpochSecond(keys.get(0)).atZone(timezone).format(formatter))
+                        .putString("end_date", Instant.ofEpochSecond(keys.get(keys.size() - 1)).atZone(timezone).format(formatter));
+                json.putObject("metadata", metadata);
             } else {
                 throw new IllegalArgumentException();
             }
         }
 
-        JsonObject json = new JsonObject().putValue("result", result);
+        json.putValue("result", result);
         if (!rule.batch_status && rule.strategy != AnalysisRuleStrategy.REAL_TIME)
             json.putString("info", "batch results are not combined yet");
 
@@ -443,7 +468,7 @@ public class EventAnalyzer {
         return null;
     }
 
-    public Object fetchGroupingMetric(AggregationRule rule, AggregationAnalysis aggAnalysis, Integer items) {
+    public JsonObject fetchGroupingMetric(AggregationRule rule, AggregationAnalysis aggAnalysis, Integer items) {
         String rule_id = rule.id();
         JsonObject json = new JsonObject();
         switch (aggAnalysis) {
@@ -492,7 +517,7 @@ public class EventAnalyzer {
 
     public JsonObject fetchNonGroupingTimeSeries(TimeSeriesAggregationRule rule, Collection<Integer> keys, AggregationAnalysis aggAnalysis) {
         JsonObject results = new JsonObject();
-        int now = new SpanTime(rule.interval).spanCurrent().current();
+        int now = rule.interval.spanCurrent().current();
         String rule_id = rule.id();
 
         switch (aggAnalysis) {
@@ -565,7 +590,7 @@ public class EventAnalyzer {
 
     public JsonObject fetchGroupingTimeSeries(TimeSeriesAggregationRule rule, Collection<Integer> keys, AggregationAnalysis aggAnalysis, Integer items) {
         JsonObject results = new JsonObject();
-        int now = new SpanTime(rule.interval).spanCurrent().current();
+        int now = rule.interval.spanCurrent().current();
         String rule_id = rule.id();
 
         switch (aggAnalysis) {
@@ -646,7 +671,7 @@ public class EventAnalyzer {
         return results;
     }
 
-    public List<Integer> getTimeFrame(Object items_obj, int period, Object start, Object end) throws IllegalArgumentException {
+    public List<Integer> getTimeFrame(Object items_obj, Interval period, Object start, Object end) throws IllegalArgumentException {
         Integer items;
         if (items_obj != null) {
             if (items_obj instanceof Number)
@@ -696,11 +721,9 @@ public class EventAnalyzer {
             }
         }
 
-        SpanTime interval = new SpanTime(period);
-
         if (s_timestamp != null && e_timestamp != null) {
-            SpanTime point = interval.span(s_timestamp);
-            int ending_point = interval.copy().span(e_timestamp).current();
+            Interval.StatefulSpanTime point = period.span(s_timestamp);
+            int ending_point = period.span(e_timestamp).current();
             if (point.current() > ending_point) {
                 throw new IllegalArgumentException("start time must be lower than end time.");
             }
@@ -718,7 +741,7 @@ public class EventAnalyzer {
             }
 
         } else if (s_timestamp != null && items_obj != null) {
-            SpanTime starting_point = interval.span(s_timestamp);
+            Interval.StatefulSpanTime starting_point = period.span(s_timestamp);
             int ending_point = UTCTime();
             if (starting_point.current() > ending_point) {
                 throw new IllegalArgumentException("start time must be lower than end time.");
@@ -735,16 +758,18 @@ public class EventAnalyzer {
                     break;
             }
         } else if (e_timestamp != null && items_obj != null) {
-            SpanTime ending_point = interval.span(e_timestamp);
+            Interval.StatefulSpanTime ending_point = period.span(e_timestamp);
 
             for (int i = 1; i < items; i++) {
                 keys.add(ending_point.current());
                 ending_point = ending_point.previous();
             }
         } else if (items_obj != null) {
-            keys.add(interval.spanCurrent().current());
+            final Interval.StatefulSpanTime cursor = period.spanCurrent();
+            keys.add(cursor.current());
+            Interval.StatefulSpanTime interval;
             for (int i = 1; i < items; i++) {
-                interval = interval.previous();
+                interval = cursor.previous();
                 keys.addFirst(interval.current());
             }
         } else {

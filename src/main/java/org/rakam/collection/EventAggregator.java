@@ -13,13 +13,11 @@ import org.rakam.constant.Analysis;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
 import org.rakam.util.ConversionUtil;
-import org.rakam.util.SpanTime;
+import org.rakam.util.Interval;
 import org.vertx.java.core.json.JsonObject;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
-
-import static org.rakam.util.DateUtil.UTCTime;
 
 /**
  * Created by buremba on 05/06/14.
@@ -48,10 +46,6 @@ public class EventAggregator {
                 .build();
     }
 
-    public void aggregate(String project, JsonObject m, String actor_id) {
-        aggregate(project, m, actor_id, UTCTime());
-    }
-
     /*
     Find pre-aggregation rules and match with the event.
     If it matches update the appropriate counter.
@@ -65,6 +59,7 @@ public class EventAggregator {
         JsonObject actor_props = null;
 
         for (AnalysisRule rule : aggregations) {
+
             if (rule.analysisType() == Analysis.ANALYSIS_METRIC || rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
                 AggregationRule aggregation = (AggregationRule) rule;
 
@@ -86,9 +81,10 @@ public class EventAggregator {
                 String key = rule.id();
                 CacheAdapter adapter;
                 if (rule.analysisType() == Analysis.ANALYSIS_TIMESERIES) {
-                    SpanTime span = new SpanTime(((TimeSeriesAggregationRule) rule).interval).span(timestamp);
+                    final Interval interval = ((TimeSeriesAggregationRule) rule).interval;
+                    final Interval.StatefulSpanTime span = interval.span(timestamp);
                     key += ":" + span.current();
-                    adapter = span.current() == span.spanCurrent().current() ? l1cacheAdapter : databaseAdapter;
+                    adapter = span.current() == interval.spanCurrent().current() ? l1cacheAdapter : databaseAdapter;
                 } else {
                     adapter = l1cacheAdapter;
                 }

@@ -12,7 +12,7 @@ import org.rakam.collection.EventAggregator;
 import org.rakam.collection.PeriodicCollector;
 import org.rakam.constant.AggregationAnalysis;
 import org.rakam.database.DatabaseAdapter;
-import org.rakam.util.SpanTime;
+import org.rakam.util.Interval;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
@@ -26,7 +26,6 @@ import static org.rakam.constant.AggregationType.MAXIMUM_X;
 import static org.rakam.constant.AggregationType.MINIMUM_X;
 import static org.rakam.constant.AggregationType.SUM_X;
 import static org.rakam.constant.AggregationType.UNIQUE_X;
-import static org.rakam.util.SpanTime.fromString;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 28/09/14 20:48.
@@ -39,11 +38,13 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     PeriodicCollector collector = new PeriodicCollector(localStorageAdapter, cacheAdapter, databaseAdapter);
     EventAnalyzer eventAnalyzer = new EventAnalyzer(cacheAdapter, databaseAdapter);
 
+    final static Interval ONE_DAY = Interval.parse("1day");
+
     @Test
     public void testCountAggregation() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT,  interval.period, null, null, new SimpleFieldScript<String>("key"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent();
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT,  ONE_DAY, null, null, new SimpleFieldScript<String>("key"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
 
@@ -70,8 +71,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testCountXAggregation() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT_X, interval.period, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent();
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT_X, ONE_DAY, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -100,8 +101,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testSumXAggregation() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, SUM_X, interval.period, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, SUM_X, ONE_DAY, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -130,8 +131,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testMaxXAggregation() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MAXIMUM_X, interval.period, new SimpleFieldScript<String>("test"),null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MAXIMUM_X, ONE_DAY, new SimpleFieldScript<String>("test"),null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -159,8 +160,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testMinXAggregation() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MINIMUM_X, interval.period, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MINIMUM_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -187,8 +188,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testAverageXAggregation() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, interval.period, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -216,8 +217,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testAverageXAggregation_whenSumX() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, interval.period, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -244,8 +245,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testAverageXAggregation_whenCountX() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, interval.period, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -273,8 +274,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testUniqueXAggregation_countUniqueX() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, interval.period, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
@@ -305,8 +306,8 @@ public class GroupingTimeSeriesAnalysisTest extends RakamTestHelper {
     @Test
     public void testUniqueXAggregation_selectUniqueX() {
         String projectId = randomString(10);
-        SpanTime interval = fromString("1day").spanCurrent();
-        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, interval.period, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
+        Interval.StatefulSpanTime interval = ONE_DAY.spanCurrent(); 
+        TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
         DistributedAnalysisRuleMap.add(projectId, rule);
 
         int start = interval.current();

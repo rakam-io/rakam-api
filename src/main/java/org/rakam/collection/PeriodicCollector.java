@@ -12,7 +12,7 @@ import org.rakam.cluster.MemberShipListener;
 import org.rakam.constant.Analysis;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.database.KeyValueStorage;
-import org.rakam.util.SpanTime;
+import org.rakam.util.Interval;
 
 import java.util.Map;
 import java.util.Set;
@@ -44,11 +44,10 @@ public class PeriodicCollector {
             switch (analysisType) {
                 case ANALYSIS_TIMESERIES:
                     mrule = (AggregationRule) rule;
-                    SpanTime time = new SpanTime(((TimeSeriesAggregationRule) mrule).interval).span(UTCTime());
-                    int now = time.current();
-                    int previous = time.previous().current();
-                    previous_key = rule.id() + ":" + previous;
-                    now_key = rule.id() + ":" + now;
+                    Interval.StatefulSpanTime time = ((TimeSeriesAggregationRule) mrule).interval.spanCurrent();
+
+                    now_key = rule.id() + ":" + time.current();
+                    previous_key = rule.id() + ":" + time.previous().current();
                     break;
                 case ANALYSIS_METRIC:
                     mrule = (MetricAggregationRule) rule;

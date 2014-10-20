@@ -2,13 +2,14 @@ package org.rakam.analysis.query.simple.predicate;
 
 import org.rakam.model.Entry;
 import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.json.JsonObject;
 
 import java.util.function.Predicate;
 
 /**
 * Created by buremba <Burak Emre Kabakcı> on 15/09/14 13:54.
 */
-public class ContainsPredicate<T extends Entry> extends AbstractRichPredicate<T> {
+public class ContainsPredicate extends AbstractRichPredicate {
 
     public ContainsPredicate(String attribute) {
         super(attribute);
@@ -25,8 +26,8 @@ public class ContainsPredicate<T extends Entry> extends AbstractRichPredicate<T>
     }
 
     @Override
-    public boolean test(T entry) {
-        final String entryValue = entry.getAttribute(attribute);
+    public boolean test(JsonObject entry) {
+        final String entryValue = entry.getString(attribute);
         return entryValue != null;
     }
 

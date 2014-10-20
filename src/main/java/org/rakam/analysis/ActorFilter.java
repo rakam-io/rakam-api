@@ -1,10 +1,10 @@
 package org.rakam.analysis;
 
-import org.elasticsearch.common.collect.Tuple;
 import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.cache.CacheAdapter;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
+import org.rakam.util.Tuple;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 

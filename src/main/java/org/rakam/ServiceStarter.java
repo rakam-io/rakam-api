@@ -2,11 +2,12 @@ package org.rakam;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.hazelcast.config.FileSystemXmlConfig;
+import com.hazelcast.core.Hazelcast;
 import org.rakam.analysis.AnalysisRequestHandler;
 import org.rakam.analysis.AnalysisRuleCrudHandler;
 import org.rakam.analysis.FilterRequestHandler;
 import org.rakam.cache.DistributedAnalysisRuleMap;
-import org.rakam.cluster.MemberShipListener;
 import org.rakam.collection.CollectionWorker;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.server.WebServer;
@@ -14,6 +15,8 @@ import org.vertx.java.core.Future;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
+
+import java.io.FileNotFoundException;
 
 /**
  * Created by buremba on 21/12/13.
@@ -29,6 +32,13 @@ public class ServiceStarter extends Verticle {
         JsonArray plugins = conf.getArray("plugins");
         injector = Guice.createInjector(new ServiceRecipe(plugins));
 
+        try {
+            Hazelcast.newHazelcastInstance(new FileSystemXmlConfig("config/cluster.xml"));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            System.exit(0);
+        }
+
         DistributedAnalysisRuleMap.merge(ServiceStarter.injector.getInstance(AnalysisRuleDatabase.class).getAllRules());
 
 //        org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.ERROR);
@@ -43,7 +53,7 @@ public class ServiceStarter extends Verticle {
         });
 
         container.deployWorkerVerticle(CollectionWorker.class.getName());
-        container.deployWorkerVerticle(MemberShipListener.class.getName());
+//        container.deployWorkerVerticle(MemberShipListener.class.getName());
 
         vertx.eventBus().registerHandler(DistributedAnalysisRuleMap.IDENTIFIER, new DistributedAnalysisRuleMap());
         vertx.eventBus().registerHandler(AnalysisRequestHandler.EVENT_ANALYSIS_IDENTIFIER, new AnalysisRequestHandler());

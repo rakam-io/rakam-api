@@ -1,0 +1,253 @@
+package org.rakam.util;
+
+import java.io.Serializable;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
+import java.time.ZoneOffset;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.rakam.util.DateUtil.UTCTime;
+
+/**
+ * Created by buremba on 21/12/13.
+ */
+
+public abstract class Interval {
+    final static Pattern parser = Pattern.compile("^([0-9]+)([a-z]+)s?$");
+    public abstract StatefulSpanTime span(int time);
+
+    public StatefulSpanTime spanCurrent() {
+        return span(UTCTime());
+    }
+
+    public abstract boolean isDivisible(Interval interval);
+    public abstract Object toJson();
+
+    public abstract long divide(Interval interval);
+
+    public static Interval parse(String str) throws IllegalArgumentException {
+        Matcher match = parser.matcher(str);
+        if (match.find()) {
+                int num = Integer.parseInt(match.group(1));
+                switch (match.group(2)) {
+                    case "months":
+                        return new MonthSpan(Period.ofMonths(num));
+                    case "weeks":
+                        return new TimeSpan(Duration.ofDays(7 * num));
+                    case "days":
+                        return new TimeSpan(Duration.ofDays(num));
+                    case "hours":
+                        return new TimeSpan(Duration.ofHours(num));
+                    case "minutes":
+                        return new TimeSpan(Duration.ofMinutes( num));
+                }
+            }
+        throw new IllegalArgumentException("couldn't parse interval string. usage [*month, *week, *day, *hour, *minute], ");
+    }
+
+    public static class MonthSpan extends Interval {
+        private final Period period;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof MonthSpan)) return false;
+
+            MonthSpan monthSpan = (MonthSpan) o;
+
+            if (!period.equals(monthSpan.period)) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            return period.hashCode();
+        }
+
+        @Override
+        public StatefulSpanTime span(int time) {
+            return new StatefulMonthSpan(time);
+        }
+
+        @Override
+        public boolean isDivisible(Interval interval) {
+            if(interval instanceof MonthSpan) {
+                return period.toTotalMonths() % ((MonthSpan) interval).period.toTotalMonths() == 0;
+            }
+            if(interval instanceof TimeSpan) {
+                return new TimeSpan(Duration.ofDays(1)).isDivisible(interval);
+            }
+            return false;
+        }
+
+        @Override
+        public Object toJson() {
+            return period.toTotalMonths()+"months";
+        }
+
+        @Override
+        public long divide(Interval interval) {
+            if(interval instanceof MonthSpan) {
+                return period.toTotalMonths() % ((MonthSpan) interval).period.toTotalMonths();
+            }
+            throw new IllegalArgumentException();
+        }
+
+        public MonthSpan(Period p) {
+            this.period = p;
+        }
+
+        public class StatefulMonthSpan implements StatefulSpanTime, Serializable {
+            private LocalDateTime cursor;
+            private final static int DAY = 24*60*60;
+
+
+            public StatefulMonthSpan(int cursor) {
+                final LocalDate firstDay = LocalDate.ofEpochDay(cursor / DAY).withDayOfMonth(1);
+                int numberOfMonths = firstDay.getYear() * 12 + firstDay.getMonthValue();
+                final long epoch = firstDay.minusMonths(numberOfMonths % period.toTotalMonths()).toEpochDay() * DAY;
+                this.cursor = LocalDateTime.ofEpochSecond(epoch, 100_000_000, ZoneOffset.UTC);
+            }
+
+            public int current() {
+                return (int) cursor.toEpochSecond(ZoneOffset.UTC);
+            }
+
+            public long untilTimeFrame(int now) {
+                final LocalDate localDate = LocalDate.ofEpochDay(now / DAY);
+                int numberOfMonths1 = localDate.getYear() * 12 + localDate.getMonthValue();
+
+                int numberOfMonths2 = cursor.getYear() * 12 + cursor.getMonthValue();
+                return (numberOfMonths2 - numberOfMonths1) / period.toTotalMonths();
+            }
+
+            public StatefulSpanTime next() {
+                cursor = cursor.plus(period);
+                return this;
+            }
+
+            public StatefulSpanTime previous() {
+                cursor = cursor.minus(period);
+                return this;
+            }
+
+
+
+        }
+
+    }
+
+    public static class TimeSpan extends Interval {
+        private int period;
+
+        public TimeSpan(Duration duration) {
+            this.period = (int) duration.getSeconds();
+        }
+
+        @Override
+        public String toString() {
+            return "TimeSpan{" + "period=" + period + '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof TimeSpan)) return false;
+
+            TimeSpan timeSpan = (TimeSpan) o;
+
+            if (period != timeSpan.period) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            return period;
+        }
+
+        @Override
+        public StatefulSpanTime span(int time) {
+            return new StatefulTimeSpan(time);
+        }
+
+        @Override
+        public boolean isDivisible(Interval interval) {
+            if(interval instanceof TimeSpan) {
+                return period % ((TimeSpan) interval).period == 0;
+            }
+            return false;
+        }
+
+        @Override
+        public Object toJson() {
+            StringBuilder str = new StringBuilder();
+            int p = period;
+            if(p >= 86400) {
+                str.append(p/86400+"days");
+                p = period%86400;
+            }
+
+            if(p >= 3600) {
+                str.append(p/3600+"hours");
+                p = period%3600;
+            }
+
+            if(p >= 60) {
+                str.append(p/60+"minutes");
+                p = period%60;
+            }
+
+            if(p > 0) {
+                str.append(p+"seconds");
+            }
+
+            return str.toString();
+        }
+
+        @Override
+        public long divide(Interval interval) {
+            if(interval instanceof TimeSpan) {
+                return period % ((TimeSpan) interval).period;
+            }
+            throw new IllegalStateException();
+        }
+
+        public class StatefulTimeSpan implements StatefulSpanTime, Serializable {
+            private int cursor;
+
+            public StatefulTimeSpan(int cursor) {
+                this.cursor = (cursor / period) * period;
+            }
+
+            public int current() {
+                return cursor;
+            }
+
+            public long untilTimeFrame(int now) {
+                return (now - cursor) / period;
+            }
+
+            public StatefulSpanTime next() {
+                cursor += period;
+                return this;
+            }
+
+            public StatefulSpanTime previous() {
+                cursor -= period;
+                return this;
+            }
+        }
+    }
+
+    public interface StatefulSpanTime {
+        abstract public long untilTimeFrame(int frame);
+        abstract public int current();
+        abstract public StatefulSpanTime next();
+        abstract public StatefulSpanTime previous();
+    }
+}

@@ -295,8 +295,12 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
 
     @Override
     public Map<String, Long> getGroupByStringsCounts(String key, Integer limit) {
+        final Set<String> set1 = getSet(key + "::keys");
+        if(set1==null) {
+            return null;
+        }
         HashMap<String, Long> map = new HashMap<>();
-        Iterator<String> set = getSet(key + "::keys").iterator();
+        Iterator<String> set = set1.iterator();
         int i = 0;
         while(i++<limit && set.hasNext()) {
             String item = set.next();
@@ -307,7 +311,7 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
 
     @Override
     public void incrementCounter(String key) {
-        session.execute(set_counter_sql.bind(1, key));
+        session.execute(set_counter_sql.bind(1L, key));
     }
 
     @Override
@@ -468,6 +472,9 @@ public class CassandraAdapter implements DatabaseAdapter, CacheAdapter, Analysis
     @Override
     public Map<String, AverageCounter> getGroupByAverageCounters(String key, int limit) {
         Set<String> set = getSet(key + "::keys");
+        if(set==null) {
+            return null;
+        }
         HashMap<String, AverageCounter> stringLongHashMap = new HashMap<>(set.size());
         if(set==null) return null;
 

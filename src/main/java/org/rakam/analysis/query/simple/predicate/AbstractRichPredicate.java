@@ -1,11 +1,9 @@
 package org.rakam.analysis.query.simple.predicate;
 
-import org.rakam.model.Entry;
-
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/09/14 11:01.
  */
-abstract class AbstractRichPredicate<T extends Entry> implements RichPredicate<T> {
+abstract class AbstractRichPredicate implements RichPredicate {
     protected String attribute;
 
     public AbstractRichPredicate(String attribute) {

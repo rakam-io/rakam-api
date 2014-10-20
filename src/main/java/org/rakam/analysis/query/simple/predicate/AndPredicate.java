@@ -66,7 +66,7 @@ public class AndPredicate extends AbstractConnectorPredicate {
     }
 
     @Override
-    public boolean test(Object mapEntry) {
+    public boolean test(JsonObject mapEntry) {
         for (Predicate predicate : predicates) {
             if (!predicate.test(mapEntry)) {
                 return false;

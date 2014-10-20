@@ -7,7 +7,6 @@ import org.rakam.analysis.AnalysisRuleCrudHandler;
 import org.rakam.analysis.FilterRequestHandler;
 import org.rakam.collection.CollectionWorker;
 import org.rakam.util.JsonHelper;
-import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.java.core.json.DecodeException;
@@ -26,14 +25,13 @@ public class WebServer extends Verticle {
     private final RouteMatcher routeMatcher;
 
     public void start() {
-        kryo.register(JsonObject.class);
+        kryo.register(JsonObject.class, 10);
         vertx.createHttpServer().requestHandler(routeMatcher).listen(8888);
     }
 
     public WebServer() {
         routeMatcher = new RouteMatcher();
 
-        routeMatcher.get("/event", request -> sendRawEvent(request, CollectionWorker.collectEvent, JsonHelper.generate(request.params())));
         routeMatcher.post("/event", request -> {
             request.bodyHandler(buff -> {
                 String contentType = request.headers().get("Content-Type");
@@ -53,23 +51,17 @@ public class WebServer extends Verticle {
                 Output out = new Output(by);
                 kryo.writeObject(out, json);
 
-                vertx.eventBus().send(CollectionWorker.collectEvent, by.toByteArray(), (Message<JsonObject> event) -> {
-                    final Number status = json.getNumber("status");
-                    if(status!=null) {
-                        request.response().setStatusCode(status.shortValue());
-                    }
-
-                    vertx.eventBus().send(CollectionWorker.collectEvent, out.getBuffer(), (Message<byte[]> e) -> {
-                            String chunk = new String(e.body());
-                            request.response().end(chunk);
-                    });
+                vertx.eventBus().send(CollectionWorker.collectEvent, out.getBuffer(), (Message<byte[]> e) -> {
+                    String chunk = new String(e.body());
+                    request.response().end(chunk);
                 });
+
 
             });
         });
+        routeMatcher.get("/event", request -> sendRawEvent(request, CollectionWorker.collectEvent, JsonHelper.generate(request.params())));
 
         mapRequest("/actor", CollectionWorker.collectActor);
-        mapRequest("/analyze/timeseries/compute", AnalysisRequestHandler.EVENT_ANALYSIS_IDENTIFIER);
         mapRequest("/analyze", AnalysisRequestHandler.EVENT_ANALYSIS_IDENTIFIER);
         mapRequest("/filter/actor", FilterRequestHandler.EVENT_FILTER_IDENTIFIER);
         mapRequest("/filter/event", FilterRequestHandler.ACTOR_FILTER_IDENTIFIER);
@@ -152,10 +144,9 @@ public class WebServer extends Verticle {
         Output out = new Output(by);
         kryo.writeObject(out, json);
 
-        Handler<Message<byte[]>> replyHandler = (Message<byte[]> event) -> {
+        vertx.eventBus().send(address, out.getBuffer(), (Message<byte[]> event) -> {
             String chunk = new String(event.body());
             request.response().end(chunk);
-        };
-        vertx.eventBus().send(address, out.getBuffer(), replyHandler);
+        });
     }
 }

@@ -48,7 +48,7 @@ public class OrPredicate extends AbstractConnectorPredicate {
 
 
     @Override
-    public boolean test(Object mapEntry) {
+    public boolean test(JsonObject mapEntry) {
         for (Predicate predicate : predicates) {
             if (predicate.test(mapEntry)) {
                 return true;
