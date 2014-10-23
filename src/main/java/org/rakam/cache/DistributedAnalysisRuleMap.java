@@ -6,10 +6,11 @@ import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonObject;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.locks.StampedLock;
 
 /**
  * Created by buremba on 22/12/13.
@@ -19,14 +20,23 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
     public final static int ADD = 0;
     public final static int DELETE = 1;
     public final static int UPDATE_BATCH = 2;
+    final private static StampedLock stampedLock = new StampedLock();
 
-    static Map<String, Set<AnalysisRule>> map = new ConcurrentHashMap<>();
+    static Map<String, Set<AnalysisRule>> map = new HashMap<>();
 
     public static synchronized void merge(Map<String, Set<AnalysisRule>> rules) {
         rules.forEach((k, v) -> map.put(k, v));
     }
 
     public static Set<AnalysisRule> get(String project) {
+        if(stampedLock.tryOptimisticRead()==0) {
+            final long l = stampedLock.readLock();
+            try {
+                return map.get(project);
+            } finally {
+                stampedLock.unlockRead(l);
+            }
+        }
         return map.get(project);
     }
 
@@ -64,7 +74,7 @@ public class DistributedAnalysisRuleMap implements Handler<Message<JsonObject>> 
     @Override
     public void handle(Message<JsonObject> message) {
         JsonObject json = message.body();
-        String project = json.getString("tracking");
+        String project = json.getString("tracker");
 
         switch (json.getInteger("operation")) {
             case ADD:

@@ -117,9 +117,9 @@ object CassandraBatchProcessor {
       case (key, value) => {
         val prop = value.get("properties")
         if (prop == null)
-          new Actor(ByteBufferUtil.string(key.get("tracking")), ByteBufferUtil.string(key.get("id")))
+          new Actor(ByteBufferUtil.string(key.get("tracker")), ByteBufferUtil.string(key.get("id")))
         else
-          new Actor(ByteBufferUtil.string(key.get("tracking")), ByteBufferUtil.string(key.get("id")), ByteBufferUtil.string(prop))
+          new Actor(ByteBufferUtil.string(key.get("tracker")), ByteBufferUtil.string(key.get("id")), ByteBufferUtil.string(prop))
 
       }
     })

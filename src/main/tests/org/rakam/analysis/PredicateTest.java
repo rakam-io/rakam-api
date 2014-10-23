@@ -27,7 +27,7 @@ public class PredicateTest {
     public void ruleTest() {
         JsonObject json = new JsonObject("{\n" +
                 "  \"strategy\": \"REAL_TIME\",\n" +
-                "  \"tracking\": \"e74607921dad4803b998\",\n" +
+                "  \"tracker\": \"e74607921dad4803b998\",\n" +
                 "  \"analysis\": \"TIMESERIES\",\n" +
                 "  \"aggregation\": \"COUNT\",\n" +
                 "  \"interval\": \"1hour\",\n" +

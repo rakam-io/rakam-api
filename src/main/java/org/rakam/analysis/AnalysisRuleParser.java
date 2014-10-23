@@ -28,7 +28,7 @@ public class AnalysisRuleParser {
 
     public static AnalysisRule parse(JsonObject json) throws IllegalArgumentException {
         AnalysisRule rule;
-        String project = json.getString("tracking");
+        String project = json.getString("tracker");
         if (json.getString("analysis") == null)
             throw new IllegalArgumentException("analysis type is required.");
         Analysis analysisType;
@@ -38,7 +38,7 @@ public class AnalysisRuleParser {
             throw new IllegalAccessError("analysis type does not exist.");
         }
         if (project == null)
-            throw new IllegalArgumentException("tracking id is required.");
+            throw new IllegalArgumentException("tracker id is required.");
 
         if (analysisType == Analysis.ANALYSIS_TIMESERIES || analysisType == Analysis.ANALYSIS_METRIC) {
             FilterScript filter = getFilter(json.getObject("filter"));
@@ -142,6 +142,8 @@ public class AnalysisRuleParser {
                 }
             }
         }
+        if(to==null)
+            return null;
         return new Tuple(to, requiresUser);
     }
 
@@ -184,6 +186,8 @@ public class AnalysisRuleParser {
         }
 
         Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate(field);
+        if(predicateBooleanTuple==null)
+            return null;
         return new SimpleFilterScript(predicateBooleanTuple.v1(), predicateBooleanTuple.v2());
     }
 }

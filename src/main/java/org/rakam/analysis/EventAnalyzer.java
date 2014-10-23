@@ -764,7 +764,8 @@ public class EventAnalyzer {
                 keys.add(ending_point.current());
                 ending_point = ending_point.previous();
             }
-        } else if (items_obj != null) {
+        } else {
+            items = items!=null ? items : 20;
             final Interval.StatefulSpanTime cursor = period.spanCurrent();
             keys.add(cursor.current());
             Interval.StatefulSpanTime interval;
@@ -772,9 +773,9 @@ public class EventAnalyzer {
                 interval = cursor.previous();
                 keys.addFirst(interval.current());
             }
-        } else {
-            throw new IllegalArgumentException("time frame is invalid. usage: [start, end], [start, frame], [end, frame], [frame].");
         }
+//        throw new IllegalArgumentException("time frame is invalid. usage: [start, end], [start, frame], [end, frame], [frame].");
+
         return keys;
     }
 }

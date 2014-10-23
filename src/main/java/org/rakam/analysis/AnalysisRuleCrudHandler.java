@@ -41,20 +41,20 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         final JsonObject obj = event.body();
         String action = obj.getString("action");
         JsonObject request = obj.getObject("request");
-        String project = request.getString("tracking");
+        String project = request.getString("tracker");
         if (project == null) {
-            event.reply(new JsonObject().putString("error", "tracking parameter must be specified.").putNumber("status", 400));
+            event.reply(new JsonObject().putString("error", "tracker parameter must be specified.").putNumber("status", 400));
             return;
         }
 
         if (action.equals("add"))
             event.reply(add(request));
         else if(action.equals("list"))
-            event.reply(list(request.getString("tracking")));
+            event.reply(list(request.getString("tracker")));
         else if(action.equals("delete"))
             event.reply(delete(request.getObject("rule")));
         else if(action.equals("get"))
-            event.reply(get(request.getString("tracking"), request.getString("rule")));
+            event.reply(get(request.getString("tracker"), request.getString("rule")));
         else
             event.reply(new JsonObject().putString("error", "unknown endpoint. available endpoints: [add, list, delete, get]"));
     }
@@ -72,7 +72,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
 
         JsonObject request = new JsonObject()
                 .putNumber("operation", DistributedAnalysisRuleMap.DELETE)
-                .putString("tracking", rule.project).putObject("rule", rule.toJson())
+                .putString("tracker", rule.project).putObject("rule", rule.toJson())
                 .putNumber("timestamp", UTCTime());
 
         switch (rule.strategy) {
@@ -137,7 +137,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
             LOGGER.info("Processing the rule.");
             JsonObject request = new JsonObject()
                     .putNumber("operation", DistributedAnalysisRuleMap.ADD)
-                    .putString("tracking", rule.project).putObject("rule", obj)
+                    .putString("tracker", rule.project).putObject("rule", obj)
                     .putNumber("timestamp", UTCTime());
             ruleDatabaseAdapter.addRule(rule);
             switch (rule.strategy) {
@@ -166,7 +166,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
 
             LOGGER.info("Rule is processed.");
         });
-        ret.putString("status", "analysis rule successfully queued.");
+        ret.putString("message", "analysis rule successfully queued.");
         return ret;
     }
 
@@ -174,7 +174,7 @@ public class AnalysisRuleCrudHandler implements Handler<Message<JsonObject>> {
         rule.batch_status = true;
         vertx.eventBus().publish("aggregationRuleReplication", new JsonObject()
                 .putNumber("operation", DistributedAnalysisRuleMap.UPDATE_BATCH)
-                .putString("tracking", rule.project).putObject("rule", rule.toJson())
+                .putString("tracker", rule.project).putObject("rule", rule.toJson())
                 .putNumber("timestamp", UTCTime()));
     }
 }
