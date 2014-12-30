@@ -1,6 +1,6 @@
 package org.rakam.plugin;
 
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 /**
  * Created by buremba on 26/05/14.

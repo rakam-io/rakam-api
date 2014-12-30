@@ -2,7 +2,6 @@ package org.rakam.analysis.rule.aggregation;
 
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.cache.hazelcast.RakamDataSerializableFactory;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 
@@ -14,7 +13,7 @@ public class MetricAggregationRule extends AggregationRule {
 
     public MetricAggregationRule(String projectId, AggregationType type) {
         super(projectId, type, null);
-        if(type != AggregationType.COUNT) {
+        if (type != AggregationType.COUNT) {
             throw new IllegalArgumentException("select parameter must be provided.");
         }
     }
@@ -37,10 +36,5 @@ public class MetricAggregationRule extends AggregationRule {
     @Override
     public Analysis analysisType() {
         return TYPE;
-    }
-
-    @Override
-    public int getId() {
-        return RakamDataSerializableFactory.METRIC_AGGREGATION_RULE;
     }
 }

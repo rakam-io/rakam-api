@@ -14,19 +14,20 @@ public enum AggregationAnalysis {
     SELECT_UNIQUE_X(7);
 
     public final int id;
+
     AggregationAnalysis(int id) {
         this.id = id;
     }
 
-    public static AggregationAnalysis get(int id){
-        for (AggregationAnalysis a: AggregationAnalysis.values()) {
+    public static AggregationAnalysis get(int id) {
+        for (AggregationAnalysis a : AggregationAnalysis.values()) {
             if (a.id == id)
                 return a;
         }
         throw new IllegalArgumentException("Invalid id");
     }
 
-    public static AggregationAnalysis get(String name){
+    public static AggregationAnalysis get(String name) {
         name = name.toUpperCase();
         return AggregationAnalysis.valueOf(name);
     }

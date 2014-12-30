@@ -7,6 +7,7 @@ public class FilterPredicates {
     public static RichPredicate eq(String attr, Object o) {
         return new EqualPredicate(attr, o);
     }
+
     public static RichPredicate ne(String attr, Object o) {
         return new NegatePredicate(eq(attr, o));
     }

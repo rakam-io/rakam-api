@@ -1,6 +1,6 @@
 package org.rakam.analysis.query;
 
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 import java.io.Serializable;
 
@@ -9,7 +9,10 @@ import java.io.Serializable;
  */
 public interface FieldScript<T> extends Serializable {
     public abstract T extract(JsonObject event, JsonObject user);
+
     public abstract boolean contains(JsonObject obj, JsonObject user);
+
     public abstract boolean requiresUser();
+
     <Val> Val toJson();
 }

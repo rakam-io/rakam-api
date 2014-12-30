@@ -1,153 +1,110 @@
 package org.rakam.server;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Output;
-import org.rakam.analysis.AnalysisRequestHandler;
-import org.rakam.analysis.AnalysisRuleCrudHandler;
+import akka.routing.RoundRobinRoutingLogic;
+import akka.routing.Routee;
+import akka.routing.RoutingLogic;
+import akka.routing.SeveralRoutees;
+import com.google.inject.Injector;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.AnalysisRuleCrudService;
+import org.rakam.analysis.AnalysisRuleMap;
+import org.rakam.analysis.EventAnalyzer;
 import org.rakam.analysis.FilterRequestHandler;
-import org.rakam.collection.CollectionWorker;
+import org.rakam.analysis.HttpService;
+import org.rakam.collection.actor.ActorCollector;
+import org.rakam.collection.event.EventCollector;
+import org.rakam.server.http.CustomHttpRequest;
 import org.rakam.util.JsonHelper;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.http.HttpServerRequest;
-import org.vertx.java.core.json.DecodeException;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.platform.Verticle;
+import org.rakam.util.json.DecodeException;
+import org.rakam.util.json.JsonObject;
+import scala.collection.immutable.IndexedSeq;
 
-import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+
+import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
 
 /**
  * Created by buremba on 20/12/13.
  */
 
 
-public class WebServer extends Verticle {
-    Kryo kryo = new Kryo();
-    private final RouteMatcher routeMatcher;
+public class WebServer {
+    public final RouteMatcher routeMatcher;
+    private final EventCollector eventCollector;
+    private final EventAnalyzer eventAnalyzer;
+    private final Executor executor;
+    private final ActorCollector actorCollector;
+    private final FilterRequestHandler filterRequestHandler;
 
-    public void start() {
-        kryo.register(JsonObject.class, 10);
-        vertx.createHttpServer().requestHandler(routeMatcher).listen(8888);
-    }
-
-    public WebServer() {
+    public WebServer(Injector injector, AnalysisRuleMap analysisRuleMap, ExecutorService executor) {
+        eventCollector = new EventCollector(injector, analysisRuleMap);
+        eventAnalyzer = new EventAnalyzer(injector, analysisRuleMap);
+        filterRequestHandler = new FilterRequestHandler(injector);
+        actorCollector = new ActorCollector(injector);
         routeMatcher = new RouteMatcher();
+        this.executor = executor;
 
-        routeMatcher.post("/event", request -> {
+        routeMatcher.add(HttpMethod.POST, "/event", request -> {
             request.bodyHandler(buff -> {
-                String contentType = request.headers().get("Content-Type");
-                final JsonObject json;
-                if ("application/json".equals(contentType)) {
+
+                CompletableFuture.supplyAsync(() -> {
+                    JsonObject json = null;
                     try {
-                        json = new JsonObject(buff.toString());
+                        json = new JsonObject(buff);
                     } catch (DecodeException e) {
-                        returnError(request, "json couldn't decoded.", 401);
-                        return;
+                        request.response("0");
                     }
-                } else {
-                    returnError(request, "content type must be one of [application/json]", 400);
-                    return;
-                }
-                ByteArrayOutputStream by = new ByteArrayOutputStream();
-                Output out = new Output(by);
-                kryo.writeObject(out, json);
-
-                vertx.eventBus().send(CollectionWorker.collectEvent, out.getBuffer(), (Message<byte[]> e) -> {
-                    String chunk = new String(e.body());
-                    request.response().end(chunk);
-                });
-
-
+                    return eventCollector.submitEvent(json);
+                }, executor)
+                        .thenAccept(result -> request.response(result ? "1" : "0").end());
             });
         });
-        routeMatcher.get("/event", request -> sendRawEvent(request, CollectionWorker.collectEvent, JsonHelper.generate(request.params())));
-
-        mapRequest("/actor", CollectionWorker.collectActor);
-        mapRequest("/analyze", AnalysisRequestHandler.EVENT_ANALYSIS_IDENTIFIER);
-        mapRequest("/filter/actor", FilterRequestHandler.EVENT_FILTER_IDENTIFIER);
-        mapRequest("/filter/event", FilterRequestHandler.ACTOR_FILTER_IDENTIFIER);
-
-        mapRequestStartsWith("/analysis_rule/", AnalysisRuleCrudHandler.IDENTIFIER);
-
-        routeMatcher.noMatch(request -> request.response().setStatusCode(404).end("404"));
-    }
-
-    private void mapRequest(String path, String event) {
-        routeMatcher.get(path, request -> sendGetEvent(request, event));
-        routeMatcher.post(path, request -> sendPostEvent(request, event, null));
-    }
-
-    private void mapRequestStartsWith(String path, String event) {
-        routeMatcher.getStartsWith(path, request -> {
-            final String action = request.path().substring(path.length());
-            JsonObject json = new JsonObject().putObject("request", JsonHelper.generate(request.params())).putString("action", action);
-            sendEvent(request, event, json);
+        routeMatcher.add(HttpMethod.GET, "/event", request -> {
+            final JsonObject json = JsonHelper.generate(request.params());
+            CompletableFuture.supplyAsync(() -> eventCollector.submitEvent(json), executor)
+                    .thenAccept(result -> request.response(result ? "1" : "0").end());
         });
-        routeMatcher.postStartsWith(path, request -> {
-            final String action = request.path().substring(path.length());
-            sendPostEvent(request, event, new JsonObject().putString("action", action));
-        });
+
+        mapRequest("/analyze", json -> eventAnalyzer.analyze(json), o -> ((JsonObject) o).encode());
+        mapRequest("/actor", json -> actorCollector.handle(json), o -> o.toString());
+
+        mapRequest("/filter/event", json -> filterRequestHandler.filterEvents(json), o -> ((JsonObject) o).encode());
+
+        registerRoutes(new AnalysisRuleCrudService(injector, analysisRuleMap));
     }
 
-    private void sendPostEvent(HttpServerRequest request, final String address, JsonObject container) {
-        request.bodyHandler(buff -> {
-            String contentType = request.headers().get("Content-Type");
-            final JsonObject json;
-            if ("application/json".equals(contentType)) {
-                try {
-                    json = new JsonObject(buff.toString());
-                } catch (DecodeException e) {
-                    returnError(request, "json couldn't decoded.", 401);
-                    return;
-                }
-            } else {
-                returnError(request, "content type must be one of [application/json]", 400);
-                return;
-            }
-            vertx.eventBus().send(address, container!=null ? container.putObject("request", json) : json, (Message<JsonObject> event) -> {
-                Boolean debug = json.getBoolean("_debug");
-                final JsonObject body = event.body();
-                final Number status = body.getNumber("status");
-                if(status!=null) {
-                    request.response().setStatusCode(status.shortValue());
-                }
-                request.response().end(debug != null && debug ? body.encodePrettily() : body.encode());
-            });
+    private void registerRoutes(HttpService service)  {
+        final MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(service.getEndPoint(), routeMatcher);
+        service.register(microRouteMatcher);
+    }
 
+    private void mapRequest(String path, Function<JsonObject, Object> supplier, Function<Object, String> resultFunc) {
+        routeMatcher.add(HttpMethod.GET, path, (request) -> {
+            final JsonObject json = JsonHelper.generate(request.params());
+            CompletableFuture.supplyAsync(() -> supplier.apply(json), executor)
+                    .thenAccept(result -> request.response(resultFunc.apply(result)).end());
+        });
+
+        routeMatcher.add(HttpMethod.POST, path, (request) -> {
+            final JsonObject json = JsonHelper.generate(request.params());
+            CompletableFuture.supplyAsync(() -> supplier.apply(json), executor)
+                    .thenAccept(result -> request.response(resultFunc.apply(result)).end());
         });
     }
 
-    private void returnError(HttpServerRequest httpServerRequest, String message, Integer statusCode) {
+    private void returnError(CustomHttpRequest request, String message, Integer statusCode) {
         JsonObject obj = new JsonObject();
         obj.putString("error", message);
         obj.putNumber("error_code", statusCode);
-        httpServerRequest.response().setStatusCode(statusCode);
-        httpServerRequest.response().putHeader("Content-Type", "application/json; charset=utf-8");
-        httpServerRequest.response().end(obj.encode());
+
+        request.response(obj.encode(), HttpResponseStatus.valueOf(statusCode))
+                .headers().set("Content-Type", "application/json; charset=utf-8");
     }
 
-    private void sendGetEvent(HttpServerRequest request, final String address) {
-        sendEvent(request, address, JsonHelper.generate(request.params()));
-    }
-
-    private void sendEvent(final HttpServerRequest request, final String address, final JsonObject json) {
-        vertx.eventBus().send(address, json, (Message<JsonObject> event) -> {
-            final String debug = json.getString("_debug");
-            final Number status = json.getNumber("status");
-            if(status!=null) {
-                request.response().setStatusCode(status.shortValue());
-            }
-            request.response().end(debug != null && debug.equals("true") ? event.body().encodePrettily() : event.body().encode());
-        });
-    }
-
-    public void sendRawEvent(final HttpServerRequest request, final String address, final JsonObject json) {
-        ByteArrayOutputStream by = new ByteArrayOutputStream();
-        Output out = new Output(by);
-        kryo.writeObject(out, json);
-
-        vertx.eventBus().send(address, out.getBuffer(), (Message<byte[]> event) -> {
-            String chunk = new String(event.body());
-            request.response().end(chunk);
-        });
-    }
 }

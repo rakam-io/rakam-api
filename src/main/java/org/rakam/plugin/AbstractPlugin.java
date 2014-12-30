@@ -5,7 +5,10 @@ package org.rakam.plugin;
  */
 interface AbstractPlugin {
     public String name();
+
     public String description();
+
     public void onModule();
+
     public void onDestroy();
 }

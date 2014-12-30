@@ -13,20 +13,21 @@ public enum AggregationType {
     AVERAGE_X(6);
 
     public final int id;
+
     AggregationType(int id) {
         this.id = id;
     }
 
-    public static AggregationType get(int id){
-        for (AggregationType a: AggregationType.values()) {
+    public static AggregationType get(int id) {
+        for (AggregationType a : AggregationType.values()) {
             if (a.id == id)
                 return a;
         }
         throw new IllegalArgumentException("Invalid id");
     }
 
-    public static AggregationType get(String name){
-        if(name!=null)
+    public static AggregationType get(String name) {
+        if (name != null)
             name = name.toUpperCase();
         return AggregationType.valueOf(name);
     }

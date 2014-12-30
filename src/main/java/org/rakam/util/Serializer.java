@@ -12,19 +12,17 @@ public class Serializer {
     public static ByteBuffer serialize(Collection<String> list) {
 
         int size = 0;
-        for (String elt : list)
-        {
+        for (String elt : list) {
             size += 2 + ByteBufferUtil.bytes(elt).remaining();
         }
 
         ByteBuffer result = ByteBuffer.allocate(2 + size);
-        result.putShort((short)list.size());
-        for (String bb : list)
-        {
+        result.putShort((short) list.size());
+        for (String bb : list) {
             ByteBuffer b = ByteBufferUtil.bytes(bb);
-            result.putShort((short)b.remaining());
+            result.putShort((short) b.remaining());
             result.put(b.duplicate());
         }
-        return (ByteBuffer)result.flip();
+        return (ByteBuffer) result.flip();
     }
 }

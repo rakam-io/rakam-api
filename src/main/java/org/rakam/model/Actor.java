@@ -1,6 +1,6 @@
 package org.rakam.model;
 
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 /**
  * Created by buremba on 21/12/13.
@@ -30,6 +30,6 @@ public class Actor implements Entry {
     }
 
     public <T> T getAttribute(String attr) {
-        return data==null ? null : data.getField(attr);
+        return data == null ? null : data.getField(attr);
     }
 }

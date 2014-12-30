@@ -1,6 +1,6 @@
 package org.rakam.model;
 
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 import java.util.UUID;
 

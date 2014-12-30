@@ -2,15 +2,13 @@ package org.rakam.analysis;
 
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.cache.hazelcast.hyperloglog.HLLWrapper;
-import org.rakam.cache.local.LocalCacheAdapter;
+import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.DatabaseAdapter;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
-import org.rakam.util.HLLWrapperImpl;
 import org.rakam.util.NotImplementedException;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,14 +18,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.Future;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 19/09/14 14:00.
  */
-public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter, AnalysisRuleDatabase  {
+public class DummyDatabase implements DatabaseAdapter, AnalysisRuleDatabase, ActorCacheAdapter {
     static Map<String, Set<AnalysisRule>> ruleMap = new HashMap();
 
     static Map<String, Map<String, Actor>> actors = new ConcurrentHashMap<>();
@@ -58,12 +57,12 @@ public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter,
 
     @Override
     public void flushDatabase() {
-        flush();
+
     }
 
     @Override
-    public Actor createActor(String project, String actor_id, Map<String, Object> properties) {
-        Actor value = new Actor(project, actor_id, properties!=null ? new JsonObject(properties): null);
+    public Actor createActor(String project, String actor_id, JsonObject properties) {
+        Actor value = new Actor(project, actor_id, properties!=null ? properties: null);
         actors.computeIfAbsent(project, k -> new HashMap<>())
                 .put(actor_id, value);
         return value;
@@ -81,8 +80,9 @@ public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter,
     }
 
     @Override
-    public void addEvent(String project, String actor_id, JsonObject data) {
-        events.computeIfAbsent(project, k -> new LinkedList()).add(new Event(UUID.randomUUID(), project, actor_id, data));
+    public Future addEventAsync(String project, String actor_id, JsonObject data) {
+        return CompletableFuture.supplyAsync(() ->
+                events.computeIfAbsent(project, k -> new LinkedList()).add(new Event(UUID.randomUUID(), project, actor_id, data)));
     }
 
     @Override
@@ -101,73 +101,8 @@ public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter,
     }
 
     @Override
-    public void incrementCounter(String key, long increment) {
-        counters.computeIfAbsent(key, k -> new AtomicLong()).addAndGet(increment);
-    }
-
-    @Override
-    public void setCounter(String s, long target) {
-        AtomicLong atomicLong = counters.get(s);
-        if(atomicLong==null) {
-            counters.put(s, new AtomicLong(target));
-        }else {
-            atomicLong.set(target);
-        }
-    }
-
-    @Override
-    public void addSet(String setName, String item) {
-        super.addSet(setName, item);
-    }
-
-    @Override
-    public void removeSet(String setName) {
-        super.removeSet(setName);
-    }
-
-    @Override
-    public void removeCounter(String setName) {
-        super.removeCounter(setName);
-    }
-
-    @Override
-    public Long getCounter(String key) {
-        return super.getCounter(key);
-    }
-
-    @Override
-    public int getSetCount(String key) {
-        return super.getSetCount(key);
-    }
-
-    @Override
     public Map<String, Long> getCounters(Collection<String> keys) {
-        HashMap<String, Long> map = new HashMap<String, Long>(keys.size());
-        for (String key : keys) {
-            map.put(key, counters.get(key).longValue());
-        }
-        return map;
-    }
-
-    @Override
-    public Set<String> getSet(String key) {
-        return super.getSet(key);
-    }
-
-    @Override
-    public void incrementCounter(String key) {
-        super.incrementCounter(key);
-    }
-
-    @Override
-    public void addSet(String setName, Collection<String> items) {
-        super.addSet(setName, items);
-    }
-
-    @Override
-    public void flush() {
-        actors.clear();
-        events.clear();
+        return null;
     }
 
     @Override
@@ -215,12 +150,17 @@ public class DummyDatabase extends LocalCacheAdapter implements DatabaseAdapter,
     }
 
     @Override
-    public HLLWrapper createHLLFromSets(String... keys) {
-        HLLWrapperImpl hllWrapper = new HLLWrapperImpl();
-        for (String key : keys) {
-            getSet(key).forEach(hllWrapper::add);
-        }
-        return hllWrapper;
+    public CompletableFuture<JsonObject> getActorProperties(String project, String actor_id) {
+        return null;
     }
 
+    @Override
+    public void addActorProperties(String project, String actor_id, JsonObject properties) {
+
+    }
+
+    @Override
+    public void setActorProperties(String project, String actor_id, JsonObject properties) {
+
+    }
 }

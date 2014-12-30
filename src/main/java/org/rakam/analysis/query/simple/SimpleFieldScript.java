@@ -1,7 +1,7 @@
 package org.rakam.analysis.query.simple;
 
 import org.rakam.analysis.query.FieldScript;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 /**
  * Created by buremba on 04/05/14.
@@ -45,8 +45,8 @@ public class SimpleFieldScript<T> implements FieldScript<T> {
     @Override
     public T extract(JsonObject event, JsonObject user) {
         if (userData != null)
-            return user == null ? null : user.getField(userData);
-        return event.getField(fieldKey);
+            return user == null ? null : (T) user.getValue(userData);
+        return (T) event.getValue(fieldKey);
     }
 
     @Override

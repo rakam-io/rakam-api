@@ -7,7 +7,7 @@ Please note that it’s currently under development and not ready for production
 Requirements
 ------------
 * Vert.x 2.x
-* Hazelcast 3.x
+* Kume
 * Cassandra 2.x
 
 Features / Goals
