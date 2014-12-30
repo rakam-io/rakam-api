@@ -5,7 +5,7 @@ import org.mvel2.ParserConfiguration;
 import org.mvel2.ParserContext;
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.util.UnboxedMathUtils;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -20,6 +20,7 @@ public class MVELFieldScript implements FieldScript {
     private final String script;
 
     private final static ParserConfiguration parserConfiguration = new ParserConfiguration();
+
     static {
         parserConfiguration.addPackageImport("java.util");
         parserConfiguration.addImport("time", MVEL.getStaticMethod(System.class, "currentTimeMillis", new Class[0]));
@@ -65,7 +66,7 @@ public class MVELFieldScript implements FieldScript {
 
     @Override
     public Object extract(JsonObject event, JsonObject user) {
-        if(userData) {
+        if (userData) {
             event.mergeIn(user);
         }
         return MVEL.executeExpression(compiledScript, event);
@@ -73,6 +74,6 @@ public class MVELFieldScript implements FieldScript {
 
     @Override
     public boolean contains(JsonObject event, JsonObject user) {
-        return extract(event,user)!=null;
+        return extract(event, user) != null;
     }
 }

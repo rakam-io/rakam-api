@@ -18,33 +18,12 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <!-- Set pullInDeps to true if you want any modules specified in the 'includes' and 'deploys' fields
-        in your mod.json to be automatically pulled in during packaging and added inside your module. Doing this means your
-        module won't download and install those dependencies at extract-time when they're first requested. -->
-        <vertx.pullInDeps>false</vertx.pullInDeps>
-
-        <!-- Set createFatJar to true if you want to create a fat executable jar which contains the Vert.x binaries
-        along with the module so it can be extract with java -jar <jarname> -->
-        <vertx.createFatJar>false</vertx.createFatJar>
-
-        <!--Vertx module name-->
-        <module.name>${project.groupId}~${project.artifactId}~${project.version}</module.name>
-
-        <!-- The directory where the module will be assembled - you can override this on the command line
-        with -Dmods.directory=mydir -->
-        <mods.directory>target/mods</mods.directory>
-
-        <!--Dependency versions-->
-        <vertx.version>2.1.1</vertx.version>
-        <vertx.testtools.version>2.1.1</vertx.testtools.version>
         <junit.version>4.11</junit.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
         <maven.resources.plugin.version>2.6</maven.resources.plugin.version>
         <maven.clean.plugin.version>2.5</maven.clean.plugin.version>
-        <maven.vertx.plugin.version>2.0.1-final</maven.vertx.plugin.version>
         <maven.surefire.plugin.version>2.14</maven.surefire.plugin.version>
         <maven.failsafe.plugin.version>2.14</maven.failsafe.plugin.version>
         <maven.surefire.report.plugin.version>2.14</maven.surefire.report.plugin.version>
@@ -53,27 +32,6 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-core</artifactId>
-            <version>${vertx.version}</version>
-            <scope>compile</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-hazelcast</artifactId>
-            <version>${vertx.version}</version>
-            <scope>compile</scope>
-        </dependency>
-
-
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-platform</artifactId>
-            <version>${vertx.version}</version>
-            <scope>compile</scope>
-        </dependency>
 
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -86,13 +44,6 @@
             <artifactId>hll</artifactId>
             <version>1.5.1</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <version>1.2.3</version>
-        </dependency>
-
         <!--Test dependencies-->
         <dependency>
             <groupId>junit</groupId>
@@ -139,130 +90,50 @@
             <version>2.1.9.Final</version>
         </dependency>
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>testtools</artifactId>
-            <version>2.1.0-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12-SNAPSHOT</version>
         </dependency>
-
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.0.23.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec</artifactId>
+            <version>4.0.23.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor_2.11</artifactId>
+            <version>2.3.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-contrib_2.11</artifactId>
+            <version>2.3.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb</artifactId>
+            <version>1.0.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hazelcast</groupId>
+            <artifactId>hazelcast</artifactId>
+            <version>3.4-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.hazelcast</groupId>
+            <artifactId>hazelcast</artifactId>
+            <version>3.4-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
 
-            <!-- The vert.x Maven plugin -->
-            <plugin>
-                <groupId>io.vertx</groupId>
-                <artifactId>vertx-maven-plugin</artifactId>
-                <version>${maven.vertx.plugin.version}</version>
-                <!--
-                You can specify extra config to the plugin as required here
-                <configuration>
-                   <configFile>/path/to/MyVerticle.conf</configFile>
-                   <instances>1</instances>
-                   <classpath>src/main/resources/:src/test/resources/:target/classes/:target/test-classes/</classpath>
-                </configuration>
-                -->
-                <executions>
-                    <execution>
-                        <id>PullInDeps</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>pullInDeps</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Other plugins required by the build -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>${maven.resources.plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>copy-mod-to-target</id>
-                        <phase>process-classes</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <overwrite>true</overwrite>
-                            <outputDirectory>${mods.directory}/${module.name}</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>target/classes</directory>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>${maven.dependency.plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>copy-mod-dependencies-to-target</id>
-                        <phase>process-classes</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${mods.directory}/${module.name}/lib</outputDirectory>
-                            <includeScope>runtime</includeScope>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>${maven.surefire.plugin.version}</version>
-                <configuration>
-                    <includes>
-                        <include>**/unit/*Test*.java</include>
-                    </includes>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <version>${maven.failsafe.plugin.version}</version>
-                <configuration>
-                    <systemProperties>
-                        <property>
-                            <name>vertx.mods</name>
-                            <value>${mods.directory}</value>
-                        </property>
-                    </systemProperties>
-                    <includes>
-                        <include>**/integration/**</include>
-                    </includes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -351,14 +222,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-report-plugin</artifactId>
                 <version>${maven.surefire.report.plugin.version}</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven.javadoc.plugin.version}</version>
-                <configuration>
-                    <aggregate>true</aggregate>
-                </configuration>
             </plugin>
         </plugins>
     </reporting>

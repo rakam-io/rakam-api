@@ -10,12 +10,13 @@ public enum Analysis {
     ANALYSIS_TIMESERIES(1);
 
     public final int id;
+
     Analysis(int id) {
         this.id = id;
     }
 
-    public static Analysis get(int id){
-        for (Analysis a: Analysis.values()) {
+    public static Analysis get(int id) {
+        for (Analysis a : Analysis.values()) {
             if (a.id == id)
                 return a;
         }
@@ -23,8 +24,8 @@ public enum Analysis {
     }
 
     public static Analysis get(String name) {
-        if(name!=null)
+        if (name != null)
             name = name.toUpperCase();
-        return Analysis.valueOf("ANALYSIS_"+name);
+        return Analysis.valueOf("ANALYSIS_" + name);
     }
 }

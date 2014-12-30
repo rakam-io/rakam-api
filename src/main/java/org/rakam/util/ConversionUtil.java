@@ -5,7 +5,7 @@ package org.rakam.util;
  */
 public class ConversionUtil {
     public static Long toLong(Object expectInt, Long elseInt) throws IllegalArgumentException {
-        if (expectInt!=null) {
+        if (expectInt != null) {
             if (expectInt instanceof Number)
                 return ((Number) expectInt).longValue();
             else

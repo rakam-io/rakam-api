@@ -24,7 +24,7 @@ import org.rakam.constant.AggregationType._
 import org.rakam.constant.Analysis
 import org.rakam.model.{Actor, Event}
 import org.rakam.util.{ConversionUtil, Serializer}
-import org.vertx.java.core.json.JsonObject
+import org.rakam.util.json.JsonObject
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer

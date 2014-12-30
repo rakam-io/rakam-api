@@ -5,7 +5,7 @@ import org.mvel2.ParserConfiguration;
 import org.mvel2.ParserContext;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.util.UnboxedMathUtils;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -16,6 +16,7 @@ import java.lang.reflect.Modifier;
  */
 public class MVELFilterScript implements FilterScript {
     private final static ParserConfiguration parserConfiguration = new ParserConfiguration();
+
     static {
         parserConfiguration.addPackageImport("java.util");
         parserConfiguration.addImport("time", MVEL.getStaticMethod(System.class, "currentTimeMillis", new Class[0]));
@@ -25,6 +26,7 @@ public class MVELFilterScript implements FilterScript {
             }
         }
     }
+
     private final Serializable compiledScript;
     private final String script;
     private final boolean requiresUser;
@@ -38,7 +40,7 @@ public class MVELFilterScript implements FilterScript {
     @Override
     public boolean test(JsonObject obj) {
         Object ret = MVEL.executeExpression(script, obj);
-        return ret!=null && !ret.equals(false);
+        return ret != null && !ret.equals(false);
     }
 
     @Override
@@ -47,7 +49,7 @@ public class MVELFilterScript implements FilterScript {
     }
 
     @Override
-    public org.vertx.java.core.json.JsonElement toJson() {
+    public org.rakam.util.json.JsonElement toJson() {
         return new JsonObject().putString("script", script);
     }
 }

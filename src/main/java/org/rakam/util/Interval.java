@@ -9,7 +9,7 @@ import java.time.ZoneOffset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.rakam.util.DateUtil.UTCTime;
+import static org.rakam.util.TimeUtil.UTCTime;
 
 /**
  * Created by buremba on 21/12/13.
@@ -17,6 +17,7 @@ import static org.rakam.util.DateUtil.UTCTime;
 
 public abstract class Interval {
     final static Pattern parser = Pattern.compile("^([0-9]+)([a-z]+)s?$");
+
     public abstract StatefulSpanTime span(int time);
 
     public StatefulSpanTime spanCurrent() {
@@ -24,6 +25,7 @@ public abstract class Interval {
     }
 
     public abstract boolean isDivisible(Interval interval);
+
     public abstract Object toJson();
 
     public abstract long divide(Interval interval);
@@ -31,20 +33,26 @@ public abstract class Interval {
     public static Interval parse(String str) throws IllegalArgumentException {
         Matcher match = parser.matcher(str);
         if (match.find()) {
-                int num = Integer.parseInt(match.group(1));
-                switch (match.group(2)) {
-                    case "months":
-                        return new MonthSpan(Period.ofMonths(num));
-                    case "weeks":
-                        return new TimeSpan(Duration.ofDays(7 * num));
-                    case "days":
-                        return new TimeSpan(Duration.ofDays(num));
-                    case "hours":
-                        return new TimeSpan(Duration.ofHours(num));
-                    case "minutes":
-                        return new TimeSpan(Duration.ofMinutes( num));
-                }
+            int num = Integer.parseInt(match.group(1));
+            // TODO: switch to String.indexOf
+            switch (match.group(2)) {
+                case "months":
+                case "month":
+                    return new MonthSpan(Period.ofMonths(num));
+                case "weeks":
+                case "week":
+                    return new TimeSpan(Duration.ofDays(7 * num));
+                case "day":
+                case "days":
+                    return new TimeSpan(Duration.ofDays(num));
+                case "hours":
+                case "hour":
+                    return new TimeSpan(Duration.ofHours(num));
+                case "minutes":
+                case "minute":
+                    return new TimeSpan(Duration.ofMinutes(num));
             }
+        }
         throw new IllegalArgumentException("couldn't parse interval string. usage [*month, *week, *day, *hour, *minute], ");
     }
 
@@ -75,10 +83,10 @@ public abstract class Interval {
 
         @Override
         public boolean isDivisible(Interval interval) {
-            if(interval instanceof MonthSpan) {
+            if (interval instanceof MonthSpan) {
                 return period.toTotalMonths() % ((MonthSpan) interval).period.toTotalMonths() == 0;
             }
-            if(interval instanceof TimeSpan) {
+            if (interval instanceof TimeSpan) {
                 return new TimeSpan(Duration.ofDays(1)).isDivisible(interval);
             }
             return false;
@@ -86,12 +94,12 @@ public abstract class Interval {
 
         @Override
         public Object toJson() {
-            return period.toTotalMonths()+"months";
+            return period.toTotalMonths() + "months";
         }
 
         @Override
         public long divide(Interval interval) {
-            if(interval instanceof MonthSpan) {
+            if (interval instanceof MonthSpan) {
                 return period.toTotalMonths() % ((MonthSpan) interval).period.toTotalMonths();
             }
             throw new IllegalArgumentException();
@@ -103,7 +111,7 @@ public abstract class Interval {
 
         public class StatefulMonthSpan implements StatefulSpanTime, Serializable {
             private LocalDateTime cursor;
-            private final static int DAY = 24*60*60;
+            private final static int DAY = 24 * 60 * 60;
 
 
             public StatefulMonthSpan(int cursor) {
@@ -134,7 +142,6 @@ public abstract class Interval {
                 cursor = cursor.minus(period);
                 return this;
             }
-
 
 
         }
@@ -177,7 +184,7 @@ public abstract class Interval {
 
         @Override
         public boolean isDivisible(Interval interval) {
-            if(interval instanceof TimeSpan) {
+            if (interval instanceof TimeSpan) {
                 return period % ((TimeSpan) interval).period == 0;
             }
             return false;
@@ -187,23 +194,23 @@ public abstract class Interval {
         public Object toJson() {
             StringBuilder str = new StringBuilder();
             int p = period;
-            if(p >= 86400) {
-                str.append(p/86400+"days");
-                p = period%86400;
+            if (p >= 86400) {
+                str.append(p / 86400 + "days");
+                p = period % 86400;
             }
 
-            if(p >= 3600) {
-                str.append(p/3600+"hours");
-                p = period%3600;
+            if (p >= 3600) {
+                str.append(p / 3600 + "hours");
+                p = period % 3600;
             }
 
-            if(p >= 60) {
-                str.append(p/60+"minutes");
-                p = period%60;
+            if (p >= 60) {
+                str.append(p / 60 + "minutes");
+                p = period % 60;
             }
 
-            if(p > 0) {
-                str.append(p+"seconds");
+            if (p > 0) {
+                str.append(p + "seconds");
             }
 
             return str.toString();
@@ -211,8 +218,8 @@ public abstract class Interval {
 
         @Override
         public long divide(Interval interval) {
-            if(interval instanceof TimeSpan) {
-                return period % ((TimeSpan) interval).period;
+            if (interval instanceof TimeSpan && this.isDivisible(interval)) {
+                return period / ((TimeSpan) interval).period;
             }
             throw new IllegalStateException();
         }
@@ -246,8 +253,11 @@ public abstract class Interval {
 
     public interface StatefulSpanTime {
         abstract public long untilTimeFrame(int frame);
+
         abstract public int current();
+
         abstract public StatefulSpanTime next();
+
         abstract public StatefulSpanTime previous();
     }
 }

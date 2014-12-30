@@ -1,22 +1,14 @@
 package org.rakam.analysis;
 
-import org.junit.Before;
 import org.junit.Test;
-import org.rakam.RakamTestHelper;
 import org.rakam.analysis.query.simple.SimpleFieldScript;
 import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
-import org.rakam.cache.DistributedAnalysisRuleMap;
-import org.rakam.cache.DistributedCacheAdapter;
-import org.rakam.cache.local.LocalCacheAdapter;
-import org.rakam.collection.EventAggregator;
-import org.rakam.collection.PeriodicCollector;
 import org.rakam.constant.AggregationAnalysis;
-import org.rakam.database.DatabaseAdapter;
-import org.rakam.util.ConversionUtil;
 import org.rakam.util.Interval;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonArray;
+import org.rakam.util.json.JsonObject;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -35,13 +27,7 @@ import static org.rakam.constant.AggregationType.UNIQUE_X;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 2/10/14 02:31.
  */
-public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
-    LocalCacheAdapter localStorageAdapter = new LocalCacheAdapter();
-    DistributedCacheAdapter cacheAdapter = new FakeDistributedCacheAdapter();
-    DatabaseAdapter databaseAdapter = new DummyDatabase();
-    EventAggregator eventAggregator = new EventAggregator(localStorageAdapter, cacheAdapter, databaseAdapter);
-    PeriodicCollector collector = new PeriodicCollector(localStorageAdapter, cacheAdapter, databaseAdapter);
-    EventAnalyzer eventAnalyzer = new EventAnalyzer(cacheAdapter, databaseAdapter);
+public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
 
     private static final Interval TWO_DAYS = Interval.parse("2day");
     private static final Interval ONE_DAY = Interval.parse("1day");
@@ -52,25 +38,25 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         assertTrue("query result must contain at least one frame.", actualResult.size()>0);
 
         Map<String, List<String>> result = actualResult.getFieldNames().stream()
-                .collect(Collectors.groupingBy(x -> interval.span((int) (ConversionUtil.toLong(x) / 1000)).current() + "000"));
+                .collect(Collectors.groupingBy(x -> interval.span((int) ZonedDateTime.parse(x).toEpochSecond()).current() + "000"));
         result.forEach((key, items) -> {
             JsonObject grouped = new JsonObject();
             for (String item : items) {
-                actualResult.getObject(item).toMap()
-                        .forEach((actualKey, actualVal) -> {
-                            if (!grouped.containsField(actualKey)) {
-                                grouped.putNumber(actualKey, (Number) actualVal);
-                            } else {
-                                grouped.putNumber(actualKey, function.apply(grouped.getLong(actualKey), (long) actualVal));
-                            }
-                        });
+                actualResult.getObject(item).toMap().forEach((actualKey, actualVal) -> {
+                    if (!grouped.containsField(actualKey)) {
+                        grouped.putNumber(actualKey, (Number) actualVal);
+                    } else {
+                        grouped.putNumber(actualKey, function.apply(grouped.getLong(actualKey), (long) actualVal));
+                    }
+                });
             }
 
             final StringBuilder errMessage = new StringBuilder();
             errMessage.append(String.format("merged timestamp: %s keys:", key));
             items.forEach(x -> errMessage.append(" [" + x + ":" + actualResult.getObject(x) + "]"));
             errMessage.append("}");
-            assertEquals(errMessage.toString(), grouped, mergedResult.getObject(key));
+            JsonObject m = mergedResult.getObject(formatTime((int) (Long.parseLong(key)/1000)));
+            assertEquals(errMessage.toString(), grouped, m);
         });
 
     }
@@ -80,7 +66,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT, ONE_DAY, null, null, new SimpleFieldScript<String>("key"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
 
         int start = interval.previous().current();
@@ -90,14 +76,19 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.COUNT, projectId, new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.COUNT.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(jsonObject);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.COUNT, projectId, new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+        JsonObject jsonObject1 = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
                 .putValue("interval", TWO_DAYS.toJson())
-                .putNumber("frame", 5));
+                .putString("analysis_type", AggregationAnalysis.COUNT.name())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(jsonObject1);
 
         assertMerged(d0, d1, TWO_DAYS, (x,y) -> x+y);
     }
@@ -107,7 +98,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT_X, ONE_DAY, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -117,16 +108,20 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, new JsonObject().putString("key1", "value" + i % 2), "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.COUNT_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putNumber("frame", 5));
+        JsonObject query = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.COUNT_X.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(query);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.COUNT_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5));
+        JsonObject query1 = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.COUNT_X.name())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(query1);
 
         assertMerged(d0, d1, TWO_DAYS, (x,y) -> x+y);
     }
@@ -137,7 +132,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, SUM_X, ONE_DAY, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -147,16 +142,20 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.SUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.SUM_X.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(jsonObject);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.SUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5));
+        JsonObject query = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.SUM_X.name())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(query);
 
         assertMerged(d0, d1, TWO_DAYS, (x,y) -> x+y);
     }
@@ -167,7 +166,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MAXIMUM_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -176,16 +175,19 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, new JsonObject().putNumber("test", i).putString("key1", "value"+i%3), "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.MAXIMUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.MAXIMUM_X.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(jsonObject);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.MAXIMUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject1 = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putString("analysis_type", AggregationAnalysis.MAXIMUM_X.name())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(jsonObject1);
 
         assertMerged(d0, d1, TWO_DAYS, (x,y) -> Math.max(x, y));
     }
@@ -196,7 +198,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MINIMUM_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -206,16 +208,19 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.MINIMUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.MINIMUM_X.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(jsonObject);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.MINIMUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                    .putValue("interval", TWO_DAYS.toJson())
-                    .putNumber("frame", 5));
+        JsonObject jsonObject1 = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putString("analysis_type", AggregationAnalysis.MINIMUM_X.name())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(jsonObject1);
 
         assertMerged(d0, d1, TWO_DAYS, (x,y) -> Math.min(x, y));
     }
@@ -224,9 +229,8 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
     @Test
     public void testAverageXAggregation() {
         String projectId = randomString(10);
-        Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = ONE_DAY.spanCurrent().previous().previous().current();
         int next = ONE_DAY.spanCurrent().current();
@@ -236,19 +240,22 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.AVERAGE_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.AVERAGE_X.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(jsonObject);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.AVERAGE_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5));
-
+        JsonObject jsonObject1 = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putString("analysis_type", AggregationAnalysis.AVERAGE_X.name())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(jsonObject1);
         // it may not work but in this specific test, the counts of each time interval are equal.
-        assertMerged(d0, d1, TWO_DAYS, (x,y) -> (x+y)/2);
+        assertMerged(d0, d1, TWO_DAYS, (x, y) -> (x + y) / 2);
     }
 
 
@@ -257,7 +264,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.current();
         int next = interval.next().current();
@@ -267,16 +274,18 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.SUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.SUM_X.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(jsonObject);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.SUM_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject1 = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putString("analysis_type", AggregationAnalysis.SUM_X.name())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(jsonObject1);
 
         assertMerged(d0, d1, TWO_DAYS, (x,y) -> x+y);
     }
@@ -286,7 +295,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -296,16 +305,18 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d0 = eventAnalyzer.analyze(AggregationAnalysis.COUNT_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.COUNT_X.name())
+                .putNumber("frame", 5);
+        JsonObject d0 = eventAnalyzer.analyze(jsonObject);
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.COUNT_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject1 = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putString("analysis_type", AggregationAnalysis.COUNT_X.name())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(jsonObject1);
 
 
         assertMerged(d0, d1, TWO_DAYS, (x, y) -> x + y);
@@ -316,7 +327,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -326,25 +337,26 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject d1 = eventAnalyzer.analyze(AggregationAnalysis.COUNT_UNIQUE_X, projectId,
-                new JsonObject().putString("tracker", projectId)
-                        .mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5));
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId)
+                .mergeIn(rule.toJson())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putString("analysis_type", AggregationAnalysis.COUNT_UNIQUE_X.name())
+                .putNumber("frame", 5);
+        JsonObject d1 = eventAnalyzer.analyze(jsonObject);
 
         final JsonObject result = d1.getObject("result");
-        final String s = interval.previous().current() + "000";
+        final String s = formatTime(interval.previous().current());
         result.getFieldNames().forEach(key -> {
             final JsonObject items = result.getObject(key);
-            if(s.equals(key)) {
+            if (s.equals(key)) {
                 for (int i = 0; i < 3; i++) {
                     final long actual = (next - start) / 3L;
                     final double errorRate = Math.abs((actual - items.getNumber("value" + i).longValue()) / ((double) actual));
-                    assertTrue("the error rate is higher than 2% : "+errorRate, errorRate <.02);
+                    assertTrue("the error rate is higher than 2% : " + errorRate, errorRate < .02);
                 }
-            }else {
+            } else {
                 assertEquals(items, new JsonObject());
             }
         });
@@ -355,7 +367,7 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        DistributedAnalysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(projectId, rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -366,19 +378,22 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        DistributedAnalysisRuleMap.entrySet().forEach(collector::process);
+        collector.process(analysisRuleMap.entrySet());
 
-        JsonObject actualResult = eventAnalyzer.analyze(AggregationAnalysis.SELECT_UNIQUE_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putNumber("frame", 5)).getObject("result");
+        JsonObject jsonObject = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putString("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name())
+                .putNumber("frame", 5);
+        JsonObject actualResult = eventAnalyzer.analyze(jsonObject).getObject("result");
 
-        JsonObject mergedResult = eventAnalyzer.analyze(AggregationAnalysis.SELECT_UNIQUE_X, projectId,
-                new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                        .putValue("interval", TWO_DAYS.toJson())
-                        .putNumber("frame", 5)).getObject("result");
+        JsonObject jsonObject1 = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
+                .putValue("interval", TWO_DAYS.toJson())
+                .putString("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name())
+                .putNumber("frame", 5);
+        JsonObject mergedResult = eventAnalyzer.analyze(jsonObject1).getObject("result");
+
 
         Map<String, List<String>> result = actualResult.getFieldNames().stream()
-                .collect(Collectors.groupingBy(x -> TWO_DAYS.span((int) (ConversionUtil.toLong(x) / 1000)).current() + "000"));
+                .collect(Collectors.groupingBy(x -> TWO_DAYS.span((int) ZonedDateTime.parse(x).toEpochSecond()).current() + "000"));
         result.forEach((key, items) -> {
             JsonObject grouped = new JsonObject();
             for (String item : items) {
@@ -392,15 +407,8 @@ public class MergingGroupingTimeSeriesTest extends RakamTestHelper {
                         });
             }
 
-            assertEquals(grouped, mergedResult.getObject(key));
+            JsonObject object = mergedResult.getObject(formatTime((int) (Long.parseLong(key)/1000)));
+            assertEquals(grouped, object);
         });
-    }
-
-    @Before
-    public void clear() {
-        localStorageAdapter.flush();
-        cacheAdapter.flush();
-        databaseAdapter.flush();
-        DistributedAnalysisRuleMap.clear();
     }
 }

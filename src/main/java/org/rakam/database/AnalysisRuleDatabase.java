@@ -10,6 +10,8 @@ import java.util.Set;
  */
 public interface AnalysisRuleDatabase {
     Map<String, Set<AnalysisRule>> getAllRules();
+
     void addRule(AnalysisRule rule);
+
     void deleteRule(AnalysisRule rule);
 }

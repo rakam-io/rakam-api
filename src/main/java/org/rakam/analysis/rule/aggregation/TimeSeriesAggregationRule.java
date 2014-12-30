@@ -1,16 +1,12 @@
 package org.rakam.analysis.rule.aggregation;
 
-import com.hazelcast.nio.ObjectDataInput;
-import com.hazelcast.nio.ObjectDataOutput;
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.cache.hazelcast.RakamDataSerializableFactory;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.util.Interval;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
-import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -30,12 +26,12 @@ public class TimeSeriesAggregationRule extends AggregationRule {
         this.interval = interval;
     }
 
-    public  TimeSeriesAggregationRule(String projectId, AggregationType type, Interval interval, FieldScript select, FilterScript filters) {
+    public TimeSeriesAggregationRule(String projectId, AggregationType type, Interval interval, FieldScript select, FilterScript filters) {
         super(projectId, type, select, filters);
         this.interval = interval;
     }
 
-    public  TimeSeriesAggregationRule(String projectId, AggregationType type, Interval interval, FieldScript select, FilterScript filters, FieldScript groupBy) {
+    public TimeSeriesAggregationRule(String projectId, AggregationType type, Interval interval, FieldScript select, FilterScript filters, FieldScript groupBy) {
         super(projectId, type, select, filters, groupBy);
         this.interval = interval;
     }
@@ -65,18 +61,6 @@ public class TimeSeriesAggregationRule extends AggregationRule {
         return TYPE;
     }
 
-    @Override
-    public void writeData(ObjectDataOutput out) throws IOException {
-        super.writeData(out);
-        out.writeObject(interval);
-    }
-
-    @Override
-    public void readData(ObjectDataInput in) throws IOException {
-        super.readData(in);
-        interval = in.readObject();
-    }
-
     public JsonObject toJson() {
         JsonObject json = super.toJson();
         json.putValue("interval", interval.toJson());
@@ -88,10 +72,5 @@ public class TimeSeriesAggregationRule extends AggregationRule {
                 rule.type.equals(type) && Objects.equals(rule.select, select) &&
                 Objects.equals(rule.filters, filters) && Objects.equals(rule.groupBy, groupBy)
                 && interval.isDivisible(rule.interval);
-    }
-
-    @Override
-    public int getId() {
-        return RakamDataSerializableFactory.TIMESERIES_AGGREGATION_RULE;
     }
 }

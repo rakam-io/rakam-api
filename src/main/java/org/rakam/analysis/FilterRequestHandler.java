@@ -1,33 +1,72 @@
 package org.rakam.analysis;
 
-import org.rakam.ServiceStarter;
-import org.rakam.cache.CacheAdapter;
-import org.rakam.cache.DistributedCacheAdapter;
+import com.google.inject.Injector;
+import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.database.DatabaseAdapter;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.model.Actor;
+import org.rakam.model.Event;
+import org.rakam.server.RouteMatcher;
+import org.rakam.util.Tuple;
+import org.rakam.util.json.JsonArray;
+import org.rakam.util.json.JsonObject;
+
+import java.util.function.Predicate;
+
+import static org.rakam.analysis.AnalysisRuleParser.generatePredicate;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 03/09/14 02:12.
  */
-public class FilterRequestHandler implements Handler<Message<JsonObject>> {
-    private static final DatabaseAdapter databaseAdapter = ServiceStarter.injector.getInstance(DatabaseAdapter.class);
-    private static final CacheAdapter cacheAdapter = ServiceStarter.injector.getInstance(DistributedCacheAdapter.class);
+public class FilterRequestHandler implements HttpService {
+    private final DatabaseAdapter databaseAdapter;
 
-    public static final String ACTOR_FILTER_IDENTIFIER = "actorFilterRequest";
-    public static final String EVENT_FILTER_IDENTIFIER = "eventFilterRequest";
+    public FilterRequestHandler(Injector injector) {
+        databaseAdapter = injector.getInstance(DatabaseAdapter.class);
+    }
+
+    public JsonObject filterEvents(JsonObject query) {
+        Integer limit = query.getInteger("limit");
+        String orderBy = query.getString("orderBy");
+        JsonObject filterJson = query.getObject("filter");
+        if (filterJson != null) {
+            return new JsonObject().putString("error", "filter parameter is required");
+        }
+        Tuple<Predicate, Boolean> predicateBooleanTuple;
+        try {
+            predicateBooleanTuple = generatePredicate(filterJson);
+        } catch (Exception e) {
+            return new JsonObject().putString("error", "couldn't parse filter parameter");
+        }
+        SimpleFilterScript filter = new SimpleFilterScript(predicateBooleanTuple.v1(), predicateBooleanTuple.v2());
+        Event[] events = databaseAdapter.filterEvents(filter, limit, orderBy);
+        return new JsonObject().putArray("result", new JsonArray(events));
+    }
+
+    public JsonObject filterActors(JsonObject query) {
+        Integer limit = query.getInteger("limit");
+        String orderBy = query.getString("orderBy");
+        JsonObject filterJson = query.getObject("filter");
+        if (filterJson != null) {
+            return new JsonObject().putString("error", "filter parameter is required");
+        }
+        Tuple<Predicate, Boolean> predicateBooleanTuple;
+        try {
+            predicateBooleanTuple = generatePredicate(filterJson);
+        } catch (Exception e) {
+            return new JsonObject().putString("error", "couldn't parse filter parameter");
+        }
+        SimpleFilterScript filter = new SimpleFilterScript(predicateBooleanTuple.v1(), predicateBooleanTuple.v2());
+        Actor[] actors = databaseAdapter.filterActors(filter, limit, orderBy);
+        return new JsonObject().putArray("result", new JsonArray(actors));
+    }
 
     @Override
-    public void handle(Message<JsonObject> event) {
-        String address = event.address();
-        switch (address) {
-            case ACTOR_FILTER_IDENTIFIER:
-                event.reply(new ActorFilter(cacheAdapter, databaseAdapter).handle(event.body()));
-                break;
-            case EVENT_FILTER_IDENTIFIER:
-                event.reply(new EventFilter(cacheAdapter, databaseAdapter).handle(event.body()));
-                break;
-        }
+    public String getEndPoint() {
+        return "/filter";
+    }
+
+    @Override
+    public void register(RouteMatcher.MicroRouteMatcher routeMatcher) {
+//        mapRequest("/filter/actor", json -> filterActors(json), o -> ((JsonObject) o).encode());
     }
 }

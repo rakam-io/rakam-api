@@ -1,14 +1,11 @@
 package org.rakam.analysis.rule.aggregation;
 
-import com.hazelcast.nio.ObjectDataInput;
-import com.hazelcast.nio.ObjectDataOutput;
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.constant.AggregationAnalysis;
 import org.rakam.constant.AggregationType;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -73,24 +70,6 @@ public abstract class AggregationRule extends AnalysisRule {
     @Override
     public boolean canAnalyze(AggregationAnalysis analysis) {
         return Arrays.asList(analysis.getAnalyzableAggregationTypes()).contains(type);
-    }
-
-
-    public void readData(ObjectDataInput in) throws IOException {
-        filters = in.readObject();
-        groupBy = in.readObject();
-        select = in.readObject();
-        type = AggregationType.get(in.readShort());
-        project = in.readUTF();
-    }
-
-    @Override
-    public void writeData(ObjectDataOutput out) throws IOException {
-        out.writeObject(filters);
-        out.writeObject(groupBy);
-        out.writeObject(select);
-        out.writeShort(type.id);
-        out.writeUTF(project);
     }
 
     public JsonObject toJson() {

@@ -15,9 +15,9 @@ import org.rakam.constant.Analysis;
 import org.rakam.constant.AnalysisRuleStrategy;
 import org.rakam.util.Interval;
 import org.rakam.util.Tuple;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonElement;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonArray;
+import org.rakam.util.json.JsonElement;
+import org.rakam.util.json.JsonObject;
 
 import java.util.function.Predicate;
 
@@ -83,9 +83,9 @@ public class AnalysisRuleParser {
     public static Interval getInterval(Object interval) {
         if (interval == null)
             throw new IllegalArgumentException("interval is required for time-series.");
-        if(interval instanceof String) {
+        if (interval instanceof String) {
             return Interval.parse((String) interval);
-        }else {
+        } else {
             throw new IllegalArgumentException("interval parameter must be either string of number");
         }
     }
@@ -142,7 +142,7 @@ public class AnalysisRuleParser {
                 }
             }
         }
-        if(to==null)
+        if (to == null)
             return null;
         return new Tuple(to, requiresUser);
     }
@@ -170,7 +170,7 @@ public class AnalysisRuleParser {
             case "$starts_with":
                 return FilterPredicates.starts_with(field, (String) argument);
             default:
-                throw new IllegalArgumentException("undefined operator "+operator);
+                throw new IllegalArgumentException("undefined operator " + operator);
         }
     }
 
@@ -186,7 +186,7 @@ public class AnalysisRuleParser {
         }
 
         Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate(field);
-        if(predicateBooleanTuple==null)
+        if (predicateBooleanTuple == null)
             return null;
         return new SimpleFilterScript(predicateBooleanTuple.v1(), predicateBooleanTuple.v2());
     }

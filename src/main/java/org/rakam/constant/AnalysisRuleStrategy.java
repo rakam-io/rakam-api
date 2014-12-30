@@ -10,12 +10,13 @@ public enum AnalysisRuleStrategy {
     BATCH_PERIODICALLY(5);
 
     public final int id;
+
     AnalysisRuleStrategy(int id) {
         this.id = id;
     }
 
-    public static AnalysisRuleStrategy get(int id){
-        for (AnalysisRuleStrategy a: AnalysisRuleStrategy.values()) {
+    public static AnalysisRuleStrategy get(int id) {
+        for (AnalysisRuleStrategy a : AnalysisRuleStrategy.values()) {
             if (a.id == id)
                 return a;
         }
@@ -23,7 +24,7 @@ public enum AnalysisRuleStrategy {
     }
 
     public static AnalysisRuleStrategy get(String name) {
-        if(name!=null)
+        if (name != null)
             name = name.toUpperCase();
         return AnalysisRuleStrategy.valueOf(name);
     }

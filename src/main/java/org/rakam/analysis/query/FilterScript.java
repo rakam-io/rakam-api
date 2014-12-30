@@ -1,6 +1,6 @@
 package org.rakam.analysis.query;
 
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 import java.io.Serializable;
 
@@ -9,6 +9,8 @@ import java.io.Serializable;
  */
 public interface FilterScript extends Serializable {
     public abstract boolean test(JsonObject event);
+
     public abstract boolean requiresUser();
+
     public abstract <Val> Val toJson();
 }

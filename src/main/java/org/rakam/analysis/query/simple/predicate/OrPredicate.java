@@ -1,7 +1,7 @@
 package org.rakam.analysis.query.simple.predicate;
 
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonArray;
+import org.rakam.util.json.JsonObject;
 
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -92,10 +92,10 @@ public class OrPredicate extends AbstractConnectorPredicate {
     public boolean contains(RichPredicate predicate) {
         if (predicate instanceof OrPredicate) {
             for (Predicate pInline : ((ConnectorPredicate) predicate).getPredicates()) {
-                if(pInline instanceof RichPredicate)
-                if (!(pInline instanceof RichPredicate) || !this.contains(((RichPredicate) pInline))) {
-                    return false;
-                }
+                if (pInline instanceof RichPredicate)
+                    if (!(pInline instanceof RichPredicate) || !this.contains(((RichPredicate) pInline))) {
+                        return false;
+                    }
             }
 
             return true;
@@ -117,7 +117,7 @@ public class OrPredicate extends AbstractConnectorPredicate {
     public JsonObject toJson() {
         JsonArray objects = new JsonArray();
         for (Predicate predicate : predicates) {
-            if(predicate instanceof RichPredicate)
+            if (predicate instanceof RichPredicate)
                 objects.add(((RichPredicate) predicate).toJson());
             else
                 objects.add(predicate.toString());

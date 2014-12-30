@@ -1,180 +1,81 @@
 package org.rakam.server;
 
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.http.HttpServerRequest;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.server.http.CustomHttpRequest;
+import org.rakam.server.http.HttpRequestHandler;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 22/07/14 06:03.
  */
-public class RouteMatcher implements Handler<HttpServerRequest> {
+public class RouteMatcher {
+    HashMap<PatternBinding, HttpRequestHandler> routes = new HashMap();
+    private HttpRequestHandler noMatch = request -> request.response("404", HttpResponseStatus.OK).end();
 
-    private final List<PatternBinding> getBindings = new ArrayList<>();
-    private final List<PatternBinding> putBindings = new ArrayList<>();
-    private final List<PatternBinding> postBindings = new ArrayList<>();
-    private final List<PatternBinding> deleteBindings = new ArrayList<>();
-    private final List<PatternBinding> optionsBindings = new ArrayList<>();
-    private final List<PatternBinding> headBindings = new ArrayList<>();
-    private final List<PatternBinding> connectBindings = new ArrayList<>();
-    private Handler<HttpServerRequest> noMatchHandler;
-
-    @Override
-    public void handle(HttpServerRequest request) {
-        request.response().putHeader("Content-Type", "application/json; charset=utf-8");
-        request.response().putHeader("Access-Control-Allow-Origin", "*");
-        request.response().putHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-
-        switch (request.method()) {
-            case "POST":
-                route(request, postBindings);
-                break;
-            case "GET":
-                route(request, getBindings);
-                break;
-            case "PUT":
-                route(request, putBindings);
-                break;
-            case "DELETE":
-                route(request, deleteBindings);
-                break;
-            case "OPTIONS":
-                request.response().end("1");
-                break;
-            case "HEAD":
-                route(request, headBindings);
-                break;
-            case "CONNECT":
-                route(request, connectBindings);
-                break;
-            default:
-                notFound(request);
-        }
-    }
-
-    public RouteMatcher get(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, getBindings);
-        return this;
-    }
-
-    public RouteMatcher getStartsWith(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, true, handler, getBindings);
-        return this;
-    }
-
-    public RouteMatcher put(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, putBindings);
-        return this;
-    }
-
-    public RouteMatcher putStartsWith(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, true, handler, putBindings);
-        return this;
-    }
-
-    public RouteMatcher post(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, postBindings);
-        return this;
-    }
-
-    public RouteMatcher postStartsWith(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, true, handler, postBindings);
-        return this;
-    }
-
-    public RouteMatcher delete(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, deleteBindings);
-        return this;
-    }
-
-    public RouteMatcher options(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, optionsBindings);
-        return this;
-    }
-
-    public RouteMatcher head(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, headBindings);
-        return this;
-    }
-
-    public RouteMatcher connect(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, connectBindings);
-        return this;
-    }
-
-    public RouteMatcher all(String pattern, Handler<HttpServerRequest> handler) {
-        addPattern(pattern, handler, getBindings);
-        addPattern(pattern, handler, putBindings);
-        addPattern(pattern, handler, postBindings);
-        addPattern(pattern, handler, deleteBindings);
-        addPattern(pattern, handler, optionsBindings);
-        addPattern(pattern, handler, headBindings);
-        addPattern(pattern, handler, connectBindings);
-        return this;
-    }
-
-    public RouteMatcher noMatch(Handler<HttpServerRequest> handler) {
-        noMatchHandler = handler;
-        return this;
-    }
-
-    private static void addPattern(String input, Handler<HttpServerRequest> handler, List<PatternBinding> bindings) {
-        PatternBinding binding = new PatternBinding(input, handler);
-        bindings.add(binding);
-    }
-
-    private static void addPattern(String input, boolean startsWith, Handler<HttpServerRequest> handler, List<PatternBinding> bindings) {
-        PatternBinding binding = new PatternBinding(input, startsWith, handler);
-        bindings.add(binding);
-    }
-
-    private void route(HttpServerRequest request, List<PatternBinding> bindings) {
-        for (PatternBinding binding: bindings) {
-//            int endIndex = request.path().indexOf("/", 1);
-//            String path;
-//            if(endIndex>-1) {
-//                String trackingCode = request.path().substring(1, endIndex);
-//                path = request.path().substring(endIndex);
-//                request.params().add("_tracking", trackingCode);
-//            }else {
-//                path = request.path();
-//            }
-            if((!binding.startsWith && binding.pattern.equals(request.path())) ||
-                    (binding.startsWith && request.path().startsWith(binding.pattern))) {
-
-                binding.handler.handle(request);
-                return;
-            }
-        }
-        notFound(request);
-    }
-
-    private void notFound(HttpServerRequest request) {
-        if (noMatchHandler != null) {
-            noMatchHandler.handle(request);
+    public void handle(CustomHttpRequest request) {
+        final HttpRequestHandler httpRequestHandler = routes.get(new PatternBinding(request.getMethod(), request.path()));
+        if (httpRequestHandler != null) {
+            httpRequestHandler.handle(request);
         } else {
-            request.response().setStatusCode(404);
-            request.response().end();
+            noMatch.handle(request);
         }
     }
 
-    private static class PatternBinding {
+    public void add(HttpMethod method, String pattern, HttpRequestHandler handler) {
+        routes.put(new PatternBinding(method, pattern), handler);
+    }
+
+    public void remove(HttpMethod method, String pattern, HttpRequestHandler handler) {
+        routes.remove(new PatternBinding(method, pattern));
+    }
+
+    public void noMatch(HttpRequestHandler handler) {
+        noMatch = handler;
+    }
+
+    public static class PatternBinding {
+        final HttpMethod method;
         final String pattern;
-        final Handler<HttpServerRequest> handler;
-        final boolean startsWith;
 
-        private PatternBinding(String pattern, boolean startsWith, Handler<HttpServerRequest> handler) {
+        private PatternBinding(HttpMethod method, String pattern) {
+            this.method = method;
             this.pattern = pattern;
-            this.handler = handler;
-            this.startsWith = startsWith;
         }
 
-        private PatternBinding(String pattern, Handler<HttpServerRequest> handler) {
-            this.pattern = pattern;
-            this.handler = handler;
-            this.startsWith = false;
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PatternBinding)) return false;
+
+            PatternBinding that = (PatternBinding) o;
+
+            if (!method.equals(that.method)) return false;
+            if (!pattern.equals(that.pattern)) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = method.hashCode();
+            result = 31 * result + pattern.hashCode();
+            return result;
         }
     }
 
+    public static class MicroRouteMatcher {
+        private final RouteMatcher routeMatcher;
+        private final String path;
+
+        public MicroRouteMatcher(String path, RouteMatcher routeMatcher) {
+            this.path = path;
+            this.routeMatcher = routeMatcher;
+        }
+
+        public void add(String lastPath, HttpMethod method, HttpRequestHandler handler) {
+            routeMatcher.add(method, path + lastPath, handler);
+        }
+    }
 }

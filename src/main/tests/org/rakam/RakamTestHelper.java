@@ -1,6 +1,6 @@
 package org.rakam;
 
-import org.vertx.java.core.json.JsonObject;
+import org.rakam.util.json.JsonObject;
 
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -74,6 +74,15 @@ public class RakamTestHelper {
         } catch (Exception e) {
             fail("json object doesn't have the you provided: "+json.encode());
         }
-        assertEquals(call, obj);
+        String error = json.getString("error");
+        if(error!=null)
+            fail("json field has an error field: "+json.encode());
+        if(obj instanceof Number) {
+            obj = ((Number) obj).longValue();
+        }
+        if(call instanceof Number) {
+            call = ((Number) call).longValue();
+        }
+        assertEquals(obj, call);
     }
 }
