@@ -23,12 +23,12 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
 
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.COUNT);
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i < 10000; i++)
             eventAggregator.aggregate(projectId, iterativeJson(5, "key", "value"), "actor" + i, UTCTime());
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.COUNT.name());
@@ -40,7 +40,7 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testCountXAggregation() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.COUNT_X, new SimpleFieldScript<String>("key2"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i < 10000; i++)
             eventAggregator.aggregate(projectId, iterativeJson(2, "key", "value"), "actor" + i, UTCTime());
@@ -48,7 +48,7 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
         for (long i = 0; i < 10000; i++)
             eventAggregator.aggregate(projectId, iterativeJson(3, "key", "value"), "actor" + i, UTCTime());
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.COUNT_X.name());
@@ -61,13 +61,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testSumXAggregation() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.SUM_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i <= 10000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.SUM_X.name());
@@ -80,13 +80,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testMaxXAggregation() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.MAXIMUM_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i <= 10000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.MAXIMUM_X.name());
@@ -99,13 +99,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testMinXAggregation() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.MINIMUM_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 10000; i < 20000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.MINIMUM_X.name());
@@ -118,13 +118,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testAverageXAggregation() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.AVERAGE_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 10000; i < 20000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.AVERAGE_X.name());
@@ -137,13 +137,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testAverageXAggregation_whenSumX() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.AVERAGE_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i <= 10000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.SUM_X.name());
@@ -155,13 +155,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testAverageXAggregation_whenCountX() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.AVERAGE_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i < 10000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.COUNT_X.name());
@@ -173,13 +173,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testUniqueXAggregation_countUniqueX() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i < 10000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i%100), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.COUNT_UNIQUE_X.name());
@@ -191,13 +191,13 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testUniqueXAggregation_selectUniqueX() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (long i = 0; i < 10000; i++) {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", "test" + (i % 100)), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name())
@@ -216,7 +216,7 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
     public void testUniqueXAggregation_attributeBelongsUser() {
         String projectId = randomString(10);
         MetricAggregationRule rule = new MetricAggregationRule(projectId, AggregationType.UNIQUE_X, new SimpleFieldScript<String>("_user.test"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);;
 
         for (int i = 0; i < 100; i++) {
             JsonObject map = new JsonObject();
@@ -228,7 +228,7 @@ public class MetricAnalysisTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, new JsonObject().put("actor", "actor" + (i % 100)), "actor" + i, UTCTime());
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name());

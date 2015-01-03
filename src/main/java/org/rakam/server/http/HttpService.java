@@ -1,4 +1,4 @@
-package org.rakam.analysis;
+package org.rakam.server.http;
 
 import org.rakam.server.RouteMatcher;
 

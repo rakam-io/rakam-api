@@ -28,7 +28,7 @@ public class AnalysisBaseTest extends RakamTestHelper {
     static EventAggregator eventAggregator;
     static PeriodicCollector collector;
     static EventAnalyzer eventAnalyzer;
-    static AnalysisRuleMap analysisRuleMap;
+    static DummyDatabase analysisRuleMap;
 
     protected static String formatTime(int time) {
         return Instant.ofEpochSecond(time).atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_INSTANT);
@@ -47,7 +47,7 @@ public class AnalysisBaseTest extends RakamTestHelper {
             }
         });
 
-        analysisRuleMap = new AnalysisRuleMap();
+        analysisRuleMap = new DummyDatabase();
 
         eventAggregator = new EventAggregator(injector, analysisRuleMap);
         collector = new PeriodicCollector(injector);

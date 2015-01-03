@@ -2,12 +2,12 @@ package org.rakam.collection.event;
 
 import com.google.inject.Injector;
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
-import org.rakam.analysis.AnalysisRuleMap;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AggregationRule;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.constant.Analysis;
 import org.rakam.database.ActorDatabase;
+import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.EventDatabase;
 import org.rakam.model.Actor;
 import org.rakam.stream.ActorCacheAdapter;
@@ -22,13 +22,13 @@ import java.util.concurrent.ConcurrentMap;
  * Created by buremba on 05/06/14.
  */
 public class EventAggregator {
-    private final AnalysisRuleMap rules;
+    private final AnalysisRuleDatabase rules;
     private final EventDatabase databaseAdapter;
     private final ActorDatabase actorDatabaseAdapter;
     private ActorCacheAdapter actorCache;
     private static ConcurrentMap<String, JsonObject> lruCache;
 
-    public EventAggregator(Injector injector, AnalysisRuleMap rules) {
+    public EventAggregator(Injector injector, AnalysisRuleDatabase rules) {
         this.rules = rules;
         actorCache = injector.getInstance(ActorCacheAdapter.class);
         databaseAdapter = injector.getInstance(EventDatabase.class);

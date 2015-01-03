@@ -5,6 +5,7 @@ import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.database.EventDatabase;
 import org.rakam.model.Event;
 import org.rakam.server.RouteMatcher;
+import org.rakam.server.http.HttpService;
 import org.rakam.util.Tuple;
 import org.rakam.util.json.JsonArray;
 import org.rakam.util.json.JsonObject;

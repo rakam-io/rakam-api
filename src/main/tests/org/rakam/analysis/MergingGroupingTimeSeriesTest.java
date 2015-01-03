@@ -66,7 +66,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT, ONE_DAY, null, null, new SimpleFieldScript<String>("key"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
 
         int start = interval.previous().current();
@@ -76,7 +76,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId)
                 .mergeIn(rule.toJson())
@@ -98,7 +98,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, COUNT_X, ONE_DAY, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -108,7 +108,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, new JsonObject().put("key1", "value" + i % 2), "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject query = new JsonObject().put("tracker", projectId)
                 .mergeIn(rule.toJson())
@@ -132,7 +132,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, SUM_X, ONE_DAY, new SimpleFieldScript<String>("key2"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -142,7 +142,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId)
                 .mergeIn(rule.toJson())
@@ -166,7 +166,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MAXIMUM_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -175,7 +175,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, new JsonObject().put("test", i).put("key1", "value"+i%3), "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId)
                 .mergeIn(rule.toJson())
@@ -198,7 +198,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, MINIMUM_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -208,7 +208,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId)
                 .mergeIn(rule.toJson())
@@ -230,7 +230,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
     public void testAverageXAggregation() {
         String projectId = randomString(10);
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = ONE_DAY.spanCurrent().previous().previous().current();
         int next = ONE_DAY.spanCurrent().current();
@@ -240,7 +240,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId)
                 .mergeIn(rule.toJson())
@@ -264,7 +264,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.current();
         int next = interval.next().current();
@@ -274,7 +274,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.SUM_X.name())
@@ -295,7 +295,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, AVERAGE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -305,7 +305,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.COUNT_X.name())
@@ -327,7 +327,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -337,7 +337,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId)
                 .mergeIn(rule.toJson())
@@ -367,7 +367,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
         String projectId = randomString(10);
         Interval.StatefulSpanTime interval = TWO_DAYS.spanCurrent();
         TimeSeriesAggregationRule rule = new TimeSeriesAggregationRule(projectId, UNIQUE_X, ONE_DAY, new SimpleFieldScript<String>("test"), null, new SimpleFieldScript<String>("key1"));
-        analysisRuleMap.add(projectId, rule);
+        analysisRuleMap.add(rule);
 
         int start = interval.previous().current();
         int next = interval.next().current();
@@ -378,7 +378,7 @@ public class MergingGroupingTimeSeriesTest extends AnalysisBaseTest {
             eventAggregator.aggregate(projectId, m, "actor" + i, i);
         }
 
-        collector.process(analysisRuleMap.entrySet());
+        //collector.process(analysisRuleMap.entrySet());
 
         JsonObject jsonObject = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
                 .put("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name())

@@ -6,30 +6,23 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
 import org.apache.log4j.Logger;
-import org.rakam.analysis.AnalysisRuleParser;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.database.ActorDatabase;
-import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.EventDatabase;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
 import org.rakam.util.json.JsonObject;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
  * Created by buremba on 21/12/13.
  */
 
-public class CassandraAdapter implements EventDatabase, AnalysisRuleDatabase, ActorDatabase {
+public class CassandraAdapter implements EventDatabase, ActorDatabase {
 
     private Session session = Cluster.builder().addContactPoint("127.0.0.1").build().connect("analytics");
 
@@ -136,69 +129,69 @@ public class CassandraAdapter implements EventDatabase, AnalysisRuleDatabase, Ac
     public void combineActors(String actor1, String actor2) {
 
     }
-
-    @Override
-    public void addRule(AnalysisRule rule) {
-        HashSet<String> a = new HashSet();
-        a.add(rule.toJson().encode());
-        session.execute(add_aggregation_rule.bind(a, rule.project));
-    }
-
-    @Override
-    public void deleteRule(AnalysisRule rule) {
-        HashSet<String> a = new HashSet();
-        a.add(rule.toJson().encode());
-        session.execute(add_aggregation_rule.bind(a, rule.project));
-
-        Iterator<Row> rows;
-        LinkedList<String> list;
-
-        rows = session.execute("select id from aggregated_set").iterator();
-        list = new LinkedList();
-        while (rows.hasNext()) {
-            Row row = rows.next();
-            String key = row.getString("id");
-            if (key.startsWith(rule.project))
-                list.add(key);
-        }
-        session.execute("delete from aggregated_set where key in ?", list);
-
-        rows = session.execute("select id from aggregated_counter").iterator();
-        list = new LinkedList();
-        while (rows.hasNext()) {
-            Row row = rows.next();
-            String key = row.getString("id");
-            if (key.startsWith(rule.project))
-                list.add(key);
-        }
-        session.execute("delete from aggregated_counter where key in ?", list);
-    }
+//
+//    @Override
+//    public void addRule(AnalysisRule rule) {
+//        HashSet<String> a = new HashSet();
+//        a.add(rule.toJson().encode());
+//        session.execute(add_aggregation_rule.bind(a, rule.project));
+//    }
+//
+//    @Override
+//    public void deleteRule(AnalysisRule rule) {
+//        HashSet<String> a = new HashSet();
+//        a.add(rule.toJson().encode());
+//        session.execute(add_aggregation_rule.bind(a, rule.project));
+//
+//        Iterator<Row> rows;
+//        LinkedList<String> list;
+//
+//        rows = session.execute("select id from aggregated_set").iterator();
+//        list = new LinkedList();
+//        while (rows.hasNext()) {
+//            Row row = rows.next();
+//            String key = row.getString("id");
+//            if (key.startsWith(rule.project))
+//                list.add(key);
+//        }
+//        session.execute("delete from aggregated_set where key in ?", list);
+//
+//        rows = session.execute("select id from aggregated_counter").iterator();
+//        list = new LinkedList();
+//        while (rows.hasNext()) {
+//            Row row = rows.next();
+//            String key = row.getString("id");
+//            if (key.startsWith(rule.project))
+//                list.add(key);
+//        }
+//        session.execute("delete from aggregated_counter where key in ?", list);
+//    }
 
 //    @Override
 //    public void processRule(AnalysisRule rule, long start_time, long end_time) {
 //        CassandraBatchProcessor.processRule(rule, start_time, end_time);
 //    }
-
-    @Override
-    public Map<String, Set<AnalysisRule>> getAllRules() {
-        List<Row> rows = session.execute(set_aggregation_rules.bind()).all();
-        HashMap<String, Set<AnalysisRule>> map = new HashMap();
-        for (Row row : rows) {
-            HashSet<AnalysisRule> rules = new HashSet();
-            for (String json_rule : row.getSet("rules", String.class)) {
-                try {
-                    JsonObject json = new JsonObject(json_rule);
-                    AnalysisRule rule = AnalysisRuleParser.parse(json);
-                    rules.add(rule);
-                } catch (IllegalArgumentException e) {
-                    logger.error("analysis rule couldn't parsed: " + json_rule, e);
-                }
-            }
-
-            map.put(row.getString("project"), rules);
-        }
-        return map;
-    }
+//
+//    @Override
+//    public Map<String, Set<AnalysisRule>> getAllRules() {
+//        List<Row> rows = session.execute(set_aggregation_rules.bind()).all();
+//        HashMap<String, Set<AnalysisRule>> map = new HashMap();
+//        for (Row row : rows) {
+//            HashSet<AnalysisRule> rules = new HashSet();
+//            for (String json_rule : row.getSet("rules", String.class)) {
+//                try {
+//                    JsonObject json = new JsonObject(json_rule);
+//                    AnalysisRule rule = AnalysisRuleParser.parse(json);
+//                    rules.add(rule);
+//                } catch (IllegalArgumentException e) {
+//                    logger.error("analysis rule couldn't parsed: " + json_rule, e);
+//                }
+//            }
+//
+//            map.put(row.getString("project"), rules);
+//        }
+//        return map;
+//    }
 
 //    @Override
 //    public void batch(String project, int start_time, int end_time, int node_id) {

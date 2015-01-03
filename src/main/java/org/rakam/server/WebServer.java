@@ -3,13 +3,11 @@ package org.rakam.server;
 import com.google.inject.Injector;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.AnalysisRuleCrudService;
-import org.rakam.analysis.AnalysisRuleMap;
 import org.rakam.analysis.FilterRequestHandler;
-import org.rakam.analysis.HttpService;
 import org.rakam.collection.actor.ActorCollector;
 import org.rakam.collection.event.EventCollector;
 import org.rakam.server.http.CustomHttpRequest;
+import org.rakam.server.http.HttpService;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.json.DecodeException;
 import org.rakam.util.json.JsonObject;
@@ -35,27 +33,24 @@ public class WebServer {
     private final ActorCollector actorCollector;
     private final FilterRequestHandler filterRequestHandler;
 
-    public WebServer(Injector injector, AnalysisRuleMap analysisRuleMap, ExecutorService executor) {
-        eventCollector = new EventCollector(injector, analysisRuleMap);
+    public WebServer(Injector injector, ExecutorService executor) {
+        eventCollector = new EventCollector(injector);
         filterRequestHandler = new FilterRequestHandler(injector);
         actorCollector = new ActorCollector(injector);
         routeMatcher = new RouteMatcher();
         this.executor = executor;
 
         routeMatcher.add(HttpMethod.POST, "/event", request -> {
-            request.bodyHandler(buff -> {
-
-                CompletableFuture.supplyAsync(() -> {
-                    JsonObject json = null;
-                    try {
-                        json = new JsonObject(buff);
-                    } catch (DecodeException e) {
-                        request.response("0");
-                    }
-                    return eventCollector.submitEvent(json);
-                }, executor)
-                        .thenAccept(result -> request.response(result ? "1" : "0").end());
-            });
+            request.bodyHandler(buff -> CompletableFuture.supplyAsync(() -> {
+                JsonObject json = null;
+                try {
+                    json = new JsonObject(buff);
+                } catch (DecodeException e) {
+                    request.response("0");
+                }
+                return eventCollector.submitEvent(json);
+            }, executor)
+                    .thenAccept(result -> request.response(result ? "1" : "0").end()));
         });
         routeMatcher.add(HttpMethod.GET, "/event", request -> {
             final JsonObject json = JsonHelper.generate(request.params());
@@ -68,8 +63,6 @@ public class WebServer {
 
         mapRequest("/filter/event", json -> filterRequestHandler.filterEvents(json), o -> ((JsonObject) o).encode());
 
-        registerRoutes(new AnalysisRuleCrudService(injector, analysisRuleMap));
-
         Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> {
             try {
                 eventCollector.submitEvent(new JsonObject()
@@ -80,10 +73,6 @@ public class WebServer {
                 e.printStackTrace();
             }
         }, 1, 1, TimeUnit.SECONDS);
-    }
-
-    public WebServer(Injector injector, AnalysisRuleMap analysisRuleMap) {
-        this(injector, analysisRuleMap, Executors.newCachedThreadPool());
     }
 
     private void registerRoutes(HttpService service)  {

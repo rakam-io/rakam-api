@@ -3,7 +3,7 @@ package org.rakam.collection.event;
 import com.google.inject.Binding;
 import com.google.inject.Injector;
 import com.google.inject.TypeLiteral;
-import org.rakam.analysis.AnalysisRuleMap;
+import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.EventDatabase;
 import org.rakam.plugin.CollectionMapperPlugin;
 import org.rakam.util.json.JsonObject;
@@ -24,24 +24,20 @@ public class EventCollector {
 
     private EventDatabase databaseAdapter;
     List<CollectionMapperPlugin> mappers = new LinkedList();
-    final private EventAggregator eventAggregator;
+    private EventAggregator eventAggregator;
 
-    public EventCollector(Injector injector, AnalysisRuleMap analysisRuleMap) {
-        databaseAdapter = injector.getInstance(EventDatabase.class);
-        eventAggregator = new EventAggregator(injector, analysisRuleMap);
+    public EventCollector(Injector injector) {
+        try {
+            AnalysisRuleDatabase ruleDatabase = injector.getInstance(AnalysisRuleDatabase.class);
+            databaseAdapter = injector.getInstance(EventDatabase.class);
+            eventAggregator = new EventAggregator(injector, ruleDatabase);
 
-        List<Binding<CollectionMapperPlugin>> bindingsByType = injector
-                .findBindingsByType(new TypeLiteral<CollectionMapperPlugin>() {});
-        mappers.addAll(bindingsByType.stream().map(mapper -> mapper.getProvider().get()).collect(Collectors.toList()));
-
-//        final PeriodicCollector props = new PeriodicCollector(injector);
-//        Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> {
-//            try {
-//                props.process(analysisRuleMap.entrySet());
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//        }, 3, 3, TimeUnit.SECONDS);
+            List<Binding<CollectionMapperPlugin>> bindingsByType = injector
+                    .findBindingsByType(new TypeLiteral<CollectionMapperPlugin>() {});
+            mappers.addAll(bindingsByType.stream().map(mapper -> mapper.getProvider().get()).collect(Collectors.toList()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean submitEvent(JsonObject json) {

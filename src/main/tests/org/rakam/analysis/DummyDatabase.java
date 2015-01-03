@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 19/09/14 14:00.
  */
-public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, ActorCacheAdapter, ActorDatabase {
+public class DummyDatabase implements EventDatabase, ActorCacheAdapter, AnalysisRuleDatabase, ActorDatabase {
     static Map<String, Set<AnalysisRule>> ruleMap = new HashMap();
 
     static Map<String, Map<String, Actor>> actors = new ConcurrentHashMap<>();
@@ -36,16 +36,26 @@ public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, Actor
     }
 
     @Override
-    public void addRule(AnalysisRule rule) {
+    public void add(AnalysisRule rule) {
         ruleMap.computeIfAbsent(rule.project, s -> new ConcurrentSkipListSet<>()).add(rule);
     }
 
     @Override
-    public void deleteRule(AnalysisRule rule) {
+    public void delete(AnalysisRule rule) {
         ruleMap.computeIfPresent(rule.project, (s, k) -> {
             k.remove(rule);
             return null;
         });
+    }
+
+    @Override
+    public Set<AnalysisRule> get(String project) {
+        return ruleMap.get(project);
+    }
+
+    @Override
+    public void clear() {
+        ruleMap.clear();
     }
 
     @Override
