@@ -137,8 +137,8 @@ object CassandraBatchProcessor {
           actor_props.toMap.foreach(item => {
             val key = item._1
             item._2 match {
-              case value if value.isInstanceOf[JString] => event.data.putString("_user." + key, value.asInstanceOf[JString])
-              case value if value.isInstanceOf[JNumber] => event.data.putNumber("_user." + key, value.asInstanceOf[JNumber])
+              case value if value.isInstanceOf[JString] => event.data.put("_user." + key, value.asInstanceOf[JString])
+              case value if value.isInstanceOf[JNumber] => event.data.put("_user." + key, value.asInstanceOf[JNumber])
               case _ => throw new IllegalStateException("couldn't find the type of actor property.")
             }
 

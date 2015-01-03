@@ -74,16 +74,16 @@ public abstract class AggregationRule extends AnalysisRule {
 
     public JsonObject toJson() {
         JsonObject json = new JsonObject();
-        json.putString("tracker", project);
-        json.putString("strategy", strategy.name());
-        json.putString("analysis", analysisType().name().replaceFirst("ANALYSIS_", ""));
+        json.put("tracker", project);
+        json.put("strategy", strategy.name());
+        json.put("analysis", analysisType().name().replaceFirst("ANALYSIS_", ""));
         if (select != null)
-            json.putValue("select", select.toJson());
+            json.put("select", select.toJson());
         if (groupBy != null)
-            json.putString("group_by", groupBy.toJson());
+            json.put("group_by", groupBy.toJson());
         if (filters != null)
-            json.putValue("filter", filters.toJson());
-        json.putString("aggregation", type.name());
+            json.put("filter", filters.toJson());
+        json.put("aggregation", type.name());
         return json;
     }
 }

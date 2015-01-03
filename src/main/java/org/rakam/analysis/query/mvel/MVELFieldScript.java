@@ -61,7 +61,7 @@ public class MVELFieldScript implements FieldScript {
 
     @Override
     public JsonObject toJson() {
-        return new JsonObject().putString("script", script);
+        return new JsonObject().put("script", script);
     }
 
     @Override

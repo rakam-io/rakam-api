@@ -2,6 +2,7 @@ package org.rakam.analysis.query.simple;
 
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.query.simple.predicate.RichPredicate;
+import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;
 
 import java.util.function.Predicate;
@@ -49,10 +50,10 @@ public class SimpleFilterScript implements FilterScript {
     }
 
     @Override
-    public <Val> Val toJson() {
+    public JsonElement toJson() {
         if (predicate instanceof RichPredicate) {
-            return (Val) ((RichPredicate) predicate).toJson();
+            return ((RichPredicate) predicate).toJson();
         }
-        return (Val) predicate.toString();
+        return JsonElement.valueOf(predicate.toString());
     }
 }

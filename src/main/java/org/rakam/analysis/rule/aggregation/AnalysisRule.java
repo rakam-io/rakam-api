@@ -22,7 +22,7 @@ public abstract class AnalysisRule {
     public String id() {
         if (id == null) {
             final JsonObject jsonObject = toJson();
-            jsonObject.removeField("strategy");
+            jsonObject.remove("strategy");
             id = jsonObject.encode();
         }
         return id;

@@ -27,20 +27,20 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++)
-            eventAggregator.aggregate(projectId, new JsonObject().putString("key", "value" + i % 5), "actor" + i, UTCTime());
+            eventAggregator.aggregate(projectId, new JsonObject().put("key", "value" + i % 5), "actor" + i, UTCTime());
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.COUNT.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.COUNT.name());
 
         JsonObject data = eventAnalyzer.analyze(query);
 
         JsonObject json = new JsonObject();
         for (int i = 0; i < 5; i++) {
-            json.putNumber("value"+i, 2000L);
+            json.put("value"+i, 2000L);
         }
-        assertEquals(new JsonObject().putObject("result", json), data);
+        assertEquals(new JsonObject().put("result", json), data);
     }
 
     @Test
@@ -50,21 +50,21 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            eventAggregator.aggregate(projectId, new JsonObject().putString("key1", "value" + i % 5).putString("key2", "value" + (i % 5)), "actor" + i, UTCTime());
-            eventAggregator.aggregate(projectId, new JsonObject().putString("key1", "value" + i % 5), "actor" + i, UTCTime());
+            eventAggregator.aggregate(projectId, new JsonObject().put("key1", "value" + i % 5).put("key2", "value" + (i % 5)), "actor" + i, UTCTime());
+            eventAggregator.aggregate(projectId, new JsonObject().put("key1", "value" + i % 5), "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.COUNT_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.COUNT_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
 
         JsonObject json = new JsonObject();
         for (int i = 0; i < 5; i++) {
-            json.putNumber("value"+i, 2000);
+            json.put("value"+i, 2000);
         }
-        assertEquals(new JsonObject().putObject("result", json), data);    }
+        assertEquals(new JsonObject().put("result", json), data);    }
 
 
     @Test
@@ -74,23 +74,23 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            JsonObject m = new JsonObject().putString("key1", "value" + i % 5).putNumber("key2", (i + 1) % 5);
+            JsonObject m = new JsonObject().put("key1", "value" + i % 5).put("key2", (i + 1) % 5);
             eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.SUM_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.SUM_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
 
         JsonObject jsonObject = new JsonObject()
-                .putNumber("value0", 2000L)
-                .putNumber("value2", 6000L)
-                .putNumber("value1", 4000L)
-                .putNumber("value4", 0L)
-                .putNumber("value3", 8000L);
-        assertEquals(data, new JsonObject().putObject("result",jsonObject));
+                .put("value0", 2000L)
+                .put("value2", 6000L)
+                .put("value1", 4000L)
+                .put("value4", 0L)
+                .put("value3", 8000L);
+        assertEquals(data, new JsonObject().put("result",jsonObject));
     }
 
 
@@ -101,21 +101,21 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            eventAggregator.aggregate(projectId, new JsonObject().putNumber("test", i).putString("key1", "value"+i%5), "actor" + i, UTCTime());
+            eventAggregator.aggregate(projectId, new JsonObject().put("test", i).put("key1", "value"+i%5), "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.MAXIMUM_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.MAXIMUM_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
 
         JsonObject jsonObject = new JsonObject();
         for (long i = 0; i < 5; i++) {
-            jsonObject.putNumber("value"+i, 9995+i);
+            jsonObject.put("value"+i, 9995+i);
         }
 
-        assertEquals(data, new JsonObject().putObject("result",jsonObject));
+        assertEquals(data, new JsonObject().put("result",jsonObject));
     }
 
 
@@ -126,20 +126,20 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 10000; i < 20000; i++) {
-            JsonObject m = new JsonObject().putNumber("test", 100+(i % 10)).putString("key1", "value" + i % 10);
+            JsonObject m = new JsonObject().put("test", 100+(i % 10)).put("key1", "value" + i % 10);
             eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.MINIMUM_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.MINIMUM_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
         JsonObject jsonObject = new JsonObject();
         for (int i = 0; i < 10; i++) {
-            jsonObject.putNumber("value"+i, 100+i);
+            jsonObject.put("value"+i, 100+i);
         };
-        assertEquals(data, new JsonObject().putObject("result",jsonObject));
+        assertEquals(data, new JsonObject().put("result",jsonObject));
     }
 
 
@@ -150,22 +150,22 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 20000; i++) {
-            JsonObject m = new JsonObject().putNumber("test", i).putString("key1", "value" + i % 10);;
+            JsonObject m = new JsonObject().put("test", i).put("key1", "value" + i % 10);;
             eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.AVERAGE_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.AVERAGE_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
 
         JsonObject jsonObject = new JsonObject();
         for (int i = 0; i < 10; i++) {
-            jsonObject.putNumber("value"+i, 9995+i);
+            jsonObject.put("value"+i, 9995+i);
         }
 
-        assertEquals(data, new JsonObject().putObject("result", jsonObject));
+        assertEquals(data, new JsonObject().put("result", jsonObject));
     }
 
 
@@ -176,20 +176,20 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            JsonObject m = new JsonObject().putNumber("test", i).putString("key1", "value" + i % 10);
+            JsonObject m = new JsonObject().put("test", i).put("key1", "value" + i % 10);
             eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.SUM_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.SUM_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
         JsonObject jsonObject = new JsonObject();
         for (int i = 0; i < 10; i++) {
-            jsonObject.putNumber("value"+i, 4995000L+(i*1000));
+            jsonObject.put("value"+i, 4995000L+(i*1000));
         }
-        assertEquals(data, new JsonObject().putObject("result", jsonObject));
+        assertEquals(data, new JsonObject().put("result", jsonObject));
     }
 
     @Test
@@ -199,20 +199,20 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            JsonObject m = new JsonObject().putNumber("test", i).putString("key1", "value" + i % 10);
+            JsonObject m = new JsonObject().put("test", i).put("key1", "value" + i % 10);
             eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.COUNT_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.COUNT_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
         JsonObject jsonObject = new JsonObject();
         for (int i = 0; i < 10; i++) {
-            jsonObject.putNumber("value"+i, 1000L);
+            jsonObject.put("value"+i, 1000L);
         }
-        assertEquals(data, new JsonObject().putObject("result", jsonObject));
+        assertEquals(data, new JsonObject().put("result", jsonObject));
     }
 
     @Test
@@ -222,20 +222,20 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            JsonObject m = new JsonObject().putString("test", "value"+i).putString("key1", "value" + i % 10);
+            JsonObject m = new JsonObject().put("test", "value"+i).put("key1", "value" + i % 10);
             eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.COUNT_UNIQUE_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.COUNT_UNIQUE_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
         JsonObject jsonObject = new JsonObject();
         for (int i = 0; i < 10; i++) {
-            jsonObject.putNumber("value"+i, 1000L);
+            jsonObject.put("value"+i, 1000L);
         }
-        assertEquals(data, new JsonObject().putObject("result", jsonObject));
+        assertEquals(data, new JsonObject().put("result", jsonObject));
     }
 
     @Test
@@ -245,27 +245,27 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
         analysisRuleMap.add(projectId, rule);
 
         for (long i = 0; i < 10000; i++) {
-            JsonObject m = new JsonObject().putString("test", "value"+i % 100).putString("key1", "value" + i % 10);
+            JsonObject m = new JsonObject().put("test", "value"+i % 100).put("key1", "value" + i % 10);
             eventAggregator.aggregate(projectId, m, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
-        JsonObject result = data.getObject("result");
+        JsonObject result = data.getJsonObject("result");
         assertNotNull(result);
 
         for (long i = 0; i < 10; i++) {
-            JsonArray array = result.getArray("value" + i);
+            JsonArray array = result.getJsonArray("value" + i);
             assertNotNull(array);
             for (int i1 = 0; i1 < 10; i1++) {
                 assertTrue(array.contains("value" + (i1 * 10 + i)));
             }
             assertEquals(array.size(), 10);
         }
-        assertEquals(result.getFieldNames().size(), 10);
+        assertEquals(result.size(), 10);
     }
 
     @Test
@@ -276,32 +276,32 @@ public class GroupingMetricAnalysisTest extends AnalysisBaseTest {
 
         for (int i = 0; i < 100; i++) {
             JsonObject map = new JsonObject();
-            map.putString("test", "value" + (i % 20));
-            map.putString("key1", "value" + (i % 10));
-            databaseAdapter.createActor(projectId, "actor" + i, map);
+            map.put("test", "value" + (i % 20));
+            map.put("key1", "value" + (i % 10));
+//            databaseAdapter.createActor(projectId, "actor" + i, map);
         }
 
         for (long i = 0; i < 10000; i++) {
-            JsonObject actor = new JsonObject().putString("actor", "actor" + (i % 100));
+            JsonObject actor = new JsonObject().put("actor", "actor" + (i % 100));
             eventAggregator.aggregate(projectId, actor, "actor" + i, UTCTime());
         }
 
         collector.process(analysisRuleMap.entrySet());
 
-        JsonObject query = new JsonObject().putString("tracker", projectId).mergeIn(rule.toJson())
-                .putString("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name());
+        JsonObject query = new JsonObject().put("tracker", projectId).mergeIn(rule.toJson())
+                .put("analysis_type", AggregationAnalysis.SELECT_UNIQUE_X.name());
         JsonObject data = eventAnalyzer.analyze(query);
-        JsonObject result = data.getObject("result");
+        JsonObject result = data.getJsonObject("result");
         assertNotNull(result);
 
         for (long i = 0; i < 10; i++) {
-            JsonArray array = result.getArray("value" + i);
+            JsonArray array = result.getJsonArray("value" + i);
             assertNotNull(array);
             for (int i1 = 0; i1 < 2; i1++) {
                 assertTrue(array.contains("value" + (i1 * 10 + i)));
             }
             assertEquals(array.size(), 2);
         }
-        assertEquals(result.getFieldNames().size(), 10);
+        assertEquals(result.size(), 10);
     }
 }

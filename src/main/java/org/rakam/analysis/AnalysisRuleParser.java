@@ -19,6 +19,7 @@ import org.rakam.util.json.JsonArray;
 import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;
 
+import java.util.Map;
 import java.util.function.Predicate;
 
 /**
@@ -41,9 +42,9 @@ public class AnalysisRuleParser {
             throw new IllegalArgumentException("tracker id is required.");
 
         if (analysisType == Analysis.ANALYSIS_TIMESERIES || analysisType == Analysis.ANALYSIS_METRIC) {
-            FilterScript filter = getFilter(json.getObject("filter"));
-            FieldScript groupBy = getField(json.getField("group_by"));
-            FieldScript select = getField(json.getField("select"));
+            FilterScript filter = getFilter(json.getJsonObject("filter"));
+            FieldScript groupBy = getField(json.getValue("group_by"));
+            FieldScript select = getField(json.getValue("select"));
             if (json.getString("aggregation") == null)
                 throw new IllegalArgumentException("aggregation type is required.");
             AggregationType aggType;
@@ -61,7 +62,7 @@ public class AnalysisRuleParser {
                 select = groupBy;
 
             if (analysisType == Analysis.ANALYSIS_TIMESERIES) {
-                rule = new TimeSeriesAggregationRule(project, aggType, getInterval(json.getField("interval")), select, filter, groupBy);
+                rule = new TimeSeriesAggregationRule(project, aggType, getInterval(json.getValue("interval")), select, filter, groupBy);
             } else if (analysisType == Analysis.ANALYSIS_METRIC) {
                 rule = new MetricAggregationRule(project, aggType, select, filter, groupBy);
             } else {
@@ -108,14 +109,14 @@ public class AnalysisRuleParser {
         boolean requiresUser = false;
 
         if (from.isArray()) {
-            for (Object item : from.asArray()) {
+            for (Object item : (JsonArray) from) {
                 if (item instanceof JsonArray) {
                     JsonArray item1 = (JsonArray) item;
-                    String field = item1.get(0);
+                    String field = item1.getString(0);
                     if (field.startsWith("_user.")) {
                         requiresUser = true;
                     }
-                    Predicate predicate = createPredicate(item1.get(1), field, item1.get(2));
+                    Predicate predicate = createPredicate(item1.getString(1), field, item1.getString(2));
                     to = to == null ? predicate : to.and(predicate);
                 } else if (item instanceof JsonObject) {
                     Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate((JsonElement) item);
@@ -124,13 +125,13 @@ public class AnalysisRuleParser {
                     to = to == null ? predicate : to.or(predicate);
                 }
             }
-        } else {
-            JsonObject jsonObject = from.asObject();
-            for (String fieldName : jsonObject.getFieldNames()) {
-                Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate(jsonObject.getElement(fieldName));
+        } else
+        if(from.isObject()) {
+            for (Map.Entry<String, Object> field : (JsonObject) from) {
+                Tuple<Predicate, Boolean> predicateBooleanTuple = generatePredicate((JsonElement) field.getValue());
                 Predicate predicate = predicateBooleanTuple.v1();
                 requiresUser = requiresUser || predicateBooleanTuple.v2();
-                switch (fieldName) {
+                switch (field.getKey()) {
                     case "AND":
                         to = to == null ? predicate : to.or(predicate);
                         break;
@@ -162,7 +163,7 @@ public class AnalysisRuleParser {
             case "$eq":
                 return FilterPredicates.eq(field, argument);
             case "$in":
-                return FilterPredicates.in(field, ((JsonArray) argument).toArray());
+                return FilterPredicates.in(field, ((JsonArray) argument).stream().toArray());
             case "$ne":
                 return FilterPredicates.ne(field, argument);
             case "$regex":

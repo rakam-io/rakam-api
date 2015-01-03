@@ -1,15 +1,10 @@
 package org.rakam.server;
 
-import akka.routing.RoundRobinRoutingLogic;
-import akka.routing.Routee;
-import akka.routing.RoutingLogic;
-import akka.routing.SeveralRoutees;
 import com.google.inject.Injector;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AnalysisRuleCrudService;
 import org.rakam.analysis.AnalysisRuleMap;
-import org.rakam.analysis.EventAnalyzer;
 import org.rakam.analysis.FilterRequestHandler;
 import org.rakam.analysis.HttpService;
 import org.rakam.collection.actor.ActorCollector;
@@ -18,13 +13,12 @@ import org.rakam.server.http.CustomHttpRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.json.DecodeException;
 import org.rakam.util.json.JsonObject;
-import scala.collection.immutable.IndexedSeq;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
@@ -37,14 +31,12 @@ import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
 public class WebServer {
     public final RouteMatcher routeMatcher;
     private final EventCollector eventCollector;
-    private final EventAnalyzer eventAnalyzer;
     private final Executor executor;
     private final ActorCollector actorCollector;
     private final FilterRequestHandler filterRequestHandler;
 
     public WebServer(Injector injector, AnalysisRuleMap analysisRuleMap, ExecutorService executor) {
         eventCollector = new EventCollector(injector, analysisRuleMap);
-        eventAnalyzer = new EventAnalyzer(injector, analysisRuleMap);
         filterRequestHandler = new FilterRequestHandler(injector);
         actorCollector = new ActorCollector(injector);
         routeMatcher = new RouteMatcher();
@@ -71,12 +63,27 @@ public class WebServer {
                     .thenAccept(result -> request.response(result ? "1" : "0").end());
         });
 
-        mapRequest("/analyze", json -> eventAnalyzer.analyze(json), o -> ((JsonObject) o).encode());
+//        mapRequest("/analyze", json -> eventAnalyzer.analyze(json), o -> ((JsonObject) o).encode());
         mapRequest("/actor", json -> actorCollector.handle(json), o -> o.toString());
 
         mapRequest("/filter/event", json -> filterRequestHandler.filterEvents(json), o -> ((JsonObject) o).encode());
 
         registerRoutes(new AnalysisRuleCrudService(injector, analysisRuleMap));
+
+        Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> {
+            try {
+                eventCollector.submitEvent(new JsonObject()
+                        .put("project", "test")
+                        .put("name", "naber")
+                        .put("properties", new JsonObject().put("ali", "veli").put("naber", 10)));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, 1, 1, TimeUnit.SECONDS);
+    }
+
+    public WebServer(Injector injector, AnalysisRuleMap analysisRuleMap) {
+        this(injector, analysisRuleMap, Executors.newCachedThreadPool());
     }
 
     private void registerRoutes(HttpService service)  {
@@ -100,8 +107,8 @@ public class WebServer {
 
     private void returnError(CustomHttpRequest request, String message, Integer statusCode) {
         JsonObject obj = new JsonObject();
-        obj.putString("error", message);
-        obj.putNumber("error_code", statusCode);
+        obj.put("error", message);
+        obj.put("error_code", statusCode);
 
         request.response(obj.encode(), HttpResponseStatus.valueOf(statusCode))
                 .headers().set("Content-Type", "application/json; charset=utf-8");

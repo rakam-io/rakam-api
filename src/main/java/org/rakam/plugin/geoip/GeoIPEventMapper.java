@@ -26,13 +26,13 @@ public class GeoIPEventMapper implements CollectionMapperPlugin {
         String IP = event.getString("ip");
         if (IP != null) {
             Location l1 = lookup.getLocation(IP);
-            event.putString("country", l1.countryName);
-            event.putString("country code", l1.countryCode);
-            event.putString("region", l1.region);
-            event.putString("city", l1.city);
-            event.putNumber("latitude", l1.latitude);
-            event.putNumber("longitude", l1.longitude);
-            event.putString("timezone", timeZone.timeZoneByCountryAndRegion(l1.countryCode, l1.region));
+            event.put("country", l1.countryName);
+            event.put("country code", l1.countryCode);
+            event.put("region", l1.region);
+            event.put("city", l1.city);
+            event.put("latitude", l1.latitude);
+            event.put("longitude", l1.longitude);
+            event.put("timezone", timeZone.timeZoneByCountryAndRegion(l1.countryCode, l1.region));
         }
         return true;
     }

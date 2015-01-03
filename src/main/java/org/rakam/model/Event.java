@@ -21,6 +21,6 @@ public class Event implements Entry {
     }
 
     public <T> T getAttribute(String attr) {
-        return data.getField(attr);
+        return (T) data.getValue(attr);
     }
 }

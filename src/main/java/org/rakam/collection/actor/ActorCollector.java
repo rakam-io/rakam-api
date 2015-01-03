@@ -1,8 +1,8 @@
 package org.rakam.collection.actor;
 
 import com.google.inject.Injector;
+import org.rakam.database.EventDatabase;
 import org.rakam.stream.ActorCacheAdapter;
-import org.rakam.database.DatabaseAdapter;
 import org.rakam.util.json.JsonObject;
 
 /**
@@ -10,11 +10,11 @@ import org.rakam.util.json.JsonObject;
  */
 public class ActorCollector {
 
-    private final DatabaseAdapter databaseAdapter;
+    private final EventDatabase databaseAdapter;
     private final ActorCacheAdapter actorCache;
 
     public ActorCollector(Injector injector) {
-        databaseAdapter = injector.getInstance(DatabaseAdapter.class);
+        databaseAdapter = injector.getInstance(EventDatabase.class);
         actorCache = injector.getInstance(ActorCacheAdapter.class);
     }
 
@@ -26,12 +26,12 @@ public class ActorCollector {
             return false;
         }
 
-        JsonObject properties = json.getObject("properties");
+        JsonObject properties = json.getJsonObject("properties");
         if(properties!=null) {
             actorCache.setActorProperties(project, actorId, properties);
         }
 
-        databaseAdapter.createActor(project, actorId, properties);
+//        databaseAdapter.createActor(project, actorId, properties);
         return true;
     }
 }

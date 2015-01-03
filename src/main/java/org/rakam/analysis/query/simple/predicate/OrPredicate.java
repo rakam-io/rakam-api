@@ -122,7 +122,7 @@ public class OrPredicate extends AbstractConnectorPredicate {
             else
                 objects.add(predicate.toString());
         }
-        return new JsonObject().putArray("OR", objects);
+        return new JsonObject().put("OR", objects);
     }
 
 }

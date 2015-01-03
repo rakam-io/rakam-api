@@ -1,6 +1,7 @@
 package org.rakam.analysis.query.simple;
 
 import org.rakam.analysis.query.FieldScript;
+import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;
 
 /**
@@ -38,8 +39,8 @@ public class SimpleFieldScript<T> implements FieldScript<T> {
     }
 
     @Override
-    public String toJson() {
-        return fieldKey;
+    public JsonElement toJson() {
+        return JsonElement.valueOf(fieldKey);
     }
 
     @Override

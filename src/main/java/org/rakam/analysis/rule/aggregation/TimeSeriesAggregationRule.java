@@ -63,7 +63,7 @@ public class TimeSeriesAggregationRule extends AggregationRule {
 
     public JsonObject toJson() {
         JsonObject json = super.toJson();
-        json.putValue("interval", interval.toJson());
+        json.put("interval", interval.toJson());
         return json;
     }
 

@@ -49,6 +49,6 @@ public class RegexPredicate extends AbstractRichPredicate {
 
     @Override
     public JsonArray toJson() {
-        return new JsonArray().addString(attribute).addString("$regex").addString(regex);
+        return new JsonArray().add(attribute).add("$regex").add(regex);
     }
 }

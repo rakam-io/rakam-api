@@ -13,7 +13,7 @@ public class JsonHelper {
 //        JsonObject obj = new JsonObject();
 //        for (Map.Entry<String, String> item : map) {
 //            String key = item.getKey();
-//            obj.putString(key, item.getValue());
+//            obj.put(key, item.getValue());
 //        }
 //        return obj;
 //    }
@@ -21,14 +21,14 @@ public class JsonHelper {
         JsonObject obj = new JsonObject();
         for (Map.Entry<String, List<String>> item : map.entrySet()) {
             String key = item.getKey();
-            obj.putString(key, item.getValue().get(0));
+            obj.put(key, item.getValue().get(0));
         }
         return obj;
     }
 
     public static JsonObject returnError(String message) {
         JsonObject j = new JsonObject();
-        j.putString("error", message);
+        j.put("error", message);
         return j;
     }
 }

@@ -6,15 +6,15 @@ import org.rakam.analysis.AnalysisRuleMap;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AggregationRule;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
 import org.rakam.constant.Analysis;
-import org.rakam.database.DatabaseAdapter;
+import org.rakam.database.ActorDatabase;
+import org.rakam.database.EventDatabase;
 import org.rakam.model.Actor;
 import org.rakam.stream.ActorCacheAdapter;
-import org.rakam.stream.StreamAdapter;
 import org.rakam.util.TimeUtil;
 import org.rakam.util.json.JsonObject;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
@@ -23,16 +23,16 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class EventAggregator {
     private final AnalysisRuleMap rules;
-    private final DatabaseAdapter databaseAdapter;
-    private final StreamAdapter streamAdapter;
+    private final EventDatabase databaseAdapter;
+    private final ActorDatabase actorDatabaseAdapter;
     private ActorCacheAdapter actorCache;
     private static ConcurrentMap<String, JsonObject> lruCache;
 
     public EventAggregator(Injector injector, AnalysisRuleMap rules) {
         this.rules = rules;
         actorCache = injector.getInstance(ActorCacheAdapter.class);
-        databaseAdapter = injector.getInstance(DatabaseAdapter.class);
-        streamAdapter = injector.getInstance(StreamAdapter.class);
+        databaseAdapter = injector.getInstance(EventDatabase.class);
+        actorDatabaseAdapter = injector.getInstance(ActorDatabase.class);
     }
 
     public void activeActorCache() {
@@ -67,8 +67,8 @@ public class EventAggregator {
                         ((aggregation.groupBy != null) && aggregation.groupBy.requiresUser())) {
                     actor_props = get_actor_properties(project, actor_id);
                     if (actor_props != null) {
-                        for (String s : actor_props.getFieldNames()) {
-                            m.putValue("_user." + s, actor_props.getValue(s));
+                        for (Map.Entry<String, Object> s : actor_props) {
+                            m.put("_user." + s, s.getValue());
                         }
                     }
                 }
@@ -88,17 +88,9 @@ public class EventAggregator {
                     } else {
                         groupByValue = null;
                     }
-                    if(rule instanceof TimeSeriesAggregationRule) {
-                        streamAdapter.handleGroupingTimeSeries(key, aggregation.type, type_target, groupByValue, ((TimeSeriesAggregationRule) rule).interval.span(timestamp).current());
-                    }else {
-                        streamAdapter.handleGroupingMetric(key, aggregation.type, type_target, groupByValue);
-                    }
+                    //
                 } else {
-                    if(rule instanceof TimeSeriesAggregationRule) {
-                        streamAdapter.handleNonGroupingTimeSeries(key, aggregation.type, type_target, ((TimeSeriesAggregationRule) rule).interval.span(timestamp).current());
-                    }else {
-                        streamAdapter.handleNonGroupingMetric(key, aggregation.type, type_target);
-                    }
+                    //
                 }
             }
         }
@@ -117,7 +109,7 @@ public class EventAggregator {
                 actor = actorCache.getActorProperties(project, actor_id).join();
             }
             if (actor == null) {
-                Actor act = databaseAdapter.getActor(project, actor_id);
+                Actor act = actorDatabaseAdapter.getActor(project, actor_id);
                 if (act != null) {
                     actor = act.data;
                     if (actorCache != null) {
@@ -128,7 +120,7 @@ public class EventAggregator {
                     }
                 } else {
                     // todo: it should be optional
-                    actor = databaseAdapter.createActor(project, actor_id, null).data;
+                    actor = actorDatabaseAdapter.createActor(project, actor_id, null).data;
                 }
             }
             return actor;

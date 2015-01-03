@@ -50,6 +50,6 @@ public class MVELFilterScript implements FilterScript {
 
     @Override
     public org.rakam.util.json.JsonElement toJson() {
-        return new JsonObject().putString("script", script);
+        return new JsonObject().put("script", script);
     }
 }

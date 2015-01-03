@@ -1,5 +1,6 @@
 package org.rakam.analysis.query;
 
+import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;
 
 import java.io.Serializable;
@@ -14,5 +15,5 @@ public interface FieldScript<T> extends Serializable {
 
     public abstract boolean requiresUser();
 
-    <Val> Val toJson();
+    JsonElement toJson();
 }

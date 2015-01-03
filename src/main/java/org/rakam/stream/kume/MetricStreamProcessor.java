@@ -5,6 +5,7 @@ import org.rakam.stream.MetricStreamHandler;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.crdt.counter.GCounterService;
 import org.rakam.kume.service.crdt.set.GSetService;
+import org.rakam.stream.kume.service.AverageGCounterService;
 import org.rakam.util.json.JsonArray;
 import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;
@@ -17,21 +18,21 @@ import java.util.concurrent.CompletableFuture;
  * Created by buremba <Burak Emre Kabakcı> on 30/12/14 10:20.
  */
 public enum MetricStreamProcessor {
-    SUNDAY(UniqueXMetricRule.class);
+    SUNDAY(UniqueXMetricStreamHandler.class);
 
     private final Class<? extends MetricStreamHandler> mass;
 
-    MetricStreamProcessor(Class<UniqueXMetricRule> uniqueXMetricRuleClass) {
+    MetricStreamProcessor(Class<UniqueXMetricStreamHandler> uniqueXMetricRuleClass) {
         this.mass = uniqueXMetricRuleClass;
     }
 
-    public abstract static class MetricCounterRule implements MetricStreamHandler {
+    public abstract static class MetricCounterHandler implements MetricStreamHandler {
         final FieldScript<Number> field;
         final GCounterService counter;
 
-        protected MetricCounterRule(FieldScript<Number> field, GCounterService counter) {
+        protected MetricCounterHandler(Cluster cluster, FieldScript<Number> field) {
             this.field = field;
-            this.counter = counter;
+            this.counter = cluster.createService(bus -> new GCounterService(bus, 2));
         }
 
         @Override
@@ -40,11 +41,11 @@ public enum MetricStreamProcessor {
         }
 
     }
-    public static class UniqueXMetricRule implements MetricStreamHandler {
+    public static class UniqueXMetricStreamHandler implements MetricStreamHandler {
         final GSetService set;
         final FieldScript field;
 
-        public UniqueXMetricRule(Cluster cluster, FieldScript field) {
+        public UniqueXMetricStreamHandler(Cluster cluster, FieldScript field) {
             this.set = cluster.createService(bus -> new GSetService<>(bus, HashSet::new, 2));
             this.field = field;
         }
@@ -61,10 +62,11 @@ public enum MetricStreamProcessor {
         }
     }
 
-    public static class SumXMetricHandler extends MetricCounterRule {
+    public static class SumXMetricStreamHandler extends MetricCounterHandler {
 
-        protected SumXMetricHandler(FieldScript<Number> field, GCounterService counter) {
-            super(field, counter);
+
+        protected SumXMetricStreamHandler(Cluster cluster, FieldScript<Number> field) {
+            super(cluster, field);
         }
 
         @Override
@@ -80,10 +82,11 @@ public enum MetricStreamProcessor {
         }
     }
 
-    public static class MinimumXMetricRule extends MetricCounterRule {
+    public static class MinimumXMetricStreamHandler extends MetricCounterHandler {
 
-        protected MinimumXMetricRule(FieldScript<Number> field, GCounterService counter) {
-            super(field, counter);
+
+        protected MinimumXMetricStreamHandler(Cluster cluster, FieldScript<Number> field) {
+            super(cluster, field);
         }
 
         @Override
@@ -103,9 +106,10 @@ public enum MetricStreamProcessor {
         }
     }
 
-    public static class MaximumXMetricRule extends MetricCounterRule {
-        protected MaximumXMetricRule(FieldScript<Number> field, GCounterService counter) {
-            super(field, counter);
+    public static class MaximumXMetricStreamHandler extends MetricCounterHandler {
+
+        protected MaximumXMetricStreamHandler(Cluster cluster, FieldScript<Number> field) {
+            super(cluster, field);
         }
 
         @Override
@@ -125,9 +129,9 @@ public enum MetricStreamProcessor {
         }
     }
 
-    public static class CountXMetricRule extends MetricCounterRule {
-        protected CountXMetricRule(FieldScript<Number> field, GCounterService counter) {
-            super(field, counter);
+    public static class CountXMetricStreamHandler extends MetricCounterHandler {
+        protected CountXMetricStreamHandler(Cluster cluster, FieldScript<Number> field) {
+            super(cluster, field);
         }
 
         @Override
@@ -137,10 +141,10 @@ public enum MetricStreamProcessor {
         }
     }
 
-    public static class CountMetricRule implements MetricStreamHandler {
+    public static class CountMetricStreamHandler implements MetricStreamHandler {
         final GCounterService counter;
 
-        public CountMetricRule(Cluster cluster) {
+        public CountMetricStreamHandler(Cluster cluster) {
             this.counter = cluster.createService(bus -> new GCounterService(bus, 2));
         }
 
@@ -154,9 +158,13 @@ public enum MetricStreamProcessor {
         }
     }
 
-    public static class AverageXMetricRule extends MetricCounterRule {
-        public AverageXMetricRule(FieldScript<Number> field, GCounterService counter) {
-            super(field, counter);
+    public static class AverageXMetricStreamHandler implements MetricStreamHandler {
+        final FieldScript<Number> field;
+        final AverageGCounterService counter;
+
+        protected AverageXMetricStreamHandler(Cluster cluster, FieldScript<Number> field) {
+            this.counter = cluster.createService(bus -> new AverageGCounterService(bus, 2));
+            this.field = field;
         }
 
         @Override
@@ -170,6 +178,11 @@ public enum MetricStreamProcessor {
 
             if(extract != null)
                 counter.add(extract.longValue());
+        }
+
+        @Override
+        public JsonElement get() {
+            return null;
         }
     }
 }

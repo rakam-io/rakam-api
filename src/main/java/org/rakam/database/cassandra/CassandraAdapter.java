@@ -5,20 +5,17 @@ import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
-import database.cassandra.CassandraBatchProcessor;
 import org.apache.log4j.Logger;
 import org.rakam.analysis.AnalysisRuleParser;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.cluster.ClusterMemberManager;
+import org.rakam.database.ActorDatabase;
 import org.rakam.database.AnalysisRuleDatabase;
-import org.rakam.database.DatabaseAdapter;
+import org.rakam.database.EventDatabase;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
 import org.rakam.util.json.JsonObject;
 
-import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -27,13 +24,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Future;
 
 /**
  * Created by buremba on 21/12/13.
  */
 
-public class CassandraAdapter implements DatabaseAdapter, AnalysisRuleDatabase {
+public class CassandraAdapter implements EventDatabase, AnalysisRuleDatabase, ActorDatabase {
 
     private Session session = Cluster.builder().addContactPoint("127.0.0.1").build().connect("analytics");
 
@@ -104,14 +100,13 @@ public class CassandraAdapter implements DatabaseAdapter, AnalysisRuleDatabase {
     }
 
     @Override
-    public Future addEventAsync(String project, String actor_id, JsonObject data) {
+    public void addEvent(String project, String eventName, String actor_id, JsonObject data) {
         long m = System.currentTimeMillis();
         try {
-            return session.executeAsync(add_event.bind(project, (int) (m / 1000), (int) ((m % 1000) + (1000000 * ClusterMemberManager.getServerId()) + (1000 * Thread.currentThread().getId())), actor_id, ByteBuffer.wrap(data.encode().getBytes())));
+//            return session.executeAsync(add_event.bind(project, (int) (m / 1000), (int) ((m % 1000) + (1000000 * ClusterMemberManager.getServerId()) + (1000 * Thread.currentThread().getId())), actor_id, ByteBuffer.wrap(data.encode().getBytes())));
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     @Override
@@ -133,19 +128,13 @@ public class CassandraAdapter implements DatabaseAdapter, AnalysisRuleDatabase {
     }
 
     @Override
-    public void combineActors(String actor1, String actor2) {
+    public void processRule(AnalysisRule rule) {
 
     }
 
     @Override
-    public Map<String, Long> getCounters(Collection<String> keys) {
-        Iterator<Row> it = session.execute(get_multi_count_sql.bind(keys)).iterator();
-        Map<String, Long> l = new HashMap();
-        while (it.hasNext()) {
-            Row item = it.next();
-            l.put(item.getString("id"), item.getLong("value"));
-        }
-        return l;
+    public void combineActors(String actor1, String actor2) {
+
     }
 
     @Override
@@ -185,15 +174,10 @@ public class CassandraAdapter implements DatabaseAdapter, AnalysisRuleDatabase {
         session.execute("delete from aggregated_counter where key in ?", list);
     }
 
-    @Override
-    public void processRule(AnalysisRule rule) {
-        CassandraBatchProcessor.processRule(rule);
-    }
-
-    @Override
-    public void processRule(AnalysisRule rule, long start_time, long end_time) {
-        CassandraBatchProcessor.processRule(rule, start_time, end_time);
-    }
+//    @Override
+//    public void processRule(AnalysisRule rule, long start_time, long end_time) {
+//        CassandraBatchProcessor.processRule(rule, start_time, end_time);
+//    }
 
     @Override
     public Map<String, Set<AnalysisRule>> getAllRules() {
@@ -216,10 +200,10 @@ public class CassandraAdapter implements DatabaseAdapter, AnalysisRuleDatabase {
         return map;
     }
 
-    @Override
-    public void batch(String project, int start_time, int end_time, int node_id) {
-        _batch(session.execute(batch_filter_range.bind(start_time, end_time, node_id)).iterator());
-    }
+//    @Override
+//    public void batch(String project, int start_time, int end_time, int node_id) {
+//        _batch(session.execute(batch_filter_range.bind(start_time, end_time, node_id)).iterator());
+//    }
 
     private void _batch(Iterator<Row> it) {
 //        EventAggregator worker = new EventAggregator(this, ServiceStarter.injector.getInstance(CacheAdapter.class), this);
@@ -231,19 +215,21 @@ public class CassandraAdapter implements DatabaseAdapter, AnalysisRuleDatabase {
         }
     }
 
-    @Override
-    public void batch(String project, int start_time, int nodeId) {
-        _batch(session.execute(batch_filter.bind(project, start_time, nodeId)).iterator());
-    }
+//    @Override
+//    public void batch(String project, int start_time, int nodeId) {
+//        _batch(session.execute(batch_filter.bind(project, start_time, nodeId)).iterator());
+//    }
 
     @Override
     public Actor[] filterActors(FilterScript filter, int limit, String orderByColumn) {
-        return CassandraBatchProcessor.filterActors(filter, limit, orderByColumn);
+//        return CassandraBatchProcessor.filterActors(filter, limit, orderByColumn);
+        return null;
     }
 
     @Override
     public Event[] filterEvents(FilterScript filter, int limit, String orderByColumn) {
-        return CassandraBatchProcessor.filterEvents(filter, limit, orderByColumn);
+//        return CassandraBatchProcessor.filterEvents(filter, limit, orderByColumn);
+        return null;
     }
 
 }
