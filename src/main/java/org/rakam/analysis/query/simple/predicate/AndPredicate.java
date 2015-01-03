@@ -108,6 +108,6 @@ public class AndPredicate extends AbstractConnectorPredicate {
             else
                 objects.add(predicate.toString());
         }
-        return new JsonObject().putArray("AND", objects);
+        return new JsonObject().put("AND", objects);
     }
 }

@@ -317,8 +317,8 @@ public class JsonObject extends JsonElement implements Iterable<Map.Entry<String
         return this;
     }
 
-    public Object remove(String key) {
-        return map.remove(key);
+    public <T> T remove(String key) {
+        return (T) map.remove(key);
     }
 
     public JsonObject mergeIn(JsonObject other) {

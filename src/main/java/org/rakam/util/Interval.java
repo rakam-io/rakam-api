@@ -17,6 +17,12 @@ import static org.rakam.util.TimeUtil.UTCTime;
 
 public abstract class Interval {
     final static Pattern parser = Pattern.compile("^([0-9]+)([a-z]+)s?$");
+    public static final Interval MINUTE = new TimeSpan(Duration.ofMinutes(1));
+    public static final Interval HOUR = new TimeSpan(Duration.ofHours(1));
+    public static final Interval SECOND = new TimeSpan(Duration.ofSeconds(1));
+    public static final Interval DAY = new TimeSpan(Duration.ofDays(1));
+    public static final Interval WEEK = new TimeSpan(Duration.ofDays(7));
+    public static final Interval MONTH = new MonthSpan(Period.ofMonths(1));
 
     public abstract StatefulSpanTime span(int time);
 

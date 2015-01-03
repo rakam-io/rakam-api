@@ -19,17 +19,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 30/12/14 22:07.
  */
-public enum MetricGroupingStreamProcessor {
-    SUNDAY(UniqueXMetricRule.class);
+public class MetricGroupingStreamProcessor {
 
-    private final Class<? extends MetricStreamHandler> mass;
-
-    MetricGroupingStreamProcessor(Class<UniqueXMetricRule> uniqueXMetricRuleClass) {
-        this.mass = uniqueXMetricRuleClass;
-    }
-
-    public abstract static class MetricCounterMapNumberRule extends MetricCounterMapRule {
-        public MetricCounterMapNumberRule(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
+    public abstract static class MetricCounterMapNumberHandler extends MetricCounterMapHandler {
+        public MetricCounterMapNumberHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
             super(cluster, groupBy, field, isOrdered, lazySorted);
         }
 
@@ -52,12 +45,12 @@ public enum MetricGroupingStreamProcessor {
 
     }
 
-    public abstract static class MetricCounterMapRule implements MetricGroupingStreamHandler {
+    public abstract static class MetricCounterMapHandler implements MetricGroupingStreamHandler {
         final FieldScript<Object> field;
         final FieldScript<String> groupBy;
         final MapService<String, SimpleCounter> map;
 
-        public MetricCounterMapRule(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
+        public MetricCounterMapHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
             this.field = field;
             this.groupBy = groupBy;
             // TODO: implement sorted by value and non-ordered maps
@@ -75,12 +68,12 @@ public enum MetricGroupingStreamProcessor {
 
     }
 
-    public static class UniqueXMetricRule implements MetricStreamHandler {
+    public static class UniqueXMetricStreamHandler implements MetricStreamHandler {
         final FieldScript field;
         final FieldScript<String> groupBy;
         final MapService<String, Set> map;
 
-        public UniqueXMetricRule(Cluster cluster, FieldScript<String> groupBy, FieldScript field) {
+        public UniqueXMetricStreamHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript field) {
             this.groupBy = groupBy;
             this.field = field;
             this.map = cluster.createService(bus -> new MapService<>(bus, ConcurrentHashMap::new, GSetService::merge, 2));
@@ -103,10 +96,10 @@ public enum MetricGroupingStreamProcessor {
         }
     }
 
-    public static class SumXMetricHandler extends MetricCounterMapNumberRule {
+    public static class SumXMetricStreamHandler extends MetricCounterMapNumberHandler {
 
 
-        public SumXMetricHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
+        public SumXMetricStreamHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
             super(cluster, groupBy, field, isOrdered, lazySorted);
         }
 
@@ -116,10 +109,10 @@ public enum MetricGroupingStreamProcessor {
         }
     }
 
-    public static class MinimumXMetricRule extends MetricCounterMapNumberRule {
+    public static class MinimumXMetricStreamHandler extends MetricCounterMapNumberHandler {
 
 
-        public MinimumXMetricRule(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
+        public MinimumXMetricStreamHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
             super(cluster, groupBy, field, isOrdered, lazySorted);
         }
 
@@ -134,9 +127,9 @@ public enum MetricGroupingStreamProcessor {
 
     }
 
-    public static class MaximumXMetricRule extends MetricCounterMapNumberRule {
+    public static class MaximumXMetricStreamHandler extends MetricCounterMapNumberHandler {
 
-        public MaximumXMetricRule(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
+        public MaximumXMetricStreamHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
             super(cluster, groupBy, field, isOrdered, lazySorted);
         }
 
@@ -150,8 +143,8 @@ public enum MetricGroupingStreamProcessor {
         }
     }
 
-    public static class CountXMetricRule extends MetricCounterMapRule {
-        public CountXMetricRule(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
+    public static class CountXMetricStreamHandler extends MetricCounterMapHandler {
+        public CountXMetricStreamHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
             super(cluster, groupBy, field, isOrdered, lazySorted);
         }
 
@@ -164,8 +157,8 @@ public enum MetricGroupingStreamProcessor {
         }
     }
 
-    public static class CountMetricRule extends MetricCounterMapRule {
-        public CountMetricRule(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
+    public static class CountMetricStreamHandler extends MetricCounterMapHandler {
+        public CountMetricStreamHandler(Cluster cluster, FieldScript<String> groupBy, FieldScript<Object> field, boolean isOrdered, boolean lazySorted) {
             super(cluster, groupBy, field, isOrdered, lazySorted);
         }
 
@@ -177,11 +170,11 @@ public enum MetricGroupingStreamProcessor {
         }
     }
 
-    public static class AverageXMetricRule implements MetricGroupingStreamHandler {
+    public static class AverageXMetricStreamHandler implements MetricGroupingStreamHandler {
         final FieldScript<Number> field;
         final AverageGCounterService counter;
 
-        public AverageXMetricRule(Cluster cluster, FieldScript<Number> field) {
+        public AverageXMetricStreamHandler(Cluster cluster, FieldScript<Number> field) {
             this.field = field;
             this.counter = cluster.createService(bus -> new AverageGCounterService(bus, 2));
         }

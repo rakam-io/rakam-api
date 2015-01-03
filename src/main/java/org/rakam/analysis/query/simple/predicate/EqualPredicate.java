@@ -49,6 +49,6 @@ public class EqualPredicate extends AbstractRichPredicate {
 
     @Override
     public JsonArray toJson() {
-        return new JsonArray().addString(attribute).addString("$eq").add(value);
+        return new JsonArray().add(attribute).add("$eq").add(value);
     }
 }

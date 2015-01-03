@@ -1,5 +1,6 @@
 package org.rakam.stream.kume;
 
+import com.google.inject.Inject;
 import org.rakam.kume.Cluster;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.util.json.JsonObject;
@@ -11,11 +12,15 @@ import java.util.concurrent.CompletableFuture;
  * Created by buremba on 21/12/13.
  */
 
-public class KumeStreamAdapter implements ActorCacheAdapter {
-    private final Cluster cluster;
+public class KumeCacheAdapter implements ActorCacheAdapter {
+    private Cluster cluster;
 
-    public KumeStreamAdapter(Cluster cluster) throws IOException {
+    public KumeCacheAdapter(Cluster cluster) {
         this.cluster = cluster;
+    }
+
+    @Inject
+    public KumeCacheAdapter() throws IOException {
     }
 
     @Override

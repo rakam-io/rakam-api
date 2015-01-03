@@ -41,7 +41,7 @@ public class InPredicate extends AbstractRichPredicate {
 
     @Override
     public boolean test(JsonObject entry) {
-        final Number entryValue = entry.getNumber(attribute);
+        final Long entryValue = entry.getLong(attribute);
         if (entryValue == null) {
             return false;
         }
@@ -70,6 +70,6 @@ public class InPredicate extends AbstractRichPredicate {
 
     @Override
     public JsonArray toJson() {
-        return new JsonArray().addString(attribute).addString("$gte").addArray(new JsonArray(Arrays.asList(value)));
+        return new JsonArray().add(attribute).add("$gte").add(new JsonArray(Arrays.asList(value)));
     }
 }

@@ -2,18 +2,17 @@ package org.rakam.analysis;
 
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.stream.ActorCacheAdapter;
+import org.rakam.database.ActorDatabase;
 import org.rakam.database.AnalysisRuleDatabase;
-import org.rakam.database.DatabaseAdapter;
+import org.rakam.database.EventDatabase;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
+import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.util.NotImplementedException;
 import org.rakam.util.json.JsonObject;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,12 +20,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.Future;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 19/09/14 14:00.
  */
-public class DummyDatabase implements DatabaseAdapter, AnalysisRuleDatabase, ActorCacheAdapter {
+public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, ActorCacheAdapter, ActorDatabase {
     static Map<String, Set<AnalysisRule>> ruleMap = new HashMap();
 
     static Map<String, Map<String, Actor>> actors = new ConcurrentHashMap<>();
@@ -61,6 +59,11 @@ public class DummyDatabase implements DatabaseAdapter, AnalysisRuleDatabase, Act
     }
 
     @Override
+    public void addEvent(String project, String eventName, String actor_id, JsonObject data) {
+
+    }
+
+    @Override
     public Actor createActor(String project, String actor_id, JsonObject properties) {
         Actor value = new Actor(project, actor_id, properties!=null ? properties: null);
         actors.computeIfAbsent(project, k -> new HashMap<>())
@@ -74,16 +77,16 @@ public class DummyDatabase implements DatabaseAdapter, AnalysisRuleDatabase, Act
         if (stringActorMap != null) {
             Actor actor = stringActorMap.get(actor_id);
             if (actor != null) {
-                props.forEach((k, v) -> actor.data.putValue(k, v));
+                props.forEach((k, v) -> actor.data.put(k, v));
             }
         }
     }
 
-    @Override
-    public Future addEventAsync(String project, String actor_id, JsonObject data) {
-        return CompletableFuture.supplyAsync(() ->
-                events.computeIfAbsent(project, k -> new LinkedList()).add(new Event(UUID.randomUUID(), project, actor_id, data)));
-    }
+//    @Override
+//    public Future addEventAsync(String project, String actor_id, JsonObject data) {
+//        return CompletableFuture.supplyAsync(() ->
+//                events.computeIfAbsent(project, k -> new LinkedList()).add(new Event(UUID.randomUUID(), project, actor_id, data)));
+//    }
 
     @Override
     public Actor getActor(String project, String actorId) {
@@ -101,27 +104,7 @@ public class DummyDatabase implements DatabaseAdapter, AnalysisRuleDatabase, Act
     }
 
     @Override
-    public Map<String, Long> getCounters(Collection<String> keys) {
-        return null;
-    }
-
-    @Override
     public void processRule(AnalysisRule rule) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void processRule(AnalysisRule rule, long start_time, long end_time) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void batch(String project, int start_time, int end_time, int nodeId) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void batch(String project, int start_time, int nodeId) {
         throw new NotImplementedException();
     }
 

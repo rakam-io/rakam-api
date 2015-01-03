@@ -36,11 +36,11 @@ public class GreaterEqualPredicate extends AbstractRichPredicate {
 
     @Override
     public boolean test(JsonObject entry) {
-        final Number entryValue = entry.getNumber(attribute);
+        final Long entryValue = entry.getLong(attribute);
         if (entryValue == null) {
             return false;
         }
-        return entryValue.longValue() >= value;
+        return entryValue >= value;
     }
 
     @Override
@@ -55,6 +55,6 @@ public class GreaterEqualPredicate extends AbstractRichPredicate {
 
     @Override
     public JsonArray toJson() {
-        return new JsonArray().addString(attribute).addString("$gte").addNumber(value);
+        return new JsonArray().add(attribute).add("$gte").add(value);
     }
 }

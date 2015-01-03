@@ -55,6 +55,6 @@ public class StartsWithPredicate extends AbstractRichPredicate {
 
     @Override
     public JsonArray toJson() {
-        return new JsonArray().addString(attribute).addString("$starts_with").addString(value);
+        return new JsonArray().add(attribute).add("$starts_with").add(value);
     }
 }

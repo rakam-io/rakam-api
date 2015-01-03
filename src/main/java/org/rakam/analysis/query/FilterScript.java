@@ -1,5 +1,6 @@
 package org.rakam.analysis.query;
 
+import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;
 
 import java.io.Serializable;
@@ -12,5 +13,5 @@ public interface FilterScript extends Serializable {
 
     public abstract boolean requiresUser();
 
-    public abstract <Val> Val toJson();
+    public abstract JsonElement toJson();
 }

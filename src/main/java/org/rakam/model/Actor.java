@@ -20,7 +20,7 @@ public class Actor implements Entry {
         this.id = actorId;
         this.project = projectId;
         this.data = new JsonObject(new String(properties));
-        data.putString("id", actorId);
+        data.put("id", actorId);
     }
 
     public Actor(String projectId, String actorId, JsonObject properties) {
@@ -30,6 +30,6 @@ public class Actor implements Entry {
     }
 
     public <T> T getAttribute(String attr) {
-        return data == null ? null : data.getField(attr);
+        return data == null ? null : (T) data.getValue(attr);
     }
 }

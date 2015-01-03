@@ -27,15 +27,15 @@ public class SimpleCounter implements Counter {
         counter += l;
     }
 
+    public void set(long l) {
+        counter = l;
+    }
+
     public static long merge(long val0, long val1) {
         return Long.max(val0, val1);
     }
 
     public static SimpleCounter merge(SimpleCounter val0, SimpleCounter val1) {
         return val0.getValue() > val1.getValue() ? val0 : val1;
-    }
-
-    public void set(long l) {
-        counter = l;
     }
 }

@@ -37,6 +37,6 @@ public class ContainsPredicate extends AbstractRichPredicate {
 
     @Override
     public JsonArray toJson() {
-        return new JsonArray().addString(attribute).addString("$contains");
+        return new JsonArray().add(attribute).add("$contains");
     }
 }

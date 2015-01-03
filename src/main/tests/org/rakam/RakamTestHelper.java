@@ -31,7 +31,7 @@ public class RakamTestHelper {
     public JsonObject randomJson(int entryCount, int keyLength, int valueLength) {
         JsonObject json = new JsonObject();
         for (int i = 0; i < entryCount; i++) {
-            json.putString(randomString(keyLength), randomString(valueLength));
+            json.put(randomString(keyLength), randomString(valueLength));
         }
         return json;
     }
@@ -39,7 +39,7 @@ public class RakamTestHelper {
     public JsonObject iterativeJson(int entryCount, String keyPrefix, String valuePrefix) {
         JsonObject json = new JsonObject();
         for (int i = 0; i < entryCount; i++) {
-            json.putString(keyPrefix+i, valuePrefix+i);
+            json.put(keyPrefix+i, valuePrefix+i);
         }
         return json;
     }

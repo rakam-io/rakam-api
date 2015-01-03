@@ -44,6 +44,6 @@ public class NegatePredicate<T extends Entry> implements RichPredicate {
     public JsonObject toJson() {
         JsonObject jsonObject = new JsonObject();
         Object value = predicate instanceof RichPredicate ? ((RichPredicate) predicate).toJson() : predicate.toString();
-        return jsonObject.putValue("NOT", value);
+        return jsonObject.put("NOT", value);
     }
 }

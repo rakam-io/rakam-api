@@ -36,7 +36,7 @@ public class GreaterPredicate extends AbstractRichPredicate {
 
     @Override
     public boolean test(JsonObject entry) {
-        final Number entryValue = entry.getNumber(attribute);
+        final Number entryValue = (Number) entry.getValue(attribute);
         if (entryValue == null) {
             return false;
         }
@@ -55,6 +55,6 @@ public class GreaterPredicate extends AbstractRichPredicate {
 
     @Override
     public JsonArray toJson() {
-        return new JsonArray().addString(attribute).addString("$gte").addNumber(value);
+        return new JsonArray().add(attribute).add("$gte").add(value);
     }
 }

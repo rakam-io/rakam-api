@@ -4,7 +4,7 @@ import com.google.inject.Injector;
 import io.netty.handler.codec.http.HttpMethod;
 import org.rakam.analysis.rule.aggregation.AnalysisRule;
 import org.rakam.database.AnalysisRuleDatabase;
-import org.rakam.database.DatabaseAdapter;
+import org.rakam.database.EventDatabase;
 import org.rakam.server.RouteMatcher;
 import org.rakam.util.json.JsonArray;
 import org.rakam.util.json.JsonObject;
@@ -23,12 +23,12 @@ public class AnalysisRuleCrudService implements HttpService {
     private static Logger LOGGER = Logger.getLogger("AnalysisRuleCrudHandler");
     private final AnalysisRuleMap analysisRuleMap;
     AnalysisRuleDatabase ruleDatabaseAdapter;
-    DatabaseAdapter databaseAdapter;
+    EventDatabase databaseAdapter;
     ExecutorService pool = Executors.newCachedThreadPool();
 
     public AnalysisRuleCrudService(Injector injector, AnalysisRuleMap analysisRuleMap) {
         ruleDatabaseAdapter = injector.getInstance(AnalysisRuleDatabase.class);
-        databaseAdapter = injector.getInstance(DatabaseAdapter.class);
+        databaseAdapter = injector.getInstance(EventDatabase.class);
         this.analysisRuleMap = analysisRuleMap;
     }
 
@@ -50,13 +50,13 @@ public class AnalysisRuleCrudService implements HttpService {
             final JsonObject add = get(json.getString("tracker"), json.getString("rule"));
             request.response(add.encode()).end();
         }));
-        // return new JsonObject().putString("error", "unknown endpoint. available endpoints: [add, list, delete, get]");
+        // return new JsonObject().put("error", "unknown endpoint. available endpoints: [add, list, delete, get]");
 
 //        String action = obj.getString("action");
-//        JsonObject request = obj.getObject("request");
+//        JsonObject request = obj.getJsonObject("request");
 //        String project = request.getString("tracker");
 //        if (project == null) {
-//            return new JsonObject().putString("error", "tracker parameter must be specified.").putNumber("status", 400);
+//            return new JsonObject().put("error", "tracker parameter must be specified.").put("status", 400);
 //        }
     }
 
@@ -66,15 +66,15 @@ public class AnalysisRuleCrudService implements HttpService {
         try {
             rule = AnalysisRuleParser.parse(rule_obj);
         } catch (IllegalArgumentException e) {
-            ret.putString("error", e.getMessage());
-            ret.putNumber("error_code", 400);
+            ret.put("error", e.getMessage());
+            ret.put("error_code", 400);
             return ret;
         }
 
         JsonObject request = new JsonObject()
-                .putNumber("operation", AnalysisRuleMapActor.DELETE)
-                .putString("tracker", rule.project).putObject("rule", rule.toJson())
-                .putNumber("timestamp", UTCTime());
+                .put("operation", AnalysisRuleMapActor.DELETE)
+                .put("tracker", rule.project).put("rule", rule.toJson())
+                .put("timestamp", UTCTime());
 
 //        switch (rule.strategy) {
 //            case REAL_TIME:
@@ -89,7 +89,7 @@ public class AnalysisRuleCrudService implements HttpService {
 //                break;
 //        }
 
-        ret.putBoolean("success", true);
+        ret.put("success", true);
         return ret;
     }
 
@@ -101,7 +101,7 @@ public class AnalysisRuleCrudService implements HttpService {
             for (AnalysisRule rule : rules) {
                 json.add(rule.toJson());
             }
-        ret.putArray("rules", json);
+        ret.put("rules", json);
         return ret;
     }
 
@@ -113,8 +113,8 @@ public class AnalysisRuleCrudService implements HttpService {
                     return rule.toJson();
             }
         else
-            return new JsonObject().putString("error", "project doesn't exists");
-        return new JsonObject().putString("error", "rule doesn't exists");
+            return new JsonObject().put("error", "project doesn't exists");
+        return new JsonObject().put("error", "rule doesn't exists");
     }
 
     public JsonObject add(final JsonObject obj) {
@@ -123,23 +123,23 @@ public class AnalysisRuleCrudService implements HttpService {
         try {
             rule = AnalysisRuleParser.parse(obj);
         } catch (IllegalArgumentException e) {
-            ret.putString("error", e.getMessage());
-            ret.putNumber("status", 400);
+            ret.put("error", e.getMessage());
+            ret.put("status", 400);
             return ret;
         }
         Set<AnalysisRule> rules = analysisRuleMap.get(rule.project);
         if (rules != null && rules.contains(rule)) {
-            ret.putString("error", "the rule already exists.");
-            ret.putNumber("status", 400);
+            ret.put("error", "the rule already exists.");
+            ret.put("status", 400);
             return ret;
         }
 
         pool.submit(() -> {
             LOGGER.info("Processing the rule.");
             JsonObject request = new JsonObject()
-                    .putNumber("operation", AnalysisRuleMapActor.ADD)
-                    .putString("tracker", rule.project).putObject("rule", obj)
-                    .putNumber("timestamp", UTCTime());
+                    .put("operation", AnalysisRuleMapActor.ADD)
+                    .put("tracker", rule.project).put("rule", obj)
+                    .put("timestamp", UTCTime());
             ruleDatabaseAdapter.addRule(rule);
             switch (rule.strategy) {
                 case REAL_TIME_BATCH_CONCURRENT:
@@ -157,7 +157,7 @@ public class AnalysisRuleCrudService implements HttpService {
                 case BATCH_PERIODICALLY:
                     Integer batch_interval = obj.getInteger("batch_interval");
                     if (batch_interval == null) {
-                        ret.putString("error", "batch_interval is required when analysis strategy is BATCH_PERIODICALLY");
+                        ret.put("error", "batch_interval is required when analysis strategy is BATCH_PERIODICALLY");
                     }
 //                vertx.setPeriodic(batch_interval, l -> databaseAdapter.processRule(rule));
                     break;
@@ -167,16 +167,16 @@ public class AnalysisRuleCrudService implements HttpService {
 
             LOGGER.info("Rule is processed.");
         });
-        ret.putString("message", "analysis rule successfully queued.");
+        ret.put("message", "analysis rule successfully queued.");
         return ret;
     }
 
     private void updateBatchStatus(AnalysisRule rule) {
         rule.batch_status = true;
 //        vertx.eventBus().publish("aggregationRuleReplication", new JsonObject()
-//                .putNumber("operation", DistributedAnalysisRuleMap.UPDATE_BATCH)
-//                .putString("tracker", rule.project).putObject("rule", rule.toJson())
-//                .putNumber("timestamp", UTCTime()));
+//                .put("operation", DistributedAnalysisRuleMap.UPDATE_BATCH)
+//                .put("tracker", rule.project).put("rule", rule.toJson())
+//                .put("timestamp", UTCTime()));
     }
 
     @Override
