@@ -1,26 +1,26 @@
 package org.rakam.model;
 
-import org.rakam.util.json.JsonObject;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.util.UUID;
+import javax.annotation.Nullable;
 
 /**
  * Created by buremba on 21/12/13.
  */
 public class Event implements Entry {
-    public final UUID id;
     public final String project;
-    public final String actor;
-    public final JsonObject data;
+    public final String collection;
+    public final @Nullable String user;
+    public final ObjectNode properties;
 
-    public Event(UUID id, String name, String actor, JsonObject data) {
-        this.id = id;
-        this.project = name;
-        this.actor = actor;
-        this.data = data;
+    public Event(String project, String user, String collection, ObjectNode properties) {
+        this.project = project;
+        this.user = user;
+        this.collection = collection;
+        this.properties = properties;
     }
 
     public <T> T getAttribute(String attr) {
-        return (T) data.getValue(attr);
+        return (T) properties.get(attr);
     }
 }

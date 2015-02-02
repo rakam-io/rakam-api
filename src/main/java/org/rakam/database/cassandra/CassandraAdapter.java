@@ -4,10 +4,11 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import org.apache.log4j.Logger;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.database.ActorDatabase;
 import org.rakam.database.EventDatabase;
 import org.rakam.model.Actor;
@@ -82,7 +83,7 @@ public class CassandraAdapter implements EventDatabase, ActorDatabase {
     }
 
     @Override
-    public Actor createActor(String project, String actor_id, JsonObject properties) {
+    public Actor createActor(String project, String actor_id, ObjectNode properties) {
         session.execute(create_actor.bind(project, actor_id, properties));
         return new Actor(project, actor_id, properties);
     }
@@ -93,7 +94,7 @@ public class CassandraAdapter implements EventDatabase, ActorDatabase {
     }
 
     @Override
-    public void addEvent(String project, String eventName, String actor_id, JsonObject data) {
+    public void addEvent(String project, String eventName, String actor_id, ObjectNode data) {
         long m = System.currentTimeMillis();
         try {
 //            return session.executeAsync(add_event.bind(project, (int) (m / 1000), (int) ((m % 1000) + (1000000 * ClusterMemberManager.getServerId()) + (1000 * Thread.currentThread().getId())), actor_id, ByteBuffer.wrap(data.encode().getBytes())));
@@ -107,12 +108,12 @@ public class CassandraAdapter implements EventDatabase, ActorDatabase {
         Row actor = session.execute(get_actor_property.bind(project, actorId)).one();
         if (actor == null)
             return null;
-        Map<String, Object> props = actor.getMap("properties", String.class, Object.class);
-        if (props != null) {
-            return new Actor(project, actorId, new JsonObject(props));
-        } else
-            return new Actor(project, actorId);
-
+//        Map<String, Object> props = actor.getMap("properties", String.class, Object.class);
+//        if (props != null) {
+//            return new Actor(project, actorId, new JsonObject(props));
+//        } else
+//            return new Actor(project, actorId);
+        return null;
     }
 
     @Override
@@ -121,7 +122,7 @@ public class CassandraAdapter implements EventDatabase, ActorDatabase {
     }
 
     @Override
-    public void processRule(AnalysisRule rule) {
+    public void processRule(AggregationReport rule) {
 
     }
 
@@ -173,7 +174,7 @@ public class CassandraAdapter implements EventDatabase, ActorDatabase {
 //    }
 //
 //    @Override
-//    public Map<String, Set<AnalysisRule>> getAllRules() {
+//    public Map<String, Set<AnalysisRule>> getAllReports() {
 //        List<Row> rows = session.execute(set_aggregation_rules.bind()).all();
 //        HashMap<String, Set<AnalysisRule>> map = new HashMap();
 //        for (Row row : rows) {

@@ -1,5 +1,6 @@
 package org.rakam.analysis.query.mvel;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.mvel2.MVEL;
 import org.mvel2.ParserConfiguration;
 import org.mvel2.ParserContext;
@@ -38,7 +39,7 @@ public class MVELFilterScript implements FilterScript {
     }
 
     @Override
-    public boolean test(JsonObject obj) {
+    public boolean test(ObjectNode obj) {
         Object ret = MVEL.executeExpression(script, obj);
         return ret != null && !ret.equals(false);
     }

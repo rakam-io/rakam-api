@@ -1,19 +1,19 @@
 package org.rakam.plugin.geoip;
 
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 import com.maxmind.geoip.timeZone;
-import org.rakam.plugin.CollectionMapperPlugin;
-import org.rakam.util.json.JsonObject;
+import org.rakam.plugin.EventMapper;
 
 import java.io.IOException;
 
 /**
  * Created by buremba on 26/05/14.
  */
-public class GeoIPEventMapper implements CollectionMapperPlugin {
+public class GeoIPEventMapper implements EventMapper {
     LookupService lookup;
 
     @Inject
@@ -22,18 +22,17 @@ public class GeoIPEventMapper implements CollectionMapperPlugin {
     }
 
     @Override
-    public boolean map(JsonObject event) {
-        String IP = event.getString("ip");
+    public void map(ObjectNode event) {
+        String IP = event.get("ip").asText();
         if (IP != null) {
             Location l1 = lookup.getLocation(IP);
-            event.put("country", l1.countryName);
-            event.put("country code", l1.countryCode);
-            event.put("region", l1.region);
-            event.put("city", l1.city);
-            event.put("latitude", l1.latitude);
-            event.put("longitude", l1.longitude);
-            event.put("timezone", timeZone.timeZoneByCountryAndRegion(l1.countryCode, l1.region));
+            event.put("country", l1.countryName)
+            .put("country code", l1.countryCode)
+            .put("region", l1.region)
+            .put("city", l1.city)
+            .put("latitude", l1.latitude)
+            .put("longitude", l1.longitude)
+            .put("timezone", timeZone.timeZoneByCountryAndRegion(l1.countryCode, l1.region));
         }
-        return true;
     }
 }

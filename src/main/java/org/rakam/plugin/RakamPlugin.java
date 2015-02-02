@@ -3,12 +3,12 @@ package org.rakam.plugin;
 /**
  * Created by buremba on 29/03/14.
  */
-interface AbstractPlugin {
+public interface RakamPlugin {
     public String name();
 
     public String description();
 
-    public void onModule();
+    public void register();
 
     public void onDestroy();
 }

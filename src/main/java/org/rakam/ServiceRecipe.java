@@ -1,20 +1,25 @@
 package org.rakam;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Module;
 import com.google.inject.Scopes;
-import com.google.inject.TypeLiteral;
-import org.rakam.analysis.DefaultAnalysisRuleDatabase;
+import com.google.inject.multibindings.Multibinder;
+import kafka.javaapi.producer.Producer;
+import org.rakam.analysis.DefaultReportDatabase;
+import org.rakam.analysis.ReportAnalyzerService;
+import org.rakam.collection.actor.ActorCollectorService;
+import org.rakam.collection.event.EventCollectorService;
 import org.rakam.database.ActorDatabase;
-import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.EventDatabase;
+import org.rakam.database.ReportDatabase;
 import org.rakam.database.rakamdb.DefaultDatabaseAdapter;
 import org.rakam.kume.Cluster;
-import org.rakam.plugin.CollectionMapperPlugin;
+import org.rakam.server.http.HttpService;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.stream.kume.KumeCacheAdapter;
 import org.rakam.util.json.JsonArray;
 
-import java.util.logging.Level;
+import java.util.ServiceLoader;
 import java.util.logging.Logger;
 
 /**
@@ -22,57 +27,46 @@ import java.util.logging.Logger;
  */
 public class ServiceRecipe extends AbstractModule {
     private final Cluster cluster;
+    private final Producer producer;
     JsonArray plugins;
     Logger logger = Logger.getLogger(this.getClass().getName());
 
-    public ServiceRecipe(Cluster cluster) {
+    public ServiceRecipe(Cluster cluster, Producer producer) {
         this.cluster = cluster;
+        this.producer = producer;
     }
 
-    public ServiceRecipe(Cluster cluster, JsonArray plugins) {
+    public ServiceRecipe(Cluster cluster, Producer producer, JsonArray plugins) {
         this.cluster = cluster;
         this.plugins = plugins;
+        this.producer = producer;
     }
 
     @Override
     protected void configure() {
-        bind(ActorCacheAdapter.class).to(KumeCacheAdapter.class);
-        bind(EventDatabase.class).to(DefaultDatabaseAdapter.class);
-        bind(ActorDatabase.class).to(DefaultDatabaseAdapter.class);
-        bind(AnalysisRuleDatabase.class).to(DefaultAnalysisRuleDatabase.class);
+        bind(ActorCacheAdapter.class).to(KumeCacheAdapter.class).in(Scopes.SINGLETON);
+        bind(EventDatabase.class).to(DefaultDatabaseAdapter.class).in(Scopes.SINGLETON);
+        bind(ActorDatabase.class).to(DefaultDatabaseAdapter.class).in(Scopes.SINGLETON);
+        bind(ReportDatabase.class).to(DefaultReportDatabase.class).in(Scopes.SINGLETON);
+        bind(Cluster.class).toInstance(cluster);
+        bind(Producer.class).toInstance(producer);
 
-        bind(KumeCacheAdapter.class)
-                .toProvider(() -> new KumeCacheAdapter(cluster))
-                .in(Scopes.SINGLETON);
-        bind(DefaultDatabaseAdapter.class)
-                .toProvider(() -> new DefaultDatabaseAdapter(cluster))
-                .in(Scopes.SINGLETON);
-        bind(DefaultAnalysisRuleDatabase.class)
-                .toProvider(() -> new DefaultAnalysisRuleDatabase(cluster))
-                .in(Scopes.SINGLETON);
+        Multibinder<HttpService> multibinder = Multibinder.newSetBinder(binder(), HttpService.class);
+        multibinder.addBinding().to(ReportAnalyzerService.class);
+        multibinder.addBinding().to(ActorCollectorService.class);
+        multibinder.addBinding().to(EventCollectorService.class);
+//
+//        Multibinder<EventMapper> eventMapperBinder
+//                = Multibinder.newSetBinder(binder(), EventMapper.class);
+//
+//        Multibinder<EventProcessor> eventProcessornBinder
+//                = Multibinder.newSetBinder(binder(), EventProcessor.class);
 
-        if (plugins != null)
-            for (Object plugin : plugins) {
-                if (plugin instanceof String) {
-                    Class<?> clazz;
-                    try {
-                        clazz = Class.forName((String) plugin);
-                    } catch (ClassNotFoundException e) {
-                        logger.log(Level.WARNING, "plugin class couldn't found", e);
-                        continue;
-                    }
-                    for (Class c : clazz.getInterfaces()) {
-                        String clazz_name = c.getName();
-                        if (clazz_name.equals(CollectionMapperPlugin.class.getName())) {
-                            bind(new TypeLiteral<CollectionMapperPlugin>() {
-                            })
-                                    .to(clazz.asSubclass(CollectionMapperPlugin.class));
-                            continue;
-                        }
+        ServiceLoader<Module> modules = ServiceLoader.load(Module.class);
 
-                    }
-                    logger.warning(plugin + " couldn't added as plugin.");
-                }
-            }
+        for (Module module : modules) {
+            binder().install(module);
+        }
+
     }
 }

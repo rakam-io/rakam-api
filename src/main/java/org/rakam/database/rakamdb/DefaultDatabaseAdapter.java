@@ -1,15 +1,15 @@
 package org.rakam.database.rakamdb;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.database.ActorDatabase;
 import org.rakam.database.EventDatabase;
 import org.rakam.kume.Cluster;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
 import org.rakam.util.Interval;
-import org.rakam.util.json.JsonObject;
 
 import java.util.Map;
 import java.util.UUID;
@@ -31,7 +31,7 @@ public class DefaultDatabaseAdapter implements EventDatabase, ActorDatabase {
     RakamDB getDBforProject(String projectId) {
         RakamDB rakamDB = dbs.get(projectId);
         if(rakamDB==null) {
-            RakamDB db = cluster.createOrGetService("rakamdb_" + projectId, bus -> new RakamDB(bus, Interval.MINUTE, 2));
+            RakamDB db = cluster.createOrGetService("rakamdb_" + projectId, bus -> new RakamDB(bus, Interval.DAY, 2));
             dbs.put(projectId, db);
             return db;
         } else {
@@ -50,10 +50,10 @@ public class DefaultDatabaseAdapter implements EventDatabase, ActorDatabase {
     }
 
     @Override
-    public void addEvent(String project, String eventName, String actor_id, JsonObject data) {
+    public void addEvent(String project, String eventName, String actor_id, ObjectNode data) {
         if(actor_id!=null)
             data.put("actor", actor_id);
-        getDBforProject(project).addEvent(eventName, data);
+//        getDBforProject(project).addEvent(eventName, data);
     }
 
     @Override
@@ -62,7 +62,7 @@ public class DefaultDatabaseAdapter implements EventDatabase, ActorDatabase {
     }
 
     @Override
-    public void processRule(AnalysisRule rule) {
+    public void processRule(AggregationReport rule) {
 
     }
 
@@ -72,7 +72,7 @@ public class DefaultDatabaseAdapter implements EventDatabase, ActorDatabase {
     }
 
     @Override
-    public Actor createActor(String project, String actor_id, JsonObject properties) {
+    public Actor createActor(String project, String actor_id, ObjectNode properties) {
         return null;
     }
 

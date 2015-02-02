@@ -28,16 +28,16 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 19:04.
  */
-public class CustomHttpRequest implements HttpRequest {
+public class RakamHttpRequest implements HttpRequest {
     private final ChannelHandlerContext ctx;
-    private HttpRequest request;
+    private io.netty.handler.codec.http.HttpRequest request;
     protected FullHttpResponse response;
     private Handler<String> bodyHandler;
 
     private String path;
     private Map<String, List<String>> params;
 
-    public CustomHttpRequest(ChannelHandlerContext ctx, HttpRequest request) {
+    public RakamHttpRequest(ChannelHandlerContext ctx, HttpRequest request) {
         this.ctx = ctx;
         this.request = request;
     }
@@ -69,7 +69,7 @@ public class CustomHttpRequest implements HttpRequest {
 
 
     @Override
-    public HttpRequest setProtocolVersion(HttpVersion version) {
+    public io.netty.handler.codec.http.HttpRequest setProtocolVersion(HttpVersion version) {
         return request.setProtocolVersion(version);
     }
 
@@ -78,7 +78,7 @@ public class CustomHttpRequest implements HttpRequest {
         return request.headers();
     }
 
-    public CustomHttpRequest putHeader(String key, Object value) {
+    public RakamHttpRequest putHeader(String key, Object value) {
         response.headers().set(key, value);
         return this;
     }
@@ -97,13 +97,13 @@ public class CustomHttpRequest implements HttpRequest {
         bodyHandler = function;
     }
 
-    public CustomHttpRequest response(String content) {
+    public RakamHttpRequest response(String content) {
         final ByteBuf byteBuf = Unpooled.copiedBuffer(content, CharsetUtil.UTF_8);
         response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, byteBuf);
         return this;
     }
 
-    public CustomHttpRequest response(String content, HttpResponseStatus status) {
+    public RakamHttpRequest response(String content, HttpResponseStatus status) {
         final ByteBuf byteBuf = Unpooled.copiedBuffer(content, CharsetUtil.UTF_8);
         response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, byteBuf);
         return this;
@@ -135,8 +135,6 @@ public class CustomHttpRequest implements HttpRequest {
         response.headers().set(ACCESS_CONTROL_ALLOW_HEADERS, "Origin, X-Requested-With, Content-Type, Accept");
 
         if (keepAlive) {
-            // Add keep alive header as per:
-            // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
             response.headers().set(CONTENT_LENGTH, response.content().readableBytes());
             response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 

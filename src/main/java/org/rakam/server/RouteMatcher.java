@@ -2,7 +2,7 @@ package org.rakam.server;
 
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.server.http.CustomHttpRequest;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.HttpRequestHandler;
 
 import java.util.HashMap;
@@ -14,8 +14,13 @@ public class RouteMatcher {
     HashMap<PatternBinding, HttpRequestHandler> routes = new HashMap();
     private HttpRequestHandler noMatch = request -> request.response("404", HttpResponseStatus.OK).end();
 
-    public void handle(CustomHttpRequest request) {
-        final HttpRequestHandler httpRequestHandler = routes.get(new PatternBinding(request.getMethod(), request.path()));
+    public void handle(RakamHttpRequest request) {
+        String path = request.path();
+        int lastIndex = path.length() - 1;
+        if(path.charAt(lastIndex) == '/')
+            path = path.substring(0, lastIndex);
+
+        final HttpRequestHandler httpRequestHandler = routes.get(new PatternBinding(request.getMethod(), path));
         if (httpRequestHandler != null) {
             httpRequestHandler.handle(request);
         } else {

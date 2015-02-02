@@ -1,6 +1,6 @@
 package org.rakam.model;
 
-import org.rakam.util.json.JsonObject;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Created by buremba on 21/12/13.
@@ -8,7 +8,7 @@ import org.rakam.util.json.JsonObject;
 public class Actor implements Entry {
     public final String id;
     public final String project;
-    public final JsonObject data;
+    public final ObjectNode data;
 
     public Actor(String project, String actorId) {
         this.id = actorId;
@@ -16,20 +16,13 @@ public class Actor implements Entry {
         this.data = null;
     }
 
-    public Actor(String projectId, String actorId, String properties) {
-        this.id = actorId;
-        this.project = projectId;
-        this.data = new JsonObject(new String(properties));
-        data.put("id", actorId);
-    }
-
-    public Actor(String projectId, String actorId, JsonObject properties) {
+    public Actor(String projectId, String actorId, ObjectNode properties) {
         this.id = actorId;
         this.project = projectId;
         this.data = properties;
     }
 
     public <T> T getAttribute(String attr) {
-        return data == null ? null : (T) data.getValue(attr);
+        return data == null ? null : (T) data.get(attr);
     }
 }
