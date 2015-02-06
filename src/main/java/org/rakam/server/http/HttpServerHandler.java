@@ -7,9 +7,9 @@ package org.rakam.server.http;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.util.CharsetUtil;
 import org.rakam.server.RouteMatcher;
 
@@ -18,8 +18,9 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 
 public class HttpServerHandler extends ChannelInboundHandlerAdapter {
-    private CustomHttpRequest request;
+    private RakamHttpRequest request;
     private RouteMatcher routes;
+    private StringBuilder body = new StringBuilder(2 << 15);
 
     public HttpServerHandler(RouteMatcher routes) {
         this.routes = routes;
@@ -27,25 +28,43 @@ public class HttpServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) {
-//        ctx.flush();
+        body.delete(0, body.length());
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        if (msg instanceof HttpRequest) {
-            this.request = new CustomHttpRequest(ctx, (HttpRequest) msg);
+        if (msg instanceof io.netty.handler.codec.http.HttpRequest) {
+            this.request = new RakamHttpRequest(ctx, (io.netty.handler.codec.http.HttpRequest) msg);
 
             if (HttpHeaders.is100ContinueExpected(request)) {
                 ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
             } else {
                 routes.handle(request);
             }
+        } else if (msg instanceof DefaultLastHttpContent) {
+            HttpContent chunk = (HttpContent) msg;
+            if (chunk.content().isReadable()) {
+                String s = chunk.content().toString(CharsetUtil.UTF_8);
+                if (body == null) {
+                    request.handleBody(s);
+                } else {
+                    body.append(s);
+                    request.handleBody(body.toString());
+                }
+                chunk.release();
+            }
         } else if (msg instanceof HttpContent) {
             HttpContent chunk = (HttpContent) msg;
             if (chunk.content().isReadable()) {
-                request.handleBody(chunk.content().toString(CharsetUtil.UTF_8));
+                String s = chunk.content().toString(CharsetUtil.UTF_8);
+                if (body == null) {
+                    body = new StringBuilder(s);
+                } else {
+                    body.append(s);
+                }
                 chunk.release();
             }
+
         }
     }
 

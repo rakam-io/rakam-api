@@ -1,9 +1,9 @@
 package org.rakam.analysis.query.simple;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.query.simple.predicate.RichPredicate;
 import org.rakam.util.json.JsonElement;
-import org.rakam.util.json.JsonObject;
 
 import java.util.function.Predicate;
 
@@ -40,7 +40,7 @@ public class SimpleFilterScript implements FilterScript {
     }
 
     @Override
-    public boolean test(JsonObject obj) {
+    public boolean test(ObjectNode obj) {
         return predicate.test(obj);
     }
 

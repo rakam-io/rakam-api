@@ -5,6 +5,7 @@ import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.database.EventDatabase;
 import org.rakam.model.Event;
 import org.rakam.server.RouteMatcher;
+import org.rakam.server.http.HttpService;
 import org.rakam.util.Tuple;
 import org.rakam.util.json.JsonArray;
 import org.rakam.util.json.JsonObject;
@@ -62,12 +63,9 @@ public class FilterRequestHandler implements HttpService {
     }
 
     @Override
-    public String getEndPoint() {
-        return "/filter";
-    }
-
-    @Override
     public void register(RouteMatcher.MicroRouteMatcher routeMatcher) {
 //        mapRequest("/filter/actor", json -> filterActors(json), o -> ((JsonObject) o).encode());
+//        mapRequest("/filter/event", json -> filterRequestHandler.filterEvents(json), o -> ((JsonObject) o).encode());
+
     }
 }

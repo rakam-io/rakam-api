@@ -575,7 +575,6 @@ public class UnboxedMathUtils {
         return Math.nextUp(f);
     }
 
-
     public static double scalb(Double d, Integer scaleFactor) {
         return Math.scalb(d, scaleFactor);
     }

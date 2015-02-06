@@ -1,7 +1,7 @@
 package org.rakam.analysis;
 
 import org.junit.Test;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.util.json.JsonObject;
 
 import static junit.framework.Assert.assertEquals;
@@ -38,8 +38,8 @@ public class PredicateTest {
                 "    ]\n" +
                 "  }\n" +
                 "}");
-        AnalysisRule parse0 = AnalysisRuleParser.parse(json);
-        AnalysisRule parse1 = AnalysisRuleParser.parse(json);
+        AggregationReport parse0 = AnalysisRuleParser.parse(json);
+        AggregationReport parse1 = AnalysisRuleParser.parse(json);
         assertTrue(parse0.equals(parse1));
         assertEquals(parse0.hashCode(), parse1.hashCode());
     }

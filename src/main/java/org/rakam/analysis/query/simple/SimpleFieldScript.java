@@ -1,13 +1,20 @@
 package org.rakam.analysis.query.simple;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializable;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import org.rakam.analysis.query.FieldScript;
 import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;
 
+import java.io.IOException;
+
 /**
  * Created by buremba on 04/05/14.
  */
-public class SimpleFieldScript<T> implements FieldScript<T> {
+public class SimpleFieldScript<T> implements FieldScript<T>, JsonSerializable {
     private final String fieldKey;
     final transient String userData;
 
@@ -55,4 +62,13 @@ public class SimpleFieldScript<T> implements FieldScript<T> {
         return extract(event, user) != null;
     }
 
+    @Override
+    public void serialize(JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
+        jgen.writeString(fieldKey);
+    }
+
+    @Override
+    public void serializeWithType(JsonGenerator jgen, SerializerProvider provider, TypeSerializer typeSer) throws IOException, JsonProcessingException {
+
+    }
 }

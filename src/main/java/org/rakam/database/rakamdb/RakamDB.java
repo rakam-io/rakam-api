@@ -7,20 +7,18 @@ import org.rakam.kume.service.ringmap.AbstractRingMap;
 import org.rakam.kume.transport.serialization.SinkSerializable;
 import org.rakam.kume.util.ConsistentHashRing;
 import org.rakam.util.Interval;
+import org.rakam.util.MMapFile;
 import org.rakam.util.NotImplementedException;
 import org.rakam.util.json.JsonObject;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static java.nio.channels.FileChannel.MapMode.READ_WRITE;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/01/15 14:36.
@@ -49,7 +47,7 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
             for (Member member : members) {
                 String column = entry.getKey();
                 Object value = entry.getValue();
-                if(value==null) continue;
+                if (value == null) continue;
                 CompletableFuture<Object> task = getContext()
                         .tryAskUntilDone(member, (service, ctx) -> {
                             service.addColumnValueLocal(tableName, column, value);
@@ -68,7 +66,7 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
                 .computeIfAbsent(key,
                         intervalColumnPair -> {
                             ValueType type = ValueType.determineType(value);
-                            return ColumnStore.createColumnStore(tableName + ":" + column, type);
+                            return ColumnStore.createColumnStore("/tmp/" + tableName + "/" + column, type);
                         });
 
         columnStore.put(value);
@@ -90,37 +88,27 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
     }
 
     public static abstract class ColumnStore {
-        private final FileChannel fileChannel;
-        ByteBuffer storage;
-        int position = 0;
+        MMapFile storage;
+        static int block_size = 32 * 1024 * 1024;
+        static int index_block_size = 32 * 1024 * 1024;
 
-        static long bufferSize = 8 * 1000;
-
-        public ColumnStore(String name) {
+        public ColumnStore(String path) {
             try {
-                File f = new File("/tmp/" + name);
-                f.delete();
-
-                fileChannel = new RandomAccessFile(f, "rw").getChannel();
-                storage = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, bufferSize);
+                storage = new MMapFile(path + ".data", READ_WRITE, block_size);
             } catch (IOException e) {
-                throw new IllegalStateException();
+                throw new IllegalStateException(e);
             }
         }
 
         public void put(Object value) {
-            if (!storage.hasRemaining()) {
-                position += storage.position();
-                try {
-                    storage = fileChannel.map(FileChannel.MapMode.READ_WRITE, position, bufferSize);
-                } catch (IOException e) {
-                    throw new IllegalStateException();
-                }
+            try {
+                add(value);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            add(value);
         }
 
-        public abstract void add(Object value);
+        public abstract void add(Object value) throws IOException;
 
         public static ColumnStore createColumnStore(String storeName, ValueType type) {
             switch (type) {
@@ -135,7 +123,7 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
                 case UNSIGNED_INTEGER:
                     throw new NotImplementedException();
                 default:
-                    throw new UnsupportedOperationException("class type is not supported");
+                    throw new UnsupportedOperationException("column type is not supported");
             }
 
         }
@@ -148,8 +136,9 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
         }
 
         @Override
-        public void add(Object value) {
-            storage.putFloat((Float) value);
+        public void add(Object value) throws IOException {
+            storage.ensureCapacity(4);
+            storage.writeFloat((Float) value);
         }
     }
 
@@ -160,8 +149,9 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
         }
 
         @Override
-        public void add(Object value) {
-            storage.putInt((Integer) value);
+        public void add(Object value) throws IOException {
+            storage.ensureCapacity(4);
+            storage.writeInt((Integer) value);
         }
     }
 
@@ -173,42 +163,60 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
         }
 
         @Override
-        public void add(Object value) {
-            storage.putLong((Long) value);
+        public void add(Object value) throws IOException {
+            storage.ensureCapacity(8);
+            storage.writeLong((Long) value);
         }
     }
 
     public static class StringColumnStore extends ColumnStore {
-        private final FileChannel indexFileChannel;
-        MappedByteBuffer index;
-        static Charset charset = Charset.forName("UTF-8");
+        private MMapFile indexStorage;
 
-        public StringColumnStore(String name) {
-            super(name);
+        public StringColumnStore(String path) {
+            super(path);
             try {
-                File f = new File("/tmp/" + name + ".index");
-                f.delete();
-
-                indexFileChannel = new RandomAccessFile(f, "rw").getChannel();
-                index = indexFileChannel.map(FileChannel.MapMode.READ_WRITE, 0, bufferSize);
+                indexStorage = new MMapFile(path + ".index", READ_WRITE, index_block_size);
             } catch (IOException e) {
                 throw new IllegalStateException();
             }
         }
 
-
         @Override
-        public void add(Object value) {
-            byte[] bytes = ((String) value).getBytes(charset);
-            index.putInt(storage.position());
-            storage.putShort((short) bytes.length);
-            storage.put(bytes);
+        public void add(Object value) throws IOException {
+            indexStorage.ensureCapacity(4);
+            indexStorage.writeInt(storage.position());
+            storage.ensureCapacity(Short.MAX_VALUE);
+            storage.writeUTF((String) value);
         }
     }
 
     public static class IntervalColumnPair implements SinkSerializable {
         public final int startTimestamp;
         public final String columnName;
+        private static Charset charset = Charset.forName("UTF-8");
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof IntervalColumnPair)) return false;
+
+            IntervalColumnPair that = (IntervalColumnPair) o;
+
+            if (startTimestamp != that.startTimestamp) return false;
+            if (!columnName.equals(that.columnName)) return false;
+            if (!tableName.equals(that.tableName)) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = startTimestamp;
+            result = 31 * result + columnName.hashCode();
+            result = 31 * result + tableName.hashCode();
+            return result;
+        }
+
         public final String tableName;
 
         public IntervalColumnPair(String tableName, String columnName, int startTimestamp) {
@@ -220,8 +228,8 @@ public class RakamDB extends AbstractRingMap<RakamDB, Map, RakamDB.IntervalColum
         @Override
         public void writeTo(PrimitiveSink sink) {
             sink.putInt(startTimestamp);
-            sink.putString(tableName, Charset.forName("UTF-8"));
-            sink.putString(columnName, Charset.forName("UTF-8"));
+            sink.putString(tableName, charset);
+            sink.putString(columnName, charset);
         }
     }
 }

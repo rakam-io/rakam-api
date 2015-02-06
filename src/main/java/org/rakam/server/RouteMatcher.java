@@ -1,8 +1,9 @@
 package org.rakam.server;
 
+import com.facebook.presto.jdbc.internal.guava.base.Preconditions;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.server.http.CustomHttpRequest;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.HttpRequestHandler;
 
 import java.util.HashMap;
@@ -14,8 +15,13 @@ public class RouteMatcher {
     HashMap<PatternBinding, HttpRequestHandler> routes = new HashMap();
     private HttpRequestHandler noMatch = request -> request.response("404", HttpResponseStatus.OK).end();
 
-    public void handle(CustomHttpRequest request) {
-        final HttpRequestHandler httpRequestHandler = routes.get(new PatternBinding(request.getMethod(), request.path()));
+    public void handle(RakamHttpRequest request) {
+        String path = request.path();
+        int lastIndex = path.length() - 1;
+        if(path.charAt(lastIndex) == '/')
+            path = path.substring(0, lastIndex);
+
+        final HttpRequestHandler httpRequestHandler = routes.get(new PatternBinding(request.getMethod(), path));
         if (httpRequestHandler != null) {
             httpRequestHandler.handle(request);
         } else {
@@ -67,14 +73,15 @@ public class RouteMatcher {
 
     public static class MicroRouteMatcher {
         private final RouteMatcher routeMatcher;
-        private final String path;
+        private String path;
 
-        public MicroRouteMatcher(String path, RouteMatcher routeMatcher) {
-            this.path = path;
+        public MicroRouteMatcher(RouteMatcher routeMatcher, String path) {
             this.routeMatcher = routeMatcher;
+            this.path = path;
         }
 
         public void add(String lastPath, HttpMethod method, HttpRequestHandler handler) {
+            Preconditions.checkNotNull(path, "path is not configured");
             routeMatcher.add(method, path + lastPath, handler);
         }
     }

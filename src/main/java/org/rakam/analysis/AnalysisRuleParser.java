@@ -7,9 +7,7 @@ import org.rakam.analysis.query.mvel.MVELFilterScript;
 import org.rakam.analysis.query.simple.SimpleFieldScript;
 import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.analysis.query.simple.predicate.FilterPredicates;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
-import org.rakam.analysis.rule.aggregation.MetricAggregationRule;
-import org.rakam.analysis.rule.aggregation.TimeSeriesAggregationRule;
+import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.constant.AggregationType;
 import org.rakam.constant.Analysis;
 import org.rakam.constant.AnalysisRuleStrategy;
@@ -27,8 +25,8 @@ import java.util.function.Predicate;
  */
 public class AnalysisRuleParser {
 
-    public static AnalysisRule parse(JsonObject json) throws IllegalArgumentException {
-        AnalysisRule rule;
+    public static AggregationReport parse(JsonObject json) throws IllegalArgumentException {
+        AggregationReport rule;
         String project = json.getString("tracker");
         if (json.getString("analysis") == null)
             throw new IllegalArgumentException("analysis type is required.");
@@ -41,7 +39,6 @@ public class AnalysisRuleParser {
         if (project == null)
             throw new IllegalArgumentException("tracker id is required.");
 
-        if (analysisType == Analysis.ANALYSIS_TIMESERIES || analysisType == Analysis.ANALYSIS_METRIC) {
             FilterScript filter = getFilter(json.getJsonObject("filter"));
             FieldScript groupBy = getField(json.getValue("group_by"));
             FieldScript select = getField(json.getValue("select"));
@@ -61,16 +58,8 @@ public class AnalysisRuleParser {
             if (groupBy != null && select == null)
                 select = groupBy;
 
-            if (analysisType == Analysis.ANALYSIS_TIMESERIES) {
-                rule = new TimeSeriesAggregationRule(project, aggType, getInterval(json.getValue("interval")), select, filter, groupBy);
-            } else if (analysisType == Analysis.ANALYSIS_METRIC) {
-                rule = new MetricAggregationRule(project, aggType, select, filter, groupBy);
-            } else {
-                throw new IllegalStateException("aggregation analysis type couldn't identified");
-            }
-        } else {
-            throw new IllegalStateException("analysis type couldn't identified");
-        }
+                rule = new AggregationReport(project, "test", aggType, select, filter, groupBy, getInterval(json.getValue("interval")));
+
         String strategy = json.getString("strategy");
         if (strategy != null)
             try {

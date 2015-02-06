@@ -1,10 +1,12 @@
 package org.rakam.analysis;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.database.ActorDatabase;
-import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.EventDatabase;
+import org.rakam.database.ReportDatabase;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
 import org.rakam.stream.ActorCacheAdapter;
@@ -24,28 +26,38 @@ import java.util.concurrent.ConcurrentSkipListSet;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 19/09/14 14:00.
  */
-public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, ActorCacheAdapter, ActorDatabase {
-    static Map<String, Set<AnalysisRule>> ruleMap = new HashMap();
+public class DummyDatabase implements EventDatabase, ActorCacheAdapter, ReportDatabase, ActorDatabase {
+    static Map<String, Set<AggregationReport>> ruleMap = new HashMap();
 
     static Map<String, Map<String, Actor>> actors = new ConcurrentHashMap<>();
     static Map<String, List<Event>> events = new ConcurrentHashMap();
 
     @Override
-    public Map<String, Set<AnalysisRule>> getAllRules() {
+    public Map<String, Set<AggregationReport>> getAllReports() {
         return ruleMap;
     }
 
     @Override
-    public void addRule(AnalysisRule rule) {
+    public void add(AggregationReport rule) {
         ruleMap.computeIfAbsent(rule.project, s -> new ConcurrentSkipListSet<>()).add(rule);
     }
 
     @Override
-    public void deleteRule(AnalysisRule rule) {
+    public void delete(AggregationReport rule) {
         ruleMap.computeIfPresent(rule.project, (s, k) -> {
             k.remove(rule);
             return null;
         });
+    }
+
+    @Override
+    public Set<AggregationReport> get(String project) {
+        return ruleMap.get(project);
+    }
+
+    @Override
+    public void clear() {
+        ruleMap.clear();
     }
 
     @Override
@@ -59,12 +71,12 @@ public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, Actor
     }
 
     @Override
-    public void addEvent(String project, String eventName, String actor_id, JsonObject data) {
+    public void addEvent(String project, String eventName, String actor_id, ObjectNode data) {
 
     }
 
     @Override
-    public Actor createActor(String project, String actor_id, JsonObject properties) {
+    public Actor createActor(String project, String actor_id, ObjectNode properties) {
         Actor value = new Actor(project, actor_id, properties!=null ? properties: null);
         actors.computeIfAbsent(project, k -> new HashMap<>())
                 .put(actor_id, value);
@@ -75,10 +87,10 @@ public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, Actor
     public void addPropertyToActor(String project, String actor_id, Map<String, Object> props) {
         Map<String, Actor> stringActorMap = actors.get(project);
         if (stringActorMap != null) {
-            Actor actor = stringActorMap.get(actor_id);
-            if (actor != null) {
-                props.forEach((k, v) -> actor.data.put(k, v));
-            }
+//            Actor actor = stringActorMap.get(actor_id);
+//            if (actor != null) {
+//                props.forEach((k, v) -> actor.data.put(k, v));
+//            }
         }
     }
 
@@ -104,7 +116,7 @@ public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, Actor
     }
 
     @Override
-    public void processRule(AnalysisRule rule) {
+    public void processRule(AggregationReport rule) {
         throw new NotImplementedException();
     }
 
@@ -124,7 +136,7 @@ public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, Actor
         ArrayList<Event> l = new ArrayList();
         events.forEach((k,v) -> {
             v.forEach(a -> {
-                if (filter.test(a.data)) {
+                if (filter.test(a.properties())) {
                     l.add(a);
                 }
             });
@@ -138,12 +150,12 @@ public class DummyDatabase implements EventDatabase, AnalysisRuleDatabase, Actor
     }
 
     @Override
-    public void addActorProperties(String project, String actor_id, JsonObject properties) {
+    public void addActorProperties(String project, String actor_id, JsonNode properties) {
 
     }
 
     @Override
-    public void setActorProperties(String project, String actor_id, JsonObject properties) {
+    public void setActorProperties(String project, String actor_id, JsonNode properties) {
 
     }
 }

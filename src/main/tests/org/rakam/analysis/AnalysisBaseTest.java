@@ -7,10 +7,8 @@ import com.google.inject.Scopes;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.rakam.RakamTestHelper;
-import org.rakam.collection.event.EventAggregator;
-import org.rakam.collection.event.PeriodicCollector;
-import org.rakam.database.AnalysisRuleDatabase;
 import org.rakam.database.EventDatabase;
+import org.rakam.database.ReportDatabase;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.stream.local.LocalCache;
 import org.rakam.stream.local.LocalCacheImpl;
@@ -24,11 +22,7 @@ import java.time.format.DateTimeFormatter;
  * Created by buremba <Burak Emre Kabakcı> on 01/11/14 00:49.
  */
 public class AnalysisBaseTest extends RakamTestHelper {
-    static EventDatabase databaseAdapter = new DummyDatabase();
-    static EventAggregator eventAggregator;
-    static PeriodicCollector collector;
-    static EventAnalyzer eventAnalyzer;
-    static AnalysisRuleMap analysisRuleMap;
+    static DummyDatabase analysisRuleMap;
 
     protected static String formatTime(int time) {
         return Instant.ofEpochSecond(time).atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_INSTANT);
@@ -42,15 +36,13 @@ public class AnalysisBaseTest extends RakamTestHelper {
                 bind(LocalCache.class).to(LocalCacheImpl.class);
                 bind(LocalCacheImpl.class).in(Scopes.SINGLETON);
                 bind(EventDatabase.class).to(DummyDatabase.class);
-                bind(AnalysisRuleDatabase.class).to(DummyDatabase.class);
+                bind(ReportDatabase.class).to(DummyDatabase.class);
                 bind(ActorCacheAdapter.class).to(DummyDatabase.class);
             }
         });
 
-        analysisRuleMap = new AnalysisRuleMap();
+        analysisRuleMap = new DummyDatabase();
 
-        eventAggregator = new EventAggregator(injector, analysisRuleMap);
-        collector = new PeriodicCollector(injector);
     }
 
     @Before

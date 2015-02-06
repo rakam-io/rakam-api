@@ -1,5 +1,6 @@
 package org.rakam.stream;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.rakam.util.json.JsonObject;
 
 import java.util.concurrent.CompletableFuture;
@@ -10,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 public interface ActorCacheAdapter {
     CompletableFuture<JsonObject> getActorProperties(String project, String actor_id);
 
-    void addActorProperties(String project, String actor_id, JsonObject properties);
+    void addActorProperties(String project, String actor_id, JsonNode properties);
 
-    void setActorProperties(String project, String actor_id, JsonObject properties);
+    void setActorProperties(String project, String actor_id, JsonNode properties);
 }

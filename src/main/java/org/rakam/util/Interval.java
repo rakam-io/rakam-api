@@ -1,5 +1,13 @@
 package org.rakam.util;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializable;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
+
+import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -15,7 +23,7 @@ import static org.rakam.util.TimeUtil.UTCTime;
  * Created by buremba on 21/12/13.
  */
 
-public abstract class Interval {
+public abstract class Interval implements JsonSerializable {
     final static Pattern parser = Pattern.compile("^([0-9]+)([a-z]+)s?$");
     public static final Interval MINUTE = new TimeSpan(Duration.ofMinutes(1));
     public static final Interval HOUR = new TimeSpan(Duration.ofHours(1));
@@ -31,8 +39,6 @@ public abstract class Interval {
     }
 
     public abstract boolean isDivisible(Interval interval);
-
-    public abstract Object toJson();
 
     public abstract long divide(Interval interval);
 
@@ -99,11 +105,6 @@ public abstract class Interval {
         }
 
         @Override
-        public Object toJson() {
-            return period.toTotalMonths() + "months";
-        }
-
-        @Override
         public long divide(Interval interval) {
             if (interval instanceof MonthSpan) {
                 return period.toTotalMonths() % ((MonthSpan) interval).period.toTotalMonths();
@@ -113,6 +114,16 @@ public abstract class Interval {
 
         public MonthSpan(Period p) {
             this.period = p;
+        }
+
+        @Override
+        public void serialize(JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {
+            jgen.writeString(period.toTotalMonths() + "months");
+        }
+
+        @Override
+        public void serializeWithType(JsonGenerator jgen, SerializerProvider provider, TypeSerializer typeSer) throws IOException, JsonProcessingException {
+
         }
 
         public class StatefulMonthSpan implements StatefulSpanTime, Serializable {
@@ -154,9 +165,10 @@ public abstract class Interval {
 
     }
 
-    public static class TimeSpan extends Interval {
+    public static class TimeSpan extends Interval implements JsonSerializable {
         private int period;
 
+        @JsonCreator
         public TimeSpan(Duration duration) {
             this.period = (int) duration.getSeconds();
         }
@@ -197,7 +209,15 @@ public abstract class Interval {
         }
 
         @Override
-        public Object toJson() {
+        public long divide(Interval interval) {
+            if (interval instanceof TimeSpan && this.isDivisible(interval)) {
+                return period / ((TimeSpan) interval).period;
+            }
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public void serialize(JsonGenerator jgen, SerializerProvider provider) throws IOException {
             StringBuilder str = new StringBuilder();
             int p = period;
             if (p >= 86400) {
@@ -219,15 +239,12 @@ public abstract class Interval {
                 str.append(p + "seconds");
             }
 
-            return str.toString();
+            jgen.writeString(str.toString());
         }
 
         @Override
-        public long divide(Interval interval) {
-            if (interval instanceof TimeSpan && this.isDivisible(interval)) {
-                return period / ((TimeSpan) interval).period;
-            }
-            throw new IllegalStateException();
+        public void serializeWithType(JsonGenerator jgen, SerializerProvider provider, TypeSerializer typeSer) throws IOException, JsonProcessingException {
+            System.out.println(".");
         }
 
         public class StatefulTimeSpan implements StatefulSpanTime, Serializable {

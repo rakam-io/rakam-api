@@ -1,9 +1,9 @@
 package org.rakam.database;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.analysis.rule.aggregation.AnalysisRule;
+import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.model.Event;
-import org.rakam.util.json.JsonObject;
 
 import java.util.UUID;
 
@@ -15,11 +15,11 @@ public interface EventDatabase {
 
     void flushDatabase();
 
-    void addEvent(String project, String eventName, String actor_id, JsonObject data);
+    void addEvent(String project, String eventName, String actor_id, ObjectNode data);
 
     Event getEvent(UUID eventId);
 
-    public void processRule(AnalysisRule rule);
+    public void processRule(AggregationReport rule);
 
     public Event[] filterEvents(FilterScript filter, int limit, String orderByColumn);
 }

@@ -1,24 +1,34 @@
 package org.rakam.server;
 
-import com.google.inject.Injector;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.inject.Inject;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.AnalysisRuleCrudService;
-import org.rakam.analysis.AnalysisRuleMap;
-import org.rakam.analysis.FilterRequestHandler;
-import org.rakam.analysis.HttpService;
-import org.rakam.collection.actor.ActorCollector;
-import org.rakam.collection.event.EventCollector;
-import org.rakam.server.http.CustomHttpRequest;
+import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import org.rakam.server.http.HttpServerHandler;
+import org.rakam.server.http.HttpService;
+import org.rakam.server.http.Path;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.json.DecodeException;
+import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonObject;
 
+import java.io.IOException;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 
 import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
@@ -30,88 +40,118 @@ import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
 
 public class WebServer {
     public final RouteMatcher routeMatcher;
-    private final EventCollector eventCollector;
-    private final Executor executor;
-    private final ActorCollector actorCollector;
-    private final FilterRequestHandler filterRequestHandler;
+    EventLoopGroup bossGroup;
+    EventLoopGroup workerGroup;
 
-    public WebServer(Injector injector, AnalysisRuleMap analysisRuleMap, ExecutorService executor) {
-        eventCollector = new EventCollector(injector, analysisRuleMap);
-        filterRequestHandler = new FilterRequestHandler(injector);
-        actorCollector = new ActorCollector(injector);
+    @Inject
+    public WebServer(Set<HttpService> httpServicePlugins) {
         routeMatcher = new RouteMatcher();
-        this.executor = executor;
 
-        routeMatcher.add(HttpMethod.POST, "/event", request -> {
-            request.bodyHandler(buff -> {
+        httpServicePlugins.forEach(service -> {
+            String value = service.getClass().getAnnotation(Path.class).value();
+            MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(routeMatcher, value);
 
-                CompletableFuture.supplyAsync(() -> {
-                    JsonObject json = null;
-                    try {
-                        json = new JsonObject(buff);
-                    } catch (DecodeException e) {
-                        request.response("0");
-                    }
-                    return eventCollector.submitEvent(json);
-                }, executor)
-                        .thenAccept(result -> request.response(result ? "1" : "0").end());
-            });
+            service.register(microRouteMatcher);
         });
-        routeMatcher.add(HttpMethod.GET, "/event", request -> {
-            final JsonObject json = JsonHelper.generate(request.params());
-            CompletableFuture.supplyAsync(() -> eventCollector.submitEvent(json), executor)
-                    .thenAccept(result -> request.response(result ? "1" : "0").end());
+    }
+
+
+    public void run(int port) throws InterruptedException {
+        bossGroup = new NioEventLoopGroup(1);
+        workerGroup = new NioEventLoopGroup();
+        try {
+            ServerBootstrap b = new ServerBootstrap();
+            b.option(ChannelOption.SO_BACKLOG, 1024);
+            b.group(bossGroup, workerGroup)
+                    .channel(NioServerSocketChannel.class)
+                    .handler(new LoggingHandler(LogLevel.INFO))
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel ch) throws Exception {
+                            ChannelPipeline p = ch.pipeline();
+                            p.addLast("httpCodec", new HttpServerCodec());
+                            p.addLast("serverHandler", new HttpServerHandler(routeMatcher));
+                        }
+                    });
+
+            Channel ch = b.bind(port).sync().channel();
+
+            ch.closeFuture().sync();
+        } finally {
+            bossGroup.shutdownGracefully();
+            workerGroup.shutdownGracefully();
+        }
+    }
+
+    public static void mapJsonRequest(MicroRouteMatcher routeMatcher, String path, Function<JsonNode, Object> supplier) {
+        routeMatcher.add(path, HttpMethod.GET, (request) -> {
+            final ObjectNode json = JsonHelper.generate(request.params());
+
+            boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
+            CompletableFuture.supplyAsync(() -> {
+                try {
+                    return supplier.apply(json);
+                } catch (Exception e) {
+                    return errorMessage("error processing request " + e.getMessage(), 500);
+                }
+            }).thenAccept(result -> request.response(JsonHelper.encode(result, prettyPrint)).end());
         });
 
-//        mapRequest("/analyze", json -> eventAnalyzer.analyze(json), o -> ((JsonObject) o).encode());
-        mapRequest("/actor", json -> actorCollector.handle(json), o -> o.toString());
-
-        mapRequest("/filter/event", json -> filterRequestHandler.filterEvents(json), o -> ((JsonObject) o).encode());
-
-        registerRoutes(new AnalysisRuleCrudService(injector, analysisRuleMap));
-
-        Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> {
+        routeMatcher.add(path, HttpMethod.POST, (request) -> request.bodyHandler(obj -> {
+            ObjectNode json;
             try {
-                eventCollector.submitEvent(new JsonObject()
-                        .put("project", "test")
-                        .put("name", "naber")
-                        .put("properties", new JsonObject().put("ali", "veli").put("naber", 10)));
-            } catch (Exception e) {
-                e.printStackTrace();
+                json = JsonHelper.read(obj);
+            } catch (IOException e) {
+                returnError(request, "json couldn't parsed: "+e.getMessage(), 400);
+                return;
+            } catch (ClassCastException e) {
+                returnError(request, "json must be an object", 400);
+                return;
             }
-        }, 1, 1, TimeUnit.SECONDS);
+
+            boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
+            CompletableFuture<Object> o = new CompletableFuture<>();
+
+            ForkJoinPool.commonPool().execute(() -> {
+                try {
+                    o.complete(supplier.apply(json));
+                } catch (Exception e) {
+                    o.completeExceptionally(e);
+                }
+            });
+
+            o.whenComplete((result, exception) -> {
+                if (exception == null) {
+                    request.response(JsonHelper.encode(result, prettyPrint)).end();
+                } else {
+                    if(exception instanceof RakamException) {
+                        int statusCode = ((RakamException) exception).getStatusCode();
+                        String encode = JsonHelper.encode(errorMessage(exception.getMessage(), statusCode), prettyPrint);
+                        request.response(encode, HttpResponseStatus.valueOf(statusCode)).end();
+                    }else {
+                        ObjectNode errorMessage = errorMessage("An error occurred while processing request.", 500);
+                        String encode = JsonHelper.encode(errorMessage, prettyPrint);
+                        request.response(encode, HttpResponseStatus.BAD_REQUEST).end();
+                    }
+                }
+            });
+        }));
     }
 
-    public WebServer(Injector injector, AnalysisRuleMap analysisRuleMap) {
-        this(injector, analysisRuleMap, Executors.newCachedThreadPool());
-    }
-
-    private void registerRoutes(HttpService service)  {
-        final MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(service.getEndPoint(), routeMatcher);
-        service.register(microRouteMatcher);
-    }
-
-    private void mapRequest(String path, Function<JsonObject, Object> supplier, Function<Object, String> resultFunc) {
-        routeMatcher.add(HttpMethod.GET, path, (request) -> {
-            final JsonObject json = JsonHelper.generate(request.params());
-            CompletableFuture.supplyAsync(() -> supplier.apply(json), executor)
-                    .thenAccept(result -> request.response(resultFunc.apply(result)).end());
-        });
-
-        routeMatcher.add(HttpMethod.POST, path, (request) -> {
-            final JsonObject json = JsonHelper.generate(request.params());
-            CompletableFuture.supplyAsync(() -> supplier.apply(json), executor)
-                    .thenAccept(result -> request.response(resultFunc.apply(result)).end());
-        });
-    }
-
-    private void returnError(CustomHttpRequest request, String message, Integer statusCode) {
+    public static void returnError(RakamHttpRequest request, String message, Integer statusCode) {
         JsonObject obj = new JsonObject();
         obj.put("error", message);
         obj.put("error_code", statusCode);
 
         request.response(obj.encode(), HttpResponseStatus.valueOf(statusCode))
                 .headers().set("Content-Type", "application/json; charset=utf-8");
+        request.end();
+    }
+
+    public static ObjectNode errorMessage(String message, int statusCode) {
+        return JsonHelper.jsonObject()
+        .put("error", message)
+        .put("error_code", statusCode);
     }
 
 }
