@@ -17,11 +17,12 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import org.rakam.util.RakamException;
-import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.HttpServerHandler;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.Path;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonObject;
 
 import java.io.IOException;
@@ -39,21 +40,25 @@ import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
 
 public class WebServer {
     public final RouteMatcher routeMatcher;
+    EventLoopGroup bossGroup;
+    EventLoopGroup workerGroup;
 
     @Inject
     public WebServer(Set<HttpService> httpServicePlugins) {
         routeMatcher = new RouteMatcher();
 
         httpServicePlugins.forEach(service -> {
-            MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(service.getEndPoint(), routeMatcher);
+            String value = service.getClass().getAnnotation(Path.class).value();
+            MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(routeMatcher, value);
+
             service.register(microRouteMatcher);
         });
     }
 
 
     public void run(int port) throws InterruptedException {
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        bossGroup = new NioEventLoopGroup(1);
+        workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.option(ChannelOption.SO_BACKLOG, 1024);

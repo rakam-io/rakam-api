@@ -23,7 +23,7 @@ public class DefaultReportDatabase implements ReportDatabase {
 
     @Inject
     public DefaultReportDatabase(Cluster cluster) {
-        map = cluster.createOrGetService("ruleMap", AnalysisRuleMapService::new);
+        map = cluster.createOrGetService("ruleMap", bus -> new AnalysisRuleMapService(bus));
     }
 
     @Override

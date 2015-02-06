@@ -1,5 +1,6 @@
 package org.rakam.server;
 
+import com.facebook.presto.jdbc.internal.guava.base.Preconditions;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.server.http.RakamHttpRequest;
@@ -72,14 +73,15 @@ public class RouteMatcher {
 
     public static class MicroRouteMatcher {
         private final RouteMatcher routeMatcher;
-        private final String path;
+        private String path;
 
-        public MicroRouteMatcher(String path, RouteMatcher routeMatcher) {
-            this.path = path;
+        public MicroRouteMatcher(RouteMatcher routeMatcher, String path) {
             this.routeMatcher = routeMatcher;
+            this.path = path;
         }
 
         public void add(String lastPath, HttpMethod method, HttpRequestHandler handler) {
+            Preconditions.checkNotNull(path, "path is not configured");
             routeMatcher.add(method, path + lastPath, handler);
         }
     }

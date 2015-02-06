@@ -17,10 +17,8 @@ import org.rakam.kume.Cluster;
 import org.rakam.server.http.HttpService;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.stream.kume.KumeCacheAdapter;
-import org.rakam.util.json.JsonArray;
 
 import java.util.ServiceLoader;
-import java.util.logging.Logger;
 
 /**
  * Created by buremba on 25/05/14.
@@ -28,17 +26,9 @@ import java.util.logging.Logger;
 public class ServiceRecipe extends AbstractModule {
     private final Cluster cluster;
     private final Producer producer;
-    JsonArray plugins;
-    Logger logger = Logger.getLogger(this.getClass().getName());
 
     public ServiceRecipe(Cluster cluster, Producer producer) {
         this.cluster = cluster;
-        this.producer = producer;
-    }
-
-    public ServiceRecipe(Cluster cluster, Producer producer, JsonArray plugins) {
-        this.cluster = cluster;
-        this.plugins = plugins;
         this.producer = producer;
     }
 

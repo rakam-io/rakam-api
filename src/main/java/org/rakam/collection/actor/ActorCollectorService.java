@@ -6,12 +6,14 @@ import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpMethod;
 import org.rakam.server.RouteMatcher;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.Path;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.util.JsonHelper;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 08/11/14 21:04.
  */
+@Path("/actor")
 public class ActorCollectorService implements HttpService {
 
     private final ActorCacheAdapter actorCache;
@@ -39,13 +41,9 @@ public class ActorCollectorService implements HttpService {
     }
 
     @Override
-    public String getEndPoint() {
-        return "/actor";
-    }
-
-    @Override
     public void register(RouteMatcher.MicroRouteMatcher routeMatcher) {
-        routeMatcher.add("/collect", HttpMethod.GET, (request) -> {
+        routeMatcher
+                .add("/collect", HttpMethod.GET, (request) -> {
             final ObjectNode json = JsonHelper.generate(request.params());
             request.response(handle(json) ? "1" : "0");
         });

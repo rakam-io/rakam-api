@@ -136,7 +136,7 @@ public class DummyDatabase implements EventDatabase, ActorCacheAdapter, ReportDa
         ArrayList<Event> l = new ArrayList();
         events.forEach((k,v) -> {
             v.forEach(a -> {
-                if (filter.test(a.properties)) {
+                if (filter.test(a.properties())) {
                     l.add(a);
                 }
             });
