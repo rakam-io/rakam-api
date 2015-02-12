@@ -7,11 +7,6 @@ import org.rakam.analysis.query.mvel.MVELFilterScript;
 import org.rakam.analysis.query.simple.SimpleFieldScript;
 import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.analysis.query.simple.predicate.FilterPredicates;
-import org.rakam.analysis.rule.aggregation.AggregationReport;
-import org.rakam.constant.AggregationType;
-import org.rakam.constant.Analysis;
-import org.rakam.constant.AnalysisRuleStrategy;
-import org.rakam.util.Interval;
 import org.rakam.util.Tuple;
 import org.rakam.util.json.JsonArray;
 import org.rakam.util.json.JsonElement;
@@ -24,61 +19,6 @@ import java.util.function.Predicate;
  * Created by buremba on 15/01/14.
  */
 public class AnalysisRuleParser {
-
-    public static AggregationReport parse(JsonObject json) throws IllegalArgumentException {
-        AggregationReport rule;
-        String project = json.getString("tracker");
-        if (json.getString("analysis") == null)
-            throw new IllegalArgumentException("analysis type is required.");
-        Analysis analysisType;
-        try {
-            analysisType = Analysis.get(json.getString("analysis"));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalAccessError("analysis type does not exist.");
-        }
-        if (project == null)
-            throw new IllegalArgumentException("tracker id is required.");
-
-            FilterScript filter = getFilter(json.getJsonObject("filter"));
-            FieldScript groupBy = getField(json.getValue("group_by"));
-            FieldScript select = getField(json.getValue("select"));
-            if (json.getString("aggregation") == null)
-                throw new IllegalArgumentException("aggregation type is required.");
-            AggregationType aggType;
-            try {
-                aggType = AggregationType.get(json.getString("aggregation"));
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("aggregation type does not exist.");
-            }
-            if (aggType == null)
-                throw new IllegalArgumentException("aggregation type is required.");
-            if (aggType != AggregationType.COUNT && select == null)
-                throw new IllegalArgumentException("select attribute is required if aggregation type is not COUNT.");
-
-            if (groupBy != null && select == null)
-                select = groupBy;
-
-                rule = new AggregationReport(project, "test", aggType, select, filter, groupBy, getInterval(json.getValue("interval")));
-
-        String strategy = json.getString("strategy");
-        if (strategy != null)
-            try {
-                rule.strategy = AnalysisRuleStrategy.get(strategy);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("strategy couldn't identified.");
-            }
-        return rule;
-    }
-
-    public static Interval getInterval(Object interval) {
-        if (interval == null)
-            throw new IllegalArgumentException("interval is required for time-series.");
-        if (interval instanceof String) {
-            return Interval.parse((String) interval);
-        } else {
-            throw new IllegalArgumentException("interval parameter must be either string of number");
-        }
-    }
 
     public static FieldScript getField(Object field) {
         if (field != null) {

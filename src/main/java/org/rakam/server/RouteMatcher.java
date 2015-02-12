@@ -1,10 +1,10 @@
 package org.rakam.server;
 
-import com.facebook.presto.jdbc.internal.guava.base.Preconditions;
+import com.google.common.base.Preconditions;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.HttpRequestHandler;
+import org.rakam.server.http.RakamHttpRequest;
 
 import java.util.HashMap;
 

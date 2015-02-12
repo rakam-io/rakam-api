@@ -3,6 +3,7 @@ package org.rakam.server;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -17,21 +18,29 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpServerHandler;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.Path;
+import org.rakam.server.http.JsonRequest;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonObject;
 
+import javax.ws.rs.Path;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ForkJoinPool;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
+import static java.lang.String.format;
 import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
+import static org.rakam.util.Lambda.produceLambda;
 
 /**
  * Created by buremba on 20/12/13.
@@ -39,6 +48,10 @@ import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
 
 
 public class WebServer {
+    final static Logger LOGGER = Logger.get(WebServer.class);
+    private static String REQUEST_HANDLER_ERROR_MESSAGE = "Request handler method %s.%s couldn't converted to request handler lambda expression %s";
+    private static String REQUEST_HANDLER_PRIVATE_ERROR_MESSAGE = "Request handler method %s.%s is not accessible: %s";
+
     public final RouteMatcher routeMatcher;
     EventLoopGroup bossGroup;
     EventLoopGroup workerGroup;
@@ -50,9 +63,114 @@ public class WebServer {
         httpServicePlugins.forEach(service -> {
             String value = service.getClass().getAnnotation(Path.class).value();
             MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(routeMatcher, value);
+            for (Method method : service.getClass().getMethods()) {
+                Path annotation = method.getAnnotation(Path.class);
 
-            service.register(microRouteMatcher);
+                if (annotation != null) {
+                    String lastPath = annotation.value();
+                    JsonRequest jsonRequest = method.getAnnotation(JsonRequest.class);
+                    boolean mapped = false;
+                    for (Annotation ann : method.getAnnotations()) {
+                        javax.ws.rs.HttpMethod methodAnnotation = ann.annotationType().getAnnotation(javax.ws.rs.HttpMethod.class);
+
+                        if (methodAnnotation != null) {
+                            HttpRequestHandler handler = null;
+                            HttpMethod httpMethod = HttpMethod.valueOf(methodAnnotation.value());
+                            try {
+                                if (jsonRequest == null) {
+                                    handler = generateRequestHandler(service, method);
+                                } else if (httpMethod == HttpMethod.POST) {
+                                    mapped = true;
+                                    handler = createPostRequestHandler(service, method);
+                                } else if (httpMethod == HttpMethod.GET) {
+                                    mapped = true;
+                                    handler = createGetRequestHandler(service, method);
+                                }
+                            } catch (Throwable e) {
+                                throw new RuntimeException(format(REQUEST_HANDLER_ERROR_MESSAGE,
+                                        method.getClass().getName(), method.getName(), e));
+                            }
+
+                            microRouteMatcher.add(lastPath, httpMethod, handler);
+                            if(lastPath.equals("/"))
+                                microRouteMatcher.add("", httpMethod, handler);
+                        }
+                    }
+                    if (!mapped && jsonRequest != null) {
+                        try {
+                            microRouteMatcher.add(lastPath, HttpMethod.POST, createPostRequestHandler(service, method));
+                            microRouteMatcher.add(lastPath, HttpMethod.GET, createGetRequestHandler(service, method));
+                        } catch (Throwable e) {
+                            throw new RuntimeException(format(REQUEST_HANDLER_ERROR_MESSAGE,
+                                    method.getDeclaringClass().getName(), method.getName(), e));
+                        }
+                    }
+                }
+            }
         });
+    }
+
+    private static BiFunction<HttpService, JsonNode, Object> generateJsonRequestHandler(Method method) throws Throwable {
+        MethodHandles.Lookup caller = MethodHandles.lookup();
+        return produceLambda(caller, method, BiFunction.class.getMethod("apply", Object.class, Object.class));
+    }
+
+    private static HttpRequestHandler generateRequestHandler(HttpService service, Method method) throws Throwable {
+        MethodHandles.Lookup caller = MethodHandles.lookup();
+
+        if(Modifier.isStatic(method.getModifiers())) {
+            Consumer<RakamHttpRequest> lambda;
+            lambda = produceLambda(caller, method, Consumer.class.getMethod("accept", Object.class));
+            return request -> lambda.accept(request);
+        } else {
+            BiConsumer<HttpService, RakamHttpRequest> lambda;
+            lambda = produceLambda(caller, method, BiConsumer.class.getMethod("accept", Object.class, Object.class));
+            return request -> lambda.accept(service, request);
+        }
+    }
+
+    private static HttpRequestHandler createPostRequestHandler(HttpService service, Method method) throws Throwable {
+
+        BiFunction<HttpService, JsonNode, Object> function = generateJsonRequestHandler(method);
+        return (request) -> request.bodyHandler(obj -> {
+            JsonNode json;
+            try {
+                json = JsonHelper.read(obj);
+            } catch (IOException e) {
+                returnError(request, "json couldn't parsed: " + e.getMessage(), 400);
+                return;
+            } catch (ClassCastException e) {
+                returnError(request, "json must be an object", 400);
+                return;
+            }
+
+            handleJsonRequest(service, request, function, json);
+        });
+    }
+
+    private static HttpRequestHandler createGetRequestHandler(HttpService service, Method method) throws Throwable {
+        BiFunction<HttpService, JsonNode, Object> function = generateJsonRequestHandler(method);
+        return (request) -> {
+            ObjectNode json = JsonHelper.generate(request.params());
+            handleJsonRequest(service, request, function, json);
+        };
+    }
+
+    private static void handleJsonRequest(HttpService serviceInstance, RakamHttpRequest request, BiFunction<HttpService, JsonNode, Object> function, JsonNode json) {
+        boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
+
+        try {
+            Object apply = function.apply(serviceInstance, json);
+            String response = JsonHelper.encode(apply, prettyPrint);
+            request.response(response).end();
+        } catch (RakamException e) {
+            int statusCode = e.getStatusCode();
+            String encode = JsonHelper.encode(errorMessage(e.getMessage(), statusCode), prettyPrint);
+            request.response(encode, HttpResponseStatus.valueOf(statusCode)).end();
+        } catch (Exception e) {
+            ObjectNode errorMessage = errorMessage("error processing request " + e.getMessage(), HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
+            request.response(JsonHelper.encode(errorMessage, prettyPrint), HttpResponseStatus.BAD_REQUEST).end();
+        }
     }
 
 
@@ -83,61 +201,6 @@ public class WebServer {
         }
     }
 
-    public static void mapJsonRequest(MicroRouteMatcher routeMatcher, String path, Function<JsonNode, Object> supplier) {
-        routeMatcher.add(path, HttpMethod.GET, (request) -> {
-            final ObjectNode json = JsonHelper.generate(request.params());
-
-            boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
-            CompletableFuture.supplyAsync(() -> {
-                try {
-                    return supplier.apply(json);
-                } catch (Exception e) {
-                    return errorMessage("error processing request " + e.getMessage(), 500);
-                }
-            }).thenAccept(result -> request.response(JsonHelper.encode(result, prettyPrint)).end());
-        });
-
-        routeMatcher.add(path, HttpMethod.POST, (request) -> request.bodyHandler(obj -> {
-            ObjectNode json;
-            try {
-                json = JsonHelper.read(obj);
-            } catch (IOException e) {
-                returnError(request, "json couldn't parsed: "+e.getMessage(), 400);
-                return;
-            } catch (ClassCastException e) {
-                returnError(request, "json must be an object", 400);
-                return;
-            }
-
-            boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
-            CompletableFuture<Object> o = new CompletableFuture<>();
-
-            ForkJoinPool.commonPool().execute(() -> {
-                try {
-                    o.complete(supplier.apply(json));
-                } catch (Exception e) {
-                    o.completeExceptionally(e);
-                }
-            });
-
-            o.whenComplete((result, exception) -> {
-                if (exception == null) {
-                    request.response(JsonHelper.encode(result, prettyPrint)).end();
-                } else {
-                    if(exception instanceof RakamException) {
-                        int statusCode = ((RakamException) exception).getStatusCode();
-                        String encode = JsonHelper.encode(errorMessage(exception.getMessage(), statusCode), prettyPrint);
-                        request.response(encode, HttpResponseStatus.valueOf(statusCode)).end();
-                    }else {
-                        ObjectNode errorMessage = errorMessage("An error occurred while processing request.", 500);
-                        String encode = JsonHelper.encode(errorMessage, prettyPrint);
-                        request.response(encode, HttpResponseStatus.BAD_REQUEST).end();
-                    }
-                }
-            });
-        }));
-    }
-
     public static void returnError(RakamHttpRequest request, String message, Integer statusCode) {
         JsonObject obj = new JsonObject();
         obj.put("error", message);
@@ -150,8 +213,8 @@ public class WebServer {
 
     public static ObjectNode errorMessage(String message, int statusCode) {
         return JsonHelper.jsonObject()
-        .put("error", message)
-        .put("error_code", statusCode);
+                .put("error", message)
+                .put("error_code", statusCode);
     }
 
 }

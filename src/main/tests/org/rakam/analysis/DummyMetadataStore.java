@@ -6,9 +6,9 @@ import org.rakam.analysis.query.FilterScript;
 import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.database.ActorDatabase;
 import org.rakam.database.EventDatabase;
-import org.rakam.database.ReportDatabase;
 import org.rakam.model.Actor;
 import org.rakam.model.Event;
+import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.util.NotImplementedException;
 import org.rakam.util.json.JsonObject;
@@ -21,44 +21,15 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 19/09/14 14:00.
  */
-public class DummyDatabase implements EventDatabase, ActorCacheAdapter, ReportDatabase, ActorDatabase {
+public class DummyMetadataStore implements EventDatabase, ActorCacheAdapter, ReportMetadataStore, ActorDatabase {
     static Map<String, Set<AggregationReport>> ruleMap = new HashMap();
 
     static Map<String, Map<String, Actor>> actors = new ConcurrentHashMap<>();
     static Map<String, List<Event>> events = new ConcurrentHashMap();
-
-    @Override
-    public Map<String, Set<AggregationReport>> getAllReports() {
-        return ruleMap;
-    }
-
-    @Override
-    public void add(AggregationReport rule) {
-        ruleMap.computeIfAbsent(rule.project, s -> new ConcurrentSkipListSet<>()).add(rule);
-    }
-
-    @Override
-    public void delete(AggregationReport rule) {
-        ruleMap.computeIfPresent(rule.project, (s, k) -> {
-            k.remove(rule);
-            return null;
-        });
-    }
-
-    @Override
-    public Set<AggregationReport> get(String project) {
-        return ruleMap.get(project);
-    }
-
-    @Override
-    public void clear() {
-        ruleMap.clear();
-    }
 
     @Override
     public void setupDatabase() {
@@ -136,9 +107,9 @@ public class DummyDatabase implements EventDatabase, ActorCacheAdapter, ReportDa
         ArrayList<Event> l = new ArrayList();
         events.forEach((k,v) -> {
             v.forEach(a -> {
-                if (filter.test(a.properties())) {
-                    l.add(a);
-                }
+//                if (filter.test(a.properties())) {
+//                    l.add(a);
+//                }
             });
         });
         return l.stream().toArray(Event[]::new);
@@ -157,5 +128,24 @@ public class DummyDatabase implements EventDatabase, ActorCacheAdapter, ReportDa
     @Override
     public void setActorProperties(String project, String actor_id, JsonNode properties) {
 
+    }
+    @Override
+    public void createReport(String project, String name, String query) {
+
+    }
+
+    @Override
+    public void deleteReport(String project, String name) {
+
+    }
+
+    @Override
+    public String getReport(String project, String name) {
+        return null;
+    }
+
+    @Override
+    public Map<String, String> getReports(String project) {
+        return null;
     }
 }

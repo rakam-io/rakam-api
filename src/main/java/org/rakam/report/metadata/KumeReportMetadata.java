@@ -1,15 +1,13 @@
-package org.rakam.analysis;
+package org.rakam.report.metadata;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.rakam.analysis.rule.aggregation.AggregationReport;
-import org.rakam.database.ReportDatabase;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.Service;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,41 +16,33 @@ import java.util.concurrent.ConcurrentHashMap;
  * Created by buremba <Burak Emre Kabakcı> on 26/10/14 16:34.
  */
 @Singleton
-public class DefaultReportDatabase implements ReportDatabase {
+public class KumeReportMetadata implements ReportMetadataStore {
     private final AnalysisRuleMapService map;
 
     @Inject
-    public DefaultReportDatabase(Cluster cluster) {
+    public KumeReportMetadata(Cluster cluster) {
         map = cluster.createOrGetService("ruleMap", bus -> new AnalysisRuleMapService(bus));
     }
 
+
     @Override
-    public Map<String, Set<AggregationReport>> getAllReports() {
-        return map.getAllRules();
+    public void createReport(String project, String name, String query) {
+
     }
 
     @Override
-    public void add(AggregationReport rule) {
-        map.add(rule);
+    public void deleteReport(String project, String name) {
+
     }
 
     @Override
-    public void delete(AggregationReport rule) {
-        map.delete(rule);
+    public String getReport(String project, String name) {
+        return null;
     }
 
     @Override
-    public Set<AggregationReport> get(String project) {
-        Set<AggregationReport> aggregationReports = map.get(project);
-        if(aggregationReports==null)
-            return new HashSet<>();
-        else
-            return Collections.unmodifiableSet(aggregationReports);
-    }
-
-    @Override
-    public void clear() {
-        map.clear();
+    public Map<String, String> getReports(String project) {
+        return null;
     }
 
     public static class AnalysisRuleMapService extends Service {

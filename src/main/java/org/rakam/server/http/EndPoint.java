@@ -1,15 +1,16 @@
 package org.rakam.server.http;
 
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface Path {
-    String value();
+public @interface EndPoint {
+    String method();
+    String path() default "";
 }
-

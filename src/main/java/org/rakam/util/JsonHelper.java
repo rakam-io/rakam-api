@@ -23,6 +23,7 @@ public class JsonHelper {
     static {
         prettyMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
     }
+
     private static final ObjectWriter jsonWriter = mapper.writer();
     private static final JsonNodeFactory jsonNodeFactory = new JsonNodeFactory(false);
 

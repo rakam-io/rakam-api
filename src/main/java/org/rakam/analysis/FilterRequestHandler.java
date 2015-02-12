@@ -62,7 +62,6 @@ public class FilterRequestHandler implements HttpService {
         return null;
     }
 
-    @Override
     public void register(RouteMatcher.MicroRouteMatcher routeMatcher) {
 //        mapRequest("/filter/actor", json -> filterActors(json), o -> ((JsonObject) o).encode());
 //        mapRequest("/filter/event", json -> filterRequestHandler.filterEvents(json), o -> ((JsonObject) o).encode());

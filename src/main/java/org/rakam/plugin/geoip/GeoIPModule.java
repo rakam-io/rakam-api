@@ -2,18 +2,43 @@ package org.rakam.plugin.geoip;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
-import com.google.inject.Module;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.RakamModule;
+
+import java.io.IOException;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 13:25.
  */
-@AutoService(Module.class)
-public class GeoIPModule implements Module {
+@AutoService(RakamModule.class)
+public class GeoIPModule extends RakamModule {
     @Override
-    public void configure(Binder binder) {
+    protected void setup(Binder binder) {
+        GeoIPModuleConfig geoIPModuleConfig = buildConfigObject(GeoIPModuleConfig.class);
+        GeoIPEventMapper geoIPEventMapper;
+        try {
+            geoIPEventMapper = new GeoIPEventMapper(geoIPModuleConfig);
+        } catch (IOException e) {
+            binder.addError("Error while loading GeoIP database %s", e.getMessage());
+            return;
+        }
         Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
-        eventMappers.addBinding().to(GeoIPEventMapper.class);
+        eventMappers.addBinding().toInstance(geoIPEventMapper);
+    }
+
+    @Override
+    public String name() {
+        return "GeoIP Event Mapper";
+    }
+
+    @Override
+    public String description() {
+        return "It fills the events that have ip attribute with location information by GeoIP lookup service";
+    }
+
+    @Override
+    public void onDestroy() {
+
     }
 }

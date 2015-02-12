@@ -22,25 +22,4 @@ public class PredicateTest {
                 "  }");
         generatePredicate(json).equals(generatePredicate(json));
     }
-
-    @Test
-    public void ruleTest() {
-        JsonObject json = new JsonObject("{\n" +
-                "  \"strategy\": \"REAL_TIME\",\n" +
-                "  \"tracker\": \"e74607921dad4803b998\",\n" +
-                "  \"analysis\": \"TIMESERIES\",\n" +
-                "  \"aggregation\": \"COUNT\",\n" +
-                "  \"interval\": \"1hour\",\n" +
-                "  \"filter\": {\n" +
-                "    \"AND\": [\n" +
-                "      [\"field1\", \"$gte\", 20],\n" +
-                "      [\"field\", \"$in\", [20, 30, 40]]\n" +
-                "    ]\n" +
-                "  }\n" +
-                "}");
-        AggregationReport parse0 = AnalysisRuleParser.parse(json);
-        AggregationReport parse1 = AnalysisRuleParser.parse(json);
-        assertTrue(parse0.equals(parse1));
-        assertEquals(parse0.hashCode(), parse1.hashCode());
-    }
 }

@@ -1,8 +1,7 @@
 package org.rakam.model;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
+import org.apache.avro.generic.GenericData;
 
 /**
  * Created by buremba on 21/12/13.
@@ -11,14 +10,14 @@ import javax.annotation.Nullable;
 public abstract class Event implements Entry {
     public abstract String project();
     public abstract String collection();
-    public abstract @Nullable String user();
-    public abstract ObjectNode properties();
+    public abstract GenericData.Record properties();
 
     protected Event() {
     }
 
-    public static Event create(String project, String user, String collection, ObjectNode properties) {
-        return new AutoValue_Event(project, user, collection, properties);
+
+    public static Event create(String project, String collection, GenericData.Record properties) {
+        return new AutoValue_Event(project, collection.toLowerCase(), properties);
     }
 
     public <T> T getAttribute(String attr) {

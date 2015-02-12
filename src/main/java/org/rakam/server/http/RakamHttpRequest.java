@@ -14,10 +14,10 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
-import org.rakam.util.Handler;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_HEADERS;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
@@ -32,7 +32,7 @@ public class RakamHttpRequest implements HttpRequest {
     private final ChannelHandlerContext ctx;
     private io.netty.handler.codec.http.HttpRequest request;
     protected FullHttpResponse response;
-    private Handler<String> bodyHandler;
+    private Consumer<String> bodyHandler;
 
     private String path;
     private Map<String, List<String>> params;
@@ -93,7 +93,7 @@ public class RakamHttpRequest implements HttpRequest {
         request.setDecoderResult(result);
     }
 
-    public void bodyHandler(Handler<String> function) {
+    public void bodyHandler(Consumer<String> function) {
         bodyHandler = function;
     }
 
@@ -146,7 +146,7 @@ public class RakamHttpRequest implements HttpRequest {
 
     public void handleBody(String s) {
         if (bodyHandler != null) {
-            bodyHandler.handle(s);
+            bodyHandler.accept(s);
         }
     }
 }

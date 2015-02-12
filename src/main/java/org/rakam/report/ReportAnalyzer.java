@@ -1,4 +1,4 @@
-package org.rakam.analysis;
+package org.rakam.report;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -19,7 +19,6 @@ import java.time.format.DateTimeFormatter;
  */
 public class ReportAnalyzer {
     Connection conn;
-
 
     public ReportAnalyzer(String jdbc) {
         System.out.println("Connecting to database...");

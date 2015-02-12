@@ -7,11 +7,12 @@ import org.rakam.util.Interval;
 import org.rakam.util.MMapFile;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.lang.invoke.MethodHandles;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import static java.nio.channels.FileChannel.MapMode.READ_ONLY;
+import static org.rakam.util.Lambda.produceLambda;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 21/09/14 15:38.
@@ -36,18 +37,19 @@ public class UtilTest {
     }
 
 
+
     @Test
-    public void chfronicle() throws IOException, InterruptedException {
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
+    public void voidMethodToLambda() throws Throwable {
 
-        executorService.execute(() -> {
-            System.out.println(1);
+        final MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            executorService.execute(() -> System.out.println(2));
+        final BiConsumer setterLambda = produceLambda(lookup, Target3.class.getDeclaredMethod("id", int.class), BiConsumer.class.getMethod("accept", Object.class, Object.class));
 
-            System.out.println(3);
-        });
+        setterLambda.accept(new Target3(123), 456);
 
-        executorService.awaitTermination(10000, TimeUnit.SECONDS);
+        final Function<Target3, Integer> getterLambda = produceLambda(lookup, Target3.class.getDeclaredMethod("id"), Function.class.getMethod("apply", Object.class));
+
+        System.out.println(getterLambda.apply(new Target3(123)));
     }
+
 }

@@ -4,11 +4,10 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Scopes;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.rakam.RakamTestHelper;
 import org.rakam.database.EventDatabase;
-import org.rakam.database.ReportDatabase;
+import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.stream.local.LocalCache;
 import org.rakam.stream.local.LocalCacheImpl;
@@ -22,7 +21,7 @@ import java.time.format.DateTimeFormatter;
  * Created by buremba <Burak Emre Kabakcı> on 01/11/14 00:49.
  */
 public class AnalysisBaseTest extends RakamTestHelper {
-    static DummyDatabase analysisRuleMap;
+    static DummyMetadataStore analysisRuleMap;
 
     protected static String formatTime(int time) {
         return Instant.ofEpochSecond(time).atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_INSTANT);
@@ -35,19 +34,13 @@ public class AnalysisBaseTest extends RakamTestHelper {
             protected void configure() {
                 bind(LocalCache.class).to(LocalCacheImpl.class);
                 bind(LocalCacheImpl.class).in(Scopes.SINGLETON);
-                bind(EventDatabase.class).to(DummyDatabase.class);
-                bind(ReportDatabase.class).to(DummyDatabase.class);
-                bind(ActorCacheAdapter.class).to(DummyDatabase.class);
+                bind(EventDatabase.class).to(DummyMetadataStore.class);
+                bind(ReportMetadataStore.class).to(DummyMetadataStore.class);
+                bind(ActorCacheAdapter.class).to(DummyMetadataStore.class);
             }
         });
 
-        analysisRuleMap = new DummyDatabase();
-
-    }
-
-    @Before
-    public void clear() {
-        analysisRuleMap.clear();
+        analysisRuleMap = new DummyMetadataStore();
 
     }
 
