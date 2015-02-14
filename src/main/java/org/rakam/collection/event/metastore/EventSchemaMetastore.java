@@ -12,6 +12,8 @@ import java.util.Map;
 public interface EventSchemaMetastore {
     Table<String, String, Schema> getAllSchemas();
 
+    Map<String, String> getAllCollections();
+
     Map<String, Schema> getSchemas(String project);
 
     Schema getSchema(String project, String collection);

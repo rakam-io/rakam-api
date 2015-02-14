@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -108,7 +109,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         if(schema == null) {
             ObjectNode json = jp.readValueAsTree();
             List<Schema.Field> fields = createSchemaFromArbitraryJson(json);
-            fields.addAll(moduleFields);
+            fields.addAll(getFieldsUsedInModules());
             schema = schemaRegistry.createOrGetSchema(project, collection, fields);
             schemaCache.put(key, schema);
         }
@@ -233,6 +234,12 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             default:
                 return null;
         }
+    }
+
+    public List<Schema.Field> getFieldsUsedInModules() {
+        return moduleFields.stream()
+                .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
+                .collect(Collectors.toList());
     }
 
     public static Schema.Type getAvroType(JsonNodeType jsonType) {

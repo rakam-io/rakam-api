@@ -12,10 +12,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.specific.SpecificDatumReader;
 import org.codehaus.jackson.node.NullNode;
 import org.junit.Test;
-import org.rakam.Example;
 import org.rakam.util.JsonHelper;
 
 import javax.tools.JavaCompiler;
@@ -179,18 +177,18 @@ public class TestClass {
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(out.toByteArray());
         BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(byteArrayInputStream, null);
 
-        SpecificDatumReader<Example> reader = new SpecificDatumReader<>(Example.class);
+//        SpecificDatumReader<Example> reader = new SpecificDatumReader<>(Example.class);
+//
+//        Example read = new Example();
 
-        Example read = new Example();
-
-        for (int i = 0; i < 10_000; i++) {
-            read = reader.read(read, decoder);
-            byteArrayInputStream.reset();
-        }
+//        for (int i = 0; i < 10_000; i++) {
+//            read = reader.read(read, decoder);
+//            byteArrayInputStream.reset();
+//        }
 
         long l = System.currentTimeMillis();
         for (int i = 0; i < 20_000_000; i++) {
-            read = reader.read(read, decoder);
+//            read = reader.read(read, decoder);
             byteArrayInputStream.reset();
         }
         System.out.println(System.currentTimeMillis() - l);

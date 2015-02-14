@@ -2,18 +2,13 @@ package org.rakam;
 
 import com.google.common.base.Throwables;
 import com.google.inject.Injector;
-import kafka.javaapi.producer.Producer;
-import kafka.producer.ProducerConfig;
 import org.rakam.collection.CollectionModule;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ClusterBuilder;
-import org.rakam.report.metadata.ReportMetadataModule;
 import org.rakam.server.WebServer;
 import org.rakam.util.bootstrap.Bootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Properties;
 
 /**
  * Created by buremba on 21/12/13.
@@ -47,17 +42,9 @@ public class ServiceStarter {
 
         Cluster cluster = new ClusterBuilder().start();
 
-        Properties props = new Properties();
-        props.put("metadata.broker.list", "127.0.0.1:9092");
-        props.put("serializer.class", "kafka.serializer.DefaultEncoder");
-
-        ProducerConfig config = new ProducerConfig(props);
-        Producer producer = new Producer(config);
-
         Bootstrap app = new Bootstrap(
                 new CollectionModule(),
-                new ReportMetadataModule(),
-                new ServiceRecipe(cluster, producer));
+                new ServiceRecipe(cluster));
         app.requireExplicitBindings(false);
         try {
             Injector injector = app.strictConfig().initialize();

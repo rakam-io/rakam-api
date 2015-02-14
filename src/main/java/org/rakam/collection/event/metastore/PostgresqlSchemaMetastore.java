@@ -3,8 +3,11 @@ package org.rakam.collection.event.metastore;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import org.apache.avro.Schema;
-import org.rakam.report.metadata.postgresql.PostgresqlMetadataConfig;
+import org.rakam.report.metadata.postgresql.PostgresqlConfig;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
@@ -20,12 +23,14 @@ import static java.lang.String.format;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 11/02/15 15:57.
  */
+@Singleton
 public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
 
     private final Handle dao;
     private final DBI dbi;
 
-    public PostgresqlSchemaMetastore(PostgresqlMetadataConfig config) {
+    @Inject
+    public PostgresqlSchemaMetastore(@Named("event.schema.store.postgresql") PostgresqlConfig config) {
         dbi = new DBI(format("jdbc:postgresql://%s/%s", config.getHost(), config.getDatabase()),
                 config.getUsername(), config.getUsername());
         dao = dbi.open();
@@ -44,6 +49,17 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
         HashBasedTable<String, String, Schema> table = HashBasedTable.create();
         bind.forEach(row ->
                 table.put((String) row.get("project"), (String) row.get("collection"), (Schema) row.get("schema")));
+
+        return table;
+    }
+
+    @Override
+    public Map<String, String> getAllCollections() {
+        Query<Map<String, Object>> bind = dao.createQuery("SELECT project, collection from collection_schema");
+
+        Map<String, String> table = Maps.newHashMap();
+        bind.forEach(row ->
+                table.put((String) row.get("project"), (String) row.get("collection")));
 
         return table;
     }

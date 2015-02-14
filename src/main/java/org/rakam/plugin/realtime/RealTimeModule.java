@@ -16,8 +16,6 @@ public class RealTimeModule extends RakamModule {
     protected void setup(Binder binder) {
         Multibinder<HttpService> multiBinder = Multibinder.newSetBinder(binder, HttpService.class);
         multiBinder.addBinding().to(RealTimeHttpService.class);
-//        Multibinder<EventProcessor> eventMappers = Multibinder.newSetBinder(binder, EventProcessor.class);
-//        eventMappers.addBinding().to(RealTimeEventProcessor.class);
     }
 
     @Override

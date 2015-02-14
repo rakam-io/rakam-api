@@ -4,8 +4,6 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import io.airlift.configuration.AbstractConfigurationAwareModule;
-import kafka.javaapi.producer.Producer;
 import org.rakam.collection.actor.ActorCollectorService;
 import org.rakam.collection.event.EventCollectorService;
 import org.rakam.database.ActorDatabase;
@@ -25,13 +23,11 @@ import java.util.ServiceLoader;
 /**
  * Created by buremba on 25/05/14.
  */
-public class ServiceRecipe extends AbstractConfigurationAwareModule {
+public class ServiceRecipe extends RakamModule {
     private final Cluster cluster;
-    private final Producer producer;
 
-    public ServiceRecipe(Cluster cluster, Producer producer) {
+    public ServiceRecipe(Cluster cluster) {
         this.cluster = cluster;
-        this.producer = producer;
     }
 
     @Override
@@ -41,7 +37,6 @@ public class ServiceRecipe extends AbstractConfigurationAwareModule {
         binder.bind(ActorDatabase.class).to(DefaultDatabaseAdapter.class).in(Scopes.SINGLETON);
 
         binder.bind(Cluster.class).toInstance(cluster);
-        binder.bind(Producer.class).toInstance(producer);
 
         Multibinder.newSetBinder(binder, EventProcessor.class);
         Multibinder.newSetBinder(binder, EventMapper.class);
@@ -51,18 +46,32 @@ public class ServiceRecipe extends AbstractConfigurationAwareModule {
         httpServices.addBinding().to(ActorCollectorService.class);
         httpServices.addBinding().to(EventCollectorService.class);
 
-
         ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
 
         Multibinder<RakamModule> rakamModuleBinder = Multibinder.newSetBinder(binder, RakamModule.class);
         for (Module module : modules) {
             if (!(module instanceof RakamModule)) {
-                binder.addError("modules must be subclasses of org.rakam.module.RakamModule: %s", module.getClass().getName());
+                binder.addError("Modules must be subclasses of org.rakam.module.RakamModule: %s", module.getClass().getName());
                 continue;
             }
             RakamModule rakamModule = (RakamModule) module;
             super.install(rakamModule);
             rakamModuleBinder.addBinding().toInstance(rakamModule);
         }
+    }
+
+    @Override
+    public String name() {
+        return null;
+    }
+
+    @Override
+    public String description() {
+        return null;
+    }
+
+    @Override
+    public void onDestroy() {
+
     }
 }

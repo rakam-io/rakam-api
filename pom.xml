@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.rakam</groupId>
-    <artifactId>analytics</artifactId>
+    <artifactId>rakam</artifactId>
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
     <name>Project - analytics</name>
@@ -68,6 +68,11 @@
             <version>2.1.9.Final</version>
         </dependency>
         <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>units</artifactId>
+            <version>0.101</version>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>9.4-1200-jdbc41</version>
@@ -92,7 +97,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka_2.11</artifactId>
-            <version>0.8.2-beta</version>
+            <version>0.8.2.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
@@ -140,7 +145,7 @@
             <artifactId>Kume</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>system</scope>
-            <systemPath>${basedir}/../TaskDistribution/pom.xml</systemPath>
+            <systemPath>${basedir}/kume/pom.xml</systemPath>
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
@@ -160,13 +165,15 @@
         </dependency>
     </dependencies>
 
-    <reporting>
+    <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-report-plugin</artifactId>
-                <version>${maven.surefire.report.plugin.version}</version>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgument>-proc:none</compilerArgument>
+                </configuration>
             </plugin>
         </plugins>
-    </reporting>
+    </build>
 </project>

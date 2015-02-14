@@ -1,7 +1,8 @@
 package org.rakam.report.metadata.postgresql;
 
-import com.google.common.base.Throwables;
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.util.Tuple;
 import org.skife.jdbi.v2.DBI;
@@ -19,12 +20,8 @@ import static java.lang.String.format;
 public class PostgresqlReportMetadata implements ReportMetadataStore {
     Handle dao;
 
-    public PostgresqlReportMetadata(PostgresqlMetadataConfig config) {
-        try {
-            Class.forName("org.postgresql.Driver");
-        } catch (ClassNotFoundException e) {
-            Throwables.propagate(e);
-        }
+    @Inject
+    public PostgresqlReportMetadata(@Named("report.metadata.store.postgresql") PostgresqlConfig config) {
         DBI dbi = new DBI(format("jdbc:postgresql://%s/%s", config.getHost(), config.getDatabase()),
                 config.getUsername(), config.getUsername());
         dao = dbi.open();
@@ -69,7 +66,7 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
     public Map<String, String> getReports(String project) {
         return dao.createQuery("SELECT name, query from reports WHERE project = :project")
                 .bind("project", project)
-                .map((i, resultSet, statementContext) -> new Tuple<>(resultSet.getString(0), resultSet.getString(1)))
+                .map((i, resultSet, statementContext) -> new Tuple<>(resultSet.getString(1), resultSet.getString(2)))
                 .list().stream().collect(Collectors.toMap(key -> key.v1(), val -> val.v2()));
     }
 }

@@ -12,7 +12,6 @@ import com.google.inject.Stage;
 import com.google.inject.spi.Message;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.bootstrap.LifeCycleModule;
-import io.airlift.configuration.ConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationInspector;
 import io.airlift.configuration.ConfigurationLoader;
@@ -20,6 +19,7 @@ import io.airlift.configuration.ConfigurationModule;
 import io.airlift.configuration.ConfigurationValidator;
 import io.airlift.configuration.ValidationErrorModule;
 import io.airlift.configuration.WarningsMonitor;
+import org.rakam.plugin.RakamModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,8 +161,8 @@ public class Bootstrap
 
         // initialize configuration factory
         for (Module module : modules) {
-            if (module instanceof ConfigurationAwareModule) {
-                ConfigurationAwareModule configurationAwareModule = (ConfigurationAwareModule) module;
+            if (module instanceof RakamModule) {
+                RakamModule configurationAwareModule = (RakamModule) module;
                 configurationAwareModule.setConfigurationFactory(configurationFactory);
             }
         }

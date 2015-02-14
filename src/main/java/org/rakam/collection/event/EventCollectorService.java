@@ -8,16 +8,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
-import kafka.common.FailedToSendMessageException;
-import kafka.javaapi.producer.Producer;
-import kafka.producer.KeyedMessage;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
-import org.rakam.kume.Cluster;
 import org.rakam.model.Event;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
@@ -28,7 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -39,19 +30,18 @@ import java.util.stream.Collectors;
  */
 @Path("/event")
 public class EventCollectorService implements HttpService {
-    final static Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
+    final static Logger LOGGER = LoggerFactory.getLogger(EventCollectorService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
 
-    private final Producer<byte[], byte[]> kafkaProducer;
     private final Set<EventProcessor> processors;
     private final Set<EventMapper> mappers;
-    BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(new ByteArrayOutputStream(), null);
+    private final EventStore eventStore;
 
     @Inject
-    public EventCollectorService(Producer producer, EventSchemaMetastore schemas, Set<EventMapper> eventMappers, Set<EventProcessor> eventProcessors) {
+    public EventCollectorService(EventStore eventStore, EventSchemaMetastore schemas, Set<EventMapper> eventMappers, Set<EventProcessor> eventProcessors) {
         this.mappers = eventMappers;
         this.processors = eventProcessors;
-        this.kafkaProducer = producer;
+        this.eventStore = eventStore;
 
         SimpleModule module = new SimpleModule();
         List<Schema.Field> moduleFields = mappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());
@@ -72,28 +62,10 @@ public class EventCollectorService implements HttpService {
             mapper.map(event);
         }
 
-        DatumWriter writer = new GenericDatumWriter(event.properties().getSchema());
-        ByteArrayOutputStream out = new ByteArrayOutputStream(64);
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(new ByteArrayOutputStream(), this.encoder);
-
         try {
-            writer.write(event.properties(), encoder);
-        } catch (IOException e) {
-            LOGGER.error("Couldn't serialize event", e);
-            return false;
-        } finally {
-            try {
-                encoder.flush();
-            } catch (IOException e) {
-                LOGGER.error("Couldn't flush the buffer", e);
-                return false;
-            }
-        }
-
-        try {
-            kafkaProducer.send(new KeyedMessage<>(event.project()+"_"+event.collection(), out.toByteArray()));
-        } catch (FailedToSendMessageException e) {
-            LOGGER.error("Couldn't send event to Kafka", e);
+            eventStore.store(event);
+        } catch (Exception e) {
+            LOGGER.error("error while storing event.", e);
             return false;
         }
 
