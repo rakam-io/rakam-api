@@ -2,7 +2,6 @@ package org.rakam.report.metadata;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.rakam.analysis.rule.aggregation.AggregationReport;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.Service;
 
@@ -46,7 +45,7 @@ public class KumeReportMetadata implements ReportMetadataStore {
     }
 
     public static class AnalysisRuleMapService extends Service {
-        private final Map<String, Set<AggregationReport>> map;
+        private final Map<String, Set<String>> map;
         private final Cluster.ServiceContext<AnalysisRuleMapService> ctx;
 
         public AnalysisRuleMapService(Cluster.ServiceContext<AnalysisRuleMapService> ctx) {
@@ -55,15 +54,15 @@ public class KumeReportMetadata implements ReportMetadataStore {
         }
 
 
-        public synchronized void add(AggregationReport rule) {
+        public synchronized void add(String rule) {
             ctx.replicateSafely((service, ctx) ->
-                    service.map.computeIfAbsent(rule.project, x ->
+                    service.map.computeIfAbsent(rule, x ->
                             Collections.newSetFromMap(new ConcurrentHashMap<>())).add(rule));
         }
 
-        public void delete(AggregationReport rule) {
+        public void delete(String rule) {
             ctx.replicateSafely((service, ctx) -> {
-                Set<AggregationReport> aggregationReports = service.map.get(rule.project);
+                Set<String> aggregationReports = service.map.get(rule);
                 if(aggregationReports !=null)
                     aggregationReports.remove(rule);
             });
@@ -74,19 +73,19 @@ public class KumeReportMetadata implements ReportMetadataStore {
             map.clear();
         }
 
-        public Set<AggregationReport> get(String project) {
+        public Set<String> get(String project) {
             return map.get(project);
         }
 
-        public Set<Map.Entry<String, Set<AggregationReport>>> entrySet() {
+        public Set<Map.Entry<String, Set<String>>> entrySet() {
             return map.entrySet();
         }
 
-        public Collection<Set<AggregationReport>> values() {
+        public Collection<Set<String>> values() {
             return map.values();
         }
 
-        public Map<String, Set<AggregationReport>> getAllRules() {
+        public Map<String, Set<String>> getAllRules() {
             return Collections.unmodifiableMap(map);
         }
 

@@ -57,6 +57,4 @@ public abstract class RakamModule implements ConfigurationAwareModule {
     public abstract String name();
 
     public abstract String description();
-
-    public abstract void onDestroy();
 }

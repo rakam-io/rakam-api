@@ -1,7 +1,7 @@
-package org.rakam.constant;
+package org.rakam.stream;
 
 /**
- * Created by buremba on 17/01/14.
+ * Created by buremba <Burak Emre Kabakcı> on 14/02/15 23:36.
  */
 public enum AggregationType {
     COUNT(0),

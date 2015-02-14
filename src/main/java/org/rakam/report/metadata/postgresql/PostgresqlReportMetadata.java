@@ -8,6 +8,8 @@ import org.rakam.util.Tuple;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -69,5 +71,14 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
                 .map((i, resultSet, statementContext) -> new Tuple<>(resultSet.getString(1), resultSet.getString(2)))
                 .list().stream().collect(Collectors.toMap(key -> key.v1(), val -> val.v2()));
     }
-}
 
+    @PreDestroy
+    public void stopServer() {
+        System.out.println(1);
+    }
+
+    @PostConstruct
+    public void startServer() {
+        System.out.println(1);
+    }
+}

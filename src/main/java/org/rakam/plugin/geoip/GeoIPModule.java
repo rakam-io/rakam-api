@@ -36,9 +36,4 @@ public class GeoIPModule extends RakamModule {
     public String description() {
         return "It fills the events that have ip attribute with location information by GeoIP lookup service";
     }
-
-    @Override
-    public void onDestroy() {
-
-    }
 }

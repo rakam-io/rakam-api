@@ -1,16 +1,11 @@
 package org.rakam.analysis;
 
-import com.google.inject.Injector;
 import org.rakam.analysis.query.simple.SimpleFilterScript;
-import org.rakam.database.EventDatabase;
-import org.rakam.model.Event;
 import org.rakam.server.RouteMatcher;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.Tuple;
-import org.rakam.util.json.JsonArray;
 import org.rakam.util.json.JsonObject;
 
-import java.util.Arrays;
 import java.util.function.Predicate;
 
 import static org.rakam.analysis.AnalysisRuleParser.generatePredicate;
@@ -19,11 +14,7 @@ import static org.rakam.analysis.AnalysisRuleParser.generatePredicate;
  * Created by buremba <Burak Emre Kabakcı> on 03/09/14 02:12.
  */
 public class FilterRequestHandler implements HttpService {
-    private final EventDatabase databaseAdapter;
 
-    public FilterRequestHandler(Injector injector) {
-        databaseAdapter = injector.getInstance(EventDatabase.class);
-    }
 
     public JsonObject filterEvents(JsonObject query) {
         Integer limit = query.getInteger("limit");
@@ -39,8 +30,9 @@ public class FilterRequestHandler implements HttpService {
             return new JsonObject().put("error", "couldn't parse filter parameter");
         }
         SimpleFilterScript filter = new SimpleFilterScript(predicateBooleanTuple.v1(), predicateBooleanTuple.v2());
-        Event[] events = databaseAdapter.filterEvents(filter, limit, orderBy);
-        return new JsonObject().put("result", new JsonArray(Arrays.asList(events)));
+//        Event[] events = databaseAdapter.filterEvents(filter, limit, orderBy);
+//        return new JsonObject().put("result", new JsonArray(Arrays.asList(events)));
+        return null;
     }
 
     public JsonObject filterActors(JsonObject query) {

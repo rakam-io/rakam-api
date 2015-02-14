@@ -1,4 +1,4 @@
-package org.rakam.server;
+package org.rakam.server.http;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -18,15 +18,15 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import org.rakam.server.http.HttpRequestHandler;
-import org.rakam.server.http.HttpServerHandler;
-import org.rakam.server.http.HttpService;
-import org.rakam.server.http.JsonRequest;
-import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.RouteMatcher;
+import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.HostAddress;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonObject;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.ws.rs.Path;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -38,33 +38,41 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
-import static org.rakam.server.RouteMatcher.MicroRouteMatcher;
 import static org.rakam.util.Lambda.produceLambda;
 
 /**
  * Created by buremba on 20/12/13.
  */
-
-
-public class WebServer {
-    final static Logger LOGGER = Logger.get(WebServer.class);
+public class HttpServer {
+    final static Logger LOGGER = Logger.get(HttpServer.class);
     private static String REQUEST_HANDLER_ERROR_MESSAGE = "Request handler method %s.%s couldn't converted to request handler lambda expression: \n %s";
 
     public final RouteMatcher routeMatcher;
+    private final HttpServerConfig config;
+
     EventLoopGroup bossGroup;
     EventLoopGroup workerGroup;
 
     @Inject
-    public WebServer(Set<HttpService> httpServicePlugins) {
-        routeMatcher = new RouteMatcher();
+    public HttpServer(HttpServerConfig config, Set<HttpService> httpServicePlugins) {
+        this.config = checkNotNull(config, "config is null");
+        this.routeMatcher = new RouteMatcher();
 
+        bossGroup = new NioEventLoopGroup(1);
+        workerGroup = new NioEventLoopGroup();
+
+        registerPaths(httpServicePlugins);
+    }
+
+    private void registerPaths(Set<HttpService> httpServicePlugins) {
         httpServicePlugins.forEach(service -> {
             String mainPath = service.getClass().getAnnotation(Path.class).value();
             if(mainPath == null) {
                 throw new IllegalStateException(format("Classes that implement HttpService must have %s annotation.", Path.class.getCanonicalName()));
             }
-            MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(routeMatcher, mainPath);
+            RouteMatcher.MicroRouteMatcher microRouteMatcher = new RouteMatcher.MicroRouteMatcher(routeMatcher, mainPath);
             for (Method method : service.getClass().getMethods()) {
                 Path annotation = method.getAnnotation(Path.class);
 
@@ -186,9 +194,7 @@ public class WebServer {
     }
 
 
-    public void run(int port) throws InterruptedException {
-        bossGroup = new NioEventLoopGroup(1);
-        workerGroup = new NioEventLoopGroup();
+    public void execute() throws InterruptedException {
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.option(ChannelOption.SO_BACKLOG, 1024);
@@ -204,7 +210,8 @@ public class WebServer {
                         }
                     });
 
-            Channel ch = b.bind(port).sync().channel();
+            HostAddress address = config.getAddress();
+            Channel ch = b.bind(address.getHostText(), address.getPort()).sync().channel();
 
             ch.closeFuture().sync();
         } finally {
@@ -229,4 +236,13 @@ public class WebServer {
                 .put("error_code", statusCode);
     }
 
+    @PreDestroy
+    public void stopServer() {
+        System.out.println(1);
+    }
+
+    @PostConstruct
+    public void startServer() {
+        System.out.println(1);
+    }
 }

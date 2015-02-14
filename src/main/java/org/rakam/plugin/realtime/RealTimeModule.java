@@ -27,9 +27,4 @@ public class RealTimeModule extends RakamModule {
     public String description() {
         return null;
     }
-
-    @Override
-    public void onDestroy() {
-
-    }
 }

@@ -1,9 +1,9 @@
 package org.rakam.stream.kume;
 
 import org.rakam.analysis.query.FieldScript;
-import org.rakam.constant.AggregationType;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.crdt.set.GSetService;
+import org.rakam.stream.AggregationType;
 import org.rakam.stream.AverageCounter;
 import org.rakam.stream.SimpleCounter;
 import org.rakam.stream.TimeSeriesStreamProcessor;

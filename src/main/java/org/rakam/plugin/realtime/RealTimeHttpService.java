@@ -17,7 +17,7 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.config.KafkaConfig;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.JsonRequest;
+import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.HostAddress;
 import org.rakam.util.RakamException;
 import org.slf4j.Logger;

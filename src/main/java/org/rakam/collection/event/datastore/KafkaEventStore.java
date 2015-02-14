@@ -1,4 +1,4 @@
-package org.rakam.collection.event;
+package org.rakam.collection.event.datastore;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -10,6 +10,7 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.rakam.collection.event.EventStore;
 import org.rakam.config.KafkaConfig;
 import org.rakam.model.Event;
 import org.rakam.util.HostAddress;

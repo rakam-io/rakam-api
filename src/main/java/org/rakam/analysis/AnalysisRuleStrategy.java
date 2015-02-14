@@ -1,4 +1,4 @@
-package org.rakam.constant;
+package org.rakam.analysis;
 
 /**
  * Created by buremba on 19/05/14.
@@ -7,7 +7,7 @@ public enum AnalysisRuleStrategy {
     REAL_TIME_BATCH_CONCURRENT(1),
     REAL_TIME(2),
     BATCH(3),
-    BATCH_PERIODICALLY(5);
+    BATCH_PERIODICALLY(4);
 
     public final int id;
 

@@ -211,7 +211,7 @@ public class Bootstrap
         moduleList.addAll(modules);
 
         // create the injector
-        Injector injector = Guice.createInjector(Stage.DEVELOPMENT, moduleList.build());
+        Injector injector = Guice.createInjector(Stage.PRODUCTION, moduleList.build());
 
         // Create the life-cycle manager
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);

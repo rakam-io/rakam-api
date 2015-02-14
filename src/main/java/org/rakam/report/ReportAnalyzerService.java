@@ -5,7 +5,7 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.JsonRequest;
+import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -15,7 +15,7 @@ import javax.ws.rs.Path;
 import java.sql.SQLException;
 import java.util.Map;
 
-import static org.rakam.server.WebServer.errorMessage;
+import static org.rakam.server.http.HttpServer.errorMessage;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
