@@ -49,8 +49,7 @@ import static org.rakam.util.Lambda.produceLambda;
 
 public class WebServer {
     final static Logger LOGGER = Logger.get(WebServer.class);
-    private static String REQUEST_HANDLER_ERROR_MESSAGE = "Request handler method %s.%s couldn't converted to request handler lambda expression %s";
-    private static String REQUEST_HANDLER_PRIVATE_ERROR_MESSAGE = "Request handler method %s.%s is not accessible: %s";
+    private static String REQUEST_HANDLER_ERROR_MESSAGE = "Request handler method %s.%s couldn't converted to request handler lambda expression: \n %s";
 
     public final RouteMatcher routeMatcher;
     EventLoopGroup bossGroup;
@@ -61,8 +60,11 @@ public class WebServer {
         routeMatcher = new RouteMatcher();
 
         httpServicePlugins.forEach(service -> {
-            String value = service.getClass().getAnnotation(Path.class).value();
-            MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(routeMatcher, value);
+            String mainPath = service.getClass().getAnnotation(Path.class).value();
+            if(mainPath == null) {
+                throw new IllegalStateException(format("Classes that implement HttpService must have %s annotation.", Path.class.getCanonicalName()));
+            }
+            MicroRouteMatcher microRouteMatcher = new MicroRouteMatcher(routeMatcher, mainPath);
             for (Method method : service.getClass().getMethods()) {
                 Path annotation = method.getAnnotation(Path.class);
 
@@ -92,7 +94,7 @@ public class WebServer {
                             }
 
                             microRouteMatcher.add(lastPath, httpMethod, handler);
-                            if(lastPath.equals("/"))
+                            if (lastPath.equals("/"))
                                 microRouteMatcher.add("", httpMethod, handler);
                         }
                     }
@@ -111,14 +113,24 @@ public class WebServer {
     }
 
     private static BiFunction<HttpService, JsonNode, Object> generateJsonRequestHandler(Method method) throws Throwable {
+        if (!Object.class.isAssignableFrom(method.getReturnType()) ||
+                method.getParameterCount() != 1 ||
+                !method.getParameterTypes()[0].equals(JsonNode.class))
+            throw new IllegalStateException(format("The signature of @JsonRequest methods must be [Object (%s)]", JsonNode.class.getCanonicalName()));
+
         MethodHandles.Lookup caller = MethodHandles.lookup();
         return produceLambda(caller, method, BiFunction.class.getMethod("apply", Object.class, Object.class));
     }
 
     private static HttpRequestHandler generateRequestHandler(HttpService service, Method method) throws Throwable {
+        if (!method.getReturnType().equals(void.class) ||
+                method.getParameterCount() != 1 ||
+                !method.getParameterTypes()[0].equals(RakamHttpRequest.class))
+            throw new IllegalStateException(format("The signature of HTTP request methods must be [void ()]", RakamHttpRequest.class.getCanonicalName()));
+
         MethodHandles.Lookup caller = MethodHandles.lookup();
 
-        if(Modifier.isStatic(method.getModifiers())) {
+        if (Modifier.isStatic(method.getModifiers())) {
             Consumer<RakamHttpRequest> lambda;
             lambda = produceLambda(caller, method, Consumer.class.getMethod("accept", Object.class));
             return request -> lambda.accept(request);
