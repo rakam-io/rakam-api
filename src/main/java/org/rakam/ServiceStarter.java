@@ -1,10 +1,11 @@
 package org.rakam;
 
 import com.google.inject.Injector;
+import com.google.inject.Scopes;
 import org.rakam.collection.CollectionModule;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ClusterBuilder;
-import org.rakam.server.http.HttpServerModule;
+import org.rakam.server.http.HttpServer;
 import org.rakam.util.bootstrap.Bootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +21,7 @@ public class ServiceStarter {
 
 //        Runtime.getRuntime().addShutdownHook(new Thread() {
 //            @Override
-//            public void execute() {
+//            public void bind() {
 //                System.out.println("exiting..");
 //                TODO: gracefully exit.
 //                System.exit(0);
@@ -33,21 +34,25 @@ public class ServiceStarter {
             System.setProperty("config", "config.properties");
         }
 
-
-
         Bootstrap app = new Bootstrap(
                 new CollectionModule(),
-                new HttpServerModule(),
                 binder -> {
-                    Cluster cluster = new ClusterBuilder().start();
-                    binder.bind(Cluster.class).toInstance(cluster);
+                    binder.bind(Cluster.class).toProvider(() -> {
+                        return new ClusterBuilder().start();
+                    }).in(Scopes.SINGLETON);
                 },
-        new ServiceRecipe());
-        app.requireExplicitBindings(false);
+                new ServiceRecipe());
 
+        app.requireExplicitBindings(false);
 
         Injector injector = app.strictConfig().initialize();
 
+        HttpServer httpServer = injector.getInstance(HttpServer.class);
+        if(!httpServer.isDisabled()) {
+            httpServer.bind();
+        }
+
         LOGGER.info("======== SERVER STARTED ========");
     }
+
 }

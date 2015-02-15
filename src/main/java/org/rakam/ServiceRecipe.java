@@ -4,23 +4,26 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.collection.actor.ActorCollectorService;
 import org.rakam.collection.event.EventCollectorService;
-import org.rakam.kume.Cluster;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
 import org.rakam.report.ReportAnalyzerService;
+import org.rakam.server.http.HttpServerConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.stream.kume.KumeCacheAdapter;
 
 import java.util.ServiceLoader;
 
+import static io.airlift.configuration.ConfigurationModule.bindConfig;
+
 /**
  * Created by buremba on 25/05/14.
  */
-public class ServiceRecipe extends RakamModule {
+public class ServiceRecipe extends AbstractConfigurationAwareModule {
     @Override
     protected void setup(Binder binder) {
         binder.bind(ActorCacheAdapter.class).to(KumeCacheAdapter.class).in(Scopes.SINGLETON);
@@ -45,15 +48,7 @@ public class ServiceRecipe extends RakamModule {
             super.install(rakamModule);
             rakamModuleBinder.addBinding().toInstance(rakamModule);
         }
-    }
 
-    @Override
-    public String name() {
-        return null;
-    }
-
-    @Override
-    public String description() {
-        return null;
+        bindConfig(binder).to(HttpServerConfig.class);
     }
 }

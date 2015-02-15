@@ -1,4 +1,4 @@
-package org.rakam.plugin.realtime;
+package org.rakam.realtime;
 
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;

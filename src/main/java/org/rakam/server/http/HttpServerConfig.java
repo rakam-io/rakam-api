@@ -11,10 +11,10 @@ public class HttpServerConfig {
     private static final String RAKAM_DEFAULT_HOST = "0.0.0.0";
 
     private HostAddress address;
+    private boolean disabled;
 
-    @Config("address")
-    public HttpServerConfig setAddress(String address)
-    {
+    @Config("http.server.address")
+    public HttpServerConfig setAddress(String address) {
         if(address == null)
             this.address = HostAddress.fromParts(RAKAM_DEFAULT_HOST, RAKAM_DEFAULT_PORT);
         else
@@ -24,5 +24,15 @@ public class HttpServerConfig {
 
     public HostAddress getAddress() {
         return address;
+    }
+
+    @Config("http.server.disabled")
+    public HttpServerConfig setDisabled(boolean disabled) {
+        this.disabled = disabled;
+        return this;
+    }
+
+    public boolean getDisabled() {
+        return disabled;
     }
 }

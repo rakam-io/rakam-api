@@ -1,4 +1,4 @@
-package org.rakam.plugin.realtime;
+package org.rakam.realtime;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;

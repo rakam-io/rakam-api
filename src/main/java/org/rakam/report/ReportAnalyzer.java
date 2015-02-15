@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.rakam.util.JsonHelper;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -18,19 +17,8 @@ import java.time.format.DateTimeFormatter;
  * Created by buremba <Burak Emre Kabakcı> on 19/01/15 00:03.
  */
 public class ReportAnalyzer {
-    Connection conn;
 
-    public ReportAnalyzer(String jdbc) {
-        System.out.println("Connecting to database...");
-        try {
-            conn = DriverManager.getConnection(jdbc, "root", "root");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public JsonNode execute(String sql, boolean isColumnar) throws SQLException {
-//        try {
+    public static JsonNode execute(Connection conn, String sql, boolean isColumnar) throws SQLException {
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
 
@@ -67,12 +55,9 @@ public class ReportAnalyzer {
             jsonNodes.set("metadata", metadata);
 
             return jsonNodes;
-//        } catch (Exception e) {
-//            return WebServer.errorMessage(String.format("an error occurred: %s", e.getCause()), 500);
-//        }
     }
 
-    protected static ArrayNode getMetadata(ResultSetMetaData metaData) throws SQLException {
+    private static ArrayNode getMetadata(ResultSetMetaData metaData) throws SQLException {
         ArrayNode columns = JsonHelper.jsonArray();
         for (int i = 1; i <= metaData.getColumnCount(); ++i) {
             ObjectNode metadata = JsonHelper.jsonObject();
@@ -114,7 +99,7 @@ public class ReportAnalyzer {
         return columns;
     }
 
-    protected static ObjectNode getRowFromResultSet(ResultSet resultSet, ResultSetMetaData metaData) throws SQLException {
+    private static ObjectNode getRowFromResultSet(ResultSet resultSet, ResultSetMetaData metaData) throws SQLException {
         ObjectNode objectNode = JsonHelper.jsonObject();
 
         int columnCount = metaData.getColumnCount();
@@ -165,7 +150,7 @@ public class ReportAnalyzer {
         return objectNode;
     }
 
-    protected static void extractColumnsFromResultSet(ResultSet resultSet, ResultSetMetaData metaData, JsonNode object) throws SQLException {
+    private static void extractColumnsFromResultSet(ResultSet resultSet, ResultSetMetaData metaData, JsonNode object) throws SQLException {
         for (int i = 1; i <= metaData.getColumnCount(); ++i) {
             ArrayNode column = (ArrayNode) object.get(metaData.getColumnName(i));
             int type = metaData.getColumnType(i);

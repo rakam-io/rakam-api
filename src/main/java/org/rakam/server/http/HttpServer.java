@@ -1,6 +1,7 @@
 package org.rakam.server.http;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
@@ -25,8 +26,6 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonObject;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.ws.rs.Path;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -54,6 +53,7 @@ public class HttpServer {
 
     EventLoopGroup bossGroup;
     EventLoopGroup workerGroup;
+    private Channel channel;
 
     @Inject
     public HttpServer(HttpServerConfig config, Set<HttpService> httpServicePlugins) {
@@ -107,9 +107,11 @@ public class HttpServer {
                         }
                     }
                     if (!mapped && jsonRequest != null) {
+//                        throw new IllegalStateException(format("Methods that have @JsonRequest annotation must also include one of HTTPStatus annotations. %s", method.toString()));
                         try {
                             microRouteMatcher.add(lastPath, HttpMethod.POST, createPostRequestHandler(service, method));
-                            microRouteMatcher.add(lastPath, HttpMethod.GET, createGetRequestHandler(service, method));
+                            if(method.getParameterTypes()[0].equals(JsonNode.class))
+                                microRouteMatcher.add(lastPath, HttpMethod.GET, createGetRequestHandler(service, method));
                         } catch (Throwable e) {
                             throw new RuntimeException(format(REQUEST_HANDLER_ERROR_MESSAGE,
                                     method.getDeclaringClass().getName(), method.getName(), e));
@@ -120,11 +122,11 @@ public class HttpServer {
         });
     }
 
-    private static BiFunction<HttpService, JsonNode, Object> generateJsonRequestHandler(Method method) throws Throwable {
-        if (!Object.class.isAssignableFrom(method.getReturnType()) ||
-                method.getParameterCount() != 1 ||
-                !method.getParameterTypes()[0].equals(JsonNode.class))
-            throw new IllegalStateException(format("The signature of @JsonRequest methods must be [Object (%s)]", JsonNode.class.getCanonicalName()));
+    private static BiFunction<HttpService, Object, Object> generateJsonRequestHandler(Method method) throws Throwable {
+//        if (!Object.class.isAssignableFrom(method.getReturnType()) ||
+//                method.getParameterCount() != 1 ||
+//                !method.getParameterTypes()[0].equals(JsonNode.class))
+//            throw new IllegalStateException(format("The signature of @JsonRequest methods must be [Object (%s)]", JsonNode.class.getCanonicalName()));
 
         MethodHandles.Lookup caller = MethodHandles.lookup();
         return produceLambda(caller, method, BiFunction.class.getMethod("apply", Object.class, Object.class));
@@ -151,34 +153,43 @@ public class HttpServer {
 
     private static HttpRequestHandler createPostRequestHandler(HttpService service, Method method) throws Throwable {
 
-        BiFunction<HttpService, JsonNode, Object> function = generateJsonRequestHandler(method);
+        BiFunction<HttpService, Object, Object> function = generateJsonRequestHandler(method);
+        Class<?> jsonClazz = method.getParameterTypes()[0];
         return (request) -> request.bodyHandler(obj -> {
-            JsonNode json;
+            Object json;
             try {
-                json = JsonHelper.read(obj);
+                json = JsonHelper.read(obj, jsonClazz);
+            } catch (UnrecognizedPropertyException e) {
+                returnError(request, "unrecognized field: " + e.getPropertyName(), 400);
+                return;
             } catch (IOException e) {
                 returnError(request, "json couldn't parsed: " + e.getMessage(), 400);
                 return;
-            } catch (ClassCastException e) {
-                returnError(request, "json must be an object", 400);
-                return;
             }
 
-            handleJsonRequest(service, request, function, json);
+            handleJsonRequest(service, request, function, json, false);
         });
     }
 
     private static HttpRequestHandler createGetRequestHandler(HttpService service, Method method) throws Throwable {
-        BiFunction<HttpService, JsonNode, Object> function = generateJsonRequestHandler(method);
-        return (request) -> {
-            ObjectNode json = JsonHelper.generate(request.params());
-            handleJsonRequest(service, request, function, json);
-        };
+        BiFunction<HttpService, Object, Object> function = generateJsonRequestHandler(method);
+
+        if(method.getParameterTypes()[0].equals(ObjectNode.class)) {
+            return (request) -> {
+                ObjectNode json = JsonHelper.generate(request.params());
+
+                boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
+                handleJsonRequest(service, request, function, json, prettyPrint);
+            };
+        }else {
+            return (request) -> {
+                ObjectNode json = JsonHelper.generate(request.params());
+                handleJsonRequest(service, request, function, json, false);
+            };
+        }
     }
 
-    private static void handleJsonRequest(HttpService serviceInstance, RakamHttpRequest request, BiFunction<HttpService, JsonNode, Object> function, JsonNode json) {
-        boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
-
+    private static void handleJsonRequest(HttpService serviceInstance, RakamHttpRequest request, BiFunction<HttpService, Object, Object> function, Object json, boolean prettyPrint) {
         try {
             Object apply = function.apply(serviceInstance, json);
             String response = JsonHelper.encode(apply, prettyPrint);
@@ -193,9 +204,7 @@ public class HttpServer {
         }
     }
 
-
-    public void execute() throws InterruptedException {
-        try {
+    public void bind() throws InterruptedException {
             ServerBootstrap b = new ServerBootstrap();
             b.option(ChannelOption.SO_BACKLOG, 1024);
             b.group(bossGroup, workerGroup)
@@ -211,13 +220,14 @@ public class HttpServer {
                     });
 
             HostAddress address = config.getAddress();
-            Channel ch = b.bind(address.getHostText(), address.getPort()).sync().channel();
+            channel = b.bind(address.getHostText(), address.getPort()).sync().channel();
+    }
 
-            ch.closeFuture().sync();
-        } finally {
-            bossGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
-        }
+    public void stop() {
+        if(channel != null)
+            channel.close().syncUninterruptibly();
+        bossGroup.shutdownGracefully();
+        workerGroup.shutdownGracefully();
     }
 
     public static void returnError(RakamHttpRequest request, String message, Integer statusCode) {
@@ -236,13 +246,7 @@ public class HttpServer {
                 .put("error_code", statusCode);
     }
 
-    @PreDestroy
-    public void stopServer() {
-        System.out.println(1);
-    }
-
-    @PostConstruct
-    public void startServer() {
-        System.out.println(1);
+    public boolean isDisabled() {
+        return config.getDisabled();
     }
 }

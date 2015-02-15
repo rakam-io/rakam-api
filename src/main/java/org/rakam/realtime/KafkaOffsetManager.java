@@ -1,8 +1,8 @@
-package org.rakam.plugin.realtime;
+package org.rakam.realtime;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
-import com.google.inject.Singleton;
+import com.google.common.collect.Table;
 import com.google.inject.name.Named;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.cluster.Broker;
@@ -16,15 +16,16 @@ import kafka.javaapi.TopicMetadataResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.config.KafkaConfig;
-import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.kume.Cluster;
+import org.rakam.kume.service.ringmap.RingMap;
 import org.rakam.util.HostAddress;
+import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import javax.ws.rs.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,39 +38,62 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * Created by buremba <Burak Emre Kabakcı> on 02/02/15 14:30.
+ * Created by buremba <Burak Emre Kabakcı> on 15/02/15 00:01.
  */
-@Singleton
-@Path("/realtime")
-public class RealTimeHttpService implements HttpService {
+public class KafkaOffsetManager {
     final static Logger LOGGER = LoggerFactory.getLogger(RealTimeHttpService.class);
     private final KafkaSimpleConsumerManager consumerManager;
     private final KafkaConfig config;
     private final ScheduledExecutorService executor;
+    private final RingMap<Long, Table<String, String, Long>> offsetMap;
+    private final EventSchemaMetastore metastore;
 
     @Inject
-    public RealTimeHttpService(@Named("event.store.kafka") KafkaConfig config, EventSchemaMetastore metastore) {
+    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, Cluster cluster, EventSchemaMetastore metastore) {
         this.config = checkNotNull(config, "config is null");
+        this.metastore = checkNotNull(metastore, "metastore is null");
+        this.offsetMap = checkNotNull(cluster, "cluster is null")
+                .createOrGetService("kafka_offsets", bus -> new RingMap<>(bus, (v0, v1) -> v0, 2));
+
         this.consumerManager = new KafkaSimpleConsumerManager();
         this.executor = Executors.newSingleThreadScheduledExecutor();
-        executor.scheduleAtFixedRate(() -> {
-            List<String> allTopics = metastore.getAllCollections()
-                    .entrySet().stream()
-                    .map(e -> e.getKey() + "_" + e.getValue())
-                    .collect(Collectors.toList());
-            Map<String, Long> topicOffsets = getTopicOffsets(allTopics);
 
-        }, 0, 5, TimeUnit.SECONDS);
-
+        executor.scheduleAtFixedRate(this::periodicOffsetFetcher, 0, 5, TimeUnit.SECONDS);
     }
 
-    @JsonRequest
-    @Path("/")
-    public JsonNode getWidget(JsonNode json) {
-        JsonNode project = json.get("project");
-        return project;
+    public Map<String, Long> getOffsetOfCollections(String project) {
+        long epochSecond = Instant.now().getEpochSecond();
+
+        return offsetMap.get((epochSecond / 45) * 45).join()
+                .rowMap().get(project);
     }
 
+    public long getOffsetOfCollection(String project, String collection) {
+        long epochSecond = Instant.now().getEpochSecond();
+
+        Long aLong = offsetMap.get((epochSecond / 45) * 45).join().get(project, collection);
+        if(aLong == null) {
+            throw new NotExistsException("collection doesn't exists");
+        }
+        return aLong;
+    }
+
+
+    private void periodicOffsetFetcher() {
+        List<String> allTopics = metastore.getAllCollections()
+                .entrySet().stream()
+                .map(e -> e.getKey() + "_" + e.getValue())
+                .collect(Collectors.toList());
+
+        Table<String, String, Long> table = HashBasedTable.create();
+        getTopicOffsets(allTopics).forEach((key, value) -> {
+            String[] projectCollection = key.split("_", 2);
+            table.put(projectCollection[0], projectCollection[1], value);
+        });
+
+        long epochSecond = Instant.now().getEpochSecond();
+        offsetMap.put((epochSecond / 45)*45, table);
+    }
 
     private Map<String, Long> getTopicOffsets(List<String> topics) {
         ArrayList<HostAddress> nodes = new ArrayList<>(config.getNodes());

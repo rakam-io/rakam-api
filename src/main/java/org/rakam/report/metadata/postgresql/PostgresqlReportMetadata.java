@@ -72,13 +72,5 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
                 .list().stream().collect(Collectors.toMap(key -> key.v1(), val -> val.v2()));
     }
 
-    @PreDestroy
-    public void stopServer() {
-        System.out.println(1);
-    }
 
-    @PostConstruct
-    public void startServer() {
-        System.out.println(1);
-    }
 }
