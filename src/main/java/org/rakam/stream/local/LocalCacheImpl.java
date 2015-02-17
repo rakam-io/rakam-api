@@ -101,12 +101,12 @@ public class LocalCacheImpl implements LocalCache {
     @Override
     public void incrementAverageCounter(String id, long sum, int count) {
         getInternalCounter(id + ":sum").addAndGet(sum);
-        getInternalCounter(id + ":count").addAndGet(count);
+        getInternalCounter(id + ":position").addAndGet(count);
     }
 
     @Override
     public AverageCounter getAverageCounter(String id) {
-        return new AverageCounter(getInternalCounter(id + ":sum").get(), getInternalCounter(id + ":count").get());
+        return new AverageCounter(getInternalCounter(id + ":sum").get(), getInternalCounter(id + ":position").get());
     }
 
     public AtomicLong getInternalCounter(String id) {

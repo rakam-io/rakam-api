@@ -6,7 +6,7 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.collection.actor.ActorCollectorService;
-import org.rakam.collection.event.EventCollectorService;
+import org.rakam.collection.event.EventCollectorHttpService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
@@ -34,7 +34,7 @@ public class ServiceRecipe extends AbstractConfigurationAwareModule {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(ReportAnalyzerService.class);
         httpServices.addBinding().to(ActorCollectorService.class);
-        httpServices.addBinding().to(EventCollectorService.class);
+        httpServices.addBinding().to(EventCollectorHttpService.class);
 
         ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
 

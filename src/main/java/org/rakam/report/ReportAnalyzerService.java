@@ -40,7 +40,22 @@ public class ReportAnalyzerService implements HttpService {
     }
 
     @JsonRequest
-    @Path("/bind")
+    @Path("/get")
+    public Object get(JsonNode json) {
+        JsonNode project = json.get("project");
+        if (project == null) {
+            return errorMessage("project parameter is required", 400);
+        }
+        JsonNode name = json.get("name");
+        if(name == null) {
+            return errorMessage("name parameter is required", 400);
+        }
+
+        return database.getReport(project.asText(), name.asText());
+    }
+
+    @JsonRequest
+    @Path("/execute")
     public Object execute(JsonNode json) {
         JsonNode query = json.get("query");
         if (query == null || !query.isTextual()) {

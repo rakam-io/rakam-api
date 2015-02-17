@@ -3,15 +3,17 @@ package org.rakam.report.metadata.postgresql;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import org.rakam.analysis.Report;
+import org.rakam.analysis.ReportStrategy;
 import org.rakam.report.metadata.ReportMetadataStore;
-import org.rakam.util.Tuple;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
 
 import static java.lang.String.format;
 
@@ -22,22 +24,29 @@ import static java.lang.String.format;
 public class PostgresqlReportMetadata implements ReportMetadataStore {
     Handle dao;
 
+    ResultSetMapper<Report> reportMapper = new ResultSetMapper<Report>() {
+        @Override
+        public Report map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+            return new Report(r.getString("name"), r.getString("query"), ReportStrategy.get(r.getString("type")));
+        }
+    };
+
     @Inject
     public PostgresqlReportMetadata(@Named("report.metadata.store.postgresql") PostgresqlConfig config) {
+
         DBI dbi = new DBI(format("jdbc:postgresql://%s/%s", config.getHost(), config.getDatabase()),
                 config.getUsername(), config.getUsername());
         dao = dbi.open();
-
         setup();
     }
 
     public void setup() {
         dao.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
-                "  id SERIAL," +
                 "  project VARCHAR(255) NOT NULL," +
                 "  name VARCHAR(255) NOT NULL," +
-                "  query VARCHAR(255) NOT NULL," +
-                "  UNIQUE (project, name)" +
+                "  query TEXT NOT NULL," +
+                "  type TEXT NOT NULL," +
+                "  PRIMARY KEY (project, name)" +
                 "  )")
                 .execute();
     }
@@ -58,18 +67,18 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public String getReport(String project, String name) {
-        return dao.createQuery("SELECT query from reports WHERE project = :project AND name = :name")
+    public Report getReport(String project, String name) {
+        return dao.createQuery("SELECT project, name, query, type from reports WHERE project = :project AND name = :name")
                 .bind("project", project)
-                .bind("name", name).map(String.class).first();
+                .bind("name", name).map(reportMapper).first();
     }
 
     @Override
-    public Map<String, String> getReports(String project) {
-        return dao.createQuery("SELECT name, query from reports WHERE project = :project")
+    public List<Report> getReports(String project) {
+
+        return dao.createQuery("SELECT project, name, query, type from reports WHERE project = :project")
                 .bind("project", project)
-                .map((i, resultSet, statementContext) -> new Tuple<>(resultSet.getString(1), resultSet.getString(2)))
-                .list().stream().collect(Collectors.toMap(key -> key.v1(), val -> val.v2()));
+                .map(reportMapper).list();
     }
 
 

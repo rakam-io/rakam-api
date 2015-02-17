@@ -50,7 +50,16 @@ public class GeoIPEventMapper implements EventMapper {
         GenericData.Record properties = event.properties();
         String IP = (String) properties.get("ip");
         if (IP != null) {
-            Location l1 = lookup.getLocation(IP);
+            Location l1;
+            try {
+                l1 = lookup.getLocation(IP);
+            } catch (Exception e) {
+                return;
+            }
+
+            if(l1 == null) {
+                return;
+            }
 
             // TODO: we can compile a lambda that attaches appropriate attributes to events based on config values
             for (String attribute : attributes) {

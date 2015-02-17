@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter;
  */
 public class ReportAnalyzer {
 
-    public static JsonNode execute(Connection conn, String sql, boolean isColumnar) throws SQLException {
+    public static ObjectNode execute(Connection conn, String sql, boolean isColumnar) throws SQLException {
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
 

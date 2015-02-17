@@ -14,12 +14,12 @@ Requirements
 Features / Goals
 ------------
 Rakam is a modular data-warehouse API supports pre-aggregation and real-time features.
-Rakam collects your data, saves in a columnar database and continuously aggregate it by using your pre-aggregation rules.
+It collects your data, saves in a columnar database and continuously aggregate it by using your pre-aggregation rules.
 
 TODO
 ------------
 * UDP and TCP data collection API.
-* Distributed PostgreSQL database support as an alternative to Kafka - Hive database.
+* Distributed PostgreSQL database support as an alternative to Kafka & Hive.
 * Event mapper plugins (ip-to-geolocation, social media profile mapper)
 * Funnels implementation
 * Retention implementation

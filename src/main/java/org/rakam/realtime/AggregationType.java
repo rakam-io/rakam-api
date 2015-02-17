@@ -1,32 +1,32 @@
 package org.rakam.realtime;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 14/02/15 23:36.
  */
 public enum AggregationType {
-    COUNT("count"),
-    COUNT_UNIQUE("count_unique"),
-    SUM("sum"),
-    MINIMUM("minimum"),
-    MAXIMUM("maximum"),
-    APPROXIMATE_UNIQUE("approximate_unique"),
-    APPROXIMATE_PERCENTILE("approximate_percentile"),
-    VARIANCE("variance"),
-    POPULATION_VARIANCE("population_variance"),
-    STANDARD_DEVIATION("standard_deviation"),
-    POPULATION_STANDARD_DEVIATION("population_standard_deviation"),
-    AVERAGE("average");
+    COUNT,
+    COUNT_UNIQUE,
+    SUM,
+    MINIMUM,
+    MAXIMUM,
+    APPROXIMATE_UNIQUE,
+    APPROXIMATE_PERCENTILE,
+    VARIANCE,
+    POPULATION_VARIANCE,
+    STANDARD_DEVIATION,
+    POPULATION_STANDARD_DEVIATION,
+    AVERAGE;
 
-    public final String value;
-
-    AggregationType(String id) {
-        this.value = id;
+    @JsonCreator
+    public static AggregationType get(String name) {
+        return valueOf(name.toUpperCase());
     }
 
     @JsonProperty
     public String value() {
-        return value;
+        return name();
     }
 }

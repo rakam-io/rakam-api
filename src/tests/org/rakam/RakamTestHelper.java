@@ -55,7 +55,7 @@ public class RakamTestHelper {
     public void assertOpenEventually(CountDownLatch latch, String message, int timeoutSeconds) {
         try {
             boolean completed = latch.await(timeoutSeconds, TimeUnit.SECONDS);
-            assertTrue(format("%s, CountDownLatch failed to complete within %d seconds , count left: %d", message, timeoutSeconds,
+            assertTrue(format("%s, CountDownLatch failed to complete within %d seconds , position left: %d", message, timeoutSeconds,
                     latch.getCount()), completed);
 
         } catch (InterruptedException e) {

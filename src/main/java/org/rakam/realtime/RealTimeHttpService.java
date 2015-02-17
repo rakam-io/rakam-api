@@ -1,14 +1,15 @@
 package org.rakam.realtime;
 
+import com.facebook.presto.jdbc.internal.guava.collect.ImmutableMap;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
 import com.google.inject.Singleton;
+import org.rakam.realtime.RealTimeRequest.RealTimeQueryField;
 import org.rakam.report.JdbcPool;
 import org.rakam.report.ReportAnalyzer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.NotExistsException;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -41,92 +42,95 @@ public class RealTimeHttpService implements HttpService {
     @JsonRequest
     @POST
     @Path("/bind")
-    public JsonNode execute(RealtimeRequest query) {
+    public JsonNode execute(RealTimeRequest query) {
         String sqlQuery;
 
-        if (query.collection == null) {
-            Map<String, Long> offsetOfCollections = kafkaManager.getOffsetOfCollections(query.project);
-
-            String column = Objects.firstNonNull(query.measure.field, query.measure.expression);
-            StringBuilder builder = new StringBuilder();
-
-            builder.append("select ")
-                    .append(createSelect(query.aggregation, query.measure))
-                    .append(" from (");
-
-            String[] subQueries = offsetOfCollections.entrySet().stream().map(entry -> {
-                String collection = entry.getKey().split("_", 2)[0];
-                return format(" (select %s from %s where %s) ",
-                        column,
-                        createFrom(query.project, collection),
-                        createWhere(entry.getValue(), query.filter));
-            }).toArray(String[]::new);
-
-            builder.append(Joiner.on(" union ").join(subQueries))
-                    .append(")").append(createGroupBy(query.dimension));
-
-            sqlQuery = builder.toString();
-        } else {
-            long offsetOfCollection;
-
-            try {
-                offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, query.collection);
-            } catch (NotExistsException e) {
-                return errorMessage(e.getMessage(), 500);
-            }
-
-            sqlQuery = format("select %s from %s where %s %s",
-                    createSelect(query.aggregation, query.measure),
-                    createFrom(query.project, query.collection),
-                    createWhere(offsetOfCollection, query.filter),
-                    createGroupBy(query.dimension));
-        }
         Connection driver = jdbcPool.getDriver(addr);
 
+        Map<String, Long> offsetOfCollections;
+
+        if (query.collection == null) {
+            offsetOfCollections = kafkaManager.getOffsetOfCollections(query.project);
+        } else {
+            long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, query.collection);
+            offsetOfCollections = ImmutableMap.<String, Long>builder().put(query.collection, offsetOfCollection).build();
+        }
+
+        String valColumn = getFieldValue(query.measure, "measure");
+        String keyColumn = getFieldValue(query.dimension, "dimension");
+        String column = (keyColumn == null ? "" : keyColumn + " , ") + (valColumn != null ? valColumn : "*");
+
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("select ")
+                .append(createSelect(query.aggregation, query.measure, query.dimension))
+                .append(" from (");
+
+        String[] subQueries = offsetOfCollections.entrySet().stream().map(entry -> {
+            String collection = entry.getKey().split("_", 2)[0];
+            return format(" (select %s from %s where %s) ",
+                    column,
+                    createFrom(query.project, collection),
+                    createWhere(entry.getValue(), query.filter));
+        }).toArray(String[]::new);
+
+        builder.append(Joiner.on(" union ").join(subQueries))
+                .append(") ").append(createGroupBy(query.dimension));
+
+        sqlQuery = builder.toString();
+
         try {
-            return ReportAnalyzer.execute(driver, sqlQuery, false);
+            ObjectNode result = ReportAnalyzer.execute(driver, sqlQuery, false);
+            if(query.dimension == null) {
+                return result.get("result").get(0);
+            }else {
+                result.remove("metadata");
+                return result;
+            }
         } catch (SQLException e) {
             return errorMessage("error while executing query: " + e.getMessage(), 500);
         }
     }
 
-    public String createSelect(AggregationType aggType, RealtimeRequest.RealtimeQueryField queryField) {
+    public String createSelect(AggregationType aggType, RealTimeQueryField measure, RealTimeQueryField dimension) {
 
         String field;
-        if (queryField.expression == null && queryField.field == null) {
+        if (measure == null) {
             if (aggType != AggregationType.COUNT)
-                throw new IllegalArgumentException("either field.expression or field.field must be specified.");
+                throw new IllegalArgumentException("either measure.expression or measure.field must be specified.");
 
             field = "*";
-        } else if (queryField.expression != null && queryField.field != null) {
-            throw new IllegalArgumentException("only one of field.expression and field.field must be specified.");
         } else {
-            field = queryField.expression != null ? queryField.expression : queryField.field;
+            field = getFieldValue(measure, "measure");
         }
+
+        StringBuilder builder = new StringBuilder();
+        if (dimension != null)
+            builder.append(dimension.field != null ? dimension.field : dimension.expression).append(" as key, ");
 
         switch (aggType) {
             case AVERAGE:
-                return format("avg(%s)", field);
+                return builder.append(format("avg(%s) as value", field)).toString();
             case MAXIMUM:
-                return format("max(%s)", field);
+                return builder.append(format("max(%s) as value", field)).toString();
             case MINIMUM:
-                return format("min(%s)", field);
+                return builder.append(format("min(%s) as value", field)).toString();
             case COUNT_UNIQUE:
-                return format("count(distinct %s)", field);
+                return builder.append(format("count(distinct %s) as value", field)).toString();
             case COUNT:
-                return format("count(%s)", field);
+                return builder.append(format("count(%s) as value", field)).toString();
             case SUM:
-                return format("sum(%s)", field);
+                return builder.append(format("sum(%s) as value", field)).toString();
             case APPROXIMATE_UNIQUE:
-                return format("approx_distinct(%s)", field);
+                return builder.append(format("approx_distinct(%s) as value", field)).toString();
             case VARIANCE:
-                return format("variance(%s)", field);
+                return builder.append(format("variance(%s) as value", field)).toString();
             case POPULATION_VARIANCE:
-                return format("variance(%s)", field);
+                return builder.append(format("variance(%s) as value", field)).toString();
             case POPULATION_STANDARD_DEVIATION:
-                return format("stddev_pop(%s)", field);
+                return builder.append(format("stddev_pop(%s) as value", field)).toString();
             case STANDARD_DEVIATION:
-                return format("stddev(%s)", field);
+                return builder.append(format("stddev(%s) as value", field)).toString();
             default:
                 throw new IllegalArgumentException("aggregation type couldn't found.");
         }
@@ -140,18 +144,21 @@ public class RealTimeHttpService implements HttpService {
         return format("_offset > %s %s", offset, filter == null ? "" : "AND " + filter);
     }
 
-    public String createGroupBy(RealtimeRequest.RealtimeQueryField dimension) {
-        if (dimension == null)
-            return "";
-
-        if (dimension.expression == null && dimension.field == null)
-            throw new IllegalArgumentException("either dimension.expression or dimension.field must be specified.");
-
-        if (dimension.expression != null && dimension.field != null)
-            throw new IllegalArgumentException("only one of dimension.expression and dimension.field must be specified.");
-
-
-        return "group by " + (dimension.expression != null ? dimension.expression : dimension.field);
+    public String createGroupBy(RealTimeQueryField dimension) {
+        String value = getFieldValue(dimension, "dimension");
+        return value != null ? "group by " + value : "";
     }
 
+    private String getFieldValue(RealTimeQueryField field, String fieldName) {
+        if (field == null)
+            return null;
+
+        if (field.expression == null && field.field == null)
+            throw new IllegalArgumentException(format("either %s.expression or %s.field must be specified.", fieldName));
+
+        if (field.expression != null && field.field != null)
+            throw new IllegalArgumentException(format("only one of %s.expression and %s.field must be specified.", fieldName));
+
+        return field.field != null ? field.field : field.expression;
+    }
 }

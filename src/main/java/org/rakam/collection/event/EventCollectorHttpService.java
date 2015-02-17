@@ -25,12 +25,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 21:48.
  */
 @Path("/event")
-public class EventCollectorService implements HttpService {
-    final static Logger LOGGER = LoggerFactory.getLogger(EventCollectorService.class);
+public class EventCollectorHttpService implements HttpService {
+    final static Logger LOGGER = LoggerFactory.getLogger(EventCollectorHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
 
     private final Set<EventProcessor> processors;
@@ -38,7 +40,7 @@ public class EventCollectorService implements HttpService {
     private final EventStore eventStore;
 
     @Inject
-    public EventCollectorService(EventStore eventStore, EventSchemaMetastore schemas, Set<EventMapper> eventMappers, Set<EventProcessor> eventProcessors) {
+    public EventCollectorHttpService(EventStore eventStore, EventSchemaMetastore schemas, Set<EventMapper> eventMappers, Set<EventProcessor> eventProcessors) {
         this.mappers = eventMappers;
         this.processors = eventProcessors;
         this.eventStore = eventStore;
@@ -83,7 +85,7 @@ public class EventCollectorService implements HttpService {
                 request.response(e.getMessage()).end();
                 return;
             } catch (IOException e) {
-                request.response("json couldn't parsed").end();
+                request.response("json couldn't parsed", BAD_REQUEST).end();
                 return;
             }
             request.response(processEvent(event) ? "1" : "0").end();

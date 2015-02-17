@@ -1,10 +1,10 @@
 package org.rakam.server.http;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
-import io.airlift.log.Logger;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -19,12 +19,15 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import org.rakam.kume.Cluster;
 import org.rakam.server.RouteMatcher;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.HostAddress;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.Path;
 import java.io.IOException;
@@ -45,7 +48,7 @@ import static org.rakam.util.Lambda.produceLambda;
  * Created by buremba on 20/12/13.
  */
 public class HttpServer {
-    final static Logger LOGGER = Logger.get(HttpServer.class);
+    final static Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
     private static String REQUEST_HANDLER_ERROR_MESSAGE = "Request handler method %s.%s couldn't converted to request handler lambda expression: \n %s";
 
     public final RouteMatcher routeMatcher;
@@ -162,6 +165,9 @@ public class HttpServer {
             } catch (UnrecognizedPropertyException e) {
                 returnError(request, "unrecognized field: " + e.getPropertyName(), 400);
                 return;
+            } catch (InvalidFormatException e) {
+                returnError(request, format("field value couldn't validated: %s ", e.getOriginalMessage()), 400);
+                return;
             } catch (IOException e) {
                 returnError(request, "json couldn't parsed: " + e.getMessage(), 400);
                 return;
@@ -199,7 +205,8 @@ public class HttpServer {
             String encode = JsonHelper.encode(errorMessage(e.getMessage(), statusCode), prettyPrint);
             request.response(encode, HttpResponseStatus.valueOf(statusCode)).end();
         } catch (Exception e) {
-            ObjectNode errorMessage = errorMessage("error processing request " + e.getMessage(), HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
+            LOGGER.error("An uncaught exception raised while processing request.", e);
+            ObjectNode errorMessage = errorMessage("error processing request.", HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
             request.response(JsonHelper.encode(errorMessage, prettyPrint), HttpResponseStatus.BAD_REQUEST).end();
         }
     }

@@ -8,23 +8,23 @@ import javax.validation.constraints.NotNull;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/02/15 03:20.
  */
-public class RealtimeRequest {
+public class RealTimeRequest {
     public final AggregationType aggregation;
     @NotNull public final String project;
     public final String collection;
 
     public final String filter;
 
-    public final RealtimeQueryField measure;
-    public final RealtimeQueryField dimension;
+    public final RealTimeQueryField measure;
+    public final RealTimeQueryField dimension;
 
     @JsonCreator
-    public RealtimeRequest(@JsonProperty("project") String project,
+    public RealTimeRequest(@JsonProperty("project") String project,
                            @JsonProperty("collection") String collection,
                            @JsonProperty("aggregation") AggregationType aggregation,
                            @JsonProperty("filter") String filter,
-                           @JsonProperty("measure") RealtimeQueryField measure,
-                           @JsonProperty("dimension") RealtimeQueryField dimension) {
+                           @JsonProperty("measure") RealTimeQueryField measure,
+                           @JsonProperty("dimension") RealTimeQueryField dimension) {
         this.project = project;
         this.collection = collection;
         this.filter = filter;
@@ -33,16 +33,15 @@ public class RealtimeRequest {
         this.dimension = dimension;
     }
 
-    public static class RealtimeQueryField {
+    public static class RealTimeQueryField {
         public final String field;
         public final String expression;
 
         @JsonCreator
-        public RealtimeQueryField(@JsonProperty("field") String field,
+        public RealTimeQueryField(@JsonProperty("field") String field,
                                   @JsonProperty("expression") String expression) {
             this.field = field;
             this.expression = expression;
-
         }
     }
 }

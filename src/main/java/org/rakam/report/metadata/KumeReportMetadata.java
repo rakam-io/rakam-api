@@ -2,11 +2,13 @@ package org.rakam.report.metadata;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.rakam.analysis.Report;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.Service;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,12 +37,12 @@ public class KumeReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public String getReport(String project, String name) {
+    public Report getReport(String project, String name) {
         return null;
     }
 
     @Override
-    public Map<String, String> getReports(String project) {
+    public List<Report> getReports(String project) {
         return null;
     }
 

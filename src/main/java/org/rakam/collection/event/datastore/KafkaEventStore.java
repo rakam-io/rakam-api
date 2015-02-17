@@ -14,11 +14,11 @@ import org.rakam.collection.event.EventStore;
 import org.rakam.config.KafkaConfig;
 import org.rakam.model.Event;
 import org.rakam.util.HostAddress;
+import org.rakam.util.KByteArrayOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -31,7 +31,14 @@ public class KafkaEventStore implements EventStore {
     final static Logger LOGGER = LoggerFactory.getLogger(KafkaEventStore.class);
 
     private final Producer<byte[], byte[]> producer;
-    BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(new ByteArrayOutputStream(), null);
+    BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(new ByteArrayOutputStream(), null);
+
+    ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
+        @Override
+        protected KByteArrayOutputStream initialValue() {
+            return new KByteArrayOutputStream(50000);
+        }
+    };
 
     @Inject
     public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config) {
@@ -47,26 +54,27 @@ public class KafkaEventStore implements EventStore {
 
     @Override
     public void store(Event event) {
-
         // TODO: find a way to make it zero-copy
         DatumWriter writer = new GenericDatumWriter(event.properties().getSchema());
-        ByteArrayOutputStream out = new ByteArrayOutputStream(64);
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, this.encoder);
+        KByteArrayOutputStream out = buffer.get();
+
+        int startPosition = out.position();
+        BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
 
         try {
             writer.write(event.properties(), encoder);
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Couldn't serialize event", e);
-        } finally {
-            try {
-                encoder.flush();
-            } catch (IOException e) {
-                throw new RuntimeException("Couldn't flush the buffer", e);
-            }
         }
 
+        int endPosition = out.position();
+        byte[] copy = out.copy(startPosition, endPosition);
+
+        if(out.remaining() < 1000) {
+            out.position(0);
+        }
         try {
-            producer.send(new KeyedMessage<>(event.project()+"_"+event.collection(), out.toByteArray()));
+            producer.send(new KeyedMessage<>(event.project()+"_"+event.collection(), copy));
         } catch (FailedToSendMessageException e) {
             throw new RuntimeException("Couldn't send event to Kafka", e);
         }

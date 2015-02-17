@@ -28,10 +28,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
+import static org.apache.avro.Schema.Type.NULL;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 11/02/15 23:50.
@@ -49,7 +51,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     }
 
     @Override
-    public Event deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+    public Event deserialize(JsonParser jp, DeserializationContext ctx) throws IOException {
         String project = null, collection = null;
         GenericData.Record properties = null;
 
@@ -68,7 +70,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     collection = jp.getValueAsString();
                     break;
                 case "properties":
-                    if(project == null || collection == null) {
+                    if (project == null || collection == null) {
                         // workaround for reading a skipped json node after processing whose json document.
                         ((SaveableReaderBasedJsonParser) jp).save();
                         jp.skipChildren();
@@ -78,15 +80,15 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     break;
             }
         }
-        if(project==null)
+        if (project == null)
             throw new JsonMappingException("project is null");
 
-        if(collection==null)
+        if (collection == null)
             throw new JsonMappingException("collection is null");
 
-        if(properties==null) {
+        if (properties == null) {
             SaveableReaderBasedJsonParser customJp = (SaveableReaderBasedJsonParser) jp;
-            if(customJp.isSaved()) {
+            if (customJp.isSaved()) {
                 customJp.load();
                 properties = parseProperties(project, collection, jp);
             } else {
@@ -99,23 +101,37 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException {
         Tuple key = new Tuple(project, collection);
         Schema schema = schemaCache.get(key);
-        if(schema == null) {
+        if (schema == null) {
             schema = schemaRegistry.getSchema(project, collection);
-            if(schema != null) {
+            if (schema != null) {
                 schemaCache.put(key, schema);
             }
         }
 
-        if(schema == null) {
-            ObjectNode json = jp.readValueAsTree();
-            List<Schema.Field> fields = createSchemaFromArbitraryJson(json);
-            fields.addAll(getFieldsUsedInModules());
+        if (schema == null) {
+            ObjectNode node = jp.readValueAs(ObjectNode.class);
+            List<Schema.Field> fields = createSchemaFromArbitraryJson(node);
+            for (Schema.Field field : copyFields(moduleFields)) {
+                Optional<Schema.Field> first = fields.stream().filter(x -> x.name().equals(field.name())).findFirst();
+                if (first.isPresent()) {
+                    Schema.Field existingField = first.get();
+                    if (!existingField.schema().equals(field.schema())) {
+                        fields.set(fields.indexOf(existingField), field);
+                    }
+                } else {
+                    fields.add(field);
+                }
+            }
             schema = schemaRegistry.createOrGetSchema(project, collection, fields);
             schemaCache.put(key, schema);
+
+            GenericData.Record record = new GenericData.Record(schema);
+            fields.forEach(field -> record.put(field.name(), getValue(node.get(field.name()), field.schema())));
+            return record;
         }
 
         GenericData.Record record = new GenericData.Record(schema);
-        Map<Schema.Field, Object> newFields = null;
+        List<Schema.Field> newFields = null;
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
@@ -124,34 +140,35 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             t = jp.nextToken();
 
-            if(field == null) {
+            if (field == null) {
                 Schema.Type avroType = getAvroType(t, jp);
-                if(avroType!=null) {
-                    Schema es = Schema.createUnion(Lists.newArrayList(Schema.create(Schema.Type.NULL), Schema.create(avroType)));
-                    Schema.Field avroField = new Schema.Field(fieldName, es, null, NullNode.getInstance());
+                if (avroType != null) {
+                    Schema es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), Schema.create(avroType)));
+                    field = new Schema.Field(fieldName, es, null, NullNode.getInstance());
 
-                    if(newFields == null)
-                        newFields = Maps.newHashMap();
+                    if (newFields == null)
+                        newFields = Lists.newArrayList();
+                    newFields.add(field);
 
-                    newFields.put(avroField, jp.readValuesAs(Object.class));
+                    List<Schema.Field> fields = copyFields(schema.getFields());
+                    fields.add(field);
+                    schema = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), false);
+                    schema.setFields(fields);
+                    record = new GenericData.Record(schema);
+                } else {
+                    continue;
                 }
-                continue;
             }
 
             putValue(t, jp, record, field);
         }
 
-        if(newFields!=null) {
-            Schema newSchema = schemaRegistry.createOrGetSchema(project, collection, newFields.keySet().stream().collect(toList()));
+        if (newFields != null) {
+            Schema newSchema = schemaRegistry.createOrGetSchema(project, collection, copyFields(newFields));
             schemaCache.put(key, newSchema);
             GenericData.Record newRecord = new GenericData.Record(newSchema);
-            int oldSize = record.getSchema().getFields().size();
-            for (Schema.Field field : newSchema.getFields()) {
-                int pos = field.pos();
-                if(pos >= oldSize)
-                    newRecord.put(pos, newFields.get(field));
-                else
-                    newRecord.put(pos, record.get(pos));
+            for (Schema.Field field : record.getSchema().getFields()) {
+                newRecord.put(field.name(), record.get(field.name()));
             }
             record = newRecord;
         }
@@ -159,59 +176,88 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         return record;
     }
 
+    private Object getValue(JsonNode jsonNode, Schema schema) {
+        if (schema.getType() == Schema.Type.UNION) {
+            schema = schema.getTypes().get(1);
+        }
+
+        if (jsonNode == null)
+            return null;
+
+        switch (schema.getType()) {
+            case BOOLEAN:
+                return jsonNode.asBoolean();
+            case LONG:
+                return jsonNode.longValue();
+            case INT:
+                return jsonNode.intValue();
+            case STRING:
+                return jsonNode.asText();
+            case DOUBLE:
+                return jsonNode.doubleValue();
+            case FLOAT:
+                return jsonNode.floatValue();
+            case NULL:
+                return null;
+            case ARRAY:
+                return stream(jsonNode.spliterator(), false).map(x -> x.asText()).collect(toList());
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
     private void putValue(JsonToken t, JsonParser jp, GenericData.Record record, Schema.Field field) throws IOException {
-        Schema.Type type = field.schema().getTypes().get(1).getType();
-        switch (t) {
-            case VALUE_STRING:
-                if(type == Schema.Type.STRING)
+        Schema schema = field.schema();
+        Schema.Type schemaType = schema.getType();
+
+        Schema.Type type;
+        if (schemaType == Schema.Type.UNION) {
+            schema = schema.getTypes().get(1);
+            type = schema.getType();
+        } else {
+            type = schemaType;
+        }
+        switch (type) {
+            case STRING:
+                if (t == JsonToken.VALUE_STRING)
                     record.put(field.pos(), jp.getValueAsString());
                 break;
-            case VALUE_FALSE:
-                if(type == Schema.Type.BOOLEAN)
-                    record.put(field.pos(), false);
-                else
-                if(type == Schema.Type.STRING)
-                    record.put(field.pos(), jp.getValueAsString());
+            case BOOLEAN:
+                if (t == JsonToken.VALUE_STRING)
+                    record.put(field.pos(), jp.getValueAsBoolean());
                 break;
-            case VALUE_NUMBER_FLOAT:
-                if(type == Schema.Type.FLOAT) {
-                    record.put(field.pos(), jp.getFloatValue());
-                }else
-                if(type == Schema.Type.INT) {
-                    record.put(field.pos(), jp.getIntValue());
-                }else
-                if(type == Schema.Type.LONG) {
-                    record.put(field.pos(), jp.getLongValue());
-                }else
-                if(type == Schema.Type.STRING) {
-                    record.put(field.pos(), jp.getValueAsString());
+            case LONG:
+                if (t == JsonToken.VALUE_NUMBER_INT)
+                    record.put(field.pos(), jp.getValueAsLong());
+                break;
+            case INT:
+                if (t == JsonToken.VALUE_NUMBER_INT)
+                    record.put(field.pos(), jp.getValueAsInt());
+                break;
+            case DOUBLE:
+                if (t == JsonToken.VALUE_NUMBER_FLOAT)
+                    record.put(field.pos(), jp.getValueAsDouble());
+                break;
+            case FLOAT:
+                if (t == JsonToken.VALUE_NUMBER_FLOAT) {
+                    Number numberValue = jp.getNumberValue();
+                    if (numberValue != null)
+                        record.put(field.pos(), numberValue.floatValue());
                 }
                 break;
-            case VALUE_TRUE:
-                if(type == Schema.Type.BOOLEAN)
-                    record.put(field.pos(), true);
-                else
-                if(type == Schema.Type.STRING)
-                    record.put(field.pos(), jp.getValueAsString());
+            case UNION:
                 break;
-            case VALUE_NULL:
+            case ARRAY:
+                if(jp.isExpectedStartArrayToken()) {
+                    ArrayList<Object> objects = new ArrayList<>();
+                    for (t = jp.nextToken(); t != JsonToken.END_ARRAY; t = jp.nextToken()) {
+                        objects.add(jp.getValueAsString());
+                    }
+                    record.put(field.pos(), new GenericData.Array(schema, objects));
+                }
                 break;
-            case VALUE_EMBEDDED_OBJECT:
+            default:
                 throw new JsonMappingException(format("nested properties is not supported: %s", field));
-            case VALUE_NUMBER_INT:
-                if(type == Schema.Type.FLOAT) {
-                    record.put(field.pos(), jp.getFloatValue());
-                }else
-                if(type == Schema.Type.INT) {
-                    record.put(field.pos(), jp.getIntValue());
-                }else
-                if(type == Schema.Type.LONG) {
-                    record.put(field.pos(), jp.getLongValue());
-                }else
-                if(type == Schema.Type.STRING) {
-                    record.put(field.pos(), jp.getValueAsString());
-                }
-                break;
         }
     }
 
@@ -227,6 +273,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 return Schema.Type.FLOAT;
             case VALUE_TRUE:
                 return Schema.Type.BOOLEAN;
+            case START_ARRAY:
+                return Schema.Type.ARRAY;
             case VALUE_EMBEDDED_OBJECT:
                 throw new JsonMappingException(format("nested properties is not supported: %s", jp.getValueAsString()));
             case VALUE_NUMBER_INT:
@@ -236,27 +284,42 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    public List<Schema.Field> getFieldsUsedInModules() {
-        return moduleFields.stream()
+    public static List<Schema.Field> copyFields(List<Schema.Field> fields) {
+        return fields.stream()
                 .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
-    public static Schema.Type getAvroType(JsonNodeType jsonType) {
-
-        switch (jsonType) {
+    public static Schema getAvroType(JsonNode jsonNode) {
+        JsonNodeType nodeType = jsonNode.getNodeType();
+        switch (nodeType) {
             case NUMBER:
-                return Schema.Type.FLOAT;
+                switch (jsonNode.numberType()) {
+                    case INT:
+                    case LONG:
+                    case BIG_INTEGER:
+                        return Schema.create(Schema.Type.LONG);
+                    case BIG_DECIMAL:
+                    case FLOAT:
+                    case DOUBLE:
+                        return Schema.create(Schema.Type.FLOAT);
+                    default:
+                        return Schema.create(Schema.Type.FLOAT);
+                }
             case STRING:
-                return Schema.Type.STRING;
+                return Schema.create(Schema.Type.STRING);
             case BOOLEAN:
-                return Schema.Type.BOOLEAN;
+                return Schema.create(Schema.Type.BOOLEAN);
             case NULL:
-                return Schema.Type.NULL;
-            case OBJECT:
-                return Schema.Type.RECORD;
+                return null;
             case ARRAY:
-                return Schema.Type.ARRAY;
+                Schema avroType = getAvroType(jsonNode.get(0));
+                Schema.Type type = avroType.getType();
+                if (type == Schema.Type.ARRAY) {
+                    throw new IllegalArgumentException("nested properties is not supported");
+                }
+                Schema union = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), avroType));
+                return Schema.createArray(union);
             default:
                 throw new UnsupportedOperationException("unsupported json field type");
         }
@@ -266,15 +329,19 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         Iterator<Map.Entry<String, JsonNode>> elements = json.fields();
         ArrayList fields = new ArrayList();
 
-        while(elements.hasNext()) {
+        while (elements.hasNext()) {
             Map.Entry<String, JsonNode> next = elements.next();
             String key = next.getKey();
-            JsonNodeType nodeType = next.getValue().getNodeType();
-            Schema union = Schema.createUnion(Lists.newArrayList(Schema.create(Schema.Type.NULL), Schema.create(getAvroType(nodeType))));
-            fields.add(new Schema.Field(key, union, null, NullNode.getInstance()));
+            Schema avroSchema = getAvroType(next.getValue());
+            if (avroSchema != null) {
+                Schema union = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), avroSchema));
+                fields.add(new Schema.Field(key, union, null, NullNode.getInstance()));
+            }
         }
 
         return fields;
+
+
     }
 
     public static class SaveableReaderBasedJsonParser extends ReaderBasedJsonParser {
@@ -289,7 +356,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
 
         public boolean isSaved() {
-            return savedInputPtr>-1;
+            return savedInputPtr > -1;
         }
 
         public void load() {

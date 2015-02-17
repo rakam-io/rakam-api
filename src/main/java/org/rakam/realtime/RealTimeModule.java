@@ -6,6 +6,8 @@ import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
+import static io.airlift.configuration.ConfigurationModule.bindConfig;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 13:34.
  */
@@ -14,6 +16,8 @@ public class RealTimeModule extends RakamModule {
 
     @Override
     protected void setup(Binder binder) {
+        bindConfig(binder).to(RealTimeConfig.class);
+
         Multibinder<HttpService> multiBinder = Multibinder.newSetBinder(binder, HttpService.class);
         multiBinder.addBinding().to(RealTimeHttpService.class);
     }
