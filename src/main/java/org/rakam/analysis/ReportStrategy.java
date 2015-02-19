@@ -8,8 +8,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public enum ReportStrategy {
     REAL_TIME,
-    BATCH,
-    BATCH_PERIODICALLY;
+    UPDATE_PERIODICALLY,
+    UPDATE_ON_DEMAND,
+    BATCH;
 
     @JsonCreator
     public static ReportStrategy get(String name) {

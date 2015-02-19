@@ -8,7 +8,7 @@ import java.util.List;
  * Created by buremba <Burak Emre Kabakcı> on 21/07/14 05:21.
  */
 public interface ReportMetadataStore {
-    void createReport(String project, String name, String query);
+    void saveReport(Report report);
 
     void deleteReport(String project, String name);
 

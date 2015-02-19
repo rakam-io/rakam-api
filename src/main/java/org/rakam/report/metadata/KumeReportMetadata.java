@@ -27,7 +27,7 @@ public class KumeReportMetadata implements ReportMetadataStore {
 
 
     @Override
-    public void createReport(String project, String name, String query) {
+    public void saveReport(Report report) {
 
     }
 

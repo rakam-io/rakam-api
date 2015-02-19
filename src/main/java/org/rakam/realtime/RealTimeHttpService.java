@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
 import com.google.inject.Singleton;
-import org.rakam.realtime.RealTimeRequest.RealTimeQueryField;
+import org.rakam.realtime.RealTimeReport.RealTimeQueryField;
+import org.rakam.realtime.metadata.RealtimeReportMetadataStore;
 import org.rakam.report.JdbcPool;
 import org.rakam.report.ReportAnalyzer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -31,34 +33,47 @@ public class RealTimeHttpService implements HttpService {
 
     private final KafkaOffsetManager kafkaManager;
     private final JdbcPool jdbcPool;
+    private final RealtimeReportMetadataStore metastore;
     String addr = "jdbc:presto://127.0.0.1:8080";
 
     @Inject
-    public RealTimeHttpService(KafkaOffsetManager kafkaManager, JdbcPool jdbcPool) {
+    public RealTimeHttpService(KafkaOffsetManager kafkaManager, RealtimeReportMetadataStore metastore, JdbcPool jdbcPool) {
         this.kafkaManager = checkNotNull(kafkaManager, "kafkaManager is null");
         this.jdbcPool = checkNotNull(jdbcPool, "jdbcPool is null");
+        this.metastore = checkNotNull(metastore, "metastore is null");
+    }
+
+    @JsonRequest
+    @POST
+    @Path("/add")
+    public JsonNode add(RealTimeReport query) {
+        metastore.saveReport(query);
+        return JsonHelper.jsonObject().
+                put("message", "report successfully added");
     }
 
     @JsonRequest
     @POST
     @Path("/bind")
-    public JsonNode execute(RealTimeRequest query) {
+    public JsonNode execute(RealTimeReport query) {
         String sqlQuery;
 
         Connection driver = jdbcPool.getDriver(addr);
 
         Map<String, Long> offsetOfCollections;
 
-        if (query.collection == null) {
+        if (query.collections == null) {
             offsetOfCollections = kafkaManager.getOffsetOfCollections(query.project);
         } else {
-            long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, query.collection);
-            offsetOfCollections = ImmutableMap.<String, Long>builder().put(query.collection, offsetOfCollection).build();
+            ImmutableMap.Builder<String, Long> builder = ImmutableMap.<String, Long>builder();
+            query.collections.forEach(collection -> {
+                long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, collection);
+                builder.put(collection, offsetOfCollection);
+            });
+            offsetOfCollections = builder.build();
         }
 
-        String valColumn = getFieldValue(query.measure, "measure");
-        String keyColumn = getFieldValue(query.dimension, "dimension");
-        String column = (keyColumn == null ? "" : keyColumn + " , ") + (valColumn != null ? valColumn : "*");
+        String column = (query.dimension == null ? "" : query.dimension + " , ") + (query.measure != null ? query.measure : "*");
 
         StringBuilder builder = new StringBuilder();
 
@@ -81,9 +96,9 @@ public class RealTimeHttpService implements HttpService {
 
         try {
             ObjectNode result = ReportAnalyzer.execute(driver, sqlQuery, false);
-            if(query.dimension == null) {
+            if (query.dimension == null) {
                 return result.get("result").get(0);
-            }else {
+            } else {
                 result.remove("metadata");
                 return result;
             }
@@ -92,7 +107,7 @@ public class RealTimeHttpService implements HttpService {
         }
     }
 
-    public String createSelect(AggregationType aggType, RealTimeQueryField measure, RealTimeQueryField dimension) {
+    public String createSelect(AggregationType aggType, String measure, String dimension) {
 
         String field;
         if (measure == null) {
@@ -101,12 +116,12 @@ public class RealTimeHttpService implements HttpService {
 
             field = "*";
         } else {
-            field = getFieldValue(measure, "measure");
+            field = measure;
         }
 
         StringBuilder builder = new StringBuilder();
         if (dimension != null)
-            builder.append(dimension.field != null ? dimension.field : dimension.expression).append(" as key, ");
+            builder.append(dimension).append(" as key, ");
 
         switch (aggType) {
             case AVERAGE:
@@ -127,8 +142,6 @@ public class RealTimeHttpService implements HttpService {
                 return builder.append(format("variance(%s) as value", field)).toString();
             case POPULATION_VARIANCE:
                 return builder.append(format("variance(%s) as value", field)).toString();
-            case POPULATION_STANDARD_DEVIATION:
-                return builder.append(format("stddev_pop(%s) as value", field)).toString();
             case STANDARD_DEVIATION:
                 return builder.append(format("stddev(%s) as value", field)).toString();
             default:
@@ -144,9 +157,8 @@ public class RealTimeHttpService implements HttpService {
         return format("_offset > %s %s", offset, filter == null ? "" : "AND " + filter);
     }
 
-    public String createGroupBy(RealTimeQueryField dimension) {
-        String value = getFieldValue(dimension, "dimension");
-        return value != null ? "group by " + value : "";
+    public String createGroupBy(String dimension) {
+        return dimension != null ? "group by " + dimension : "";
     }
 
     private String getFieldValue(RealTimeQueryField field, String fieldName) {

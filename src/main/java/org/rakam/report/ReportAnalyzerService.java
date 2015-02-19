@@ -2,6 +2,8 @@ package org.rakam.report;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
+import org.rakam.analysis.Report;
+import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
@@ -21,11 +23,13 @@ import static org.rakam.server.http.HttpServer.errorMessage;
 public class ReportAnalyzerService implements HttpService {
     private final ReportMetadataStore database;
     private final JdbcPool jdbcPool;
+    private final EventSchemaMetastore metastore;
 
     @Inject
-    public ReportAnalyzerService(ReportMetadataStore database, JdbcPool jdbcPool) {
+    public ReportAnalyzerService(ReportMetadataStore database, EventSchemaMetastore metastore, JdbcPool jdbcPool) {
         this.database = database;
         this.jdbcPool = jdbcPool;
+        this.metastore = metastore;
     }
 
     @JsonRequest
@@ -37,6 +41,14 @@ public class ReportAnalyzerService implements HttpService {
         }
 
         return database.getReports(project.asText());
+    }
+
+    @JsonRequest
+    @Path("/add")
+    public JsonNode add(Report report) {
+        database.saveReport(report);
+        return JsonHelper.jsonObject()
+                .put("message", "Report successfully saved");
     }
 
     @JsonRequest
@@ -71,5 +83,19 @@ public class ReportAnalyzerService implements HttpService {
         } catch (SQLException e) {
             throw new RakamException("Error executing sql query: "+e.getMessage(), 500);
         }
+    }
+
+    @JsonRequest
+    @Path("/explain")
+    public Object explain(JsonNode json) {
+        JsonNode project = json.get("project");
+
+        if (project == null || !project.isTextual()) {
+            return errorMessage("project parameter is required", 400);
+        }
+
+        return metastore.getSchemas(project.asText());//.entrySet()
+                //.stream()
+                //.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().toString()));
     }
 }

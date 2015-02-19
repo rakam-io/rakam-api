@@ -68,12 +68,12 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
 
     @Override
     public Map<String, Schema> getSchemas(String project) {
-        Query<Map<String, Object>> bind = dao.createQuery("SELECT schema from collection_schema WHERE project = :project")
+        Query<Map<String, Object>> bind = dao.createQuery("SELECT collection, schema from collection_schema WHERE project = :project")
                 .bind("project", project);
 
         HashMap<String, Schema> table = Maps.newHashMap();
         bind.forEach(row ->
-                table.put((String) row.get("collection"), (Schema) row.get("schema")));
+                table.put((String) row.get("collection"), new Schema.Parser().parse((String) row.get("schema"))));
         return table;
     }
 

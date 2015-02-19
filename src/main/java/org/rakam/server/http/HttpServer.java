@@ -161,7 +161,7 @@ public class HttpServer {
         return (request) -> request.bodyHandler(obj -> {
             Object json;
             try {
-                json = JsonHelper.read(obj, jsonClazz);
+                json = JsonHelper.readSafe(obj, jsonClazz);
             } catch (UnrecognizedPropertyException e) {
                 returnError(request, "unrecognized field: " + e.getPropertyName(), 400);
                 return;

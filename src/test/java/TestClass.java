@@ -179,16 +179,16 @@ public class TestClass {
 
 //        SpecificDatumReader<Example> reader = new SpecificDatumReader<>(Example.class);
 //
-//        Example read = new Example();
+//        Example readSafe = new Example();
 
 //        for (int i = 0; i < 10_000; i++) {
-//            read = reader.read(read, decoder);
+//            readSafe = reader.readSafe(readSafe, decoder);
 //            byteArrayInputStream.reset();
 //        }
 
         long l = System.currentTimeMillis();
         for (int i = 0; i < 20_000_000; i++) {
-//            read = reader.read(read, decoder);
+//            readSafe = reader.readSafe(readSafe, decoder);
             byteArrayInputStream.reset();
         }
         System.out.println(System.currentTimeMillis() - l);
