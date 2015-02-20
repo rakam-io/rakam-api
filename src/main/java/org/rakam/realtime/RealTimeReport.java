@@ -11,8 +11,8 @@ import java.util.List;
  */
 public class RealTimeReport {
     @NotNull public final String project;
-    public final String name;
-    public final AggregationType aggregation;
+    @NotNull public final String name;
+    @NotNull public final AggregationType aggregation;
     public final List<String> collections;
 
     public final String filter;

@@ -54,7 +54,19 @@ public class RealTimeHttpService implements HttpService {
 
     @JsonRequest
     @POST
-    @Path("/bind")
+    @Path("/list")
+    public Object add(JsonNode json) {
+        JsonNode project = json.get("project");
+        if (project == null) {
+            return errorMessage("project parameter is required", 400);
+        }
+
+        return metastore.getReports(project.asText());
+    }
+
+    @JsonRequest
+    @POST
+    @Path("/execute")
     public JsonNode execute(RealTimeReport query) {
         String sqlQuery;
 
@@ -62,18 +74,35 @@ public class RealTimeHttpService implements HttpService {
 
         Map<String, Long> offsetOfCollections;
 
-        if (query.collections == null) {
+        if (query.collections == null || query.collections.isEmpty()) {
             offsetOfCollections = kafkaManager.getOffsetOfCollections(query.project);
         } else {
             ImmutableMap.Builder<String, Long> builder = ImmutableMap.<String, Long>builder();
-            query.collections.forEach(collection -> {
-                long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, collection);
+            for (String collection : query.collections) {
+                Long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, collection);
+                if(offsetOfCollection == null) {
+                    return JsonHelper.jsonObject().put("error", format("couldn't found collection %s", collection));
+                }
                 builder.put(collection, offsetOfCollection);
-            });
+            }
             offsetOfCollections = builder.build();
         }
 
-        String column = (query.dimension == null ? "" : query.dimension + " , ") + (query.measure != null ? query.measure : "*");
+        if (offsetOfCollections.isEmpty()) {
+            return JsonHelper.jsonObject().put("error", "couldn't found any collection");
+        }
+
+        String column;
+
+        if(query.measure == null || query.measure.equals("*")) {
+            column =  query.dimension == null ? "count(*)" : query.dimension;
+        }else {
+            if(query.dimension == null || query.dimension.trim().equals(query.measure.trim())) {
+                column =  query.measure;
+            } else {
+                column =  query.dimension + ", "+ query.measure;
+            }
+        }
 
         StringBuilder builder = new StringBuilder();
 
@@ -83,14 +112,17 @@ public class RealTimeHttpService implements HttpService {
 
         String[] subQueries = offsetOfCollections.entrySet().stream().map(entry -> {
             String collection = entry.getKey().split("_", 2)[0];
-            return format(" (select %s from %s where %s) ",
+            return format(" (select %s as key from %s where %s) ",
                     column,
                     createFrom(query.project, collection),
-                    createWhere(entry.getValue(), query.filter));
+//                    createWhere(entry.getValue(), query.filter));
+                    createWhere(0, query.filter));
         }).toArray(String[]::new);
 
         builder.append(Joiner.on(" union ").join(subQueries))
                 .append(") ").append(createGroupBy(query.dimension));
+
+        builder.append(" order by value desc");
 
         sqlQuery = builder.toString();
 
@@ -100,6 +132,8 @@ public class RealTimeHttpService implements HttpService {
                 return result.get("result").get(0);
             } else {
                 result.remove("metadata");
+                JsonNode resultNode = result.remove("result");
+                result.set("value", resultNode);
                 return result;
             }
         } catch (SQLException e) {
@@ -121,7 +155,7 @@ public class RealTimeHttpService implements HttpService {
 
         StringBuilder builder = new StringBuilder();
         if (dimension != null)
-            builder.append(dimension).append(" as key, ");
+            builder.append(" key, ");
 
         switch (aggType) {
             case AVERAGE:
@@ -158,7 +192,7 @@ public class RealTimeHttpService implements HttpService {
     }
 
     public String createGroupBy(String dimension) {
-        return dimension != null ? "group by " + dimension : "";
+        return dimension != null ? "group by 1" : "";
     }
 
     private String getFieldValue(RealTimeQueryField field, String fieldName) {

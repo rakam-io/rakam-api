@@ -62,7 +62,8 @@ public class PostgresqlMetadataStore implements RealtimeReportMetadataStore {
 
     @Override
     public void saveReport(RealTimeReport report) {
-        dao.createStatement("INSERT INTO real_time_reports (project, name, query, strategy, options) VALUES (:project, :name, :query, :strategy, :options)")
+        dao.createStatement("INSERT INTO real_time_reports (project, name, collections, aggregation, filter, measure, dimension) " +
+                "VALUES (:project, :name, :collections, :aggregation, :filter, :measure, :dimension)")
                 .bind("project", report.project)
                 .bind("name", report.name)
                 .bind("collections", JsonHelper.encode(report.collections, false))

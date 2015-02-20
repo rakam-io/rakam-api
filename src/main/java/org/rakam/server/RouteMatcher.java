@@ -13,13 +13,17 @@ import java.util.HashMap;
  */
 public class RouteMatcher {
     HashMap<PatternBinding, HttpRequestHandler> routes = new HashMap();
-    private HttpRequestHandler noMatch = request -> request.response("404", HttpResponseStatus.OK).end();
+    private HttpRequestHandler noMatch = request -> request.response("404", HttpResponseStatus.NOT_FOUND).end();
 
     public void handle(RakamHttpRequest request) {
         String path = request.path();
         int lastIndex = path.length() - 1;
         if(path.charAt(lastIndex) == '/')
             path = path.substring(0, lastIndex);
+        // TODO: Make it optional
+        if(request.getMethod() == HttpMethod.OPTIONS) {
+            request.end();
+        }
 
         final HttpRequestHandler httpRequestHandler = routes.get(new PatternBinding(request.getMethod(), path));
         if (httpRequestHandler != null) {

@@ -1,6 +1,7 @@
 package org.rakam.collection.event.metastore;
 
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.inject.Inject;
@@ -56,12 +57,13 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Map<String, String> getAllCollections() {
+    public Map<String, List<String>> getAllCollections() {
         Query<Map<String, Object>> bind = dao.createQuery("SELECT project, collection from collection_schema");
 
-        Map<String, String> table = Maps.newHashMap();
+        Map<String, List<String>> table = Maps.newHashMap();
         bind.forEach(row ->
-                table.put((String) row.get("project"), (String) row.get("collection")));
+                table.computeIfAbsent((String) row.get("project"),
+                        (key) -> Lists.newArrayList()).add((String) row.get("collection")));
 
         return table;
     }

@@ -18,7 +18,6 @@ import org.rakam.config.KafkaConfig;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.ringmap.RingMap;
 import org.rakam.util.HostAddress;
-import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,20 +81,21 @@ public class KafkaOffsetManager {
                     .collect(toMap(Map.Entry::getKey, e -> {
                         Map<Long, Long> value = e.getValue();
                         Long aLong = value.get(requestedTime);
-                        if (aLong != null) {
-                            return aLong;
-                        } else {
-                            return value.entrySet()
-                                    .stream()
-                                    .sorted((o1, o2) -> compare(abs(o1.getKey() - requestedTime), abs(o2.getKey() - requestedTime)))
-                                    .findFirst().get().getValue();
-                        }
+                        return 0L;
+//                        if (aLong != null) {
+//                            return aLong;
+//                        } else {
+//                            return value.entrySet()
+//                                    .stream()
+//                                    .sorted((o1, o2) -> compare(abs(o1.getKey() - requestedTime), abs(o2.getKey() - requestedTime)))
+//                                    .findFirst().get().getValue();
+//                        }
                     }));
         }
         return null;
     }
 
-    public long getOffsetOfCollection(String project, String collection) {
+    public Long getOffsetOfCollection(String project, String collection) {
 
         Map<String, Map<Long, Long>> map = offsetMap.get(project).join();
         Map<Long, Long> longLongMap = null;
@@ -104,17 +104,26 @@ public class KafkaOffsetManager {
         }
 
         if (longLongMap == null || map == null)
-            throw new NotExistsException("collection doesn't exists");
+            return null;
 
         long epochSecond = Instant.now().getEpochSecond();
-        return longLongMap.get((epochSecond / timeoutValue) * timeoutValue);
+        long requestedTime = (epochSecond / timeoutValue) * timeoutValue;
+        Long aLong = longLongMap.get(requestedTime);
+        if(aLong == null) {
+            return longLongMap.entrySet()
+                        .stream()
+                        .sorted((o1, o2) -> compare(abs(o1.getKey() - requestedTime), abs(o2.getKey() - requestedTime)))
+                        .findFirst().get().getValue();
+        } else {
+            return aLong;
+        }
     }
 
 
     private void updateOffsets() {
         List<String> allTopics = metastore.getAllCollections()
                 .entrySet().stream()
-                .map(e -> e.getKey() + "_" + e.getValue())
+                .flatMap(e -> e.getValue().stream().map(c -> e.getKey() + "_" + c))
                 .collect(Collectors.toList());
 
         Map<String, Map<String, Long>> map = Maps.newHashMap();

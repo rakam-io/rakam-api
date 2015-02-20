@@ -33,7 +33,7 @@ public class KumeSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Map<String, String> getAllCollections() {
+    public Map<String, List<String>> getAllCollections() {
         return null;
     }
 

@@ -128,6 +128,9 @@ public class RakamHttpRequest implements HttpRequest {
     }
 
     public void end() {
+        if(response == null) {
+            response("");
+        }
         boolean keepAlive = HttpHeaders.isKeepAlive(request);
 
         response.headers().set(CONTENT_TYPE, "application/json; charset=utf-8");
