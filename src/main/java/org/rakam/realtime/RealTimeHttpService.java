@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
 import com.google.inject.Singleton;
-import org.rakam.realtime.RealTimeReport.RealTimeQueryField;
 import org.rakam.realtime.metadata.RealtimeReportMetadataStore;
 import org.rakam.report.JdbcPool;
 import org.rakam.report.ReportAnalyzer;
@@ -62,6 +61,24 @@ public class RealTimeHttpService implements HttpService {
         }
 
         return metastore.getReports(project.asText());
+    }
+
+    @JsonRequest
+    @POST
+    @Path("/remove")
+    public Object remove(JsonNode json) {
+        JsonNode project = json.get("project");
+        if (project == null || !project.isTextual()) {
+            return errorMessage("project parameter is required", 400);
+        }
+        JsonNode name = json.get("name");
+        if (name == null || !name.isTextual()) {
+            return errorMessage("name parameter is required", 400);
+        }
+
+        metastore.deleteReport(project.asText(), name.asText());
+
+        return JsonHelper.jsonObject().put("message", "successfully deleted");
     }
 
     @JsonRequest
@@ -137,20 +154,15 @@ public class RealTimeHttpService implements HttpService {
                 return result;
             }
         } catch (SQLException e) {
-            return errorMessage("error while executing query: " + e.getMessage(), 500);
+            return errorMessage(format("error while executing query (%s): %s", sqlQuery, e.getMessage()), 500);
         }
     }
 
     public String createSelect(AggregationType aggType, String measure, String dimension) {
 
-        String field;
         if (measure == null) {
             if (aggType != AggregationType.COUNT)
                 throw new IllegalArgumentException("either measure.expression or measure.field must be specified.");
-
-            field = "*";
-        } else {
-            field = measure;
         }
 
         StringBuilder builder = new StringBuilder();
@@ -159,25 +171,25 @@ public class RealTimeHttpService implements HttpService {
 
         switch (aggType) {
             case AVERAGE:
-                return builder.append(format("avg(%s) as value", field)).toString();
+                return builder.append("avg(key) as value").toString();
             case MAXIMUM:
-                return builder.append(format("max(%s) as value", field)).toString();
+                return builder.append("max(key) as value").toString();
             case MINIMUM:
-                return builder.append(format("min(%s) as value", field)).toString();
+                return builder.append("min(key) as value").toString();
             case COUNT_UNIQUE:
-                return builder.append(format("count(distinct %s) as value", field)).toString();
+                return builder.append("count(distinct key) as value").toString();
             case COUNT:
-                return builder.append(format("count(%s) as value", field)).toString();
+                return builder.append("count(key) as value").toString();
             case SUM:
-                return builder.append(format("sum(%s) as value", field)).toString();
+                return builder.append("sum(key) as value").toString();
             case APPROXIMATE_UNIQUE:
-                return builder.append(format("approx_distinct(%s) as value", field)).toString();
+                return builder.append("approx_distinct(key) as value").toString();
             case VARIANCE:
-                return builder.append(format("variance(%s) as value", field)).toString();
+                return builder.append("variance(key) as value").toString();
             case POPULATION_VARIANCE:
-                return builder.append(format("variance(%s) as value", field)).toString();
+                return builder.append("variance(key) as value").toString();
             case STANDARD_DEVIATION:
-                return builder.append(format("stddev(%s) as value", field)).toString();
+                return builder.append("stddev(key) as value").toString();
             default:
                 throw new IllegalArgumentException("aggregation type couldn't found.");
         }
@@ -193,18 +205,5 @@ public class RealTimeHttpService implements HttpService {
 
     public String createGroupBy(String dimension) {
         return dimension != null ? "group by 1" : "";
-    }
-
-    private String getFieldValue(RealTimeQueryField field, String fieldName) {
-        if (field == null)
-            return null;
-
-        if (field.expression == null && field.field == null)
-            throw new IllegalArgumentException(format("either %s.expression or %s.field must be specified.", fieldName));
-
-        if (field.expression != null && field.field != null)
-            throw new IllegalArgumentException(format("only one of %s.expression and %s.field must be specified.", fieldName));
-
-        return field.field != null ? field.field : field.expression;
     }
 }

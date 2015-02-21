@@ -1,8 +1,15 @@
 package org.rakam.report;
 
+import com.facebook.presto.sql.SqlFormatter;
+import com.facebook.presto.sql.parser.IdentifierSymbol;
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.parser.SqlParserOptions;
+import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.inject.Inject;
 import org.rakam.analysis.Report;
+import org.rakam.analysis.query.QueryFormatter;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.server.http.HttpService;
@@ -13,6 +20,7 @@ import org.rakam.util.RakamException;
 import javax.ws.rs.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.EnumSet;
 
 import static org.rakam.server.http.HttpServer.errorMessage;
 
@@ -41,6 +49,22 @@ public class ReportAnalyzerService implements HttpService {
         }
 
         return database.getReports(project.asText());
+    }
+
+    @JsonRequest
+    @Path("/analyze_query")
+    public Object analyze_query(JsonNode json) {
+        JsonNode query = json.get("query");
+        if (query == null) {
+            return errorMessage("query parameter is required", 400);
+        }
+
+        Statement statement = new SqlParser(new SqlParserOptions().allowIdentifierSymbol(EnumSet.allOf(IdentifierSymbol.class))).createStatement(query.asText());
+        SqlFormatter.formatSql(statement);
+
+        StringBuilder builder = new StringBuilder();
+        new QueryFormatter(builder, "", "").process(statement, 0);
+        return TextNode.valueOf(builder.toString());
     }
 
     @JsonRequest

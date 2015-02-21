@@ -63,6 +63,7 @@ public class ReportAnalyzer {
             ObjectNode metadata = JsonHelper.jsonObject();
             String columnName = metaData.getColumnName(i);
             metadata.put("name", columnName);
+            metadata.put("position", i);
 
             switch (metaData.getColumnType(i)) {
                 case Types.INTEGER:

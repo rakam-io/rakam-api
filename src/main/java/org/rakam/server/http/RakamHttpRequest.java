@@ -13,7 +13,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.util.CharsetUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -24,6 +23,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.util.CharsetUtil.UTF_8;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 19:04.
@@ -33,6 +33,7 @@ public class RakamHttpRequest implements HttpRequest {
     private io.netty.handler.codec.http.HttpRequest request;
     protected FullHttpResponse response;
     private Consumer<String> bodyHandler;
+    private ByteBuf emptyBuffer  = Unpooled.wrappedBuffer(new byte[0]);
 
     private String path;
     private Map<String, List<String>> params;
@@ -98,13 +99,19 @@ public class RakamHttpRequest implements HttpRequest {
     }
 
     public RakamHttpRequest response(String content) {
-        final ByteBuf byteBuf = Unpooled.copiedBuffer(content, CharsetUtil.UTF_8);
+        final ByteBuf byteBuf = Unpooled.wrappedBuffer(content.getBytes(UTF_8));
+        response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, byteBuf);
+        return this;
+    }
+
+    public RakamHttpRequest response(byte[] content) {
+        final ByteBuf byteBuf = Unpooled.copiedBuffer(content);
         response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, byteBuf);
         return this;
     }
 
     public RakamHttpRequest response(String content, HttpResponseStatus status) {
-        final ByteBuf byteBuf = Unpooled.copiedBuffer(content, CharsetUtil.UTF_8);
+        final ByteBuf byteBuf = Unpooled.wrappedBuffer(content.getBytes(UTF_8));
         response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, byteBuf);
         return this;
     }
@@ -129,7 +136,7 @@ public class RakamHttpRequest implements HttpRequest {
 
     public void end() {
         if(response == null) {
-            response("");
+            response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, emptyBuffer);
         }
         boolean keepAlive = HttpHeaders.isKeepAlive(request);
 
