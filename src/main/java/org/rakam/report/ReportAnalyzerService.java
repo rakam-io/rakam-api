@@ -1,12 +1,9 @@
 package org.rakam.report;
 
-import com.facebook.presto.sql.SqlFormatter;
-import com.facebook.presto.sql.parser.IdentifierSymbol;
+import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.parser.SqlParserOptions;
 import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.inject.Inject;
 import org.rakam.analysis.Report;
 import org.rakam.analysis.query.QueryFormatter;
@@ -20,7 +17,6 @@ import org.rakam.util.RakamException;
 import javax.ws.rs.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.EnumSet;
 
 import static org.rakam.server.http.HttpServer.errorMessage;
 
@@ -32,12 +28,14 @@ public class ReportAnalyzerService implements HttpService {
     private final ReportMetadataStore database;
     private final JdbcPool jdbcPool;
     private final EventSchemaMetastore metastore;
+    private final SqlParser sqlParser;
 
     @Inject
     public ReportAnalyzerService(ReportMetadataStore database, EventSchemaMetastore metastore, JdbcPool jdbcPool) {
         this.database = database;
         this.jdbcPool = jdbcPool;
         this.metastore = metastore;
+        this.sqlParser = new SqlParser();
     }
 
     @JsonRequest
@@ -49,22 +47,6 @@ public class ReportAnalyzerService implements HttpService {
         }
 
         return database.getReports(project.asText());
-    }
-
-    @JsonRequest
-    @Path("/analyze_query")
-    public Object analyze_query(JsonNode json) {
-        JsonNode query = json.get("query");
-        if (query == null) {
-            return errorMessage("query parameter is required", 400);
-        }
-
-        Statement statement = new SqlParser(new SqlParserOptions().allowIdentifierSymbol(EnumSet.allOf(IdentifierSymbol.class))).createStatement(query.asText());
-        SqlFormatter.formatSql(statement);
-
-        StringBuilder builder = new StringBuilder();
-        new QueryFormatter(builder, "", "").process(statement, 0);
-        return TextNode.valueOf(builder.toString());
     }
 
     @JsonRequest
@@ -93,17 +75,30 @@ public class ReportAnalyzerService implements HttpService {
     @JsonRequest
     @Path("/execute")
     public Object execute(JsonNode json) {
+        JsonNode project = json.get("project");
+        if (project == null || !project.isTextual())
+            return errorMessage("project parameter is required", 400);
+
         JsonNode query = json.get("query");
-        if (query == null || !query.isTextual()) {
+        if (query == null || !query.isTextual())
             return errorMessage("query parameter is required", 400);
-        }
+
         boolean columnar = JsonHelper.getOrDefault(json, "columnar", false);
 
         String addr = "jdbc:presto://127.0.0.1:8080";
 
+        Statement statement = null;
+        try {
+            statement = sqlParser.createStatement(query.asText());
+        } catch (ParsingException e) {
+            throw new RakamException("unable to parse query", 400);
+        }
+        StringBuilder builder = new StringBuilder();
+        new QueryFormatter(builder, "kafka", project.asText()).process(statement, 0);
+
         try {
             Connection conn = jdbcPool.getDriver(addr);
-            return ReportAnalyzer.execute(conn, query.asText(), columnar);
+            return ReportAnalyzer.execute(conn, builder.toString(), columnar);
         } catch (SQLException e) {
             throw new RakamException("Error executing sql query: "+e.getMessage(), 500);
         }

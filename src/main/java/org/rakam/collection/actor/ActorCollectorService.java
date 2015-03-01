@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.stream.ActorCacheAdapter;
 import org.rakam.util.JsonHelper;
 
 import javax.ws.rs.POST;
@@ -17,11 +16,10 @@ import javax.ws.rs.Path;
 @Path("/actor")
 public class ActorCollectorService implements HttpService {
 
-    private final ActorCacheAdapter actorCache;
 
     @Inject
-    public ActorCollectorService(ActorCacheAdapter actorCache) {
-        this.actorCache = actorCache;
+    public ActorCollectorService() {
+
     }
 
     public boolean handle(ObjectNode json) {
@@ -34,7 +32,7 @@ public class ActorCollectorService implements HttpService {
 
         JsonNode properties = json.get("properties");
         if(properties!=null) {
-            actorCache.setActorProperties(project, actorId, properties);
+//            actorCache.setActorProperties(project, actorId, properties);
         }
 
 //        databaseAdapter.createActor(project, actorId, properties);
