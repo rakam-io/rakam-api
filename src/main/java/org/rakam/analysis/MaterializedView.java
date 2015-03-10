@@ -7,25 +7,29 @@ import com.fasterxml.jackson.databind.JsonNode;
 import javax.validation.constraints.NotNull;
 
 /**
- * Created by buremba <Burak Emre Kabakcı> on 15/02/15 22:03.
+ * Created by buremba <Burak Emre Kabakcı> on 08/03/15 00:17.
  */
-public class Report {
+public class MaterializedView {
     @NotNull
     public final String project;
     @NotNull
     public final String name;
     @NotNull
     public final String query;
-    public final JsonNode options;
+    @NotNull
+    public final TableStrategy strategy;
+    public final String incrementalField;
 
     @JsonCreator
-    public Report(@JsonProperty("project") String project,
+    public MaterializedView(@JsonProperty("project") String project,
                   @JsonProperty("name") String name,
                   @JsonProperty("query") String query,
-                  @JsonProperty("options")  JsonNode options) {
+                  @JsonProperty("strategy") TableStrategy strategy,
+                  @JsonProperty("incrementalField")  String incrementalField) {
         this.project = project;
         this.name = name;
         this.query = query;
-        this.options = options;
+        this.incrementalField = incrementalField;
+        this.strategy = strategy;
     }
 }

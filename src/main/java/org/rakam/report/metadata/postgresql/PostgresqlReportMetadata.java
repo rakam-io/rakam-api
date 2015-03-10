@@ -4,8 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.Report;
-import org.rakam.analysis.ReportStrategy;
+import org.rakam.analysis.TableStrategy;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
@@ -32,8 +33,18 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
             return new Report(
                     r.getString("project"),
                     r.getString("name"), r.getString("query"),
-                    ReportStrategy.get(r.getString("strategy")),
                     JsonHelper.read(r.getString("options"), JsonNode.class));
+        }
+    };
+
+    ResultSetMapper<MaterializedView> materializedViewMapper = new ResultSetMapper<MaterializedView>() {
+        @Override
+        public MaterializedView map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+            return new MaterializedView(
+                    r.getString("project"),
+                    r.getString("name"), r.getString("query"),
+                    TableStrategy.get(r.getString("strategy")),
+                    JsonHelper.read(r.getString("incrementalField"), String.class));
         }
     };
 
@@ -60,12 +71,22 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
 
     @Override
     public void saveReport(Report report) {
+        dao.createStatement("INSERT INTO reports (project, name, query, options) VALUES (:project, :name, :query, :options)")
+                .bind("project", report.project)
+                .bind("name", report.name)
+                .bind("query", report.query)
+                .bind("options", JsonHelper.encode(report.options, false))
+                .execute();
+    }
+
+    @Override
+    public void createMaterializedView(MaterializedView report) {
         dao.createStatement("INSERT INTO reports (project, name, query, strategy, options) VALUES (:project, :name, :query, :strategy, :options)")
                 .bind("project", report.project)
                 .bind("name", report.name)
                 .bind("query", report.query)
                 .bind("strategy", report.strategy)
-                .bind("options", JsonHelper.encode(report.options, false))
+                .bind("incrementalField", report.incrementalField)
                 .execute();
     }
 
@@ -85,7 +106,6 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
 
     @Override
     public List<Report> getReports(String project) {
-
         return dao.createQuery("SELECT project, name, query, strategy, options from reports WHERE project = :project")
                 .bind("project", project)
                 .map(reportMapper).list();

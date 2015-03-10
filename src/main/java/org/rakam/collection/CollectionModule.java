@@ -10,6 +10,7 @@ import org.rakam.collection.event.metastore.PostgresqlSchemaMetastore;
 import org.rakam.config.KafkaConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.RakamModule;
+import org.rakam.report.PrestoConfig;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.report.metadata.postgresql.PostgresqlConfig;
 import org.rakam.report.metadata.postgresql.PostgresqlReportMetadata;
@@ -56,6 +57,7 @@ public class CollectionModule extends RakamModule {
                 binder.bind(ReportMetadataStore.class).to(PostgresqlReportMetadata.class);
                 break;
         }
+        bindConfig(binder).to(PrestoConfig.class);
     }
 
     @Override

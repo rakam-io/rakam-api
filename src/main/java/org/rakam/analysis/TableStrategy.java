@@ -6,14 +6,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Created by buremba on 19/05/14.
  */
-public enum ReportStrategy {
-    REAL_TIME,
-    UPDATE_PERIODICALLY,
-    UPDATE_ON_DEMAND,
+public enum TableStrategy {
+    STREAM,
+    INCREMENTAL,
     BATCH;
 
     @JsonCreator
-    public static ReportStrategy get(String name) {
+    public static TableStrategy get(String name) {
         return valueOf(name.toUpperCase());
     }
 

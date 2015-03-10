@@ -5,19 +5,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
 import com.google.inject.Singleton;
-import org.rakam.realtime.metadata.RealtimeReportMetadataStore;
+import org.rakam.analysis.MaterializedView;
+import org.rakam.analysis.TableStrategy;
 import org.rakam.report.JdbcPool;
 import org.rakam.report.ReportAnalyzer;
+import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
@@ -32,11 +37,11 @@ public class RealTimeHttpService implements HttpService {
 
     private final KafkaOffsetManager kafkaManager;
     private final JdbcPool jdbcPool;
-    private final RealtimeReportMetadataStore metastore;
+    private final ReportMetadataStore metastore;
     String addr = "jdbc:presto://127.0.0.1:8080";
 
     @Inject
-    public RealTimeHttpService(KafkaOffsetManager kafkaManager, RealtimeReportMetadataStore metastore, JdbcPool jdbcPool) {
+    public RealTimeHttpService(KafkaOffsetManager kafkaManager, ReportMetadataStore metastore, JdbcPool jdbcPool) {
         this.kafkaManager = checkNotNull(kafkaManager, "kafkaManager is null");
         this.jdbcPool = checkNotNull(jdbcPool, "jdbcPool is null");
         this.metastore = checkNotNull(metastore, "metastore is null");
@@ -46,7 +51,11 @@ public class RealTimeHttpService implements HttpService {
     @POST
     @Path("/add")
     public JsonNode add(RealTimeReport query) {
-        metastore.saveReport(query);
+        ObjectNode options = JsonHelper.jsonObject()
+                .put("type", "realtime")
+                .put("report", JsonHelper.encode(query));
+        MaterializedView report = new MaterializedView(query.project, query.name, buildQuery(query), TableStrategy.STREAM, null);
+        metastore.createMaterializedView(report);
         return JsonHelper.jsonObject().
                 put("message", "report successfully added");
     }
@@ -54,13 +63,15 @@ public class RealTimeHttpService implements HttpService {
     @JsonRequest
     @POST
     @Path("/list")
-    public Object add(JsonNode json) {
+    public Object list(JsonNode json) {
         JsonNode project = json.get("project");
         if (project == null) {
             return errorMessage("project parameter is required", 400);
         }
-
-        return metastore.getReports(project.asText());
+        return metastore.getReports(project.asText()).stream()
+                .filter(report -> Objects.equals(report.options.get("type"), "realtime"))
+                .map(report -> JsonHelper.read(report.options.get("report").asText(), RealTimeReport.class))
+                .collect(Collectors.toList());
     }
 
     @JsonRequest
@@ -76,6 +87,7 @@ public class RealTimeHttpService implements HttpService {
             return errorMessage("name parameter is required", 400);
         }
 
+        // TODO: Check if it's a real-time report.
         metastore.deleteReport(project.asText(), name.asText());
 
         return JsonHelper.jsonObject().put("message", "successfully deleted");
@@ -85,10 +97,25 @@ public class RealTimeHttpService implements HttpService {
     @POST
     @Path("/execute")
     public JsonNode execute(RealTimeReport query) {
-        String sqlQuery;
-
         Connection driver = jdbcPool.getDriver(addr);
 
+        String sqlQuery = buildQuery(query);
+        try {
+            ObjectNode result = ReportAnalyzer.execute(driver, sqlQuery, false);
+            if (query.dimension == null) {
+                return result.get("result").get(0);
+            } else {
+                result.remove("metadata");
+                JsonNode resultNode = result.remove("result");
+                result.set("value", resultNode);
+                return result;
+            }
+        } catch (SQLException e) {
+            return errorMessage(format("error while executing query (%s): %s", sqlQuery, e.getCause().getMessage()), 500);
+        }
+    }
+
+    public String buildQuery(RealTimeReport query) throws NotFoundException {
         Map<String, Long> offsetOfCollections;
 
         if (query.collections == null || query.collections.isEmpty()) {
@@ -98,7 +125,7 @@ public class RealTimeHttpService implements HttpService {
             for (String collection : query.collections) {
                 Long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, collection);
                 if(offsetOfCollection == null) {
-                    return JsonHelper.jsonObject().put("error", format("couldn't found collection %s", collection));
+                    throw new NotFoundException(format("couldn't found collection %s", collection));
                 }
                 builder.put(collection, offsetOfCollection);
             }
@@ -106,7 +133,7 @@ public class RealTimeHttpService implements HttpService {
         }
 
         if (offsetOfCollections.isEmpty()) {
-            return JsonHelper.jsonObject().put("error", "couldn't found any collection");
+            throw new NotFoundException("couldn't found any collection");
         }
 
         String column;
@@ -131,7 +158,7 @@ public class RealTimeHttpService implements HttpService {
             String collection = entry.getKey().split("_", 2)[0];
             return format(" (select %s as key from %s where %s) ",
                     column,
-                    createFrom(query.project, collection),
+                    createFrom(collection),
 //                    createWhere(entry.getValue(), query.filter));
                     createWhere(0, query.filter));
         }).toArray(String[]::new);
@@ -141,21 +168,7 @@ public class RealTimeHttpService implements HttpService {
 
         builder.append(" order by value desc");
 
-        sqlQuery = builder.toString();
-
-        try {
-            ObjectNode result = ReportAnalyzer.execute(driver, sqlQuery, false);
-            if (query.dimension == null) {
-                return result.get("result").get(0);
-            } else {
-                result.remove("metadata");
-                JsonNode resultNode = result.remove("result");
-                result.set("value", resultNode);
-                return result;
-            }
-        } catch (SQLException e) {
-            return errorMessage(format("error while executing query (%s): %s", sqlQuery, e.getMessage()), 500);
-        }
+        return builder.toString();
     }
 
     public String createSelect(AggregationType aggType, String measure, String dimension) {
@@ -195,8 +208,8 @@ public class RealTimeHttpService implements HttpService {
         }
     }
 
-    public String createFrom(String project, String collection) {
-        return format("kafka.%s.%s", project, collection);
+    public String createFrom(String collection) {
+        return format("stream.%s", collection);
     }
 
     public String createWhere(long offset, String filter) {

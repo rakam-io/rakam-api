@@ -8,18 +8,20 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.apache.avro.Schema;
+import org.rakam.collection.SchemaField;
 import org.rakam.report.metadata.postgresql.PostgresqlConfig;
+import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static java.lang.String.format;
-import static org.rakam.collection.event.EventDeserializer.copyFields;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 11/02/15 15:57.
@@ -39,7 +41,7 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
         dao.createStatement("CREATE TABLE IF NOT EXISTS collection_schema (" +
                 "  project VARCHAR(255) NOT NULL,\n" +
                 "  collection VARCHAR(255) NOT NULL,\n" +
-                "  schema TEXT NOT NULL,\n" +
+                "  schema BYTEA NOT NULL,\n" +
                 "  PRIMARY KEY (project, collection)"+
                 ")")
                 .execute();
@@ -80,52 +82,48 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Schema getSchema(String project, String collection) {
+    public List<SchemaField> getSchema(String project, String collection) {
         return getSchema(dao, project, collection);
     }
 
-    private Schema getSchema(Handle dao, String project, String collection) {
+    private List<SchemaField> getSchema(Handle dao, String project, String collection) {
         Query<Map<String, Object>> bind = dao.createQuery("SELECT schema from collection_schema WHERE project = :project AND collection = :collection")
                 .bind("project", project)
                 .bind("collection", collection);
         Map<String, Object> o = bind.first();
-        return o != null ? new Schema.Parser().parse((String) o.get("schema")) : null;
+        return o != null ? Arrays.asList(JsonHelper.read((byte[]) o.get("schema"), SchemaField[].class)) : null;
     }
 
     @Override
-    public Schema createOrGetSchema(String project, String collection, List<Schema.Field> newFields) {
+    public List<SchemaField> createOrGetSchema(String project, String collection, List<SchemaField> newFields) {
         return dbi.inTransaction((dao, status) -> {
-            Schema o = getSchema(dao, project, collection);
-            if(o == null) {
-                Schema record = Schema.createRecord(collection, null, project, false);
-                record.setFields(newFields);
+            List<SchemaField> fields = getSchema(dao, project, collection);
+            if(fields == null) {
                 dao.createStatement("INSERT INTO collection_schema (project, collection, schema) VALUES (:project, :collection, :schema)")
-                        .bind("schema", record.toString())
+                        .bind("schema", JsonHelper.encodeAsBytes(newFields))
                         .bind("project", project)
                         .bind("collection", collection)
                         .execute();
-                return record;
+                return newFields;
             } else {
+                fields = Lists.newArrayList(fields);
 
-                List<Schema.Field> fields = copyFields(o.getFields());
-                for (Schema.Field field : newFields) {
-                    Optional<Schema.Field> first = fields.stream().filter(x -> x.name().equals(field.name())).findFirst();
+                for (SchemaField field : newFields) {
+                    Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
                     if(!first.isPresent()) {
                         fields.add(field);
                     } else {
-                        if(!first.get().schema().equals(field.schema()))
+                        if(first.get().getType() != field.getType())
                             throw new IllegalArgumentException();
                     }
                 }
 
-                Schema record = Schema.createRecord(o.getName(), o.getDoc(), o.getNamespace(), false);
-                record.setFields(fields);
                 dao.createStatement("UPDATE collection_schema SET schema = :schema WHERE project = :project AND collection = :collection")
-                        .bind("schema", record.toString())
+                        .bind("schema", JsonHelper.encodeAsBytes(fields))
                         .bind("project", project)
                         .bind("collection", collection)
                         .execute();
-                return record;
+                return fields;
             }
 
         });

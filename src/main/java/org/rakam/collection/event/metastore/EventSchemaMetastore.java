@@ -2,6 +2,7 @@ package org.rakam.collection.event.metastore;
 
 import com.google.common.collect.Table;
 import org.apache.avro.Schema;
+import org.rakam.collection.SchemaField;
 
 import java.util.List;
 import java.util.Map;
@@ -16,7 +17,7 @@ public interface EventSchemaMetastore {
 
     Map<String, Schema> getSchemas(String project);
 
-    Schema getSchema(String project, String collection);
+    List<SchemaField> getSchema(String project, String collection);
 
-    Schema createOrGetSchema(String project, String collection, List<Schema.Field> fields);
+    List<SchemaField> createOrGetSchema(String project, String collection, List<SchemaField> fields);
 }

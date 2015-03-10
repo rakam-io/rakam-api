@@ -4,9 +4,9 @@ package org.rakam.plugin.geoip;
 import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 import com.maxmind.geoip.timeZone;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.codehaus.jackson.node.NullNode;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.model.Event;
 import org.rakam.plugin.EventMapper;
@@ -18,11 +18,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Lists.newArrayList;
-import static org.apache.avro.Schema.Type.NULL;
-import static org.apache.avro.Schema.Type.STRING;
-import static org.apache.avro.Schema.create;
-import static org.apache.avro.Schema.createUnion;
 
 /**
  * Created by buremba on 26/05/14.
@@ -92,11 +87,9 @@ public class GeoIPEventMapper implements EventMapper {
     }
 
     @Override
-    public List<Schema.Field> fields() {
-        return Arrays.stream(attributes).map(attr -> {
-            Schema type = createUnion(newArrayList(create(NULL), create(STRING)));
-            return new Schema.Field(attr, type, null, NullNode.getInstance());
-        }).collect(Collectors.toList());
+    public List<SchemaField> fields() {
+        return Arrays.stream(attributes)
+                .map(attr -> new SchemaField(attr, FieldType.STRING, true)).collect(Collectors.toList());
     }
 
 }

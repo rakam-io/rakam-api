@@ -18,6 +18,8 @@ import com.google.inject.Inject;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.codehaus.jackson.node.NullNode;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.model.Event;
 import org.rakam.util.Tuple;
@@ -29,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -41,13 +44,15 @@ import static org.apache.avro.Schema.Type.NULL;
 public class EventDeserializer extends JsonDeserializer<Event> {
     private final EventSchemaMetastore schemaRegistry;
     private final Map<Tuple<String, String>, Schema> schemaCache;
-    private final List<Schema.Field> moduleFields;
+    private final List<Schema.Field> moduleAvroFields;
+    private final List<SchemaField> moduleFields;
 
     @Inject
-    public EventDeserializer(EventSchemaMetastore schemaRegistry, List<Schema.Field> moduleFields) {
+    public EventDeserializer(EventSchemaMetastore schemaRegistry, List<SchemaField> moduleFields) {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
         this.moduleFields = moduleFields;
+        this.moduleAvroFields = moduleFields.stream().map(this::generateAvroSchema).collect(Collectors.toList());
     }
 
     @Override
@@ -100,61 +105,64 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
     private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException {
         Tuple key = new Tuple(project, collection);
-        Schema schema = schemaCache.get(key);
-        if (schema == null) {
-            schema = schemaRegistry.getSchema(project, collection);
+        Schema avroSchema = schemaCache.get(key);
+        if (avroSchema == null) {
+            List<SchemaField> schema = schemaRegistry.getSchema(project, collection);
             if (schema != null) {
-                schemaCache.put(key, schema);
+                avroSchema = convertAvroSchema(schema);
+                schemaCache.put(key, avroSchema);
             }
         }
 
-        if (schema == null) {
+        if (avroSchema == null) {
             ObjectNode node = jp.readValueAs(ObjectNode.class);
-            List<Schema.Field> fields = createSchemaFromArbitraryJson(node);
-            for (Schema.Field field : copyFields(moduleFields)) {
-                Optional<Schema.Field> first = fields.stream().filter(x -> x.name().equals(field.name())).findFirst();
+            List<SchemaField> fields = createSchemaFromArbitraryJson(node);
+            for (SchemaField field : moduleFields) {
+                Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
                 if (first.isPresent()) {
-                    Schema.Field existingField = first.get();
-                    if (!existingField.schema().equals(field.schema())) {
-                        fields.set(fields.indexOf(existingField), field);
+                    SchemaField existingFieldType = first.get();
+                    if (existingFieldType.getType() != field.getType()) {
+                        fields.set(fields.indexOf(existingFieldType), field);
                     }
                 } else {
                     fields.add(field);
                 }
             }
-            schema = schemaRegistry.createOrGetSchema(project, collection, fields);
-            schemaCache.put(key, schema);
+            avroSchema = convertAvroSchema(schemaRegistry.createOrGetSchema(project, collection, fields));
+            schemaCache.put(key, avroSchema);
 
-            GenericData.Record record = new GenericData.Record(schema);
-            fields.forEach(field -> record.put(field.name(), getValue(node.get(field.name()), field.schema())));
+            GenericData.Record record = new GenericData.Record(avroSchema);
+            fields.forEach(field -> record.put(field.getName(), getValue(node.get(field.getName()), field.getType())));
             return record;
         }
 
-        GenericData.Record record = new GenericData.Record(schema);
-        List<Schema.Field> newFields = null;
+        GenericData.Record record = new GenericData.Record(avroSchema);
+        List<SchemaField> newFields = null;
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
             String fieldName = jp.getCurrentName();
-            Schema.Field field = schema.getField(fieldName);
+            Schema.Field field = avroSchema.getField(fieldName);
 
             t = jp.nextToken();
 
             if (field == null) {
-                Schema.Type avroType = getAvroType(t, jp);
-                if (avroType != null) {
-                    Schema es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), Schema.create(avroType)));
-                    field = new Schema.Field(fieldName, es, null, NullNode.getInstance());
+                FieldType type = getType(t, jp);
+                if (type != null) {
 
                     if (newFields == null)
                         newFields = Lists.newArrayList();
-                    newFields.add(field);
+                    newFields.add(new SchemaField(fieldName, type, true));
 
-                    List<Schema.Field> fields = copyFields(schema.getFields());
-                    fields.add(field);
-                    schema = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), false);
-                    schema.setFields(fields);
-                    record = new GenericData.Record(schema);
+                    List<Schema.Field> avroFields = copyFields(avroSchema.getFields());
+                    newFields.stream().map(this::generateAvroSchema).forEach(x -> avroFields.add(x));
+
+                    avroSchema = Schema.createRecord("collection", null, null, false);
+                    avroSchema.setFields(avroFields);
+
+                    field = avroFields.stream().filter(f -> f.name().equals(fieldName)).findAny().get();
+
+                    record = new GenericData.Record(avroSchema);
                 } else {
                     continue;
                 }
@@ -164,9 +172,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
 
         if (newFields != null) {
-            Schema newSchema = schemaRegistry.createOrGetSchema(project, collection, copyFields(newFields));
-            schemaCache.put(key, newSchema);
-            GenericData.Record newRecord = new GenericData.Record(newSchema);
+            List<SchemaField> newSchema = schemaRegistry.createOrGetSchema(project, collection, newFields);
+            Schema newAvroSchema = convertAvroSchema(newSchema);
+            schemaCache.put(key, newAvroSchema);
+            GenericData.Record newRecord = new GenericData.Record(newAvroSchema);
             for (Schema.Field field : record.getSchema().getFields()) {
                 newRecord.put(field.name(), record.get(field.name()));
             }
@@ -176,29 +185,63 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         return record;
     }
 
-    private Object getValue(JsonNode jsonNode, Schema schema) {
-        if (schema.getType() == Schema.Type.UNION) {
-            schema = schema.getTypes().get(1);
+    private Schema convertAvroSchema(List<SchemaField> fields) {
+        List<Schema.Field> avroFields = fields.stream()
+                .map(this::generateAvroSchema).collect(Collectors.toList());
+
+        Schema schema = Schema.createRecord("collection", null, null, false);
+        schema.setFields(avroFields);
+        return schema;
+    }
+
+    private Schema.Field generateAvroSchema(SchemaField field) {
+            Schema es;
+            if (field.isNullable()) {
+                es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
+                return new Schema.Field(field.getName(), es, null, NullNode.getInstance());
+            } else {
+                es = getAvroSchema(field.getType());
+                return new Schema.Field(field.getName(), es, null, null);
+            }
+    }
+
+    private Schema getAvroSchema(FieldType type) {
+        switch (type) {
+            case STRING:
+                return Schema.create(Schema.Type.STRING);
+            case ARRAY:
+                return Schema.create(Schema.Type.ARRAY);
+            case LONG:
+                return Schema.create(Schema.Type.LONG);
+            case DOUBLE:
+                return Schema.create(Schema.Type.DOUBLE);
+            case BOOLEAN:
+                return Schema.create(Schema.Type.DOUBLE);
+            case DATE:
+                return Schema.create(Schema.Type.INT);
+            case HYPERLOGLOG:
+                return Schema.create(Schema.Type.BYTES);
+            case TIME:
+                return Schema.create(Schema.Type.LONG);
+            default:
+                throw new IllegalStateException();
         }
+    }
+
+    private Object getValue(JsonNode jsonNode, FieldType type) {
 
         if (jsonNode == null)
             return null;
 
-        switch (schema.getType()) {
+        switch (type) {
             case BOOLEAN:
                 return jsonNode.asBoolean();
             case LONG:
                 return jsonNode.longValue();
-            case INT:
-                return jsonNode.intValue();
             case STRING:
                 return jsonNode.asText();
             case DOUBLE:
                 return jsonNode.doubleValue();
-            case FLOAT:
-                return jsonNode.floatValue();
-            case NULL:
-                return null;
             case ARRAY:
                 return stream(jsonNode.spliterator(), false).map(x -> x.asText()).collect(toList());
             default:
@@ -261,24 +304,24 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private Schema.Type getAvroType(JsonToken t, JsonParser jp) throws IOException {
+    private FieldType getType(JsonToken t, JsonParser jp) throws IOException {
         switch (t) {
             case VALUE_NULL:
                 return null;
             case VALUE_STRING:
-                return Schema.Type.STRING;
+                return FieldType.STRING;
             case VALUE_FALSE:
-                return Schema.Type.BOOLEAN;
+                return FieldType.BOOLEAN;
             case VALUE_NUMBER_FLOAT:
-                return Schema.Type.FLOAT;
+                return FieldType.DOUBLE;
             case VALUE_TRUE:
-                return Schema.Type.BOOLEAN;
+                return FieldType.BOOLEAN;
             case START_ARRAY:
-                return Schema.Type.ARRAY;
+                return FieldType.ARRAY;
             case VALUE_EMBEDDED_OBJECT:
                 throw new JsonMappingException(format("nested properties is not supported: %s", jp.getValueAsString()));
             case VALUE_NUMBER_INT:
-                return Schema.Type.LONG;
+                return FieldType.LONG;
             default:
                 return null;
         }
@@ -290,7 +333,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 .collect(toList());
     }
 
-    public static Schema getAvroType(JsonNode jsonNode) {
+    public static FieldType getTypeFromJsonNode(JsonNode jsonNode) {
         JsonNodeType nodeType = jsonNode.getNodeType();
         switch (nodeType) {
             case NUMBER:
@@ -298,44 +341,37 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     case INT:
                     case LONG:
                     case BIG_INTEGER:
-                        return Schema.create(Schema.Type.LONG);
-                    case BIG_DECIMAL:
-                    case FLOAT:
-                    case DOUBLE:
-                        return Schema.create(Schema.Type.FLOAT);
+                        return FieldType.LONG;
                     default:
-                        return Schema.create(Schema.Type.FLOAT);
+                        return FieldType.DOUBLE;
                 }
             case STRING:
-                return Schema.create(Schema.Type.STRING);
+                return FieldType.STRING;
             case BOOLEAN:
-                return Schema.create(Schema.Type.BOOLEAN);
+                return FieldType.BOOLEAN;
             case NULL:
                 return null;
             case ARRAY:
-                Schema avroType = getAvroType(jsonNode.get(0));
-                Schema.Type type = avroType.getType();
-                if (type == Schema.Type.ARRAY) {
+                FieldType type = getTypeFromJsonNode(jsonNode.get(0));
+                if (type == FieldType.ARRAY) {
                     throw new IllegalArgumentException("nested properties is not supported");
                 }
-                Schema union = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), avroType));
-                return Schema.createArray(union);
+                return FieldType.ARRAY;
             default:
                 throw new UnsupportedOperationException("unsupported json field type");
         }
     }
 
-    public static List<Schema.Field> createSchemaFromArbitraryJson(ObjectNode json) {
+    public static List<SchemaField> createSchemaFromArbitraryJson(ObjectNode json) {
         Iterator<Map.Entry<String, JsonNode>> elements = json.fields();
-        ArrayList fields = new ArrayList();
+        ArrayList<SchemaField> fields = new ArrayList<>();
 
         while (elements.hasNext()) {
             Map.Entry<String, JsonNode> next = elements.next();
             String key = next.getKey();
-            Schema avroSchema = getAvroType(next.getValue());
-            if (avroSchema != null) {
-                Schema union = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), avroSchema));
-                fields.add(new Schema.Field(key, union, null, NullNode.getInstance()));
+            FieldType fieldType = getTypeFromJsonNode(next.getValue());
+            if (fieldType != null) {
+                fields.add(new SchemaField(key, fieldType, true));
             }
         }
 

@@ -3,9 +3,8 @@ package org.rakam.realtime;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
-import org.rakam.realtime.metadata.PostgresqlMetadataStore;
-import org.rakam.realtime.metadata.RealtimeReportMetadataStore;
 import org.rakam.server.http.HttpService;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
@@ -23,7 +22,8 @@ public class RealTimeModule extends RakamModule {
         Multibinder<HttpService> multiBinder = Multibinder.newSetBinder(binder, HttpService.class);
         multiBinder.addBinding().to(RealTimeHttpService.class);
 
-        binder.bind(RealtimeReportMetadataStore.class).to(PostgresqlMetadataStore.class);
+        Multibinder<EventMapper> mappers = Multibinder.newSetBinder(binder, EventMapper.class);
+        mappers.addBinding().to(TimestampEventMapper.class);
     }
 
     @Override

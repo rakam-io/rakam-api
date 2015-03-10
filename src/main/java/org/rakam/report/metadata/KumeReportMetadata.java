@@ -2,6 +2,7 @@ package org.rakam.report.metadata;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.Report;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.Service;
@@ -28,6 +29,11 @@ public class KumeReportMetadata implements ReportMetadataStore {
 
     @Override
     public void saveReport(Report report) {
+
+    }
+
+    @Override
+    public void createMaterializedView(MaterializedView report) {
 
     }
 

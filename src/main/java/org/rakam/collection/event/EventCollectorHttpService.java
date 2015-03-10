@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
-import org.apache.avro.Schema;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.model.Event;
 import org.rakam.plugin.EventMapper;
@@ -46,7 +46,7 @@ public class EventCollectorHttpService implements HttpService {
         this.eventStore = eventStore;
 
         SimpleModule module = new SimpleModule();
-        List<Schema.Field> moduleFields = mappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());
+        List<SchemaField> moduleFields = mappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());
         JsonDeserializer<Event> eventDeserializer = new EventDeserializer(schemas, moduleFields);
         module.addDeserializer(Event.class, eventDeserializer);
         jsonMapper.registerModule(module);

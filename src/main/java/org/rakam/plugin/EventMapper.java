@@ -1,6 +1,6 @@
 package org.rakam.plugin;
 
-import org.apache.avro.Schema;
+import org.rakam.collection.SchemaField;
 import org.rakam.model.Event;
 
 import java.util.List;
@@ -10,5 +10,5 @@ import java.util.List;
  */
 public interface EventMapper {
     void map(Event event);
-    List<Schema.Field> fields();
+    List<SchemaField> fields();
 }

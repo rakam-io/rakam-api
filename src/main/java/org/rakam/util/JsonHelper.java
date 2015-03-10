@@ -41,6 +41,18 @@ public class JsonHelper {
         }
     }
 
+    public static String encode(Object obj) {
+        return encode(obj, false);
+    }
+
+    public static byte[] encodeAsBytes(Object obj) {
+        try {
+            return mapper.writeValueAsBytes(obj);
+        } catch (JsonProcessingException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
     public static ObjectNode generate(Map<String, List<String>> map) {
         ObjectNode obj = jsonObject();
         for (Map.Entry<String, List<String>> item : map.entrySet()) {
@@ -67,6 +79,14 @@ public class JsonHelper {
     }
 
     public static <T> T read(String json, Class<T> clazz) {
+        try {
+            return mapper.readValue(json, clazz);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public static <T> T read(byte[] json, Class<T> clazz) {
         try {
             return mapper.readValue(json, clazz);
         } catch (IOException e) {

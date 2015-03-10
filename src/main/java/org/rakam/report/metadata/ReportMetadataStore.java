@@ -1,5 +1,6 @@
 package org.rakam.report.metadata;
 
+import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.Report;
 
 import java.util.List;
@@ -9,6 +10,8 @@ import java.util.List;
  */
 public interface ReportMetadataStore {
     void saveReport(Report report);
+
+    void createMaterializedView(MaterializedView report);
 
     void deleteReport(String project, String name);
 

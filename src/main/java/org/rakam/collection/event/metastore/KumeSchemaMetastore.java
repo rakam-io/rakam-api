@@ -5,6 +5,7 @@ import com.google.common.collect.Table;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.avro.Schema;
+import org.rakam.collection.SchemaField;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.ringmap.RingMap;
 import org.rakam.util.NotImplementedException;
@@ -20,11 +21,11 @@ import java.util.Optional;
 @Singleton
 public class KumeSchemaMetastore implements EventSchemaMetastore {
 
-    private final RingMap<String, Schema> registries;
+    private final RingMap<String, List<SchemaField>> registries;
 
     @Inject
     public KumeSchemaMetastore(Cluster cluster) {
-        this.registries = cluster.createOrGetService("avroSchemaRegistry", bus -> new RingMap<>(bus, (first, second) -> first, 2));
+        this.registries = cluster.createOrGetService("schemaRegistry", bus -> new RingMap<>(bus, (first, second) -> first, 2));
     }
 
     @Override
@@ -43,25 +44,22 @@ public class KumeSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Schema getSchema(String project, String collection) {
+    public List<SchemaField> getSchema(String project, String collection) {
         return registries.get(project+"_"+collection).join();
     }
 
     @Override
-    public Schema createOrGetSchema(String project, String collection,  List<Schema.Field> newFields) {
-        Schema record = Schema.createRecord(newFields);
-        return registries.merge(project+"_"+collection, record, (oldSchema, newSchema) -> {
-            ArrayList<Schema.Field> fields = Lists.newArrayList(newSchema.getFields());
-            for (Schema.Field field : fields) {
-                Optional<Schema.Field> first = fields.stream().filter(x -> x.name().equals(field.name())).findFirst();
+    public List<SchemaField> createOrGetSchema(String project, String collection,  List<SchemaField> newFields) {
+        return registries.merge(project+"_"+collection, newFields, (oldSchema, newSchema) -> {
+            ArrayList<SchemaField> fields = new ArrayList<>(oldSchema);
+            for (SchemaField field : newFields) {
+                Optional<SchemaField> first = newFields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
                 if(!first.isPresent()) {
                     fields.add(field);
                 }
             }
 
-            Schema schema = Schema.createRecord("rakam", null, "org.rakam.model", false);
-            schema.setFields(fields);
-            return schema;
+            return fields;
         }).join();
     }
 }
