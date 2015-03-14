@@ -217,14 +217,14 @@ public class TestClass {
     public void ff() throws IOException, InterruptedException {
         String jsonStr = "{\"project\": \"emre0\", \"collection\": \"pageView2\", \"url\": \"http://google.com\", \"ff\": 3, \"dfsdf\": 334, \"fsdfsdf\": \"fgdfdfgdfgdfg\"}";
         for (int i =0; i<10_000; i++) {
-            JsonNode read = JsonHelper.read(jsonStr);
+            JsonNode read = JsonHelper.readSafe(jsonStr);
             read.isObject();
         }
         Thread.sleep(500);
 
         long l = System.currentTimeMillis();
         for (int i =0; i<20_000_000; i++) {
-            JsonNode read = JsonHelper.read(jsonStr);
+            JsonNode read = JsonHelper.readSafe(jsonStr);
             read.isObject();
         }
         System.out.println(System.currentTimeMillis() - l);
@@ -256,7 +256,7 @@ public class TestClass {
 
         ObjectWriter writer = mapper.writer(new AvroSchema(schema));
 
-        JsonNode read = JsonHelper.read(jsonStr);
+        JsonNode read = JsonHelper.readSafe(jsonStr);
         for (int i =0; i<10_000; i++) {
             writer.writeValueAsBytes(read);
         }

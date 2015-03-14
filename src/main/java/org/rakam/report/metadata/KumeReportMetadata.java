@@ -4,9 +4,11 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.Report;
+import org.rakam.analysis.TableStrategy;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.Service;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +52,16 @@ public class KumeReportMetadata implements ReportMetadataStore {
     @Override
     public List<Report> getReports(String project) {
         return null;
+    }
+
+    @Override
+    public Map<String, List<MaterializedView>> getAllMaterializedViews(TableStrategy strategy) {
+        return null;
+    }
+
+    @Override
+    public void updateMaterializedView(String project, String viewName, Instant lastUpdate) {
+
     }
 
     public static class AnalysisRuleMapService extends Service {

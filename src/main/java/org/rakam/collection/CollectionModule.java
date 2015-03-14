@@ -3,7 +3,7 @@ package org.rakam.collection;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
 import org.rakam.collection.event.EventStore;
-import org.rakam.collection.event.datastore.KafkaEventStore;
+import org.rakam.collection.event.datastore.kafka.KafkaEventStore;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.collection.event.metastore.KumeSchemaMetastore;
 import org.rakam.collection.event.metastore.PostgresqlSchemaMetastore;

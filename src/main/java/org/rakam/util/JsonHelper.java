@@ -70,8 +70,16 @@ public class JsonHelper {
         return jsonNodeFactory.arrayNode();
     }
 
-    public static <T extends JsonNode> T read(String json) throws IOException {
+    public static <T extends JsonNode> T readSafe(String json) throws IOException {
         return (T) mapper.readTree(json);
+    }
+
+    public static <T extends JsonNode> T read(String json){
+        try {
+            return (T) mapper.readTree(json);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     public static <T> T readSafe(String json, Class<T> clazz) throws IOException {

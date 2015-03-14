@@ -1,4 +1,4 @@
-package org.rakam.realtime;
+package org.rakam.collection.event.datastore.kafka;
 
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;

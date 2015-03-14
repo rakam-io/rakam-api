@@ -3,7 +3,6 @@ package org.rakam.realtime;
 import com.facebook.presto.jdbc.internal.guava.collect.ImmutableMap;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Joiner;
 import com.google.inject.Singleton;
 import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.TableStrategy;
@@ -20,6 +19,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -35,14 +35,12 @@ import static org.rakam.server.http.HttpServer.errorMessage;
 @Path("/realtime")
 public class RealTimeHttpService implements HttpService {
 
-    private final KafkaOffsetManager kafkaManager;
     private final JdbcPool jdbcPool;
     private final ReportMetadataStore metastore;
     String addr = "jdbc:presto://127.0.0.1:8080";
 
     @Inject
-    public RealTimeHttpService(KafkaOffsetManager kafkaManager, ReportMetadataStore metastore, JdbcPool jdbcPool) {
-        this.kafkaManager = checkNotNull(kafkaManager, "kafkaManager is null");
+    public RealTimeHttpService(ReportMetadataStore metastore, JdbcPool jdbcPool) {
         this.jdbcPool = checkNotNull(jdbcPool, "jdbcPool is null");
         this.metastore = checkNotNull(metastore, "metastore is null");
     }
@@ -54,7 +52,7 @@ public class RealTimeHttpService implements HttpService {
         ObjectNode options = JsonHelper.jsonObject()
                 .put("type", "realtime")
                 .put("report", JsonHelper.encode(query));
-        MaterializedView report = new MaterializedView(query.project, query.name, buildQuery(query), TableStrategy.STREAM, null);
+        MaterializedView report = new MaterializedView(query.project, query.name, buildQuery(query), TableStrategy.STREAM, Instant.now(), query.collections, null);
         metastore.createMaterializedView(report);
         return JsonHelper.jsonObject().
                 put("message", "report successfully added");
@@ -119,22 +117,22 @@ public class RealTimeHttpService implements HttpService {
         Map<String, Long> offsetOfCollections;
 
         if (query.collections == null || query.collections.isEmpty()) {
-            offsetOfCollections = kafkaManager.getOffsetOfCollections(query.project);
+//            offsetOfCollections = kafkaManager.getOffsetOfCollections(query.project);
         } else {
             ImmutableMap.Builder<String, Long> builder = ImmutableMap.<String, Long>builder();
             for (String collection : query.collections) {
-                Long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, collection);
-                if(offsetOfCollection == null) {
-                    throw new NotFoundException(format("couldn't found collection %s", collection));
-                }
-                builder.put(collection, offsetOfCollection);
+//                Long offsetOfCollection = kafkaManager.getOffsetOfCollection(query.project, collection);
+//                if(offsetOfCollection == null) {
+//                    throw new NotFoundException(format("couldn't found collection %s", collection));
+//                }
+//                builder.put(collection, offsetOfCollection);
             }
             offsetOfCollections = builder.build();
         }
 
-        if (offsetOfCollections.isEmpty()) {
-            throw new NotFoundException("couldn't found any collection");
-        }
+//        if (offsetOfCollections.isEmpty()) {
+//            throw new NotFoundException("couldn't found any collection");
+//        }
 
         String column;
 
@@ -154,17 +152,17 @@ public class RealTimeHttpService implements HttpService {
                 .append(createSelect(query.aggregation, query.measure, query.dimension))
                 .append(" from (");
 
-        String[] subQueries = offsetOfCollections.entrySet().stream().map(entry -> {
-            String collection = entry.getKey().split("_", 2)[0];
-            return format(" (select %s as key from %s where %s) ",
-                    column,
-                    createFrom(collection),
+//        String[] subQueries = offsetOfCollections.entrySet().stream().map(entry -> {
+//            String collection = entry.getKey().split("_", 2)[0];
+//            return format(" (select %s as key from %s where %s) ",
+//                    column,
+//                    createFrom(collection),
 //                    createWhere(entry.getValue(), query.filter));
-                    createWhere(0, query.filter));
-        }).toArray(String[]::new);
+//                    createWhere(0, query.filter));
+//        }).toArray(String[]::new);
 
-        builder.append(Joiner.on(" union ").join(subQueries))
-                .append(") ").append(createGroupBy(query.dimension));
+//        builder.append(Joiner.on(" union ").join(subQueries))
+//                .append(") ").append(createGroupBy(query.dimension));
 
         builder.append(" order by value desc");
 

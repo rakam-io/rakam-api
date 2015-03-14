@@ -29,7 +29,7 @@ public class KumeSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Table<String, String, Schema> getAllSchemas() {
+    public Table<String, String, List<SchemaField>> getAllSchemas() {
         throw new NotImplementedException();
     }
 
@@ -39,7 +39,7 @@ public class KumeSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Map<String, Schema> getSchemas(String project) {
+    public Map<String, List<SchemaField>> getSchemas(String project) {
         throw new NotImplementedException();
     }
 

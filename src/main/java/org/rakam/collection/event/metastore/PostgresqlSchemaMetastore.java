@@ -7,7 +7,6 @@ import com.google.common.collect.Table;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import org.apache.avro.Schema;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.metadata.postgresql.PostgresqlConfig;
 import org.rakam.util.JsonHelper;
@@ -48,12 +47,12 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Table<String, String, Schema> getAllSchemas() {
+    public Table<String, String, List<SchemaField>> getAllSchemas() {
         Query<Map<String, Object>> bind = dao.createQuery("SELECT project, collection, schema from collection_schema");
 
-        HashBasedTable<String, String, Schema> table = HashBasedTable.create();
+        HashBasedTable<String, String, List<SchemaField>> table = HashBasedTable.create();
         bind.forEach(row ->
-                table.put((String) row.get("project"), (String) row.get("collection"), (Schema) row.get("schema")));
+                table.put((String) row.get("project"), (String) row.get("collection"), Arrays.asList(JsonHelper.read((byte[]) row.get("schema"), SchemaField[].class))));
 
         return table;
     }
@@ -71,13 +70,13 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Map<String, Schema> getSchemas(String project) {
+    public Map<String, List<SchemaField>> getSchemas(String project) {
         Query<Map<String, Object>> bind = dao.createQuery("SELECT collection, schema from collection_schema WHERE project = :project")
                 .bind("project", project);
 
-        HashMap<String, Schema> table = Maps.newHashMap();
+        HashMap<String, List<SchemaField>> table = Maps.newHashMap();
         bind.forEach(row ->
-                table.put((String) row.get("collection"), new Schema.Parser().parse((String) row.get("schema"))));
+                table.put((String) row.get("collection"), Arrays.asList(JsonHelper.read((byte[]) row.get("schema"), SchemaField[].class))));
         return table;
     }
 

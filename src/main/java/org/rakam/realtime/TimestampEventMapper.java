@@ -24,4 +24,8 @@ public class TimestampEventMapper implements EventMapper {
     public List<SchemaField> fields() {
         return ImmutableList.of(new SchemaField("time", FieldType.LONG, false));
     }
+
+    @Override
+    public void addedFields(List<SchemaField> existingFields, List<SchemaField> newFields) {
+    }
 }

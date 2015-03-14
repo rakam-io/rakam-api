@@ -24,18 +24,4 @@ public class RealTimeConfig {
             this.timeout = Duration.valueOf(timeout);
         return this;
     }
-
-    @MinDuration("1s")
-    public Duration getUpdateInterval()
-    {
-        return updateInterval;
-    }
-
-    @Config("realtime.update-interval")
-    public RealTimeConfig setUpdateInterval(String interval)
-    {
-        if(interval != null)
-            this.updateInterval = Duration.valueOf(interval);
-        return this;
-    }
 }

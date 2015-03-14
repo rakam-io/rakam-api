@@ -5,8 +5,6 @@ import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.client.StatementStats;
 import com.facebook.presto.jdbc.internal.guava.base.Throwables;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.JsonHelper;
 
@@ -36,11 +34,11 @@ public class PrestoQueryExecutor {
         this.prestoAddress = prestoAddress;
     }
 
-    private Stats currentStats(StatementClient client) {
+    private PrestoExecutor.Stats currentStats(StatementClient client) {
         StatementStats stats = client.current().getStats();
         int totalSplits = stats.getTotalSplits();
         int percentage = totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits;
-        return new Stats(percentage,
+        return new PrestoExecutor.Stats(percentage,
                 stats.getState(),
                 stats.getNodes(),
                 stats.getProcessedRows(),
@@ -68,11 +66,11 @@ public class PrestoQueryExecutor {
                     Optional.ofNullable(client.finalResults().getData())
                             .ifPresent((newResults) -> newResults.forEach(results::add));
 
-                    List<Column> columns = Lists.newArrayList();
+                    List<PrestoExecutor.Column> columns = Lists.newArrayList();
                     List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
                     for (int i = 0; i < internalColumns.size(); i++) {
                         com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
-                        columns.add(new Column(c.getName(), c.getType(), i+1));
+                        columns.add(new PrestoExecutor.Column(c.getName(), c.getType(), i+1));
                     }
                     response.send("result", encode(JsonHelper.jsonObject()
                             .put("success", true)
@@ -111,61 +109,6 @@ public class PrestoQueryExecutor {
             return (StatementClient) startQuery.invoke(connect, query);
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        }
-    }
-
-    public static class Column {
-        public final String name;
-        public final String type;
-        public final int position;
-
-        @JsonCreator
-        public Column(@JsonProperty("name") String name,
-                      @JsonProperty("type") String type,
-                      @JsonProperty("position") int position) {
-            this.name = name;
-            this.type = type;
-            this.position = position;
-        }
-
-        @JsonProperty
-        public String getName() {
-            return name;
-        }
-
-        @JsonProperty
-        public String getType() {
-            return type;
-        }
-    }
-
-    private static class Stats {
-        public final int percentage;
-        public final String state;
-        public final int node;
-        public final long processedRows;
-        public final long processedBytes;
-        public final long userTime;
-        public final long cpuTime;
-        public final long wallTime;
-
-        @JsonCreator
-        public Stats(@JsonProperty("percentage") int percentage,
-                     @JsonProperty("state") String state,
-                     @JsonProperty("node") int node,
-                     @JsonProperty("processedRows") long processedRows,
-                     @JsonProperty("processedBytes") long processedBytes,
-                     @JsonProperty("userTime") long userTime,
-                     @JsonProperty("cpuTime") long cpuTime,
-                     @JsonProperty("wallTime") long wallTime) {
-            this.percentage = percentage;
-            this.state = state;
-            this.node = node;
-            this.processedRows = processedRows;
-            this.userTime = userTime;
-            this.cpuTime = cpuTime;
-            this.wallTime = wallTime;
-            this.processedBytes = processedBytes;
         }
     }
 }

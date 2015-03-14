@@ -24,6 +24,8 @@ public class KafkaConfig
     private Set<HostAddress> nodes = ImmutableSet.of();
     private Duration kafkaConnectTimeout = Duration.valueOf("10s");
     private DataSize kafkaBufferSize = new DataSize(64, DataSize.Unit.KILOBYTE);
+    private Duration commitInterval = Duration.valueOf("5s");
+    private HostAddress zookeeperNode;
 
     @Size(min = 1)
     public Set<HostAddress> getNodes()
@@ -35,6 +37,13 @@ public class KafkaConfig
     public KafkaConfig setNodes(String nodes)
     {
         this.nodes = (nodes == null) ? null : parseNodes(nodes);
+        return this;
+    }
+
+    @Config("zookeeper.connect")
+    public KafkaConfig setZookeeperNode(String node)
+    {
+        this.zookeeperNode = (node == null) ? null : toHostAddress(node);
         return this;
     }
 
@@ -61,6 +70,25 @@ public class KafkaConfig
     {
         this.kafkaBufferSize = DataSize.valueOf(kafkaBufferSize);
         return this;
+    }
+
+
+    @MinDuration("1s")
+    public Duration getCommitInterval()
+    {
+        return commitInterval;
+    }
+
+    @Config("commit-interval")
+    public KafkaConfig setCommitInterval(String interval)
+    {
+        if(interval != null)
+            this.commitInterval = Duration.valueOf(interval);
+        return this;
+    }
+
+    public HostAddress getZookeeperNode() {
+        return zookeeperNode;
     }
 
     public static ImmutableSet<HostAddress> parseNodes(String nodes)

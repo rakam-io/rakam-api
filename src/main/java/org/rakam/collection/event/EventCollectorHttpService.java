@@ -3,15 +3,12 @@ package org.rakam.collection.event;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.io.IOContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.model.Event;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -21,9 +18,7 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
@@ -36,19 +31,15 @@ public class EventCollectorHttpService implements HttpService {
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
 
     private final Set<EventProcessor> processors;
-    private final Set<EventMapper> mappers;
     private final EventStore eventStore;
 
     @Inject
-    public EventCollectorHttpService(EventStore eventStore, EventSchemaMetastore schemas, Set<EventMapper> eventMappers, Set<EventProcessor> eventProcessors) {
-        this.mappers = eventMappers;
+    public EventCollectorHttpService(EventStore eventStore, EventDeserializer deserializer, EventSchemaMetastore schemas, Set<EventProcessor> eventProcessors) {
         this.processors = eventProcessors;
         this.eventStore = eventStore;
 
         SimpleModule module = new SimpleModule();
-        List<SchemaField> moduleFields = mappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());
-        JsonDeserializer<Event> eventDeserializer = new EventDeserializer(schemas, moduleFields);
-        module.addDeserializer(Event.class, eventDeserializer);
+        module.addDeserializer(Event.class, deserializer);
         jsonMapper.registerModule(module);
 
         // todo: test if existing collections has fields required by event mappers.
@@ -58,10 +49,6 @@ public class EventCollectorHttpService implements HttpService {
 
         for (EventProcessor processor : processors) {
             processor.process(event);
-        }
-
-        for (EventMapper mapper : mappers) {
-            mapper.map(event);
         }
 
         try {

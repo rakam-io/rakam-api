@@ -11,4 +11,5 @@ import java.util.List;
 public interface EventMapper {
     void map(Event event);
     List<SchemaField> fields();
+    void addedFields(List<SchemaField> existingFields, List<SchemaField> newFields);
 }

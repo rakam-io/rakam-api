@@ -22,6 +22,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.model.Event;
+import org.rakam.plugin.EventMapper;
 import org.rakam.util.Tuple;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -46,12 +48,14 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     private final Map<Tuple<String, String>, Schema> schemaCache;
     private final List<Schema.Field> moduleAvroFields;
     private final List<SchemaField> moduleFields;
+    private final Set<EventMapper> eventMappers;
 
     @Inject
-    public EventDeserializer(EventSchemaMetastore schemaRegistry, List<SchemaField> moduleFields) {
+    public EventDeserializer(EventSchemaMetastore schemaRegistry, Set<EventMapper> eventMappers, List<SchemaField> moduleFields) {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
-        this.moduleFields = moduleFields;
+        this.moduleFields = eventMappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());;
+        this.eventMappers = eventMappers;
         this.moduleAvroFields = moduleFields.stream().map(this::generateAvroSchema).collect(Collectors.toList());
     }
 
@@ -106,8 +110,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException {
         Tuple key = new Tuple(project, collection);
         Schema avroSchema = schemaCache.get(key);
+        List<SchemaField> schema = null;
         if (avroSchema == null) {
-            List<SchemaField> schema = schemaRegistry.getSchema(project, collection);
+            schema = schemaRegistry.getSchema(project, collection);
             if (schema != null) {
                 avroSchema = convertAvroSchema(schema);
                 schemaCache.put(key, avroSchema);
@@ -128,7 +133,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     fields.add(field);
                 }
             }
-            avroSchema = convertAvroSchema(schemaRegistry.createOrGetSchema(project, collection, fields));
+            schema = schemaRegistry.createOrGetSchema(project, collection, fields);
+            avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
 
             GenericData.Record record = new GenericData.Record(avroSchema);
@@ -172,6 +178,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
 
         if (newFields != null) {
+            final List<SchemaField> finalNewFields = newFields;
+            final List<SchemaField> finalSchema = schema;
+            eventMappers.forEach(mapper -> mapper.addedFields(finalSchema, finalNewFields));
+
             List<SchemaField> newSchema = schemaRegistry.createOrGetSchema(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
             schemaCache.put(key, newAvroSchema);

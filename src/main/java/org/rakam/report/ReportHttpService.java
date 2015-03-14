@@ -101,7 +101,7 @@ public class ReportHttpService implements HttpService {
 
             ObjectNode json;
             try {
-                json = JsonHelper.read(data.get(0));
+                json = JsonHelper.readSafe(data.get(0));
             } catch (IOException e) {
                 response.send("result", encode(errorMessage("json couldn't parsed", 400))).end();
                 return;
