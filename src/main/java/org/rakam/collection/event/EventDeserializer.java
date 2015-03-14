@@ -51,10 +51,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     private final Set<EventMapper> eventMappers;
 
     @Inject
-    public EventDeserializer(EventSchemaMetastore schemaRegistry, Set<EventMapper> eventMappers, List<SchemaField> moduleFields) {
+    public EventDeserializer(EventSchemaMetastore schemaRegistry, Set<EventMapper> eventMappers) {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
-        this.moduleFields = eventMappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());;
+        this.moduleFields = eventMappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());
         this.eventMappers = eventMappers;
         this.moduleAvroFields = moduleFields.stream().map(this::generateAvroSchema).collect(Collectors.toList());
     }
