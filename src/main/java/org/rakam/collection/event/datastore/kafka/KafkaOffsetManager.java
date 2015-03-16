@@ -1,7 +1,6 @@
 package org.rakam.collection.event.datastore.kafka;
 
-import com.facebook.presto.jdbc.internal.client.QueryError;
-import com.facebook.presto.jdbc.internal.guava.base.Throwables;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Longs;
 import com.google.inject.name.Named;
@@ -16,22 +15,19 @@ import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.TopicMetadataResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
 import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.TableStrategy;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.config.KafkaConfig;
 import org.rakam.kume.util.FutureUtil;
-import org.rakam.realtime.RealTimeHttpService;
 import org.rakam.report.PrestoConfig;
-import org.rakam.report.PrestoExecutor;
+import org.rakam.report.PrestoQueryExecutor;
+import org.rakam.report.QueryError;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.util.HostAddress;
 import org.rakam.util.RakamException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.time.Duration;
@@ -49,18 +45,18 @@ import static java.lang.String.format;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/02/15 00:01.
  */
-public class KafkaOffsetManager implements Watcher {
-    final static Logger LOGGER = LoggerFactory.getLogger(RealTimeHttpService.class);
+public class KafkaOffsetManager {
+    private final static Logger LOGGER = Logger.getLogger(KafkaOffsetManager.class);
     private final KafkaSimpleConsumerManager consumerManager;
     private final EventSchemaMetastore metastore;
     private final ReportMetadataStore reportMetadata;
     private final KafkaConfig config;
-    private final PrestoExecutor prestoExecutor;
+    private final PrestoQueryExecutor prestoExecutor;
     private final PrestoConfig prestoConfig;
     private CuratorFramework zk;
 
     @Inject
-    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, PrestoExecutor prestoExecutor, EventSchemaMetastore metastore, ReportMetadataStore reportMetadata) {
+    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, PrestoQueryExecutor prestoExecutor, EventSchemaMetastore metastore, ReportMetadataStore reportMetadata) {
         this.reportMetadata = checkNotNull(reportMetadata, "reportMetadata is null");
         this.prestoExecutor = checkNotNull(prestoExecutor, "prestoExecutor is null");
         this.config = checkNotNull(config, "config is null");
@@ -79,7 +75,7 @@ public class KafkaOffsetManager implements Watcher {
         Instant start = Instant.now();
         List<String> allTopics = metastore.getAllCollections()
                 .entrySet().stream()
-                .flatMap(e -> e.getValue().stream().map(c -> e.getKey() + "_" + c))
+                .flatMap(e -> e.getValue().stream().map(c -> e.getKey() + "_" + c.toLowerCase()))
                 .collect(Collectors.toList());
 
         Map<String, List<MaterializedView>> views = reportMetadata.getAllMaterializedViews(TableStrategy.STREAM);
@@ -87,60 +83,77 @@ public class KafkaOffsetManager implements Watcher {
         Map<String, Long> topicOffsets = getTopicOffsets(allTopics);
         FutureUtil.MultipleFutureListener listeners = new FutureUtil.MultipleFutureListener(topicOffsets.size());
 
-        topicOffsets.forEach((key, value) -> {
+        topicOffsets.forEach((key, finalOffset) -> {
             String[] projectCollection = key.split("_", 2);
 
-            Long offset;
+            long colOffset;
             try {
                 byte[] data = zk.getData().forPath("/collectionOffsets/" + key);
-                offset = Longs.fromByteArray(data);
+                colOffset = Longs.fromByteArray(data);
+            } catch (KeeperException.NoNodeException e) {
+                colOffset = 0;
             } catch (Exception e) {
-                offset = 0L;
                 LOGGER.error(format("Couldn't create get offset from Zookeeper for collection %s", key), e);
                 return;
             }
+            final long offset = colOffset;
 
-            if(value.equals(offset))
+            if(finalOffset.equals(offset)) {
+                listeners.increment();
                 return;
+            }
 
-            String query = buildQuery(projectCollection[0], projectCollection[1], offset, value, views.get(projectCollection[0]));
+            String query = buildQuery(projectCollection[0], projectCollection[1], offset, finalOffset, views.get(projectCollection[0]));
 
-            prestoExecutor.executeQuery(query).thenAccept(result -> {
-                System.out.println(result);
+            prestoExecutor.executeQuery(query).getResult().thenAccept(result -> {
                 QueryError error = result.getError();
                 if (error != null) {
                     String tableName = projectCollection[0].toLowerCase() + "." + projectCollection[1].toLowerCase();
-                    String notExistMessage = format("Table '%s' does not exist", "%s.%s",
+                    String notExistMessage = format("Table '%s.%s' does not exist",
                             prestoConfig.getColdStorageConnector(), tableName);
+
                     // this is a workaround until presto starts to use sql error codes.
-                    if (error.getFailureInfo().getMessage().equals(notExistMessage)) {
+                    if (error.message.equals(notExistMessage)) {
                         String format = format("CREATE TABLE %s.%s AS SELECT * FROM %s.%s",
                                 prestoConfig.getColdStorageConnector(), tableName,
                                 prestoConfig.getHotStorageConnector(), tableName);
-                        prestoExecutor.executeQuery(format).thenAccept(result1 -> {
-                            if (result1.getError() != null)
-                                LOGGER.error(format("Couldn't create cold storage table %s", tableName), result1.getError());
-                            listeners.increment();
-                            updateOffset(key, value);
+                        prestoExecutor.executeQuery(format).getResult().thenAccept(result1 -> {
+                            if (result1.getError() != null) {
+                                LOGGER.error(format("Couldn't create cold storage table %s: %s", tableName, result1.getError()));
+                            } else {
+                                prestoExecutor.executeQuery(query).getResult().thenAccept(res -> {
+                                    if (res.getError() != null) {
+                                        failSafe(listeners, key, offset, finalOffset, error);
+                                    } else {
+                                        successfullyProcessed(listeners, key, finalOffset);
+                                    }
+
+                                });
+                            }
                         });
-//                    try {
-//                        pool.getPrestoDriver().createStatement().execute(query);
-//                    } catch (SQLException e1) {
-//                        LOGGER.error(format("Couldn't processed messages (%d - %d) in Kafka broker.", 0, 0), e);
-//                    }
+
                     } else {
-                        LOGGER.error(format("Couldn't processed messages (%d - %d) in Kafka broker.", 0, 0), error);
-                        listeners.increment();
-                        updateOffset(key, value);
+                        failSafe(listeners, key, offset, finalOffset, error);
                     }
                 } else {
-                    listeners.increment();
-                    updateOffset(key, value);
+                    successfullyProcessed(listeners, key, finalOffset);
                 }
             });
         });
 
-        listeners.get().thenRun(() -> LOGGER.error("successfully processed batches in {}", Duration.between(start, Instant.now())));
+        listeners.get().join();
+        LOGGER.info(format("successfully processed batches in %s", Duration.between(start, Instant.now())));
+    }
+
+    private void failSafe(FutureUtil.MultipleFutureListener listeners, String zkKey, long value, long finalOffset, QueryError error) {
+        LOGGER.error(format("Couldn't processed messages (%d - %d) in Kafka broker: %s", value, finalOffset, error));
+        listeners.increment();
+        updateOffset(zkKey, finalOffset);
+    }
+
+    private void successfullyProcessed(FutureUtil.MultipleFutureListener listeners, String zkKey, long finalOffset) {
+        listeners.increment();
+        updateOffset(zkKey, finalOffset);
     }
 
     private void updateOffset(String key, Long value) {
@@ -148,7 +161,7 @@ public class KafkaOffsetManager implements Watcher {
             zk.setData().forPath("/collectionOffsets/" + key, Longs.toByteArray(value));
         } catch (KeeperException.NoNodeException e) {
             try {
-                zk.setData().forPath("/collectionOffsets/" + key, Longs.toByteArray(value));
+                zk.create().forPath("/collectionOffsets/" + key, Longs.toByteArray(value));
             } catch (Exception e1) {
                 throw Throwables.propagate(e1);
             }
@@ -165,9 +178,12 @@ public class KafkaOffsetManager implements Watcher {
         int i = 0;
         builder.append(format(", stream as (INSERT INTO %1$s.%2$s.%3$s SELECT * FROM %3$s)",
                 prestoConfig.getColdStorageConnector(), project, collection));
-        for (MaterializedView report : reports.stream()
-                .filter(p -> p.collections.contains(collection)).collect(Collectors.toList())){
-            builder.append(format(", view%d as (INSERT INTO %s (%s)) ", i++, report.name, report.query));
+        if(reports != null) {
+            for (MaterializedView report : reports.stream()
+                    .filter(p -> p.collections.contains(collection)).collect(Collectors.toList())) {
+                builder.append(format(", view%d as (INSERT INTO %s.%s.%s (%s)) ",
+                        i++, prestoConfig.getColdStorageConnector(), project, report.name, report.query));
+            }
         }
         builder.append(" SELECT * FROM stream");
         IntStream.range(0, i).mapToObj(id -> " UNION SELECT * FROM view"+id).forEach(builder::append);
@@ -186,10 +202,10 @@ public class KafkaOffsetManager implements Watcher {
 
         for (TopicMetadata metadata : topicMetadataResponse.topicsMetadata()) {
             for (PartitionMetadata part : metadata.partitionsMetadata()) {
-                LOGGER.debug("Adding Partition {}/{}", metadata.topic(), part.partitionId());
+                LOGGER.debug(format("Adding Partition %s/%s", metadata.topic(), part.partitionId()));
                 Broker leader = part.leader();
                 if (leader == null) { // Leader election going on...
-                    LOGGER.warn("No leader for partition {}/{} found!", metadata.topic(), part.partitionId());
+                    LOGGER.warn(format("No leader for partition %s/%s found!", metadata.topic(), part.partitionId()));
                 } else {
                     HostAddress leaderHost = HostAddress.fromParts(leader.host(), leader.port());
                     SimpleConsumer leaderConsumer = consumerManager.getConsumer(leaderHost);
@@ -217,17 +233,12 @@ public class KafkaOffsetManager implements Watcher {
 
         if (offsetResponse.hasError()) {
             short errorCode = offsetResponse.errorCode(topicName, partitionId);
-            LOGGER.warn("Offset response has error: %d", errorCode);
+            LOGGER.warn(format("Offset response has error: %d", errorCode));
             throw new RakamException("could not fetch data from Kafka, error code is '" + errorCode + "'", 500);
         }
 
         long[] offsets = offsetResponse.offsets(topicName, partitionId);
 
         return offsets;
-    }
-
-    @Override
-    public void process(WatchedEvent watchedEvent) {
-        System.out.println(watchedEvent);
     }
 }

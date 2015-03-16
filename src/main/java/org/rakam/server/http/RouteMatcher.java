@@ -1,10 +1,11 @@
-package org.rakam.server;
+package org.rakam.server.http;
 
 import com.google.common.base.Preconditions;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.server.http.HttpRequestHandler;
-import org.rakam.server.http.RakamHttpRequest;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.util.AttributeKey;
 
 import java.util.HashMap;
 
@@ -14,6 +15,20 @@ import java.util.HashMap;
 public class RouteMatcher {
     HashMap<PatternBinding, HttpRequestHandler> routes = new HashMap();
     private HttpRequestHandler noMatch = request -> request.response("404", HttpResponseStatus.NOT_FOUND).end();
+    public final AttributeKey<String> PATH = AttributeKey.valueOf("/path");
+
+    public void handle(ChannelHandlerContext ctx, WebSocketFrame frame) {
+        String path = ctx.attr(PATH).get();
+        final Object handler = routes.get(new PatternBinding(HttpMethod.GET, path));
+        if (handler != null) {
+            if(handler instanceof WebSocketHandler) {
+                ((WebSocketHandler) handler).handle(ctx, frame);
+            }
+        } else {
+            // TODO: WHAT TO DO?
+            ctx.close();
+        }
+    }
 
     public void handle(RakamHttpRequest request) {
         String path = request.path();
@@ -25,16 +40,23 @@ public class RouteMatcher {
             request.end();
         }
 
-        final HttpRequestHandler httpRequestHandler = routes.get(new PatternBinding(request.getMethod(), path));
-        if (httpRequestHandler != null) {
-            httpRequestHandler.handle(request);
+        final HttpRequestHandler handler = routes.get(new PatternBinding(request.getMethod(), path));
+        if (handler != null) {
+            if(handler instanceof WebSocketHandler) {
+                request.getContext().attr(PATH).set(path);
+            }
+            handler.handle(request);
         } else {
             noMatch.handle(request);
         }
     }
 
-    public void add(HttpMethod method, String pattern, HttpRequestHandler handler) {
-        routes.put(new PatternBinding(method, pattern), handler);
+    public void add(String path, WebSocketHandler handler) {
+        routes.put(new PatternBinding(HttpMethod.GET, path), handler);
+    }
+
+    public void add(HttpMethod method, String path, HttpRequestHandler handler) {
+        routes.put(new PatternBinding(method, path), handler);
     }
 
     public void remove(HttpMethod method, String pattern, HttpRequestHandler handler) {

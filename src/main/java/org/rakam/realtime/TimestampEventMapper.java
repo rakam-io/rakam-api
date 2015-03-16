@@ -5,9 +5,9 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.model.Event;
 import org.rakam.plugin.EventMapper;
+import org.rakam.collection.event.FieldDependencyBuilder;
 
 import java.time.Instant;
-import java.util.List;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 08/03/15 11:27.
@@ -21,11 +21,9 @@ public class TimestampEventMapper implements EventMapper {
     }
 
     @Override
-    public List<SchemaField> fields() {
-        return ImmutableList.of(new SchemaField("time", FieldType.LONG, false));
+    public void addFieldDependency(FieldDependencyBuilder builder) {
+        builder.addFields(ImmutableList.of(new SchemaField("time", FieldType.LONG, false)));
     }
 
-    @Override
-    public void addedFields(List<SchemaField> existingFields, List<SchemaField> newFields) {
-    }
+
 }

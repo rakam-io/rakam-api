@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -20,7 +21,6 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import org.rakam.kume.Cluster;
-import org.rakam.server.RouteMatcher;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.HostAddress;
 import org.rakam.util.JsonHelper;
@@ -58,16 +58,35 @@ public class HttpServer {
     EventLoopGroup workerGroup;
     private Channel channel;
 
+
     @Inject
-    public HttpServer(HttpServerConfig config, Set<HttpService> httpServicePlugins) {
+    public HttpServer(HttpServerConfig config, Set<HttpService> httpServicePlugins, @ForHttpServer EventLoopGroup eventLoopGroup) {
         this.config = checkNotNull(config, "config is null");
         this.routeMatcher = new RouteMatcher();
 
         bossGroup = new NioEventLoopGroup(1);
-        workerGroup = new NioEventLoopGroup();
+        workerGroup = eventLoopGroup;
 
         registerPaths(httpServicePlugins);
+        routeMatcher.add(HttpMethod.GET, "/websocket", new WebSocketHandler() {
+            @Override
+            public void onOpen(ChannelHandlerContext ctx) {
+
+            }
+
+            @Override
+            public void onMessage(ChannelHandlerContext ctx, String message) {
+                send(ctx, message.toUpperCase());
+            }
+
+            @Override
+            public void onClose(ChannelHandlerContext ctx) {
+
+            }
+        });
     }
+
+
 
     private void registerPaths(Set<HttpService> httpServicePlugins) {
         httpServicePlugins.forEach(service -> {
@@ -223,6 +242,8 @@ public class HttpServer {
                             ChannelPipeline p = ch.pipeline();
                             p.addLast("httpCodec", new HttpServerCodec());
                             p.addLast("serverHandler", new HttpServerHandler(routeMatcher));
+//                            p.addLast("aggregator", new HttpObjectAggregator(65000));
+//                            p.addLast("webSocketHandler", new WebSocketServerHandler());
                         }
                     });
 

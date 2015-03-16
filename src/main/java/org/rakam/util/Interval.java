@@ -244,7 +244,7 @@ public abstract class Interval implements JsonSerializable {
 
         @Override
         public void serializeWithType(JsonGenerator jgen, SerializerProvider provider, TypeSerializer typeSer) throws IOException, JsonProcessingException {
-            System.out.println(".");
+            jgen.writeNumber(period);
         }
 
         public class StatefulTimeSpan implements StatefulSpanTime, Serializable {

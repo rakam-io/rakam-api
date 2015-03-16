@@ -1,7 +1,7 @@
 package org.rakam.analysis;
 
 import org.rakam.analysis.query.simple.SimpleFilterScript;
-import org.rakam.server.RouteMatcher;
+import org.rakam.server.http.RouteMatcher;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.Tuple;
 import org.rakam.util.json.JsonObject;

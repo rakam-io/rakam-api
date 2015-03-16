@@ -1,6 +1,6 @@
 package org.rakam.server.http;
 
-import com.fasterxml.jackson.databind.node.BooleanNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -45,6 +45,14 @@ public class RakamHttpRequest implements HttpRequest {
     public RakamHttpRequest(ChannelHandlerContext ctx, HttpRequest request) {
         this.ctx = ctx;
         this.request = request;
+    }
+
+    HttpRequest getRequest() {
+        return request;
+    }
+
+    ChannelHandlerContext getContext() {
+        return ctx;
     }
 
     @Override
@@ -200,6 +208,10 @@ public class RakamHttpRequest implements HttpRequest {
             ByteBuf msg = Unpooled.wrappedBuffer(("event:"+event + "\ndata:" + data + "\n\n").getBytes(UTF_8));
             ctx.writeAndFlush(msg);
             return this;
+        }
+
+        public StreamResponse send(String event, JsonNode data) {
+            return send(event, JsonHelper.encode(data));
         }
 
         public void end() {

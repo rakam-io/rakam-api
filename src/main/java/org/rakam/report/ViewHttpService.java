@@ -9,10 +9,12 @@ import com.facebook.presto.sql.tree.Relation;
 import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
+import io.netty.channel.EventLoopGroup;
 import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.query.QueryFormatter;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.report.metadata.ReportMetadataStore;
+import org.rakam.server.http.ForHttpServer;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
@@ -21,10 +23,9 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static java.lang.String.format;
+import static org.rakam.report.ReportHttpService.handleQueryExecution;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 
@@ -37,13 +38,15 @@ public class ViewHttpService {
     private final EventSchemaMetastore metastore;
     private final SqlParser sqlParser;
     private final PrestoConfig prestoConfig;
-    private final ScheduledExecutorService queryExecutor = Executors.newScheduledThreadPool(16);
+    private final PrestoQueryExecutor queryExecutor;
+    private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public ViewHttpService(ReportMetadataStore database, EventSchemaMetastore metastore, PrestoConfig prestoConfig) {
+    public ViewHttpService(ReportMetadataStore database, EventSchemaMetastore metastore, PrestoConfig prestoConfig, PrestoQueryExecutor queryExecutor) {
         this.database = database;
         this.metastore = metastore;
         this.prestoConfig = prestoConfig;
+        this.queryExecutor = queryExecutor;
         this.sqlParser = new SqlParser();
     }
 
@@ -120,6 +123,12 @@ public class ViewHttpService {
 
         database.createMaterializedView(view);
 
-        new PrestoQueryExecutor(response, prestoConfig.getAddress()).executeQuery(query);
+        PrestoQuery prestoQuery = queryExecutor.executeQuery(query);
+        handleQueryExecution(eventLoopGroup, response, prestoQuery);
+    }
+
+    @Inject
+    public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup) {
+        this.eventLoopGroup = eventLoopGroup;
     }
 }

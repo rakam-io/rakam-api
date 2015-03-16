@@ -10,8 +10,8 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.util.CharsetUtil;
-import org.rakam.server.RouteMatcher;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -65,6 +65,8 @@ public class HttpServerHandler extends ChannelInboundHandlerAdapter {
                 chunk.release();
             }
 
+        } else if (msg instanceof WebSocketFrame) {
+            routes.handle(ctx, (WebSocketFrame) msg);
         }
     }
 

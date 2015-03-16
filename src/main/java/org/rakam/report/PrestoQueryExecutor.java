@@ -1,114 +1,117 @@
 package org.rakam.report;
 
-import com.facebook.presto.jdbc.PrestoDriver;
+import com.facebook.presto.jdbc.internal.airlift.http.client.HttpClientConfig;
+import com.facebook.presto.jdbc.internal.airlift.http.client.HttpRequestFilter;
+import com.facebook.presto.jdbc.internal.airlift.http.client.Request;
+import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyHttpClient;
+import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyIoPool;
+import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyIoPoolConfig;
+import com.facebook.presto.jdbc.internal.airlift.units.Duration;
+import com.facebook.presto.jdbc.internal.client.ClientSession;
+import com.facebook.presto.jdbc.internal.client.QueryResults;
 import com.facebook.presto.jdbc.internal.client.StatementClient;
-import com.facebook.presto.jdbc.internal.client.StatementStats;
-import com.facebook.presto.jdbc.internal.guava.base.Throwables;
-import com.facebook.presto.jdbc.internal.guava.collect.Lists;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.util.JsonHelper;
+import com.facebook.presto.jdbc.internal.guava.collect.ImmutableSet;
+import com.facebook.presto.jdbc.internal.guava.net.HostAndPort;
+import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Singleton;
 
-import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.URI;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-import static org.rakam.util.JsonHelper.encode;
+import static com.facebook.presto.jdbc.internal.airlift.http.client.HttpUriBuilder.uriBuilder;
+import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
+import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
+import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 09/03/15 16:10.
  */
+@Singleton
 public class PrestoQueryExecutor {
-    private static final ScheduledExecutorService queryExecutor = Executors.newScheduledThreadPool(16);
 
-    private final RakamHttpRequest.StreamResponse response;
-    private final String prestoAddress;
+    private final JettyHttpClient httpClient = new JettyHttpClient(
+            new HttpClientConfig()
+                    .setConnectTimeout(new Duration(10, TimeUnit.SECONDS))
+                    .setSocksProxy(getSystemSocksProxy()),
+            new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
+            ImmutableSet.of(new UserAgentRequestFilter("deneme")));
 
-    public PrestoQueryExecutor(RakamHttpRequest.StreamResponse response, String prestoAddress) {
-        this.response = response;
-        this.prestoAddress = prestoAddress;
+    private final PrestoConfig prestoAddress;
+
+    @Inject
+    public PrestoQueryExecutor(PrestoConfig prestoConfig) {
+        this.prestoAddress = prestoConfig;
     }
 
-    private PrestoExecutor.Stats currentStats(StatementClient client) {
-        StatementStats stats = client.current().getStats();
-        int totalSplits = stats.getTotalSplits();
-        int percentage = totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits;
-        return new PrestoExecutor.Stats(percentage,
-                stats.getState(),
-                stats.getNodes(),
-                stats.getProcessedRows(),
-                stats.getProcessedBytes(),
-                stats.getUserTimeMillis(),
-                stats.getCpuTimeMillis(),
-                stats.getWallTimeMillis());
-
+    public PrestoQuery executeQuery(String query) {
+        return new PrestoQuery(startQuery(prestoAddress, query));
     }
 
-    public void executeQuery(String query) {
-        StatementClient client = startQuery(query);
-        response.send("stats", encode(currentStats(client)));
-        List<List<Object>> results = Lists.newArrayList();
-        queryExecutor.schedule(new Runnable() {
-            @Override
-            public void run() {
-                client.advance();
-                if (client.isFailed()) {
-                    response.send("result", JsonHelper.jsonObject()
-                            .put("success", false)
-                            .put("query", client.getQuery())
-                            .put("message", client.current().getError().getMessage()).toString()).end();
-                } else if (!client.isValid()) {
-                    Optional.ofNullable(client.finalResults().getData())
-                            .ifPresent((newResults) -> newResults.forEach(results::add));
+    private StatementClient startQuery(PrestoConfig config, String query) {
 
-                    List<PrestoExecutor.Column> columns = Lists.newArrayList();
-                    List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
-                    for (int i = 0; i < internalColumns.size(); i++) {
-                        com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
-                        columns.add(new PrestoExecutor.Column(c.getName(), c.getType(), i+1));
-                    }
-                    response.send("result", encode(JsonHelper.jsonObject()
-                            .put("success", true)
-                            .putPOJO("query", client.getQuery())
-                            .putPOJO("result", results)
-                            .putPOJO("metadata", columns))).end();
-                } else {
-                    Optional.ofNullable(client.current().getData())
-                            .ifPresent((newResults) -> newResults.forEach(results::add));
+        HostAndPort hostAndPort = HostAndPort.fromString(config.getAddress());
+        URI uri = uriBuilder()
+                .scheme("http")
+                .host(hostAndPort.getHostText())
+                .port(hostAndPort.getPort())
+                .build();
 
-                    response.send("stats", encode(currentStats(client)));
-                    queryExecutor.schedule(this, 500, TimeUnit.MILLISECONDS);
+        ClientSession session = new ClientSession(
+                uri,
+                "emre",
+                "naber",
+                "default",
+                "default",
+                TimeZone.getDefault().getID(),
+                Locale.ENGLISH,
+                ImmutableMap.of(),
+                false);
+
+        return new StatementClient(httpClient, jsonCodec(QueryResults.class), session, query);
+    }
+
+    @Nullable
+    private static HostAndPort getSystemSocksProxy()
+    {
+        URI uri = URI.create("socket://0.0.0.0:80");
+        for (Proxy proxy : ProxySelector.getDefault().select(uri)) {
+            if (proxy.type() == Proxy.Type.SOCKS) {
+                if (proxy.address() instanceof InetSocketAddress) {
+                    InetSocketAddress address = (InetSocketAddress) proxy.address();
+                    return HostAndPort.fromParts(address.getHostString(), address.getPort());
                 }
-
             }
-        }, 500, TimeUnit.MILLISECONDS);
+        }
+        return null;
     }
 
-    private StatementClient startQuery(String query) {
-        PrestoDriver prestoDriver = new PrestoDriver();
-        Properties properties = new Properties();
-        properties.put("user", "Rakam");
+    static class UserAgentRequestFilter
+            implements HttpRequestFilter
+    {
+        private final String userAgent;
 
-        Connection connect;
-        try {
-            connect = prestoDriver.connect("jdbc:presto://" + prestoAddress, properties);
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
+        public UserAgentRequestFilter(String userAgent)
+        {
+            this.userAgent = checkNotNull(userAgent, "userAgent is null");
         }
 
-        // ugly hack since presto doesn't have a standalone client yet.
-        try {
-            Class<? extends Connection> aClass = connect.getClass();
-            Method startQuery = aClass.getDeclaredMethod("startQuery", String.class);
-            startQuery.setAccessible(true);
-            return (StatementClient) startQuery.invoke(connect, query);
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
+        @Override
+        public Request filterRequest(Request request)
+        {
+            return fromRequest(request)
+                    .addHeader(HttpHeaders.USER_AGENT, userAgent)
+                    .build();
         }
     }
+
+
+
 }

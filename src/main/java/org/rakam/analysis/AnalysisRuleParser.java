@@ -1,10 +1,6 @@
 package org.rakam.analysis;
 
-import org.rakam.analysis.query.FieldScript;
 import org.rakam.analysis.query.FilterScript;
-import org.rakam.analysis.query.mvel.MVELFieldScript;
-import org.rakam.analysis.query.mvel.MVELFilterScript;
-import org.rakam.analysis.query.simple.SimpleFieldScript;
 import org.rakam.analysis.query.simple.SimpleFilterScript;
 import org.rakam.analysis.query.simple.predicate.FilterPredicates;
 import org.rakam.util.Tuple;
@@ -19,19 +15,6 @@ import java.util.function.Predicate;
  * Created by buremba on 15/01/14.
  */
 public class AnalysisRuleParser {
-
-    public static FieldScript getField(Object field) {
-        if (field != null) {
-            if (field instanceof JsonObject) {
-                String script = ((JsonObject) field).getString("script");
-                if (script != null)
-                    return new MVELFieldScript(script);
-            } else if (field instanceof String) {
-                return new SimpleFieldScript((String) field);
-            }
-        }
-        return null;
-    }
 
     public static Tuple<Predicate, Boolean> generatePredicate(JsonElement from) {
         Predicate to = null;
@@ -111,7 +94,7 @@ public class AnalysisRuleParser {
         if (field.isObject()) {
             String script = ((JsonObject) field).getString("script");
             if (script != null) {
-                return new MVELFilterScript(script);
+//                return new MVELFilterScript(script);
             }
         }
 

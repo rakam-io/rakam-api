@@ -2,13 +2,12 @@ package org.rakam.plugin.user;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
+import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.geoip.GeoIPEventMapper;
-import org.rakam.plugin.geoip.GeoIPModuleConfig;
+import org.rakam.server.http.HttpService;
 
-import java.io.IOException;
+import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 14/03/15 16:17.
@@ -17,25 +16,22 @@ import java.io.IOException;
 public class UserModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
-        GeoIPModuleConfig geoIPModuleConfig = buildConfigObject(GeoIPModuleConfig.class);
-        GeoIPEventMapper geoIPEventMapper;
-        try {
-            geoIPEventMapper = new GeoIPEventMapper(geoIPModuleConfig);
-        } catch (IOException e) {
-            binder.addError("Error while loading GeoIP database %s", e.getMessage());
-            return;
-        }
-        Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
-        eventMappers.addBinding().toInstance(geoIPEventMapper);
+        UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
+        binder.bind(UserStorage.class).to(userPluginConfig.getStorageClass());
+
+        bindConfig(binder).to(UserPluginConfig.class);
+
+        Multibinder<HttpService> eventMappers = Multibinder.newSetBinder(binder, HttpService.class);
+        eventMappers.addBinding().to(ActorCollectorService.class).in(Scopes.SINGLETON);
     }
 
     @Override
     public String name() {
-        return "GeoIP Event Mapper";
+        return "Customer Analytics Module";
     }
 
     @Override
     public String description() {
-        return "It fills the events that have ip attribute with location information by GeoIP lookup service";
+        return "Eats your users";
     }
 }

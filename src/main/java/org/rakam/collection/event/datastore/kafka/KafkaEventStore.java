@@ -1,5 +1,6 @@
 package org.rakam.collection.event.datastore.kafka;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -69,6 +71,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
         CuratorFramework client = CuratorFrameworkFactory.newClient(config.getZookeeperNode().toString(),
                 new ExponentialBackoffRetry(1000, 3));
+        client.start();
 
         try {
             if(client.checkExists().forPath(ZK_OFFSET_PATH) == null)
@@ -79,7 +82,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
         kafkaManager.setZookeeper(client);
 
-        client.start();
+
         new LeaderSelector(client, ZK_OFFSET_PATH, this).start();
     }
 
@@ -113,16 +116,24 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
     @Override
     public void takeLeadership(CuratorFramework curatorFramework) throws Exception {
-        if(executorService == null)
-            executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);
+        if(executorService == null) {
+            ThreadFactory build = new ThreadFactoryBuilder()
+                    .setNameFormat("kafka-offset-worker")
+                    .setUncaughtExceptionHandler((t, e) -> {
+                        LOGGER.error("An error occurred while executing processor queries for Kafka.", e);
+                    }).build();
+            executorService = Executors.newSingleThreadScheduledExecutor(build);
+        }
+//        executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);
     }
 
     @Override
     public void stateChanged(CuratorFramework curatorFramework, ConnectionState connectionState) {
         if(!connectionState.isConnected()) {
-            if(executorService != null)
-                executorService.shutdown();
+            if(executorService != null) {
+//                executorService.shutdown();
+//                executorService = null;
+            }
         }
     }
 }

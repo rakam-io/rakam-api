@@ -6,15 +6,18 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import org.rakam.collection.CollectionModule;
-import org.rakam.collection.actor.ActorCollectorService;
 import org.rakam.collection.event.EventCollectorHttpService;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ClusterBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.user.ActorCollectorService;
 import org.rakam.report.ReportHttpService;
+import org.rakam.server.http.ForHttpServer;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerConfig;
 import org.rakam.server.http.HttpService;
@@ -34,16 +37,6 @@ public class ServiceStarter {
     final static Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
 
     public static void main(String[] args) throws Throwable {
-
-//        Runtime.getRuntime().addShutdownHook(new Thread() {
-//            @Override
-//            public void bind() {
-//                System.out.println("exiting..");
-//                TODO: gracefully exit.
-//                System.exit(0);
-//            }
-//        });
-
         if (args.length > 0) {
             System.setProperty("config", args[0]);
         } else {
@@ -96,6 +89,11 @@ public class ServiceStarter {
             }
 
             bindConfig(binder).to(HttpServerConfig.class);
+            binder.bind(HttpServer.class).asEagerSingleton();
+            binder.bind(EventLoopGroup.class)
+                    .annotatedWith(ForHttpServer.class)
+                    .to(NioEventLoopGroup.class)
+                    .in(Scopes.SINGLETON);
         }
     }
 }

@@ -6,8 +6,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Singleton;
 import org.rakam.analysis.MaterializedView;
 import org.rakam.analysis.TableStrategy;
-import org.rakam.report.JdbcPool;
-import org.rakam.report.ReportAnalyzer;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
@@ -17,8 +15,6 @@ import javax.inject.Inject;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
@@ -34,14 +30,11 @@ import static org.rakam.server.http.HttpServer.errorMessage;
 @Singleton
 @Path("/realtime")
 public class RealTimeHttpService implements HttpService {
-
-    private final JdbcPool jdbcPool;
     private final ReportMetadataStore metastore;
     String addr = "jdbc:presto://127.0.0.1:8080";
 
     @Inject
-    public RealTimeHttpService(ReportMetadataStore metastore, JdbcPool jdbcPool) {
-        this.jdbcPool = checkNotNull(jdbcPool, "jdbcPool is null");
+    public RealTimeHttpService(ReportMetadataStore metastore) {
         this.metastore = checkNotNull(metastore, "metastore is null");
     }
 
@@ -95,21 +88,16 @@ public class RealTimeHttpService implements HttpService {
     @POST
     @Path("/execute")
     public JsonNode execute(RealTimeReport query) {
-        Connection driver = jdbcPool.getDriver(addr);
-
         String sqlQuery = buildQuery(query);
-        try {
-            ObjectNode result = ReportAnalyzer.execute(driver, sqlQuery, false);
-            if (query.dimension == null) {
-                return result.get("result").get(0);
-            } else {
-                result.remove("metadata");
-                JsonNode resultNode = result.remove("result");
-                result.set("value", resultNode);
-                return result;
-            }
-        } catch (SQLException e) {
-            return errorMessage(format("error while executing query (%s): %s", sqlQuery, e.getCause().getMessage()), 500);
+//            ObjectNode result = ReportAnalyzer.execute(driver, sqlQuery, false);
+        ObjectNode result = null;
+        if (query.dimension == null) {
+            return result.get("result").get(0);
+        } else {
+            result.remove("metadata");
+            JsonNode resultNode = result.remove("result");
+            result.set("value", resultNode);
+            return result;
         }
     }
 

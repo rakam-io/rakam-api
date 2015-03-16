@@ -126,7 +126,7 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
 
     @Override
     public List<Report> getReports(String project) {
-        return dao.createQuery("SELECT project, name, query, strategy, options from reports WHERE project = :project")
+        return dao.createQuery("SELECT project, name, query, options from reports WHERE project = :project")
                 .bind("project", project)
                 .map(reportMapper).list();
     }

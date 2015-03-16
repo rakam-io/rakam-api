@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.model.Event;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -20,7 +20,9 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.Set;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 21:48.
@@ -32,23 +34,27 @@ public class EventCollectorHttpService implements HttpService {
 
     private final Set<EventProcessor> processors;
     private final EventStore eventStore;
+    private final Set<EventMapper> mappers;
 
     @Inject
-    public EventCollectorHttpService(EventStore eventStore, EventDeserializer deserializer, EventSchemaMetastore schemas, Set<EventProcessor> eventProcessors) {
+    public EventCollectorHttpService(EventStore eventStore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
         this.processors = eventProcessors;
         this.eventStore = eventStore;
+        this.mappers = mappers;
 
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Event.class, deserializer);
         jsonMapper.registerModule(module);
-
-        // todo: test if existing collections has fields required by event mappers.
     }
 
     private boolean processEvent(Event event) {
 
         for (EventProcessor processor : processors) {
             processor.process(event);
+        }
+
+        for (EventMapper mapper : mappers) {
+            mapper.map(event);
         }
 
         try {
@@ -75,7 +81,8 @@ public class EventCollectorHttpService implements HttpService {
                 request.response("json couldn't parsed", BAD_REQUEST).end();
                 return;
             }
-            request.response(processEvent(event) ? "1" : "0").end();
+            boolean b = processEvent(event);
+            request.response(b ? "1" : "0", b ? OK : BAD_GATEWAY).end();
         });
     }
 

@@ -7,13 +7,12 @@ import com.maxmind.geoip.timeZone;
 import org.apache.avro.generic.GenericData;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.model.Event;
 import org.rakam.plugin.EventMapper;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -79,29 +78,10 @@ public class GeoIPEventMapper implements EventMapper {
     }
 
     @Override
-    public List<SchemaField> fields() {
-        return Arrays.stream(attributes)
-                .map(attr -> new SchemaField(attr, FieldType.STRING, true)).collect(Collectors.toList());
-    }
-
-    @Override
-    public void addedFields(List<SchemaField> existingFields, List<SchemaField> newFields) {
-        if(existingFields.stream().anyMatch(field -> field.getName().equals("ip"))) {
-            Arrays.stream(attributes)
-                    .filter(attr -> existingFields.stream().anyMatch(field -> field.getName().equals(attr)))
-                    .forEach(attr -> {
-                        Optional<SchemaField> any = newFields.stream().filter(field -> field.getName().equals(attr)).findAny();
-                        if(any.isPresent()) {
-                            if(any.get().getType() != FieldType.STRING) {
-                                newFields.remove(any.get());
-                            } else {
-                                return;
-                            }
-                        }
-
-                        newFields.add(new SchemaField(attr, FieldType.STRING, true));
-                    });
-        }
+    public void addFieldDependency(FieldDependencyBuilder builder) {
+        builder.addFields("ip", Arrays.stream(attributes)
+                .map(attr -> new SchemaField(attr, FieldType.STRING, true))
+                .collect(Collectors.toList()));
     }
 
 

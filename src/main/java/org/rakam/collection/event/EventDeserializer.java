@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -46,17 +45,17 @@ import static org.apache.avro.Schema.Type.NULL;
 public class EventDeserializer extends JsonDeserializer<Event> {
     private final EventSchemaMetastore schemaRegistry;
     private final Map<Tuple<String, String>, Schema> schemaCache;
-    private final List<Schema.Field> moduleAvroFields;
-    private final List<SchemaField> moduleFields;
-    private final Set<EventMapper> eventMappers;
+    private final FieldDependencyBuilder.FieldDependency moduleFields;
 
     @Inject
     public EventDeserializer(EventSchemaMetastore schemaRegistry, Set<EventMapper> eventMappers) {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
-        this.moduleFields = eventMappers.stream().flatMap(mapper -> mapper.fields().stream()).collect(Collectors.toList());
-        this.eventMappers = eventMappers;
-        this.moduleAvroFields = moduleFields.stream().map(this::generateAvroSchema).collect(Collectors.toList());
+
+        FieldDependencyBuilder builder = new FieldDependencyBuilder();
+        eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
+
+        this.moduleFields = builder.build();
     }
 
     @Override
@@ -122,17 +121,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         if (avroSchema == null) {
             ObjectNode node = jp.readValueAs(ObjectNode.class);
             List<SchemaField> fields = createSchemaFromArbitraryJson(node);
-            for (SchemaField field : moduleFields) {
-                Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
-                if (first.isPresent()) {
-                    SchemaField existingFieldType = first.get();
-                    if (existingFieldType.getType() != field.getType()) {
-                        fields.set(fields.indexOf(existingFieldType), field);
-                    }
-                } else {
-                    fields.add(field);
-                }
-            }
+            moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
+            moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
+
             schema = schemaRegistry.createOrGetSchema(project, collection, fields);
             avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
@@ -161,7 +152,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     newFields.add(new SchemaField(fieldName, type, true));
 
                     List<Schema.Field> avroFields = copyFields(avroSchema.getFields());
-                    newFields.stream().map(this::generateAvroSchema).forEach(x -> avroFields.add(x));
+                    newFields.stream()
+                            .filter(f -> !avroFields.stream().anyMatch(af -> af.name().equals(f.getName())))
+                            .map(this::generateAvroSchema).forEach(x -> avroFields.add(x));
 
                     avroSchema = Schema.createRecord("collection", null, null, false);
                     avroSchema.setFields(avroFields);
@@ -179,8 +172,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
         if (newFields != null) {
             final List<SchemaField> finalNewFields = newFields;
-            final List<SchemaField> finalSchema = schema;
-            eventMappers.forEach(mapper -> mapper.addedFields(finalSchema, finalNewFields));
+            moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(finalNewFields, fieldName, field));
 
             List<SchemaField> newSchema = schemaRegistry.createOrGetSchema(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
@@ -193,6 +185,27 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
 
         return record;
+    }
+
+    private void addConditionalModuleField(List<SchemaField> fields, String fieldName, List<SchemaField> newFields) {
+        if (fields.stream().anyMatch(f -> f.getName().equals(fieldName))) {
+            newFields.forEach(newField -> addModuleField(fields, newField));
+        }
+    }
+
+    private void addModuleField(List<SchemaField> fields, SchemaField newField) {
+        for (int i = 0; i < fields.size(); i++) {
+            SchemaField field = fields.get(i);
+            if(field.getName().equals(newField.getName())) {
+                if(field.getType().equals(newField.getType())) {
+                    return;
+                }else {
+                    fields.remove(i);
+                    break;
+                }
+            }
+        }
+        fields.add(newField);
     }
 
     private Schema convertAvroSchema(List<SchemaField> fields) {
