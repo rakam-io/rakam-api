@@ -27,8 +27,7 @@ public class GeoIPEventMapper implements EventMapper {
     public GeoIPEventMapper(GeoIPModuleConfig config) throws IOException {
         checkNotNull(config, "config is null");
         lookup = new LookupService(config.getDatabase(), LookupService.GEOIP_MEMORY_CACHE);
-        attributes = Arrays.stream(config.getAttributes().split(","))
-                .map(attr -> attr.trim()).toArray(String[]::new);
+        attributes = config.getAttributes().stream().toArray(String[]::new);
     }
 
     @Override

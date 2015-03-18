@@ -274,6 +274,19 @@ public class HttpServer {
                 .put("error_code", statusCode);
     }
 
+    public static <T> void handleJsonPostRequest(RakamHttpRequest request, Consumer<T> consumer, Class<T> clazz) {
+        request.bodyHandler(jsonStr -> {
+            T data;
+            try {
+                data = JsonHelper.readSafe(jsonStr, clazz);
+            } catch (IOException e) {
+                returnError(request, "invalid request", 400);
+                return;
+            }
+            consumer.accept(data);
+        });
+    }
+
     public boolean isDisabled() {
         return config.getDisabled();
     }

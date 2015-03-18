@@ -4,7 +4,8 @@ import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.client.StatementStats;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
 import com.facebook.presto.jdbc.internal.guava.util.concurrent.ThreadFactoryBuilder;
-import org.rakam.report.metadata.Column;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 
 import java.util.List;
 import java.util.Optional;
@@ -44,11 +45,11 @@ public class PrestoQuery implements QueryExecution {
                     Optional.ofNullable(client.finalResults().getData())
                             .ifPresent((newResults) -> newResults.forEach(data::add));
 
-                    List<Column> columns = Lists.newArrayList();
+                    List<SchemaField> columns = Lists.newArrayList();
                     List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
                     for (int i = 0; i < internalColumns.size(); i++) {
                         com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
-                        columns.add(new Column(c.getName(), c.getType(), i+1));
+                        columns.add(new SchemaField(c.getName(), FieldType.valueOf(c.getType()), true));
                     }
                     result.complete(new QueryResult(columns, data, null));
                 } else {

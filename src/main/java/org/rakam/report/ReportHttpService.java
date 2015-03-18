@@ -166,7 +166,7 @@ public class ReportHttpService implements HttpService {
                                 .put("success", true)
                                 .putPOJO("query", prestoQuery.getQuery())
                                 .putPOJO("result", result.getResult())
-                                .putPOJO("metadata", result.getColumns()))).end();
+                                .putPOJO("metadata", result.getMetadata()))).end();
                     }
                 }else {
                     response.send("stats", encode(prestoQuery.currentStats()));

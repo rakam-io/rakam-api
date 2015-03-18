@@ -15,7 +15,7 @@ import org.rakam.kume.ClusterBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.user.ActorCollectorService;
+import org.rakam.plugin.user.UserHttpService;
 import org.rakam.report.ReportHttpService;
 import org.rakam.server.http.ForHttpServer;
 import org.rakam.server.http.HttpServer;
@@ -72,7 +72,7 @@ public class ServiceStarter {
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(ReportHttpService.class);
-            httpServices.addBinding().to(ActorCollectorService.class);
+            httpServices.addBinding().to(UserHttpService.class);
             httpServices.addBinding().to(EventCollectorHttpService.class);
 
             ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);

@@ -20,6 +20,7 @@ import io.airlift.configuration.ConfigurationModule;
 import io.airlift.configuration.ConfigurationValidator;
 import io.airlift.configuration.ValidationErrorModule;
 import io.airlift.configuration.WarningsMonitor;
+import org.rakam.config.ConditionalModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,6 +162,10 @@ public class Bootstrap
 
         // initialize configuration factory
         for (Module module : modules) {
+            if(module instanceof ConditionalModule) {
+                if(!((ConditionalModule) module).shouldInstall(configurationFactory))
+                    continue;
+            }
             if (module instanceof ConfigurationAwareModule) {
                 ConfigurationAwareModule configurationAwareModule = (ConfigurationAwareModule) module;
                 configurationAwareModule.setConfigurationFactory(configurationFactory);

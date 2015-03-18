@@ -5,9 +5,8 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
 import org.rakam.server.http.HttpService;
-
-import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 14/03/15 16:17.
@@ -16,13 +15,14 @@ import static io.airlift.configuration.ConfigurationModule.bindConfig;
 public class UserModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
+        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+        httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
+
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
-        binder.bind(UserStorage.class).to(userPluginConfig.getStorageClass());
 
-        bindConfig(binder).to(UserPluginConfig.class);
-
-        Multibinder<HttpService> eventMappers = Multibinder.newSetBinder(binder, HttpService.class);
-        eventMappers.addBinding().to(ActorCollectorService.class).in(Scopes.SINGLETON);
+        if(userPluginConfig.isMailboxEnabled()) {
+            httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);
+        }
     }
 
     @Override

@@ -1,6 +1,6 @@
 package org.rakam.server.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -210,8 +210,15 @@ public class RakamHttpRequest implements HttpRequest {
             return this;
         }
 
-        public StreamResponse send(String event, JsonNode data) {
-            return send(event, JsonHelper.encode(data));
+        public StreamResponse send(String event, Object data) {
+            String json;
+            try {
+                json = JsonHelper.encodeSafe(data);
+            } catch (JsonProcessingException e) {
+                send(event, "couldn't serialize json object: " + e.getMessage());
+                return this;
+            }
+            return send(event, json);
         }
 
         public void end() {

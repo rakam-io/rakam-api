@@ -1,32 +1,86 @@
 package org.rakam.plugin.user;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.lang.String.format;
+import java.util.List;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:27.
  */
 public class UserPluginConfig {
-    private Class storageClass;
+    private String storageModule;
+    private List<String> hiddenColumns;
+    private boolean mailboxEnabled;
+    private String mailBoxStorageModule;
+    private String sessionColumn;
+    private String lastSeenColumn;
+    private String identifierColumn;
 
-    @Config("plugin.user.storage")
-    public UserPluginConfig setStorageClass(String clazz)
-    {
-        try {
-            this.storageClass = Class.forName(clazz);
-        } catch (ClassNotFoundException e) {
-           new ClassNotFoundException(format("plugin.user.storage value is invalid. '%s' couldn't found", clazz));
-        }
-
-        checkArgument(UserStorage.class.isAssignableFrom(this.storageClass),
-                "plugin.user.storage value '%s' is not assignable to %s", clazz, UserStorage.class.getCanonicalName());
-
+    @Config("plugin.user.storage.identifier_column")
+    public UserPluginConfig setIdentifierColumn(String colName) {
+        this.identifierColumn = colName;
         return this;
     }
 
-    public Class getStorageClass() {
-        return storageClass;
+    public String getIdentifierColumn() {
+        return identifierColumn;
+    }
+
+    @Config("plugin.user.storage.session_column")
+    public void setSessionColumn(String sessionColumn) {
+        this.sessionColumn = sessionColumn;
+    }
+
+    public String getSessionColumn() {
+        return sessionColumn;
+    }
+
+    @Config("plugin.user.storage.last_seen_column")
+    public void setLastSeenColumnName(String lastLoginColumnName) {
+        this.lastSeenColumn = lastLoginColumnName;
+    }
+
+    public String getLastSeenColumnName() {
+        return lastSeenColumn;
+    }
+
+    @Config("plugin.user.mailbox.enable")
+    public void setMailboxEnabled(boolean mailboxEnabled) {
+        this.mailboxEnabled = mailboxEnabled;
+    }
+
+    public boolean isMailboxEnabled() {
+        return mailboxEnabled;
+    }
+
+    @Config("plugin.user.storage.hide_columns")
+    public void setHiddenColumns(String hiddenColumns) {
+        this.hiddenColumns = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(hiddenColumns));
+    }
+
+    @Config("plugin.user.mailbox.persistence")
+    public void setMailBoxStorageModule(String module) {
+        this.mailBoxStorageModule = module;
+    }
+
+    public String getMailBoxStorageModule() {
+        return mailBoxStorageModule;
+    }
+
+    public List<String> getHiddenColumns() {
+        return hiddenColumns;
+    }
+
+    @Config("plugin.user.storage")
+    public UserPluginConfig setStorageModule(String moduleName)
+    {
+        this.storageModule = moduleName;
+        return this;
+    }
+
+    public String getStorageModule() {
+        return storageModule;
     }
 }

@@ -1,13 +1,17 @@
 package org.rakam.plugin.geoip;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
+
+import java.util.List;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 12/02/15 21:09.
  */
 public class GeoIPModuleConfig {
     private String database;
-    private String attributes;
+    private List<String> attributes;
 
     @Config("module.geoip.database")
     public GeoIPModuleConfig setDatabase(String type)
@@ -18,7 +22,7 @@ public class GeoIPModuleConfig {
     @Config("module.geoip.attributes")
     public GeoIPModuleConfig setAttributes(String attributes)
     {
-        this.attributes = attributes;
+        this.attributes = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(attributes));
         return this;
     }
 
@@ -26,7 +30,7 @@ public class GeoIPModuleConfig {
         return database;
     }
 
-    public String getAttributes() {
+    public List<String> getAttributes() {
         return attributes;
     }
 }

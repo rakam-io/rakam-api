@@ -41,6 +41,10 @@ public class JsonHelper {
         }
     }
 
+    public static String encodeSafe(Object obj) throws JsonProcessingException {
+        return mapper.writeValueAsString(obj);
+    }
+
     public static String encode(Object obj) {
         return encode(obj, false);
     }
