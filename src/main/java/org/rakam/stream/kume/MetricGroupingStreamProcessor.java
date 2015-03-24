@@ -1,6 +1,5 @@
 package org.rakam.stream.kume;
 
-import org.rakam.analysis.query.FieldScript;
 import org.rakam.stream.MetricGroupingStreamHandler;
 import org.rakam.stream.MetricStreamHandler;
 import org.rakam.kume.Cluster;

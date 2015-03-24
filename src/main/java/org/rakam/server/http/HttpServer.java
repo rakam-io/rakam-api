@@ -20,7 +20,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import org.rakam.kume.Cluster;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.HostAddress;
 import org.rakam.util.JsonHelper;
@@ -48,7 +47,7 @@ import static org.rakam.util.Lambda.produceLambda;
  * Created by buremba on 20/12/13.
  */
 public class HttpServer {
-    final static Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
+    final static Logger LOGGER = LoggerFactory.getLogger(HttpServer.class);
     private static String REQUEST_HANDLER_ERROR_MESSAGE = "Request handler method %s.%s couldn't converted to request handler lambda expression: \n %s";
 
     public final RouteMatcher routeMatcher;

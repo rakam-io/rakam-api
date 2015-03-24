@@ -1,6 +1,5 @@
 package org.rakam.stream.kume;
 
-import org.rakam.analysis.query.FieldScript;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.service.crdt.set.GSetService;
 import org.rakam.realtime.AggregationType;

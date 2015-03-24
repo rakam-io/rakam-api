@@ -1,8 +1,9 @@
-package org.rakam.collection.event.datastore.kafka;
+package org.rakam.collection.adapter.kafka;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Longs;
+import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.cluster.Broker;
@@ -36,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -45,6 +47,7 @@ import static java.lang.String.format;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/02/15 00:01.
  */
+@Singleton
 public class KafkaOffsetManager {
     private final static Logger LOGGER = Logger.getLogger(KafkaOffsetManager.class);
     private final KafkaSimpleConsumerManager consumerManager;
@@ -188,6 +191,10 @@ public class KafkaOffsetManager {
         builder.append(" SELECT * FROM stream");
         IntStream.range(0, i).mapToObj(id -> " UNION SELECT * FROM view"+id).forEach(builder::append);
         return builder.toString();
+    }
+
+    public Map<String, Long> getOffset(String project, Set<String> collections) {
+        return null;
     }
 
     private Map<String, Long> getTopicOffsets(List<String> topics) {

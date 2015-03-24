@@ -1,6 +1,8 @@
 package org.rakam.plugin.user.storage.hibernate;
 
+import com.facebook.presto.jdbc.internal.guava.base.Throwables;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Joiner;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -13,6 +15,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.LongMapper;
@@ -23,12 +26,14 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
@@ -86,14 +91,96 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
     @Override
     public QueryResult filter(String project, List<FilterCriteria> filters, int limit, int offset) {
+        String filterQuery = IntStream.range(0, filters.size())
+                .mapToObj(index -> buildPredicate(filters.get(index), index))
+                .collect(Collectors.joining(" AND "));
+
+        List<Column> metadata1 = getMetadata(project);
+
+        Object[] objects = filters.stream()
+                .map(filter -> convertSqlValue(metadata1.stream()
+                        .filter(p -> p.getName().equals(filter.getAttribute()))
+                        .findFirst().get(), filter.getValue()))
+                .filter(f -> f != null).toArray();
+
         String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
+        String where = filterQuery.isEmpty() ? "" : " WHERE " + filterQuery;
 
-        CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() -> dao.createQuery(format("SELECT %s FROM %s LIMIT %s OFFSET %s",
-                columns, config.getTable(), limit, offset)).map(mapper).list());
+        CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() ->
+                bind(dao.createQuery(format("SELECT %s FROM %s %s LIMIT %s OFFSET %s",
+                columns,
+                config.getTable(),
+                where,
+                limit,
+                offset)).map(mapper), objects).list());
 
-        CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() -> dao.createQuery(format("SELECT count(*) FROM %s", config.getTable())).map(new LongMapper(1)).first());
+        CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() ->
+                bind(dao.createQuery(format("SELECT count(*) FROM %s %s", config.getTable(), where))
+                        .map(new LongMapper(1)), objects).first());
 
         return new QueryResult(getMetadata(project), data.join(), new QueryResult.Stat(totalResult.join()), null);
+    }
+
+    private Object convertSqlValue(Column column, Object o) {
+        switch (column.getType()) {
+            case DATE:
+                return new java.sql.Date(ZonedDateTime.parse(String.valueOf(o)).toEpochSecond()*1000);
+            case TIME:
+                return new java.sql.Date(ZonedDateTime.parse(String.valueOf(o)).toEpochSecond());
+            case STRING:
+                return String.valueOf(o);
+            case LONG:
+                return ((Number) o).longValue();
+            case DOUBLE:
+                return ((Number) o).doubleValue();
+            case BOOLEAN:
+                return ((Boolean) o).booleanValue();
+            case ARRAY:
+                ArrayList<String> objects = Lists.newArrayList();
+                ((ArrayNode) o).elements().forEachRemaining(a -> objects.add(a.textValue()));
+                try {
+                    return dao.getConnection().createArrayOf("varchar", objects.toArray());
+                } catch (SQLException e) {
+                    throw Throwables.propagate(e);
+                }
+            default:
+                throw new IllegalStateException();
+
+        }
+    }
+
+    private <T> Query<T> bind(Query<T> query, Object[] params) {
+        for (int i = 0; i < params.length; i++) {
+            query.bind(i, params[i]);
+        }
+        return query;
+    }
+
+    private String buildPredicate(FilterCriteria filter, int variableIdx) {
+        switch (filter.getType()) {
+            case $lte:
+                return format("%s <= :var%s", filter.getAttribute(), variableIdx);
+            case $lt:
+                return format("%s <= :var%s", filter.getAttribute(), variableIdx);
+            case $gt:
+                return format("%s > :var%s", filter.getAttribute(), variableIdx);
+            case $gte:
+                return format("%s >= :var%s", filter.getAttribute(), variableIdx);
+            case $contains:
+            case $eq:
+                return format("%s = :var%s", filter.getAttribute(), variableIdx);
+//            case $in:
+            case $regex:
+                return format("%s ~ :var%s", filter.getAttribute(), variableIdx);
+            case $starts_with:
+                return format("%s LIKE :var%s || '%'", filter.getAttribute(), filter.getValue());
+            case $is_null:
+                return format("%s is null", filter.getAttribute());
+            case $is_set:
+                return format("%s is not null", filter.getAttribute());
+            default:
+                throw new IllegalStateException();
+        }
     }
 
     @Override

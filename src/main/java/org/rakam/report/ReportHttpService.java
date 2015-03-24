@@ -133,7 +133,7 @@ public class ReportHttpService implements HttpService {
         try {
             statement = (Query) sqlParser.createStatement(query.asText());
         } catch (ParsingException e) {
-            response.send("result", encode(errorMessage("unable to parse query", 400))).end();
+            response.send("result", encode(errorMessage("unable to parse query: "+e.getErrorMessage(), 400))).end();
             return;
         }
 

@@ -4,9 +4,11 @@ import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.client.StatementStats;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
 import com.facebook.presto.jdbc.internal.guava.util.concurrent.ThreadFactoryBuilder;
+import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
+import javax.ws.rs.NotFoundException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -36,29 +38,57 @@ public class PrestoQuery implements QueryExecution {
         QUERY_EXECUTOR.execute(new Runnable() {
             @Override
             public void run() {
-                client.advance();
-                if (client.isFailed()) {
-                    com.facebook.presto.jdbc.internal.client.QueryError error = client.current().getError();
-                    QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
-                    result.complete(new QueryResult(null, null, queryError));
-                } else if (!client.isValid()) {
-                    Optional.ofNullable(client.finalResults().getData())
-                            .ifPresent((newResults) -> newResults.forEach(data::add));
+                while(client.isValid()) {
+                    client.advance();
+                    if (client.isFailed()) {
+                        com.facebook.presto.jdbc.internal.client.QueryError error = client.current().getError();
+                        QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
+                        result.complete(new QueryResult(null, null, queryError));
+                    } else if (!client.isValid()) {
+                        Optional.ofNullable(client.finalResults().getData())
+                                .ifPresent((newResults) -> newResults.forEach(data::add));
 
-                    List<SchemaField> columns = Lists.newArrayList();
-                    List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
-                    for (int i = 0; i < internalColumns.size(); i++) {
-                        com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
-                        columns.add(new SchemaField(c.getName(), FieldType.valueOf(c.getType()), true));
+                        List<SchemaField> columns = Lists.newArrayList();
+                        List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
+                        for (int i = 0; i < internalColumns.size(); i++) {
+                            com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
+                            columns.add(new SchemaField(c.getName(), fromPrestoType(c.getType()), true));
+                        }
+                        result.complete(new QueryResult(columns, data, null));
+                    } else {
+                        Optional.ofNullable(client.current().getData())
+                                .ifPresent((newResults) -> newResults.forEach(data::add));
                     }
-                    result.complete(new QueryResult(columns, data, null));
-                } else {
-                    Optional.ofNullable(client.current().getData())
-                            .ifPresent((newResults) -> newResults.forEach(data::add));
-                    run();
                 }
             }
         });
+    }
+
+    public static FieldType fromPrestoType(String prestoType) {
+
+        switch (prestoType) {
+            case StandardTypes.BIGINT:
+                return FieldType.LONG;
+            case StandardTypes.ARRAY:
+                return FieldType.ARRAY;
+            case StandardTypes.BOOLEAN:
+                return FieldType.BOOLEAN;
+            case StandardTypes.DATE:
+                return FieldType.DATE;
+            case StandardTypes.DOUBLE:
+                return FieldType.DOUBLE;
+            case StandardTypes.HYPER_LOG_LOG:
+                return FieldType.HYPERLOGLOG;
+            case StandardTypes.VARCHAR:
+                return FieldType.STRING;
+            case StandardTypes.TIME:
+            case StandardTypes.TIME_WITH_TIME_ZONE:
+            case StandardTypes.TIMESTAMP:
+            case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
+                return FieldType.TIME;
+            default:
+                throw new NotFoundException();
+        }
     }
 
     @Override
@@ -78,7 +108,7 @@ public class PrestoQuery implements QueryExecution {
 
     @Override
     public boolean isFinished() {
-        return !client.isValid();
+        return result.isDone();
     }
 
     @Override

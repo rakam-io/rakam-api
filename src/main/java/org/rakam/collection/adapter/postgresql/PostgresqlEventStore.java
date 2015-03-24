@@ -1,4 +1,4 @@
-package org.rakam.collection.event.datastore;
+package org.rakam.collection.adapter.postgresql;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;

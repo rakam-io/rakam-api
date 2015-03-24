@@ -1,4 +1,4 @@
-package org.rakam.analysis.query;
+package org.rakam.stream.kume;
 
 import org.rakam.util.json.JsonElement;
 import org.rakam.util.json.JsonObject;

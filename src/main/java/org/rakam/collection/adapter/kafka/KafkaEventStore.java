@@ -1,4 +1,4 @@
-package org.rakam.collection.event.datastore.kafka;
+package org.rakam.collection.adapter.kafka;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
@@ -119,9 +119,8 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
         if(executorService == null) {
             ThreadFactory build = new ThreadFactoryBuilder()
                     .setNameFormat("kafka-offset-worker")
-                    .setUncaughtExceptionHandler((t, e) -> {
-                        LOGGER.error("An error occurred while executing processor queries for Kafka.", e);
-                    }).build();
+                    .setUncaughtExceptionHandler((t, e) ->
+                            LOGGER.error("An error occurred while executing processor queries for Kafka.", e)).build();
             executorService = Executors.newSingleThreadScheduledExecutor(build);
         }
 //        executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);

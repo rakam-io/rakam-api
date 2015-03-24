@@ -8,7 +8,6 @@ import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import org.rakam.collection.CollectionModule;
 import org.rakam.collection.event.EventCollectorHttpService;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ClusterBuilder;
@@ -44,7 +43,6 @@ public class ServiceStarter {
         }
 
         Bootstrap app = new Bootstrap(
-                new CollectionModule(),
                 binder -> {
                     binder.bind(Cluster.class).toProvider(() -> {
                         return new ClusterBuilder().start();
