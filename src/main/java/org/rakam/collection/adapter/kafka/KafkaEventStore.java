@@ -20,6 +20,7 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.rakam.collection.event.EventStore;
 import org.rakam.config.KafkaConfig;
+import org.rakam.report.Event;
 import org.rakam.util.HostAddress;
 import org.rakam.util.KByteArrayOutputStream;
 import org.slf4j.Logger;
@@ -87,7 +88,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     }
 
     @Override
-    public void store(org.rakam.model.Event event) {
+    public void store(Event event) {
         // TODO: find a way to make it zero-copy
         DatumWriter writer = new GenericDatumWriter(event.properties().getSchema());
         KByteArrayOutputStream out = buffer.get();

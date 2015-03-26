@@ -194,7 +194,8 @@ public class KafkaOffsetManager {
     }
 
     public Map<String, Long> getOffset(String project, Set<String> collections) {
-        return null;
+        return getTopicOffsets(collections.stream()
+                .map(col -> project+"_"+col.toLowerCase()).collect(Collectors.toList()));
     }
 
     private Map<String, Long> getTopicOffsets(List<String> topics) {

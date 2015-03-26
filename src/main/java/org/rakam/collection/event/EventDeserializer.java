@@ -21,7 +21,7 @@ import org.codehaus.jackson.node.NullNode;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
-import org.rakam.model.Event;
+import org.rakam.report.Event;
 import org.rakam.plugin.EventMapper;
 import org.rakam.util.Tuple;
 

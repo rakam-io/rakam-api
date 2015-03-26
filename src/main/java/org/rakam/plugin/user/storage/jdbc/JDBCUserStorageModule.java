@@ -1,4 +1,4 @@
-package org.rakam.plugin.user.storage.hibernate;
+package org.rakam.plugin.user.storage.jdbc;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
@@ -13,7 +13,7 @@ import static io.airlift.configuration.ConfigurationModule.bindConfig;
  * Created by buremba <Burak Emre Kabakcı> on 17/03/15 18:08.
  */
 @AutoService(RakamModule.class)
-public class HibernateUserStorageModule extends RakamModule implements ConditionalModule {
+public class JDBCUserStorageModule extends RakamModule implements ConditionalModule {
     @Override
     protected void setup(Binder binder) {
         bindConfig(binder).to(JDBCUserStorageConfig.class);

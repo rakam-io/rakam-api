@@ -8,7 +8,7 @@ import org.apache.avro.generic.GenericData;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.model.Event;
+import org.rakam.report.Event;
 import org.rakam.plugin.EventMapper;
 
 import java.io.IOException;

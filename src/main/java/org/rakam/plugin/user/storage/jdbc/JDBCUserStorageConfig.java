@@ -1,4 +1,4 @@
-package org.rakam.plugin.user.storage.hibernate;
+package org.rakam.plugin.user.storage.jdbc;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;

@@ -8,13 +8,16 @@ import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import org.rakam.analysis.stream.StreamHttpService;
 import org.rakam.collection.event.EventCollectorHttpService;
+import org.rakam.config.MetadataConfig;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ClusterBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.UserHttpService;
+import org.rakam.report.PrestoConfig;
 import org.rakam.report.ReportHttpService;
 import org.rakam.server.http.ForHttpServer;
 import org.rakam.server.http.HttpServer;
@@ -72,6 +75,7 @@ public class ServiceStarter {
             httpServices.addBinding().to(ReportHttpService.class);
             httpServices.addBinding().to(UserHttpService.class);
             httpServices.addBinding().to(EventCollectorHttpService.class);
+            httpServices.addBinding().to(StreamHttpService.class);
 
             ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
 
@@ -92,6 +96,9 @@ public class ServiceStarter {
                     .annotatedWith(ForHttpServer.class)
                     .to(NioEventLoopGroup.class)
                     .in(Scopes.SINGLETON);
+
+            bindConfig(binder).to(PrestoConfig.class);
+            bindConfig(binder).to(MetadataConfig.class);
         }
     }
 }

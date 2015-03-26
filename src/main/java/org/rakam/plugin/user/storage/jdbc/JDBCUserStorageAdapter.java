@@ -1,4 +1,4 @@
-package org.rakam.plugin.user.storage.hibernate;
+package org.rakam.plugin.user.storage.jdbc;
 
 import com.facebook.presto.jdbc.internal.guava.base.Throwables;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
@@ -98,6 +98,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
         List<Column> metadata1 = getMetadata(project);
 
         Object[] objects = filters.stream()
+                .filter(filter -> filter.getOperator().requiresValue())
                 .map(filter -> convertSqlValue(metadata1.stream()
                         .filter(p -> p.getName().equals(filter.getAttribute()))
                         .findFirst().get(), filter.getValue()))
@@ -157,7 +158,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     private String buildPredicate(FilterCriteria filter, int variableIdx) {
-        switch (filter.getType()) {
+        switch (filter.getOperator()) {
             case $lte:
                 return format("%s <= :var%s", filter.getAttribute(), variableIdx);
             case $lt:

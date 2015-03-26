@@ -10,19 +10,19 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 17/03/15 04:30.
  */
-public class FilterCriteria {
+public class FilterCriteria implements FilterClause{
     @NotNull
     private final String attribute;
     @NotNull
-    private final FilterOperator type;
+    private final FilterOperator operator;
     private final Object value;
 
     @JsonCreator
     public FilterCriteria(@JsonProperty("attribute") String attribute,
-                          @JsonProperty("type") FilterOperator type,
+                          @JsonProperty("operator") FilterOperator operator,
                           @JsonProperty("value") Object value) {
         this.attribute = checkNotNull(attribute, "attribute is null");
-        this.type = checkNotNull(type, "type is null");
+        this.operator = checkNotNull(operator, "type is null");
         this.value = value;
     }
 
@@ -30,11 +30,16 @@ public class FilterCriteria {
         return attribute;
     }
 
-    public FilterOperator getType() {
-        return type;
+    public FilterOperator getOperator() {
+        return operator;
     }
 
     public Object getValue() {
         return value;
+    }
+
+    @Override
+    public boolean isConnector() {
+        return false;
     }
 }

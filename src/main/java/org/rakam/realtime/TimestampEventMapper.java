@@ -3,7 +3,7 @@ package org.rakam.realtime;
 import com.facebook.presto.jdbc.internal.guava.collect.ImmutableList;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.model.Event;
+import org.rakam.report.Event;
 import org.rakam.plugin.EventMapper;
 import org.rakam.collection.event.FieldDependencyBuilder;
 

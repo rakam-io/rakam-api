@@ -1,4 +1,4 @@
-package org.rakam.model;
+package org.rakam.report;
 
 import com.google.auto.value.AutoValue;
 import org.apache.avro.generic.GenericData;
@@ -7,7 +7,7 @@ import org.apache.avro.generic.GenericData;
  * Created by buremba on 21/12/13.
  */
 @AutoValue
-public abstract class Event implements Entry {
+public abstract class Event {
     public abstract String project();
     public abstract String collection();
     public abstract GenericData.Record properties();

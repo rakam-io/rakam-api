@@ -1,5 +1,6 @@
 package org.rakam.collection.adapter.postgresql;
 
+import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
 import io.airlift.configuration.ConfigurationFactory;
@@ -14,6 +15,7 @@ import static io.airlift.configuration.ConfigurationModule.bindConfig;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:23.
  */
+@AutoService(RakamModule.class)
 public class PostgresqlCollectorModule extends RakamModule implements ConditionalModule {
 
     @Override

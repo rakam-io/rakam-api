@@ -44,6 +44,7 @@ public class PrestoQuery implements QueryExecution {
                         com.facebook.presto.jdbc.internal.client.QueryError error = client.current().getError();
                         QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
                         result.complete(new QueryResult(null, null, queryError));
+                        break;
                     } else if (!client.isValid()) {
                         Optional.ofNullable(client.finalResults().getData())
                                 .ifPresent((newResults) -> newResults.forEach(data::add));
@@ -55,6 +56,7 @@ public class PrestoQuery implements QueryExecution {
                             columns.add(new SchemaField(c.getName(), fromPrestoType(c.getType()), true));
                         }
                         result.complete(new QueryResult(columns, data, null));
+                        break;
                     } else {
                         Optional.ofNullable(client.current().getData())
                                 .ifPresent((newResults) -> newResults.forEach(data::add));

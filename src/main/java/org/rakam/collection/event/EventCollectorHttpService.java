@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
-import org.rakam.model.Event;
+import org.rakam.report.Event;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.server.http.HttpService;

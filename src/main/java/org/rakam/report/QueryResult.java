@@ -17,6 +17,7 @@ public class QueryResult {
     private final Stat stat;
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private Map<String, Object> properties;
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final QueryError error;
 
     public QueryResult(List<? extends SchemaField> columns, List<List<Object>> result, QueryError error) {

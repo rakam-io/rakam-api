@@ -3,7 +3,7 @@ package org.rakam.collection.adapter.postgresql;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.rakam.collection.event.EventStore;
-import org.rakam.model.Event;
+import org.rakam.report.Event;
 import org.rakam.report.metadata.postgresql.PostgresqlConfig;
 
 /**

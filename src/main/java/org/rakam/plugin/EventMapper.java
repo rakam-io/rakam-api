@@ -1,7 +1,7 @@
 package org.rakam.plugin;
 
 import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.model.Event;
+import org.rakam.report.Event;
 
 /**
  * Created by buremba on 26/05/14.
