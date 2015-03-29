@@ -8,8 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public enum TableStrategy {
     STREAM,
-    INCREMENTAL,
-    BATCH;
+    INCREMENTAL;
 
     @JsonCreator
     public static TableStrategy get(String name) {

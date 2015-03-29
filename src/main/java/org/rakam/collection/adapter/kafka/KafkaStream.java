@@ -1,27 +1,20 @@
 package org.rakam.collection.adapter.kafka;
 
-import com.facebook.presto.jdbc.internal.guava.base.Joiner;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.inject.Inject;
 import org.rakam.analysis.stream.EventStream;
+import org.rakam.analysis.stream.StreamHttpService;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
-import org.rakam.plugin.user.ConnectorFilterCriteria;
-import org.rakam.plugin.user.FilterClause;
-import org.rakam.plugin.user.FilterCriteria;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
+import org.rakam.server.http.RakamHttpRequest;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.lang.String.format;
 
@@ -45,149 +38,96 @@ public class KafkaStream implements EventStream {
 
 
     @Override
-    public Supplier<CompletableFuture<Stream<Map<String, Object>>>> subscribe(String project, Map<String, FilterClause> collections, List<String> columns) {
-        return new KafkaEventSupplier(project, collections, columns);
+    public EventStreamer subscribe(String project, List<StreamHttpService.CollectionStreamQuery> collections, List<String> columns, RakamHttpRequest.StreamResponse response) {
+        return new KafkaEventSupplier(project, collections, columns, response);
     }
 
-    public class KafkaEventSupplier implements Supplier<CompletableFuture<Stream<Map<String, Object>>>> {
+    public class KafkaEventSupplier implements EventStreamer {
+        private final RakamHttpRequest.StreamResponse response;
         private Map<String, Long> lastOffsets;
-        private final Map<String, FilterClause> collections;
+        private final List<StreamHttpService.CollectionStreamQuery> collections;
+        private final Set<String> collectionNames;
         private final String project;
-        private final List<String> columns;
+        private final List<SchemaField> columns;
 
         private Map<String, List<SchemaField>> metadata;
 
-        public KafkaEventSupplier(String project, Map<String, FilterClause> collections, List<String> columns) {
-            this.lastOffsets = offsetManager.getOffset(project, collections.keySet());
+        public KafkaEventSupplier(String project, List<StreamHttpService.CollectionStreamQuery> collections, List<String> columns, RakamHttpRequest.StreamResponse response) {
+            this.collectionNames = collections.stream().map(c -> c.collection).collect(Collectors.toSet());
+
+            this.lastOffsets = offsetManager.getOffset(project, collectionNames);
             this.collections = collections;
             this.project = project;
-            this.columns = columns;
+            List<SchemaField> sample = getMetadata().get(collections.get(0));
+
+            if (columns != null) {
+                this.columns = columns.stream().map(colName -> sample.stream()
+                        .filter(field -> field.getName().equals(colName)).findFirst().get())
+                        .collect(Collectors.toList());
+            } else {
+                this.columns = null;
+            }
+
+            this.response = response;
         }
 
         private Map<String, List<SchemaField>> getMetadata() {
-            if(metadata == null) {
+            if (metadata == null) {
                 metadata = metastore.getSchemas(project).entrySet().stream()
-                        .filter(entry -> collections.containsKey(entry.getKey()))
+                        .filter(entry -> collectionNames.contains(entry.getKey()))
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             }
             return metadata;
         }
 
-        private FieldType getColumnType(String collection, String column) {
-            return getMetadata().get(collection).stream()
-                    .filter(s -> s.getName().equals(column))
-                    .findAny().get().getType();
-        }
-
         @Override
-        public CompletableFuture<Stream<Map<String, Object>>> get() {
-            Map<String, Long> offsets = offsetManager.getOffset(project, collections.keySet());
-            List<CompletableFuture> futures = new ArrayList<>(collections.size());
-            AtomicReference<Stream<Map<String, Object>>> stream = new AtomicReference<>();
+        public void sync() {
+            Map<String, Long> offsets = offsetManager.getOffset(project, collectionNames);
 
-            if(columns == null) {
-                collections.forEach((key, filter) -> {
-                    List<String> schemaFields = getMetadata().get(key).stream()
-                            .map(SchemaField::getName)
-                            .collect(Collectors.toList());
+            String query = collections.stream().map(e -> {
+                String select;
 
-                    CompletableFuture<Void> f = prestoExecutor.executeQuery(
-                            format("select %s from %s where _offset >= %d and _offset < %d %s limit 1000",
-                                    columns == null ? "*" : Joiner.on(", ").join(columns),
-                                    prestoConfig.getHotStorageConnector() + "." + project + "." + key,
-                                    this.lastOffsets.get(project + "_" + key.toLowerCase()),
-                                    offsets.get(project + "_" + key.toLowerCase()),
-                                    filter == null ? "" : buildPredicate(key, filter)))
-                            .getResult()
-                            .thenAccept((data) ->
-                                    stream.getAndUpdate(mapStream -> {
-                                        Stream<Map<String, Object>> s1 = data.getResult().stream()
-                                                .map(row -> createMap(row, schemaFields));
-                                        return mapStream == null ? s1 : Stream.concat(mapStream, s1);
-                                    }));
-                    futures.add(f);
-                });
-                return CompletableFuture.allOf(futures.stream().toArray(CompletableFuture[]::new))
-                        .thenApply((v) -> {
-                            lastOffsets = offsets;
-                            return stream.get();
-                        });
-            } else {
-                String query = collections.entrySet().stream().map(entry -> {
-                    String collection = entry.getKey();
-                    FilterClause filter = entry.getValue();
-                    return format("select %s from %s where _offset >= %d and _offset < %d %s limit 1000",
-                            columns == null ? "*" : Joiner.on(", ").join(columns),
-                            prestoConfig.getHotStorageConnector() + "." + project + "." + collection,
-                            this.lastOffsets.get(project + "_" + collection.toLowerCase()),
-                            offsets.get(project + "_" + collection.toLowerCase()),
-                            filter == null ? "" : buildPredicate(collection, filter));
-                }).collect(Collectors.joining(" union "));
+                List<SchemaField> cols = columns != null ? columns : getMetadata().get(e.collection);
+                select = format("'{\"_collection\": \"%s\",'||'", e.collection) + cols.stream()
+                        .map(field -> {
+                            switch (field.getType()) {
+                                case LONG:
+                                case DOUBLE:
+                                case BOOLEAN:
+                                    return format("\"%1$s\": '||COALESCE(cast(%1$s as varchar), 'null')||'", field.getName());
+                                default:
+                                    return format("\"%1$s\": \"'||COALESCE(replace(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
+                            }
 
-                return prestoExecutor.executeQuery(query).getResult()
-                        .thenApply(r -> {
-                            lastOffsets = offsets;
-                            return r.getResult().stream().map(row -> createMap(row, columns));
-                        });
-            }
-        }
+                        })
+                        .collect(Collectors.joining(", ")) + " }'";
 
-        // TODO: find a way to return values without transforming the data.
-        private Map createMap(List<Object> values, List<String> keys) {
-            HashMap<String, Object> map = new HashMap();
-            for (int i = 0; i < keys.size(); i++) {
-                map.put(keys.get(i), values.get(i));
-            }
-            return map;
-        }
 
-        private String buildPredicate(String collection, FilterClause filter) {
-            StringBuilder builder = new StringBuilder();
-            build(builder, collection, filter);
-            return builder.toString();
-        }
-
-        public void build(StringBuilder builder, String collection, FilterClause clause) {
-            if(clause.isConnector()) {
-                builder.append("(");
-                for (FilterClause filterClause : ((ConnectorFilterCriteria) clause).getClauses()) {
-                    build(builder, collection, filterClause);
+                long offsetNow = offsets.get(project + "_" + e.collection.toLowerCase());
+                long offsetBefore = this.lastOffsets.get(project + "_" + e.collection.toLowerCase());
+                if (offsetBefore == offsetNow) {
+                    return null;
                 }
-                builder.append(")");
-            } else {
-                FilterCriteria clause1 = (FilterCriteria) clause;
-                builder.append(buildPredicate(clause1, getColumnType(collection, clause1.getAttribute())));
-            }
+                return format("select %s from %s where _offset > %d and _offset <= %d %s",
+                        select,
+                        prestoConfig.getHotStorageConnector() + "." + project + "." + e.collection,
+                        offsetBefore,
+                        offsetNow,
+                        e.filter == null ? "" : " AND " + e.filter.toString());
+
+            }).filter(d -> d != null).collect(Collectors.joining(" union all "));
+
+            if (query.isEmpty())
+                return;
+
+            prestoExecutor.executeQuery(query + " limit 1000").getResult()
+                    .thenAccept(r -> {
+                        lastOffsets = offsets;
+                        response.send("data", "[" + r.getResult().stream()
+                                .map(s -> (String) s.get(0)).collect(Collectors.joining(",")) + "]");
+                    });
         }
 
-        private String buildPredicate(FilterCriteria filter, FieldType type) {
-            Object o = convertPrestoValue(type, filter.getValue());
-
-            switch (filter.getOperator()) {
-                case $lte:
-                    return format("%s <= %s", filter.getAttribute(), o);
-                case $lt:
-                    return format("%s <= %s", filter.getAttribute(), o);
-                case $gt:
-                    return format("%s > %s", filter.getAttribute(), o);
-                case $gte:
-                    return format("%s >= %s", filter.getAttribute(), o);
-                case $contains:
-                case $eq:
-                    return format("%s = %s", filter.getAttribute(), o);
-//            case $in:
-                case $regex:
-                    return format("%s ~ %s", filter.getAttribute(), o);
-                case $starts_with:
-                    return format("%s LIKE %s", filter.getAttribute(), o);
-                case $is_null:
-                    return format("%s is null", filter.getAttribute());
-                case $is_set:
-                    return format("%s is not null", filter.getAttribute());
-                default:
-                    throw new IllegalStateException();
-            }
-        }
     }
 
     private Object convertPrestoValue(FieldType type, Object o) {

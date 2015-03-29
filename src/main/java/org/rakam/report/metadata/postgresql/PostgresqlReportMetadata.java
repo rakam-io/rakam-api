@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import org.rakam.analysis.MaterializedView;
+import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.Report;
 import org.rakam.analysis.TableStrategy;
 import org.rakam.report.metadata.ReportMetadataStore;
@@ -43,15 +43,14 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
         }
     };
 
-    ResultSetMapper<MaterializedView> materializedViewMapper = new ResultSetMapper<MaterializedView>() {
+    ResultSetMapper<ContinuousQuery> materializedViewMapper = new ResultSetMapper<ContinuousQuery>() {
         @Override
-        public MaterializedView map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+        public ContinuousQuery map(int index, ResultSet r, StatementContext ctx) throws SQLException {
             Time last_update = r.getTime("last_update");
-            return new MaterializedView(
+            return new ContinuousQuery(
                     r.getString("project"),
                     r.getString("name"), r.getString("query"),
                     TableStrategy.get(r.getString("strategy")),
-                    last_update == null ? null : last_update.toInstant(),
                     Arrays.asList((String[]) r.getArray("collections").getArray()),
                     r.getString("incremental_field"));
         }
@@ -99,14 +98,15 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public void createMaterializedView(MaterializedView report) {
-        dao.createStatement("INSERT INTO materialized_views (project, name, query, strategy, collections, incremental_field) VALUES (:project, :name, :query, :strategy, :collections, :incrementalField)")
+    public void createContinuousQuery(ContinuousQuery report) {
+        dao.createStatement("INSERT INTO materialized_views (project, name, query, strategy, collections, last_update, incremental_field) VALUES (:project, :name, :query, :strategy, :collections, :last_update :incremental_field)")
                 .bind("project", report.project)
                 .bind("name", report.name)
                 .bind("query", report.query)
                 .bind("strategy", report.strategy)
                 .bind("collections", report.collections.toArray(new String[report.collections.size()]))
-                .bind("incrementalField", report.incrementalField)
+                .bind("last_update", new java.sql.Time(Instant.now().toEpochMilli()))
+                .bind("incremental_field", report.incrementalField)
                 .execute();
     }
 
@@ -132,14 +132,14 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public Map<String, List<MaterializedView>> getAllMaterializedViews(TableStrategy strategy) {
+    public Map<String, List<ContinuousQuery>> getAllContinuousQueries(TableStrategy strategy) {
         return dao.createQuery("SELECT project, name, query, strategy, collections, last_update, incremental_field from materialized_views WHERE strategy = :strategy")
                 .bind("strategy", strategy.value()).map(materializedViewMapper).list()
                 .stream().collect(Collectors.groupingBy(k -> k.project));
     }
 
     @Override
-    public void updateMaterializedView(String project, String viewName, Instant lastUpdate) {
+    public void updateContinuousQuery(String project, String viewName, Instant lastUpdate) {
         dao.createStatement("UPDATE materialized_views SET last_update = :lastUpdate WHERE project = :project AND name = :name")
                 .bind("project", project)
                 .bind("name", viewName).bind("lastUpdate", Timestamp.from(lastUpdate)).execute();

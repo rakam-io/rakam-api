@@ -38,29 +38,26 @@ public class PrestoQuery implements QueryExecution {
         QUERY_EXECUTOR.execute(new Runnable() {
             @Override
             public void run() {
-                while(client.isValid()) {
-                    client.advance();
-                    if (client.isFailed()) {
-                        com.facebook.presto.jdbc.internal.client.QueryError error = client.current().getError();
-                        QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
-                        result.complete(new QueryResult(null, null, queryError));
-                        break;
-                    } else if (!client.isValid()) {
-                        Optional.ofNullable(client.finalResults().getData())
-                                .ifPresent((newResults) -> newResults.forEach(data::add));
+                while (client.isValid() && client.advance()) {
+                    Optional.ofNullable(client.current().getData())
+                            .ifPresent((newResults) -> newResults.forEach(data::add));
+                }
 
-                        List<SchemaField> columns = Lists.newArrayList();
-                        List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
-                        for (int i = 0; i < internalColumns.size(); i++) {
-                            com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
-                            columns.add(new SchemaField(c.getName(), fromPrestoType(c.getType()), true));
-                        }
-                        result.complete(new QueryResult(columns, data, null));
-                        break;
-                    } else {
-                        Optional.ofNullable(client.current().getData())
-                                .ifPresent((newResults) -> newResults.forEach(data::add));
+                if (client.isFailed()) {
+                    com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
+                    QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
+                    result.complete(new QueryResult(null, null, queryError));
+                } else {
+                    Optional.ofNullable(client.finalResults().getData())
+                            .ifPresent((newResults) -> newResults.forEach(data::add));
+
+                    List<SchemaField> columns = Lists.newArrayList();
+                    List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
+                    for (int i = 0; i < internalColumns.size(); i++) {
+                        com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
+                        columns.add(new SchemaField(c.getName(), fromPrestoType(c.getType()), true));
                     }
+                    result.complete(new QueryResult(columns, data, null));
                 }
             }
         });

@@ -1,6 +1,6 @@
 package org.rakam.plugin.user.storage;
 
-import org.rakam.plugin.user.FilterCriteria;
+import com.facebook.presto.sql.tree.Expression;
 import org.rakam.report.QueryResult;
 
 import java.util.List;
@@ -11,6 +11,6 @@ import java.util.Map;
  */
 public interface UserStorage {
     public void create(String project, Map<String, Object> properties);
-    public QueryResult filter(String project, List<FilterCriteria> filters, int limit, int offset);
+    public QueryResult filter(String project, Expression filterExpression, int limit, int offset);
     public List<Column> getMetadata(String project);
 }

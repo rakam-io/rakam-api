@@ -10,10 +10,9 @@ import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.MaterializedView;
+import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.Report;
 import org.rakam.analysis.query.QueryFormatter;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.server.http.ForHttpServer;
 import org.rakam.server.http.HttpService;
@@ -37,21 +36,39 @@ import static org.rakam.util.JsonHelper.encode;
 @Path("/reports")
 public class ReportHttpService implements HttpService {
     private final ReportMetadataStore database;
-    private final EventSchemaMetastore metastore;
     private final SqlParser sqlParser;
     private final PrestoQueryExecutor queryExecutor;
     private final PrestoConfig prestoConfig;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public ReportHttpService(ReportMetadataStore database, EventSchemaMetastore metastore, PrestoConfig prestoConfig, PrestoQueryExecutor queryExecutor) {
+    public ReportHttpService(ReportMetadataStore database,PrestoConfig prestoConfig, PrestoQueryExecutor queryExecutor) {
         this.database = database;
-        this.metastore = metastore;
         this.prestoConfig = prestoConfig;
         this.queryExecutor = queryExecutor;
         this.sqlParser = new SqlParser();
     }
 
+    /**
+     * @api {post} /reports/list Get lists of the reports
+     * @apiVersion 0.1.0
+     * @apiName ListReports
+     * @apiGroup report
+     * @apiDescription Returns lists of the reports created for the project.
+     *
+     * @apiError Project does not exist.
+     *
+     * @apiErrorExample {json} Error-Response:
+     *     HTTP/1.1 500 Internal Server Error
+     *     {"success": false, "message": "Project does not exists"}
+     *
+     * @apiParam {String} project   Project tracker code
+     *
+     * @apiSuccess {String} firstname Firstname of the User.
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/reports/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
+     */
     @JsonRequest
     @Path("/list")
     public Object list(JsonNode json) {
@@ -63,25 +80,115 @@ public class ReportHttpService implements HttpService {
         return database.getReports(project.asText());
     }
 
+    /**
+     * @api {post} /reports/create/view Create new view
+     * @apiVersion 0.1.0
+     * @apiName CreateView
+     * @apiGroup report
+     * @apiDescription Creates a new view for specified SQL query.
+     * Reports allow you to execute batch queries over the data-set.
+     * Rakam caches the report result and serve the cached data when you request.
+     * You can also trigger an update using using '/view/update' endpoint.
+     * This feature is similar to MATERIALIZED VIEWS in RDBMSs.
+     *
+     * @apiError Project does not exist.
+     *
+     * @apiErrorExample {json} Error-Response:
+     *     HTTP/1.1 500 Internal Server Error
+     *     {"success": false, "message": "Project does not exists"}
+     *
+     * @apiParam {String} project   Project tracker code
+     * @apiParam {String} name   Project tracker code
+     * @apiParam {String} query   Project tracker code
+     * @apiParam {Object} [options]  Additional information about the report
+     *
+     * @apiParamExample {json} Request-Example:
+     *     {"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/reports/create/view' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
+     */
     @JsonRequest
-    @Path("/add/report")
+    @Path("/create/view")
     public JsonNode addReport(Report report) {
         database.saveReport(report);
         return JsonHelper.jsonObject()
                 .put("message", "Report successfully saved");
     }
 
+    /**
+     * @api {post} /reports/create/continuous-query Create new continuous query
+     * @apiVersion 0.1.0
+     * @apiName CreateContinuousQuery
+     * @apiGroup report
+     * @apiDescription Creates a new continuous query for specified SQL query.
+     * Rakam will process data in batches keep the result of query in-memory all the time.
+     * Compared to views, continuous queries continuously aggregate the data on the fly and the result is always available either in-memory or disk.
+     *
+     * @apiError Project does not exist.
+     *
+     * @apiErrorExample {json} Error-Response:
+     *     HTTP/1.1 500 Internal Server Error
+     *     {"success": false, "message": "Project does not exists"}
+     *
+     * @apiParam {String} project   Project tracker code
+     * @apiParam {String} name   Continuous query name
+     * @apiParam {String} query   The query that will be continuously aggregated
+     * @apiParam {String="stream","incremental"} strategy  Additional information about the report
+     *
+     * @apiParamExample {json} Request-Example:
+     *     {"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/reports/add/view' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
+     */
     @JsonRequest
-    @Path("/add/materialized-view")
-    public JsonNode addMaterializedView(MaterializedView report) {
-        database.createMaterializedView(report);
+    @Path("/create/continuous-query")
+    public JsonNode createContinuousQuery(ContinuousQuery report) {
+        database.createContinuousQuery(report);
         return JsonHelper.jsonObject()
                 .put("message", "Materialized view successfully created");
     }
 
+    /**
+     * @api {post} /reports/metadata Get report metadata
+     * @apiVersion 0.1.0
+     * @apiName GetReportMetadata
+     * @apiGroup report
+     * @apiDescription Returns created reports.
+     *
+     * @apiError Project does not exist.
+     * @apiError Report does not exist.
+     *
+     * @apiErrorExample {json} Error-Response:
+     *     HTTP/1.1 500 Internal Server Error
+     *     {"success": false, "message": "Project does not exists"}
+     *
+     * @apiParam {String} project   Project tracker code
+     * @apiParam {String} name   Report name
+     *
+     * @apiParamExample {json} Request-Example:
+     *     {"project": "projectId", "name": "Yearly Visits"}
+     *
+     * @apiSuccess (200) {String} project Project tracker code
+     * @apiSuccess (200) {String} name  Report name
+     * @apiSuccess (200) {String} query  The SQL query of the report
+     * @apiSuccess (200) {Object} [options]  The options that are given when the report is created
+     *
+     * @apiSuccessExample {json} Success-Response:
+     *     HTTP/1.1 200 OK
+     *     {
+     *       "project": "projectId",
+     *       "name": "Yearly Visits",
+     *       "query": "SELECT year(time), count(1) from visits GROUP BY 1",
+     *     }
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/reports/metadata' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
+     */
     @JsonRequest
-    @Path("/get")
-    public Object get(JsonNode json) {
+    @Path("/metadata")
+    public Object metadata(JsonNode json) {
         JsonNode project = json.get("project");
         if (project == null) {
             return errorMessage("project parameter is required", 400);
@@ -94,6 +201,28 @@ public class ReportHttpService implements HttpService {
         return database.getReport(project.asText(), name.asText());
     }
 
+    /**
+     * @api {post} /reports/execute Execute query
+     * @apiVersion 0.1.0
+     * @apiName ExecuteQuery
+     * @apiGroup event
+     * @apiDescription Executes SQL Queries on the fly and returns the result directly to the user
+     *
+     * @apiError Project does not exist.
+     * @apiError Query Error
+     *
+     * @apiErrorExample {json} Error-Response:
+     *     HTTP/1.1 500 Internal Server Error
+     *     {"success": false, "message": "Error Message"}
+     *
+     * @apiParam {String} project   Project tracker code
+     * @apiParam {Number} offset   Offset results
+     * @apiParam {Number} limit   Limit results
+     * @apiParam {Object[]} [filters]  Predicate that will be applied to user data
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/reports/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId", "limit": 100, "offset": 100, "filters": }'
+     */
     @GET
     @Path("/execute")
     public void execute(RakamHttpRequest request) {
@@ -174,20 +303,6 @@ public class ReportHttpService implements HttpService {
                 }
             }
         }, 500, TimeUnit.MILLISECONDS);
-    }
-
-    @JsonRequest
-    @Path("/explain")
-    public Object explain(JsonNode json) {
-        JsonNode project = json.get("project");
-
-        if (project == null || !project.isTextual()) {
-            return errorMessage("project parameter is required", 400);
-        }
-
-        return metastore.getSchemas(project.asText());//.entrySet()
-        //.stream()
-        //.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().toString()));
     }
 
     @Inject

@@ -205,9 +205,13 @@ public class RakamHttpRequest implements HttpRequest {
             if(ctx.isRemoved()){
                 throw new IllegalStateException();
             }
-            ByteBuf msg = Unpooled.wrappedBuffer(("event:"+event + "\ndata:" + data + "\n\n").getBytes(UTF_8));
+            ByteBuf msg = Unpooled.wrappedBuffer(("event:"+event + "\ndata: " + data.replaceAll("\n", "\ndata: ") + "\n\n").getBytes(UTF_8));
             ctx.writeAndFlush(msg);
             return this;
+        }
+
+        public boolean isClosed() {
+            return ctx.isRemoved();
         }
 
         public StreamResponse send(String event, Object data) {

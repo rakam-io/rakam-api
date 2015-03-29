@@ -9,7 +9,7 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.rakam.analysis.stream.StreamHttpService;
-import org.rakam.collection.event.EventCollectorHttpService;
+import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.MetadataConfig;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ClusterBuilder;
@@ -74,7 +74,7 @@ public class ServiceStarter {
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(ReportHttpService.class);
             httpServices.addBinding().to(UserHttpService.class);
-            httpServices.addBinding().to(EventCollectorHttpService.class);
+            httpServices.addBinding().to(EventHttpService.class);
             httpServices.addBinding().to(StreamHttpService.class);
 
             ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);

@@ -2,7 +2,7 @@ package org.rakam.report.metadata;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.rakam.analysis.MaterializedView;
+import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.Report;
 import org.rakam.analysis.TableStrategy;
 import org.rakam.kume.Cluster;
@@ -35,7 +35,7 @@ public class KumeReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public void createMaterializedView(MaterializedView report) {
+    public void createContinuousQuery(ContinuousQuery report) {
 
     }
 
@@ -55,12 +55,12 @@ public class KumeReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public Map<String, List<MaterializedView>> getAllMaterializedViews(TableStrategy strategy) {
+    public Map<String, List<ContinuousQuery>> getAllContinuousQueries(TableStrategy strategy) {
         return null;
     }
 
     @Override
-    public void updateMaterializedView(String project, String viewName, Instant lastUpdate) {
+    public void updateContinuousQuery(String project, String viewName, Instant lastUpdate) {
 
     }
 

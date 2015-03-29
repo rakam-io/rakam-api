@@ -10,7 +10,7 @@ import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
-import org.rakam.analysis.MaterializedView;
+import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.query.QueryFormatter;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.report.metadata.ReportMetadataStore;
@@ -71,9 +71,9 @@ public class ViewHttpService {
             return;
         }
 
-        MaterializedView view;
+        ContinuousQuery view;
         try {
-            view = JsonHelper.readSafe(data.get(0), MaterializedView.class);
+            view = JsonHelper.readSafe(data.get(0), ContinuousQuery.class);
         } catch (IOException e) {
             response.send("result", encode(errorMessage("json couldn't parsed", 400))).end();
             return;
@@ -104,7 +104,6 @@ public class ViewHttpService {
                     return prefix.getSuffix() + "." + view.project + "." + node.getName().getSuffix();
                 }).process(statement, 0);
                 break;
-            case BATCH:
             case INCREMENTAL:
                 new QueryFormatter(builder, node -> {
                     QualifiedName prefix = node.getName().getPrefix().orElse(new QualifiedName(prestoConfig.getColdStorageConnector()));
@@ -121,7 +120,7 @@ public class ViewHttpService {
                 view.name,
                 builder.toString());
 
-        database.createMaterializedView(view);
+        database.createContinuousQuery(view);
 
         PrestoQuery prestoQuery = queryExecutor.executeQuery(query);
         handleQueryExecution(eventLoopGroup, response, prestoQuery);

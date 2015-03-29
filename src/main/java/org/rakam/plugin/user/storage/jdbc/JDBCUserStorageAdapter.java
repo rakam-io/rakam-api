@@ -2,21 +2,20 @@ package org.rakam.plugin.user.storage.jdbc;
 
 import com.facebook.presto.jdbc.internal.guava.base.Throwables;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
-import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.facebook.presto.sql.ExpressionFormatter;
+import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Joiner;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.rakam.collection.FieldType;
-import org.rakam.plugin.user.FilterCriteria;
 import org.rakam.plugin.user.storage.Column;
 import org.rakam.plugin.user.storage.UserStorage;
-import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryError;
 import org.rakam.report.QueryResult;
-import org.rakam.report.QueryStats;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 
@@ -26,14 +25,13 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
@@ -90,98 +88,46 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public QueryResult filter(String project, List<FilterCriteria> filters, int limit, int offset) {
-        String filterQuery = IntStream.range(0, filters.size())
-                .mapToObj(index -> buildPredicate(filters.get(index), index))
-                .collect(Collectors.joining(" AND "));
-
-        List<Column> metadata1 = getMetadata(project);
-
-        Object[] objects = filters.stream()
-                .filter(filter -> filter.getOperator().requiresValue())
-                .map(filter -> convertSqlValue(metadata1.stream()
-                        .filter(p -> p.getName().equals(filter.getAttribute()))
-                        .findFirst().get(), filter.getValue()))
-                .filter(f -> f != null).toArray();
+    public QueryResult filter(String project, Expression filterExpression, int limit, int offset) {
+        //  ExpressionFormatter is not the best way to do this but the basic expressions will work for all the SQL databases.
+        // TODO: implement functions specific to sql databases.
+        String filterQuery;
+        if(filterExpression != null) {
+            filterQuery = new ExpressionFormatter.Formatter().process(filterExpression, null);
+        }else {
+            filterQuery = null;
+        }
 
         String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
-        String where = filterQuery.isEmpty() ? "" : " WHERE " + filterQuery;
+        String where = filterQuery == null || filterQuery.isEmpty() ? "" : " WHERE " + filterQuery;
 
         CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() ->
-                bind(dao.createQuery(format("SELECT %s FROM %s %s LIMIT %s OFFSET %s",
-                columns,
-                config.getTable(),
-                where,
-                limit,
-                offset)).map(mapper), objects).list());
+                    dao.createQuery(format("SELECT %s FROM %s %s LIMIT %s OFFSET %s",
+                            columns,
+                            config.getTable(),
+                            where,
+                            limit,
+                            offset)).map(mapper).list());
 
         CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() ->
-                bind(dao.createQuery(format("SELECT count(*) FROM %s %s", config.getTable(), where))
-                        .map(new LongMapper(1)), objects).first());
+                dao.createQuery(format("SELECT count(*) FROM %s %s", config.getTable(), where))
+                        .map(new LongMapper(1)).first());
 
-        return new QueryResult(getMetadata(project), data.join(), new QueryResult.Stat(totalResult.join()), null);
-    }
-
-    private Object convertSqlValue(Column column, Object o) {
-        switch (column.getType()) {
-            case DATE:
-                return new java.sql.Date(ZonedDateTime.parse(String.valueOf(o)).toEpochSecond()*1000);
-            case TIME:
-                return new java.sql.Date(ZonedDateTime.parse(String.valueOf(o)).toEpochSecond());
-            case STRING:
-                return String.valueOf(o);
-            case LONG:
-                return ((Number) o).longValue();
-            case DOUBLE:
-                return ((Number) o).doubleValue();
-            case BOOLEAN:
-                return ((Boolean) o).booleanValue();
-            case ARRAY:
-                ArrayList<String> objects = Lists.newArrayList();
-                ((ArrayNode) o).elements().forEachRemaining(a -> objects.add(a.textValue()));
-                try {
-                    return dao.getConnection().createArrayOf("varchar", objects.toArray());
-                } catch (SQLException e) {
-                    throw Throwables.propagate(e);
-                }
-            default:
-                throw new IllegalStateException();
-
+        List<List<Object>> dataJoin;
+        Long totalResultJoin;
+        // TODO: shame on me.
+        try {
+            dataJoin = data.join();
+            totalResultJoin = totalResult.join();
+        } catch (CompletionException e) {
+            if(e.getCause() instanceof UnableToExecuteStatementException) {
+                return new QueryResult(null, null, null, new QueryError(e.getMessage(), null, 0));
+            } else {
+                throw Throwables.propagate(e);
+            }
         }
-    }
 
-    private <T> Query<T> bind(Query<T> query, Object[] params) {
-        for (int i = 0; i < params.length; i++) {
-            query.bind(i, params[i]);
-        }
-        return query;
-    }
-
-    private String buildPredicate(FilterCriteria filter, int variableIdx) {
-        switch (filter.getOperator()) {
-            case $lte:
-                return format("%s <= :var%s", filter.getAttribute(), variableIdx);
-            case $lt:
-                return format("%s <= :var%s", filter.getAttribute(), variableIdx);
-            case $gt:
-                return format("%s > :var%s", filter.getAttribute(), variableIdx);
-            case $gte:
-                return format("%s >= :var%s", filter.getAttribute(), variableIdx);
-            case $contains:
-            case $eq:
-                return format("%s = :var%s", filter.getAttribute(), variableIdx);
-//            case $in:
-            case $regex:
-                return format("%s ~ :var%s", filter.getAttribute(), variableIdx);
-            case $starts_with:
-                return format("%s LIKE :var%s || '%'", filter.getAttribute(), filter.getValue());
-            case $is_null:
-                return format("%s is null", filter.getAttribute());
-            case $is_set:
-                return format("%s is not null", filter.getAttribute());
-            default:
-                throw new IllegalStateException();
-        }
+        return new QueryResult(getMetadata(project), dataJoin, new QueryResult.Stat(totalResultJoin), null);
     }
 
     @Override
@@ -255,34 +201,4 @@ public class JDBCUserStorageAdapter implements UserStorage {
         }
     }
 
-    private class JDBCQueryExecution implements QueryExecution {
-        private final CompletableFuture<Object[]> users;
-        private final String project;
-
-        public JDBCQueryExecution(CompletableFuture<Object[]> users, String project) {
-            this.users = users;
-            this.project = project;
-        }
-
-        @Override
-        public QueryStats currentStats() {
-            if (users.isDone()) {
-                return new QueryStats(100, "FINISHED", 0, 0, 0, 0, 0, 0);
-            } else {
-                return new QueryStats(0, "PROCESSING", 0, 0, 0, 0, 0, 0);
-            }
-        }
-
-        @Override
-        public boolean isFinished() {
-            return users.isDone();
-        }
-
-        @Override
-        public CompletableFuture<QueryResult> getResult() {
-            return users.thenApply(data -> new QueryResult(getMetadata(project),
-                    (List<List<Object>>) data[0],
-                    new QueryResult.Stat((Long) data[1]), null));
-        }
-    }
 }

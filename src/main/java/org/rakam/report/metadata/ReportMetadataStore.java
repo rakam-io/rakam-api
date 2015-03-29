@@ -1,6 +1,6 @@
 package org.rakam.report.metadata;
 
-import org.rakam.analysis.MaterializedView;
+import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.Report;
 import org.rakam.analysis.TableStrategy;
 
@@ -12,17 +12,17 @@ import java.util.Map;
  * Created by buremba <Burak Emre Kabakcı> on 21/07/14 05:21.
  */
 public interface ReportMetadataStore {
-    void saveReport(Report report);
+    public void saveReport(Report report);
 
-    void createMaterializedView(MaterializedView report);
+    public void createContinuousQuery(ContinuousQuery report);
 
-    void deleteReport(String project, String name);
+    public void deleteReport(String project, String name);
 
-    Report getReport(String project, String name);
+    public Report getReport(String project, String name);
 
-    List<Report> getReports(String project);
+    public List<Report> getReports(String project);
 
-    Map<String, List<MaterializedView>> getAllMaterializedViews(TableStrategy strategy);
+    Map<String, List<ContinuousQuery>> getAllContinuousQueries(TableStrategy strategy);
 
-    void updateMaterializedView(String project, String viewName, Instant lastUpdate);
+    void updateContinuousQuery(String project, String viewName, Instant lastUpdate);
 }

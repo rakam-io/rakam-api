@@ -35,6 +35,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -86,11 +87,10 @@ public class HttpServer {
     }
 
 
-
     private void registerPaths(Set<HttpService> httpServicePlugins) {
         httpServicePlugins.forEach(service -> {
             String mainPath = service.getClass().getAnnotation(Path.class).value();
-            if(mainPath == null) {
+            if (mainPath == null) {
                 throw new IllegalStateException(format("Classes that implement HttpService must have %s annotation.", Path.class.getCanonicalName()));
             }
             RouteMatcher.MicroRouteMatcher microRouteMatcher = new RouteMatcher.MicroRouteMatcher(routeMatcher, mainPath);
@@ -131,7 +131,7 @@ public class HttpServer {
 //                        throw new IllegalStateException(format("Methods that have @JsonRequest annotation must also include one of HTTPStatus annotations. %s", method.toString()));
                         try {
                             microRouteMatcher.add(lastPath, HttpMethod.POST, createPostRequestHandler(service, method));
-                            if(method.getParameterTypes()[0].equals(JsonNode.class))
+                            if (method.getParameterTypes()[0].equals(JsonNode.class))
                                 microRouteMatcher.add(lastPath, HttpMethod.GET, createGetRequestHandler(service, method));
                         } catch (Throwable e) {
                             throw new RuntimeException(format(REQUEST_HANDLER_ERROR_MESSAGE,
@@ -175,6 +175,9 @@ public class HttpServer {
     private static HttpRequestHandler createPostRequestHandler(HttpService service, Method method) throws Throwable {
 
         BiFunction<HttpService, Object, Object> function = generateJsonRequestHandler(method);
+
+        boolean isAsync = CompletionStage.class.isAssignableFrom(method.getReturnType());
+
         Class<?> jsonClazz = method.getParameterTypes()[0];
         return (request) -> request.bodyHandler(obj -> {
             Object json;
@@ -190,25 +193,39 @@ public class HttpServer {
                 returnError(request, "json couldn't parsed: " + e.getMessage(), 400);
                 return;
             }
-
-            handleJsonRequest(service, request, function, json, false);
+            if (isAsync) {
+                handleAsyncJsonRequest(service, request, function, json, false);
+            } else {
+                handleJsonRequest(service, request, function, json, false);
+            }
         });
     }
 
     private static HttpRequestHandler createGetRequestHandler(HttpService service, Method method) throws Throwable {
         BiFunction<HttpService, Object, Object> function = generateJsonRequestHandler(method);
 
-        if(method.getParameterTypes()[0].equals(ObjectNode.class)) {
+        boolean isAsync = CompletionStage.class.isAssignableFrom(method.getReturnType());
+
+        if (method.getParameterTypes()[0].equals(ObjectNode.class)) {
             return (request) -> {
                 ObjectNode json = JsonHelper.generate(request.params());
 
                 boolean prettyPrint = JsonHelper.getOrDefault(json, "prettyprint", false);
-                handleJsonRequest(service, request, function, json, prettyPrint);
+                if (isAsync) {
+                    handleAsyncJsonRequest(service, request, function, json, prettyPrint);
+                } else {
+                    handleJsonRequest(service, request, function, json, prettyPrint);
+                }
             };
-        }else {
+
+        } else {
             return (request) -> {
                 ObjectNode json = JsonHelper.generate(request.params());
-                handleJsonRequest(service, request, function, json, false);
+                if (isAsync) {
+                    handleAsyncJsonRequest(service, request, function, json, false);
+                } else {
+                    handleJsonRequest(service, request, function, json, false);
+                }
             };
         }
     }
@@ -229,29 +246,50 @@ public class HttpServer {
         }
     }
 
+    private static void handleAsyncJsonRequest(HttpService serviceInstance, RakamHttpRequest request, BiFunction<HttpService, Object, Object> function, Object json, boolean prettyPrint) {
+        CompletionStage apply = (CompletionStage) function.apply(serviceInstance, json);
+        apply.whenComplete(new BiConsumer<Object, Throwable>() {
+            @Override
+            public void accept(Object result, Throwable ex) {
+                if (ex != null) {
+                    if (ex instanceof RakamException) {
+                        int statusCode = ((RakamException) ex).getStatusCode();
+                        String encode = JsonHelper.encode(errorMessage(ex.getMessage(), statusCode), prettyPrint);
+                        request.response(encode, HttpResponseStatus.valueOf(statusCode)).end();
+                    } else {
+                        request.response(ex.getMessage()).end();
+                    }
+                } else {
+                    String response = JsonHelper.encode(result, prettyPrint);
+                    request.response(response).end();
+                }
+            }
+        });
+    }
+
     public void bind() throws InterruptedException {
-            ServerBootstrap b = new ServerBootstrap();
-            b.option(ChannelOption.SO_BACKLOG, 1024);
-            b.group(bossGroup, workerGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        protected void initChannel(SocketChannel ch) throws Exception {
-                            ChannelPipeline p = ch.pipeline();
-                            p.addLast("httpCodec", new HttpServerCodec());
-                            p.addLast("serverHandler", new HttpServerHandler(routeMatcher));
+        ServerBootstrap b = new ServerBootstrap();
+        b.option(ChannelOption.SO_BACKLOG, 1024);
+        b.group(bossGroup, workerGroup)
+                .channel(NioServerSocketChannel.class)
+                .handler(new LoggingHandler(LogLevel.INFO))
+                .childHandler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        ChannelPipeline p = ch.pipeline();
+                        p.addLast("httpCodec", new HttpServerCodec());
+                        p.addLast("serverHandler", new HttpServerHandler(routeMatcher));
 //                            p.addLast("aggregator", new HttpObjectAggregator(65000));
 //                            p.addLast("webSocketHandler", new WebSocketServerHandler());
-                        }
-                    });
+                    }
+                });
 
-            HostAddress address = config.getAddress();
-            channel = b.bind(address.getHostText(), address.getPort()).sync().channel();
+        HostAddress address = config.getAddress();
+        channel = b.bind(address.getHostText(), address.getPort()).sync().channel();
     }
 
     public void stop() {
-        if(channel != null)
+        if (channel != null)
             channel.close().syncUninterruptibly();
         bossGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();

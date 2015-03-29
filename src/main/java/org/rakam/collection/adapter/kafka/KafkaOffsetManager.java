@@ -18,7 +18,7 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
-import org.rakam.analysis.MaterializedView;
+import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.TableStrategy;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.config.KafkaConfig;
@@ -81,7 +81,7 @@ public class KafkaOffsetManager {
                 .flatMap(e -> e.getValue().stream().map(c -> e.getKey() + "_" + c.toLowerCase()))
                 .collect(Collectors.toList());
 
-        Map<String, List<MaterializedView>> views = reportMetadata.getAllMaterializedViews(TableStrategy.STREAM);
+        Map<String, List<ContinuousQuery>> views = reportMetadata.getAllContinuousQueries(TableStrategy.STREAM);
 
         Map<String, Long> topicOffsets = getTopicOffsets(allTopics);
         FutureUtil.MultipleFutureListener listeners = new FutureUtil.MultipleFutureListener(topicOffsets.size());
@@ -173,7 +173,7 @@ public class KafkaOffsetManager {
         }
     }
 
-    private String buildQuery(String project, String collection, long startOffset, long endOffset, List<MaterializedView> reports) {
+    private String buildQuery(String project, String collection, long startOffset, long endOffset, List<ContinuousQuery> reports) {
         StringBuilder builder = new StringBuilder();
         builder.append(format("WITH %3$s AS (SELECT * FROM %1$s.%2$s.%3$s WHERE _offset > %4$d AND _offset < %5$d) ",
                 prestoConfig.getHotStorageConnector(), project, collection, startOffset, endOffset));
@@ -182,7 +182,7 @@ public class KafkaOffsetManager {
         builder.append(format(", stream as (INSERT INTO %1$s.%2$s.%3$s SELECT * FROM %3$s)",
                 prestoConfig.getColdStorageConnector(), project, collection));
         if(reports != null) {
-            for (MaterializedView report : reports.stream()
+            for (ContinuousQuery report : reports.stream()
                     .filter(p -> p.collections.contains(collection)).collect(Collectors.toList())) {
                 builder.append(format(", view%d as (INSERT INTO %s.%s.%s (%s)) ",
                         i++, prestoConfig.getColdStorageConnector(), project, report.name, report.query));

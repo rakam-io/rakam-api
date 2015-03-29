@@ -1,13 +1,14 @@
 package org.rakam.analysis.stream;
 
-import com.facebook.presto.jdbc.internal.guava.collect.Maps;
+import com.facebook.presto.sql.parser.ParsingException;
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
-import org.rakam.plugin.user.FilterClause;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.server.http.ForHttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -17,16 +18,13 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import static java.lang.String.format;
 import static org.rakam.server.http.HttpServer.errorMessage;
+import static org.rakam.server.http.HttpServer.returnError;
 import static org.rakam.util.JsonHelper.encode;
 
 /**
@@ -35,19 +33,49 @@ import static org.rakam.util.JsonHelper.encode;
 @Path("/stream")
 public class StreamHttpService implements HttpService {
     private final EventStream stream;
+    private final SqlParser sqlParser;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
     public StreamHttpService(EventStream stream) {
         this.stream = stream;
+        this.sqlParser = new SqlParser();
     }
 
+    /**
+     * @api {get} /stream/subscribe Subscribe Event Stream
+     * @apiVersion 0.1.0
+     * @apiName SubscribeStream
+     * @apiGroup stream
+     * @apiDescription Subscribes the event stream periodically to the client.
+     *
+     * @apiError Project does not exist.
+     * @apiError User does not exist.
+     *
+     * @apiSuccessExample {json} Success-Response:
+     *     HTTP/1.1 200 OK
+     *     {"messages": [{"id": 1, "content": "Hello there!", "seen": false}]}
+     *
+     * @apiParam {String} project   Project tracker code
+     * @apiParam {String[]} [columns]    The columns that will be fetched to the user. All columns will be returned if this parameter is not specified.
+     * @apiParam {Object[]} collections    The query that specifies collections that will be fetched
+     * @apiParam {String} collections.collection    Collection identifier name
+     * @apiParam {String} [collections.filter]    The SQL predicate expression that will filter for the events of the collection
+     *
+     * @apiParamExample {json} Request-Example:
+     *     {"project": "projectId", "collections": [{collection: "pageView", filter: "url LIKE 'http://rakam.io/docs%'"}]}
+     *
+     * @apiSuccess (200) {Object[]} result  List of events. The fields are dynamic based on the collection schema.
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/stream/subsribe/get?data={"project": "projectId", "collections": [{collection: "pageView", filter: "url LIKE 'http://rakam.io/docs%'"}]}' -H 'Content-Type: text/event-stream;charset=UTF-8'
+     */
     @GET
     @Path("/subscribe")
     public void subscribe(RakamHttpRequest request) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
-//            request.response("the response should accept text/event-stream", HttpResponseStatus.NOT_ACCEPTABLE).end();
-//            return;
+            request.response("the response should accept text/event-stream", HttpResponseStatus.NOT_ACCEPTABLE).end();
+            return;
         }
 
         RakamHttpRequest.StreamResponse response = request.streamResponse();
@@ -64,15 +92,33 @@ public class StreamHttpService implements HttpService {
             response.send("result", encode(errorMessage("json couldn't parsed", 400))).end();
             return;
         }
-        Map<String, FilterClause> collect = Maps.newHashMap();
-        query.collections.forEach(collection -> collect.put(collection, query.filters.get(collection)));
-        Supplier<CompletableFuture<Stream<Map<String, Object>>>> subscribe = stream.subscribe(query.project, collect, query.columns);
+        List<CollectionStreamQuery> collect;
+        try {
+            collect = query.collections.stream().map(collection -> {
+                Expression expression = null;
+                try {
+                    expression = collection.filter == null ? null : sqlParser.createExpression(collection.filter);
+                } catch (ParsingException e) {
+                    returnError(request, format("Couldn't parse %s: %s", collection.filter, e.getErrorMessage()), 400);
+                    throw e;
+                }
+                return new CollectionStreamQuery(collection.name, expression);
+            }).collect(Collectors.toList());
+        } catch (ParsingException e) {
+            return;
+        }
 
-        eventLoopGroup.scheduleWithFixedDelay(() -> subscribe.get()
-                .thenAccept(result -> {
-                    List<Map<String, Object>> collect1 = result.collect(Collectors.toList());
-                    response.send("data", collect1);
-                }), 0, 3, TimeUnit.SECONDS);
+        EventStream.EventStreamer subscribe = stream.subscribe(query.project, collect, query.columns, response);
+
+        eventLoopGroup.schedule(new Runnable() {
+            @Override
+            public void run() {
+                if(!response.isClosed()) {
+                    subscribe.sync();
+                    eventLoopGroup.schedule(this, 3, TimeUnit.SECONDS);
+                }
+            }
+        }, 3, TimeUnit.SECONDS);
     }
 
     @Inject
@@ -82,19 +128,38 @@ public class StreamHttpService implements HttpService {
 
     public static class StreamQuery {
         public final String project;
-        public final Map<String, FilterClause> filters;
-        public final  List<String> columns;
-        public final Set<String> collections;
+        public final List<StreamQueryRequest> collections;
+        public final List<String> columns;
 
         @JsonCreator
         public StreamQuery(@JsonProperty("project") String project,
-                           @JsonProperty("filters") Map<String, FilterClause> filters,
-                           @JsonProperty("collections") Set<String> collections,
+                           @JsonProperty("collections") List<StreamQueryRequest> collections,
                            @JsonProperty("columns") List<String> columns) {
             this.project = project;
-            this.filters = filters == null ? ImmutableMap.of() : filters;
             this.collections = collections;
             this.columns = columns;
+        }
+    }
+
+    public static class StreamQueryRequest {
+        public final String name;
+        public final String filter;
+
+        @JsonCreator
+        public StreamQueryRequest(@JsonProperty("name") String name,
+                                  @JsonProperty("filter") String filter) {
+            this.name = name;
+            this.filter = filter;
+        }
+    }
+
+    public static class CollectionStreamQuery {
+        public final String collection;
+        public final Expression filter;
+
+        public CollectionStreamQuery(String collection, Expression filter) {
+            this.collection = collection;
+            this.filter = filter;
         }
     }
 }

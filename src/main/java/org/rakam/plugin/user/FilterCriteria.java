@@ -10,7 +10,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 17/03/15 04:30.
  */
-public class FilterCriteria implements FilterClause{
+public class FilterCriteria implements FilterClause {
     @NotNull
     private final String attribute;
     @NotNull
