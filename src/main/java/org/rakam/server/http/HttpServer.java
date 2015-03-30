@@ -1,5 +1,6 @@
 package org.rakam.server.http;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
@@ -178,6 +179,12 @@ public class HttpServer {
 
         boolean isAsync = CompletionStage.class.isAssignableFrom(method.getReturnType());
 
+//        boolean returnString = false;
+//        if(isAsync) {
+//            Type returnType = ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0];
+//            returnString = returnType.equals(String.class);
+//        }
+
         Class<?> jsonClazz = method.getParameterTypes()[0];
         return (request) -> request.bodyHandler(obj -> {
             Object json;
@@ -260,8 +267,17 @@ public class HttpServer {
                         request.response(ex.getMessage()).end();
                     }
                 } else {
-                    String response = JsonHelper.encode(result, prettyPrint);
-                    request.response(response).end();
+                    if(result instanceof String) {
+                        request.response((String) result).end();
+                    } else {
+                        try {
+                            String encode = JsonHelper.encodeSafe(result, prettyPrint);
+                            request.response(encode).end();
+                        } catch (JsonProcessingException e) {
+                            request.response(format("Couldn't serialize class %s : %s",
+                                    result.getClass().getCanonicalName(), e.getMessage())).end();
+                        }
+                    }
                 }
             }
         });

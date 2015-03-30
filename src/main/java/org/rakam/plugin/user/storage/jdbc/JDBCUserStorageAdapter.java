@@ -8,6 +8,9 @@ import com.google.common.base.Joiner;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.rakam.collection.FieldType;
+import org.rakam.plugin.user.User;
+import org.rakam.plugin.user.UserHttpService.UserQuery.Sorting;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.storage.Column;
 import org.rakam.plugin.user.storage.UserStorage;
 import org.rakam.report.QueryError;
@@ -15,20 +18,25 @@ import org.rakam.report.QueryResult;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.Update;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 
+import javax.ws.rs.NotSupportedException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
@@ -43,6 +51,7 @@ import static java.lang.String.format;
 public class JDBCUserStorageAdapter implements UserStorage {
 
     private final JDBCUserStorageConfig config;
+    private final UserPluginConfig moduleConfig;
     private List<Column> metadata;
     Handle dao;
 
@@ -57,9 +66,21 @@ public class JDBCUserStorageAdapter implements UserStorage {
         }
     };
 
+    ResultSetMapper<User> userMapper = new ResultSetMapper<User>() {
+        @Override
+        public User map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+            HashMap<String, Object> properties = new HashMap<>();
+            for (Column column : getMetadata("project")) {
+                properties.put(column.getName(), r.getObject(column.getName()));
+            }
+            return new User(null, r.getString(1), properties);
+        }
+    };
+
     @Inject
-    public JDBCUserStorageAdapter(JDBCUserStorageConfig config) {
+    public JDBCUserStorageAdapter(JDBCUserStorageConfig config, UserPluginConfig moduleConfig) {
         this.config = config;
+        this.moduleConfig = moduleConfig;
 
         DBI dbi = new DBI(() -> getConnection());
         dao = dbi.open();
@@ -88,26 +109,36 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public QueryResult filter(String project, Expression filterExpression, int limit, int offset) {
+    public QueryResult filter(String project, Expression filterExpression, Sorting sortColumn, int limit, int offset) {
         //  ExpressionFormatter is not the best way to do this but the basic expressions will work for all the SQL databases.
         // TODO: implement functions specific to sql databases.
         String filterQuery;
-        if(filterExpression != null) {
+        if (filterExpression != null) {
             filterQuery = new ExpressionFormatter.Formatter().process(filterExpression, null);
-        }else {
+        } else {
             filterQuery = null;
         }
 
-        String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
+        List<Column> projectColumns = getMetadata(project);
+        String columns = Joiner.on(", ").join(projectColumns.stream().map(col -> col.getName()).toArray());
         String where = filterQuery == null || filterQuery.isEmpty() ? "" : " WHERE " + filterQuery;
 
+        if(sortColumn != null) {
+            if (!projectColumns.stream().anyMatch(col -> col.getName().equals(sortColumn.column))) {
+                throw new IllegalArgumentException(format("sorting column does not exist: %s", sortColumn.column));
+            }
+        }
+
+        String orderBy = sortColumn == null ? "" : format(" ORDER BY %s %s", sortColumn.column, sortColumn.order);
+
         CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() ->
-                    dao.createQuery(format("SELECT %s FROM %s %s LIMIT %s OFFSET %s",
-                            columns,
-                            config.getTable(),
-                            where,
-                            limit,
-                            offset)).map(mapper).list());
+                dao.createQuery(format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s",
+                        columns,
+                        config.getTable(),
+                        where,
+                        orderBy,
+                        limit,
+                        offset)).map(mapper).list());
 
         CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() ->
                 dao.createQuery(format("SELECT count(*) FROM %s %s", config.getTable(), where))
@@ -120,14 +151,14 @@ public class JDBCUserStorageAdapter implements UserStorage {
             dataJoin = data.join();
             totalResultJoin = totalResult.join();
         } catch (CompletionException e) {
-            if(e.getCause() instanceof UnableToExecuteStatementException) {
+            if (e.getCause() instanceof UnableToExecuteStatementException) {
                 return new QueryResult(null, null, null, new QueryError(e.getMessage(), null, 0));
             } else {
                 throw Throwables.propagate(e);
             }
         }
 
-        return new QueryResult(getMetadata(project), dataJoin, new QueryResult.Stat(totalResultJoin), null);
+        return new QueryResult(projectColumns, dataJoin, new QueryResult.Stat(totalResultJoin), null);
     }
 
     @Override
@@ -168,6 +199,78 @@ public class JDBCUserStorageAdapter implements UserStorage {
             metadata = columns;
         }
         return metadata;
+    }
+
+    @Override
+    public User getUser(String project, Object userId) {
+        String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
+
+        return dao.createQuery(format("SELECT %s FROM %s WHERE %s = %s",
+                columns,
+                config.getTable(),
+                moduleConfig.getIdentifierColumn(),
+                userId)).map(new ResultSetMapper<User>() {
+            @Override
+            public User map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+                HashMap<String, Object> properties = new HashMap<>();
+                for (Column column : getMetadata(project)) {
+                    properties.put(column.getName(), r.getObject(column.getName()));
+                }
+                return new User(project, userId, properties);
+            }
+        }).first();
+    }
+
+    @Override
+    public void setUserProperty(String project, Object user, String property, Object value) {
+        Optional<Column> any = getMetadata(project).stream().filter(column -> column.getName().equals(property)).findAny();
+        if(!any.isPresent()) {
+            throw new NotSupportedException("column is not exist");
+        }
+        Column column = any.get();
+
+        Update statement = dao.createStatement(format("UPDATE %s SET %s = :value WHERE %s = %s",
+                config.getTable(),
+                property,
+                moduleConfig.getIdentifierColumn(),
+                user));
+
+        switch (column.getType()) {
+            case DATE:
+                if(value instanceof CharSequence) {
+                    Instant parse = Instant.parse((CharSequence) value);
+                    statement.bind("value", java.sql.Date.from(parse));
+                    break;
+                }
+            case TIME:
+                if(value instanceof CharSequence) {
+                    Instant parse = Instant.parse((CharSequence) value);
+                    statement.bind("value", java.sql.Time.from(parse));
+                    break;
+                }
+            case LONG:
+                if(value instanceof Number) {
+                    statement.bind("value", ((Number) value).longValue());
+                    break;
+                }
+            case DOUBLE:
+                if(value instanceof Number) {
+                    statement.bind("value", ((Number) value).doubleValue());
+                    break;
+                }
+            case STRING:
+                statement.bind("value", value.toString());
+                break;
+            case BOOLEAN:
+                if(value instanceof Boolean) {
+                    statement.bind("value", value);
+                    break;
+                }
+            default:
+                throw new UnsupportedOperationException();
+        }
+
+        statement.execute();
     }
 
     static FieldType fromSql(int sqlType) {

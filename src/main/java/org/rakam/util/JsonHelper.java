@@ -45,6 +45,10 @@ public class JsonHelper {
         return mapper.writeValueAsString(obj);
     }
 
+    public static String encodeSafe(Object obj, boolean prettyPrint) throws JsonProcessingException {
+        return (prettyPrint ? prettyMapper: mapper).writeValueAsString(obj);
+    }
+
     public static String encode(Object obj) {
         return encode(obj, false);
     }
