@@ -13,10 +13,6 @@ public class JDBCUserStorageConfig {
     private List<String> columns;
     private String sessionColumn;
     private String lastSeenColumn;
-    private String url;
-    private String table;
-    private String username;
-    private String password = "";
 
     //    @Config("plugin.user.storage.jdbc.session_column")
 //    public void setSessionColumn(String sessionColumn) {
@@ -47,44 +43,5 @@ public class JDBCUserStorageConfig {
 
     public String getLastSeenColumn() {
         return lastSeenColumn;
-    }
-
-    @Config("plugin.user.storage.jdbc.url")
-    public JDBCUserStorageConfig setUrl(String configLocation) {
-        this.url = configLocation;
-        return this;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    @Config("plugin.user.storage.jdbc.username")
-    public JDBCUserStorageConfig setUsername(String username) {
-        this.username = username;
-        return this;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public JDBCUserStorageConfig setPassword(String password) {
-        this.password = password;
-        return this;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    @Config("plugin.user.storage.jdbc.table")
-    public JDBCUserStorageConfig setTable(String table) {
-        this.table = table;
-        return this;
-    }
-
-    public String getTable() {
-        return table;
     }
 }

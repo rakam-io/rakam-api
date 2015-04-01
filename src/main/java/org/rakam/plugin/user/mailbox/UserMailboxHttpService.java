@@ -8,11 +8,13 @@ import org.rakam.util.json.JsonResponse;
 import javax.ws.rs.Path;
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 17/03/15 00:12.
  */
 @Path("/user/mailbox")
-public class UserMailboxHttpService implements HttpService {
+public class UserMailboxHttpService extends HttpService {
     private final UserMailboxStorage storage;
 
     @Inject
@@ -50,7 +52,7 @@ public class UserMailboxHttpService implements HttpService {
     @Path("/get")
     public JsonResponse get(GetMessagesQuery query) {
         return new JsonResponse() {
-            public final List<Message> messages = storage.getMessages(query.userId, Ordering.DESC, query.limit);
+            public final List<Message> messages = storage.getMessages(query.project, query.user, query.limit, query.offset);
         };
     }
 
@@ -79,7 +81,7 @@ public class UserMailboxHttpService implements HttpService {
     @JsonRequest
     @Path("/mark_as_read")
     public JsonResponse markAsRead(MarkAsReadQuery query) {
-        storage.markMessagesAsRead(query.user, query.messageIds);
+        storage.markMessagesAsRead(query.project, query.user, query.messageIds);
         return new JsonResponse() {
             public final boolean success = true;
         };
@@ -108,7 +110,7 @@ public class UserMailboxHttpService implements HttpService {
      */
     @Path("/send")
     public JsonResponse send(SendQuery query) {
-        storage.send(query.user, query.message);
+        storage.send(query.project, query.user, query.message);
         return new JsonResponse() {
             public final boolean success = true;
         };
@@ -116,13 +118,15 @@ public class UserMailboxHttpService implements HttpService {
 
     public static class GetMessagesQuery {
         public final String project;
-        public final String userId;
+        public final String user;
         public final int limit;
+        public final int offset;
 
-        public GetMessagesQuery(String project, String userId, int limit) {
-            this.project = project;
-            this.userId = userId;
+        public GetMessagesQuery(String project, String user, int limit, int offset) {
+            this.project = checkNotNull(project, "project is required");
+            this.user = checkNotNull(user, "user is required");
             this.limit = limit;
+            this.offset = offset;
         }
     }
 
@@ -132,8 +136,8 @@ public class UserMailboxHttpService implements HttpService {
         public final int[] messageIds;
 
         public MarkAsReadQuery(String project, String user, int[] messageIds) {
-            this.project = project;
-            this.user = user;
+            this.project = checkNotNull(project, "project is required");
+            this.user = checkNotNull(user, "user is required");
             this.messageIds = messageIds;
         }
     }
@@ -144,8 +148,8 @@ public class UserMailboxHttpService implements HttpService {
         public final String message;
 
         public SendQuery(String project, String user, String message) {
-            this.project = project;
-            this.user = user;
+            this.project = checkNotNull(project, "project is required");
+            this.user = checkNotNull(user, "user is required");
             this.message = message;
         }
     }

@@ -1,4 +1,4 @@
-package org.rakam.collection.adapter.postgresql;
+package org.rakam.collection.adapter.jdbc;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;

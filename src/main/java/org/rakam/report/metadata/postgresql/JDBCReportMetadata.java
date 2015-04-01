@@ -7,6 +7,7 @@ import com.google.inject.name.Named;
 import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.Report;
 import org.rakam.analysis.TableStrategy;
+import org.rakam.plugin.user.mailbox.jdbc.JDBCUserMailboxConfig;
 import org.rakam.report.metadata.ReportMetadataStore;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
@@ -19,7 +20,6 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,7 +30,7 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 10/02/15 18:03.
  */
 @Singleton
-public class PostgresqlReportMetadata implements ReportMetadataStore {
+public class JDBCReportMetadata implements ReportMetadataStore {
     Handle dao;
 
     ResultSetMapper<Report> reportMapper = new ResultSetMapper<Report>() {
@@ -39,6 +39,7 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
             return new Report(
                     r.getString("project"),
                     r.getString("name"), r.getString("query"),
+                    // we can' use nice postgresql features since we also want to support mysql
                     JsonHelper.read(r.getString("options"), JsonNode.class));
         }
     };
@@ -51,15 +52,15 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
                     r.getString("project"),
                     r.getString("name"), r.getString("query"),
                     TableStrategy.get(r.getString("strategy")),
-                    Arrays.asList((String[]) r.getArray("collections").getArray()),
+                    JsonHelper.read(r.getString("collections")),
                     r.getString("incremental_field"));
         }
     };
 
     @Inject
-    public PostgresqlReportMetadata(@Named("report.metadata.store.postgresql") PostgresqlConfig config) {
+    public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCUserMailboxConfig config) {
 
-        DBI dbi = new DBI(format("jdbc:postgresql://%s/%s", config.getHost(), config.getDatabase()),
+        DBI dbi = new DBI(format(config.getUrl(), config.getUsername(), config.getPassword()),
                 config.getUsername(), config.getUsername());
         dao = dbi.open();
         setup();
@@ -74,12 +75,13 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
                 "  PRIMARY KEY (project, name)" +
                 "  )")
                 .execute();
-        dao.createStatement("CREATE TABLE IF NOT EXISTS materialized_views (" +
+        dao.createStatement("CREATE TABLE IF NOT EXISTS continuous_queries (" +
                 "  project VARCHAR(255) NOT NULL," +
                 "  name VARCHAR(255) NOT NULL," +
                 "  query TEXT NOT NULL," +
                 "  strategy TEXT NOT NULL," +
-                "  collections TEXT[]," +
+                // in order to support mysql, we use json string instead of array type.
+                "  collections TEXT," +
                 "  last_update TIME," +
                 "  incremental_field VARCHAR(255)," +
                 "  PRIMARY KEY (project, name)" +
@@ -99,12 +101,13 @@ public class PostgresqlReportMetadata implements ReportMetadataStore {
 
     @Override
     public void createContinuousQuery(ContinuousQuery report) {
+
         dao.createStatement("INSERT INTO materialized_views (project, name, query, strategy, collections, last_update, incremental_field) VALUES (:project, :name, :query, :strategy, :collections, :last_update :incremental_field)")
                 .bind("project", report.project)
                 .bind("name", report.name)
                 .bind("query", report.query)
                 .bind("strategy", report.strategy)
-                .bind("collections", report.collections.toArray(new String[report.collections.size()]))
+                .bind("collections", JsonHelper.encode(report.collections))
                 .bind("last_update", new java.sql.Time(Instant.now().toEpochMilli()))
                 .bind("incremental_field", report.incrementalField)
                 .execute();

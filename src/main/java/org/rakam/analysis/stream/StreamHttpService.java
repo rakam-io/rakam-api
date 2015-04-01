@@ -5,11 +5,12 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.server.http.ForHttpServer;
+import org.rakam.config.ForHttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.JsonHelper;
@@ -24,14 +25,13 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.server.http.HttpServer.errorMessage;
-import static org.rakam.server.http.HttpServer.returnError;
 import static org.rakam.util.JsonHelper.encode;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:49.
  */
 @Path("/stream")
-public class StreamHttpService implements HttpService {
+public class StreamHttpService extends HttpService {
     private final EventStream stream;
     private final SqlParser sqlParser;
     private EventLoopGroup eventLoopGroup;
@@ -99,7 +99,8 @@ public class StreamHttpService implements HttpService {
                 try {
                     expression = collection.filter == null ? null : sqlParser.createExpression(collection.filter);
                 } catch (ParsingException e) {
-                    returnError(request, format("Couldn't parse %s: %s", collection.filter, e.getErrorMessage()), 400);
+                    ObjectNode obj = errorMessage(format("Couldn't parse %s: %s", collection.filter, e.getErrorMessage()), 400);
+                    request.response(encode(obj)).end();
                     throw e;
                 }
                 return new CollectionStreamQuery(collection.name, expression);

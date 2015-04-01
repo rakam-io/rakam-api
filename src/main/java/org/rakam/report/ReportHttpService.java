@@ -14,7 +14,7 @@ import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.Report;
 import org.rakam.analysis.query.QueryFormatter;
 import org.rakam.report.metadata.ReportMetadataStore;
-import org.rakam.server.http.ForHttpServer;
+import org.rakam.config.ForHttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
@@ -34,7 +34,7 @@ import static org.rakam.util.JsonHelper.encode;
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
  */
 @Path("/reports")
-public class ReportHttpService implements HttpService {
+public class ReportHttpService extends HttpService {
     private final ReportMetadataStore database;
     private final SqlParser sqlParser;
     private final PrestoQueryExecutor queryExecutor;

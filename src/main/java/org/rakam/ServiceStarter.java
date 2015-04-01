@@ -2,6 +2,7 @@ package org.rakam;
 
 import com.google.inject.Binder;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -19,22 +20,24 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.UserHttpService;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.ReportHttpService;
-import org.rakam.server.http.ForHttpServer;
 import org.rakam.server.http.HttpServer;
-import org.rakam.server.http.HttpServerConfig;
 import org.rakam.server.http.HttpService;
+import org.rakam.config.ForHttpServer;
+import org.rakam.config.HttpServerConfig;
+import org.rakam.server.http.WebSocketService;
+import org.rakam.util.HostAddress;
 import org.rakam.util.bootstrap.Bootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 /**
  * Created by buremba on 21/12/13.
  */
-
 public class ServiceStarter {
     final static Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
 
@@ -56,10 +59,18 @@ public class ServiceStarter {
         app.requireExplicitBindings(false);
 
         Injector injector = app.strictConfig().initialize();
+        HttpServerConfig httpConfig = injector.getInstance(HttpServerConfig.class);
 
-        HttpServer httpServer = injector.getInstance(HttpServer.class);
-        if(!httpServer.isDisabled()) {
-            httpServer.bind();
+        if(!httpConfig.getDisabled()) {
+            HostAddress address = httpConfig.getAddress();
+
+            NioEventLoopGroup eventExecutors = new NioEventLoopGroup();
+            HttpServer httpServer = new HttpServer(
+                    injector.getInstance(new Key<Set<HttpService>>() {}),
+                    injector.getInstance(new Key<Set<WebSocketService>>() {}),
+                    eventExecutors);
+
+            httpServer.bind(address.getHostText(), address.getPort());
         }
 
         LOGGER.info("======== SERVER STARTED ========");
@@ -77,6 +88,8 @@ public class ServiceStarter {
             httpServices.addBinding().to(EventHttpService.class);
             httpServices.addBinding().to(StreamHttpService.class);
 
+            Multibinder.newSetBinder(binder, WebSocketService.class);
+
             ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
 
             Multibinder<RakamModule> rakamModuleBinder = Multibinder.newSetBinder(binder, RakamModule.class);
@@ -91,7 +104,6 @@ public class ServiceStarter {
             }
 
             bindConfig(binder).to(HttpServerConfig.class);
-            binder.bind(HttpServer.class).asEagerSingleton();
             binder.bind(EventLoopGroup.class)
                     .annotatedWith(ForHttpServer.class)
                     .to(NioEventLoopGroup.class)

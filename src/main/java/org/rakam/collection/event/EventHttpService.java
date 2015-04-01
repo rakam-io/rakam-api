@@ -36,7 +36,7 @@ import static org.rakam.server.http.HttpServer.errorMessage;
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 21:48.
  */
 @Path("/event")
-public class EventHttpService implements HttpService {
+public class EventHttpService extends HttpService {
     final static Logger LOGGER = LoggerFactory.getLogger(EventHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
     private final EventSchemaMetastore metastore;

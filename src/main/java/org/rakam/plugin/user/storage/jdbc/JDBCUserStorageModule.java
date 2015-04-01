@@ -2,9 +2,11 @@ package org.rakam.plugin.user.storage.jdbc;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
+import com.google.inject.name.Names;
 import io.airlift.configuration.ConfigurationFactory;
 import org.rakam.config.ConditionalModule;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.user.mailbox.jdbc.JDBCUserMailboxConfig;
 import org.rakam.plugin.user.storage.UserStorage;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
@@ -17,6 +19,12 @@ public class JDBCUserStorageModule extends RakamModule implements ConditionalMod
     @Override
     protected void setup(Binder binder) {
         bindConfig(binder).to(JDBCUserStorageConfig.class);
+
+        bindConfig(binder)
+                .annotatedWith(Names.named("plugin.user.storage.jdbc"))
+                .prefixedWith("plugin.user.storage.jdbc")
+                .to(JDBCUserMailboxConfig.class);
+
         binder.bind(UserStorage.class).to(JDBCUserStorageAdapter.class);
     }
 

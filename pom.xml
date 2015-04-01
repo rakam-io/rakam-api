@@ -5,7 +5,7 @@
 
     <groupId>org.rakam</groupId>
     <artifactId>rakam</artifactId>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
     <name>Project - analytics</name>
     <url>http://maven.apache.org</url>
@@ -26,6 +26,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
+        <java.version>1.8</java.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
@@ -170,6 +171,12 @@
             <artifactId>kume</artifactId>
             <version>df814e5c87</version>
         </dependency>
+        <!-- Temporary solution until we release netty-rest to Maven Central repository-->
+        <dependency>
+            <groupId>com.github.buremba</groupId>
+            <artifactId>netty-rest</artifactId>
+            <version>0.1-rc1</version>
+        </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
@@ -186,11 +193,6 @@
             <artifactId>curator-recipes</artifactId>
             <version>2.7.1</version>
         </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-core</artifactId>
-            <version>4.2.13.Final</version>
-        </dependency>
     </dependencies>
 
     <build>
@@ -202,7 +204,7 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
-                    <compilerArgument>-proc:none</compilerArgument>
+                    <!--<compilerArgument>-proc:none</compilerArgument>-->
                 </configuration>
             </plugin>
         </plugins>

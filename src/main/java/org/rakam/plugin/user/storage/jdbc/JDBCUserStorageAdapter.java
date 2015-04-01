@@ -7,10 +7,12 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Joiner;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import org.rakam.collection.FieldType;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserHttpService.UserQuery.Sorting;
 import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.plugin.user.mailbox.jdbc.JDBCUserMailboxConfig;
 import org.rakam.plugin.user.storage.Column;
 import org.rakam.plugin.user.storage.UserStorage;
 import org.rakam.report.QueryError;
@@ -52,6 +54,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
     private final JDBCUserStorageConfig config;
     private final UserPluginConfig moduleConfig;
+    private final JDBCUserMailboxConfig jdbcConfig;
     private List<Column> metadata;
     Handle dao;
 
@@ -78,9 +81,10 @@ public class JDBCUserStorageAdapter implements UserStorage {
     };
 
     @Inject
-    public JDBCUserStorageAdapter(JDBCUserStorageConfig config, UserPluginConfig moduleConfig) {
+    public JDBCUserStorageAdapter(@Named("plugin.user.storage.jdbc") JDBCUserMailboxConfig jdbcConfig, JDBCUserStorageConfig config, UserPluginConfig moduleConfig) {
         this.config = config;
         this.moduleConfig = moduleConfig;
+        this.jdbcConfig = jdbcConfig;
 
         DBI dbi = new DBI(() -> getConnection());
         dao = dbi.open();
@@ -88,9 +92,9 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
     private Connection getConnection() {
         try {
-            return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+            return DriverManager.getConnection(jdbcConfig.getUrl(), jdbcConfig.getUsername(), jdbcConfig.getPassword());
         } catch (SQLException e) {
-            throw new IllegalStateException(format("couldn't connect user storage using jdbc connection %s", config.getUrl()));
+            throw new IllegalStateException(format("couldn't connect user storage using jdbc connection %s", jdbcConfig.getUrl()));
         }
     }
 
@@ -134,14 +138,14 @@ public class JDBCUserStorageAdapter implements UserStorage {
         CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() ->
                 dao.createQuery(format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s",
                         columns,
-                        config.getTable(),
+                        jdbcConfig.getTable(),
                         where,
                         orderBy,
                         limit,
                         offset)).map(mapper).list());
 
         CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() ->
-                dao.createQuery(format("SELECT count(*) FROM %s %s", config.getTable(), where))
+                dao.createQuery(format("SELECT count(*) FROM %s %s", jdbcConfig.getTable(), where))
                         .map(new LongMapper(1)).first());
 
         List<List<Object>> dataJoin;
@@ -170,8 +174,8 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
             try {
                 DatabaseMetaData metaData = conn.getMetaData();
-                ResultSet indexInfo = metaData.getIndexInfo(null, null, config.getTable(), true, false);
-                ResultSet dbColumns = metaData.getColumns(null, null, config.getTable(), null);
+                ResultSet indexInfo = metaData.getIndexInfo(null, null, jdbcConfig.getTable(), true, false);
+                ResultSet dbColumns = metaData.getColumns(null, null, jdbcConfig.getTable(), null);
 
                 List<String> uniqueColumns = Lists.newLinkedList();
                 while (indexInfo.next()) {
@@ -207,7 +211,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
         return dao.createQuery(format("SELECT %s FROM %s WHERE %s = %s",
                 columns,
-                config.getTable(),
+                jdbcConfig.getTable(),
                 moduleConfig.getIdentifierColumn(),
                 userId)).map(new ResultSetMapper<User>() {
             @Override
@@ -230,7 +234,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
         Column column = any.get();
 
         Update statement = dao.createStatement(format("UPDATE %s SET %s = :value WHERE %s = %s",
-                config.getTable(),
+                jdbcConfig.getTable(),
                 property,
                 moduleConfig.getIdentifierColumn(),
                 user));

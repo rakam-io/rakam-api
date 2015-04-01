@@ -32,7 +32,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static org.rakam.server.http.HttpServer.errorMessage;
-import static org.rakam.server.http.HttpServer.returnError;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -40,7 +39,7 @@ import static org.rakam.util.JsonHelper.jsonObject;
  * Created by buremba <Burak Emre Kabakcı> on 08/11/14 21:04.
  */
 @Path("/user")
-public class UserHttpService implements HttpService {
+public class UserHttpService extends HttpService {
     private final UserStorage storage;
     private final UserPluginConfig config;
     private final EventSchemaMetastore metastore;
@@ -100,7 +99,7 @@ public class UserHttpService implements HttpService {
             try {
                 data = JsonHelper.readSafe(jsonStr, CreateUserQuery.class);
             } catch (IOException e) {
-                returnError(request, "Invalid Request: " + e.getMessage(), 400);
+                request.response(encode(errorMessage("Invalid Request: " + e.getMessage(), 400))).end();
                 return;
             }
             try {

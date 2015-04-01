@@ -5,8 +5,10 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.WebSocketService;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 14/03/15 16:17.
@@ -15,6 +17,9 @@ import org.rakam.server.http.HttpService;
 public class UserModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
+        Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
+        webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
+
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
 

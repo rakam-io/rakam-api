@@ -30,7 +30,7 @@ import static org.rakam.server.http.HttpServer.errorMessage;
  */
 @Singleton
 @Path("/realtime")
-public class RealTimeHttpService implements HttpService {
+public class RealTimeHttpService extends HttpService {
     private final ReportMetadataStore metastore;
     private final PrestoQueryExecutor executor;
     private final PrestoConfig config;

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 .idea/
 *.iml
 *.ipr
@@ -27,4 +26,3 @@ project/plugins/project/
 
 # Scala-IDE specific
 .scala_dependencies
->>>>>>> f372f986f3aeb0218bc2ed3adb744e5abac10445

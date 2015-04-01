@@ -1,4 +1,4 @@
-package org.rakam.server.http;
+package org.rakam.config;
 
 import com.google.inject.BindingAnnotation;
 

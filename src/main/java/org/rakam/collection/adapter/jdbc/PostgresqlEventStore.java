@@ -1,4 +1,4 @@
-package org.rakam.collection.adapter.postgresql;
+package org.rakam.collection.adapter.jdbc;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;

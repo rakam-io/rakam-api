@@ -14,7 +14,7 @@ import org.rakam.analysis.ContinuousQuery;
 import org.rakam.analysis.query.QueryFormatter;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.report.metadata.ReportMetadataStore;
-import org.rakam.server.http.ForHttpServer;
+import org.rakam.config.ForHttpServer;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static java.lang.String.format;
-import static org.rakam.report.ReportHttpService.handleQueryExecution;
 import static org.rakam.server.http.HttpServer.errorMessage;
+import static org.rakam.report.ReportHttpService.handleQueryExecution;
 import static org.rakam.util.JsonHelper.encode;
 
 /**
