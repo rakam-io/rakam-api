@@ -9,7 +9,7 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>rakam-kafka</artifactId>
+    <artifactId>rakam-presto-kafka</artifactId>
 
     <dependencies>
         <dependency>

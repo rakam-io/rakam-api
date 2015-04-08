@@ -11,9 +11,9 @@
 
     <modules>
         <module>rakam</module>
-        <module>rakam-presto-kafka</module>
         <module>rakam-spi</module>
         <module>rakam-presto</module>
+        <module>rakam-presto-kafka</module>
         <module>rakam-postgresql</module>
         <module>mapper/rakam-mapper-geoip</module>
         <module>rakam-jdbc</module>
