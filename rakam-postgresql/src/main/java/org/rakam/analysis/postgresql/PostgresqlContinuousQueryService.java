@@ -1,0 +1,253 @@
+package org.rakam.analysis.postgresql;
+
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.AllColumns;
+import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.FunctionCall;
+import com.facebook.presto.sql.tree.LongLiteral;
+import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.QuerySpecification;
+import com.facebook.presto.sql.tree.SelectItem;
+import com.facebook.presto.sql.tree.SingleColumn;
+import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
+import com.google.inject.Inject;
+import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryResult;
+import org.rakam.util.JsonHelper;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static java.lang.String.format;
+
+/**
+ * Created by buremba <Burak Emre Kabakcı> on 06/04/15 02:34.
+ */
+public class PostgresqlContinuousQueryService extends ContinuousQueryService {
+    private final ReportMetadataStore reportDatabase;
+    private final QueryExecutor executor;
+    private final EventSchemaMetastore metastore;
+
+    @Inject
+    public PostgresqlContinuousQueryService(EventSchemaMetastore metastore, ReportMetadataStore reportDatabase, QueryExecutor executor) {
+        super(reportDatabase);
+        this.reportDatabase = reportDatabase;
+        this.metastore = metastore;
+        this.executor = executor;
+
+        Executors.newSingleThreadScheduledExecutor()
+                .scheduleAtFixedRate(this::updateTable, 10, 10, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public CompletableFuture<QueryResult> create(ContinuousQuery report) {
+        Map<String, PostgresqlFunction> continuousQueryMetadata = processQuery(report);
+        // just to create the table with the columns.
+        String query = format("create table %s.%s as (%s limit 0)", report.project, report.tableName, report.query);
+        report.options.put("metadata", continuousQueryMetadata);
+        return executor.executeQuery(query).getResult().thenApply(result -> {
+            if(result.getError() == null) {
+                reportDatabase.createContinuousQuery(report);
+            }
+            return result;
+        });
+    }
+
+    @Override
+    public CompletableFuture<QueryResult> delete(String project, String name) {
+        ContinuousQuery continuousQuery = reportDatabase.getContinuousQuery(project, name);
+
+        String prestoQuery = format("drop table %s.%s", continuousQuery.project, continuousQuery.tableName);
+        return executor.executeQuery(prestoQuery).getResult().thenApply(result -> {
+            if(result.getError() == null) {
+                reportDatabase.createContinuousQuery(continuousQuery);
+            }
+            return result;
+        });
+    }
+
+    private void updateTable() {
+        Map<String, List<ContinuousQuery>> allContinuousQueries = reportDatabase.getAllContinuousQueries();
+
+        for (Map.Entry<String, List<String>> entry : metastore.getAllCollections().entrySet()) {
+            String project = entry.getKey();
+
+            List<ContinuousQuery> continuousQueries = allContinuousQueries.get(project);
+
+            if(continuousQueries == null) {
+                continue;
+            }
+
+            for (String collection : entry.getValue()) {
+                List<ContinuousQuery> queriesForCollection = continuousQueries.stream()
+                        .filter(p -> p.collections.contains(collection)).collect(Collectors.toList());
+
+                if(queriesForCollection.size() == 0){
+                    continue;
+                }
+
+                String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
+                executor.executeQuery(sqlQuery).getResult();
+//            String s1 = "CREATE INDEX graph_mv_latest ON graph (xaxis, value) WHERE  ts >= '-infinity';";
+            }
+        }
+    }
+
+    private String buildQueryForCollection(String project, String collection, List<ContinuousQuery> queriesForCollection) {
+
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("WITH newTime (select cast(extract(epoch from now()) as int4) as time)");
+        builder.append(format(", savedLastTime (select last_sync as time from collections_last_sync " +
+                        "where project = '%s' and collection = '%s')"));
+        builder.append(format(", createdLastTimeIfNotExists (insert into collections_last_sync select '%s', '%s', (select time from newTime)) where not exists (select * from lastTime) returning last_sync)",
+                project, collection));
+        builder.append(", lastTime (select coalesce((select last_sync from savedLastTime), (select last_sync from createdLastTimeIfNotExists)))");
+
+        builder.append(format(", stream AS (SELECT * FROM %s.%s stream WHERE time > (select time from lastTime) AND time < (select time from newTime)) ",
+                project, collection));
+
+        for (ContinuousQuery report : queriesForCollection) {
+            // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
+            // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
+            Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("metadata"), Map.class);
+
+            String aggFields = metadata.entrySet().stream()
+                    .filter(c -> c.getValue() != null)
+                    .map(c -> buildUpdateState(report.tableName, c.getKey(), c.getValue()))
+                    .collect(Collectors.joining(", "));
+
+            String groupedFields = metadata.entrySet().stream()
+                    .filter(c -> c.getValue() == null)
+                    .map(c -> format("%1$s.%2$s = %1$s_update.%2$s", report.tableName, c.getKey()))
+                    .collect(Collectors.joining(", "));
+
+            String returningFields = metadata.entrySet().stream()
+                    .filter(c -> c.getValue() == null)
+                    .map(c -> c.getKey())
+                    .collect(Collectors.joining(", "));
+
+            builder.append(format("stream_%s AS (%s)",
+                    report.tableName, report.query));
+            builder.append(format(", update_%s as (UPDATE %s.%s SET %s FROM stream_%s WHERE %s RETURNING %s) ",
+                    report.tableName, project, report.tableName, aggFields, report.tableName, groupedFields, returningFields));
+            builder.append(format(", %s_insert as (INSERT INTO %s.%s (SELECT * FROM (stream_%s) WHERE NOT EXISTS (SELECT * FROM update_%s) )) ",
+                    report.tableName,  project, report.tableName, report.tableName));
+        }
+
+        builder.append(format(", updateSync as (UPDATE collections_last_sync " +
+                "SET last_sync = (SELECT time FROM newTime) WHERE project = '%s', '%s')", project, collection));
+
+        String insertQueries = queriesForCollection.stream()
+                .map(r -> "SELECT * FROM insert_" + r.tableName)
+                .collect(Collectors.joining(" UNION ALL "));
+        builder.append(insertQueries);
+
+        return builder.toString();
+    }
+
+    private String buildUpdateState(String tableName, String key, PostgresqlFunction value) {
+        switch (value) {
+            case count:
+            case sum:
+                return format("%1$s.%2$s += %1$s_update.%2$s", tableName, key);
+            case max:
+                return format("%1$s.%2$s = max(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
+            case min:
+                return format("%1$s.%2$s = min(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
+    private Map<String, PostgresqlFunction> processQuery(ContinuousQuery report) {
+        Query statement = (Query) new SqlParser().createStatement(report.query);
+        QuerySpecification querySpecification = (QuerySpecification) (statement.getQueryBody());
+
+        if(querySpecification.getSelect().isDistinct())
+            throw new IllegalArgumentException("Distinct query is not supported");
+
+        Map<String, PostgresqlFunction> columns = Maps.newHashMap();
+
+        List<SelectItem> selectItems = querySpecification.getSelect().getSelectItems();
+
+        for (int i = 0; i < selectItems.size(); i++) {
+            SelectItem selectItem = selectItems.get(i);
+
+            if(selectItem instanceof AllColumns) {
+                throw new IllegalArgumentException("Select all (*) is not supported in continuous queries yet. Please specify the columns.");
+            }
+
+            if(!(selectItem instanceof SingleColumn)) {
+                throw new IllegalArgumentException(format("Column couldn't identified: %s", selectItem));
+            }
+
+            SingleColumn selectItem1 = (SingleColumn) selectItem;
+            Expression singleColumn = selectItem1.getExpression();
+            if(singleColumn instanceof FunctionCall) {
+                FunctionCall functionCall = (FunctionCall) singleColumn;
+                if (functionCall.isDistinct()) {
+                    throw new IllegalArgumentException("Distinct in functions is not supported");
+                }
+
+                if (functionCall.getWindow().isPresent()) {
+                    throw new IllegalArgumentException("Window is not supported");
+                }
+
+                PostgresqlFunction func;
+                try {
+                    func = PostgresqlFunction.valueOf(functionCall.getName().toString().toLowerCase().trim());
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException(format("Unsupported function '%s'." +
+                                    "Currently you can use one of these aggregation functions: %s",
+                            functionCall.getName(), PostgresqlFunction.values()));
+                }
+                Optional<String> alias = selectItem1.getAlias();
+                if(!alias.isPresent()) {
+                    throw new IllegalArgumentException(format("Column '%s' must have an alias", selectItem1));
+                }
+                columns.put(alias.get(), func);
+            }
+        }
+
+        for (Expression expression : querySpecification.getGroupBy()) {
+            if(expression instanceof LongLiteral) {
+                SelectItem selectItem = selectItems.get(Ints.checkedCast(((LongLiteral) expression).getValue()));
+                Optional<String> alias = ((SingleColumn) selectItem).getAlias();
+                if(!alias.isPresent()) {
+                    throw new IllegalArgumentException(format("Column '%s' must have an alias", selectItem));
+                }
+                columns.put(alias.get(), null);
+            } else {
+                throw new IllegalArgumentException("The GROUP BY references must be the column ids. Example: (GROUP BY 1, 2");
+            }
+        }
+
+        if(selectItems.size() != columns.size()) {
+            Object[] unknownColumns = selectItems.stream().filter(item -> {
+                Optional<String> alias = ((SingleColumn) item).getAlias();
+                return alias.isPresent() && columns.containsKey(alias.get());
+            }).toArray();
+            throw new IllegalArgumentException(format("Continuous queries must also be aggregation queries." +
+                    "These columns are neither aggregation function not GROUP BY column: %s", Arrays.toString(unknownColumns)));
+        }
+
+        return columns;
+    }
+
+
+    public static enum PostgresqlFunction {
+        count, max, min, sum
+    }
+}
