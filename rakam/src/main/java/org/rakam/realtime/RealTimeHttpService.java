@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Singleton;
 import org.rakam.collection.event.metastore.ReportMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.report.PrestoConfig;
 import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
@@ -37,16 +36,14 @@ import static org.rakam.util.JsonHelper.convert;
 public class RealTimeHttpService extends HttpService {
     private final ReportMetadataStore metastore;
     private final QueryExecutor executor;
-    private final PrestoConfig config;
     SqlParser sqlParser = new SqlParser();
     private final Duration slideInterval = Duration.ofSeconds(5);
     private final Duration window = Duration.ofSeconds(45);
 
     @Inject
-    public RealTimeHttpService(ReportMetadataStore metastore, QueryExecutor executor, PrestoConfig config) {
+    public RealTimeHttpService(ReportMetadataStore metastore, QueryExecutor executor) {
         this.metastore = checkNotNull(metastore, "metastore is null");
         this.executor = checkNotNull(executor, "executor is null");
-        this.config = checkNotNull(config, "config is null");
     }
 
     /**
@@ -252,8 +249,7 @@ public class RealTimeHttpService extends HttpService {
     public CompletableFuture get(JsonNode query) {
         String project = query.get("project").asText();
         String name = query.get("name").asText();
-        return executor.executeQuery(format("select * from %s.%s.%s where time > now() - interval '5' second ",
-                config.getColdStorageConnector(), project, name)).getResult();
+        return executor.executeQuery(format("select * from %s.%s where time > now() - interval '5' second ", project, name)).getResult();
     }
 
     public String createSelect(AggregationType aggType, String measure, String dimension) {

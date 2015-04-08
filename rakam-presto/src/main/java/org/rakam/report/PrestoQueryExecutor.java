@@ -65,9 +65,9 @@ public class PrestoQueryExecutor implements QueryExecutor {
 
         ClientSession session = new ClientSession(
                 uri,
-                "emre",
-                "naber",
-                "default",
+                "rakam",
+                "api-server",
+                config.getColdStorageConnector(),
                 "default",
                 TimeZone.getDefault().getID(),
                 Locale.ENGLISH,

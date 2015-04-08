@@ -21,10 +21,11 @@ public class PostgresqlReportService extends AbstractReportService {
     }
 
     @Override
-    protected String buildQuery(String project, Statement query) {
-        StringBuilder builder = new StringBuilder(project);
-        new QueryFormatter(builder, node -> project + "." +
-                node.getName().getSuffix()).process(query, 0);
+    protected String buildQuery(String project, Statement statement) {
+        StringBuilder builder = new StringBuilder();
+        // TODO: does cold storage supports schemas?
+        new QueryFormatter(builder, node -> project + "." + node.getName().getSuffix())
+                .process(statement, 0);
 
         return builder.toString();
     }

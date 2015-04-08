@@ -78,20 +78,8 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
         try(Connection connection = connectionPool.getConnection()) {
             ResultSet dbColumns = connection.getMetaData().getTables("", project, null, null);
             while (dbColumns.next()) {
-                String columnName = dbColumns.getString("COLUMN_NAME");
                 String tableName = dbColumns.getString("TABLE_NAME");
-                FieldType fieldType;
-                try {
-                    fieldType = fromSql(dbColumns.getInt("DATA_TYPE"));
-                } catch (IllegalStateException e) {
-                    continue;
-                }
-                List<SchemaField> schemaFields = table.get(tableName);
-                if(schemaFields == null) {
-                    schemaFields = Lists.newLinkedList();
-                    table.put(tableName, schemaFields);
-                }
-                schemaFields.add(new SchemaField(columnName, fieldType, true));
+                table.put(tableName, getSchema(project, tableName));
             }
         } catch (SQLException e) {
             Throwables.propagate(e);
@@ -172,7 +160,7 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
         }
     }
 
-    static String toSql(FieldType type) {
+    public static String toSql(FieldType type) {
         switch (type) {
             case LONG:
                 return "BIGINT";
@@ -189,7 +177,7 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
         }
     }
 
-    static FieldType fromSql(int sqlType) {
+    public static FieldType fromSql(int sqlType) {
         switch (sqlType) {
             case Types.DECIMAL:
             case Types.DOUBLE:
