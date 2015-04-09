@@ -2,32 +2,56 @@ package org.rakam.report;
 
 import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.LongLiteral;
+import com.facebook.presto.sql.tree.QualifiedNameReference;
+import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.QuerySpecification;
+import com.facebook.presto.sql.tree.SelectItem;
+import com.facebook.presto.sql.tree.SingleColumn;
+import com.facebook.presto.sql.tree.SortItem;
 import com.facebook.presto.sql.tree.Statement;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.config.ForHttpServer;
-import org.rakam.plugin.Report;
 import org.rakam.plugin.AbstractReportService;
+import org.rakam.plugin.Report;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.json.JsonResponse;
+import org.skife.jdbi.org.antlr.runtime.ANTLRStringStream;
+import org.skife.jdbi.org.antlr.runtime.Token;
+import org.skife.jdbi.rewriter.colon.ColonStatementLexer;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
+import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.DOUBLE_QUOTED_TEXT;
+import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.ESCAPED_TEXT;
+import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.LITERAL;
+import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.NAMED_PARAM;
+import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.POSITIONAL_PARAM;
+import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.QUOTED_TEXT;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
@@ -230,6 +254,147 @@ public class ReportHttpService extends HttpService {
         return service.getReport(query.project, query.name);
     }
 
+    static class ParsedStatement
+    {
+        private boolean positionalOnly = true;
+        private List<String> params = new ArrayList<String>();
+
+        public void addNamedParamAt(String name)
+        {
+            positionalOnly = false;
+            params.add(name);
+        }
+
+        public void addPositionalParamAt()
+        {
+            params.add("*");
+        }
+    }
+
+    String parseString(final String sql, final ParsedStatement stmt) throws IllegalArgumentException
+    {
+        StringBuilder b = new StringBuilder();
+        ColonStatementLexer lexer = new ColonStatementLexer(new ANTLRStringStream(sql));
+        Token t = lexer.nextToken();
+        while (t.getType() != ColonStatementLexer.EOF) {
+            switch (t.getType()) {
+                case LITERAL:
+                    b.append(t.getText());
+                    break;
+                case NAMED_PARAM:
+                    stmt.addNamedParamAt(t.getText().substring(1, t.getText().length()));
+                    b.append("?");
+                    break;
+                case QUOTED_TEXT:
+                    b.append(t.getText());
+                    break;
+                case DOUBLE_QUOTED_TEXT:
+                    b.append(t.getText());
+                    break;
+                case POSITIONAL_PARAM:
+                    b.append("?");
+                    stmt.addPositionalParamAt();
+                    break;
+                case ESCAPED_TEXT:
+                    b.append(t.getText().substring(1));
+                    break;
+                default:
+                    break;
+            }
+            t = lexer.nextToken();
+        }
+        return b.toString();
+    }
+
+    /**
+     * @api {post} /reports/explain Get reports
+     * @apiVersion 0.1.0
+     * @apiName ExplainQuery
+     * @apiGroup report
+     * @apiDescription Parses query and returns the parts
+     *
+     * @apiError Query couldn't parsed
+     *
+     *
+     * @apiParam {String} query   Sql query
+     *
+     * @apiParamExample {json} Request-Example:
+     *     {"query": "SELECT year(time), count(1) from visits GROUP BY 1"}
+     *
+     * @apiSuccess (200) {String} project Project tracker code
+     *
+     * @apiSuccessExample {json} Success-Response:
+     *     HTTP/1.1 200 OK
+     *     {
+     *       "project": "projectId",
+     *       "name": "Yearly Visits",
+     *       "query": "SELECT year(time), count(1) from visits GROUP BY 1",
+     *     }
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/reports/get' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
+     */
+    @JsonRequest
+    @Path("/explain")
+    public Object explain(ExplainQuery explainQuery) {
+
+        ParsedStatement stmt = new ParsedStatement();
+        String s = parseString(explainQuery.query, stmt);
+        try {
+            Query statement = (Query) new SqlParser().createStatement(explainQuery.query);
+            QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
+            Expression where = queryBody.getWhere().orElse(null);
+
+            Function<Expression, Integer> mapper = item -> {
+                if (item instanceof QualifiedNameReference) {
+                    return findSelectIndex(queryBody.getSelect().getSelectItems(), item.toString()).orElse(null);
+                } else if (item instanceof LongLiteral) {
+                    return Ints.checkedCast(((LongLiteral) item).getValue());
+                } else {
+                    return null;
+                }
+            };
+
+            List<GroupBy> groupBy = queryBody.getGroupBy().stream()
+                    .map(item -> new GroupBy(mapper.apply(item), item.toString()))
+                    .collect(Collectors.toList());
+
+            List<Ordering> orderBy = queryBody.getOrderBy().stream().map(item ->
+                    new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
+                    .collect(Collectors.toList());
+
+            String limitStr = queryBody.getLimit().orElse(null);
+            Long limit = null;
+            if(limitStr != null) {
+                try {
+                    limit = Long.parseLong(limitStr);
+                } catch (NumberFormatException e) {}
+            }
+
+            return new ResponseQuery(where, groupBy, orderBy, limit);
+        } catch (ParsingException|ClassCastException e) {
+            return new JsonResponse() {
+                public final boolean success = false;
+                public final String error = e.getMessage();
+            };
+        }
+    }
+
+    private Optional<Integer> findSelectIndex(List<SelectItem> selectItems, String reference) {
+        for (int i = 0; i < selectItems.size(); i++) {
+            SelectItem selectItem = selectItems.get(i);
+            if (selectItem instanceof SingleColumn) {
+                SingleColumn selectItem1 = (SingleColumn) selectItem;
+                Optional<String> alias = selectItem1.getAlias();
+                if((alias.isPresent() && alias.get().equals(reference)) ||
+                        selectItem1.getExpression().toString().equals(reference)) {
+                    return Optional.of(i+1);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     /**
      * @api {post} /reports/execute Execute query
      * @apiVersion 0.1.0
@@ -300,24 +465,25 @@ public class ReportHttpService extends HttpService {
     }
 
     public static void handleQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
+        query.getResult().thenAccept(result -> {
+            if(result.isFailed()) {
+                response.send("result", JsonHelper.jsonObject()
+                        .put("success", false)
+                        .put("query", query.getQuery())
+                        .put("message", result.getError().message)).end();
+            }else {
+                response.send("result", encode(JsonHelper.jsonObject()
+                        .put("success", true)
+                        .putPOJO("query", query.getQuery())
+                        .putPOJO("result", result.getResult())
+                        .putPOJO("metadata", result.getMetadata()))).end();
+            }
+        });
+
         eventLoopGroup.schedule(new Runnable() {
             @Override
             public void run() {
-                if(query.isFinished()) {
-                    QueryResult result = query.getResult().join();
-                    if(result.isFailed()) {
-                        response.send("result", JsonHelper.jsonObject()
-                                .put("success", false)
-                                .put("query", query.getQuery())
-                                .put("message", result.getError().message)).end();
-                    }else {
-                        response.send("result", encode(JsonHelper.jsonObject()
-                                .put("success", true)
-                                .putPOJO("query", query.getQuery())
-                                .putPOJO("result", result.getResult())
-                                .putPOJO("metadata", result.getMetadata()))).end();
-                    }
-                }else {
+                if(!query.isFinished()) {
                     response.send("stats", encode(query.currentStats()));
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
                 }
@@ -342,6 +508,49 @@ public class ReportHttpService extends HttpService {
         public ReportQuery(String project, String name) {
             this.project = project;
             this.name = name;
+        }
+    }
+    public static class ExplainQuery {
+        public final String query;
+
+        @JsonCreator
+        public ExplainQuery(@JsonProperty("query") String query) {
+            this.query = query;
+        }
+    }
+    public static class ResponseQuery {
+        public final Expression where;
+        public final List<GroupBy> groupBy;
+        public final List<Ordering> orderBy;
+        public final Long limit;
+
+        public ResponseQuery(Expression where, List<GroupBy> groupBy, List<Ordering> orderBy, Long limit) {
+            this.where = where;
+            this.groupBy = groupBy;
+            this.orderBy = orderBy;
+            this.limit = limit;
+        }
+    }
+
+    public static class Ordering {
+        public final SortItem.Ordering ordering;
+        public final Integer index;
+        public final String expression;
+
+        public Ordering(SortItem.Ordering ordering, Integer index, String expression) {
+            this.ordering = ordering;
+            this.index = index;
+            this.expression = expression;
+        }
+    }
+
+    public static class GroupBy {
+        public final Integer index;
+        public final String expression;
+
+        public GroupBy(Integer index, String expression) {
+            this.index = index;
+            this.expression = expression;
         }
     }
 

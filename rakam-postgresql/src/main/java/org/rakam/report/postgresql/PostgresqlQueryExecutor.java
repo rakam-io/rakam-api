@@ -12,6 +12,7 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -19,13 +20,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.rakam.analysis.postgresql.PostgresqlSchemaMetastore.fromSql;
 
@@ -52,19 +50,31 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     @Override
     public QueryExecution executeQuery(String sqlQuery) {
-        Future<ResultSet> submit = QUERY_EXECUTOR.submit(() ->
-                connectionPool.getConnection().createStatement().executeQuery(sqlQuery));
-        return new PostgresqlQueryExecution(submit, sqlQuery);
+        return new PostgresqlQueryExecution(connectionPool, sqlQuery);
     }
 
     public static class PostgresqlQueryExecution implements QueryExecution {
 
-        private final Future<ResultSet> result;
+        private final CompletableFuture<QueryResult> result;
         private final String query;
 
-        public PostgresqlQueryExecution(Future<ResultSet> result, String query) {
-            this.result = result;
-            this.query = query;
+        public PostgresqlQueryExecution(BasicDataSource connectionPool, String sqlQuery) {
+            this.query = sqlQuery;
+
+            this.result = CompletableFuture.supplyAsync(() -> {
+                try (Connection connection = connectionPool.getConnection()) {
+                    return resultSetToQueryResult(connection.createStatement().executeQuery(sqlQuery));
+                } catch (Exception e) {
+                    QueryError error;
+                    if(e.getCause() instanceof SQLException) {
+                        SQLException cause = (SQLException) e.getCause();
+                        error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode());
+                    } else {
+                        error = new QueryError("Internal query execution error", null, 0);
+                    }
+                    return new PostgresqlQueryResult(error, null, null);
+                }
+            }, QUERY_EXECUTOR);
         }
 
         @Override
@@ -83,36 +93,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
         @Override
         public CompletableFuture<? extends QueryResult> getResult() {
-            if(result.isDone()) {
-                ResultSet resultSet;
-                try {
-                    resultSet = result.get();
-                } catch (InterruptedException|ExecutionException e) {
-                    QueryError error;
-                    if(e.getCause() instanceof SQLException) {
-                        SQLException cause = (SQLException) e.getCause();
-                        error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode());
-                    } else {
-                        error = new QueryError("Internal query execution error", null, 0);
-                    }
-                    PostgresqlQueryResult postgresqlQueryResult = new PostgresqlQueryResult(error, null, null);
-                    return CompletableFuture.completedFuture(postgresqlQueryResult);
-                }
-
-                return CompletableFuture.completedFuture(resultSetToQueryResult(resultSet));
-            } else {
-                return CompletableFuture.supplyAsync(() -> {
-                    try {
-                        ResultSet resultSet = result.get(10, TimeUnit.MINUTES);
-                        return resultSetToQueryResult(resultSet);
-                    } catch (InterruptedException|ExecutionException e) {
-                        return new PostgresqlQueryResult(new QueryError("Internal Query execution error", null, 0), null, null);
-                    } catch (TimeoutException e) {
-                        return new PostgresqlQueryResult(new QueryError("Query timeout", null, 0), null, null);
-                    }
-                });
-
-            }
+            return result;
         }
 
         @Override
