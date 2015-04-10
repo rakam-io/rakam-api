@@ -124,7 +124,6 @@ public class EventStreamHttpService extends HttpService {
                     subscribe.sync();
                     eventLoopGroup.schedule(this, 3, TimeUnit.SECONDS);
                 }
-                subscribe.shutdown();
             }
         }, 3, TimeUnit.SECONDS);
     }

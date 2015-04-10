@@ -30,6 +30,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlEventStream.class);
 
     private final PGConnection conn;
+    private boolean open;
     private final String ticket;
     private final StreamResponse response;
     private final List<CollectionStreamQuery> collections;
@@ -39,75 +40,104 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
     public PostgresqlEventStreamer(PGConnection conn, String project, List<CollectionStreamQuery> collections, StreamResponse response) {
         this.conn = conn;
-        this.ticket = UUID.randomUUID().toString().substring(0, 8);
+        this.ticket = "rakam_stream_"+UUID.randomUUID().toString().substring(0, 8);
         this.response = response;
         this.collections = collections;
         this.project = project;
+        this.open = true;
 
-        createProcedures();
-        listener = (processId, channelName, payload) -> {
-            // the payload is the json string that contains event attributes
-            queue.add(payload);
-        };
-        conn.addNotificationListener(listener);
+        if(createProcedures()) {
+            listener = (processId, channelName, payload) -> {
+                // the payload is the json string that contains event attributes
+                queue.add(payload);
+            };
+            conn.addNotificationListener(listener);
 
-        try {
-            Statement statement = conn.createStatement();
-            statement.execute("LISTEN " + ticket);
-            conn.commit();
-        } catch (SQLException e) {
-            Throwables.propagate(e);
+            try (Statement statement = conn.createStatement()) {
+                statement.execute("LISTEN " + ticket);
+                conn.commit();
+            } catch (SQLException e) {
+                Throwables.propagate(e);
+            }
         }
     }
 
     @Override
     public void sync() {
-        response.send("data", "["+queue.stream().collect(Collectors.joining(", "))+"]");
+        if(!open) {
+            response.send("error", "stream is closed");
+        }else
+        if(queue.size()>0) {
+            StringBuilder builder = new StringBuilder("[");
+            builder.append(queue.poll());
+            for (int i = 1; i < queue.size(); i++) {
+                builder.append(", "+queue.poll());
+            }
+            builder.append("]");
+            response.send("data", builder.toString());
+        }
     }
 
     @Override
-    public void shutdown() {
+    public synchronized void shutdown() {
+        if(!open) {
+            return;
+        }
         conn.removeNotificationListener(listener);
 
         try (Statement statement = conn.createStatement()) {
             statement.execute("UNLISTEN "+ticket);
             for (CollectionStreamQuery collection : collections) {
-                statement.execute(format("DROP TRIGGER stream_%1$s_%2$s_%3$s ON %1$s.%2$s", project, collection.collection, ticket));
-                statement.execute(format("DROP FUNCTION stream_%s_%s_%s", project, collection.collection, ticket));
+                statement.execute(format("DROP TRIGGER IF EXISTS %s ON %1$s.%2$s",
+                        getProcedureName(collection.collection),
+                        project,
+                        collection.collection));
+                statement.execute(format("DROP FUNCTION IF EXISTS stream_%s_%s_%s",
+                        getProcedureName(collection.collection)));
             }
-            conn.commit();
-            conn.close();
         } catch (SQLException e) {
             LOGGER.error("Couldn't deleted functions and triggers from Postgresql server. Ticket: " + ticket, e);
+        } finally {
+            try {
+                conn.commit();
+                conn.close();
+            } catch (SQLException e) {
+                LOGGER.error("Internal commit Postgresql server error. Ticket: " + ticket, e);
+            }
+            open = false;
         }
+    }
+
+    private String getProcedureName(String collection) {
+        return format("stream_%s_%s_%s", project, collection, ticket);
     }
 
     private boolean createProcedures() {
         for (CollectionStreamQuery collection : collections) {
             try (Statement statement = conn.createStatement()) {
-                String name = format("stream_%s_%s", collection, ticket);
-
+                String name = getProcedureName(collection.collection);
                 statement.execute(format("CREATE OR REPLACE FUNCTION %s()" +
                                 "  RETURNS trigger AS" +
                                 "  $BODY$" +
                                 "    BEGIN" +
                                 "       IF %s THEN" +
-                                "           PERFORM pg_notify('%s', row_to_json((NEW))::text);" +
+                                "           PERFORM pg_notify('%s', '{\"_project\":\"%s\",\"_collection\":\"%s\",' || ltrim(row_to_json((NEW))::text, '{'));" +
                                 "       END IF;" +
                                 "        RETURN NEW;" +
                                 "    END;" +
                                 "  $BODY$ LANGUAGE plpgsql;",
-                        name, createSqlExpression(collection), ticket));
+                        name, createSqlExpression(collection), ticket, project, collection.collection));
 
                 statement.execute(format("CREATE TRIGGER %s" +
                         "  AFTER INSERT" +
                         "  ON %s.%s" +
                         "  FOR EACH ROW" +
-                        "  EXECUTE PROCEDURE %s();", name, project, collection));
+                        "  EXECUTE PROCEDURE %s();", name, project, collection.collection, name));
 
             } catch (SQLException e) {
                 try {
                     conn.rollback();
+                    shutdown();
                 } catch (SQLException e1) {
                     LOGGER.error("Error while executing rollback on Postgresql server", e);
                     return false;

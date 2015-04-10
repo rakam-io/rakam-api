@@ -14,12 +14,13 @@ import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.collection.FieldType;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.AbstractReportService;
 import org.rakam.plugin.Report;
@@ -28,15 +29,12 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.json.JsonResponse;
-import org.skife.jdbi.org.antlr.runtime.ANTLRStringStream;
-import org.skife.jdbi.org.antlr.runtime.Token;
-import org.skife.jdbi.rewriter.colon.ColonStatementLexer;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -46,12 +44,6 @@ import java.util.stream.Collectors;
 
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
-import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.DOUBLE_QUOTED_TEXT;
-import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.ESCAPED_TEXT;
-import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.LITERAL;
-import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.NAMED_PARAM;
-import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.POSITIONAL_PARAM;
-import static org.skife.jdbi.rewriter.colon.ColonStatementLexer.QUOTED_TEXT;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
@@ -254,58 +246,6 @@ public class ReportHttpService extends HttpService {
         return service.getReport(query.project, query.name);
     }
 
-    static class ParsedStatement
-    {
-        private boolean positionalOnly = true;
-        private List<String> params = new ArrayList<String>();
-
-        public void addNamedParamAt(String name)
-        {
-            positionalOnly = false;
-            params.add(name);
-        }
-
-        public void addPositionalParamAt()
-        {
-            params.add("*");
-        }
-    }
-
-    String parseString(final String sql, final ParsedStatement stmt) throws IllegalArgumentException
-    {
-        StringBuilder b = new StringBuilder();
-        ColonStatementLexer lexer = new ColonStatementLexer(new ANTLRStringStream(sql));
-        Token t = lexer.nextToken();
-        while (t.getType() != ColonStatementLexer.EOF) {
-            switch (t.getType()) {
-                case LITERAL:
-                    b.append(t.getText());
-                    break;
-                case NAMED_PARAM:
-                    stmt.addNamedParamAt(t.getText().substring(1, t.getText().length()));
-                    b.append("?");
-                    break;
-                case QUOTED_TEXT:
-                    b.append(t.getText());
-                    break;
-                case DOUBLE_QUOTED_TEXT:
-                    b.append(t.getText());
-                    break;
-                case POSITIONAL_PARAM:
-                    b.append("?");
-                    stmt.addPositionalParamAt();
-                    break;
-                case ESCAPED_TEXT:
-                    b.append(t.getText().substring(1));
-                    break;
-                default:
-                    break;
-            }
-            t = lexer.nextToken();
-        }
-        return b.toString();
-    }
-
     /**
      * @api {post} /reports/explain Get reports
      * @apiVersion 0.1.0
@@ -338,12 +278,18 @@ public class ReportHttpService extends HttpService {
     @Path("/explain")
     public Object explain(ExplainQuery explainQuery) {
 
-        ParsedStatement stmt = new ParsedStatement();
-        String s = parseString(explainQuery.query, stmt);
+        NamedQuery namedQuery = new NamedQuery(explainQuery.query);
+        namedQuery.parameters().forEach(param -> namedQuery.bind(param, FieldType.LONG, null));
+        String query = namedQuery.build();
         try {
-            Query statement = (Query) new SqlParser().createStatement(explainQuery.query);
+            Query statement;
+            try {
+                statement = (Query) new SqlParser().createStatement(query);
+            } catch (Exception e) {
+                return new ResponseQuery(null, null, null, Lists.newArrayList(namedQuery.parameters()));
+            }
             QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
-            Expression where = queryBody.getWhere().orElse(null);
+//            Expression where = queryBody.getWhere().orElse(null);
 
             Function<Expression, Integer> mapper = item -> {
                 if (item instanceof QualifiedNameReference) {
@@ -371,7 +317,7 @@ public class ReportHttpService extends HttpService {
                 } catch (NumberFormatException e) {}
             }
 
-            return new ResponseQuery(where, groupBy, orderBy, limit);
+            return new ResponseQuery(groupBy, orderBy, limit, Lists.newArrayList(namedQuery.parameters()));
         } catch (ParsingException|ClassCastException e) {
             return new JsonResponse() {
                 public final boolean success = false;
@@ -432,46 +378,55 @@ public class ReportHttpService extends HttpService {
             return;
         }
 
-        ObjectNode json;
+        ExecuteQuery query;
         try {
-            json = JsonHelper.readSafe(data.get(0));
+            query = JsonHelper.readSafe(data.get(0), ExecuteQuery.class);
         } catch (IOException e) {
             response.send("result", encode(errorMessage("json couldn't parsed", 400))).end();
             return;
         }
 
-        JsonNode project = json.get("project");
-        if (project == null || !project.isTextual()) {
+        if (query.project == null) {
             response.send("result", encode(errorMessage("project parameter is required", 400))).end();
             return;
         }
 
-        JsonNode query = json.get("query");
-        if (project == null || !project.isTextual()) {
+        if (query.query == null) {
             response.send("result", encode(errorMessage("query parameter is required", 400))).end();
             return;
         }
 
+        NamedQuery namedQuery = new NamedQuery(query.query);
+        if(query.bindings != null) {
+            query.bindings.forEach((bindName, binding) -> namedQuery.bind(bindName, binding.type, binding.value));
+        }
+        String sqlQuery = namedQuery.build();
+
         Statement statement;
         try {
-            statement = createStatement(query.asText());
+            statement = createStatement(sqlQuery);
         } catch (ParsingException e) {
             response.send("result", encode(errorMessage("unable to parse query: "+e.getErrorMessage(), 400))).end();
             return;
         }
 
-        QueryExecution execute = service.execute(project.asText(), statement);
+        QueryExecution execute = service.execute(query.project, statement);
         handleQueryExecution(eventLoopGroup, response, execute);
     }
 
     public static void handleQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
-        query.getResult().thenAccept(result -> {
-            if(result.isFailed()) {
+        query.getResult().whenComplete((result, ex) -> {
+            if (ex != null) {
+                response.send("result", JsonHelper.jsonObject()
+                        .put("success", false)
+                        .put("query", query.getQuery())
+                        .put("message", "Internal error")).end();
+            } else if (result.isFailed()) {
                 response.send("result", JsonHelper.jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
                         .put("message", result.getError().message)).end();
-            }else {
+            } else {
                 response.send("result", encode(JsonHelper.jsonObject()
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
@@ -510,6 +465,34 @@ public class ReportHttpService extends HttpService {
             this.name = name;
         }
     }
+
+    public static class ExecuteQuery {
+        public final String project;
+        public final String query;
+        public final Map<String, Binding> bindings;
+
+        @JsonCreator
+        public ExecuteQuery(@JsonProperty("project") String project,
+                            @JsonProperty("query") String query,
+                            @JsonProperty("bindings") Map<String, Binding> bindings) {
+            this.project = project;
+            this.query = query;
+            this.bindings = bindings;
+        }
+
+        public static class Binding {
+            public final FieldType type;
+            public final Object value;
+
+            @JsonCreator
+            public Binding(@JsonProperty("type") FieldType type,
+                           @JsonProperty("value") Object value) {
+                this.type = type;
+                this.value = value;
+            }
+        }
+    }
+
     public static class ExplainQuery {
         public final String query;
 
@@ -519,16 +502,17 @@ public class ReportHttpService extends HttpService {
         }
     }
     public static class ResponseQuery {
-        public final Expression where;
         public final List<GroupBy> groupBy;
         public final List<Ordering> orderBy;
         public final Long limit;
+        public final List<String> parameters;
 
-        public ResponseQuery(Expression where, List<GroupBy> groupBy, List<Ordering> orderBy, Long limit) {
-            this.where = where;
+        @JsonCreator
+        public ResponseQuery(List<GroupBy> groupBy, List<Ordering> orderBy, Long limit, List<String> parameters) {
             this.groupBy = groupBy;
             this.orderBy = orderBy;
             this.limit = limit;
+            this.parameters = parameters;
         }
     }
 
@@ -537,6 +521,7 @@ public class ReportHttpService extends HttpService {
         public final Integer index;
         public final String expression;
 
+        @JsonCreator
         public Ordering(SortItem.Ordering ordering, Integer index, String expression) {
             this.ordering = ordering;
             this.index = index;
@@ -548,6 +533,7 @@ public class ReportHttpService extends HttpService {
         public final Integer index;
         public final String expression;
 
+        @JsonCreator
         public GroupBy(Integer index, String expression) {
             this.index = index;
             this.expression = expression;

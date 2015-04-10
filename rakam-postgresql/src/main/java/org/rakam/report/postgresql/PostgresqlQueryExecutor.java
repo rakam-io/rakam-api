@@ -11,6 +11,8 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -31,6 +33,8 @@ import static org.rakam.analysis.postgresql.PostgresqlSchemaMetastore.fromSql;
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 00:48.
  */
 public class PostgresqlQueryExecutor implements QueryExecutor {
+    final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlQueryExecutor.class);
+
     private final BasicDataSource connectionPool;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
@@ -46,6 +50,16 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         connectionPool.setUrl("jdbc:postgresql://" + config.getHost() + ':' + config.getPort() + "/" + config.getDatabase());
         connectionPool.setInitialSize(3);
         connectionPool.setPoolPreparedStatements(true);
+
+        try (Connection connection = connectionPool.getConnection()) {
+            connection.createStatement().execute("CREATE OR REPLACE FUNCTION to_unixtime(timestamp) RETURNS double precision" +
+                    "    AS 'select extract(epoch from $1);'" +
+                    "    LANGUAGE SQL" +
+                    "    IMMUTABLE" +
+                    "    RETURNS NULL ON NULL INPUT");
+        } catch (SQLException e) {
+            LOGGER.error("Error while creating required Postgresql procedures.", e.getMessage());
+        }
     }
 
     @Override
@@ -66,7 +80,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     return resultSetToQueryResult(connection.createStatement().executeQuery(sqlQuery));
                 } catch (Exception e) {
                     QueryError error;
-                    if(e.getCause() instanceof SQLException) {
+                    if(e instanceof SQLException) {
                         SQLException cause = (SQLException) e.getCause();
                         error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode());
                     } else {
