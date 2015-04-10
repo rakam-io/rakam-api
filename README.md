@@ -1,6 +1,6 @@
 Rakam
 =======
-An high level distributed analytics service with stream processing capabilities.
+A high level distributed analytics service with stream processing capabilities.
 
 Please note that it’s currently under development and not ready for production.
 
