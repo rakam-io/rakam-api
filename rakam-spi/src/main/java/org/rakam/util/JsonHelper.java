@@ -1,6 +1,7 @@
 package org.rakam.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -104,6 +105,14 @@ public class JsonHelper {
     public static <T> T convert(Object json, Class<T> clazz) {
         try {
             return mapper.convertValue(json, clazz);
+        } catch (IllegalArgumentException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public static <T> T convert(Object json, TypeReference<T> ref) {
+        try {
+            return mapper.convertValue(json, ref);
         } catch (IllegalArgumentException e) {
             throw Throwables.propagate(e);
         }

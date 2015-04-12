@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.airlift.units.Duration;
 import org.rakam.JDBCConfig;
 import org.rakam.collection.event.metastore.ReportMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
@@ -11,6 +12,7 @@ import org.rakam.plugin.Report;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
@@ -18,6 +20,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -32,10 +35,12 @@ public class JDBCReportMetadata implements ReportMetadataStore {
     ResultSetMapper<Report> reportMapper = new ResultSetMapper<Report>() {
         @Override
         public Report map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+            Long update_interval = r.getLong("update_interval");
             return new Report(
                     r.getString("project"),
                     r.getString("name"), r.getString("table_name"), r.getString("query"),
-                    // we can' use nice postgresql features since we also want to support mysql
+                    update_interval!= null ? new Duration(update_interval, TimeUnit.MILLISECONDS) : null,
+                    // we can't use nice postgresql features since we also want to support mysql
                     JsonHelper.read(r.getString("options"), JsonNode.class));
         }
     };
@@ -63,6 +68,8 @@ public class JDBCReportMetadata implements ReportMetadataStore {
                 "  name VARCHAR(255) NOT NULL," +
                 "  table_name VARCHAR(255) NOT NULL," +
                 "  query TEXT NOT NULL," +
+                "  update_interval BIGINT," +
+                "  last_updated TIMESTAMP," +
                 "  options TEXT," +
                 "  PRIMARY KEY (project, name)" +
                 "  )")
@@ -82,11 +89,13 @@ public class JDBCReportMetadata implements ReportMetadataStore {
 
     @Override
     public void saveReport(Report report) {
-        dao.createStatement("INSERT INTO reports (project, name, query, options) VALUES (:project, :name, :query, :options)")
+        dao.createStatement("INSERT INTO reports (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
                 .bind("project", report.project)
                 .bind("name", report.name)
+                .bind("table_name", report.tableName)
                 .bind("query", report.query)
-                .bind("options", JsonHelper.encode(report.options, false))
+                .bind("update_interval", report.updateInterval!=null ? report.updateInterval.toMillis() : null)
+        .bind("options", JsonHelper.encode(report.options, false))
                 .execute();
     }
 
@@ -139,19 +148,20 @@ public class JDBCReportMetadata implements ReportMetadataStore {
 
     @Override
     public List<Report> getReports(String project) {
-        return dao.createQuery("SELECT project, name, query, options from reports WHERE project = :project")
+        return dao.createQuery("SELECT project, name, table_name, query, options, update_interval from reports WHERE project = :project")
                 .bind("project", project)
                 .map(reportMapper).list();
     }
 
     @Override
     public Map<String, List<ContinuousQuery>> getAllContinuousQueries() {
-        return dao.createQuery("SELECT project, name, query, collections, last_update from continuous_queries")
+        Query<ContinuousQuery> map = dao.createQuery("SELECT project, name, table_name, query, collections, options from continuous_queries")
                 .map((index, r, ctx) -> {
                     return new ContinuousQuery(
                             r.getString("project"),
                             r.getString("name"), r.getString("table_name"), r.getString("query"),
-                            JsonHelper.read(r.getString("collections")), JsonHelper.read(r.getString("options")));
-                }).list().stream().collect(Collectors.groupingBy(k -> k.project));
+                            JsonHelper.read(r.getString("collections"), List.class), JsonHelper.read(r.getString("options"), Map.class));
+                });
+        return map.list().stream().collect(Collectors.groupingBy(k -> k.project));
     }
 }

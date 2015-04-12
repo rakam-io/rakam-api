@@ -30,7 +30,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
             if(result.getError() == null) {
                 database.createContinuousQuery(report);
             }
-                return result;
+            return result;
         });
     }
 

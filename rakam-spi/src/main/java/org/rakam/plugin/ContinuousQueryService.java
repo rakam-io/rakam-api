@@ -25,4 +25,7 @@ public abstract class ContinuousQueryService {
         return database.getContinuousQueries(project);
     }
 
+    public ContinuousQuery get(String project, String name) {
+        return database.getContinuousQuery(project, name);
+    }
 }

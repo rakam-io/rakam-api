@@ -1,10 +1,12 @@
 package org.rakam.report.postgresql;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
+import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
@@ -18,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -64,7 +67,11 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     @Override
     public QueryExecution executeQuery(String sqlQuery) {
-        return new PostgresqlQueryExecution(connectionPool, sqlQuery);
+        return new PostgresqlQueryExecution(connectionPool, sqlQuery, false);
+    }
+
+    public QueryExecution executeUpdate(String sqlQuery) {
+        return new PostgresqlQueryExecution(connectionPool, sqlQuery, true);
     }
 
     public static class PostgresqlQueryExecution implements QueryExecution {
@@ -72,16 +79,26 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         private final CompletableFuture<QueryResult> result;
         private final String query;
 
-        public PostgresqlQueryExecution(BasicDataSource connectionPool, String sqlQuery) {
+        public PostgresqlQueryExecution(BasicDataSource connectionPool, String sqlQuery, boolean update) {
             this.query = sqlQuery;
 
             this.result = CompletableFuture.supplyAsync(() -> {
                 try (Connection connection = connectionPool.getConnection()) {
-                    return resultSetToQueryResult(connection.createStatement().executeQuery(sqlQuery));
+                    Statement statement = connection.createStatement();
+                    if(update) {
+                        statement.execute(sqlQuery);
+                        // CREATE TABLE queries doesn't return any value and
+                        // fail when using executeQuery so we face the result data
+                        List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN, true));
+                        List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
+                        return new PostgresqlQueryResult(null, data, cols);
+                    }else {
+                        return resultSetToQueryResult(statement.executeQuery(sqlQuery));
+                    }
                 } catch (Exception e) {
                     QueryError error;
                     if(e instanceof SQLException) {
-                        SQLException cause = (SQLException) e.getCause();
+                        SQLException cause = (SQLException) e;
                         error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode());
                     } else {
                         error = new QueryError("Internal query execution error", null, 0);
@@ -145,8 +162,11 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     }
 
     public static class PostgresqlQueryResult implements QueryResult {
+        @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
         private final List<SchemaField> columns;
+        @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
         private final List<List<Object>> data;
+        @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
         private final QueryError error;
 
         public PostgresqlQueryResult(QueryError error, List<List<Object>> data, List<SchemaField> columns) {

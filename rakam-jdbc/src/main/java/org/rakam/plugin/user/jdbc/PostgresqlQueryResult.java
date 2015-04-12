@@ -12,7 +12,9 @@ import java.util.Map;
 * Created by buremba <Burak Emre Kabakcı> on 04/04/15 17:48.
 */
 class PostgresqlQueryResult implements QueryResult {
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final List<? extends SchemaField> columns;
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final List<List<Object>> result;
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
     private Map<String, Object> properties;

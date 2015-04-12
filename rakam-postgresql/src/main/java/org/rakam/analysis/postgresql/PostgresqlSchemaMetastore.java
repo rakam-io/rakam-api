@@ -58,13 +58,17 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
         try(Connection connection = connectionPool.getConnection()) {
             ResultSet dbColumns = connection.getMetaData().getTables("", null, null, null);
             while (dbColumns.next()) {
-                String schemaName = dbColumns.getString("SCHEMA_NAME");
+                String schemaName = dbColumns.getString("TABLE_SCHEM");
+                if(schemaName.equals("information_schema") || schemaName.startsWith("pg_")) {
+                    continue;
+                }
                 String tableName = dbColumns.getString("TABLE_NAME");
                 List<String> table = map.get(schemaName);
                 if(table == null) {
                     table = Lists.newLinkedList();
-                    table.add(tableName);
+                    map.put(schemaName, table);
                 }
+                table.add(tableName);
             }
         } catch (SQLException e) {
             Throwables.propagate(e);
@@ -111,10 +115,13 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     @Override
     public List<SchemaField> createOrGetSchema(String project, String collection, List<SchemaField> fields) {
         if(collection.equals("public")) {
-            throw new IllegalArgumentException("Collection name 'public' is not allowed");
+            throw new IllegalArgumentException("Collection name 'public' is not allowed.");
+        }
+        if(collection.startsWith("pg_") || collection.startsWith("_")) {
+            throw new IllegalArgumentException("Collection names must not start with 'pg_' and '_' prefix.");
         }
         if(!collection.matches("^[a-zA-Z0-9]*$")) {
-            throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name");
+            throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
         }
 
         try(Connection connection = connectionPool.getConnection()) {

@@ -20,6 +20,17 @@ import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.BaseErrorListener;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.atn.PredictionMode;
+import org.antlr.v4.runtime.misc.Interval;
+import org.antlr.v4.runtime.misc.NotNull;
+import org.antlr.v4.runtime.misc.ParseCancellationException;
+import org.antlr.v4.runtime.tree.ErrorNode;
+import org.antlr.v4.runtime.tree.TerminalNode;
 import org.rakam.collection.FieldType;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.AbstractReportService;
@@ -27,6 +38,9 @@ import org.rakam.plugin.Report;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.sql.test.NamedParamBaseVisitor;
+import org.rakam.sql.test.NamedParamLexer;
+import org.rakam.sql.test.NamedParamParser;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.json.JsonResponse;
 
@@ -109,6 +123,7 @@ public class ReportHttpService extends HttpService {
      *     {"success": false, "message": "Project does not exists"}
      *
      * @apiParam {String} project   Project tracker code
+     * @apiParam {String} table_name   Table name
      * @apiParam {String} name   Project tracker code
      * @apiParam {String} query   Project tracker code
      * @apiParam {Object} [options]  Additional information about the report
@@ -119,20 +134,168 @@ public class ReportHttpService extends HttpService {
      * @apiExample {curl} Example usage:
      *     curl 'http://localhost:9999/reports/create' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
      */
+    @JsonRequest
     @Path("/create")
-    public void create(RakamHttpRequest request) {
-        RakamHttpRequest.StreamResponse response = request.streamResponse();
+    public JsonResponse create(Report query) {
 
-        List<String> data = request.params().get("data");
-        if(data == null) {
-            response.send("result", encode(errorMessage("request is invalid", 400))).end();
-            return;
+//        NamedQuery namedQuery = new NamedQuery(query.query);
+//        String sqlQuery = namedQuery.build();
+
+//        Statement statement1 = (Statement) invokeParser("statement", query.query, org.rakam.sql.test.NamedParamParser::query);
+//        String s = SqlFormatter.formatSql(statement1);
+
+        service.create(query);
+        return new JsonResponse() {
+            public final boolean success = true;
+        };
+    }
+
+    static class CaseInsensitiveStream
+            implements CharStream
+    {
+        private CharStream stream;
+
+        public CaseInsensitiveStream(CharStream stream)
+        {
+            this.stream = stream;
         }
 
-        Report report = JsonHelper.read(data.get(0), Report.class);
-        QueryExecution queryExecution = service.create(report);
+        @Override
+        @NotNull
+        public String getText(@NotNull Interval interval)
+        {
+            return stream.getText(interval);
+        }
 
-        handleQueryExecution(eventLoopGroup, response, queryExecution);
+        @Override
+        public void consume()
+        {
+            stream.consume();
+        }
+
+        @Override
+        public int LA(int i)
+        {
+            int result = stream.LA(i);
+
+            switch (result) {
+                case 0:
+                case CharStream.EOF:
+                    return result;
+                default:
+                    return Character.toUpperCase(result);
+            }
+        }
+
+        @Override
+        public int mark()
+        {
+            return stream.mark();
+        }
+
+        @Override
+        public void release(int marker)
+        {
+            stream.release(marker);
+        }
+
+        @Override
+        public int index()
+        {
+            return stream.index();
+        }
+
+        @Override
+        public void seek(int index)
+        {
+            stream.seek(index);
+        }
+
+        @Override
+        public int size()
+        {
+            return stream.size();
+        }
+
+        @Override
+        @NotNull
+        public String getSourceName()
+        {
+            return stream.getSourceName();
+        }
+    }
+
+    private static final BaseErrorListener ERROR_LISTENER = new BaseErrorListener();
+
+
+    private Object invokeParser(String name, String sql, Function<org.rakam.sql.test.NamedParamParser, ParserRuleContext> parseFunction)
+    {
+        try {
+            NamedParamLexer lexer = new NamedParamLexer(new CaseInsensitiveStream(new ANTLRInputStream(sql)));
+//            org.antlr.v4.runtime.Token t = lexer.nextToken();
+//            while (t.getType() != NamedParamLexer.EOF) {
+//                switch (t.getType()) {
+//                    case NamedParamLexer.IDENTIFIER:
+//                    case NamedParamLexer.STRING:
+//                    case NamedParamLexer.QUERY_CONTENT:
+//                        System.out.println(1);
+//                        break;
+//                    default:
+//                        System.out.println(1);
+//                }
+//            }
+
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            org.rakam.sql.test.NamedParamParser parser = new org.rakam.sql.test.NamedParamParser(tokenStream);
+
+
+            ParserRuleContext tree;
+            try {
+                // first, try parsing with potentially faster SLL mode
+                parser.getInterpreter().setPredictionMode(PredictionMode.SLL);
+                tree = parseFunction.apply(parser);
+            }
+            catch (ParseCancellationException ex) {
+                // if we fail, parse with LL mode
+                tokenStream.reset(); // rewind input stream
+                parser.reset();
+
+                parser.getInterpreter().setPredictionMode(PredictionMode.LL);
+                tree = parseFunction.apply(parser);
+            }
+
+
+            return new NamedParamBaseVisitor() {
+                @Override
+                public Object visitNamedParameter(@NotNull NamedParamParser.NamedParameterContext ctx) {
+                    return super.visitNamedParameter(ctx);
+                }
+
+                @Override
+                public Object visitOptionalParameter(@NotNull NamedParamParser.OptionalParameterContext ctx) {
+                    return super.visitOptionalParameter(ctx);
+                }
+
+                @Override
+                public Object visitTerminal(@NotNull TerminalNode node) {
+                    return super.visitTerminal(node);
+                }
+
+                @Override
+                public Object visitQuery(@NotNull NamedParamParser.QueryContext ctx) {
+                    return super.visitQuery(ctx);
+                }
+
+                @Override
+                public Object visitErrorNode(@NotNull ErrorNode node) {
+                    return super.visitErrorNode(node);
+                }
+
+            }.visit(tree);
+        }
+        catch (StackOverflowError e) {
+            throw new ParsingException(name + " is too large (stack overflow while parsing)");
+        }
     }
 
 

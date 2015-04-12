@@ -1,5 +1,6 @@
 package org.rakam.analysis.postgresql;
 
+import com.facebook.presto.sql.SqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.Expression;
@@ -9,6 +10,9 @@ import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
+import com.facebook.presto.sql.tree.Statement;
+import com.facebook.presto.sql.tree.Table;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
@@ -16,11 +20,14 @@ import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.collection.event.metastore.ReportMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
-import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
+import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,12 +42,14 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 02:34.
  */
 public class PostgresqlContinuousQueryService extends ContinuousQueryService {
+    final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlContinuousQueryService.class);
+
     private final ReportMetadataStore reportDatabase;
-    private final QueryExecutor executor;
+    private final PostgresqlQueryExecutor executor;
     private final EventSchemaMetastore metastore;
 
     @Inject
-    public PostgresqlContinuousQueryService(EventSchemaMetastore metastore, ReportMetadataStore reportDatabase, QueryExecutor executor) {
+    public PostgresqlContinuousQueryService(EventSchemaMetastore metastore, ReportMetadataStore reportDatabase, PostgresqlQueryExecutor executor) {
         super(reportDatabase);
         this.reportDatabase = reportDatabase;
         this.metastore = metastore;
@@ -50,15 +59,61 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 .scheduleAtFixedRate(this::updateTable, 10, 10, TimeUnit.SECONDS);
     }
 
+    private String replaceSourceTable(String query, String sampleCollection) {
+        Statement statement = new SqlParser().createStatement(query);
+        StringBuilder builder = new StringBuilder();
+        statement.accept(new SqlFormatter.Formatter(builder) {
+            @Override
+            protected Void visitTable(Table node, Integer indent) {
+                if(node.getName().getSuffix().equals("stream")) {
+                    builder.append(sampleCollection);
+                    return null;
+                }else {
+                    return super.visitTable(node, indent);
+                }
+            }
+        }, 0);
+        return builder.toString();
+    }
+
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
         Map<String, PostgresqlFunction> continuousQueryMetadata = processQuery(report);
         // just to create the table with the columns.
-        String query = format("create table %s.%s as (%s limit 0)", report.project, report.tableName, report.query);
-        report.options.put("metadata", continuousQueryMetadata);
-        return executor.executeQuery(query).getResult().thenApply(result -> {
+        String query = format("create table %s.%s as (%s limit 0) primary key ", report.project,
+                "_"+report.tableName,
+                replaceSourceTable(report.query, report.project+"."+report.collections.get(0)));
+
+        if(report.options.containsKey("_metadata")) {
+            throw new IllegalArgumentException("_metadata option is reserved");
+        }
+        try {
+            report.options.put("_metadata", continuousQueryMetadata);
+        } catch (UnsupportedOperationException e) {
+            // the map seems to be immutable.
+            HashMap<String, Object> map = new HashMap<>(report.options);
+            map.put("_metadata", continuousQueryMetadata);
+
+            report = new ContinuousQuery(report.project,
+                    report.name, report.tableName,
+                    report.query, report.collections, map);
+        }
+        final ContinuousQuery finalReport = report;
+        return executor.executeUpdate(query).getResult().thenApply(result -> {
             if(result.getError() == null) {
-                reportDatabase.createContinuousQuery(report);
+                reportDatabase.createContinuousQuery(finalReport);
+
+                String groupings = continuousQueryMetadata.entrySet().stream()
+                        .filter(e -> e.getValue() == null)
+                        .map(e -> e.getKey())
+                        .collect(Collectors.joining(", "));
+                executor.executeUpdate(format("ALTER TABLE %1$s.%2$s ADD PRIMARY KEY (%3$s)",
+                        finalReport.project, "_"+finalReport.tableName, groupings)).getResult().thenAccept(indexResult -> {
+                    if(indexResult.isFailed()) {
+                        LOGGER.error("Failed to create unique index on continuous column: {0}", result.getError());
+                    }
+                });
+
             }
             return result;
         });
@@ -77,6 +132,16 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         });
     }
 
+    /*
+     * Currently, the implementation use time column for incremental computation.
+     * However the column needs to indexed because queries that filters a column in a large table without an index is not efficient.
+     * After each operation, we drop / re-create index so that the query doesn't spend too much time filtering rows.
+     * However; new rows need to indexed so it affects write performance.
+     * TODO: find a better way to process rows in batches.
+     * Possible ways:
+     * 1. Use LISTEN / NOTIFY queue. (- AFAIK LISTEN fetches rows one by one)
+     * 1. Use logical decoder introduced in 9.4. (- Needs an additional custom output decoder needs to be installed.)
+     */
     private void updateTable() {
         Map<String, List<ContinuousQuery>> allContinuousQueries = reportDatabase.getAllContinuousQueries();
 
@@ -98,59 +163,64 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 }
 
                 String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
-                executor.executeQuery(sqlQuery).getResult();
+                executor.executeQuery(sqlQuery).getResult().thenAccept(result -> {
+                    if(result.isFailed()) {
+                        LOGGER.error("Failed to update continuous query states: {0}", result.getError());
+                    }
+                });
 //            String s1 = "CREATE INDEX graph_mv_latest ON graph (xaxis, value) WHERE  ts >= '-infinity';";
             }
         }
     }
 
     private String buildQueryForCollection(String project, String collection, List<ContinuousQuery> queriesForCollection) {
-
-
         StringBuilder builder = new StringBuilder();
-        builder.append("WITH newTime (select cast(extract(epoch from now()) as int4) as time)");
-        builder.append(format(", savedLastTime (select last_sync as time from collections_last_sync " +
-                        "where project = '%s' and collection = '%s')"));
-        builder.append(format(", createdLastTimeIfNotExists (insert into collections_last_sync select '%s', '%s', (select time from newTime)) where not exists (select * from lastTime) returning last_sync)",
+        builder.append("WITH newTime AS (select cast(extract(epoch from now()) as int4) as time)");
+        builder.append(format(", savedLastTime AS (select last_sync as time from collections_last_sync " +
+                        "where project = '%s' and collection = '%s')", project, collection));
+        builder.append(format(", createdLastTimeIfNotExists AS (insert into collections_last_sync " +
+                        "select '%s', '%s', (select time from newTime) where not exists (select * from savedLastTime) returning last_sync)",
                 project, collection));
-        builder.append(", lastTime (select coalesce((select last_sync from savedLastTime), (select last_sync from createdLastTimeIfNotExists)))");
+        builder.append(", lastTime AS (select coalesce((select time from savedLastTime), (select last_sync from createdLastTimeIfNotExists)) as time)");
 
-        builder.append(format(", stream AS (SELECT * FROM %s.%s stream WHERE time > (select time from lastTime) AND time < (select time from newTime)) ",
+        builder.append(format(", stream AS (SELECT * FROM %s.%s WHERE time >= (select time from lastTime) AND time < (select time from newTime)) ",
                 project, collection));
 
         for (ContinuousQuery report : queriesForCollection) {
             // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
             // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
-            Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("metadata"), Map.class);
+            Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
+                    new TypeReference<Map<String, PostgresqlFunction>>() {});
 
+            String tableName = "_"+report.tableName;
             String aggFields = metadata.entrySet().stream()
                     .filter(c -> c.getValue() != null)
-                    .map(c -> buildUpdateState(report.tableName, c.getKey(), c.getValue()))
+                    .map(c -> buildUpdateState(tableName, c.getKey(), c.getValue()))
                     .collect(Collectors.joining(", "));
 
             String groupedFields = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
-                    .map(c -> format("%1$s.%2$s = %1$s_update.%2$s", report.tableName, c.getKey()))
+                    .map(c -> format("%1$s.%2$s = stream_%1$s.%2$s", tableName, c.getKey()))
                     .collect(Collectors.joining(", "));
 
             String returningFields = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
-                    .map(c -> c.getKey())
+                    .map(c -> tableName+"."+c.getKey())
                     .collect(Collectors.joining(", "));
 
-            builder.append(format("stream_%s AS (%s)",
-                    report.tableName, report.query));
-            builder.append(format(", update_%s as (UPDATE %s.%s SET %s FROM stream_%s WHERE %s RETURNING %s) ",
-                    report.tableName, project, report.tableName, aggFields, report.tableName, groupedFields, returningFields));
-            builder.append(format(", %s_insert as (INSERT INTO %s.%s (SELECT * FROM (stream_%s) WHERE NOT EXISTS (SELECT * FROM update_%s) )) ",
-                    report.tableName,  project, report.tableName, report.tableName));
+            builder.append(format(", stream_%s AS (%s)",
+                    tableName, report.query));
+            builder.append(format(", update_%s AS (UPDATE %s.%s SET %s FROM stream_%s WHERE %s RETURNING %s) ",
+                    tableName, project, tableName, aggFields, tableName, groupedFields, returningFields));
+            builder.append(format(", insert_%s AS (INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE NOT EXISTS (SELECT * FROM update_%s) ) RETURNING 1) ",
+                    tableName,  project, tableName, tableName, tableName));
         }
 
-        builder.append(format(", updateSync as (UPDATE collections_last_sync " +
-                "SET last_sync = (SELECT time FROM newTime) WHERE project = '%s', '%s')", project, collection));
+        builder.append(format(", updateSync AS (UPDATE collections_last_sync " +
+                "SET last_sync = (SELECT time FROM newTime) WHERE project = '%s' AND collection = '%s')", project, collection));
 
         String insertQueries = queriesForCollection.stream()
-                .map(r -> "SELECT * FROM insert_" + r.tableName)
+                .map(r -> " SELECT count(*) FROM insert__" + r.tableName)
                 .collect(Collectors.joining(" UNION ALL "));
         builder.append(insertQueries);
 
@@ -161,11 +231,11 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         switch (value) {
             case count:
             case sum:
-                return format("%1$s.%2$s += %1$s_update.%2$s", tableName, key);
+                return format("%2$s = %1$s.%2$s + stream_%1$s.%2$s", tableName, key);
             case max:
-                return format("%1$s.%2$s = max(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
+                return format("%2$s = max(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
             case min:
-                return format("%1$s.%2$s = min(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
+                return format("%2$s = min(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
             default:
                 throw new IllegalStateException();
         }
@@ -223,7 +293,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
         for (Expression expression : querySpecification.getGroupBy()) {
             if(expression instanceof LongLiteral) {
-                SelectItem selectItem = selectItems.get(Ints.checkedCast(((LongLiteral) expression).getValue()));
+                SelectItem selectItem = selectItems.get(Ints.checkedCast(((LongLiteral) expression).getValue())-1);
                 Optional<String> alias = ((SingleColumn) selectItem).getAlias();
                 if(!alias.isPresent()) {
                     throw new IllegalArgumentException(format("Column '%s' must have an alias", selectItem));
@@ -248,6 +318,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
 
     public static enum PostgresqlFunction {
+        // implement approximate_count using hyperloglog algorithm: https://www.periscope.io/blog/hyperloglog-in-pure-sql.html
         count, max, min, sum
     }
 }

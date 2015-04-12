@@ -1,5 +1,6 @@
 package org.rakam.plugin;
 
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Statement;
 import org.rakam.collection.event.metastore.ReportMetadataStore;
 import org.rakam.report.QueryExecution;
@@ -24,15 +25,9 @@ public abstract class AbstractReportService {
         this.database = database;
     }
 
-    public QueryExecution create(Report report) {
-        String sqlQuery = buildQuery(report.project, report.query);
-        QueryExecution prestoQuery = queryExecutor.executeQuery(format("CREATE TABLE %s AS (%s)", report.tableName, sqlQuery));
-        prestoQuery.getResult().thenAccept(result -> {
-            if(!result.isFailed()) {
-                database.saveReport(report);
-            }
-        });
-        return prestoQuery;
+    public void create(Report report) {
+        queryExecutor.executeQuery(format("CREATE TABLE _%s AS (%s LIMIT 0)", report.tableName, report.query));
+        database.saveReport(report);
     }
 
     protected abstract String buildQuery(String project, Statement query);
@@ -56,32 +51,33 @@ public abstract class AbstractReportService {
 
     public QueryExecution update(String project, String reportName) {
         Report report = database.getReport(project, reportName);
-        QueryResult result = queryExecutor.executeQuery(format("DROP TABLE %s", report.tableName)).getResult().join();
-        if (result.getError() != null) {
-            String sqlQuery = buildQuery(report.project, report.query);
-            return queryExecutor.executeQuery(format("CREATE TABLE %s AS (%s)", report.tableName, sqlQuery));
-        } else {
-            return new QueryExecution() {
-                @Override
-                public QueryStats currentStats() {
-                    return null;
-                }
+        if(report.lastUpdate!=null) {
+            QueryResult result = queryExecutor.executeQuery(format("DROP TABLE %s", report.tableName)).getResult().join();
+            if(result.isFailed()) {
+                return new QueryExecution() {
+                    @Override
+                    public QueryStats currentStats() {
+                        return null;
+                    }
 
-                @Override
-                public boolean isFinished() {
-                    return true;
-                }
+                    @Override
+                    public boolean isFinished() {
+                        return true;
+                    }
 
-                @Override
-                public CompletableFuture<? extends QueryResult> getResult() {
-                    return CompletableFuture.completedFuture(result);
-                }
+                    @Override
+                    public CompletableFuture<? extends QueryResult> getResult() {
+                        return CompletableFuture.completedFuture(result);
+                    }
 
-                @Override
-                public String getQuery() {
-                    return null;
-                }
-            };
+                    @Override
+                    public String getQuery() {
+                        return null;
+                    }
+                };
+            }
         }
+        String sqlQuery = buildQuery(report.project, new SqlParser().createStatement(report.query));
+        return queryExecutor.executeQuery(format("CREATE TABLE %s AS (%s)", report.tableName, sqlQuery));
     }
 }

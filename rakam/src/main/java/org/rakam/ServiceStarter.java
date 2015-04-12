@@ -10,6 +10,7 @@ import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import org.rakam.analysis.ContinuousQueryHttpService;
 import org.rakam.analysis.stream.EventStreamHttpService;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.event.EventHttpService;
@@ -116,6 +117,7 @@ public class ServiceStarter {
             httpServices.addBinding().to(UserHttpService.class);
             httpServices.addBinding().to(EventHttpService.class);
             httpServices.addBinding().to(EventStreamHttpService.class);
+            httpServices.addBinding().to(ContinuousQueryHttpService.class);
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
 

@@ -1,12 +1,14 @@
 package org.rakam.realtime;
 
-import com.facebook.presto.jdbc.internal.guava.collect.ImmutableMap;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
-import org.rakam.collection.event.metastore.ReportMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
@@ -34,15 +36,15 @@ import static org.rakam.util.JsonHelper.convert;
 @Singleton
 @Path("/realtime")
 public class RealTimeHttpService extends HttpService {
-    private final ReportMetadataStore metastore;
+    private final ContinuousQueryService service;
     private final QueryExecutor executor;
     SqlParser sqlParser = new SqlParser();
     private final Duration slideInterval = Duration.ofSeconds(5);
     private final Duration window = Duration.ofSeconds(45);
 
     @Inject
-    public RealTimeHttpService(ReportMetadataStore metastore, QueryExecutor executor) {
-        this.metastore = checkNotNull(metastore, "metastore is null");
+    public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor) {
+        this.service = checkNotNull(service, "service is null");
         this.executor = checkNotNull(executor, "executor is null");
     }
 
@@ -75,7 +77,7 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @POST
     @Path("/create")
-    public JsonResponse create(RealTimeReport query) {
+    public CompletableFuture<JsonResponse> create(RealTimeReport query) {
         String randTable = UUID.randomUUID().toString().substring(0, 8);
 
         String sqlQuery = new StringBuilder().append("select ")
@@ -83,7 +85,7 @@ public class RealTimeHttpService extends HttpService {
                 .append(format(", (time / %d) as time", slideInterval.getSeconds()))
                 .append(" from stream")
                 .append(query.filter == null ? "" : "where " + query.filter)
-                .append(query.dimension != null ? "group by 1" : "").toString();
+                .append(query.dimension != null ? " group by 3, 2" : " group by 2").toString();
 
         ContinuousQuery report = new ContinuousQuery(query.project,
                 query.name,
@@ -91,10 +93,11 @@ public class RealTimeHttpService extends HttpService {
                 sqlQuery,
                 query.collections,
                 ImmutableMap.of("type", "realtime", "report", query));
-        metastore.createContinuousQuery(report);
-        return new JsonResponse() {
-            public final boolean success = true;
-        };
+        return service.create(report).thenApply(result ->
+                new JsonResponse() {
+            public final boolean success = result.isFailed();
+            public final String message = result.getError().message;
+        });
     }
 
     /**
@@ -121,7 +124,6 @@ public class RealTimeHttpService extends HttpService {
     @POST
     @Path("/get")
     public CompletableFuture get(RealTimeQuery query) {
-
         Expression expression;
         if (query.filter != null) {
             expression = sqlParser.createExpression(query.filter);
@@ -129,14 +131,15 @@ public class RealTimeHttpService extends HttpService {
             expression = null;
         }
 
-        ContinuousQuery continuousQuery = metastore.getContinuousQuery(query.project, query.name);
+        ContinuousQuery continuousQuery = service.get(query.project, query.name);
 
-        long epochSecond = query.date != null ? query.date : Instant.now().getEpochSecond();
+        long now = Instant.now().getEpochSecond();
 
-        long currentWindow = epochSecond / 5;
-        long previousWindow = (epochSecond - window.getSeconds()) / 5;
+        long previousWindow = (query.dateStart == null ? (now - window.getSeconds()) : query.dateStart) / 5;;
+        long currentWindow = (query.dateEnd == null ? now : query.dateEnd) / 5;
+
         String sqlQuery = format("select value from %s where %s %s",
-                continuousQuery.tableName,
+                continuousQuery.project+"._"+continuousQuery.tableName,
                 format("time between %d and %d", previousWindow, currentWindow),
                 expression == null ? "" : expression.toString());
 
@@ -175,7 +178,7 @@ public class RealTimeHttpService extends HttpService {
         if (project == null) {
             return errorMessage("project parameter is required", 400);
         }
-        return metastore.getContinuousQueries(project.asText()).stream()
+        return service.list(project.asText()).stream()
                 .filter(report -> report.options != null && Objects.equals(report.options.get("type"), "realtime"))
                 .map(report -> convert(report.options.get("report"), RealTimeReport.class))
                 .collect(Collectors.toList());
@@ -215,41 +218,9 @@ public class RealTimeHttpService extends HttpService {
         }
 
         // TODO: Check if it's a real-time report.
-        metastore.deleteReport(project.asText(), name.asText());
+        service.delete(project.asText(), name.asText());
 
         return JsonHelper.jsonObject().put("message", "successfully deleted");
-    }
-
-    /**
-     * @api {post} /realtime/get Get realtime data
-     * @apiVersion 0.1.0
-     * @apiName GetRealTimeData
-     * @apiGroup realtime
-     * @apiDescription Creates realtime report using continuous queries.
-     * This module adds a new attribute called 'time' to events, it's simply a unix epoch that represents the seconds the event is occurred.
-     * Continuous query continuously aggregates 'time' column and
-     * realtime module executes queries on continuous query table similar to 'select count from stream_count where time > now() - interval 5 second'
-     * Another nice feature is that it's possible to get historical data by specifying the time period
-     * @apiError Project does not exist.
-     * @apiError User does not exist.
-     * @apiSuccessExample {json} Success-Response:
-     * HTTP/1.1 200 OK
-     * {}
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {String} name   The name of the realtime report.
-     * @apiParamExample {json} Request-Example:
-     * {"project": "projectId", "name": "Events by collection"}
-     * @apiSuccess (200) {Object[]} result  Query result-set.
-     * @apiExample {curl} Example usage:
-     * curl 'http://localhost:9999/realtime/get' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection"}'
-     */
-    @JsonRequest
-    @POST
-    @Path("/get")
-    public CompletableFuture get(JsonNode query) {
-        String project = query.get("project").asText();
-        String name = query.get("name").asText();
-        return executor.executeQuery(format("select * from %s.%s where time > now() - interval '5' second ", project, name)).getResult();
     }
 
     public String createSelect(AggregationType aggType, String measure, String dimension) {
@@ -265,23 +236,23 @@ public class RealTimeHttpService extends HttpService {
 
         switch (aggType) {
             case AVERAGE:
-                return builder.append("avg(key) as value").toString();
+                return builder.append("avg(1) as value").toString();
             case MAXIMUM:
-                return builder.append("max(key) as value").toString();
+                return builder.append("max(1) as value").toString();
             case MINIMUM:
-                return builder.append("min(key) as value").toString();
+                return builder.append("min(1) as value").toString();
             case COUNT:
-                return builder.append("count(key) as value").toString();
+                return builder.append("count(1) as value").toString();
             case SUM:
-                return builder.append("sum(key) as value").toString();
+                return builder.append("sum(1) as value").toString();
             case APPROXIMATE_UNIQUE:
-                return builder.append("approx_distinct(key) as value").toString();
+                return builder.append("approx_distinct(1) as value").toString();
             case VARIANCE:
-                return builder.append("variance(key) as value").toString();
+                return builder.append("variance(1) as value").toString();
             case POPULATION_VARIANCE:
-                return builder.append("variance(key) as value").toString();
+                return builder.append("variance(1) as value").toString();
             case STANDARD_DEVIATION:
-                return builder.append("stddev(key) as value").toString();
+                return builder.append("stddev(1) as value").toString();
             default:
                 throw new IllegalArgumentException("aggregation type couldn't found.");
         }
@@ -291,13 +262,20 @@ public class RealTimeHttpService extends HttpService {
         public final String project;
         public final String name;
         public final String filter;
-        public final Integer date;
+        public final Long dateStart;
+        public final Long dateEnd;
 
-        public RealTimeQuery(String project, String name, String filter, Integer date) {
+        @JsonCreator
+        public RealTimeQuery(@JsonProperty("project") String project,
+                             @JsonProperty("name") String name,
+                             @JsonProperty("filter") String filter,
+                             @JsonProperty("date_start") Long dateStart,
+                             @JsonProperty("date_end") Long dateEnd) {
             this.project = project;
             this.name = name;
             this.filter = filter;
-            this.date = date;
+            this.dateStart = dateStart;
+            this.dateEnd = dateEnd;
         }
     }
 }
