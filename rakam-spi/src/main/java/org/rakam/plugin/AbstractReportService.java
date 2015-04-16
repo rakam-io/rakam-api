@@ -1,6 +1,5 @@
 package org.rakam.plugin;
 
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Statement;
 import org.rakam.collection.event.metastore.ReportMetadataStore;
 import org.rakam.report.QueryExecution;
@@ -25,9 +24,9 @@ public abstract class AbstractReportService {
         this.database = database;
     }
 
-    public void create(Report report) {
-        queryExecutor.executeQuery(format("CREATE TABLE _%s AS (%s LIMIT 0)", report.tableName, report.query));
-        database.saveReport(report);
+    public void create(MaterializedView materializedView) {
+        queryExecutor.executeQuery(format("CREATE TABLE _%s AS (%s LIMIT 0)", materializedView.tableName, materializedView.query));
+        database.saveMaterializedView(materializedView);
     }
 
     protected abstract String buildQuery(String project, Statement query);
@@ -36,23 +35,23 @@ public abstract class AbstractReportService {
         return queryExecutor.executeQuery(buildQuery(project, statement));
     }
 
-    public List<Report> list(String project) {
-        return database.getReports(project);
+    public List<MaterializedView> listMaterializedViews(String project) {
+        return database.getMaterializedViews(project);
     }
 
-    public CompletableFuture<? extends QueryResult> delete(String project, String name) {
-        database.deleteReport(project, name);
+    public CompletableFuture<? extends QueryResult> deleteMaterializedView(String project, String name) {
+        database.deleteMaterializedView(project, name);
         return queryExecutor.executeQuery(format("DELETE TABLE %s", name)).getResult();
     }
 
-    public Report getReport(String project, String name) {
-        return database.getReport(project, name);
+    public MaterializedView getMaterializedView(String project, String name) {
+        return database.getMaterializedView(project, name);
     }
 
-    public QueryExecution update(String project, String reportName) {
-        Report report = database.getReport(project, reportName);
-        if(report.lastUpdate!=null) {
-            QueryResult result = queryExecutor.executeQuery(format("DROP TABLE %s", report.tableName)).getResult().join();
+    public QueryExecution updateMaterializedView(String project, String reportName) {
+        MaterializedView materializedView = database.getMaterializedView(project, reportName);
+        if(materializedView.lastUpdate!=null) {
+            QueryResult result = queryExecutor.executeQuery(format("DROP TABLE %s", materializedView.tableName)).getResult().join();
             if(result.isFailed()) {
                 return new QueryExecution() {
                     @Override
@@ -77,7 +76,7 @@ public abstract class AbstractReportService {
                 };
             }
         }
-        String sqlQuery = buildQuery(report.project, new SqlParser().createStatement(report.query));
-        return queryExecutor.executeQuery(format("CREATE TABLE %s AS (%s)", report.tableName, sqlQuery));
+        String sqlQuery = buildQuery(materializedView.project, materializedView.query);
+        return queryExecutor.executeQuery(format("CREATE TABLE %s AS (%s)", materializedView.tableName, sqlQuery));
     }
 }

@@ -8,7 +8,7 @@ import io.airlift.units.Duration;
 import org.rakam.JDBCConfig;
 import org.rakam.collection.event.metastore.ReportMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.plugin.Report;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -32,11 +32,11 @@ import static java.lang.String.format;
 public class JDBCReportMetadata implements ReportMetadataStore {
     Handle dao;
 
-    ResultSetMapper<Report> reportMapper = new ResultSetMapper<Report>() {
+    ResultSetMapper<MaterializedView> reportMapper = new ResultSetMapper<MaterializedView>() {
         @Override
-        public Report map(int index, ResultSet r, StatementContext ctx) throws SQLException {
+        public MaterializedView map(int index, ResultSet r, StatementContext ctx) throws SQLException {
             Long update_interval = r.getLong("update_interval");
-            return new Report(
+            return new MaterializedView(
                     r.getString("project"),
                     r.getString("name"), r.getString("table_name"), r.getString("query"),
                     update_interval!= null ? new Duration(update_interval, TimeUnit.MILLISECONDS) : null,
@@ -63,7 +63,7 @@ public class JDBCReportMetadata implements ReportMetadataStore {
     }
 
     public void setup() {
-        dao.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
+        dao.createStatement("CREATE TABLE IF NOT EXISTS materialized_views (" +
                 "  project VARCHAR(255) NOT NULL," +
                 "  name VARCHAR(255) NOT NULL," +
                 "  table_name VARCHAR(255) NOT NULL," +
@@ -88,14 +88,14 @@ public class JDBCReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public void saveReport(Report report) {
+    public void saveMaterializedView(MaterializedView materializedView) {
         dao.createStatement("INSERT INTO reports (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
-                .bind("project", report.project)
-                .bind("name", report.name)
-                .bind("table_name", report.tableName)
-                .bind("query", report.query)
-                .bind("update_interval", report.updateInterval!=null ? report.updateInterval.toMillis() : null)
-        .bind("options", JsonHelper.encode(report.options, false))
+                .bind("project", materializedView.project)
+                .bind("name", materializedView.name)
+                .bind("table_name", materializedView.tableName)
+                .bind("query", materializedView.query)
+                .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
+        .bind("options", JsonHelper.encode(materializedView.options, false))
                 .execute();
     }
 
@@ -133,21 +133,21 @@ public class JDBCReportMetadata implements ReportMetadataStore {
     }
 
     @Override
-    public void deleteReport(String project, String name) {
+    public void deleteMaterializedView(String project, String name) {
         dao.createStatement("DELETE FROM reports WHERE project = :project AND name = :name")
                 .bind("project", project)
                 .bind("name", name).execute();
     }
 
     @Override
-    public Report getReport(String project, String name) {
+    public MaterializedView getMaterializedView(String project, String name) {
         return dao.createQuery("SELECT project, name, query, strategy, options from reports WHERE project = :project AND name = :name")
                 .bind("project", project)
                 .bind("name", name).map(reportMapper).first();
     }
 
     @Override
-    public List<Report> getReports(String project) {
+    public List<MaterializedView> getMaterializedViews(String project) {
         return dao.createQuery("SELECT project, name, table_name, query, options, update_interval from reports WHERE project = :project")
                 .bind("project", project)
                 .map(reportMapper).list();

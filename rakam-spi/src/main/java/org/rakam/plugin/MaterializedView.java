@@ -15,36 +15,34 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/02/15 22:03.
  */
-public class Report {
+public class MaterializedView {
     private final static SqlParser SQL_PARSER = new SqlParser();
 
     public final String project;
     public final String name;
     public final String tableName;
-    public final String query;
+    public final Statement query;
     public final JsonNode options;
     public final Duration updateInterval;
     public Instant lastUpdate;
 
     @JsonCreator
-    public Report(@JsonProperty("project") String project,
-                  @JsonProperty("name") String name,
-                  @JsonProperty("table_name") String tableName,
-                  @JsonProperty("query") String query,
-                  @JsonProperty("update_interval") Duration updateInterval,
-                  @JsonProperty("options")  JsonNode options) {
+    public MaterializedView(@JsonProperty("project") String project,
+                            @JsonProperty("name") String name,
+                            @JsonProperty("table_name") String tableName,
+                            @JsonProperty("query") String query,
+                            @JsonProperty("update_interval") Duration updateInterval,
+                            @JsonProperty("options") JsonNode options) {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
-        this.query = checkNotNull(query, "query is required");
+        synchronized (SQL_PARSER) {
+            this.query = SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
+        }
         this.options = options;
         this.updateInterval = updateInterval;
 
         checkArgument(this.tableName.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "table_name must only contain alphanumeric characters and _");
-    }
-
-    private synchronized Statement parseStatement(String query) {
-        return SQL_PARSER.createStatement(query);
     }
 }

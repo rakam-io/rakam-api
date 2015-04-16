@@ -10,7 +10,6 @@ import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
-import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,64 +17,41 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import org.antlr.v4.runtime.ANTLRInputStream;
-import org.antlr.v4.runtime.BaseErrorListener;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.atn.PredictionMode;
-import org.antlr.v4.runtime.misc.Interval;
-import org.antlr.v4.runtime.misc.NotNull;
-import org.antlr.v4.runtime.misc.ParseCancellationException;
-import org.antlr.v4.runtime.tree.ErrorNode;
-import org.antlr.v4.runtime.tree.TerminalNode;
 import org.rakam.collection.FieldType;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.AbstractReportService;
-import org.rakam.plugin.Report;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.sql.test.NamedParamBaseVisitor;
-import org.rakam.sql.test.NamedParamLexer;
-import org.rakam.sql.test.NamedParamParser;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.json.JsonResponse;
 
-import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.rakam.report.ViewHttpService.handleQueryExecution;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
  */
-@Path("/reports")
-public class ReportHttpService extends HttpService {
-    private final SqlParser sqlParser;
+@Path("/materialized-view")
+public class MaterializedViewHttpService extends HttpService {
     private final AbstractReportService service;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public ReportHttpService(AbstractReportService service) {
+    public MaterializedViewHttpService(AbstractReportService service) {
         this.service = service;
-        this.sqlParser = new SqlParser();
     }
 
     /**
-     * @api {post} /reports/list Get lists of the reports
+     * @api {post} /materialized-view/list Get lists of the reports
      * @apiVersion 0.1.0
      * @apiName ListReports
      * @apiGroup report
@@ -92,7 +68,7 @@ public class ReportHttpService extends HttpService {
      * @apiSuccess {String} firstname Firstname of the User.
      *
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/reports/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
+     *     curl 'http://localhost:9999/materialized-view/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
      */
     @JsonRequest
     @Path("/list")
@@ -102,11 +78,11 @@ public class ReportHttpService extends HttpService {
             return errorMessage("project parameter is required", 400);
         }
 
-        return service.list(project.asText());
+        return service.listMaterializedViews(project.asText());
     }
 
     /**
-     * @api {post} /reports/create Create new report
+     * @api {post} /materialized-view/create Create new report
      * @apiVersion 0.1.0
      * @apiName CreateReport
      * @apiGroup report
@@ -132,11 +108,11 @@ public class ReportHttpService extends HttpService {
      *     {"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}
      *
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/reports/create' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
+     *     curl 'http://localhost:9999/materialized-view/create' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
      */
     @JsonRequest
     @Path("/create")
-    public JsonResponse create(Report query) {
+    public JsonResponse create(MaterializedView query) {
 
 //        NamedQuery namedQuery = new NamedQuery(query.query);
 //        String sqlQuery = namedQuery.build();
@@ -150,157 +126,8 @@ public class ReportHttpService extends HttpService {
         };
     }
 
-    static class CaseInsensitiveStream
-            implements CharStream
-    {
-        private CharStream stream;
-
-        public CaseInsensitiveStream(CharStream stream)
-        {
-            this.stream = stream;
-        }
-
-        @Override
-        @NotNull
-        public String getText(@NotNull Interval interval)
-        {
-            return stream.getText(interval);
-        }
-
-        @Override
-        public void consume()
-        {
-            stream.consume();
-        }
-
-        @Override
-        public int LA(int i)
-        {
-            int result = stream.LA(i);
-
-            switch (result) {
-                case 0:
-                case CharStream.EOF:
-                    return result;
-                default:
-                    return Character.toUpperCase(result);
-            }
-        }
-
-        @Override
-        public int mark()
-        {
-            return stream.mark();
-        }
-
-        @Override
-        public void release(int marker)
-        {
-            stream.release(marker);
-        }
-
-        @Override
-        public int index()
-        {
-            return stream.index();
-        }
-
-        @Override
-        public void seek(int index)
-        {
-            stream.seek(index);
-        }
-
-        @Override
-        public int size()
-        {
-            return stream.size();
-        }
-
-        @Override
-        @NotNull
-        public String getSourceName()
-        {
-            return stream.getSourceName();
-        }
-    }
-
-    private static final BaseErrorListener ERROR_LISTENER = new BaseErrorListener();
-
-
-    private Object invokeParser(String name, String sql, Function<org.rakam.sql.test.NamedParamParser, ParserRuleContext> parseFunction)
-    {
-        try {
-            NamedParamLexer lexer = new NamedParamLexer(new CaseInsensitiveStream(new ANTLRInputStream(sql)));
-//            org.antlr.v4.runtime.Token t = lexer.nextToken();
-//            while (t.getType() != NamedParamLexer.EOF) {
-//                switch (t.getType()) {
-//                    case NamedParamLexer.IDENTIFIER:
-//                    case NamedParamLexer.STRING:
-//                    case NamedParamLexer.QUERY_CONTENT:
-//                        System.out.println(1);
-//                        break;
-//                    default:
-//                        System.out.println(1);
-//                }
-//            }
-
-            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-            org.rakam.sql.test.NamedParamParser parser = new org.rakam.sql.test.NamedParamParser(tokenStream);
-
-
-            ParserRuleContext tree;
-            try {
-                // first, try parsing with potentially faster SLL mode
-                parser.getInterpreter().setPredictionMode(PredictionMode.SLL);
-                tree = parseFunction.apply(parser);
-            }
-            catch (ParseCancellationException ex) {
-                // if we fail, parse with LL mode
-                tokenStream.reset(); // rewind input stream
-                parser.reset();
-
-                parser.getInterpreter().setPredictionMode(PredictionMode.LL);
-                tree = parseFunction.apply(parser);
-            }
-
-
-            return new NamedParamBaseVisitor() {
-                @Override
-                public Object visitNamedParameter(@NotNull NamedParamParser.NamedParameterContext ctx) {
-                    return super.visitNamedParameter(ctx);
-                }
-
-                @Override
-                public Object visitOptionalParameter(@NotNull NamedParamParser.OptionalParameterContext ctx) {
-                    return super.visitOptionalParameter(ctx);
-                }
-
-                @Override
-                public Object visitTerminal(@NotNull TerminalNode node) {
-                    return super.visitTerminal(node);
-                }
-
-                @Override
-                public Object visitQuery(@NotNull NamedParamParser.QueryContext ctx) {
-                    return super.visitQuery(ctx);
-                }
-
-                @Override
-                public Object visitErrorNode(@NotNull ErrorNode node) {
-                    return super.visitErrorNode(node);
-                }
-
-            }.visit(tree);
-        }
-        catch (StackOverflowError e) {
-            throw new ParsingException(name + " is too large (stack overflow while parsing)");
-        }
-    }
-
-
     /**
-     * @api {post} /reports/delete Delete report
+     * @api {post} /materialized-view/delete Delete report
      * @apiVersion 0.1.0
      * @apiName DeleteReport
      * @apiGroup report
@@ -319,19 +146,19 @@ public class ReportHttpService extends HttpService {
      *     {"project": "projectId", "name": "Yearly Visits"}
      *
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/reports/delete' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
+     *     curl 'http://localhost:9999/materialized-view/delete' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
      */
     @JsonRequest
     @Path("/delete")
     public CompletableFuture<JsonResponse> delete(ReportQuery report) {
-        return service.delete(report.project, report.name)
+        return service.deleteMaterializedView(report.project, report.name)
                 .thenApply(result -> new JsonResponse() {
                     public final boolean success = result.getError() == null;
                 });
     }
 
     /**
-     * @api {get} /reports/update Update report
+     * @api {get} /materialized-view/update Update report
      * @apiVersion 0.1.0
      * @apiName UpdateReportData
      * @apiGroup report
@@ -351,7 +178,7 @@ public class ReportHttpService extends HttpService {
      *     {"project": "projectId", "name": "Yearly Visits"}
      *
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/reports/update' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
+     *     curl 'http://localhost:9999/materialized-view/update' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
      */
     @Path("/update")
     public void update(RakamHttpRequest request) {
@@ -363,12 +190,12 @@ public class ReportHttpService extends HttpService {
             response.send("result", encode(errorMessage("request is invalid", 400))).end();
         }
 
-        QueryExecution update = service.update(project.get(0), name.get(0));
+        QueryExecution update = service.updateMaterializedView(project.get(0), name.get(0));
         handleQueryExecution(eventLoopGroup, response, update);
     }
 
     /**
-     * @api {post} /reports/get Get reports
+     * @api {post} /materialized-view/get Get reports
      * @apiVersion 0.1.0
      * @apiName GetReportMetadata
      * @apiGroup report
@@ -401,16 +228,16 @@ public class ReportHttpService extends HttpService {
      *     }
      *
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/reports/get' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
+     *     curl 'http://localhost:9999/materialized-view/get' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
      */
     @JsonRequest
     @Path("/get")
     public Object get(ReportQuery query) {
-        return service.getReport(query.project, query.name);
+        return service.getMaterializedView(query.project, query.name);
     }
 
     /**
-     * @api {post} /reports/explain Get reports
+     * @api {post} /materialized-view/explain Get reports
      * @apiVersion 0.1.0
      * @apiName ExplainQuery
      * @apiGroup report
@@ -435,7 +262,7 @@ public class ReportHttpService extends HttpService {
      *     }
      *
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/reports/get' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
+     *     curl 'http://localhost:9999/materialized-view/get' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
      */
     @JsonRequest
     @Path("/explain")
@@ -504,116 +331,6 @@ public class ReportHttpService extends HttpService {
         return Optional.empty();
     }
 
-    /**
-     * @api {post} /reports/execute Execute query
-     * @apiVersion 0.1.0
-     * @apiName ExecuteQuery
-     * @apiGroup event
-     * @apiDescription Executes SQL Queries on the fly and returns the result directly to the user
-     *
-     * @apiError Project does not exist.
-     * @apiError Query Error
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Error Message"}
-     *
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {Number} offset   Offset results
-     * @apiParam {Number} limit   Limit results
-     * @apiParam {Object[]} [filters]  Predicate that will be applied to user data
-     *
-     * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/reports/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId", "limit": 100, "offset": 100, "filters": }'
-     */
-    @GET
-    @Path("/execute")
-    public void execute(RakamHttpRequest request) {
-        if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
-            request.response("the response should accept text/event-stream", HttpResponseStatus.NOT_ACCEPTABLE).end();
-            return;
-        }
-
-        RakamHttpRequest.StreamResponse response = request.streamResponse();
-        List<String> data = request.params().get("data");
-        if (data == null || data.isEmpty()) {
-            response.send("result", encode(errorMessage("data query parameter is required", 400))).end();
-            return;
-        }
-
-        ExecuteQuery query;
-        try {
-            query = JsonHelper.readSafe(data.get(0), ExecuteQuery.class);
-        } catch (IOException e) {
-            response.send("result", encode(errorMessage("json couldn't parsed", 400))).end();
-            return;
-        }
-
-        if (query.project == null) {
-            response.send("result", encode(errorMessage("project parameter is required", 400))).end();
-            return;
-        }
-
-        if (query.query == null) {
-            response.send("result", encode(errorMessage("query parameter is required", 400))).end();
-            return;
-        }
-
-        NamedQuery namedQuery = new NamedQuery(query.query);
-        if(query.bindings != null) {
-            query.bindings.forEach((bindName, binding) -> namedQuery.bind(bindName, binding.type, binding.value));
-        }
-        String sqlQuery = namedQuery.build();
-
-        Statement statement;
-        try {
-            statement = createStatement(sqlQuery);
-        } catch (ParsingException e) {
-            response.send("result", encode(errorMessage("unable to parse query: "+e.getErrorMessage(), 400))).end();
-            return;
-        }
-
-        QueryExecution execute = service.execute(query.project, statement);
-        handleQueryExecution(eventLoopGroup, response, execute);
-    }
-
-    public static void handleQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
-        query.getResult().whenComplete((result, ex) -> {
-            if (ex != null) {
-                response.send("result", JsonHelper.jsonObject()
-                        .put("success", false)
-                        .put("query", query.getQuery())
-                        .put("message", "Internal error")).end();
-            } else if (result.isFailed()) {
-                response.send("result", JsonHelper.jsonObject()
-                        .put("success", false)
-                        .put("query", query.getQuery())
-                        .put("message", result.getError().message)).end();
-            } else {
-                response.send("result", encode(JsonHelper.jsonObject()
-                        .put("success", true)
-                        .putPOJO("query", query.getQuery())
-                        .putPOJO("result", result.getResult())
-                        .putPOJO("metadata", result.getMetadata()))).end();
-            }
-        });
-
-        eventLoopGroup.schedule(new Runnable() {
-            @Override
-            public void run() {
-                if(!query.isFinished()) {
-                    response.send("stats", encode(query.currentStats()));
-                    eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
-                }
-            }
-        }, 500, TimeUnit.MILLISECONDS);
-    }
-
-    // sqlParser is not thread-safe and this part of the code is not performance critical.
-    private synchronized Statement createStatement(String query) {
-        return sqlParser.createStatement(query);
-    }
-
     @Inject
     public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
@@ -626,33 +343,6 @@ public class ReportHttpService extends HttpService {
         public ReportQuery(String project, String name) {
             this.project = project;
             this.name = name;
-        }
-    }
-
-    public static class ExecuteQuery {
-        public final String project;
-        public final String query;
-        public final Map<String, Binding> bindings;
-
-        @JsonCreator
-        public ExecuteQuery(@JsonProperty("project") String project,
-                            @JsonProperty("query") String query,
-                            @JsonProperty("bindings") Map<String, Binding> bindings) {
-            this.project = project;
-            this.query = query;
-            this.bindings = bindings;
-        }
-
-        public static class Binding {
-            public final FieldType type;
-            public final Object value;
-
-            @JsonCreator
-            public Binding(@JsonProperty("type") FieldType type,
-                           @JsonProperty("value") Object value) {
-                this.type = type;
-                this.value = value;
-            }
         }
     }
 
