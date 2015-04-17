@@ -1,7 +1,7 @@
 package org.rakam.report;
 
 import com.google.inject.Inject;
-import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 
@@ -13,11 +13,11 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 02/04/15 04:38.
  */
 public class PrestoContinuousQueryService extends ContinuousQueryService {
-    private final ReportMetadataStore database;
+    private final QueryMetadataStore database;
     private final QueryExecutor executor;
 
     @Inject
-    public PrestoContinuousQueryService(ReportMetadataStore database, QueryExecutor executor) {
+    public PrestoContinuousQueryService(QueryMetadataStore database, QueryExecutor executor) {
         super(database);
         this.database = database;
         this.executor = executor;

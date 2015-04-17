@@ -1,11 +1,12 @@
 package org.rakam.plugin;
 
 import com.facebook.presto.sql.tree.Statement;
-import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
+import org.rakam.util.RakamException;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -15,17 +16,22 @@ import static java.lang.String.format;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/04/15 05:30.
  */
-public abstract class AbstractReportService {
-    final ReportMetadataStore database;
+public abstract class AbstractQueryService {
+    final QueryMetadataStore database;
     final QueryExecutor queryExecutor;
 
-    public AbstractReportService(QueryExecutor queryExecutor, ReportMetadataStore database) {
+    public AbstractQueryService(QueryExecutor queryExecutor, QueryMetadataStore database) {
         this.queryExecutor = queryExecutor;
         this.database = database;
     }
 
     public void create(MaterializedView materializedView) {
-        queryExecutor.executeQuery(format("CREATE TABLE _%s AS (%s LIMIT 0)", materializedView.tableName, materializedView.query));
+        QueryResult result = queryExecutor.executeQuery(format("CREATE TABLE _%s AS (%s LIMIT 0)",
+                materializedView.tableName,
+                buildQuery(materializedView.project, materializedView.query))).getResult().join();
+        if(result.isFailed()) {
+            throw new RakamException("Couldn't created table: "+result.getError().toString(), 400);
+        }
         database.saveMaterializedView(materializedView);
     }
 
@@ -48,8 +54,8 @@ public abstract class AbstractReportService {
         return database.getMaterializedView(project, name);
     }
 
-    public QueryExecution updateMaterializedView(String project, String reportName) {
-        MaterializedView materializedView = database.getMaterializedView(project, reportName);
+    public QueryExecution updateMaterializedView(String project, String name) {
+        MaterializedView materializedView = database.getMaterializedView(project, name);
         if(materializedView.lastUpdate!=null) {
             QueryResult result = queryExecutor.executeQuery(format("DROP TABLE %s", materializedView.tableName)).getResult().join();
             if(result.isFailed()) {

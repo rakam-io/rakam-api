@@ -17,7 +17,7 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
-import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryResult;
@@ -44,12 +44,12 @@ import static java.lang.String.format;
 public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlContinuousQueryService.class);
 
-    private final ReportMetadataStore reportDatabase;
+    private final QueryMetadataStore reportDatabase;
     private final PostgresqlQueryExecutor executor;
     private final EventSchemaMetastore metastore;
 
     @Inject
-    public PostgresqlContinuousQueryService(EventSchemaMetastore metastore, ReportMetadataStore reportDatabase, PostgresqlQueryExecutor executor) {
+    public PostgresqlContinuousQueryService(EventSchemaMetastore metastore, QueryMetadataStore reportDatabase, PostgresqlQueryExecutor executor) {
         super(reportDatabase);
         this.reportDatabase = reportDatabase;
         this.metastore = metastore;
@@ -99,7 +99,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                     report.query, report.collections, map);
         }
         final ContinuousQuery finalReport = report;
-        return executor.executeUpdate(query).getResult().thenApply(result -> {
+        return executor.executeStatement(query).getResult().thenApply(result -> {
             if(result.getError() == null) {
                 reportDatabase.createContinuousQuery(finalReport);
 
@@ -107,7 +107,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                         .filter(e -> e.getValue() == null)
                         .map(e -> e.getKey())
                         .collect(Collectors.joining(", "));
-                executor.executeUpdate(format("ALTER TABLE %1$s.%2$s ADD PRIMARY KEY (%3$s)",
+                executor.executeStatement(format("ALTER TABLE %1$s.%2$s ADD PRIMARY KEY (%3$s)",
                         finalReport.project, "_"+finalReport.tableName, groupings)).getResult().thenAccept(indexResult -> {
                     if(indexResult.isFailed()) {
                         LOGGER.error("Failed to create unique index on continuous column: {0}", result.getError());

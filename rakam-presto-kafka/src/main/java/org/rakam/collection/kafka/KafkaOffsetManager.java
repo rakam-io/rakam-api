@@ -20,7 +20,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
-import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.QueryError;
@@ -51,14 +51,14 @@ public class KafkaOffsetManager {
     private final static Logger LOGGER = Logger.getLogger(KafkaOffsetManager.class);
     private final KafkaSimpleConsumerManager consumerManager;
     private final EventSchemaMetastore metastore;
-    private final ReportMetadataStore reportMetadata;
+    private final QueryMetadataStore reportMetadata;
     private final KafkaConfig config;
     private final QueryExecutor prestoExecutor;
     private final PrestoConfig prestoConfig;
     private CuratorFramework zk;
 
     @Inject
-    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, QueryExecutor prestoExecutor, EventSchemaMetastore metastore, ReportMetadataStore reportMetadata) {
+    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, QueryExecutor prestoExecutor, EventSchemaMetastore metastore, QueryMetadataStore reportMetadata) {
         this.reportMetadata = checkNotNull(reportMetadata, "reportMetadata is null");
         this.prestoExecutor = checkNotNull(prestoExecutor, "prestoExecutor is null");
         this.config = checkNotNull(config, "config is null");

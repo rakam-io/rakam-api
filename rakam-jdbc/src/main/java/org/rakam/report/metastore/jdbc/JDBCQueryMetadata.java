@@ -1,12 +1,13 @@
 package org.rakam.report.metastore.jdbc;
 
+import com.facebook.presto.sql.SqlFormatter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.units.Duration;
 import org.rakam.JDBCConfig;
-import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
@@ -29,7 +30,7 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 10/02/15 18:03.
  */
 @Singleton
-public class JDBCReportMetadata implements ReportMetadataStore {
+public class JDBCQueryMetadata implements QueryMetadataStore {
     Handle dao;
 
     ResultSetMapper<MaterializedView> reportMapper = new ResultSetMapper<MaterializedView>() {
@@ -54,7 +55,7 @@ public class JDBCReportMetadata implements ReportMetadataStore {
     };
 
     @Inject
-    public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCConfig config) {
+    public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCConfig config) {
 
         DBI dbi = new DBI(format(config.getUrl(), config.getUsername(), config.getPassword()),
                 config.getUsername(), config.getUsername());
@@ -89,11 +90,11 @@ public class JDBCReportMetadata implements ReportMetadataStore {
 
     @Override
     public void saveMaterializedView(MaterializedView materializedView) {
-        dao.createStatement("INSERT INTO reports (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
+        dao.createStatement("INSERT INTO materialized_views (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
                 .bind("project", materializedView.project)
                 .bind("name", materializedView.name)
                 .bind("table_name", materializedView.tableName)
-                .bind("query", materializedView.query)
+                .bind("query", SqlFormatter.formatSql(materializedView.query))
                 .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
         .bind("options", JsonHelper.encode(materializedView.options, false))
                 .execute();

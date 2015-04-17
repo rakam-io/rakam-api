@@ -54,6 +54,11 @@ public class PrestoQueryExecutor implements QueryExecutor {
         return new PrestoQueryExecution(startQuery(prestoAddress, query));
     }
 
+    @Override
+    public QueryExecution executeStatement(String sqlQuery) {
+        return executeQuery(sqlQuery);
+    }
+
     private StatementClient startQuery(PrestoConfig config, String query) {
 
         HostAndPort hostAndPort = HostAndPort.fromString(config.getAddress());

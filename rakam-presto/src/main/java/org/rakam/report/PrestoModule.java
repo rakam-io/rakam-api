@@ -6,7 +6,7 @@ import io.airlift.configuration.ConfigurationFactory;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.AbstractReportService;
+import org.rakam.plugin.AbstractQueryService;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/04/15 06:31.
@@ -15,7 +15,7 @@ import org.rakam.plugin.AbstractReportService;
 public class PrestoModule extends RakamModule implements ConditionalModule {
     @Override
     protected void setup(Binder binder) {
-        binder.bind(AbstractReportService.class).to(PrestoReportService.class);
+        binder.bind(AbstractQueryService.class).to(PrestoQueryService.class);
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
         binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
 

@@ -1,7 +1,7 @@
 package org.rakam.plugin;
 
 
-import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryResult;
 
 import java.util.List;
@@ -12,9 +12,9 @@ import java.util.concurrent.CompletableFuture;
  */
 public abstract class ContinuousQueryService {
 
-    private final ReportMetadataStore database;
+    private final QueryMetadataStore database;
 
-    public ContinuousQueryService(ReportMetadataStore database) {
+    public ContinuousQueryService(QueryMetadataStore database) {
         this.database = database;
     }
 

@@ -23,8 +23,9 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.UserHttpService;
-import org.rakam.report.PrestoConfig;
 import org.rakam.report.MaterializedViewHttpService;
+import org.rakam.report.PrestoConfig;
+import org.rakam.report.QueryHttpService;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
@@ -118,6 +119,7 @@ public class ServiceStarter {
             httpServices.addBinding().to(EventHttpService.class);
             httpServices.addBinding().to(EventStreamHttpService.class);
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
+            httpServices.addBinding().to(QueryHttpService.class);
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
 

@@ -37,6 +37,11 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
+            <artifactId>rakam-ui</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.rakam</groupId>
             <artifactId>rakam-jdbc</artifactId>
             <version>1.0</version>
         </dependency>

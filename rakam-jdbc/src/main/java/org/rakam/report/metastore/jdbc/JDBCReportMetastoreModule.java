@@ -6,7 +6,7 @@ import com.google.inject.name.Names;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationModule;
 import org.rakam.JDBCConfig;
-import org.rakam.collection.event.metastore.ReportMetadataStore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 
@@ -27,7 +27,7 @@ public class JDBCReportMetastoreModule extends RakamModule implements Conditiona
                 .prefixedWith("report.metadata.store.jdbc")
                 .to(JDBCConfig.class);
 
-        binder.bind(ReportMetadataStore.class).to(JDBCReportMetadata.class);
+        binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class);
     }
 
     @Override

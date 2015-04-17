@@ -70,7 +70,8 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         return new PostgresqlQueryExecution(connectionPool, sqlQuery, false);
     }
 
-    public QueryExecution executeUpdate(String sqlQuery) {
+    @Override
+    public QueryExecution executeStatement(String sqlQuery) {
         return new PostgresqlQueryExecution(connectionPool, sqlQuery, true);
     }
 

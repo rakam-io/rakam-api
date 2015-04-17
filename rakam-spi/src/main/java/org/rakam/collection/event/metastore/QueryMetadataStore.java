@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 21/07/14 05:21.
  */
-public interface ReportMetadataStore {
+public interface QueryMetadataStore {
     public void saveMaterializedView(MaterializedView materializedView);
 
     public void deleteMaterializedView(String project, String name);

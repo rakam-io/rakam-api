@@ -5,4 +5,5 @@ package org.rakam.report;
  */
 public interface QueryExecutor {
     QueryExecution executeQuery(String sqlQuery);
+    QueryExecution executeStatement(String sqlQuery);
 }
