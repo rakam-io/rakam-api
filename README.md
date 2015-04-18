@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/buremba/rakam.png?label=ready&title=Ready)](https://waffle.io/buremba/rakam)
 Rakam
 =======
 A high level distributed analytics service with stream processing capabilities.
