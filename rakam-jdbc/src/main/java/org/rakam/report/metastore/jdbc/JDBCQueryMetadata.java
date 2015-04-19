@@ -135,21 +135,21 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public void deleteMaterializedView(String project, String name) {
-        dao.createStatement("DELETE FROM reports WHERE project = :project AND name = :name")
+        dao.createStatement("DELETE FROM materialized_views WHERE project = :project AND name = :name")
                 .bind("project", project)
                 .bind("name", name).execute();
     }
 
     @Override
     public MaterializedView getMaterializedView(String project, String name) {
-        return dao.createQuery("SELECT project, name, query, strategy, options from reports WHERE project = :project AND name = :name")
+        return dao.createQuery("SELECT project, name, query, strategy, options from materialized_views WHERE project = :project AND name = :name")
                 .bind("project", project)
                 .bind("name", name).map(reportMapper).first();
     }
 
     @Override
     public List<MaterializedView> getMaterializedViews(String project) {
-        return dao.createQuery("SELECT project, name, table_name, query, options, update_interval from reports WHERE project = :project")
+        return dao.createQuery("SELECT project, name, table_name, query, options, update_interval from materialized_views WHERE project = :project")
                 .bind("project", project)
                 .map(reportMapper).list();
     }

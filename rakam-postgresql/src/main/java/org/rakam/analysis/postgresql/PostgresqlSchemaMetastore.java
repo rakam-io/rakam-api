@@ -83,7 +83,9 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
             ResultSet dbColumns = connection.getMetaData().getTables("", project, null, null);
             while (dbColumns.next()) {
                 String tableName = dbColumns.getString("TABLE_NAME");
-                table.put(tableName, getSchema(project, tableName));
+                if(!tableName.startsWith("_")) {
+                    table.put(tableName, getSchema(project, tableName));
+                }
             }
         } catch (SQLException e) {
             Throwables.propagate(e);
@@ -209,6 +211,7 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
             case Types.LONGVARCHAR:
             case Types.NVARCHAR:
             case Types.VARCHAR:
+            case Types.OTHER:
                 return FieldType.STRING;
             default:
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");

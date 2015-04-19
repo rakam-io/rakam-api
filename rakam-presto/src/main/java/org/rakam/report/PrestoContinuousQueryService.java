@@ -1,11 +1,17 @@
 package org.rakam.report;
 
 import com.google.inject.Inject;
+import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.util.Tuple;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
@@ -15,12 +21,14 @@ import static java.lang.String.format;
 public class PrestoContinuousQueryService extends ContinuousQueryService {
     private final QueryMetadataStore database;
     private final QueryExecutor executor;
+    private final EventSchemaMetastore metastore;
 
     @Inject
-    public PrestoContinuousQueryService(QueryMetadataStore database, QueryExecutor executor) {
+    public PrestoContinuousQueryService(QueryMetadataStore database, QueryExecutor executor, EventSchemaMetastore metastore) {
         super(database);
         this.database = database;
         this.executor = executor;
+        this.metastore = metastore;
     }
 
     @Override
@@ -45,5 +53,12 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
             }
             return result;
         });
+    }
+
+    @Override
+    public Map<String, List<SchemaField>> getSchemas(String project) {
+        return list(project).stream()
+                .map(view -> new Tuple<>(view.name, metastore.getSchema(project, view.getTableName())))
+                .collect(Collectors.toMap(t -> t.v1(), t -> t.v2()));
     }
 }

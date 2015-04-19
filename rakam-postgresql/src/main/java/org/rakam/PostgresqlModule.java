@@ -14,7 +14,7 @@ import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.AbstractQueryService;
+import org.rakam.plugin.MaterializedViewService;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
@@ -33,7 +33,7 @@ public class PostgresqlModule extends RakamModule implements ConditionalModule {
 //                .prefixedWith("event.schema.store.postgresql")
                 .to(PostgresqlConfig.class);
         binder.bind(EventSchemaMetastore.class).to(PostgresqlSchemaMetastore.class);
-        binder.bind(AbstractQueryService.class).to(PostgresqlQueryService.class);
+        binder.bind(MaterializedViewService.class).to(PostgresqlQueryService.class);
         binder.bind(EventStore.class).to(PostgresqlEventStore.class);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class);
         binder.bind(ContinuousQueryService.class).to(PostgresqlContinuousQueryService.class);

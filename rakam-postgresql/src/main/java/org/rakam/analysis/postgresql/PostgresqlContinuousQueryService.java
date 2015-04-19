@@ -13,9 +13,12 @@ import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.Statement;
 import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
@@ -23,6 +26,7 @@ import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +59,10 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         this.metastore = metastore;
         this.executor = executor;
 
-        Executors.newSingleThreadScheduledExecutor()
-                .scheduleAtFixedRate(this::updateTable, 10, 10, TimeUnit.SECONDS);
+        Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                .setUncaughtExceptionHandler((t, e) ->
+                        LOGGER.error("Error while updating continuous query table.", e))
+                .build()).scheduleAtFixedRate(this::updateTable, 10, 10, TimeUnit.SECONDS);
     }
 
     private String replaceSourceTable(String query, String sampleCollection) {
@@ -79,37 +85,45 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
         Map<String, PostgresqlFunction> continuousQueryMetadata = processQuery(report);
+
         // just to create the table with the columns.
-        String query = format("create table %s.%s as (%s limit 0) primary key ", report.project,
-                "_"+report.tableName,
+        String query = format("create table %s.%s as (%s limit 0)", report.project,
+                report.getTableName(),
                 replaceSourceTable(report.query, report.project+"."+report.collections.get(0)));
 
-        if(report.options.containsKey("_metadata")) {
-            throw new IllegalArgumentException("_metadata option is reserved");
-        }
-        try {
-            report.options.put("_metadata", continuousQueryMetadata);
-        } catch (UnsupportedOperationException e) {
-            // the map seems to be immutable.
-            HashMap<String, Object> map = new HashMap<>(report.options);
-            map.put("_metadata", continuousQueryMetadata);
-
+        if(report.options == null) {
             report = new ContinuousQuery(report.project,
                     report.name, report.tableName,
-                    report.query, report.collections, map);
+                    report.query, report.collections, ImmutableMap.of("_metadata", continuousQueryMetadata));
+        }else {
+            if(report.options.containsKey("_metadata")) {
+                throw new IllegalArgumentException("_metadata option is reserved");
+            }
+
+            try {
+                report.options.put("_metadata", continuousQueryMetadata);
+            } catch (UnsupportedOperationException e) {
+                // the map seems to be immutable.
+                HashMap<String, Object> map = new HashMap<>(report.options);
+                map.put("_metadata", continuousQueryMetadata);
+
+                report = new ContinuousQuery(report.project,
+                        report.name, report.tableName,
+                        report.query, report.collections, map);
+            }
         }
         final ContinuousQuery finalReport = report;
         return executor.executeStatement(query).getResult().thenApply(result -> {
-            if(result.getError() == null) {
+            if(!result.isFailed()) {
                 reportDatabase.createContinuousQuery(finalReport);
 
                 String groupings = continuousQueryMetadata.entrySet().stream()
                         .filter(e -> e.getValue() == null)
                         .map(e -> e.getKey())
                         .collect(Collectors.joining(", "));
-                executor.executeStatement(format("ALTER TABLE %1$s.%2$s ADD PRIMARY KEY (%3$s)",
-                        finalReport.project, "_"+finalReport.tableName, groupings)).getResult().thenAccept(indexResult -> {
-                    if(indexResult.isFailed()) {
+                executor.executeStatement(format("ALTER TABLE %s.%s ADD PRIMARY KEY (%s)",
+                        finalReport.project, finalReport.getTableName(), groupings)).getResult().thenAccept(indexResult -> {
+                    if (indexResult.isFailed()) {
                         LOGGER.error("Failed to create unique index on continuous column: {0}", result.getError());
                     }
                 });
@@ -123,13 +137,20 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     public CompletableFuture<QueryResult> delete(String project, String name) {
         ContinuousQuery continuousQuery = reportDatabase.getContinuousQuery(project, name);
 
-        String prestoQuery = format("drop table %s.%s", continuousQuery.project, continuousQuery.tableName);
+        String prestoQuery = format("drop table %s.%s", continuousQuery.project, continuousQuery.getTableName());
         return executor.executeQuery(prestoQuery).getResult().thenApply(result -> {
             if(result.getError() == null) {
                 reportDatabase.createContinuousQuery(continuousQuery);
             }
             return result;
         });
+    }
+
+    @Override
+    public Map<String, List<SchemaField>> getSchemas(String project) {
+        return list(project).stream()
+                .map(view -> new Tuple<>(view.name, metastore.getSchema(project, view.getTableName())))
+                .collect(Collectors.toMap(t -> t.v1(), t -> t.v2()));
     }
 
     /*
@@ -165,7 +186,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
                 executor.executeQuery(sqlQuery).getResult().thenAccept(result -> {
                     if(result.isFailed()) {
-                        LOGGER.error("Failed to update continuous query states: {0}", result.getError());
+                        LOGGER.error("Failed to update continuous query states: {}", result.getError());
                     }
                 });
 //            String s1 = "CREATE INDEX graph_mv_latest ON graph (xaxis, value) WHERE  ts >= '-infinity';";
@@ -192,7 +213,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
             Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
                     new TypeReference<Map<String, PostgresqlFunction>>() {});
 
-            String tableName = "_"+report.tableName;
+            String tableName = report.getTableName();
             String aggFields = metadata.entrySet().stream()
                     .filter(c -> c.getValue() != null)
                     .map(c -> buildUpdateState(tableName, c.getKey(), c.getValue()))
@@ -202,15 +223,20 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                     .filter(c -> c.getValue() == null)
                     .map(c -> format("%1$s.%2$s = stream_%1$s.%2$s", tableName, c.getKey()))
                     .collect(Collectors.joining(", "));
+            if(!groupedFields.isEmpty()) {
+                groupedFields = " WHERE "+groupedFields;
+            }
 
             String returningFields = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
-                    .map(c -> tableName+"."+c.getKey())
+                    .map(c -> tableName +"."+c.getKey())
                     .collect(Collectors.joining(", "));
+            returningFields = returningFields.isEmpty() ? "1": returningFields;
+
 
             builder.append(format(", stream_%s AS (%s)",
                     tableName, report.query));
-            builder.append(format(", update_%s AS (UPDATE %s.%s SET %s FROM stream_%s WHERE %s RETURNING %s) ",
+            builder.append(format(", update_%s AS (UPDATE %s.%s SET %s FROM stream_%s %s RETURNING %s) ",
                     tableName, project, tableName, aggFields, tableName, groupedFields, returningFields));
             builder.append(format(", insert_%s AS (INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE NOT EXISTS (SELECT * FROM update_%s) ) RETURNING 1) ",
                     tableName,  project, tableName, tableName, tableName));
@@ -220,7 +246,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 "SET last_sync = (SELECT time FROM newTime) WHERE project = '%s' AND collection = '%s')", project, collection));
 
         String insertQueries = queriesForCollection.stream()
-                .map(r -> " SELECT count(*) FROM insert__" + r.tableName)
+                .map(r -> " SELECT count(*) FROM insert_" + r.getTableName())
                 .collect(Collectors.joining(" UNION ALL "));
         builder.append(insertQueries);
 

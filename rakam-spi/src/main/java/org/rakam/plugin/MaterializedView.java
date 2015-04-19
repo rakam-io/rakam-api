@@ -45,4 +45,8 @@ public class MaterializedView {
         checkArgument(this.tableName.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "table_name must only contain alphanumeric characters and _");
     }
+
+    public String getTableName() {
+        return "_materialized_"+tableName;
+    }
 }

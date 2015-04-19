@@ -152,10 +152,10 @@
             <version>df814e5c87</version>
         </dependency>
         <!-- Temporary solution until we release netty-rest to Maven Central repository-->
-        <dependency>
-            <groupId>com.github.buremba</groupId>
-            <artifactId>netty-rest</artifactId>
-            <version>2d0f0565ee</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.github.buremba</groupId>-->
+            <!--<artifactId>netty-rest</artifactId>-->
+            <!--<version>2d0f0565ee</version>-->
+        <!--</dependency>-->
     </dependencies>
 </project>

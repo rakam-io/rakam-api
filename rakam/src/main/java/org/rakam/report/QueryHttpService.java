@@ -21,7 +21,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.FieldType;
 import org.rakam.config.ForHttpServer;
-import org.rakam.plugin.AbstractQueryService;
+import org.rakam.plugin.MaterializedViewService;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -45,12 +45,12 @@ import java.util.stream.Collectors;
  */
 @Path("/query")
 public class QueryHttpService extends HttpService {
-    private final AbstractQueryService service;
+    private final MaterializedViewService service;
     private EventLoopGroup eventLoopGroup;
     private final SqlParser sqlParser = new SqlParser();
 
     @Inject
-    public QueryHttpService(AbstractQueryService service) {
+    public QueryHttpService(MaterializedViewService service) {
         this.service = service;
     }
 

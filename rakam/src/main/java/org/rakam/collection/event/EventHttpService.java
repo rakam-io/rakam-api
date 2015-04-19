@@ -162,6 +162,8 @@ public class EventHttpService extends HttpService {
 
         return new JsonResponse() {
             public final List collections = metastore.getSchemas(project.asText()).entrySet().stream()
+                    // ignore system tables
+                    .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new JsonResponse() {
                         public final String name = entry.getKey();
                         public final List<SchemaField> fields = entry.getValue();

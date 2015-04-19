@@ -1,33 +1,42 @@
 package org.rakam.plugin;
 
 import com.facebook.presto.sql.tree.Statement;
+import com.google.inject.Inject;
+import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.RakamException;
+import org.rakam.util.Tuple;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/04/15 05:30.
  */
-public abstract class AbstractQueryService {
-    final QueryMetadataStore database;
-    final QueryExecutor queryExecutor;
+public abstract class MaterializedViewService {
+    private final QueryMetadataStore database;
+    private final EventSchemaMetastore metastore;
+    private final QueryExecutor queryExecutor;
 
-    public AbstractQueryService(QueryExecutor queryExecutor, QueryMetadataStore database) {
+    @Inject
+    public MaterializedViewService(QueryExecutor queryExecutor, QueryMetadataStore database, EventSchemaMetastore metastore) {
         this.queryExecutor = queryExecutor;
         this.database = database;
+        this.metastore = metastore;
     }
 
     public void create(MaterializedView materializedView) {
-        QueryResult result = queryExecutor.executeQuery(format("CREATE TABLE _%s AS (%s LIMIT 0)",
-                materializedView.tableName,
+        QueryResult result = queryExecutor.executeStatement(format("CREATE TABLE %s.%s AS (%s LIMIT 0)",
+                materializedView.project, materializedView.getTableName(),
                 buildQuery(materializedView.project, materializedView.query))).getResult().join();
         if(result.isFailed()) {
             throw new RakamException("Couldn't created table: "+result.getError().toString(), 400);
@@ -41,23 +50,29 @@ public abstract class AbstractQueryService {
         return queryExecutor.executeQuery(buildQuery(project, statement));
     }
 
-    public List<MaterializedView> listMaterializedViews(String project) {
+    public List<MaterializedView> list(String project) {
         return database.getMaterializedViews(project);
     }
 
-    public CompletableFuture<? extends QueryResult> deleteMaterializedView(String project, String name) {
+    public CompletableFuture<? extends QueryResult> delete(String project, String name) {
         database.deleteMaterializedView(project, name);
-        return queryExecutor.executeQuery(format("DELETE TABLE %s", name)).getResult();
+        return queryExecutor.executeStatement(format("DELETE TABLE %s", name)).getResult();
     }
 
-    public MaterializedView getMaterializedView(String project, String name) {
+    public MaterializedView get(String project, String name) {
         return database.getMaterializedView(project, name);
     }
 
-    public QueryExecution updateMaterializedView(String project, String name) {
+    public Map<String, List<SchemaField>> getSchemas(String project) {
+        return list(project).stream()
+                .map(view -> new Tuple<>(view.name, metastore.getSchema(project, view.getTableName())))
+                .collect(Collectors.toMap(t -> t.v1(), t -> t.v2()));
+    }
+
+    public QueryExecution update(String project, String name) {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         if(materializedView.lastUpdate!=null) {
-            QueryResult result = queryExecutor.executeQuery(format("DROP TABLE %s", materializedView.tableName)).getResult().join();
+            QueryResult result = queryExecutor.executeStatement(format("DROP TABLE %s", materializedView.getTableName())).getResult().join();
             if(result.isFailed()) {
                 return new QueryExecution() {
                     @Override
@@ -83,6 +98,6 @@ public abstract class AbstractQueryService {
             }
         }
         String sqlQuery = buildQuery(materializedView.project, materializedView.query);
-        return queryExecutor.executeQuery(format("CREATE TABLE %s AS (%s)", materializedView.tableName, sqlQuery));
+        return queryExecutor.executeStatement(format("CREATE TABLE %s AS (%s)", materializedView.getTableName(), sqlQuery));
     }
 }

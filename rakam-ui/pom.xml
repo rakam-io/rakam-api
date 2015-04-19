@@ -22,11 +22,11 @@
             <artifactId>rakam-jdbc</artifactId>
             <version>1.0</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.buremba</groupId>
-            <artifactId>netty-rest</artifactId>
-            <version>2d0f0565ee</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.github.buremba</groupId>-->
+            <!--<artifactId>netty-rest</artifactId>-->
+            <!--<version>2d0f0565ee</version>-->
+        <!--</dependency>-->
         <dependency>
             <groupId>javax.ws.rs</groupId>
             <artifactId>javax.ws.rs-api</artifactId>

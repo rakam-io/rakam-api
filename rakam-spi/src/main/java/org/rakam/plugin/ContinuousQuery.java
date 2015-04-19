@@ -66,4 +66,7 @@ public class ContinuousQuery {
         }
     }
 
+    public String getTableName() {
+        return "_continuous_"+tableName;
+    }
 }

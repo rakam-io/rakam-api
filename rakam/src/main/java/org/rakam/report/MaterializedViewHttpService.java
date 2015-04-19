@@ -1,11 +1,13 @@
 package org.rakam.report;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
+import org.rakam.collection.SchemaField;
 import org.rakam.config.ForHttpServer;
-import org.rakam.plugin.AbstractQueryService;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.plugin.MaterializedViewService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
@@ -14,6 +16,7 @@ import org.rakam.util.json.JsonResponse;
 import javax.ws.rs.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.rakam.report.QueryHttpService.handleQueryExecution;
 import static org.rakam.server.http.HttpServer.errorMessage;
@@ -24,18 +27,18 @@ import static org.rakam.util.JsonHelper.encode;
  */
 @Path("/materialized-view")
 public class MaterializedViewHttpService extends HttpService {
-    private final AbstractQueryService service;
+    private final MaterializedViewService service;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public MaterializedViewHttpService(AbstractQueryService service) {
+    public MaterializedViewHttpService(MaterializedViewService service) {
         this.service = service;
     }
 
     /**
      * @api {post} /materialized-view/list Get lists of the materialized views
      * @apiVersion 0.1.0
-     * @apiName Listmaterialized views
+     * @apiName ListMaterializedViews
      * @apiGroup materialized view
      * @apiDescription Returns lists of the materialized views created for the project.
      *
@@ -60,7 +63,47 @@ public class MaterializedViewHttpService extends HttpService {
             return errorMessage("project parameter is required", 400);
         }
 
-        return service.listMaterializedViews(project.asText());
+        return service.list(project.asText());
+    }
+
+    /**
+     * @api {post} /materialized-view/schema Get schemas of the materialized views
+     * @apiVersion 0.1.0
+     * @apiName GetSchemaOfMaterializedViews
+     * @apiGroup materialized view
+     * @apiDescription Returns lists of schemas of the materialized views created for the project.
+     *
+     * @apiError Project does not exist.
+     *
+     * @apiErrorExample {json} Error-Response:
+     *     HTTP/1.1 500 Internal Server Error
+     *     {"success": false, "message": "Project does not exists"}
+     *
+     * @apiParam {String} project   Project tracker code
+     *
+     * @apiSuccess {String} firstname Firstname of the User.
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/materialized-view/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
+     */
+    @JsonRequest
+    @Path("/schema")
+    public Object schema(JsonNode json) {
+        JsonNode project = json.get("project");
+        if (project == null) {
+            return errorMessage("project parameter is required", 400);
+        }
+
+        return new JsonResponse() {
+            @JsonProperty("materialized-views")
+            public final List views = service.getSchemas(project.asText()).entrySet().stream()
+                    // ignore system tables
+                    .filter(entry -> !entry.getKey().startsWith("_"))
+                    .map(entry -> new JsonResponse() {
+                        public final String name = entry.getKey();
+                        public final List<SchemaField> fields = entry.getValue();
+                    }).collect(Collectors.toList());
+        };
     }
 
     /**
@@ -133,7 +176,7 @@ public class MaterializedViewHttpService extends HttpService {
     @JsonRequest
     @Path("/delete")
     public CompletableFuture<JsonResponse> delete(ReportQuery query) {
-        return service.deleteMaterializedView(query.project, query.name)
+        return service.delete(query.project, query.name)
                 .thenApply(result -> new JsonResponse() {
                     public final boolean success = result.getError() == null;
                 });
@@ -172,7 +215,7 @@ public class MaterializedViewHttpService extends HttpService {
             response.send("result", encode(errorMessage("request is invalid", 400))).end();
         }
 
-        QueryExecution update = service.updateMaterializedView(project.get(0), name.get(0));
+        QueryExecution update = service.update(project.get(0), name.get(0));
         handleQueryExecution(eventLoopGroup, response, update);
     }
 
@@ -215,7 +258,7 @@ public class MaterializedViewHttpService extends HttpService {
     @JsonRequest
     @Path("/get")
     public Object get(ReportQuery query) {
-        return service.getMaterializedView(query.project, query.name);
+        return service.get(query.project, query.name);
     }
 
     @Inject

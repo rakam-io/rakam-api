@@ -1,15 +1,21 @@
 package org.rakam.analysis;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonResponse;
 
 import javax.ws.rs.Path;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.rakam.server.http.HttpServer.errorMessage;
 
@@ -53,7 +59,15 @@ public class ContinuousQueryHttpService extends HttpService {
     @JsonRequest
     @Path("/create")
     public CompletableFuture<JsonResponse> create(ContinuousQuery report) {
-        return service.create(report).thenApply(result -> new JsonResponse() {
+        CompletableFuture<QueryResult> f;
+        try {
+            f = service.create(report);
+        } catch (IllegalArgumentException e) {
+            CompletableFuture<JsonResponse> err = new CompletableFuture<>();
+            err.completeExceptionally(new RakamException(e.getMessage(), 400));
+            return err;
+        }
+        return f.thenApply(result -> new JsonResponse() {
             public final boolean success = result.getError() == null;
             public final String error = result.getError().message;
         });
@@ -88,6 +102,46 @@ public class ContinuousQueryHttpService extends HttpService {
         }
 
         return service.list(project.asText());
+    }
+
+    /**
+     * @api {post} /continuous-query/schema Get schemas of the materialized views
+     * @apiVersion 0.1.0
+     * @apiName GetSchemaOfMaterializedViews
+     * @apiGroup materialized view
+     * @apiDescription Returns lists of schemas of the materialized views created for the project.
+     *
+     * @apiError Project does not exist.
+     *
+     * @apiErrorExample {json} Error-Response:
+     *     HTTP/1.1 500 Internal Server Error
+     *     {"success": false, "message": "Project does not exists"}
+     *
+     * @apiParam {String} project   Project tracker code
+     *
+     * @apiSuccess {String} firstname Firstname of the User.
+     *
+     * @apiExample {curl} Example usage:
+     *     curl 'http://localhost:9999/continuous-query/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
+     */
+    @JsonRequest
+    @Path("/schema")
+    public Object schema(JsonNode json) {
+        JsonNode project = json.get("project");
+        if (project == null) {
+            return errorMessage("project parameter is required", 400);
+        }
+
+        return new JsonResponse() {
+            @JsonProperty("continuous-queries")
+            public final List views = service.getSchemas(project.asText()).entrySet().stream()
+                    // ignore system tables
+                    .filter(entry -> !entry.getKey().startsWith("_"))
+                    .map(entry -> new JsonResponse() {
+                        public final String name = entry.getKey();
+                        public final List<SchemaField> fields = entry.getValue();
+                    }).collect(Collectors.toList());
+        };
     }
 
     /**

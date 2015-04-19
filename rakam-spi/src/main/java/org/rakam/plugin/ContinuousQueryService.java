@@ -1,10 +1,12 @@
 package org.rakam.plugin;
 
 
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryResult;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -28,4 +30,6 @@ public abstract class ContinuousQueryService {
     public ContinuousQuery get(String project, String name) {
         return database.getContinuousQuery(project, name);
     }
+
+    public abstract Map<String, List<SchemaField>> getSchemas(String s);
 }
