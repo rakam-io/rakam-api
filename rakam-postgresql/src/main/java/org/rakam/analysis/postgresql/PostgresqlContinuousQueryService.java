@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -59,10 +60,19 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         this.metastore = metastore;
         this.executor = executor;
 
-        Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+        ScheduledExecutorService updater = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                 .setUncaughtExceptionHandler((t, e) ->
                         LOGGER.error("Error while updating continuous query table.", e))
-                .build()).scheduleAtFixedRate(this::updateTable, 10, 10, TimeUnit.SECONDS);
+                .build());
+        updater.execute(() -> executor.executeStatement("select pg_advisory_lock(8888)").getResult().thenAccept(result -> {
+            if(!result.isFailed()) {
+                // we obtained the lock so we're the master node.
+                LOGGER.info("Became the master node. Scheduling periodic table updates for materialized and continuous queries.");
+                updater.scheduleAtFixedRate(this::updateTable, 10, 10, TimeUnit.SECONDS);
+            }else {
+                LOGGER.error("Error while obtaining lock from Postgresql: {}", result.getError());
+            }
+        }));
     }
 
     private String replaceSourceTable(String query, String sampleCollection) {
