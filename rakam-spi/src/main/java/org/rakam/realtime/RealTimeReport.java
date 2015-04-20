@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/02/15 03:20.
  */
@@ -23,29 +25,17 @@ public class RealTimeReport {
     @JsonCreator
     public RealTimeReport(@JsonProperty("project") String project,
                           @JsonProperty("name") String name,
-                          @JsonProperty("collection") List<String> collections,
+                          @JsonProperty("collections") List<String> collections,
                           @JsonProperty("aggregation") AggregationType aggregation,
                           @JsonProperty("filter") String filter,
                           @JsonProperty("measure") String measure,
                           @JsonProperty("dimension") String dimension) {
-        this.project = project;
-        this.name = name;
-        this.collections = collections;
+        this.project = checkNotNull(project, "project is required");
+        this.name = checkNotNull(name, "name is required");
+        this.collections = checkNotNull(collections, "collections is required");
         this.filter = filter;
-        this.aggregation = aggregation;
+        this.aggregation = checkNotNull(aggregation, "aggregation is required");
         this.measure = measure;
         this.dimension = dimension;
-    }
-
-    public static class RealTimeQueryField {
-        public final String field;
-        public final String expression;
-
-        @JsonCreator
-        public RealTimeQueryField(@JsonProperty("field") String field,
-                                  @JsonProperty("expression") String expression) {
-            this.field = field;
-            this.expression = expression;
-        }
     }
 }

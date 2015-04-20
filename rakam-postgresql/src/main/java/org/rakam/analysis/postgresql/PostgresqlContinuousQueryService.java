@@ -95,6 +95,11 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
         Map<String, PostgresqlFunction> continuousQueryMetadata = processQuery(report);
+        if(report.collections.isEmpty()) {
+            CompletableFuture<QueryResult> f = new CompletableFuture<>();
+            f.completeExceptionally(new IllegalArgumentException("Continuous query must have at least one collection"));
+            return f;
+        }
 
         // just to create the table with the columns.
         String query = format("create table %s.%s as (%s limit 0)", report.project,
@@ -194,7 +199,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 }
 
                 String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
-                executor.executeQuery(sqlQuery).getResult().thenAccept(result -> {
+                executor.executeStatement(sqlQuery).getResult().thenAccept(result -> {
                     if(result.isFailed()) {
                         LOGGER.error("Failed to update continuous query states: {}", result.getError());
                     }

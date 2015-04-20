@@ -92,9 +92,9 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                         // fail when using executeQuery so we face the result data
                         List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN, true));
                         List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
-                        return new PostgresqlQueryResult(null, data, cols);
+                        return new PostgresqlQueryResult(query, null, data, cols);
                     }else {
-                        return resultSetToQueryResult(statement.executeQuery(sqlQuery));
+                        return resultSetToQueryResult(sqlQuery, statement.executeQuery(sqlQuery));
                     }
                 } catch (Exception e) {
                     QueryError error;
@@ -104,7 +104,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     } else {
                         error = new QueryError("Internal query execution error", null, 0);
                     }
-                    return new PostgresqlQueryResult(error, null, null);
+                    return new PostgresqlQueryResult(query, error, null, null);
                 }
             }, QUERY_EXECUTOR);
         }
@@ -134,7 +134,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
     }
 
-    private static QueryResult resultSetToQueryResult(ResultSet resultSet) {
+    private static QueryResult resultSetToQueryResult(String sqlQuery, ResultSet resultSet) {
         List<SchemaField> columns;
         List<List<Object>> data;
         try {
@@ -155,10 +155,10 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 builder.add(rowBuilder);
             }
             data = builder.build();
-            return new PostgresqlQueryResult(null, data, columns);
+            return new PostgresqlQueryResult(sqlQuery, null, data, columns);
         } catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode());
-            return new PostgresqlQueryResult(error, null, null);
+            return new PostgresqlQueryResult(sqlQuery, error, null, null);
         }
     }
 
@@ -169,8 +169,10 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         private final List<List<Object>> data;
         @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
         private final QueryError error;
+        private final String query;
 
-        public PostgresqlQueryResult(QueryError error, List<List<Object>> data, List<SchemaField> columns) {
+        public PostgresqlQueryResult(String query, QueryError error, List<List<Object>> data, List<SchemaField> columns) {
+            this.query = query;
             this.data = data;
             this.columns = columns;
             this.error = error;

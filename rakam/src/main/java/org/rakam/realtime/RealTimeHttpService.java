@@ -13,16 +13,19 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 import org.rakam.util.json.JsonResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -41,6 +44,9 @@ public class RealTimeHttpService extends HttpService {
     SqlParser sqlParser = new SqlParser();
     private final Duration slideInterval = Duration.ofSeconds(5);
     private final Duration window = Duration.ofSeconds(45);
+
+    private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
+    private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
 
     @Inject
     public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor) {
@@ -78,7 +84,7 @@ public class RealTimeHttpService extends HttpService {
     @POST
     @Path("/create")
     public CompletableFuture<JsonResponse> create(RealTimeReport query) {
-        String randTable = UUID.randomUUID().toString().substring(0, 8);
+        String tableName = toSlug(query.name);
 
         String sqlQuery = new StringBuilder().append("select ")
                 .append(createSelect(query.aggregation, query.measure, query.dimension))
@@ -89,15 +95,15 @@ public class RealTimeHttpService extends HttpService {
 
         ContinuousQuery report = new ContinuousQuery(query.project,
                 query.name,
-                randTable,
+                tableName,
                 sqlQuery,
                 query.collections,
                 ImmutableMap.of("type", "realtime", "report", query));
         return service.create(report).thenApply(result ->
                 new JsonResponse() {
-            public final boolean success = result.isFailed();
-            public final String message = result.getError().message;
-        });
+                    public final boolean success = result.isFailed();
+                    public final String message = result.isFailed() ? result.getError().message : null;
+                });
     }
 
     /**
@@ -132,6 +138,11 @@ public class RealTimeHttpService extends HttpService {
         }
 
         ContinuousQuery continuousQuery = service.get(query.project, query.name);
+        if(continuousQuery == null) {
+            CompletableFuture<Object> f = new CompletableFuture<>();
+            f.completeExceptionally(new RakamException("Couldn't found rule", 400));
+            return f;
+        }
 
         long now = Instant.now().getEpochSecond();
 
@@ -139,7 +150,7 @@ public class RealTimeHttpService extends HttpService {
         long currentWindow = (query.dateEnd == null ? now : query.dateEnd) / 5;
 
         String sqlQuery = format("select value from %s where %s %s",
-                continuousQuery.project+"._"+continuousQuery.tableName,
+                continuousQuery.project+"."+continuousQuery.getTableName(),
                 format("time between %d and %d", previousWindow, currentWindow),
                 expression == null ? "" : expression.toString());
 
@@ -277,5 +288,15 @@ public class RealTimeHttpService extends HttpService {
             this.dateStart = dateStart;
             this.dateEnd = dateEnd;
         }
+    }
+
+    /*
+     * Taken from http://stackoverflow.com/a/1657250/689144
+     */
+    public static String toSlug(String input) {
+        String nowhitespace = WHITESPACE.matcher(input).replaceAll("_");
+        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
+        String slug = NONLATIN.matcher(normalized).replaceAll("");
+        return slug.toLowerCase(Locale.ENGLISH);
     }
 }
