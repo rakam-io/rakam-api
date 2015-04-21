@@ -1,11 +1,14 @@
 package org.rakam.realtime;
 
+import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
@@ -22,14 +25,18 @@ import javax.ws.rs.Path;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
+import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.convert;
 
@@ -87,11 +94,11 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(query.name);
 
         String sqlQuery = new StringBuilder().append("select ")
+                .append(format("(time / %d) as time, ", slideInterval.getSeconds()))
                 .append(createSelect(query.aggregation, query.measure, query.dimension))
-                .append(format(", (time / %d) as time", slideInterval.getSeconds()))
                 .append(" from stream")
                 .append(query.filter == null ? "" : "where " + query.filter)
-                .append(query.dimension != null ? " group by 3, 2" : " group by 2").toString();
+                .append(query.dimension != null ? " group by 1, 2" : " group by 2").toString();
 
         ContinuousQuery report = new ContinuousQuery(query.project,
                 query.name,
@@ -129,7 +136,7 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @POST
     @Path("/get")
-    public CompletableFuture get(RealTimeQuery query) {
+    public CompletableFuture<Object> get(RealTimeQuery query) {
         Expression expression;
         if (query.filter != null) {
             expression = sqlParser.createExpression(query.filter);
@@ -138,7 +145,7 @@ public class RealTimeHttpService extends HttpService {
         }
 
         ContinuousQuery continuousQuery = service.get(query.project, query.name);
-        if(continuousQuery == null) {
+        if (continuousQuery == null) {
             CompletableFuture<Object> f = new CompletableFuture<>();
             f.completeExceptionally(new RakamException("Couldn't found rule", 400));
             return f;
@@ -146,15 +153,78 @@ public class RealTimeHttpService extends HttpService {
 
         long now = Instant.now().getEpochSecond();
 
-        long previousWindow = (query.dateStart == null ? (now - window.getSeconds()) : query.dateStart) / 5;;
-        long currentWindow = (query.dateEnd == null ? now : query.dateEnd) / 5;
+        long previousWindow = (query.dateStart == null ? (now - window.getSeconds()) : query.dateStart.getEpochSecond()) / 5;
+        long currentWindow = (query.dateEnd == null ? now : query.dateEnd.getEpochSecond()) / 5;
 
-        String sqlQuery = format("select value from %s where %s %s",
-                continuousQuery.project+"."+continuousQuery.getTableName(),
+        RealTimeReport report = JsonHelper.convert(continuousQuery.options.get("report"), RealTimeReport.class);
+
+        Object timeCol = query.aggregate ? currentWindow : "time";
+        String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC",
+                timeCol,
+                report.dimension!=null ? report.dimension+"," : "",
+                query.aggregate ? report.aggregation : "",
+                continuousQuery.project + "." + continuousQuery.getTableName(),
                 format("time between %d and %d", previousWindow, currentWindow),
-                expression == null ? "" : expression.toString());
+                report.dimension!=null && query.aggregate ? "GROUP BY "+report.dimension : "",
+                expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
-        return executor.executeQuery(sqlQuery).getResult();
+        return executor.executeQuery(sqlQuery).getResult().thenApply(result -> {
+            if (!result.isFailed()) {
+
+                String previousISO = ISO_INSTANT.format(Instant.ofEpochSecond(previousWindow*5));
+                String currentISO = ISO_INSTANT.format(Instant.ofEpochSecond(currentWindow*5));
+
+                List<List<Object>> data = result.getResult();
+                if(!query.aggregate) {
+                    if(report.dimension == null) {
+                        List<List<Object>> newData = Lists.newLinkedList();
+                        int currentDataIdx = 0;
+                        for (long current = previousWindow; current < currentWindow; current++) {
+                            String formattedTime = ISO_INSTANT.format(Instant.ofEpochSecond(current*5));
+                            if (data.size() > currentDataIdx) {
+                                List<Object> objects = data.get(currentDataIdx++);
+                                Long time = ((Number) objects.get(0)).longValue();
+                                if (time == current) {
+                                    newData.add(ImmutableList.of(formattedTime, objects.get(1)));
+                                    continue;
+                                }
+                            }
+                            newData.add(ImmutableList.of(formattedTime, 0));
+                        }
+                        return new RealTimeQueryResult(previousISO, currentISO, newData);
+                    } else {
+
+                        Map<String, List<Object>> newData = data.stream()
+                                .collect(Collectors.groupingBy(g ->
+                                        ISO_INSTANT.format(Instant.ofEpochSecond(((Number) g.get(0)).longValue()))
+                                        , TreeMap::new, Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
+                        return new RealTimeQueryResult(previousISO, currentISO, newData);
+                    }
+                } else {
+                    if(report.dimension == null) {
+                        return new RealTimeQueryResult(previousISO, currentISO, data.size() > 0 ? data.get(0).get(1) : 0);
+                    } else {
+                        List<ImmutableList<Object>> newData = data.stream()
+                                .map(m -> ImmutableList.of(m.get(1), m.get(2)))
+                                .collect(Collectors.toList());
+                        return new RealTimeQueryResult(previousISO, currentISO, newData);
+                    }
+                }
+            }
+            return result;
+        });
+    }
+
+    public static class RealTimeQueryResult {
+        public final String start;
+        public final String end;
+        public final Object result;
+
+        public RealTimeQueryResult(String start, String end, Object result) {
+            this.start = start;
+            this.end = end;
+            this.result = result;
+        }
     }
 
     /**
@@ -243,7 +313,7 @@ public class RealTimeHttpService extends HttpService {
 
         StringBuilder builder = new StringBuilder();
         if (dimension != null)
-            builder.append(" key, ");
+            builder.append(" "+dimension+", ");
 
         switch (aggType) {
             case AVERAGE:
@@ -273,20 +343,23 @@ public class RealTimeHttpService extends HttpService {
         public final String project;
         public final String name;
         public final String filter;
-        public final Long dateStart;
-        public final Long dateEnd;
+        public final boolean aggregate;
+        public final Instant dateStart;
+        public final Instant dateEnd;
 
         @JsonCreator
         public RealTimeQuery(@JsonProperty("project") String project,
                              @JsonProperty("name") String name,
                              @JsonProperty("filter") String filter,
-                             @JsonProperty("date_start") Long dateStart,
-                             @JsonProperty("date_end") Long dateEnd) {
+                             @JsonProperty("aggregate") boolean aggregate,
+                             @JsonProperty("date_start") String dateStart,
+                             @JsonProperty("date_end") String dateEnd) {
             this.project = project;
             this.name = name;
             this.filter = filter;
-            this.dateStart = dateStart;
-            this.dateEnd = dateEnd;
+            this.aggregate = aggregate;
+            this.dateStart = dateStart!=null ? Instant.parse(dateStart) : null;
+            this.dateEnd = dateEnd !=null ? Instant.parse(dateEnd) : null;
         }
     }
 

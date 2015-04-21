@@ -1,5 +1,6 @@
 package org.rakam.report.postgresql;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -92,9 +93,9 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                         // fail when using executeQuery so we face the result data
                         List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN, true));
                         List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
-                        return new PostgresqlQueryResult(query, null, data, cols);
+                        return new PostgresqlQueryResult(null, data, cols);
                     }else {
-                        return resultSetToQueryResult(sqlQuery, statement.executeQuery(sqlQuery));
+                        return resultSetToQueryResult(statement.executeQuery(sqlQuery));
                     }
                 } catch (Exception e) {
                     QueryError error;
@@ -104,7 +105,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     } else {
                         error = new QueryError("Internal query execution error", null, 0);
                     }
-                    return new PostgresqlQueryResult(query, error, null, null);
+                    return new PostgresqlQueryResult(error, null, null);
                 }
             }, QUERY_EXECUTOR);
         }
@@ -134,7 +135,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
     }
 
-    private static QueryResult resultSetToQueryResult(String sqlQuery, ResultSet resultSet) {
+    private static QueryResult resultSetToQueryResult(ResultSet resultSet) {
         List<SchemaField> columns;
         List<List<Object>> data;
         try {
@@ -155,26 +156,24 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 builder.add(rowBuilder);
             }
             data = builder.build();
-            return new PostgresqlQueryResult(sqlQuery, null, data, columns);
+            return new PostgresqlQueryResult(null, data, columns);
         } catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode());
-            return new PostgresqlQueryResult(sqlQuery, error, null, null);
+            return new PostgresqlQueryResult(error, null, null);
         }
     }
 
     public static class PostgresqlQueryResult implements QueryResult {
         @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
-        private final List<SchemaField> columns;
+        private final List<SchemaField> metadata;
         @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
-        private final List<List<Object>> data;
+        private final List<List<Object>> result;
         @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
         private final QueryError error;
-        private final String query;
 
-        public PostgresqlQueryResult(String query, QueryError error, List<List<Object>> data, List<SchemaField> columns) {
-            this.query = query;
-            this.data = data;
-            this.columns = columns;
+        public PostgresqlQueryResult(QueryError error, List<List<Object>> result, List<SchemaField> metadata) {
+            this.result = result;
+            this.metadata = metadata;
             this.error = error;
         }
 
@@ -184,18 +183,19 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
 
         @Override
+        @JsonIgnore
         public boolean isFailed() {
             return error != null;
         }
 
         @Override
         public List<List<Object>> getResult() {
-            return data;
+            return result;
         }
 
         @Override
         public List<? extends SchemaField> getMetadata() {
-            return columns;
+            return metadata;
         }
     }
 }

@@ -157,13 +157,13 @@ public class JDBCUserStorageAdapter implements UserStorage {
         } catch (CompletionException e) {
             if (e.getCause() instanceof UnableToExecuteStatementException) {
                 QueryError error = new QueryError(e.getCause().getMessage(), null, 0);
-                return new PostgresqlQueryResult(error, null, null, null);
+                return new JDBCQueryResult(error, null, null, null);
             } else {
                 throw Throwables.propagate(e);
             }
         }
 
-        return new PostgresqlQueryResult(null, ImmutableMap.of("totalResult", totalResultJoin), dataJoin, projectColumns);
+        return new JDBCQueryResult(null, ImmutableMap.of("totalResult", totalResultJoin), dataJoin, projectColumns);
     }
 
     @Override

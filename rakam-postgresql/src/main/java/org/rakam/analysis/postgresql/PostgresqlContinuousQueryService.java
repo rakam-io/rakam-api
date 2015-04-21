@@ -6,6 +6,7 @@ import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.FunctionCall;
 import com.facebook.presto.sql.tree.LongLiteral;
+import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.SelectItem;
@@ -199,11 +200,12 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 }
 
                 String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
-                executor.executeStatement(sqlQuery).getResult().thenAccept(result -> {
+                executor.executeQuery(sqlQuery).getResult().thenAccept(result -> {
                     if(result.isFailed()) {
+                        String query = sqlQuery;
                         LOGGER.error("Failed to update continuous query states: {}", result.getError());
                     }
-                });
+                }).join();
 //            String s1 = "CREATE INDEX graph_mv_latest ON graph (xaxis, value) WHERE  ts >= '-infinity';";
             }
         }
@@ -234,27 +236,32 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                     .map(c -> buildUpdateState(tableName, c.getKey(), c.getValue()))
                     .collect(Collectors.joining(", "));
 
-            String groupedFields = metadata.entrySet().stream()
+            String groupedWhere = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
-                    .map(c -> format("%1$s.%2$s = stream_%1$s.%2$s", tableName, c.getKey()))
-                    .collect(Collectors.joining(", "));
-            if(!groupedFields.isEmpty()) {
-                groupedFields = " WHERE "+groupedFields;
+                    .map(c -> format("%1$s.\"%2$s\" = stream_%1$s.\"%2$s\"", tableName, c.getKey()))
+                    .collect(Collectors.joining(" AND "));
+            if(!groupedWhere.isEmpty()) {
+                groupedWhere = " WHERE "+groupedWhere;
             }
 
             String returningFields = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
-                    .map(c -> tableName +"."+c.getKey())
+                    .map(c -> tableName + '.' + '"' + c.getKey() + '"')
                     .collect(Collectors.joining(", "));
             returningFields = returningFields.isEmpty() ? "1": returningFields;
 
+            String updateAndInsertMatches = metadata.entrySet().stream()
+                    .filter(c -> c.getValue() == null)
+                    .map(c -> '"' + c.getKey() + '"')
+                    .collect(Collectors.joining(", "));
+            updateAndInsertMatches = updateAndInsertMatches.isEmpty() ? " NOT EXISTS " : format("(%s) NOT IN", updateAndInsertMatches);
 
             builder.append(format(", stream_%s AS (%s)",
                     tableName, report.query));
             builder.append(format(", update_%s AS (UPDATE %s.%s SET %s FROM stream_%s %s RETURNING %s) ",
-                    tableName, project, tableName, aggFields, tableName, groupedFields, returningFields));
-            builder.append(format(", insert_%s AS (INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE NOT EXISTS (SELECT * FROM update_%s) ) RETURNING 1) ",
-                    tableName,  project, tableName, tableName, tableName));
+                    tableName, project, tableName, aggFields, tableName, groupedWhere, returningFields));
+            builder.append(format(", insert_%s AS (INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE %s (SELECT * FROM update_%s) ) RETURNING 1) ",
+                    tableName,  project, tableName, tableName, updateAndInsertMatches, tableName));
         }
 
         builder.append(format(", updateSync AS (UPDATE collections_last_sync " +
@@ -272,11 +279,11 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         switch (value) {
             case count:
             case sum:
-                return format("%2$s = %1$s.%2$s + stream_%1$s.%2$s", tableName, key);
+                return format("\"%2$s\" = %1$s.\"%2$s\" + stream_%1$s.\"%2$s\"", tableName, key);
             case max:
-                return format("%2$s = max(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
+                return format("\"%2$s\" = max(%1$s_update.\"%2$s\", %1$s.\"%2$s\")", tableName, key);
             case min:
-                return format("%2$s = min(%1$s_update.%2$s, %1$s.%2$s)", tableName, key);
+                return format("\"%2$s\" = min(%1$s_update.\"%2$s\", %1$s.\"%2$s\")", tableName, key);
             default:
                 throw new IllegalStateException();
         }
@@ -305,9 +312,9 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
             }
 
             SingleColumn selectItem1 = (SingleColumn) selectItem;
-            Expression singleColumn = selectItem1.getExpression();
-            if(singleColumn instanceof FunctionCall) {
-                FunctionCall functionCall = (FunctionCall) singleColumn;
+            Expression exp = selectItem1.getExpression();
+            if(exp instanceof FunctionCall) {
+                FunctionCall functionCall = (FunctionCall) exp;
                 if (functionCall.isDistinct()) {
                     throw new IllegalArgumentException("Distinct in functions is not supported");
                 }
@@ -334,12 +341,17 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
         for (Expression expression : querySpecification.getGroupBy()) {
             if(expression instanceof LongLiteral) {
-                SelectItem selectItem = selectItems.get(Ints.checkedCast(((LongLiteral) expression).getValue())-1);
-                Optional<String> alias = ((SingleColumn) selectItem).getAlias();
-                if(!alias.isPresent()) {
-                    throw new IllegalArgumentException(format("Column '%s' must have an alias", selectItem));
+                SingleColumn selectItem = (SingleColumn) selectItems.get(Ints.checkedCast(((LongLiteral) expression).getValue())-1);
+                Optional<String> alias = selectItem.getAlias();
+                if(!selectItem.getAlias().isPresent()) {
+                    if(selectItem.getExpression() instanceof QualifiedNameReference) {
+                        columns.put(((QualifiedNameReference) selectItem.getExpression()).getName().getSuffix(), null);
+                    }else {
+                        throw new IllegalArgumentException(format("Column '%s' must have an alias", selectItem));
+                    }
+                }else {
+                    columns.put(alias.get(), null);
                 }
-                columns.put(alias.get(), null);
             } else {
                 throw new IllegalArgumentException("The GROUP BY references must be the column ids. Example: (GROUP BY 1, 2");
             }

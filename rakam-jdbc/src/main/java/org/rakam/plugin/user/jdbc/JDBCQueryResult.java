@@ -11,7 +11,7 @@ import java.util.Map;
 /**
 * Created by buremba <Burak Emre Kabakcı> on 04/04/15 17:48.
 */
-class PostgresqlQueryResult implements QueryResult {
+class JDBCQueryResult implements QueryResult {
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final List<? extends SchemaField> columns;
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
@@ -21,7 +21,7 @@ class PostgresqlQueryResult implements QueryResult {
     @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
     private final QueryError error;
 
-    public PostgresqlQueryResult(QueryError error, Map<String, Object> properties, List<List<Object>> result, List<? extends SchemaField> columns) {
+    public JDBCQueryResult(QueryError error, Map<String, Object> properties, List<List<Object>> result, List<? extends SchemaField> columns) {
         this.error = error;
         this.properties = properties;
         this.result = result;

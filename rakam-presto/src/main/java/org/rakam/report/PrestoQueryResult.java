@@ -11,7 +11,7 @@ import java.util.Map;
 * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:54.
 */
 public class PrestoQueryResult implements QueryResult {
-    private final List<? extends SchemaField> columns;
+    private final List<? extends SchemaField> metadata;
     private final List<List<Object>> result;
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final Stat stat;
@@ -20,22 +20,22 @@ public class PrestoQueryResult implements QueryResult {
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final QueryError error;
 
-    public PrestoQueryResult(List<? extends SchemaField> columns, List<List<Object>> result, QueryError error) {
-        this.columns = columns;
+    public PrestoQueryResult(List<? extends SchemaField> metadata, List<List<Object>> result, QueryError error) {
+        this.metadata = metadata;
         this.result = result;
         this.error = error;
         this.stat = null;
     }
 
-    public PrestoQueryResult(List<? extends SchemaField> columns, List<List<Object>> result, Stat stat, QueryError error) {
-        this.columns = columns;
+    public PrestoQueryResult(List<? extends SchemaField> metadata, List<List<Object>> result, Stat stat, QueryError error) {
+        this.metadata = metadata;
         this.result = result;
         this.error = error;
         this.stat = stat;
     }
 
     public List<? extends SchemaField> getMetadata() {
-        return columns;
+        return metadata;
     }
 
     public List<List<Object>> getResult() {
