@@ -20,11 +20,11 @@ import static java.lang.String.format;
  */
 public class PrestoContinuousQueryService extends ContinuousQueryService {
     private final QueryMetadataStore database;
-    private final QueryExecutor executor;
+    private final PrestoQueryExecutor executor;
     private final EventSchemaMetastore metastore;
 
     @Inject
-    public PrestoContinuousQueryService(QueryMetadataStore database, QueryExecutor executor, EventSchemaMetastore metastore) {
+    public PrestoContinuousQueryService(QueryMetadataStore database, PrestoQueryExecutor executor, EventSchemaMetastore metastore) {
         super(database);
         this.database = database;
         this.executor = executor;
@@ -34,7 +34,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
         String query = format("create view stream.%s.%s as (%s)", report.project, report.tableName, report.query);
-        return executor.executeQuery(query).getResult().thenApply(result -> {
+        return executor.executeRawQuery(query).getResult().thenApply(result -> {
             if(result.getError() == null) {
                 database.createContinuousQuery(report);
             }
@@ -47,7 +47,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         ContinuousQuery continuousQuery = database.getContinuousQuery(project, name);
 
         String prestoQuery = format("drop view stream.%s.%s", continuousQuery.project, continuousQuery.tableName);
-        return executor.executeQuery(prestoQuery).getResult().thenApply(result -> {
+        return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
             if(result.getError() == null) {
                 database.createContinuousQuery(continuousQuery);
             }

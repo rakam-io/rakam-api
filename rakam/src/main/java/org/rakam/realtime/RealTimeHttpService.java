@@ -163,12 +163,12 @@ public class RealTimeHttpService extends HttpService {
                 timeCol,
                 report.dimension!=null ? report.dimension+"," : "",
                 query.aggregate ? report.aggregation : "",
-                continuousQuery.project + "." + continuousQuery.getTableName(),
+                "continuous." + continuousQuery.tableName,
                 format("time between %d and %d", previousWindow, currentWindow),
                 report.dimension!=null && query.aggregate ? "GROUP BY "+report.dimension : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
-        return executor.executeQuery(sqlQuery).getResult().thenApply(result -> {
+        return executor.executeQuery(continuousQuery.project, sqlQuery).getResult().thenApply(result -> {
             if (!result.isFailed()) {
 
                 String previousISO = ISO_INSTANT.format(Instant.ofEpochSecond(previousWindow*5));

@@ -1,10 +1,11 @@
 package org.rakam.collection.event;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
@@ -28,10 +29,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static org.rakam.server.http.HttpServer.errorMessage;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 21:48.
@@ -153,15 +154,9 @@ public class EventHttpService extends HttpService {
      */
     @JsonRequest
     @Path("/schema")
-    public Object schema(JsonNode json) {
-        JsonNode project = json.get("project");
-
-        if (project == null || !project.isTextual()) {
-            return errorMessage("project parameter is required", 400);
-        }
-
+    public Object schema(SchemaRequest request) {
         return new JsonResponse() {
-            public final List collections = metastore.getSchemas(project.asText()).entrySet().stream()
+            public final List collections = metastore.getSchemas(request.project).entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new JsonResponse() {
@@ -180,5 +175,15 @@ public class EventHttpService extends HttpService {
                     _rootCharSymbols.makeChild(_factoryFeatures),
                     data, offset, offset+len, recyclable);
         }
+    }
+
+    public static class SchemaRequest {
+        public final String project;
+
+        @JsonCreator
+        public SchemaRequest(@JsonProperty("project") String project) {
+            this.project = checkNotNull(project, "project is required");
+        }
+
     }
 }

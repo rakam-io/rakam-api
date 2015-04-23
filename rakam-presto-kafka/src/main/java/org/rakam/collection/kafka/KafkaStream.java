@@ -10,7 +10,6 @@ import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
-import org.rakam.report.QueryExecutor;
 
 import java.util.List;
 import java.util.Map;
@@ -25,7 +24,7 @@ import static java.lang.String.format;
 public class KafkaStream implements EventStream {
 
     private final KafkaOffsetManager offsetManager;
-    private final QueryExecutor prestoExecutor;
+    private final PrestoQueryExecutor prestoExecutor;
     private final PrestoConfig prestoConfig;
     private final EventSchemaMetastore metastore;
 
@@ -120,7 +119,7 @@ public class KafkaStream implements EventStream {
             if (query.isEmpty())
                 return;
 
-            prestoExecutor.executeQuery(query + " limit 1000").getResult()
+            prestoExecutor.executeRawQuery(query + " limit 1000").getResult()
                     .thenAccept(r -> {
                         lastOffsets = offsets;
                         response.send("data", "[" + r.getResult().stream()

@@ -1,6 +1,5 @@
 package org.rakam.plugin;
 
-import com.facebook.presto.sql.tree.Statement;
 import com.google.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
@@ -15,6 +14,8 @@ import org.rakam.util.Tuple;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -32,22 +33,22 @@ public abstract class MaterializedViewService {
         this.queryExecutor = queryExecutor;
         this.database = database;
         this.metastore = metastore;
+
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                
+            }
+        }, 1, 1, TimeUnit.MINUTES);
     }
 
     public void create(MaterializedView materializedView) {
-        QueryResult result = queryExecutor.executeStatement(format("CREATE TABLE %s.%s AS (%s LIMIT 0)",
-                materializedView.project, materializedView.getTableName(),
-                buildQuery(materializedView.project, materializedView.query))).getResult().join();
+        QueryResult result = queryExecutor.executeStatement(materializedView.project, format("CREATE TABLE materialized.%s AS (%s LIMIT 0)",
+                materializedView.tableName, materializedView.query)).getResult().join();
         if(result.isFailed()) {
             throw new RakamException("Couldn't created table: "+result.getError().toString(), 400);
         }
         database.saveMaterializedView(materializedView);
-    }
-
-    protected abstract String buildQuery(String project, Statement query);
-
-    public QueryExecution execute(String project, Statement statement) {
-        return queryExecutor.executeQuery(buildQuery(project, statement));
     }
 
     public List<MaterializedView> list(String project) {
@@ -55,8 +56,9 @@ public abstract class MaterializedViewService {
     }
 
     public CompletableFuture<? extends QueryResult> delete(String project, String name) {
+        MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
-        return queryExecutor.executeStatement(format("DELETE TABLE %s", name)).getResult();
+        return queryExecutor.executeStatement(project, format("DELETE TABLE materialized.%s", materializedView.tableName)).getResult();
     }
 
     public MaterializedView get(String project, String name) {
@@ -65,14 +67,14 @@ public abstract class MaterializedViewService {
 
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return list(project).stream()
-                .map(view -> new Tuple<>(view.name, metastore.getSchema(project, view.getTableName())))
+                .map(view -> new Tuple<>(view.name, metastore.getSchema(project, view.tableName)))
                 .collect(Collectors.toMap(t -> t.v1(), t -> t.v2()));
     }
 
     public QueryExecution update(String project, String name) {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         if(materializedView.lastUpdate!=null) {
-            QueryResult result = queryExecutor.executeStatement(format("DROP TABLE %s", materializedView.getTableName())).getResult().join();
+            QueryResult result = queryExecutor.executeStatement(project, format("DROP TABLE materialized.%s", materializedView.tableName)).getResult().join();
             if(result.isFailed()) {
                 return new QueryExecution() {
                     @Override
@@ -97,7 +99,7 @@ public abstract class MaterializedViewService {
                 };
             }
         }
-        String sqlQuery = buildQuery(materializedView.project, materializedView.query);
-        return queryExecutor.executeStatement(format("CREATE TABLE %s AS (%s)", materializedView.getTableName(), sqlQuery));
+        return queryExecutor.executeStatement(materializedView.project, format("CREATE TABLE materialized.%s AS (%s)",
+                materializedView.tableName, materializedView.query));
     }
 }

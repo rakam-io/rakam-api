@@ -10,7 +10,6 @@ import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
-import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
@@ -21,7 +20,6 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.FieldType;
 import org.rakam.config.ForHttpServer;
-import org.rakam.plugin.MaterializedViewService;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -45,13 +43,12 @@ import java.util.stream.Collectors;
  */
 @Path("/query")
 public class QueryHttpService extends HttpService {
-    private final MaterializedViewService service;
+    private final QueryExecutor executor;
     private EventLoopGroup eventLoopGroup;
-    private final SqlParser sqlParser = new SqlParser();
 
     @Inject
-    public QueryHttpService(MaterializedViewService service) {
-        this.service = service;
+    public QueryHttpService(QueryExecutor executor) {
+        this.executor = executor;
     }
 
     /**
@@ -115,17 +112,7 @@ public class QueryHttpService extends HttpService {
 //        }
 //        String sqlQuery = namedQuery.build();
 
-        Statement statement;
-        try {
-            synchronized (sqlParser) {
-                statement = sqlParser.createStatement(query.query);
-            }
-        } catch (ParsingException e) {
-            response.send("result", JsonHelper.encode(HttpServer.errorMessage("unable to parse query: " + e.getErrorMessage(), 400))).end();
-            return;
-        }
-
-        QueryExecution execute = service.execute(query.project, statement);
+        QueryExecution execute = executor.executeQuery(query.project, query.query);
         handleQueryExecution(eventLoopGroup, response, execute);
     }
 

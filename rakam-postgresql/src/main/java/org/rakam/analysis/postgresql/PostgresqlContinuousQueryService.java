@@ -65,7 +65,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 .setUncaughtExceptionHandler((t, e) ->
                         LOGGER.error("Error while updating continuous query table.", e))
                 .build());
-        updater.execute(() -> executor.executeStatement("select pg_advisory_lock(8888)").getResult().thenAccept(result -> {
+        updater.execute(() -> executor.executeRawQuery("select pg_advisory_lock(8888)").getResult().thenAccept(result -> {
             if(!result.isFailed()) {
                 // we obtained the lock so we're the master node.
                 LOGGER.info("Became the master node. Scheduling periodic table updates for materialized and continuous queries.");
@@ -129,7 +129,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
             }
         }
         final ContinuousQuery finalReport = report;
-        return executor.executeStatement(query).getResult().thenApply(result -> {
+        return executor.executeRawStatement(query).getResult().thenApply(result -> {
             if(!result.isFailed()) {
                 reportDatabase.createContinuousQuery(finalReport);
 
@@ -137,7 +137,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                         .filter(e -> e.getValue() == null)
                         .map(e -> e.getKey())
                         .collect(Collectors.joining(", "));
-                executor.executeStatement(format("ALTER TABLE %s.%s ADD PRIMARY KEY (%s)",
+                executor.executeRawStatement(format("ALTER TABLE %s.%s ADD PRIMARY KEY (%s)",
                         finalReport.project, finalReport.getTableName(), groupings)).getResult().thenAccept(indexResult -> {
                     if (indexResult.isFailed()) {
                         LOGGER.error("Failed to create unique index on continuous column: {0}", result.getError());
@@ -153,8 +153,8 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     public CompletableFuture<QueryResult> delete(String project, String name) {
         ContinuousQuery continuousQuery = reportDatabase.getContinuousQuery(project, name);
 
-        String prestoQuery = format("drop table %s.%s", continuousQuery.project, continuousQuery.getTableName());
-        return executor.executeQuery(prestoQuery).getResult().thenApply(result -> {
+        String prestoQuery = format("drop table continuous.%s", continuousQuery.project, continuousQuery.tableName);
+        return executor.executeQuery(project, prestoQuery).getResult().thenApply(result -> {
             if(result.getError() == null) {
                 reportDatabase.createContinuousQuery(continuousQuery);
             }
@@ -200,7 +200,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 }
 
                 String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
-                executor.executeQuery(sqlQuery).getResult().thenAccept(result -> {
+                executor.executeRawQuery(sqlQuery).getResult().thenAccept(result -> {
                     if(result.isFailed()) {
                         String query = sqlQuery;
                         LOGGER.error("Failed to update continuous query states: {}", result.getError());
@@ -212,21 +212,37 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     }
 
     private String buildQueryForCollection(String project, String collection, List<ContinuousQuery> queriesForCollection) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("WITH newTime AS (select cast(extract(epoch from now()) as int4) as time)");
-        builder.append(format(", savedLastTime AS (select last_sync as time from collections_last_sync " +
-                        "where project = '%s' and collection = '%s')", project, collection));
-        builder.append(format(", createdLastTimeIfNotExists AS (insert into collections_last_sync " +
-                        "select '%s', '%s', (select time from newTime) where not exists (select * from savedLastTime) returning last_sync)",
-                project, collection));
-        builder.append(", lastTime AS (select coalesce((select time from savedLastTime), (select last_sync from createdLastTimeIfNotExists)) as time)");
+        StringBuilder builder = new StringBuilder("DO $$\n" +
+                "DECLARE newTime int;\n" +
+                "DECLARE lastTime int;\n" +
+                "DECLARE tableHash bigint;\n" +
+                "DECLARE updatedRows record;\n");
 
-        builder.append(format(", stream AS (SELECT * FROM %s.%s WHERE time >= (select time from lastTime) AND time < (select time from newTime)) ",
-                project, collection));
+        builder.append(format(
+                "BEGIN\n" +
+                "   SELECT CAST (EXTRACT(epoch FROM now()) AS int4) AS TIME into newTime;\n" +
+                "   SELECT last_sync into lastTime FROM collections_last_sync WHERE project = '%1$s' AND collection = '%2$s';\n\n" +
+                "   IF lastTime IS NULL THEN\n" +
+                "       INSERT INTO collections_last_sync VALUES ('%1$s', '%2$s', newTime)\n" +
+                "       RETURNING last_sync into lastTime;\n" +
+                "   END IF;\n\n"+
+                "   CREATE TEMPORARY TABLE stream ON COMMIT DROP AS (\n" +
+                "       SELECT * FROM %1$s.%2$s WHERE TIME BETWEEN lastTime AND newTime\n" +
+                "   );\n\n", project, collection));
 
         for (ContinuousQuery report : queriesForCollection) {
-            // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
-            // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
+
+            builder.append(format(
+                    "   CREATE TEMPORARY TABLE stream_%s ON COMMIT DROP AS (%s);\n",
+                    report.getTableName(), report.query));
+
+            builder.append(format(
+                    "   tableHash := ('x'||substr(md5('%s.%s'),1,16))::bit(64)::bigint;\n",
+                    report.project, report.getTableName()));
+
+            builder.append(
+                    "   PERFORM pg_advisory_lock(tableHash);\n");
+
             Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
                     new TypeReference<Map<String, PostgresqlFunction>>() {});
 
@@ -250,28 +266,20 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                     .collect(Collectors.joining(", "));
             returningFields = returningFields.isEmpty() ? "1": returningFields;
 
-            String updateAndInsertMatches = metadata.entrySet().stream()
-                    .filter(c -> c.getValue() == null)
-                    .map(c -> '"' + c.getKey() + '"')
-                    .collect(Collectors.joining(", "));
-            updateAndInsertMatches = updateAndInsertMatches.isEmpty() ? " NOT EXISTS " : format("(%s) NOT IN", updateAndInsertMatches);
-
-            builder.append(format(", stream_%s AS (%s)",
-                    tableName, report.query));
-            builder.append(format(", update_%s AS (UPDATE %s.%s SET %s FROM stream_%s %s RETURNING %s) ",
-                    tableName, project, tableName, aggFields, tableName, groupedWhere, returningFields));
-            builder.append(format(", insert_%s AS (INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE %s (SELECT * FROM update_%s) ) RETURNING 1) ",
-                    tableName,  project, tableName, tableName, updateAndInsertMatches, tableName));
+            // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
+            // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
+            builder.append(format("   WITH updated AS (UPDATE %s.%s SET %s FROM stream_%s %s RETURNING %s)\n",
+                    project, tableName, aggFields, tableName, groupedWhere, returningFields));
+            builder.append(format("   INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE NOT EXISTS (SELECT * FROM updated) );\n",
+                    project, tableName, tableName));
+            builder.append(
+                    "   PERFORM pg_advisory_unlock(tableHash);\n\n");
         }
 
-        builder.append(format(", updateSync AS (UPDATE collections_last_sync " +
-                "SET last_sync = (SELECT time FROM newTime) WHERE project = '%s' AND collection = '%s')", project, collection));
+        builder.append(format("   UPDATE collections_last_sync " +
+                "SET last_sync = newTime WHERE project = '%s' AND collection = '%s';", project, collection));
 
-        String insertQueries = queriesForCollection.stream()
-                .map(r -> " SELECT count(*) FROM insert_" + r.getTableName())
-                .collect(Collectors.joining(" UNION ALL "));
-        builder.append(insertQueries);
-
+        builder.append("\n END$$;");
         return builder.toString();
     }
 

@@ -232,7 +232,7 @@ public class UserHttpService extends HttpService {
                 .collect(Collectors.joining(" union all "));
 
 
-        return executor.executeQuery(format("select json from (%s) order by time desc limit %d", sqlQuery, 10)).getResult()
+        return executor.executeQuery("", format("select json from (%s) order by time desc limit %d", sqlQuery, 10)).getResult()
                 .thenApply(result ->
                         "[" + result.getResult().stream()
                                 .map(s -> (String) s.get(0)).collect(Collectors.joining(",")) + "]");

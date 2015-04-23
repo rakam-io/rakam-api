@@ -1,5 +1,7 @@
 package org.rakam.report.postgresql;
 
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
@@ -14,6 +16,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
+import org.rakam.util.QueryFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +41,7 @@ import static org.rakam.analysis.postgresql.PostgresqlSchemaMetastore.fromSql;
  */
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlQueryExecutor.class);
+    final SqlParser parser = new SqlParser();
 
     private final BasicDataSource connectionPool;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
@@ -67,13 +71,44 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     }
 
     @Override
-    public QueryExecution executeQuery(String sqlQuery) {
-        return new PostgresqlQueryExecution(connectionPool, sqlQuery, false);
+    public QueryExecution executeQuery(String project, String sqlQuery) {
+        return executeRawQuery(buildQuery(project, sqlQuery));
+    }
+
+    public QueryExecution executeRawQuery(String query) {
+        return new PostgresqlQueryExecution(connectionPool, query, false);
+    }
+
+    public QueryExecution executeRawStatement(String query) {
+        return new PostgresqlQueryExecution(connectionPool, query, true);
+    }
+
+    private String buildQuery(String project, String query) {
+        StringBuilder builder = new StringBuilder();
+        com.facebook.presto.sql.tree.Statement statement;
+        synchronized (parser) {
+            statement = parser.createStatement(query);
+        }
+        new QueryFormatter(builder, node -> {
+            QualifiedName name = node.getName();
+            if(name.getPrefix().isPresent()) {
+                switch (name.getPrefix().get().toString()) {
+                    case "continuous":
+                        return project + "._continuous_" + name.getSuffix();
+                    case "materialized":
+                        return project + "._materialized_" + name.getSuffix();
+                    default:
+                        throw new IllegalArgumentException("Schema does not exist: "+name.getPrefix().get().toString());
+                }
+            }
+            return project + "." + name.getSuffix();
+        }).process(statement, 0);
+        return builder.toString();
     }
 
     @Override
-    public QueryExecution executeStatement(String sqlQuery) {
-        return new PostgresqlQueryExecution(connectionPool, sqlQuery, true);
+    public QueryExecution executeStatement(String project, String sqlQuery) {
+        return executeRawStatement(buildQuery(project, sqlQuery));
     }
 
     public static class PostgresqlQueryExecution implements QueryExecution {

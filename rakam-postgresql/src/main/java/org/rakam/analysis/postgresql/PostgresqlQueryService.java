@@ -1,5 +1,6 @@
 package org.rakam.analysis.postgresql;
 
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Statement;
 import com.google.inject.Inject;
 import org.rakam.collection.event.metastore.EventSchemaMetastore;
@@ -18,16 +19,5 @@ public class PostgresqlQueryService extends MaterializedViewService {
     public PostgresqlQueryService(PostgresqlConfig config, QueryExecutor queryExecutor, QueryMetadataStore database, EventSchemaMetastore metastore) {
         super(queryExecutor, database, metastore);
         this.config = config;
-    }
-
-    @Override
-    protected String buildQuery(String project, Statement statement) {
-        StringBuilder builder = new StringBuilder();
-        // TODO: does cold storage supports schemas?
-        new QueryFormatter(builder, node ->
-            project + "." + node.getName().getSuffix()
-        ).process(statement, 0);
-
-        return builder.toString();
     }
 }

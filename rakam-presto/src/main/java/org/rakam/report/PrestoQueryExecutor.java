@@ -13,8 +13,12 @@ import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.guava.collect.ImmutableSet;
 import com.facebook.presto.jdbc.internal.guava.net.HostAndPort;
 import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.Statement;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
+import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
 import java.net.InetSocketAddress;
@@ -36,6 +40,8 @@ import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNo
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
 
+    private final SqlParser parser = new SqlParser();
+    private final PrestoConfig prestoConfig;
     private final JettyHttpClient httpClient = new JettyHttpClient(
             new HttpClientConfig()
                     .setConnectTimeout(new Duration(10, TimeUnit.SECONDS))
@@ -46,17 +52,48 @@ public class PrestoQueryExecutor implements QueryExecutor {
     private final PrestoConfig prestoAddress;
 
     @Inject
-    public PrestoQueryExecutor(PrestoConfig prestoConfig) {
+    public PrestoQueryExecutor(PrestoConfig prestoConfig1, PrestoConfig prestoConfig) {
+        this.prestoConfig = prestoConfig1;
         this.prestoAddress = prestoConfig;
     }
 
-    public PrestoQueryExecution executeQuery(String query) {
+    public PrestoQueryExecution executeRawQuery(String query) {
         return new PrestoQueryExecution(startQuery(prestoAddress, query));
     }
 
     @Override
-    public QueryExecution executeStatement(String sqlQuery) {
-        return executeQuery(sqlQuery);
+    public PrestoQueryExecution executeQuery(String project, String query) {
+        return executeRawQuery(buildQuery(project, query));
+    }
+
+    private String buildQuery(String project, String query) {
+        StringBuilder builder = new StringBuilder();
+        Statement statement;
+        synchronized (parser) {
+            statement = parser.createStatement(query);
+        }
+        new QueryFormatter(builder, node -> {
+            QualifiedName name = node.getName();
+            if(name.getPrefix().isPresent()) {
+                switch (name.getPrefix().get().toString()) {
+                    case "continuous":
+                        return "stream." + project + "." + name.getSuffix();
+                    case "materialized":
+                        return project + "._materialized_" + name.getSuffix();
+                    default:
+                        throw new IllegalArgumentException("Schema does not exist: "+name.getPrefix().get().toString());
+                }
+            }
+
+            QualifiedName prefix = node.getName().getPrefix().orElse(new QualifiedName(prestoConfig.getColdStorageConnector()));
+            return prefix.getSuffix() + "." + project + "." + name.getSuffix();
+        }).process(statement, 0);
+        return builder.toString();
+    }
+
+    @Override
+    public QueryExecution executeStatement(String project, String sqlQuery) {
+        return executeQuery(project, sqlQuery);
     }
 
     private StatementClient startQuery(PrestoConfig config, String query) {

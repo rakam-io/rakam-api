@@ -23,8 +23,8 @@ import org.rakam.collection.event.metastore.EventSchemaMetastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.PrestoConfig;
+import org.rakam.report.PrestoQueryExecutor;
 import org.rakam.report.QueryError;
-import org.rakam.report.QueryExecutor;
 import org.rakam.util.HostAddress;
 import org.rakam.util.RakamException;
 
@@ -53,12 +53,12 @@ public class KafkaOffsetManager {
     private final EventSchemaMetastore metastore;
     private final QueryMetadataStore reportMetadata;
     private final KafkaConfig config;
-    private final QueryExecutor prestoExecutor;
+    private final PrestoQueryExecutor prestoExecutor;
     private final PrestoConfig prestoConfig;
     private CuratorFramework zk;
 
     @Inject
-    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, QueryExecutor prestoExecutor, EventSchemaMetastore metastore, QueryMetadataStore reportMetadata) {
+    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, PrestoQueryExecutor prestoExecutor, EventSchemaMetastore metastore, QueryMetadataStore reportMetadata) {
         this.reportMetadata = checkNotNull(reportMetadata, "reportMetadata is null");
         this.prestoExecutor = checkNotNull(prestoExecutor, "prestoExecutor is null");
         this.config = checkNotNull(config, "config is null");
@@ -106,7 +106,7 @@ public class KafkaOffsetManager {
 
             String query = buildQuery(projectCollection[0], projectCollection[1], offset, finalOffset, views.get(projectCollection[0]));
 
-            CompletableFuture<Void> voidCompletableFuture = prestoExecutor.executeQuery(query).getResult().thenAccept(result -> {
+            CompletableFuture<Void> voidCompletableFuture = prestoExecutor.executeRawQuery(query).getResult().thenAccept(result -> {
                 QueryError error = result.getError();
                 if (error != null) {
                     String tableName = projectCollection[0].toLowerCase() + "." + projectCollection[1].toLowerCase();
@@ -118,11 +118,11 @@ public class KafkaOffsetManager {
                         String format = format("CREATE TABLE %s.%s AS SELECT * FROM %s.%s",
                                 prestoConfig.getColdStorageConnector(), tableName,
                                 prestoConfig.getHotStorageConnector(), tableName);
-                        prestoExecutor.executeQuery(format).getResult().thenAccept(result1 -> {
+                        prestoExecutor.executeRawQuery(format).getResult().thenAccept(result1 -> {
                             if (result1.getError() != null) {
                                 LOGGER.error(format("Couldn't create cold storage table %s: %s", tableName, result1.getError()));
                             } else {
-                                prestoExecutor.executeQuery(query).getResult().thenAccept(res -> {
+                                prestoExecutor.executeRawQuery(query).getResult().thenAccept(res -> {
                                     if (res.getError() != null) {
                                         failSafe(key, offset, finalOffset, error);
                                     } else {

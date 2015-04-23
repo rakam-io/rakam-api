@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.EventHttpService;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryResult;
@@ -126,15 +127,10 @@ public class ContinuousQueryHttpService extends HttpService {
      */
     @JsonRequest
     @Path("/schema")
-    public Object schema(JsonNode json) {
-        JsonNode project = json.get("project");
-        if (project == null) {
-            return errorMessage("project parameter is required", 400);
-        }
-
+    public Object schema(EventHttpService.SchemaRequest json) {
         return new JsonResponse() {
             @JsonProperty("continuous-queries")
-            public final List views = service.getSchemas(project.asText()).entrySet().stream()
+            public final List views = service.getSchemas(json.project).entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new JsonResponse() {
