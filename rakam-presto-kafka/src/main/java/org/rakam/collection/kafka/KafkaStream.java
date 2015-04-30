@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.inject.Inject;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.CollectionStreamQuery;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
@@ -26,10 +26,10 @@ public class KafkaStream implements EventStream {
     private final KafkaOffsetManager offsetManager;
     private final PrestoQueryExecutor prestoExecutor;
     private final PrestoConfig prestoConfig;
-    private final EventSchemaMetastore metastore;
+    private final Metastore metastore;
 
     @Inject
-    public KafkaStream(KafkaOffsetManager offsetManager, EventSchemaMetastore metastore, PrestoQueryExecutor prestoExecutor, PrestoConfig prestoConfig) {
+    public KafkaStream(KafkaOffsetManager offsetManager, Metastore metastore, PrestoQueryExecutor prestoExecutor, PrestoConfig prestoConfig) {
         this.offsetManager = offsetManager;
         this.prestoExecutor = prestoExecutor;
         this.prestoConfig = prestoConfig;
@@ -72,7 +72,7 @@ public class KafkaStream implements EventStream {
 
         private Map<String, List<SchemaField>> getMetadata() {
             if (metadata == null) {
-                metadata = metastore.getSchemas(project).entrySet().stream()
+                metadata = metastore.getCollections(project).entrySet().stream()
                         .filter(entry -> collectionNames.contains(entry.getKey()))
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             }

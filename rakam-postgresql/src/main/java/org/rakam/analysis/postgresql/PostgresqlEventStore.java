@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
@@ -34,7 +34,7 @@ public class PostgresqlEventStore implements EventStore {
 
     @Override
     public void store(org.rakam.collection.Event event) {
-        GenericData.Record record = event.properties();
+        GenericRecord record = event.properties();
         try(Connection connection = connectionPool.getConnection()) {
             PreparedStatement ps = connection.prepareStatement(getQuery(event));
             for (Schema.Field field : event.properties().getSchema().getFields()) {

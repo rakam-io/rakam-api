@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import com.google.common.base.Throwables;
 
 import java.io.IOException;
@@ -28,6 +29,10 @@ public class JsonHelper {
         SimpleModule simpleModule = new SimpleModule();
 //        simpleModule.addSerializer(new SchemaSerializer());
         mapper.registerModule(simpleModule);
+        mapper.registerModule(new JSR310Module());
+    }
+
+    private JsonHelper() {
     }
 
     private static final ObjectWriter jsonWriter = mapper.writer();
@@ -140,5 +145,9 @@ public class JsonHelper {
             return node.asBoolean();
         else
             return defaultValue;
+    }
+
+    public static ObjectMapper getMapper() {
+        return mapper;
     }
 }

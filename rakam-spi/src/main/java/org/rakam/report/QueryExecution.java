@@ -9,6 +9,6 @@ import java.util.concurrent.CompletableFuture;
 public interface QueryExecution {
     public QueryStats currentStats();
     public boolean isFinished();
-    public CompletableFuture<? extends QueryResult> getResult();
+    public CompletableFuture<QueryResult> getResult();
     public String getQuery();
 }

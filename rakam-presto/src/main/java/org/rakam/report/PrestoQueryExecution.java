@@ -28,7 +28,7 @@ public class PrestoQueryExecution implements QueryExecution {
             .setNameFormat("presto-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
     private final List<List<Object>> data = Lists.newArrayList();
-    private final CompletableFuture<PrestoQueryResult> result = new CompletableFuture<>();
+    private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
 
     private final StatementClient client;
 
@@ -46,7 +46,7 @@ public class PrestoQueryExecution implements QueryExecution {
                 if (client.isFailed()) {
                     com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
                     QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
-                    result.complete(new PrestoQueryResult(null, null, queryError));
+                    result.complete(QueryResult.errorResult(queryError));
                 } else {
                     Optional.ofNullable(client.finalResults().getData())
                             .ifPresent((newResults) -> newResults.forEach(data::add));
@@ -57,7 +57,7 @@ public class PrestoQueryExecution implements QueryExecution {
                         com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
                         columns.add(new SchemaField(c.getName(), fromPrestoType(c.getType()), true));
                     }
-                    result.complete(new PrestoQueryResult(columns, data, null));
+                    result.complete(new QueryResult(columns, data));
                 }
             }
         });
@@ -111,7 +111,7 @@ public class PrestoQueryExecution implements QueryExecution {
     }
 
     @Override
-    public CompletableFuture<PrestoQueryResult> getResult() {
+    public CompletableFuture<QueryResult> getResult() {
         return result;
     }
 

@@ -7,7 +7,7 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.JDBCConfig;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -23,13 +23,13 @@ import java.util.Optional;
  * Created by buremba <Burak Emre Kabakcı> on 11/02/15 15:57.
  */
 @Singleton
-public class JDBCSchemaMetastore implements EventSchemaMetastore {
+public class JDBCMetastore implements Metastore {
 
     private final Handle dao;
     private final DBI dbi;
 
     @Inject
-    public JDBCSchemaMetastore(@Named("event.schema.store.jdbc") JDBCConfig config) {
+    public JDBCMetastore(@Named("event.schema.store.jdbc") JDBCConfig config) {
         dbi = new DBI(String.format(config.getUrl(), config.getUsername(), config.getPassword()),
                 config.getUsername(), config.getUsername());
         dao = dbi.open();
@@ -56,7 +56,7 @@ public class JDBCSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Map<String, List<SchemaField>> getSchemas(String project) {
+    public Map<String, List<SchemaField>> getCollections(String project) {
         Query<Map<String, Object>> bind = dao.createQuery("SELECT collection, schema from collection_schema WHERE project = :project")
                 .bind("project", project);
 
@@ -67,7 +67,7 @@ public class JDBCSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public List<SchemaField> getSchema(String project, String collection) {
+    public List<SchemaField> getCollection(String project, String collection) {
         return getSchema(dao, project, collection);
     }
 
@@ -80,7 +80,7 @@ public class JDBCSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public List<SchemaField> createOrGetSchema(String project, String collection, List<SchemaField> newFields) {
+    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields) {
         return dbi.inTransaction((dao, status) -> {
             List<SchemaField> fields = getSchema(dao, project, collection);
             if(fields == null) {

@@ -47,6 +47,13 @@
             <artifactId>auto-service</artifactId>
             <version>1.0-rc2</version>
         </dependency>
+        <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>netty-rest</artifactId>
+            <version>0.1-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/../netty-rest/pom.xml</systemPath>
+        </dependency>
     </dependencies>
 
     <build>

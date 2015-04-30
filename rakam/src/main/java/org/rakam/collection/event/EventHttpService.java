@@ -1,7 +1,5 @@
 package org.rakam.collection.event;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.io.IOContext;
@@ -9,9 +7,15 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -29,7 +33,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -38,17 +41,18 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 21:48.
  */
 @Path("/event")
+@Api(value = "/event", description = "Event collection module", tags = "event")
 public class EventHttpService extends HttpService {
     final static Logger LOGGER = LoggerFactory.getLogger(EventHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
-    private final EventSchemaMetastore metastore;
+    private final Metastore metastore;
 
     private final Set<EventProcessor> processors;
     private final EventStore eventStore;
     private final Set<EventMapper> mappers;
 
     @Inject
-    public EventHttpService(EventStore eventStore, EventSchemaMetastore metastore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
+    public EventHttpService(EventStore eventStore, Metastore metastore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
         this.processors = eventProcessors;
         this.eventStore = eventStore;
         this.mappers = mappers;
@@ -60,7 +64,6 @@ public class EventHttpService extends HttpService {
     }
 
     private boolean processEvent(Event event) {
-
         for (EventProcessor processor : processors) {
             processor.process(event);
         }
@@ -86,14 +89,6 @@ public class EventHttpService extends HttpService {
      * @apiGroup event
      * @apiDescription Stores event data for specified project and collection tuple.
      *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Bad Gateway
-     *     0
-     *
-     * @apiSuccessExample {json} Success-Response:
-     *     HTTP/1.1 200 OK
-     *     1
-     *
      * @apiParam {String} project   Project tracker code that the event belongs.
      * @apiParam {String} collection    Collection name. (pageView, register etc.)
      * @apiParam {Object} properties    The properties of the event.
@@ -102,6 +97,11 @@ public class EventHttpService extends HttpService {
      *     curl 'http://localhost:9999/event/collect' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "collection": "pageView", "properties": { "url": "http://rakam.io" } }'
      */
     @POST
+    @ApiOperation(value = "Collect event",
+            authorizations = @Authorization(value = "api_key", type = "api_key")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/collect")
     public void collect(RakamHttpRequest request) {
         request.bodyHandler(buff -> {
@@ -127,17 +127,6 @@ public class EventHttpService extends HttpService {
      * @apiGroup event
      * @apiDescription Returns event metadata.
      *
-     * @apiError Project does not exist.
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Project does not exists"}
-     *
-     * @apiParam {String} project   Project tracker code
-     *
-     * @apiParamExample {json} Request-Example:
-     *     {"project": "projectId"}
-     *
      * @apiSuccess (200) {Object[]} collections  List of collections
      * @apiSuccess (200) {String} collections.name  The name of the collection
      * @apiSuccess (200) {Object[]} collections.fields  The name of the collection
@@ -153,10 +142,13 @@ public class EventHttpService extends HttpService {
      *     curl 'http://localhost:9999/event/schema' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId"}'
      */
     @JsonRequest
+    @ApiOperation(value = "Get collection schema")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public Object schema(SchemaRequest request) {
+    public Object schema(@ApiParam(name="project", required = true) String project) {
         return new JsonResponse() {
-            public final List collections = metastore.getSchemas(request.project).entrySet().stream()
+            public final List collections = metastore.getCollections(project).entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new JsonResponse() {
@@ -175,15 +167,5 @@ public class EventHttpService extends HttpService {
                     _rootCharSymbols.makeChild(_factoryFeatures),
                     data, offset, offset+len, recyclable);
         }
-    }
-
-    public static class SchemaRequest {
-        public final String project;
-
-        @JsonCreator
-        public SchemaRequest(@JsonProperty("project") String project) {
-            this.project = checkNotNull(project, "project is required");
-        }
-
     }
 }

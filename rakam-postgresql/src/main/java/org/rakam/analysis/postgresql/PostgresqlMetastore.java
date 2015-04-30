@@ -7,7 +7,7 @@ import com.google.inject.Inject;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.Column;
 
 import java.sql.Connection;
@@ -25,11 +25,11 @@ import static java.lang.String.format;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 19:09.
  */
-public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
+public class PostgresqlMetastore implements Metastore {
     BasicDataSource connectionPool;
 
     @Inject
-    public PostgresqlSchemaMetastore(PostgresqlConfig config) {
+    public PostgresqlMetastore(PostgresqlConfig config) {
         connectionPool = new BasicDataSource();
         connectionPool.setUsername(config.getUsername());
         connectionPool.setPassword(config.getPassword());
@@ -77,14 +77,14 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public Map<String, List<SchemaField>> getSchemas(String project) {
+    public Map<String, List<SchemaField>> getCollections(String project) {
         Map<String, List<SchemaField>> table = Maps.newHashMap();
         try(Connection connection = connectionPool.getConnection()) {
             ResultSet dbColumns = connection.getMetaData().getTables("", project, null, null);
             while (dbColumns.next()) {
                 String tableName = dbColumns.getString("TABLE_NAME");
                 if(!tableName.startsWith("_")) {
-                    table.put(tableName, getSchema(project, tableName));
+                    table.put(tableName, getCollection(project, tableName));
                 }
             }
         } catch (SQLException e) {
@@ -94,7 +94,7 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public List<SchemaField> getSchema(String project, String collection) {
+    public List<SchemaField> getCollection(String project, String collection) {
         List<SchemaField> schemaFields = Lists.newArrayList();
         try(Connection connection = connectionPool.getConnection()) {
             ResultSet dbColumns = connection.getMetaData().getColumns("", project, collection, null);
@@ -115,7 +115,7 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
     }
 
     @Override
-    public List<SchemaField> createOrGetSchema(String project, String collection, List<SchemaField> fields) {
+    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) {
         if(collection.equals("public")) {
             throw new IllegalArgumentException("Collection name 'public' is not allowed.");
         }
@@ -165,7 +165,7 @@ public class PostgresqlSchemaMetastore implements EventSchemaMetastore {
             return currentFields;
         } catch (SQLException e ) {
             // TODO: should we try again until this operation is done successfully, what about infinite loops?
-            return createOrGetSchema(project, collection, fields);
+            return createOrGetCollectionField(project, collection, fields);
         }
     }
 

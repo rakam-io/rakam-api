@@ -19,7 +19,7 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.KeeperException;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.PrestoConfig;
@@ -50,7 +50,7 @@ import static java.lang.String.format;
 public class KafkaOffsetManager {
     private final static Logger LOGGER = Logger.getLogger(KafkaOffsetManager.class);
     private final KafkaSimpleConsumerManager consumerManager;
-    private final EventSchemaMetastore metastore;
+    private final Metastore metastore;
     private final QueryMetadataStore reportMetadata;
     private final KafkaConfig config;
     private final PrestoQueryExecutor prestoExecutor;
@@ -58,7 +58,7 @@ public class KafkaOffsetManager {
     private CuratorFramework zk;
 
     @Inject
-    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, PrestoQueryExecutor prestoExecutor, EventSchemaMetastore metastore, QueryMetadataStore reportMetadata) {
+    public KafkaOffsetManager(@Named("event.store.kafka") KafkaConfig config, PrestoConfig prestoConfig, PrestoQueryExecutor prestoExecutor, Metastore metastore, QueryMetadataStore reportMetadata) {
         this.reportMetadata = checkNotNull(reportMetadata, "reportMetadata is null");
         this.prestoExecutor = checkNotNull(prestoExecutor, "prestoExecutor is null");
         this.config = checkNotNull(config, "config is null");
@@ -80,7 +80,8 @@ public class KafkaOffsetManager {
                 .flatMap(e -> e.getValue().stream().map(c -> e.getKey() + "_" + c.toLowerCase()))
                 .collect(Collectors.toList());
 
-        Map<String, List<ContinuousQuery>> views = reportMetadata.getAllContinuousQueries();
+        Map<String, List<ContinuousQuery>> views = reportMetadata.getAllContinuousQueries().stream()
+                .collect(Collectors.groupingBy(k -> k.project));
 
         Map<String, Long> topicOffsets = getTopicOffsets(allTopics);
         List<CompletableFuture> futures = Lists.newArrayList();

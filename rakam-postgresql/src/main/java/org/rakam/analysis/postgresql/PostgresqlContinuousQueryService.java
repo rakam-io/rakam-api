@@ -20,7 +20,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
@@ -52,10 +52,10 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
     private final QueryMetadataStore reportDatabase;
     private final PostgresqlQueryExecutor executor;
-    private final EventSchemaMetastore metastore;
+    private final Metastore metastore;
 
     @Inject
-    public PostgresqlContinuousQueryService(EventSchemaMetastore metastore, QueryMetadataStore reportDatabase, PostgresqlQueryExecutor executor) {
+    public PostgresqlContinuousQueryService(Metastore metastore, QueryMetadataStore reportDatabase, PostgresqlQueryExecutor executor) {
         super(reportDatabase);
         this.reportDatabase = reportDatabase;
         this.metastore = metastore;
@@ -165,7 +165,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return list(project).stream()
-                .map(view -> new Tuple<>(view.name, metastore.getSchema(project, view.getTableName())))
+                .map(view -> new Tuple<>(view.tableName, metastore.getCollection(project, view.getTableName())))
                 .collect(Collectors.toMap(t -> t.v1(), t -> t.v2()));
     }
 
@@ -180,7 +180,8 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
      * 1. Use logical decoder introduced in 9.4. (- Needs an additional custom output decoder needs to be installed.)
      */
     private void updateTable() {
-        Map<String, List<ContinuousQuery>> allContinuousQueries = reportDatabase.getAllContinuousQueries();
+        Map<String, List<ContinuousQuery>> allContinuousQueries = reportDatabase.getAllContinuousQueries().stream()
+                .collect(Collectors.groupingBy(k -> k.project));
 
         for (Map.Entry<String, List<String>> entry : metastore.getAllCollections().entrySet()) {
             String project = entry.getKey();
@@ -200,7 +201,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 }
 
                 String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
-                executor.executeRawQuery(sqlQuery).getResult().thenAccept(result -> {
+                executor.executeRawStatement(sqlQuery).getResult().thenAccept(result -> {
                     if(result.isFailed()) {
                         String query = sqlQuery;
                         LOGGER.error("Failed to update continuous query states: {}", result.getError());

@@ -1,7 +1,6 @@
 package org.rakam.report.metastore.jdbc;
 
 import com.facebook.presto.sql.SqlFormatter;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -13,16 +12,15 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
@@ -42,7 +40,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     r.getString("name"), r.getString("table_name"), r.getString("query"),
                     update_interval!= null ? new Duration(update_interval, TimeUnit.MILLISECONDS) : null,
                     // we can't use nice postgresql features since we also want to support mysql
-                    JsonHelper.read(r.getString("options"), JsonNode.class));
+                    JsonHelper.read(r.getString("options"), Map.class));
         }
     };
 
@@ -93,10 +91,19 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
         dao.createStatement("INSERT INTO materialized_views (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
                 .bind("project", materializedView.project)
                 .bind("name", materializedView.name)
-                .bind("table_name", materializedView.tableName)
+                .bind("table_name", materializedView.table_name)
                 .bind("query", SqlFormatter.formatSql(materializedView.query))
                 .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
         .bind("options", JsonHelper.encode(materializedView.options, false))
+                .execute();
+    }
+
+    @Override
+    public void updateMaterializedView(String project, String name, Instant last_update) {
+        dao.createStatement("UPDATE materialized_views SET last_update = :last_update WHERE project = :project AND name = :name")
+                .bind("project", project)
+                .bind("name", name)
+                .bind("last_update", last_update.toEpochMilli())
                 .execute();
     }
 
@@ -155,14 +162,19 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     @Override
-    public Map<String, List<ContinuousQuery>> getAllContinuousQueries() {
-        Query<ContinuousQuery> map = dao.createQuery("SELECT project, name, table_name, query, collections, options from continuous_queries")
+    public List<MaterializedView> getAllMaterializedViews() {
+        return dao.createQuery("SELECT project, name, table_name, query, options, update_interval from materialized_views")
+                .map(reportMapper).list();
+    }
+
+    @Override
+    public List<ContinuousQuery> getAllContinuousQueries() {
+        return dao.createQuery("SELECT project, name, table_name, query, collections, options from continuous_queries")
                 .map((index, r, ctx) -> {
                     return new ContinuousQuery(
                             r.getString("project"),
                             r.getString("name"), r.getString("table_name"), r.getString("query"),
                             JsonHelper.read(r.getString("collections"), List.class), JsonHelper.read(r.getString("options"), Map.class));
-                });
-        return map.list().stream().collect(Collectors.groupingBy(k -> k.project));
+                }).list();
     }
 }

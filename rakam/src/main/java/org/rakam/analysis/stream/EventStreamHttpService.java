@@ -7,6 +7,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -18,6 +22,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.JsonHelper;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.IOException;
@@ -34,6 +39,7 @@ import static org.rakam.util.JsonHelper.encode;
  * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:49.
  */
 @Path("/stream")
+@Api(value = "/stream", description = "Event Stream", tags = "stream")
 public class EventStreamHttpService extends HttpService {
     private final EventStream stream;
     private final SqlParser sqlParser;
@@ -46,34 +52,13 @@ public class EventStreamHttpService extends HttpService {
     }
 
     /**
-     * @api {get} /stream/subscribe Subscribe Event Stream
-     * @apiVersion 0.1.0
-     * @apiName SubscribeStream
-     * @apiGroup stream
-     * @apiDescription Subscribes the event stream periodically to the client.
-     *
-     * @apiError Project does not exist.
-     * @apiError User does not exist.
-     *
-     * @apiSuccessExample {json} Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {"messages": [{"id": 1, "content": "Hello there!", "seen": false}]}
-     *
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {String[]} [columns]    The columns that will be fetched to the user. All columns will be returned if this parameter is not specified.
-     * @apiParam {Object[]} collections    The query that specifies collections that will be fetched
-     * @apiParam {String} collections.collection    Collection identifier name
-     * @apiParam {String} [collections.filter]    The SQL predicate expression that will filter for the events of the collection
-     *
-     * @apiParamExample {json} Request-Example:
-     *     {"project": "projectId", "collections": [{collection: "pageView", filter: "url LIKE 'http://rakam.io/docs%'"}]}
-     *
-     * @apiSuccess (200) {Object[]} result  List of events. The fields are dynamic based on the collection schema.
-     *
-     * @apiExample {curl} Example usage:
      *     curl 'http://localhost:9999/stream/subsribe/get?data={"project": "projectId", "collections": [{collection: "pageView", filter: "url LIKE 'http://rakam.io/docs%'"}]}' -H 'Content-Type: text/event-stream;charset=UTF-8'
      */
     @GET
+    @ApiOperation(value = "Subscribe Event Stream", notes = "Subscribes the event stream periodically to the client.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
+    @Consumes("text/event-stream")
     @Path("/subscribe")
     public void subscribe(RakamHttpRequest request) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {

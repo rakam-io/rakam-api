@@ -1,21 +1,28 @@
 package org.rakam.report;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
 import io.netty.channel.EventLoopGroup;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.json.JsonResponse;
 
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -27,6 +34,7 @@ import static org.rakam.util.JsonHelper.encode;
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
  */
 @Path("/materialized-view")
+@Api(value = "/materialized-view", description = "Materialized View", tags = "materialized-view")
 public class MaterializedViewHttpService extends HttpService {
     private final MaterializedViewService service;
     private EventLoopGroup eventLoopGroup;
@@ -37,62 +45,33 @@ public class MaterializedViewHttpService extends HttpService {
     }
 
     /**
-     * @api {post} /materialized-view/list Get lists of the materialized views
-     * @apiVersion 0.1.0
-     * @apiName ListMaterializedViews
-     * @apiGroup materialized view
-     * @apiDescription Returns lists of the materialized views created for the project.
-     *
-     * @apiError Project does not exist.
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Project does not exists"}
-     *
-     * @apiParam {String} project   Project tracker code
-     *
-     * @apiSuccess {String} firstname Firstname of the User.
-     *
-     * @apiExample {curl} Example usage:
      *     curl 'http://localhost:9999/materialized-view/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
      */
     @JsonRequest
+    @ApiOperation(value = "Get lists of the materialized views")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
-    public Object list(JsonNode json) {
-        JsonNode project = json.get("project");
+    public Object list(@ApiParam(name="project", required = true) String project) {
         if (project == null) {
             return errorMessage("project parameter is required", 400);
         }
 
-        return service.list(project.asText());
+        return service.list(project);
     }
 
     /**
-     * @api {post} /materialized-view/schema Get schemas of the materialized views
-     * @apiVersion 0.1.0
-     * @apiName GetSchemaOfMaterializedViews
-     * @apiGroup materialized view
-     * @apiDescription Returns lists of schemas of the materialized views created for the project.
-     *
-     * @apiError Project does not exist.
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Project does not exists"}
-     *
-     * @apiParam {String} project   Project tracker code
-     *
-     * @apiSuccess {String} firstname Firstname of the User.
-     *
-     * @apiExample {curl} Example usage:
      *     curl 'http://localhost:9999/materialized-view/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
      */
     @JsonRequest
+    @ApiOperation(value = "Get schemas of the materialized views")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public Object schema(EventHttpService.SchemaRequest json) {
+    public Object schema(@ApiParam(name="project", required = true) String project) {
         return new JsonResponse() {
             @JsonProperty("materialized-views")
-            public final List views = service.getSchemas(json.project).entrySet().stream()
+            public final List views = service.getSchemas(project).entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new JsonResponse() {
@@ -103,27 +82,11 @@ public class MaterializedViewHttpService extends HttpService {
     }
 
     /**
-     * @api {post} /materialized-view/create Create new materialized view
-     * @apiVersion 0.1.0
-     * @apiName Creatematerialized view
-     * @apiGroup materialized view
-     * @apiDescription Creates a new materialized view for specified SQL query.
+     * Creates a new materialized view for specified SQL query.
      * materialized views allow you to execute batch queries over the data-set.
      * Rakam caches the materialized view result and serve the cached data when you request.
      * You can also trigger an update using using '/view/update' endpoint.
      * This feature is similar to MATERIALIZED VIEWS in RDBMSs.
-     *
-     * @apiError Project does not exist.
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Project does not exists"}
-     *
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {String} table_name   Table name
-     * @apiParam {String} name   Project tracker code
-     * @apiParam {String} query   Project tracker code
-     * @apiParam {Object} [options]  Additional information about the materialized view
      *
      * @apiParamExample {json} Request-Example:
      *     {"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}
@@ -132,144 +95,78 @@ public class MaterializedViewHttpService extends HttpService {
      *     curl 'http://localhost:9999/materialized-view/create' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
      */
     @JsonRequest
+    @ApiOperation(value = "Create new materialized view")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
-    public JsonResponse create(MaterializedView query) {
-
-//        NamedQuery namedQuery = new NamedQuery(query.query);
-//        String sqlQuery = namedQuery.build();
-
-//        Statement statement1 = (Statement) invokeParser("statement", query.query, org.rakam.sql.test.NamedParamParser::query);
-//        String s = SqlFormatter.formatSql(statement1);
-
+    public JsonResponse create(@ParamBody MaterializedView query) {
         service.create(query);
         return new JsonResponse() {
             public final boolean success = true;
         };
     }
 
-    /**
-     * @api {post} /materialized-view/delete Delete materialized view
-     * @apiVersion 0.1.0
-     * @apiName Deletematerialized view
-     * @apiGroup materialized view
-     * @apiDescription Creates materialized view and cached data.
-     *
-     * @apiError Project does not exist.
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Project does not exists"}
-     *
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {String} name   Project tracker code
-     *
-     * @apiParamExample {json} Request-Example:
-     *     {"project": "projectId", "name": "Yearly Visits"}
-     *
-     * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/materialized-view/delete' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
-     */
     @JsonRequest
+    @ApiOperation(value = "Delete materialized view")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/delete")
-    public CompletableFuture<JsonResponse> delete(ReportQuery query) {
-        return service.delete(query.project, query.name)
+    public CompletableFuture<JsonResponse> delete(@ApiParam(name="project", required = true) String project,
+                                                  @ApiParam(name="name", required = true) String name) {
+        return service.delete(project, name)
                 .thenApply(result -> new JsonResponse() {
                     public final boolean success = result.getError() == null;
                 });
     }
 
     /**
-     * @api {get} /materialized-view/update Update materialized view
-     * @apiVersion 0.1.0
-     * @apiName Updatematerialized viewData
-     * @apiGroup materialized view
-     * @apiDescription Invalidate previous cached data, executes the materialized view query and caches it.
+     * Invalidate previous cached data, executes the materialized view query and caches it.
      * This feature is similar to UPDATE MATERIALIZED VIEWS in RDBMSs.
      *
-     * @apiError Project does not exist.
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Project does not exists"}
-     *
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {String} name   Project tracker code
-     *
-     * @apiParamExample {json} Request-Example:
-     *     {"project": "projectId", "name": "Yearly Visits"}
-     *
-     * @apiExample {curl} Example usage:
      *     curl 'http://localhost:9999/materialized-view/update' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
      */
+    @GET
     @Path("/update")
+    @ApiOperation(value = "Update materialized view")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     public void update(RakamHttpRequest request) {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
-        List<String> project = request.params().get("project");
-        List<String> name = request.params().get("name");
-        if(project == null || name == null) {
+        Map<String, String> params = request.params().entrySet().stream()
+                .collect(Collectors.toMap(k -> k.getKey(), k -> k.getValue().get(0)));
+        MaterializedViewRequest query = JsonHelper.convert(params, MaterializedViewRequest.class);
+
+        if(query.project == null || query.name == null) {
             response.send("result", encode(errorMessage("request is invalid", 400))).end();
         }
 
-        QueryExecution update = service.update(project.get(0), name.get(0));
+        QueryExecution update = service.update(service.get(query.project, query.name));
         handleQueryExecution(eventLoopGroup, response, update);
     }
 
-    /**
-     * @api {post} /materialized-view/get Get materialized views
-     * @apiVersion 0.1.0
-     * @apiName Getmaterialized viewMetadata
-     * @apiGroup materialized view
-     * @apiDescription Returns created materialized views.
-     *
-     * @apiError Project does not exist.
-     * @apiError materialized view does not exist.
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Project does not exists"}
-     *
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {String} name   materialized view name
-     *
-     * @apiParamExample {json} Request-Example:
-     *     {"project": "projectId", "name": "Yearly Visits"}
-     *
-     * @apiSuccess (200) {String} project Project tracker code
-     * @apiSuccess (200) {String} name  materialized view name
-     * @apiSuccess (200) {String} query  The SQL query of the materialized view
-     * @apiSuccess (200) {Object} [options]  The options that are given when the materialized view is created
-     *
-     * @apiSuccessExample {json} Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "project": "projectId",
-     *       "name": "Yearly Visits",
-     *       "query": "SELECT year(time), count(1) from visits GROUP BY 1",
-     *     }
-     *
-     * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/materialized-view/get' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
-     */
+    public static class MaterializedViewRequest {
+        public final String project;
+        public final String name;
+
+        public MaterializedViewRequest(String project, String name) {
+            this.project = project;
+            this.name = name;
+        }
+    }
+
     @JsonRequest
+    @ApiOperation(value = "Get materialized view")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/get")
-    public Object get(ReportQuery query) {
-        return service.get(query.project, query.name);
+    public Object get(@ApiParam(name="project", required = true) String project,
+                      @ApiParam(name="name", required = true) String name) {
+        return service.get(project, name);
     }
 
     @Inject
     public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
     }
-
-    public static class ReportQuery {
-        public final String project;
-        public final String name;
-
-        public ReportQuery(String project, String name) {
-            this.project = project;
-            this.name = name;
-        }
-    }
-
 }

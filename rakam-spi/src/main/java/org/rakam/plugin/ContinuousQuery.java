@@ -9,6 +9,7 @@ import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
 import java.util.Map;
@@ -20,12 +21,17 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class ContinuousQuery {
     private final static SqlParser SQL_PARSER = new SqlParser();
-
+    @ApiParam(name = "project", required = true)
     public final String project;
+    @ApiParam(name = "name", value="The name of the continuous query", required = true)
     public final String name;
+    @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true)
     public final String query;
+    @ApiParam(name = "table_name", value="The table name of the continuous query that can be used when querying", required = true)
     public final String tableName;
+    @ApiParam(name = "collections", value="The source collections that will be streamed", required = true)
     public final List<String> collections;
+    @ApiParam(name = "options", value="Additional information about the continuous query", required = false)
     public final Map<String, Object> options;
 
     @JsonCreator

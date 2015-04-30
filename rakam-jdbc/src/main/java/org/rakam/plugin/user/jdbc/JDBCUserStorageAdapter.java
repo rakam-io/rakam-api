@@ -157,13 +157,13 @@ public class JDBCUserStorageAdapter implements UserStorage {
         } catch (CompletionException e) {
             if (e.getCause() instanceof UnableToExecuteStatementException) {
                 QueryError error = new QueryError(e.getCause().getMessage(), null, 0);
-                return new JDBCQueryResult(error, null, null, null);
+                return QueryResult.errorResult(error);
             } else {
                 throw Throwables.propagate(e);
             }
         }
 
-        return new JDBCQueryResult(null, ImmutableMap.of("totalResult", totalResultJoin), dataJoin, projectColumns);
+        return new QueryResult(projectColumns, dataJoin, ImmutableMap.of("totalResult", totalResultJoin));
     }
 
     @Override
@@ -213,16 +213,13 @@ public class JDBCUserStorageAdapter implements UserStorage {
                 columns,
                 jdbcConfig.getTable(),
                 moduleConfig.getIdentifierColumn(),
-                userId)).map(new ResultSetMapper<User>() {
-            @Override
-            public User map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-                HashMap<String, Object> properties = new HashMap<>();
-                for (Column column : getMetadata(project)) {
-                    properties.put(column.getName(), r.getObject(column.getName()));
-                }
-                return new User(project, userId, properties);
-            }
-        }).first();
+                userId)).map((index, r, ctx) -> {
+                    HashMap<String, Object> properties = new HashMap<>();
+                    for (Column column : getMetadata(project)) {
+                        properties.put(column.getName(), r.getObject(column.getName()));
+                    }
+                    return new User(project, userId, properties);
+                }).first();
     }
 
     @Override

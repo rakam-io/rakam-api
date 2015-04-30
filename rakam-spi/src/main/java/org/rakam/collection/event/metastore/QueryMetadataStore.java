@@ -3,8 +3,8 @@ package org.rakam.collection.event.metastore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 21/07/14 05:21.
@@ -18,6 +18,10 @@ public interface QueryMetadataStore {
 
     public List<MaterializedView> getMaterializedViews(String project);
 
+    public List<MaterializedView> getAllMaterializedViews();
+
+    void updateMaterializedView(String project, String name, Instant last_update);
+
     public void createContinuousQuery(ContinuousQuery report);
 
     public void deleteContinuousQuery(String project, String name);
@@ -26,5 +30,5 @@ public interface QueryMetadataStore {
 
     public ContinuousQuery getContinuousQuery(String project, String name);
 
-    Map<String, List<ContinuousQuery>> getAllContinuousQueries();
+    List<ContinuousQuery> getAllContinuousQueries();
 }

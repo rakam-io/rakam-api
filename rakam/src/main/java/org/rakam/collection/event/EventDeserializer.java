@@ -22,7 +22,7 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder.FieldDependency;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.util.Tuple;
 
@@ -44,12 +44,12 @@ import static org.apache.avro.Schema.Type.NULL;
  * Created by buremba <Burak Emre Kabakcı> on 11/02/15 23:50.
  */
 public class EventDeserializer extends JsonDeserializer<Event> {
-    private final EventSchemaMetastore schemaRegistry;
+    private final Metastore schemaRegistry;
     private final Map<Tuple<String, String>, Schema> schemaCache;
     private final FieldDependency moduleFields;
 
     @Inject
-    public EventDeserializer(EventSchemaMetastore schemaRegistry, Set<EventMapper> eventMappers) {
+    public EventDeserializer(Metastore schemaRegistry, Set<EventMapper> eventMappers) {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
 
@@ -112,7 +112,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         Schema avroSchema = schemaCache.get(key);
         List<SchemaField> schema;
         if (avroSchema == null) {
-            schema = schemaRegistry.getSchema(project, collection);
+            schema = schemaRegistry.getCollection(project, collection);
             if (schema != null) {
                 avroSchema = convertAvroSchema(schema);
                 schemaCache.put(key, avroSchema);
@@ -125,7 +125,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
             moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
 
-            schema = schemaRegistry.createOrGetSchema(project, collection, fields);
+            schema = schemaRegistry.createOrGetCollectionField(project, collection, fields);
             avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
 
@@ -175,7 +175,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             final List<SchemaField> finalNewFields = newFields;
             moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(finalNewFields, fieldName, field));
 
-            List<SchemaField> newSchema = schemaRegistry.createOrGetSchema(project, collection, newFields);
+            List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
             schemaCache.put(key, newAvroSchema);
             GenericData.Record newRecord = new GenericData.Record(newAvroSchema);

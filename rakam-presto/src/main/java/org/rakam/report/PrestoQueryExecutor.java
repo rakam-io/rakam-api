@@ -39,6 +39,7 @@ import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNo
  */
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
+    public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final SqlParser parser = new SqlParser();
     private final PrestoConfig prestoConfig;
@@ -79,7 +80,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
                     case "continuous":
                         return "stream." + project + "." + name.getSuffix();
                     case "materialized":
-                        return project + "._materialized_" + name.getSuffix();
+                        return project + "."+ MATERIALIZED_VIEW_PREFIX + name.getSuffix();
                     default:
                         throw new IllegalArgumentException("Schema does not exist: "+name.getPrefix().get().toString());
                 }

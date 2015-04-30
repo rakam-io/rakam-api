@@ -2,8 +2,6 @@ package org.rakam.report.postgresql;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
@@ -34,7 +32,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static org.rakam.analysis.postgresql.PostgresqlSchemaMetastore.fromSql;
+import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 00:48.
@@ -42,6 +40,8 @@ import static org.rakam.analysis.postgresql.PostgresqlSchemaMetastore.fromSql;
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlQueryExecutor.class);
     final SqlParser parser = new SqlParser();
+    public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
+    public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final BasicDataSource connectionPool;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
@@ -83,6 +83,10 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         return new PostgresqlQueryExecution(connectionPool, query, true);
     }
 
+    public Connection getConnection() throws SQLException {
+        return connectionPool.getConnection();
+    }
+
     private String buildQuery(String project, String query) {
         StringBuilder builder = new StringBuilder();
         com.facebook.presto.sql.tree.Statement statement;
@@ -94,9 +98,9 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             if(name.getPrefix().isPresent()) {
                 switch (name.getPrefix().get().toString()) {
                     case "continuous":
-                        return project + "._continuous_" + name.getSuffix();
+                        return project + "." + CONTINUOUS_QUERY_PREFIX + name.getSuffix();
                     case "materialized":
-                        return project + "._materialized_" + name.getSuffix();
+                        return project + "." + MATERIALIZED_VIEW_PREFIX + name.getSuffix();
                     default:
                         throw new IllegalArgumentException("Schema does not exist: "+name.getPrefix().get().toString());
                 }
@@ -128,7 +132,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                         // fail when using executeQuery so we face the result data
                         List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN, true));
                         List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
-                        return new PostgresqlQueryResult(null, data, cols);
+                        return new QueryResult(cols, data);
                     }else {
                         return resultSetToQueryResult(statement.executeQuery(sqlQuery));
                     }
@@ -140,7 +144,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     } else {
                         error = new QueryError("Internal query execution error", null, 0);
                     }
-                    return new PostgresqlQueryResult(error, null, null);
+                    return QueryResult.errorResult(error);
                 }
             }, QUERY_EXECUTOR);
         }
@@ -160,7 +164,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
 
         @Override
-        public CompletableFuture<? extends QueryResult> getResult() {
+        public CompletableFuture<QueryResult> getResult() {
             return result;
         }
 
@@ -191,46 +195,10 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 builder.add(rowBuilder);
             }
             data = builder.build();
-            return new PostgresqlQueryResult(null, data, columns);
+            return new QueryResult(columns, data);
         } catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode());
-            return new PostgresqlQueryResult(error, null, null);
-        }
-    }
-
-    public static class PostgresqlQueryResult implements QueryResult {
-        @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
-        private final List<SchemaField> metadata;
-        @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
-        private final List<List<Object>> result;
-        @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
-        private final QueryError error;
-
-        public PostgresqlQueryResult(QueryError error, List<List<Object>> result, List<SchemaField> metadata) {
-            this.result = result;
-            this.metadata = metadata;
-            this.error = error;
-        }
-
-        @Override
-        public QueryError getError() {
-            return error;
-        }
-
-        @Override
-        @JsonIgnore
-        public boolean isFailed() {
-            return error != null;
-        }
-
-        @Override
-        public List<List<Object>> getResult() {
-            return result;
-        }
-
-        @Override
-        public List<? extends SchemaField> getMetadata() {
-            return metadata;
+            return QueryResult.errorResult(error);
         }
     }
 }

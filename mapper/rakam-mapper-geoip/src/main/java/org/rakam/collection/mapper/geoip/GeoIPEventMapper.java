@@ -5,7 +5,7 @@ import com.google.common.base.Preconditions;
 import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 import com.maxmind.geoip.timeZone;
-import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -31,7 +31,7 @@ public class GeoIPEventMapper implements EventMapper {
 
     @Override
     public void map(Event event) {
-        GenericData.Record properties = event.properties();
+        GenericRecord properties = event.properties();
         String IP = (String) properties.get("ip");
         if (IP != null) {
             Location l1;

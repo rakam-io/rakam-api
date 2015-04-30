@@ -6,7 +6,7 @@ import com.google.inject.name.Names;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationModule;
 import org.rakam.JDBCConfig;
-import org.rakam.collection.event.metastore.EventSchemaMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 
@@ -28,7 +28,7 @@ public class JDBCSchemaMetastoreModule extends RakamModule implements Conditiona
                 .prefixedWith("event.schema.store.jdbc")
                 .to(JDBCConfig.class);
 
-        binder.bind(EventSchemaMetastore.class).to(JDBCSchemaMetastore.class);
+        binder.bind(Metastore.class).to(JDBCMetastore.class);
     }
 
     @Override

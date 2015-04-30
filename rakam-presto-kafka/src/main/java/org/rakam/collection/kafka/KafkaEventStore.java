@@ -123,15 +123,15 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
                             LOGGER.error("An error occurred while executing processor queries for Kafka.", e)).build();
             executorService = Executors.newSingleThreadScheduledExecutor(build);
         }
-//        executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);
+        executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);
     }
 
     @Override
     public void stateChanged(CuratorFramework curatorFramework, ConnectionState connectionState) {
         if(!connectionState.isConnected()) {
             if(executorService != null) {
-//                executorService.shutdown();
-//                executorService = null;
+                executorService.shutdown();
+                executorService = null;
             }
         }
     }

@@ -7,6 +7,12 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import com.wordnik.swagger.models.Contact;
+import com.wordnik.swagger.models.Info;
+import com.wordnik.swagger.models.License;
+import com.wordnik.swagger.models.Swagger;
+import com.wordnik.swagger.models.auth.ApiKeyAuthDefinition;
+import com.wordnik.swagger.models.auth.In;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -30,9 +36,11 @@ import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 import org.rakam.util.HostAddress;
+import org.rakam.util.JsonHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Clock;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -96,10 +104,23 @@ public class ServiceStarter {
             HostAddress address = httpConfig.getAddress();
 
             NioEventLoopGroup eventExecutors = new NioEventLoopGroup();
+
+            Info info = new Info()
+                    .title("Rakam API Documentation")
+                    .version("1.0")
+                    .description("An analytics platform API that lets you create your own analytics services.")
+                    .contact(new Contact().email("contact@getrakam.com"))
+                    .license(new License()
+                            .name("Apache License 2.0")
+                            .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
+
+            Swagger swagger = new Swagger().info(info)
+                    .securityDefinition("api_key", new ApiKeyAuthDefinition("api_key", In.HEADER));
+
             HttpServer httpServer = new HttpServer(
                     injector.getInstance(new Key<Set<HttpService>>() {}),
-                    injector.getInstance(new Key<Set<WebSocketService>>() {}),
-                    eventExecutors);
+                    injector.getInstance(new Key<Set<WebSocketService>>() {}), swagger,
+                    eventExecutors, JsonHelper.getMapper());
 
             httpServer.bind(address.getHostText(), address.getPort());
         }
@@ -110,6 +131,8 @@ public class ServiceStarter {
     public static class ServiceRecipe extends AbstractConfigurationAwareModule {
         @Override
         protected void setup(Binder binder) {
+            binder.bind(Clock.class).toInstance(Clock.systemUTC());
+
             Multibinder.newSetBinder(binder, EventProcessor.class);
             Multibinder.newSetBinder(binder, EventMapper.class);
 

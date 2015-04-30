@@ -9,6 +9,7 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.lang.String.format;
 
@@ -19,7 +20,7 @@ public class JDBCReportMetadata {
     private final Handle dao;
 
     ResultSetMapper<Report> mapper = (index, r, ctx) ->
-            new Report(r.getString(1), r.getString(2),r.getString(3), r.getString(4), JsonHelper.read(r.getString(5)));
+            new Report(r.getString(1), r.getString(2),r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), Map.class));
 
     @Inject
     public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCConfig config) {

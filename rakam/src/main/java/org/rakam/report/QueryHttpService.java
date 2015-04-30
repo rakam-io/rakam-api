@@ -12,7 +12,7 @@ import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Lists;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
@@ -23,12 +23,18 @@ import org.rakam.config.ForHttpServer;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiImplicitParam;
+import org.rakam.server.http.annotations.ApiImplicitParams;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.json.JsonResponse;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +48,8 @@ import java.util.stream.Collectors;
  * Created by buremba <Burak Emre Kabakcı> on 16/04/15 20:03.
  */
 @Path("/query")
+@Api(value = "/query", description = "Query module", tags = "query")
+@Produces({"application/json"})
 public class QueryHttpService extends HttpService {
     private final QueryExecutor executor;
     private EventLoopGroup eventLoopGroup;
@@ -74,6 +82,12 @@ public class QueryHttpService extends HttpService {
      *     curl 'http://localhost:9999/report/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId", "limit": 100, "offset": 100, "filters": }'
      */
     @GET
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "project", value = "User's name", required = true, dataType = "string", paramType = "query"),
+            @ApiImplicitParam(name = "offset", value = "User's email", required = false, dataType = "string", paramType = "query"),
+            @ApiImplicitParam(name = "id", value = "User ID", required = true, dataType = "long", paramType = "query")
+    })
+    @Consumes("text/event-stream")
     @Path("/execute")
     public void execute(RakamHttpRequest request) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
@@ -112,7 +126,13 @@ public class QueryHttpService extends HttpService {
 //        }
 //        String sqlQuery = namedQuery.build();
 
-        QueryExecution execute = executor.executeQuery(query.project, query.query);
+        QueryExecution execute;
+        try {
+            execute = executor.executeQuery(query.project, query.query);
+        } catch (Exception e) {
+            response.send("result", JsonHelper.encode(HttpServer.errorMessage("couldn't parse query: "+e.getMessage(), 400))).end();
+            return;
+        }
         handleQueryExecution(eventLoopGroup, response, execute);
     }
 
@@ -122,14 +142,42 @@ public class QueryHttpService extends HttpService {
                 response.send("result", JsonHelper.jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
-                        .put("message", "Internal error")).end();
+                        .put("error", "Internal error")).end();
             } else if (result.isFailed()) {
                 response.send("result", JsonHelper.jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
-                        .put("message", result.getError().message)).end();
+                        .put("error", result.getError().message)).end();
             } else {
-                response.send("result", JsonHelper.encode(JsonHelper.jsonObject()
+//                List<List<Object>> resultData;
+//                if(executeQuery.segment != null) {
+//                    List<List<Object>> data = result.getResult();
+//                    Object[] segments = data.stream().map(row -> row.get(1).toString()).collect(Collectors.toSet()).toArray();
+//
+//                    List<List<Object>> newData = new LinkedList<>();
+//                    data.stream().collect(Collectors.groupingBy(item -> item.get(0))).forEach((key, rows) -> {
+//                        Object[] list = new Object[segments.length + 1];
+//                        list[0] = key;
+//
+//                        Map<Object, List<List<Object>>> segmented = rows.stream().collect(Collectors.groupingBy(row -> row.get(1)));
+//                        for (int i = 0; i < segments.length; i++) {
+//                            Object segment = segments[i];
+//                            List<List<Object>> lists = segmented.get(segment);
+//                            if (lists == null) {
+//                                list[i + 1] = 0;
+//                            } else {
+//                                list[i + 1] = lists.get(2);
+//                            }
+//                        }
+//                        newData.add(Arrays.asList(list));
+//                    });
+//                    resultData = newData;
+//                } else {
+//                    resultData = result.getResult();
+//                }
+
+                ObjectNode jsonNodes = JsonHelper.jsonObject();
+                response.send("result", JsonHelper.encode(jsonNodes
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
                         .putPOJO("result", result.getResult())
@@ -156,14 +204,17 @@ public class QueryHttpService extends HttpService {
     public static class ExecuteQuery {
         public final String project;
         public final String query;
+        public final Segment segment;
         public final Map<String, Binding> bindings;
 
         @JsonCreator
         public ExecuteQuery(@JsonProperty("project") String project,
                             @JsonProperty("query") String query,
+                            @JsonProperty("segment") Segment segment,
                             @JsonProperty("bindings") Map<String, Binding> bindings) {
             this.project = project;
             this.query = query;
+            this.segment = segment;
             this.bindings = bindings;
         }
 
@@ -175,6 +226,21 @@ public class QueryHttpService extends HttpService {
             public Binding(@JsonProperty("type") FieldType type,
                            @JsonProperty("value") Object value) {
                 this.type = type;
+                this.value = value;
+            }
+        }
+
+        public static class Segment {
+            public final String x;
+            public final String category;
+            public final String value;
+
+            @JsonCreator
+            public Segment(@JsonProperty("x") String x,
+                           @JsonProperty("category") String category,
+                           @JsonProperty("value") String value) {
+                this.x = x;
+                this.category = category;
                 this.value = value;
             }
         }
@@ -207,17 +273,18 @@ public class QueryHttpService extends HttpService {
      */
     @JsonRequest
     @Path("/explain")
-    public Object explain(ExplainQuery explainQuery) {
+    public Object explain(@ApiParam(name="query", value = "Query", required = true) String query) {
 
-        NamedQuery namedQuery = new NamedQuery(explainQuery.query);
-        namedQuery.parameters().forEach(param -> namedQuery.bind(param, FieldType.LONG, null));
-        String query = namedQuery.build();
+//        NamedQuery namedQuery = new NamedQuery(query);
+//        namedQuery.parameters().forEach(param -> namedQuery.bind(param, FieldType.LONG, null));
+//        String query = namedQuery.build();
         try {
             Query statement;
             try {
                 statement = (Query) new SqlParser().createStatement(query);
             } catch (Exception e) {
-                return new ResponseQuery(null, null, null, Lists.newArrayList(namedQuery.parameters()));
+//                return new ResponseQuery(null, null, null, Lists.newArrayList(namedQuery.parameters()));
+                return new ResponseQuery(null, null, null, null);
             }
             QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
 //            Expression where = queryBody.getWhere().orElse(null);
@@ -248,7 +315,7 @@ public class QueryHttpService extends HttpService {
                 } catch (NumberFormatException e) {}
             }
 
-            return new ResponseQuery(groupBy, orderBy, limit, Lists.newArrayList(namedQuery.parameters()));
+            return new ResponseQuery(groupBy, orderBy, limit, null);
         } catch (ParsingException|ClassCastException e) {
             return new JsonResponse() {
                 public final boolean success = false;
@@ -272,14 +339,6 @@ public class QueryHttpService extends HttpService {
         return Optional.empty();
     }
 
-    public static class ExplainQuery {
-        public final String query;
-
-        @JsonCreator
-        public ExplainQuery(@JsonProperty("query") String query) {
-            this.query = query;
-        }
-    }
     public static class ResponseQuery {
         public final List<GroupBy> groupBy;
         public final List<Ordering> orderBy;
