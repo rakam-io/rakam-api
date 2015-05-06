@@ -3,7 +3,6 @@ package org.rakam.plugin.user.jdbc;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
-import io.airlift.configuration.ConfigurationFactory;
 import org.rakam.JDBCConfig;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
@@ -15,7 +14,8 @@ import static io.airlift.configuration.ConfigurationModule.bindConfig;
  * Created by buremba <Burak Emre Kabakcı> on 17/03/15 18:08.
  */
 @AutoService(RakamModule.class)
-public class JDBCUserStorageModule extends RakamModule implements ConditionalModule {
+@ConditionalModule(config="plugin.user.storage", value="jdbc")
+public class JDBCUserStorageModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         bindConfig(binder).to(JDBCUserStorageConfig.class);
@@ -36,10 +36,5 @@ public class JDBCUserStorageModule extends RakamModule implements ConditionalMod
     @Override
     public String description() {
         return null;
-    }
-
-    @Override
-    public boolean shouldInstall(ConfigurationFactory config) {
-        return config.getProperties().get("plugin.user.storage").equals("jdbc");
     }
 }

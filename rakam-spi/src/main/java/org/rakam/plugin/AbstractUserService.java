@@ -3,6 +3,7 @@ package org.rakam.plugin;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.rakam.plugin.user.User;
 import org.rakam.report.QueryResult;
 
 import java.util.List;
@@ -27,11 +28,11 @@ public abstract class AbstractUserService {
         return storage.getMetadata(project);
     }
 
-    public QueryResult filter(String project, Expression expression, UserStorage.Sorting sorting, int limit, int offset) {
-        return storage.filter(project, expression, sorting, limit, offset);
+    public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, int offset) {
+        return storage.filter(project, filterExpression, eventFilter, sorting, limit, offset);
     }
 
-    public org.rakam.plugin.user.User getUser(String project, String user) {
+    public CompletableFuture<User> getUser(String project, String user) {
         return storage.getUser(project, user);
     }
 

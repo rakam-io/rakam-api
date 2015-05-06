@@ -1,10 +1,16 @@
 package org.rakam.plugin;
 
-import io.airlift.configuration.ConfigurationFactory;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 17/03/15 18:25.
  */
-public interface ConditionalModule {
-    boolean shouldInstall(ConfigurationFactory config);
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface ConditionalModule {
+    String config();
+    String value();
 }

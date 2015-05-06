@@ -3,8 +3,7 @@ package org.rakam;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.impossibl.postgres.api.jdbc.PGConnection;
-import com.impossibl.postgres.jdbc.PGDriver;
-import org.apache.commons.dbcp2.BasicDataSource;
+import com.impossibl.postgres.jdbc.PGConnectionPoolDataSource;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 
 import java.sql.SQLException;
@@ -14,19 +13,18 @@ import java.sql.SQLException;
  */
 @Singleton
 public class AsyncPostgresqlConnectionPool {
-    BasicDataSource connectionPool;
+    PGConnectionPoolDataSource connectionPool;
 
     @Inject
     public AsyncPostgresqlConnectionPool(PostgresqlConfig config) {
-        connectionPool = new BasicDataSource();
-        connectionPool.setUsername(config.getUsername());
+        connectionPool = new PGConnectionPoolDataSource();
+        connectionPool.setUser(config.getUsername());
         connectionPool.setPassword(config.getPassword());
-        connectionPool.setDriverClassName(PGDriver.class.getName());
-        connectionPool.setUrl("jdbc:pgsql://" + config.getHost() + ':' + config.getPort() + "/" + config.getDatabase());
-        connectionPool.setInitialSize(1);
+        connectionPool.setDatabase(config.getDatabase());
+        connectionPool.setHousekeeper(false);
     }
 
     public PGConnection getConnection() throws SQLException {
-        return (PGConnection) connectionPool.getConnection();
+        return (PGConnection) connectionPool.getPooledConnection().getConnection();
     }
 }

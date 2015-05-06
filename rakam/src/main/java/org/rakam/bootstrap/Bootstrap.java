@@ -163,9 +163,13 @@ public class Bootstrap
         ImmutableList.Builder<Module> installedModulesBuilder = ImmutableList.builder();
         // initialize configuration factory
         for (Module module : modules) {
-            if(module instanceof ConditionalModule) {
-                if(!((ConditionalModule) module).shouldInstall(configurationFactory)) {
+            ConditionalModule annotation = module.getClass().getAnnotation(ConditionalModule.class);
+            if(annotation != null) {
+                String value = configurationFactory.getProperties().get(annotation.config());
+                if(!annotation.value().equals(value)) {
                     continue;
+                }else{
+                    configurationFactory.consumeProperty(annotation.config());
                 }
             }
             if (module instanceof ConfigurationAwareModule) {

@@ -51,7 +51,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                 // the payload is the json string that contains event attributes
                 queue.add(payload);
             };
-            conn.addNotificationListener(listener);
+            conn.addNotificationListener(ticket, listener);
 
             try (Statement statement = conn.createStatement()) {
                 statement.execute("LISTEN " + ticket);
@@ -98,12 +98,6 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
         } catch (SQLException e) {
             LOGGER.error("Couldn't deleted functions and triggers from Postgresql server. Ticket: " + ticket, e);
         } finally {
-            try {
-                conn.commit();
-                conn.close();
-            } catch (SQLException e) {
-                LOGGER.error("Internal commit Postgresql server error. Ticket: " + ticket, e);
-            }
             open = false;
         }
     }

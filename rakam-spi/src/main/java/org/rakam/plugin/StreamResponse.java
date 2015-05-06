@@ -8,7 +8,5 @@ public interface StreamResponse {
 
     public boolean isClosed();
 
-    public StreamResponse send(String event, Object data);
-
     public void end();
 }

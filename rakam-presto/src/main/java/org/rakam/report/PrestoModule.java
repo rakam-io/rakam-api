@@ -2,20 +2,20 @@ package org.rakam.report;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
-import io.airlift.configuration.ConfigurationFactory;
-import org.rakam.analysis.PrestoMaterializedViewService;
 import org.rakam.analysis.PrestoAbstractUserService;
+import org.rakam.analysis.PrestoMaterializedViewService;
+import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.AbstractUserService;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/04/15 06:31.
  */
 @AutoService(RakamModule.class)
-public class PrestoModule extends RakamModule implements ConditionalModule {
+@ConditionalModule(config="store.adapter", value="presto")
+public class PrestoModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
@@ -37,10 +37,5 @@ public class PrestoModule extends RakamModule implements ConditionalModule {
     @Override
     public String description() {
         return null;
-    }
-
-    @Override
-    public boolean shouldInstall(ConfigurationFactory config) {
-        return config.getProperties().get("store.adapter").equals("presto");
     }
 }

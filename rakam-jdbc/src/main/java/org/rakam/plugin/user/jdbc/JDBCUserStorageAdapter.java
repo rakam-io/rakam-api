@@ -3,7 +3,6 @@ package org.rakam.plugin.user.jdbc;
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Joiner;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
@@ -17,11 +16,11 @@ import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.User;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryResult;
+import org.rakam.util.NotImplementedException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.Update;
-import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 
@@ -40,7 +39,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -100,7 +98,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
     @Override
     public void create(String project, Map<String, Object> properties) {
-        //session.save("Users", properties);
+        throw new NotImplementedException();
     }
 
     public static Object[] all(Supplier... futures) {
@@ -113,7 +111,12 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public QueryResult filter(String project, Expression filterExpression, Sorting sortColumn, int limit, int offset) {
+    public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset) {
+        if(eventFilter != null && !eventFilter.isEmpty()) {
+            // TODO: we may consider querying events that returns ids of users with QueryExecutor and querying users with those ids.
+            throw new IllegalArgumentException("Event store adapter is not set");
+        }
+
         //  ExpressionFormatter is not the best way to do this but the basic expressions will work for all the SQL databases.
         // TODO: implement functions specific to sql databases.
         String filterQuery;
@@ -135,35 +138,26 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
         String orderBy = sortColumn == null ? "" : format(" ORDER BY %s %s", sortColumn.column, sortColumn.order);
 
+        String query = format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s", columns, jdbcConfig.getTable(),  where,  orderBy,  limit, offset);
+
         CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() ->
-                dao.createQuery(format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s",
-                        columns,
-                        jdbcConfig.getTable(),
-                        where,
-                        orderBy,
-                        limit,
-                        offset)).map(mapper).list());
+                dao.createQuery(query).map(mapper).list());
 
         CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() ->
                 dao.createQuery(format("SELECT count(*) FROM %s %s", jdbcConfig.getTable(), where))
                         .map(new LongMapper(1)).first());
 
-        List<List<Object>> dataJoin;
-        Long totalResultJoin;
-        // TODO: shame on me.
-        try {
-            dataJoin = data.join();
-            totalResultJoin = totalResult.join();
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof UnableToExecuteStatementException) {
-                QueryError error = new QueryError(e.getCause().getMessage(), null, 0);
-                return QueryResult.errorResult(error);
-            } else {
-                throw Throwables.propagate(e);
-            }
-        }
+        CompletableFuture<QueryResult> result = new CompletableFuture<>();
 
-        return new QueryResult(projectColumns, dataJoin, ImmutableMap.of("totalResult", totalResultJoin));
+        CompletableFuture.allOf(data, totalResult).whenComplete((__, ex) -> {
+            if(ex==null) {
+                result.complete(new QueryResult(projectColumns, data.join(), ImmutableMap.of("totalResult", totalResult.join())));
+            }else {
+                result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0)));
+            }
+        });
+
+        return result;
     }
 
     @Override
@@ -206,20 +200,21 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public User getUser(String project, Object userId) {
+    public CompletableFuture<User> getUser(String project, Object userId) {
         String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
 
-        return dao.createQuery(format("SELECT %s FROM %s WHERE %s = %s",
+        // TODO: fix
+        return CompletableFuture.completedFuture(dao.createQuery(format("SELECT %s FROM %s WHERE %s = %s",
                 columns,
                 jdbcConfig.getTable(),
                 moduleConfig.getIdentifierColumn(),
                 userId)).map((index, r, ctx) -> {
-                    HashMap<String, Object> properties = new HashMap<>();
-                    for (Column column : getMetadata(project)) {
-                        properties.put(column.getName(), r.getObject(column.getName()));
-                    }
-                    return new User(project, userId, properties);
-                }).first();
+            HashMap<String, Object> properties = new HashMap<>();
+            for (Column column : getMetadata(project)) {
+                properties.put(column.getName(), r.getObject(column.getName()));
+            }
+            return new User(project, userId, properties);
+        }).first());
     }
 
     @Override
@@ -272,6 +267,11 @@ public class JDBCUserStorageAdapter implements UserStorage {
         }
 
         statement.execute();
+    }
+
+    @Override
+    public void createProject(String project) {
+        throw new NotImplementedException();
     }
 
     static FieldType fromSql(int sqlType) {

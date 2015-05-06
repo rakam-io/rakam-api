@@ -16,11 +16,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 19:09.
@@ -76,16 +78,63 @@ public class PostgresqlMetastore implements Metastore {
         return map;
     }
 
+//    @Override
+//    public Map<String, List<SchemaField>> getCollections(String project) {
+//        checkProject(project);
+//        Map<String, List<SchemaField>> table = Maps.newHashMap();
+//
+//        try(Connection connection = connectionPool.getConnection()) {
+//            ResultSet resultSet = connection.createStatement().executeQuery("select column_name, data_type, table_name, is_nullable\n" +
+//                    "from INFORMATION_SCHEMA.COLUMNS where table_schema = '"+project+"' and table_name not like '\\_%' ESCAPE '\\'");
+//            while (resultSet.next()) {
+//                String tableName = resultSet.getString("table_name");
+//                List<SchemaField> schemaFields = table.get(tableName);
+//                if(schemaFields == null) {
+//                    schemaFields = new LinkedList<>();
+//                    table.put(tableName, schemaFields);
+//                }
+//                schemaFields.add(new SchemaField(
+//                        resultSet.getString("column_name"),
+//                        fromSql(resultSet.getString("data_type")),
+//                        resultSet.getString("is_nullable").equals("YES")));
+//            }
+//        } catch (SQLException e) {
+//            Throwables.propagate(e);
+//        }
+//        return table;
+//    }
+
     @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
+        checkProject(project);
         Map<String, List<SchemaField>> table = Maps.newHashMap();
+
         try(Connection connection = connectionPool.getConnection()) {
-            ResultSet dbColumns = connection.getMetaData().getTables("", project, null, null);
-            while (dbColumns.next()) {
-                String tableName = dbColumns.getString("TABLE_NAME");
+            HashSet<String> tables = new HashSet<>();
+            ResultSet tableRs = connection.getMetaData().getTables("", project, null, new String[]{"TABLE"});
+            while(tableRs.next()) {
+                String tableName = tableRs.getString("table_name");
+
                 if(!tableName.startsWith("_")) {
-                    table.put(tableName, getCollection(project, tableName));
+                    tables.add(tableName);
                 }
+            }
+            ResultSet resultSet = connection.getMetaData().getColumns("", project, null, null);
+            while (resultSet.next()) {
+                String tableName = resultSet.getString("TABLE_NAME");
+                // TODO: move it to tableNamePattern parameter in DatabaseMetadata.getColumns()
+                if(!tables.contains(tableName)) {
+                    continue;
+                }
+                List<SchemaField> schemaFields = table.get(tableName);
+                if(schemaFields == null) {
+                    schemaFields = new LinkedList<>();
+                    table.put(tableName, schemaFields);
+                }
+                schemaFields.add(new SchemaField(
+                        resultSet.getString("COLUMN_NAME"),
+                        fromSql(resultSet.getInt("DATA_TYPE")),
+                        resultSet.getString("NULLABLE").equals("1")));
             }
         } catch (SQLException e) {
             Throwables.propagate(e);

@@ -3,10 +3,12 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.inject.Inject;
+import org.rakam.JsonSkeleton;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.Column;
 import org.rakam.plugin.UserPluginConfig;
+import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.UserStorage.Sorting;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
@@ -16,8 +18,8 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
-import org.rakam.util.json.JsonResponse;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -70,7 +72,7 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
     public Object metadata(@ApiParam(name = "project", required = true) String project) {
-        return new JsonResponse() {
+        return new JsonSkeleton() {
             public final List<Column> columns = service.getMetadata(project);
             public final String identifierColumn = config.getIdentifierColumn();
         };
@@ -84,11 +86,12 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/search")
-    public QueryResult search(@ApiParam(name = "project", required = true) String project,
-                              @ApiParam(name = "filter", required = false) String filter,
-                              @ApiParam(name = "sorting", required = false) Sorting sorting,
-                              @ApiParam(name = "offset", required = false) int offset,
-                              @ApiParam(name = "limit", required = false) int limit) {
+    public CompletableFuture<QueryResult> search(@ApiParam(name = "project", required = true) String project,
+                                                 @ApiParam(name = "filter", required = false) String filter,
+                                                 @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                                                 @ApiParam(name = "sorting", required = false) Sorting sorting,
+                                                 @ApiParam(name = "offset", required = false) int offset,
+                                                 @ApiParam(name = "limit", required = false) int limit) {
         Expression expression;
         if (filter != null) {
             try {
@@ -101,8 +104,8 @@ public class UserHttpService extends HttpService {
         } else {
             expression = null;
         }
-        QueryResult result = service.filter(project, expression, sorting, limit, offset);
-        return result;
+
+        return service.filter(project, expression, event_filter, sorting, limit, offset);
     }
 
     /**
@@ -129,8 +132,8 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/get")
-    public org.rakam.plugin.user.User getUser(@ApiParam(name = "project", required = true) String project,
-                                              @ApiParam(name = "user", required = true) String user) {
+    public CompletableFuture<org.rakam.plugin.user.User> getUser(@ApiParam(name = "project", required = true) String project,
+                                                                 @ApiParam(name = "user", required = true) String user) {
         return service.getUser(project, user);
     }
 
@@ -145,8 +148,6 @@ public class UserHttpService extends HttpService {
                                         @ApiParam(name = "property", required = true) String property,
                                         @ApiParam(name = "value", required = true) Object value) {
         service.setUserProperty(project, user, property, value);
-        return new JsonResponse() {
-            public final boolean success = true;
-        };
+        return JsonResponse.success();
     }
 }

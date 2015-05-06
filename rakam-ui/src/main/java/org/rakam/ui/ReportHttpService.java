@@ -10,7 +10,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
-import org.rakam.util.json.JsonResponse;
+import org.rakam.util.JsonResponse;
 
 import javax.ws.rs.Path;
 
@@ -48,9 +48,7 @@ public class ReportHttpService extends HttpService {
     @Path("/create")
     public JsonResponse create(@ParamBody Report report) {
         metadata.save(report);
-        return new JsonResponse() {
-            public final boolean success = true;
-        };
+        return JsonResponse.success();
     }
 
     @JsonRequest
@@ -64,9 +62,7 @@ public class ReportHttpService extends HttpService {
                                @ApiParam(name="name", value = "Project name", required = true) String name) {
         metadata.delete(project, name);
 
-        return new JsonResponse() {
-            public final boolean success = true;
-        };
+        return JsonResponse.success();
     }
 
     @JsonRequest

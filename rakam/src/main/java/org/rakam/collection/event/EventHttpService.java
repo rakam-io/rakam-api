@@ -7,12 +7,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.Authorization;
 import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
@@ -21,8 +15,13 @@ import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.json.JsonResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,20 +87,18 @@ public class EventHttpService extends HttpService {
      * @apiName CollectEvent
      * @apiGroup event
      * @apiDescription Stores event data for specified project and collection tuple.
-     *
      * @apiParam {String} project   Project tracker code that the event belongs.
      * @apiParam {String} collection    Collection name. (pageView, register etc.)
      * @apiParam {Object} properties    The properties of the event.
-     *
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/event/collect' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "collection": "pageView", "properties": { "url": "http://rakam.io" } }'
+     * curl 'http://localhost:9999/event/collect' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "collection": "pageView", "properties": { "url": "http://rakam.io" } }'
      */
     @POST
     @ApiOperation(value = "Collect event",
             authorizations = @Authorization(value = "api_key", type = "api_key")
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/collect")
     public void collect(RakamHttpRequest request) {
         request.bodyHandler(buff -> {
@@ -126,36 +123,39 @@ public class EventHttpService extends HttpService {
      * @apiName GetEventSchema
      * @apiGroup event
      * @apiDescription Returns event metadata.
-     *
      * @apiSuccess (200) {Object[]} collections  List of collections
      * @apiSuccess (200) {String} collections.name  The name of the collection
      * @apiSuccess (200) {Object[]} collections.fields  The name of the collection
      * @apiSuccess (200) {String} collections.fields.name  The name of the collection
      * @apiSuccess (200) {String="STRING","ARRAY","LONG","DOUBLE","BOOLEAN","DATE","HYPERLOGLOG","TIME"} collections.fields.type The data type of the field
      * @apiSuccess (200) {Boolean} collections.fields.nullable The value can be null
-     *
      * @apiSuccessExample {json} Success-Response:
-     *     HTTP/1.1 200 OK
-     *   {"collections":[{"name":"pageView","fields":[{"name":"url","type":"STRING","nullable":true},{"name":"id","type":"LONG","nullable":false}]}]}
-     *
+     * HTTP/1.1 200 OK
+     * {"collections":[{"name":"pageView","fields":[{"name":"url","type":"STRING","nullable":true},{"name":"id","type":"LONG","nullable":false}]}]}
      * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/event/schema' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId"}'
+     * curl 'http://localhost:9999/event/schema' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId"}'
      */
     @JsonRequest
     @ApiOperation(value = "Get collection schema")
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema")
-    public Object schema(@ApiParam(name="project", required = true) String project) {
-        return new JsonResponse() {
-            public final List collections = metastore.getCollections(project).entrySet().stream()
-                    // ignore system tables
-                    .filter(entry -> !entry.getKey().startsWith("_"))
-                    .map(entry -> new JsonResponse() {
-                        public final String name = entry.getKey();
-                        public final List<SchemaField> fields = entry.getValue();
-            }).collect(Collectors.toList());
-        };
+    public List<Collection> schema(@ApiParam(name = "project", required = true) String project) {
+        return metastore.getCollections(project).entrySet().stream()
+                // ignore system tables
+                .filter(entry -> !entry.getKey().startsWith("_"))
+                .map(entry -> new Collection(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    public static class Collection {
+        public final String name;
+        public final List<SchemaField> fields;
+
+        public Collection(String name, List<SchemaField> fields) {
+            this.name = name;
+            this.fields = fields;
+        }
     }
 
     public static class EventParserJsonFactory extends JsonFactory {
@@ -165,7 +165,7 @@ public class EventHttpService extends HttpService {
                                            boolean recyclable) throws IOException {
             return new EventDeserializer.SaveableReaderBasedJsonParser(ctxt, _parserFeatures, null, _objectCodec,
                     _rootCharSymbols.makeChild(_factoryFeatures),
-                    data, offset, offset+len, recyclable);
+                    data, offset, offset + len, recyclable);
         }
     }
 }

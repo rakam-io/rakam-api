@@ -3,6 +3,8 @@ package org.rakam;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.impossibl.postgres.api.jdbc.PGConnection;
+import com.impossibl.postgres.jdbc.PGDataSource;
+import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.plugin.CollectionStreamQuery;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
@@ -17,21 +19,26 @@ import java.util.List;
  */
 public class PostgresqlEventStream implements EventStream {
     final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlEventStream.class);
-    private final AsyncPostgresqlConnectionPool pool;
-
+    private final PGConnection asyncConn;
 
     @Inject
-    public PostgresqlEventStream(AsyncPostgresqlConnectionPool pool) {
-        this.pool = pool;
+    public PostgresqlEventStream(PostgresqlConfig config) {
+        PGDataSource pg = new PGDataSource();
+        pg.setDatabase(config.getDatabase());
+        pg.setHost(config.getHost());
+        pg.setPassword(config.getPassword());
+        pg.setUser(config.getUsername());
+        try {
+            this.asyncConn = (PGConnection) pg.getConnection();
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+
     }
 
     @Override
     public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
-        try(PGConnection connection = pool.getConnection()) {
-            return new PostgresqlEventStreamer(connection, project, collections, response);
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
+        return new PostgresqlEventStreamer(asyncConn, project, collections, response);
     }
 
 

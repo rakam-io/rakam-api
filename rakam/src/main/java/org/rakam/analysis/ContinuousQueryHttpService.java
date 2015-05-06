@@ -1,21 +1,20 @@
 package org.rakam.analysis;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
-import org.rakam.util.json.JsonResponse;
 
 import javax.ws.rs.Path;
 import java.util.List;
@@ -56,10 +55,7 @@ public class ContinuousQueryHttpService extends HttpService {
             err.completeExceptionally(new RakamException(e.getMessage(), 400));
             return err;
         }
-        return f.thenApply(result -> new JsonResponse() {
-            public final boolean success = result.getError() == null;
-            public final String error = result.getError().message;
-        });
+        return f.thenApply(JsonResponse::map);
     }
 
     /**
@@ -82,17 +78,22 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public Object schema(@ApiParam(name="project", required = true) String project) {
-        return new JsonResponse() {
-            @JsonProperty("continuous-queries")
-            public final List views = service.getSchemas(project).entrySet().stream()
+    public List<Collection> schema(@ApiParam(name="project", required = true) String project) {
+        return  service.getSchemas(project).entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
-                    .map(entry -> new JsonResponse() {
-                        public final String name = entry.getKey();
-                        public final List<SchemaField> fields = entry.getValue();
-                    }).collect(Collectors.toList());
-        };
+                    .map(entry -> new Collection(entry.getKey(), entry.getValue()))
+                    .collect(Collectors.toList());
+    }
+
+    public static class Collection {
+        public final String name;
+        public final List<SchemaField> fields;
+
+        public Collection(String name, List<SchemaField> fields) {
+            this.name = name;
+            this.fields = fields;
+        }
     }
 
     /**
@@ -105,9 +106,12 @@ public class ContinuousQueryHttpService extends HttpService {
     @Path("/delete")
     public Object delete(@ApiParam(name="project", required = true) String project,
                          @ApiParam(name="name", required = true) String name) {
-        return service.delete(project, name).thenApply(result -> new JsonResponse() {
-            public final boolean success = result.getError() == null;
-            public final String error = result.getError().message;
+        return service.delete(project, name).thenApply(result -> {
+            if(result.isFailed()) {
+                return JsonResponse.error(result.getError().message);
+            }else {
+                return JsonResponse.success();
+            }
         });
     }
 }

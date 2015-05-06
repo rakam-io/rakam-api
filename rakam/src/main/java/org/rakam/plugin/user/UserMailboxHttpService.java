@@ -1,26 +1,31 @@
 package org.rakam.plugin.user;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
 import org.rakam.plugin.user.mailbox.Message;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiImplicitParam;
+import org.rakam.server.http.annotations.ApiImplicitParams;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.json.JsonResponse;
+import org.rakam.util.JsonResponse;
 
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.function.Consumer;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static org.rakam.util.JsonHelper.encode;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 17/03/15 00:12.
@@ -52,6 +57,34 @@ public class UserMailboxHttpService extends HttpService {
                              @ApiParam(name = "limit", value = "Message query result limit", allowableValues = "range[1,100]", required = false) int limit,
                              @ApiParam(name = "offset", value = "Message query result offset", required = false) int offset) {
         return storage.getConversation(project, user, parent, limit, offset);
+    }
+
+    @Path("/listen")
+    @Consumes("text/event-stream")
+    @GET
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "project", value = "User's name", required = true, dataType = "string", paramType = "query"),
+    })
+    @ApiOperation(value = "Listen all mailboxes in a project",
+            authorizations = @Authorization(value = "api_key", type = "api_key")
+    )
+    public void listen(RakamHttpRequest request) {
+        RakamHttpRequest.StreamResponse response = request.streamResponse();
+
+        List<String> project = request.params().get("project");
+        if(project == null || project.isEmpty()) {
+            response.send("result", encode(HttpServer.errorMessage("project query parameter is required", 400))).end();
+            return;
+        }
+
+        UserMailboxStorage.MessageListener update = storage.listenAllUsers(project.get(0), new Consumer<UserMailboxStorage.Data>() {
+            @Override
+            public void accept(UserMailboxStorage.Data data) {
+                response.send("update", data.serialize());
+            }
+        });
+
+        response.listenClose(() -> update.shutdown());
     }
 
     /**
@@ -87,26 +120,10 @@ public class UserMailboxHttpService extends HttpService {
             @ApiParam(name = "user", value = "User id", required = true) String user,
             @ApiParam(name = "message_ids", value = "The list of of message ids that will be marked as read", required = true) int[] message_ids) {
         storage.markMessagesAsRead(project, user, message_ids);
-        return new JsonResponse() {
-            public final boolean success = true;
-        };
+        return JsonResponse.success();
     }
 
     /**
-     * @api {post} /user/mailbox/send Send mail to user
-     * @apiVersion 0.1.0
-     * @apiName SendMailToUser
-     * @apiGroup userMailbox
-     * @apiDescription Sends a mail to users mailbox
-     * @apiError Project does not exist.
-     * @apiError User does not exist.
-     * @apiSuccessExample {json} Success-Response:
-     * HTTP/1.1 200 OK
-     * {"success": true}
-     * @apiParam {String} project   Project tracker code.
-     * @apiParam user   User ID
-     * @apiParam {String} message    The content of the message.
-     * @apiExample {curl} Example usage:
      * curl 'http://localhost:9999/user/mailbox/send' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "user": 1, "message": "Hello there!" }'
      */
     @Path("/send")
@@ -119,37 +136,12 @@ public class UserMailboxHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 404, message = "User does not exist.")})
-    public JsonResponse send(@ApiParam(name = "project", value = "Project id", required = true) String project,
-                             @ApiParam(name = "from_user", required = true) String fromUser,
-                             @ApiParam(name = "to_user", required = true) String toUser,
-                             @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
-                             @ApiParam(name = "message", value = "The content of the message", required = false) String message,
-                             @ApiParam(name = "timestamp", value = "The zoned datetime of the message", required = true) Instant datetime) {
-        storage.send(project, fromUser, toUser, parent, message, datetime);
-        return new JsonResponse() {
-            public final boolean success = true;
-        };
-    }
-
-    public static class GetMessagesQuery {
-        @ApiParam(name = "project", value = "Project id", required = true)
-        public final String project;
-        @ApiParam(name = "user", value = "User id", required = true)
-        public final String user;
-        @ApiParam(name = "limit", value = "Message query result limit", allowableValues = "range[1,100]", required = false)
-        public final int limit;
-        @ApiParam(name = "offset", value = "Message query result offset", required = false)
-        public final int offset;
-
-        @JsonCreator
-        public GetMessagesQuery(@JsonProperty("project") String project,
-                                @JsonProperty("user") String user,
-                                @JsonProperty("limit") int limit,
-                                @JsonProperty("offset") int offset) {
-            this.project = checkNotNull(project, "project is required");
-            this.user = checkNotNull(user, "user is required");
-            this.limit = limit;
-            this.offset = offset;
-        }
+    public Message send(@ApiParam(name = "project", value = "Project id", required = true) String project,
+                        @ApiParam(name = "from_user", required = true) String fromUser,
+                        @ApiParam(name = "to_user", required = false) String toUser,
+                        @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
+                        @ApiParam(name = "message", value = "The content of the message", required = false) String message,
+                        @ApiParam(name = "timestamp", value = "The zoned datetime of the message", required = true) Instant datetime) {
+        return storage.send(project, fromUser, toUser==null ? 0 : toUser, parent, message, datetime);
     }
 }

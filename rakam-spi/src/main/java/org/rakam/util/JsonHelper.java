@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -26,9 +25,9 @@ public class JsonHelper {
 
     static {
         prettyMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
-        SimpleModule simpleModule = new SimpleModule();
+//        SimpleModule simpleModule = new SimpleModule();
 //        simpleModule.addSerializer(new SchemaSerializer());
-        mapper.registerModule(simpleModule);
+//        mapper.registerModule(simpleModule);
         mapper.registerModule(new JSR310Module());
     }
 

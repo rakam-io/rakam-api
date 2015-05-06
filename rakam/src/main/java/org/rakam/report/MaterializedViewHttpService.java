@@ -2,22 +2,23 @@ package org.rakam.report;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
 import io.netty.channel.EventLoopGroup;
+import org.rakam.JsonSkeleton;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.json.JsonResponse;
+import org.rakam.util.JsonResponse;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -69,12 +70,12 @@ public class MaterializedViewHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
     public Object schema(@ApiParam(name="project", required = true) String project) {
-        return new JsonResponse() {
+        return new JsonSkeleton() {
             @JsonProperty("materialized-views")
             public final List views = service.getSchemas(project).entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
-                    .map(entry -> new JsonResponse() {
+                    .map(entry -> new JsonSkeleton() {
                         public final String name = entry.getKey();
                         public final List<SchemaField> fields = entry.getValue();
                     }).collect(Collectors.toList());
@@ -101,9 +102,7 @@ public class MaterializedViewHttpService extends HttpService {
     @Path("/create")
     public JsonResponse create(@ParamBody MaterializedView query) {
         service.create(query);
-        return new JsonResponse() {
-            public final boolean success = true;
-        };
+        return JsonResponse.success();
     }
 
     @JsonRequest
@@ -114,9 +113,7 @@ public class MaterializedViewHttpService extends HttpService {
     public CompletableFuture<JsonResponse> delete(@ApiParam(name="project", required = true) String project,
                                                   @ApiParam(name="name", required = true) String name) {
         return service.delete(project, name)
-                .thenApply(result -> new JsonResponse() {
-                    public final boolean success = result.getError() == null;
-                });
+                .thenApply(result -> JsonResponse.result(result.getError() == null));
     }
 
     /**

@@ -25,12 +25,6 @@ public class StreamResponseAdapter implements StreamResponse {
     }
 
     @Override
-    public StreamResponse send(String event, Object data) {
-        response.send(event, data);
-        return this;
-    }
-
-    @Override
     public void end() {
         response.end();
     }

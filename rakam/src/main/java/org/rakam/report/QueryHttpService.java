@@ -29,7 +29,7 @@ import org.rakam.server.http.annotations.ApiImplicitParams;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.json.JsonResponse;
+import org.rakam.util.JsonResponse;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -43,6 +43,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.rakam.util.JsonHelper.encode;
+import static org.rakam.util.JsonHelper.jsonObject;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 16/04/15 20:03.
@@ -98,7 +101,7 @@ public class QueryHttpService extends HttpService {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
         List<String> data = request.params().get("data");
         if (data == null || data.isEmpty()) {
-            response.send("result", JsonHelper.encode(HttpServer.errorMessage("data query parameter is required", 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("data query parameter is required", 400))).end();
             return;
         }
 
@@ -106,17 +109,17 @@ public class QueryHttpService extends HttpService {
         try {
             query = JsonHelper.readSafe(data.get(0), ExecuteQuery.class);
         } catch (IOException e) {
-            response.send("result", JsonHelper.encode(HttpServer.errorMessage("json couldn't parsed", 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed", 400))).end();
             return;
         }
 
         if (query.project == null) {
-            response.send("result", JsonHelper.encode(HttpServer.errorMessage("project parameter is required", 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("project parameter is required", 400))).end();
             return;
         }
 
         if (query.query == null) {
-            response.send("result", JsonHelper.encode(HttpServer.errorMessage("query parameter is required", 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("query parameter is required", 400))).end();
             return;
         }
 
@@ -130,7 +133,7 @@ public class QueryHttpService extends HttpService {
         try {
             execute = executor.executeQuery(query.project, query.query);
         } catch (Exception e) {
-            response.send("result", JsonHelper.encode(HttpServer.errorMessage("couldn't parse query: "+e.getMessage(), 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("couldn't parse query: " + e.getMessage(), 400))).end();
             return;
         }
         handleQueryExecution(eventLoopGroup, response, execute);
@@ -139,15 +142,15 @@ public class QueryHttpService extends HttpService {
     static void handleQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
         query.getResult().whenComplete((result, ex) -> {
             if (ex != null) {
-                response.send("result", JsonHelper.jsonObject()
+                response.send("result", encode(jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
-                        .put("error", "Internal error")).end();
+                        .put("error", "Internal error"))).end();
             } else if (result.isFailed()) {
-                response.send("result", JsonHelper.jsonObject()
+                response.send("result", encode(jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
-                        .put("error", result.getError().message)).end();
+                        .put("error", result.getError().message))).end();
             } else {
 //                List<List<Object>> resultData;
 //                if(executeQuery.segment != null) {
@@ -176,8 +179,8 @@ public class QueryHttpService extends HttpService {
 //                    resultData = result.getResult();
 //                }
 
-                ObjectNode jsonNodes = JsonHelper.jsonObject();
-                response.send("result", JsonHelper.encode(jsonNodes
+                ObjectNode jsonNodes = jsonObject();
+                response.send("result", encode(jsonNodes
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
                         .putPOJO("result", result.getResult())
@@ -189,7 +192,7 @@ public class QueryHttpService extends HttpService {
             @Override
             public void run() {
                 if(!query.isFinished()) {
-                    response.send("stats", JsonHelper.encode(query.currentStats()));
+                    response.send("stats", encode(query.currentStats()));
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
                 }
             }
@@ -317,10 +320,7 @@ public class QueryHttpService extends HttpService {
 
             return new ResponseQuery(groupBy, orderBy, limit, null);
         } catch (ParsingException|ClassCastException e) {
-            return new JsonResponse() {
-                public final boolean success = false;
-                public final String error = e.getMessage();
-            };
+            return JsonResponse.error(e.getMessage());
         }
     }
 

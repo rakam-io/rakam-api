@@ -7,21 +7,21 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.report.QueryExecutor;
+import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.plugin.ContinuousQuery;
-import org.rakam.plugin.ContinuousQueryService;
-import org.rakam.report.QueryExecutor;
-import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
-import org.rakam.util.json.JsonResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -96,11 +96,7 @@ public class RealTimeHttpService extends HttpService {
                 sqlQuery,
                 query.collections,
                 ImmutableMap.of("type", "realtime", "report", query));
-        return service.create(report).thenApply(result ->
-                new JsonResponse() {
-                    public final boolean success = result.isFailed();
-                    public final String message = result.isFailed() ? result.getError().message : null;
-                });
+        return service.create(report).thenApply(JsonResponse::map);
     }
 
     /**

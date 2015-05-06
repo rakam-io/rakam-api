@@ -3,7 +3,6 @@ package org.rakam.report.metastore.jdbc;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
-import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationModule;
 import org.rakam.JDBCConfig;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
@@ -14,11 +13,8 @@ import org.rakam.plugin.RakamModule;
  * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:26.
  */
 @AutoService(RakamModule.class)
-public class JDBCReportMetastoreModule extends RakamModule implements ConditionalModule {
-    @Override
-    public boolean shouldInstall(ConfigurationFactory config) {
-        return config.getProperties().get("report.metadata.store").toLowerCase().trim().equals("jdbc");
-    }
+@ConditionalModule(config="report.metadata.store", value="jdbc")
+public class JDBCReportMetastoreModule extends RakamModule {
 
     @Override
     protected void setup(Binder binder) {
