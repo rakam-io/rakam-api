@@ -19,8 +19,12 @@
     "pgstudio:test"
   ],
   "env": {
-    "GEOIP_ENABLE": {
-      "description": "Enable GEOIP module. It attaches location information to collections that has 'ip' attribute.",
+    "RAKAM_GEOIP_ENABLE": {
+      "description": "Enable GeoIP module. It attaches location information to collections that has 'ip' attribute.",
+      "value": "true"
+    },
+    "RAKAM_ENABLE_UI": {
+      "description": "Enable web interface that uses Rakam API",
       "value": "true"
     }
   }
