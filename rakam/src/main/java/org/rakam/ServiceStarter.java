@@ -26,7 +26,6 @@ import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
-import org.rakam.config.MetadataConfig;
 import org.rakam.config.PluginConfig;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ClusterBuilder;

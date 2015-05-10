@@ -94,8 +94,10 @@ public class PluginInstaller
 //            }
 //        }
 
-        for (String plugin : config.getPlugins()) {
-            loadPlugin(plugin);
+        if(config.getPlugins() != null) {
+            for (String plugin : config.getPlugins()) {
+                loadPlugin(plugin);
+            }
         }
 
         pluginsLoaded.set(true);

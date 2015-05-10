@@ -55,6 +55,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-jdbc</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-parser</artifactId>
             <version>0.94</version>

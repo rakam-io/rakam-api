@@ -15,8 +15,7 @@
     "crm"
   ],
   "addons": [
-    "heroku-postgresql:hobby-dev",
-    "pgstudio:test"
+    "heroku-postgresql:hobby-dev"
   ],
   "env": {
     "RAKAM_GEOIP_ENABLE": {

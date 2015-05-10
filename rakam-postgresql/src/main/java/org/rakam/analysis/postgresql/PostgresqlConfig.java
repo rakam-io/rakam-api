@@ -30,11 +30,16 @@ public class PostgresqlConfig {
             if(userInfo != null) {
                 String[] split = userInfo.split(":");
                 this.username = split[0];
-                this.password = split.length > 0 ? split[1] : null;
+                if(split.length > 1) {
+                    this.password = split[1];
+                }
+
             }
             this.host = dbUri.getHost();
             this.port = dbUri.getPort();
-            this.database = dbUri.getPath();
+            if(dbUri.getPath() != null && dbUri.getPath().length() > 1) {
+                this.database = dbUri.getPath().substring(1);
+            }
         }
         return this;
     }
