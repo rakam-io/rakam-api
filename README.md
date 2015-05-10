@@ -1,11 +1,11 @@
 [![Stories in Ready](https://badge.waffle.io/buremba/rakam.png?label=ready&title=Ready)](https://waffle.io/buremba/rakam)
+[![Build Status](https://travis-ci.org/buremba/rakam.svg?branch=master)](https://travis-ci.org/buremba/rakam)
+[![Licence](https://img.shields.io/hexpm/l/plug.svg)](http://www.apache.org/licenses/LICENSE-2.0)
+
 Rakam
 =======
 
 [![Join the chat at https://gitter.im/buremba/rakam](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/buremba/rakam?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/buremba/rakam.svg?branch=master)](https://travis-ci.org/buremba/rakam)
-[![Licence](https://img.shields.io/hexpm/l/plug.svg)](http://www.apache.org/licenses/LICENSE-2.0)
-
 Analytics platform that allows you to create your analytics services.
 
 Please note that it’s currently under development and not ready for production.
