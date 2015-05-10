@@ -14,7 +14,8 @@ It collects your data, saves in a columnar database and continuously aggregate i
 
 Deployment
 ------------
-You can easily test Rakam using Heroku button which uses Postgresql backend: [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
+You can easily test Rakam using Heroku button which uses Postgresql backend.
+[![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
 
 Contribution
 ------------
