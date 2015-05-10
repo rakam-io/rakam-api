@@ -16,6 +16,11 @@
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+        <repository>
+            <id>git-rakam</id>
+            <name>Rakam github based repo</name>
+            <url>https://github.com/buremba/rakam-plugins-mvn/raw/master/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -178,4 +183,23 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>ui</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.rakam</groupId>
+                    <artifactId>rakam-ui</artifactId>
+                    <version>1.0</version>
+                </dependency>
+            </dependencies>
+            <activation>
+                <property>
+                    <name>RAKAM_ENABLE_UI</name>
+                    <value>true</value>
+                </property>
+            </activation>
+        </profile>
+    </profiles>
 </project>

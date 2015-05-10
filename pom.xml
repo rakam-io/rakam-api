@@ -24,7 +24,6 @@
         <module>rakam-postgresql</module>
         <module>mapper/rakam-mapper-geoip</module>
         <module>rakam-jdbc</module>
-        <module>rakam-ui</module>
     </modules>
 
     <properties>
