@@ -7,7 +7,7 @@
     <groupId>org.rakam</groupId>
     <artifactId>rakam-root</artifactId>
     <packaging>pom</packaging>
-    <version>${version}</version>
+    <version>${project.version}</version>
 
     <repositories>
         <repository>
@@ -29,7 +29,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
-        <version>0.1</version>
+        <project.version>0.1-SNAPSHOT</project.version>
         <java.version>1.8</java.version>
         <netty.rest.version>0.1-rc2</netty.rest.version>
 

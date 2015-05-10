@@ -6,7 +6,7 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>${version}</version>
+        <version>${project.version}</version>
     </parent>
 
     <artifactId>rakam</artifactId>
@@ -27,7 +27,7 @@
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-presto-kafka</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>
@@ -38,17 +38,17 @@
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-presto</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-jdbc</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-mapper-geoip</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>javax.ws.rs</groupId>
@@ -58,12 +58,12 @@
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-postgresql</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-spi</artifactId>
-            <version>${version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
