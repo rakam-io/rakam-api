@@ -6,6 +6,7 @@ Rakam
 =======
 
 [![Join the chat at https://gitter.im/buremba/rakam](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/buremba/rakam?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Analytics platform that allows you to create your analytics services.
 
 Please note that it’s currently under development and not ready for production.
