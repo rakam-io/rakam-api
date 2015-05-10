@@ -1,7 +1,9 @@
 package org.rakam.collection.mapper.geoip;
 
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.maxmind.geoip.Location;
 import com.maxmind.geoip.LookupService;
 import com.maxmind.geoip.timeZone;
@@ -14,19 +16,34 @@ import org.rakam.plugin.EventMapper;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
  * Created by buremba on 26/05/14.
  */
 public class GeoIPEventMapper implements EventMapper {
+    private final static List<String> ATTRIBUTES = ImmutableList.of("country","countryCode","region","city","latitude","longitude","timezone");
     LookupService lookup;
     String[] attributes;
 
     public GeoIPEventMapper(GeoIPModuleConfig config) throws IOException {
         Preconditions.checkNotNull(config, "config is null");
-        lookup = new LookupService(config.getDatabase(), LookupService.GEOIP_MEMORY_CACHE);
-        attributes = config.getAttributes().stream().toArray(String[]::new);
+        String database = Optional.ofNullable(config.getDatabase())
+                .orElse(getClass().getClassLoader().getResource("data/GeoIP.dat").getPath());
+        lookup = new LookupService(database, LookupService.GEOIP_MEMORY_CACHE);
+        if(config.getAttributes() != null) {
+            for (String attr : config.getAttributes()) {
+                if(!ATTRIBUTES.contains(attr)) {
+                    throw new IllegalArgumentException("Attribute "+attr+" is not exist. Available attributes: " +
+                            Joiner.on(", ").join(ATTRIBUTES));
+                }
+            }
+            attributes = config.getAttributes().stream().toArray(String[]::new);
+        } else {
+            attributes = ATTRIBUTES.toArray(new String[ATTRIBUTES.size()]);
+        }
     }
 
     @Override
