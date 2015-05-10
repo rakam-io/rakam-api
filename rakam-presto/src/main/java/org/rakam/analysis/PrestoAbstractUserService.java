@@ -1,8 +1,6 @@
 package org.rakam.analysis;
 
 import com.google.inject.Inject;
-import org.rakam.collection.EventProperty;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;
@@ -15,7 +13,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 29/04/15 20:26.
@@ -34,7 +35,10 @@ public class PrestoAbstractUserService extends AbstractUserService {
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user) {
+    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, long offset) {
+        checkProject(project);
+        checkNotNull(user);
+        checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
         String sqlQuery = metastore.getCollections(project).entrySet().stream()
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("user")))
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("time")))
@@ -56,32 +60,12 @@ public class PrestoAbstractUserService extends AbstractUserService {
                                         prestoConfig.getColdStorageConnector() + "." + project + "." + entry.getKey(),
                                         user))
                 .collect(Collectors.joining(" union all "));
-        return executor.executeRawQuery(format("select json from (%s) order by time desc limit %d", sqlQuery, 10)).getResult()
+        return executor.executeRawQuery(format("select json from (%s) order by time desc limit %d offset %s", sqlQuery, limit, offset)).getResult()
                 .thenApply(result -> {
                     Object collect = result.getResult().stream()
                             .map(s -> new CollectionEvent((String) s.get(0), JsonHelper.read(s.get(1).toString(), Map.class)))
                             .collect(Collectors.toList());
                     return (List<CollectionEvent>) collect;
                 });
-    }
-
-    public static class MapGenericRecord implements EventProperty {
-
-        private final Map<String, Object> map;
-
-        public MapGenericRecord(Map<String, Object> map) {
-            this.map = map;
-        }
-
-        @Override
-        public Object get(String key) {
-            return map.get(key);
-        }
-
-        @Override
-        public List<SchemaField> getSchema() {
-            return null;
-        }
-
     }
 }

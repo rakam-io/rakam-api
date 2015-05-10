@@ -31,4 +31,13 @@ public class SchemaField {
     public boolean isNullable() {
         return nullable;
     }
+
+    @Override
+    public String toString() {
+        return "SchemaField{" +
+                "name='" + name + '\'' +
+                ", type=" + type +
+                ", nullable=" + nullable +
+                '}';
+    }
 }

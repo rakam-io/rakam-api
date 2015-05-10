@@ -2,13 +2,16 @@ package org.rakam.analysis.postgresql;
 
 import io.airlift.configuration.Config;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 /**
 * Created by buremba <Burak Emre Kabakcı> on 11/02/15 01:31.
 */
 public class PostgresqlConfig {
-    private String database;
-    private String username;
-    private String password;
+    private String database = "rakam";
+    private String username = "postgres";
+    private String password = "";
     private String host = "127.0.0.1";
     private int port = 5432;
 
@@ -17,6 +20,27 @@ public class PostgresqlConfig {
     {
         this.database = type;
         return this;
+    }
+
+    @Config("store.adapter.postgresql.url")
+    public PostgresqlConfig setUrl(String url) throws URISyntaxException {
+        if(url != null && !url.isEmpty()) {
+            URI dbUri = new URI(url);
+            String userInfo = dbUri.getUserInfo();
+            if(userInfo != null) {
+                String[] split = userInfo.split(":");
+                this.username = split[0];
+                this.password = split.length > 0 ? split[1] : null;
+            }
+            this.host = dbUri.getHost();
+            this.port = dbUri.getPort();
+            this.database = dbUri.getPath();
+        }
+        return this;
+    }
+
+    public String getUrl() throws URISyntaxException {
+        return "jdbc:postgresql://" + host + ':' + port + "/" + database;
     }
 
     @Config("store.adapter.postgresql.host")

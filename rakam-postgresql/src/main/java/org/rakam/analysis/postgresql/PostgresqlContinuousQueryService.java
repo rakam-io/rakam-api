@@ -1,6 +1,6 @@
 package org.rakam.analysis.postgresql;
 
-import com.facebook.presto.sql.SqlFormatter;
+import com.facebook.presto.sql.SQLFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.Expression;
@@ -79,7 +79,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     private String replaceSourceTable(String query, String sampleCollection) {
         Statement statement = new SqlParser().createStatement(query);
         StringBuilder builder = new StringBuilder();
-        statement.accept(new SqlFormatter.Formatter(builder) {
+        statement.accept(new SQLFormatter.Formatter(builder) {
             @Override
             protected Void visitTable(Table node, Integer indent) {
                 if(node.getName().getSuffix().equals("stream")) {

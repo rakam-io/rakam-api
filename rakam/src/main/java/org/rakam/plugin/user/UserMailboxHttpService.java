@@ -16,6 +16,7 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
+import org.rakam.util.RakamException;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -23,7 +24,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.Instant;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static org.rakam.util.JsonHelper.encode;
 
@@ -77,12 +77,8 @@ public class UserMailboxHttpService extends HttpService {
             return;
         }
 
-        UserMailboxStorage.MessageListener update = storage.listenAllUsers(project.get(0), new Consumer<UserMailboxStorage.Data>() {
-            @Override
-            public void accept(UserMailboxStorage.Data data) {
-                response.send("update", data.serialize());
-            }
-        });
+        UserMailboxStorage.MessageListener update = storage.listenAllUsers(project.get(0),
+                data -> response.send("update", data.serialize()));
 
         response.listenClose(() -> update.shutdown());
     }
@@ -142,6 +138,10 @@ public class UserMailboxHttpService extends HttpService {
                         @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
                         @ApiParam(name = "message", value = "The content of the message", required = false) String message,
                         @ApiParam(name = "timestamp", value = "The zoned datetime of the message", required = true) Instant datetime) {
-        return storage.send(project, fromUser, toUser==null ? 0 : toUser, parent, message, datetime);
+        try {
+            return storage.send(project, fromUser, toUser==null ? 0 : toUser, parent, message, datetime);
+        } catch (Exception e) {
+            throw new RakamException("Error while sending message: "+e.getMessage(), 400);
+        }
     }
 }

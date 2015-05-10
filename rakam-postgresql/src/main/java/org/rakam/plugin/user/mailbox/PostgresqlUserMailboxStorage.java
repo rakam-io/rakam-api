@@ -9,6 +9,8 @@ import com.impossibl.postgres.api.jdbc.PGNotificationListener;
 import com.impossibl.postgres.jdbc.PGDataSource;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,6 +30,8 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 30/03/15 06:22.
  */
 public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
+    final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlUserMailboxStorage.class);
+
     private final PostgresqlQueryExecutor queryExecutor;
     private final PGConnection asyncConn;
     private final static String USER_NOTIFICATION_SUFFIX = "_user_mailbox";
@@ -70,6 +74,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
             generatedKeys.next();
             return new Message(project, generatedKeys.getInt(1), fromUser, toUser, message, parentId, false, date);
         } catch (SQLException e) {
+            LOGGER.error("Error while saving user message", e);
             throw Throwables.propagate(e);
         }
     }

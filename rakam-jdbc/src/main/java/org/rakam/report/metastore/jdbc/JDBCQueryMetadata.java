@@ -1,6 +1,6 @@
 package org.rakam.report.metastore.jdbc;
 
-import com.facebook.presto.sql.SqlFormatter;
+import com.facebook.presto.sql.SQLFormatter;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -56,7 +56,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCConfig config) {
 
         DBI dbi = new DBI(format(config.getUrl(), config.getUsername(), config.getPassword()),
-                config.getUsername(), config.getUsername());
+                config.getUsername(), config.getPassword());
         dao = dbi.open();
         setup();
     }
@@ -92,7 +92,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 .bind("project", materializedView.project)
                 .bind("name", materializedView.name)
                 .bind("table_name", materializedView.table_name)
-                .bind("query", SqlFormatter.formatSql(materializedView.query))
+                .bind("query", SQLFormatter.formatSql(materializedView.query))
                 .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
         .bind("options", JsonHelper.encode(materializedView.options, false))
                 .execute();

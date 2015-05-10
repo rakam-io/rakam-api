@@ -31,7 +31,7 @@ public class JDBCMetastore implements Metastore {
     @Inject
     public JDBCMetastore(@Named("event.schema.store.jdbc") JDBCConfig config) {
         dbi = new DBI(String.format(config.getUrl(), config.getUsername(), config.getPassword()),
-                config.getUsername(), config.getUsername());
+                config.getUsername(), config.getPassword());
         dao = dbi.open();
 
         dao.createStatement("CREATE TABLE IF NOT EXISTS collection_schema (" +

@@ -1,12 +1,12 @@
 package org.rakam.util;
 
-import com.facebook.presto.sql.SqlFormatter;
+import com.facebook.presto.sql.SQLFormatter;
 import com.facebook.presto.sql.tree.Table;
 
 import java.util.function.Function;
 
 public class QueryFormatter
-        extends SqlFormatter.Formatter
+        extends SQLFormatter.Formatter
 {
     private final StringBuilder builder;
     private final Function<Table, String> tableNameMapper;

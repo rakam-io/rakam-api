@@ -9,6 +9,13 @@
     <packaging>pom</packaging>
     <version>1.0</version>
 
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <modules>
         <module>rakam</module>
         <module>rakam-spi</module>
@@ -24,6 +31,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
         <java.version>1.8</java.version>
+        <netty.rest.version>0.1-rc2</netty.rest.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
@@ -47,12 +55,17 @@
             <artifactId>auto-service</artifactId>
             <version>1.0-rc2</version>
         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.rakam</groupId>-->
+            <!--<artifactId>netty-rest</artifactId>-->
+            <!--<version>0.1-SNAPSHOT</version>-->
+            <!--<scope>system</scope>-->
+            <!--<systemPath>${basedir}/../netty-rest/pom.xml</systemPath>-->
+        <!--</dependency>-->
         <dependency>
-            <groupId>org.rakam</groupId>
+            <groupId>com.github.buremba</groupId>
             <artifactId>netty-rest</artifactId>
-            <version>0.1-SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/../netty-rest/pom.xml</systemPath>
+            <version>${netty.rest.version}</version>
         </dependency>
     </dependencies>
 

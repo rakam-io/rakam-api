@@ -18,7 +18,7 @@ public class UserPluginConfig {
     private String lastSeenColumn;
     private String identifierColumn;
 
-    @Config("plugin.user.storage.identifier_column")
+    @Config("user.storage.identifier_column")
     public UserPluginConfig setIdentifierColumn(String colName) {
         this.identifierColumn = colName;
         return this;
@@ -28,22 +28,13 @@ public class UserPluginConfig {
         return identifierColumn;
     }
 
-    @Config("plugin.user.storage.session_column")
+    @Config("user.storage.session_column")
     public void setSessionColumn(String sessionColumn) {
         this.sessionColumn = sessionColumn;
     }
 
     public String getSessionColumn() {
         return sessionColumn;
-    }
-
-    @Config("plugin.user.storage.last_seen_column")
-    public void setLastSeenColumnName(String lastLoginColumnName) {
-        this.lastSeenColumn = lastLoginColumnName;
-    }
-
-    public String getLastSeenColumnName() {
-        return lastSeenColumn;
     }
 
     @Config("plugin.user.mailbox.enable")

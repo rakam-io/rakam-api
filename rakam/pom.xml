@@ -37,11 +37,6 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
-            <artifactId>rakam-ui</artifactId>
-            <version>1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.rakam</groupId>
             <artifactId>rakam-jdbc</artifactId>
             <version>1.0</version>
         </dependency>
@@ -49,6 +44,11 @@
             <groupId>org.rakam</groupId>
             <artifactId>rakam-mapper-geoip</artifactId>
             <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+            <version>2.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
@@ -102,12 +102,6 @@
             <version>0.101</version>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
             <version>1.7.7</version>
@@ -149,7 +143,11 @@
             <groupId>com.google.inject.extensions</groupId>
             <artifactId>guice-multibindings</artifactId>
             <version>4.0-beta5</version>
-            <!--<scope>provided</scope>-->
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.shared</groupId>
+            <artifactId>maven-invoker</artifactId>
+            <version>2.2</version>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>
@@ -162,11 +160,22 @@
             <artifactId>kume</artifactId>
             <version>df814e5c87</version>
         </dependency>
-        <!-- Temporary solution until we release netty-rest to Maven Central repository-->
-        <!--<dependency>-->
-            <!--<groupId>com.github.buremba</groupId>-->
-            <!--<artifactId>netty-rest</artifactId>-->
-            <!--<version>2d0f0565ee</version>-->
-        <!--</dependency>-->
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.4</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>package</phase>
+                        <goals><goal>copy-dependencies</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

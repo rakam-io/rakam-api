@@ -14,6 +14,8 @@ public class GeoIPModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         GeoIPModuleConfig geoIPModuleConfig = buildConfigObject(GeoIPModuleConfig.class);
+        if(!geoIPModuleConfig.getEnabled())
+            return;
         GeoIPEventMapper geoIPEventMapper;
         try {
             geoIPEventMapper = new GeoIPEventMapper(geoIPModuleConfig);

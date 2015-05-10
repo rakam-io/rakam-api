@@ -40,7 +40,7 @@ public abstract class AbstractUserService {
         storage.setUserProperty(project, user, property, value);
     }
 
-    public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user);
+    public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, long offset);
 
     public static class CollectionEvent {
         public final String collection;

@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import io.airlift.resolver.ArtifactResolver;
 import io.airlift.resolver.DefaultArtifact;
-import org.rakam.kume.Cluster;
 import org.rakam.plugin.RakamModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +24,7 @@ import java.util.ServiceLoader;
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 01:35.
  */
 public abstract class ModuleInstaller {
-    final static Logger LOGGER = LoggerFactory.getLogger(Cluster.class);
+    final static Logger LOGGER = LoggerFactory.getLogger(ModuleInstaller.class);
 
 
     private static final List<String> HIDDEN_CLASSES = com.google.common.collect.ImmutableList.<String>builder()
@@ -54,6 +53,14 @@ public abstract class ModuleInstaller {
             }
         }
         return com.google.common.collect.ImmutableList.of();
+    }
+
+    public void loadPlugins() {
+        try {
+            loadPlugin("rakam-ui/pom.xml");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static class ThreadContextClassLoader
@@ -143,15 +150,15 @@ public abstract class ModuleInstaller {
         return list;
     }
 
-    private void loadPlugin(String plugin)
+    public void loadPlugin(String plugin)
             throws Exception
     {
-        LOGGER.info("-- Loading plugin %s --", plugin);
+        LOGGER.info("-- Loading plugin {} --", plugin);
         URLClassLoader pluginClassLoader = buildClassLoader(plugin);
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(pluginClassLoader)) {
             loadPlugin(pluginClassLoader);
         }
-        LOGGER.info("-- Finished loading plugin %s --", plugin);
+        LOGGER.info("-- Finished loading plugin {} --", plugin);
     }
 
     private void loadPlugin(URLClassLoader pluginClassLoader)
@@ -165,7 +172,7 @@ public abstract class ModuleInstaller {
         }
 
         for (RakamModule plugin : plugins) {
-            LOGGER.info("Installing %s", plugin.getClass().getName());
+            LOGGER.info("Installing {}", plugin.getClass().getName());
             visit(plugin);
         }
     }

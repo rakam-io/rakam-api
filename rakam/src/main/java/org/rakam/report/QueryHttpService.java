@@ -19,6 +19,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.config.ForHttpServer;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
@@ -179,12 +180,22 @@ public class QueryHttpService extends HttpService {
 //                    resultData = result.getResult();
 //                }
 
+                List<? extends SchemaField> metadata = result.getMetadata();
+
+                // this is just a workaround, fixme
                 ObjectNode jsonNodes = jsonObject();
+                for (List<Object> objects : result.getResult()) {
+                    for (int i = 0; i < objects.size(); i++) {
+                        if(objects.get(i) == null && metadata.get(i).getType()==FieldType.STRING) {
+                            objects.set(i, "null");
+                        }
+                    }
+                }
                 response.send("result", encode(jsonNodes
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
                         .putPOJO("result", result.getResult())
-                        .putPOJO("metadata", result.getMetadata()))).end();
+                        .putPOJO("metadata", metadata))).end();
             }
         });
 

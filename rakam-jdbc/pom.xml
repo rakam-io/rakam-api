@@ -16,6 +16,7 @@
             <groupId>org.rakam</groupId>
             <artifactId>rakam-spi</artifactId>
             <version>1.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.jdbi</groupId>

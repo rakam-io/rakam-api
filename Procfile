@@ -1,0 +1,1 @@
+web: java $JAVA_OPTS -cp rakam/target/classes:rakam/target/dependency/* -Dstore.adapter=postgresql -Dstore.adapter.postgresql.url=${DATABASE_URL} -Dhttp.server.address=0.0.0.0:${PORT} -Dplugin.geoip.enabled=${GEOIP_ENABLE} -Dplugin.bundles= org.rakam.ServiceStarter

@@ -55,7 +55,6 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
             try (Statement statement = conn.createStatement()) {
                 statement.execute("LISTEN " + ticket);
-                conn.commit();
             } catch (SQLException e) {
                 Throwables.propagate(e);
             }

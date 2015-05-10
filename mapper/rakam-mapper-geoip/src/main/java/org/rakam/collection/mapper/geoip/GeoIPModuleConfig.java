@@ -10,16 +10,28 @@ import java.util.List;
  * Created by buremba <Burak Emre Kabakcı> on 12/02/15 21:09.
  */
 public class GeoIPModuleConfig {
+    private boolean enabled;
     private String database;
     private List<String> attributes;
 
-    @Config("module.geoip.database")
+    @Config("plugin.geoip.enabled")
+    public GeoIPModuleConfig setEnabled(Boolean enabled)
+    {
+        this.enabled = enabled == null ? false : enabled;
+        return this;
+    }
+
+    public boolean getEnabled() {
+        return enabled;
+    }
+
+    @Config("plugin.geoip.database")
     public GeoIPModuleConfig setDatabase(String type)
     {
         this.database = type;
         return this;
     }
-    @Config("module.geoip.attributes")
+    @Config("plugin.geoip.attributes")
     public GeoIPModuleConfig setAttributes(String attributes)
     {
         this.attributes = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(attributes));

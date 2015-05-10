@@ -1,0 +1,27 @@
+{
+  "name": "Rakam",
+  "description": "Yours analytics service",
+  "website": "http://getrakam.com",
+  "repository": "https://github.com/buremba/rakam",
+  "logo": "https://cdn0.iconfinder.com/data/icons/news-and-magazine/512/statistic-128.png",
+  "success_url": "/",
+  "keywords": [
+    "analytics",
+    "chart",
+    "sql",
+    "statistics",
+    "graph",
+    "realtime",
+    "crm"
+  ],
+  "addons": [
+    "heroku-postgresql:hobby-dev",
+    "pgstudio:test"
+  ],
+  "env": {
+    "GEOIP_ENABLE": {
+      "description": "Enable GEOIP module. It attaches location information to collections that has 'ip' attribute.",
+      "value": "true"
+    }
+  }
+}

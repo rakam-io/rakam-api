@@ -2,7 +2,6 @@ package org.rakam.ui;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import org.rakam.JDBCConfig;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -26,7 +25,7 @@ public class JDBCReportMetadata {
     public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCConfig config) {
 
         DBI dbi = new DBI(format(config.getUrl(), config.getUsername(), config.getPassword()),
-                config.getUsername(), config.getUsername());
+                config.getUsername(), config.getPassword());
         dao = dbi.open();
         setup();
     }

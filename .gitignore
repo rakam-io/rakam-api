@@ -1,3 +1,6 @@
+rakam-ui/
+plugins/*
+
 .idea/
 *.iml
 *.ipr
@@ -26,3 +29,5 @@ project/plugins/project/
 
 # Scala-IDE specific
 .scala_dependencies
+
+rakam-ui/.bowerrc

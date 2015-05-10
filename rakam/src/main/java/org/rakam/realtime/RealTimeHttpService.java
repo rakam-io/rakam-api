@@ -88,7 +88,7 @@ public class RealTimeHttpService extends HttpService {
                 .append(createSelect(query.aggregation, query.measure, query.dimension))
                 .append(" from stream")
                 .append(query.filter == null ? "" : "where " + query.filter)
-                .append(query.dimension != null ? " group by 1, 2" : " group by 2").toString();
+                .append(query.dimension != null ? " group by 1, 2" : " group by 1").toString();
 
         ContinuousQuery report = new ContinuousQuery(query.project,
                 query.name,
@@ -113,8 +113,8 @@ public class RealTimeHttpService extends HttpService {
                                          @ApiParam(name="name", required = true) String name,
                                          @ApiParam(name="filter", required = false) String filter,
                                          @ApiParam(name="aggregate", required = false) boolean aggregate,
-                                         @ApiParam(name="dateStart", required = false) Instant dateStart,
-                                         @ApiParam(name="dateEnd", required = false) Instant dateEnd) {
+                                         @ApiParam(name="date_start", required = false) Instant dateStart,
+                                         @ApiParam(name="date_end", required = false) Instant dateEnd) {
         Expression expression;
         if (filter != null) {
             expression = sqlParser.createExpression(filter);

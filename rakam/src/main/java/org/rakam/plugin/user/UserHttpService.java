@@ -119,8 +119,10 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/get_events")
     public CompletableFuture<List<CollectionEvent>> getEvents(@ApiParam(name = "project", required = true) String project,
-                                                                                  @ApiParam(name = "user", required = true) String user) {
-        return service.getEvents(project, user);
+                                                                                  @ApiParam(name = "user", required = true) String user,
+                                                                                  @ApiParam(name = "limit", required = false) Integer limit,
+                                                                                  @ApiParam(name = "offset", required = false) Long offset) {
+        return service.getEvents(project, user, limit == null ? 15 : limit, offset == null ? 0 : offset);
     }
 
     /**

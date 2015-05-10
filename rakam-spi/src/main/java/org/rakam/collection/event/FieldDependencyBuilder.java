@@ -39,7 +39,7 @@ public class FieldDependencyBuilder {
                 .filter(field -> fields.stream().anyMatch(f -> f.getName().equals(field.getName())))
                 .toArray(SchemaField[]::new);
 
-        checkState(collisions.length == 0, "Fields already exists in dependency table: ", Arrays.toString(collisions));
+        checkState(collisions.length == 0, "Fields already exist in dependency table: ", Arrays.toString(collisions));
     }
 
     FieldDependency build() {

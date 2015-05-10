@@ -80,32 +80,27 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.antlr</groupId>
-                <artifactId>antlr4-maven-plugin</artifactId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <compilerArgument>-proc:none</compilerArgument>
+                </configuration>
             </plugin>
-            <!--&lt;!&ndash;<plugin>&ndash;&gt;-->
-                <!--&lt;!&ndash;<groupId>org.apache.maven.plugins</groupId>&ndash;&gt;-->
-                <!--&lt;!&ndash;<artifactId>maven-shade-plugin</artifactId>&ndash;&gt;-->
-                <!--&lt;!&ndash;<version>2.3</version>&ndash;&gt;-->
-                <!--&lt;!&ndash;<executions>&ndash;&gt;-->
-                <!--&lt;!&ndash;<execution>&ndash;&gt;-->
-                <!--&lt;!&ndash;<phase>package</phase>&ndash;&gt;-->
-                <!--&lt;!&ndash;<goals>&ndash;&gt;-->
-                <!--&lt;!&ndash;<goal>shade</goal>&ndash;&gt;-->
-                <!--&lt;!&ndash;</goals>&ndash;&gt;-->
-                <!--&lt;!&ndash;<configuration>&ndash;&gt;-->
-                <!--&lt;!&ndash;<createSourcesJar>true</createSourcesJar>&ndash;&gt;-->
-                <!--&lt;!&ndash;<shadeSourcesContent>true</shadeSourcesContent>&ndash;&gt;-->
-                <!--&lt;!&ndash;<relocations>&ndash;&gt;-->
-                <!--&lt;!&ndash;<relocation>&ndash;&gt;-->
-                <!--&lt;!&ndash;<pattern>com.facebook.presto.sql</pattern>&ndash;&gt;-->
-                <!--&lt;!&ndash;<shadedPattern>org.rakam.analysis.sql</shadedPattern>&ndash;&gt;-->
-                <!--&lt;!&ndash;</relocation>&ndash;&gt;-->
-                <!--&lt;!&ndash;</relocations>&ndash;&gt;-->
-                <!--&lt;!&ndash;</configuration>&ndash;&gt;-->
-                <!--&lt;!&ndash;</execution>&ndash;&gt;-->
-                <!--&lt;!&ndash;</executions>&ndash;&gt;-->
-            <!--&lt;!&ndash;</plugin>&ndash;&gt;-->
+            <plugin>
+                <groupId>org.bsc.maven</groupId>
+                <artifactId>maven-processor-plugin</artifactId>
+                <version>2.2.4</version>
+                <executions>
+                    <execution>
+                        <id>process</id>
+                        <goals>
+                            <goal>process</goal>
+                        </goals>
+                        <phase>process-sources</phase>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

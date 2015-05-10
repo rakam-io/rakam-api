@@ -52,6 +52,15 @@ public class ReportHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Analyzes query and returns referenced tables",
+            authorizations = @Authorization(value = "api_key", type = "api_key")
+    )
+    @Path("/create")
+    public JsonResponse analyze(@ParamBody String query) {
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
     @ApiOperation(value = "Delete report", notes = "Creates report and cached data.",
             authorizations = @Authorization(value = "api_key", type = "api_key")
     )

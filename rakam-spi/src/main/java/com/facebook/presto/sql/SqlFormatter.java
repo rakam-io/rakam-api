@@ -72,11 +72,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Iterables.transform;
 
-public final class SqlFormatter
+public final class SQLFormatter
 {
     private static final String INDENT = "   ";
 
-    private SqlFormatter() {}
+    private SQLFormatter() {}
 
     public static String formatSql(Node root)
     {
