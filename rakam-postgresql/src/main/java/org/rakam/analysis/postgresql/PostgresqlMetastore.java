@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
-import org.apache.commons.dbcp2.BasicDataSource;
+import org.rakam.PostgresqlPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
@@ -28,17 +28,11 @@ import static org.rakam.util.ValidationUtil.checkProject;
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 19:09.
  */
 public class PostgresqlMetastore implements Metastore {
-    BasicDataSource connectionPool;
+    PostgresqlPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlMetastore(PostgresqlConfig config) {
-        connectionPool = new BasicDataSource();
-        connectionPool.setUsername(config.getUsername());
-        connectionPool.setPassword(config.getPassword());
-        connectionPool.setDriverClassName(org.postgresql.Driver.class.getName());
-        connectionPool.setUrl("jdbc:postgresql://" + config.getHost() + ':' + config.getPort() + "/" + config.getDatabase());
-        connectionPool.setInitialSize(1);
-        connectionPool.setPoolPreparedStatements(true);
+    public PostgresqlMetastore(PostgresqlPoolDataSource connectionPool) {
+        this.connectionPool = connectionPool;
 
         try(Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();

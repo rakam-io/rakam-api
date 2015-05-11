@@ -5,8 +5,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
-import org.apache.commons.dbcp2.BasicDataSource;
-import org.rakam.analysis.postgresql.PostgresqlConfig;
+import org.rakam.PostgresqlPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryError;
@@ -43,21 +42,15 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
-    private final BasicDataSource connectionPool;
+    private final PostgresqlPoolDataSource connectionPool;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
 
     @Inject
-    public PostgresqlQueryExecutor(PostgresqlConfig config) {
-        connectionPool = new BasicDataSource();
-        connectionPool.setUsername(config.getUsername());
-        connectionPool.setPassword(config.getPassword());
-        connectionPool.setDriverClassName(org.postgresql.Driver.class.getName());
-        connectionPool.setUrl("jdbc:postgresql://" + config.getHost() + ':' + config.getPort() + "/" + config.getDatabase());
-        connectionPool.setInitialSize(3);
-        connectionPool.setPoolPreparedStatements(true);
+    public PostgresqlQueryExecutor(PostgresqlPoolDataSource connectionPool) {
+        this.connectionPool = connectionPool;
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.createStatement().execute("CREATE OR REPLACE FUNCTION to_unixtime(timestamp) RETURNS double precision" +
@@ -120,7 +113,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         private final CompletableFuture<QueryResult> result;
         private final String query;
 
-        public PostgresqlQueryExecution(BasicDataSource connectionPool, String sqlQuery, boolean update) {
+        public PostgresqlQueryExecution(PostgresqlPoolDataSource connectionPool, String sqlQuery, boolean update) {
             this.query = sqlQuery;
 
             this.result = CompletableFuture.supplyAsync(() -> {

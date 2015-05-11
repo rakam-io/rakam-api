@@ -5,7 +5,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.commons.dbcp2.BasicDataSource;
+import org.rakam.PostgresqlPoolDataSource;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 
@@ -19,17 +19,11 @@ import java.util.List;
  */
 @Singleton
 public class PostgresqlEventStore implements EventStore {
-    BasicDataSource connectionPool;
+    PostgresqlPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlEventStore(PostgresqlConfig config) {
-        connectionPool = new BasicDataSource();
-        connectionPool.setUsername(config.getUsername());
-        connectionPool.setPassword(config.getPassword());
-        connectionPool.setDriverClassName(org.postgresql.Driver.class.getName());
-        connectionPool.setUrl("jdbc:postgresql://" + config.getHost() + ':' + config.getPort() + "/" + config.getDatabase());
-        connectionPool.setInitialSize(3);
-        connectionPool.setPoolPreparedStatements(true);
+    public PostgresqlEventStore(PostgresqlPoolDataSource connectionPool) {
+        this.connectionPool = connectionPool;
     }
 
     @Override

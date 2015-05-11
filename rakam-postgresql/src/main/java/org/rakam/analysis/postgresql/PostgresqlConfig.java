@@ -14,12 +14,26 @@ public class PostgresqlConfig {
     private String password = "";
     private String host = "127.0.0.1";
     private int port = 5432;
+    private int maxConnection = 100;
 
     @Config("store.adapter.postgresql.database")
     public PostgresqlConfig setDatabase(String type)
     {
         this.database = type;
         return this;
+    }
+
+    @Config("store.adapter.postgresql.max_connection")
+    public PostgresqlConfig setMaxConnection(Integer maxConnection)
+    {
+        if(maxConnection != null) {
+            this.maxConnection = maxConnection;
+        }
+        return this;
+    }
+
+    public int getMaxConnection() {
+        return maxConnection;
     }
 
     @Config("store.adapter.postgresql.url")
