@@ -200,6 +200,7 @@
                     <name>RAKAM_ENABLE_UI</name>
                     <value>true</value>
                 </property>
+                <activeByDefault>true</activeByDefault>
             </activation>
         </profile>
     </profiles>
