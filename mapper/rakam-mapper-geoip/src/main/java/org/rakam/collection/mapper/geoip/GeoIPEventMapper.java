@@ -21,6 +21,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
@@ -42,9 +43,12 @@ public class GeoIPEventMapper implements EventMapper {
         if(config.getDatabase() != null) {
             database = new FileInputStream(config.getDatabase());
         }else {
-            database = getClass().getClassLoader().getResource("GeoLite2-Country.mmdb").openStream();
+            URL resource = getClass().getClassLoader().getResource("data/GeoLite2-Country.mmdb");
+            if(resource == null) {
+                throw new IllegalStateException("GeoIP module is enabled but database location is not set. Please set plugin.geoip.database.");
+            }
+            database = resource.openStream();
         }
-
 
         lookup = new DatabaseReader.Builder(database).build();
         if(config.getAttributes() != null) {
