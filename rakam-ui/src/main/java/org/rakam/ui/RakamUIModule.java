@@ -75,7 +75,7 @@ public class RakamUIModule extends RakamModule {
                             try {
                                 new HttpDownloadHelper().download(new URL("https://github.com/" + url),
                                         new File(UI_DIRECTORY, "ui.zip").toPath(),
-                                        new HttpDownloadHelper.NullProgress());
+                                        new HttpDownloadHelper.VerboseProgress(System.out));
 
                                 File file = new File(UI_DIRECTORY, "ui.zip");
                                 extractFolder(file, UI_DIRECTORY);
@@ -92,7 +92,7 @@ public class RakamUIModule extends RakamModule {
                         case "https":
                             new HttpDownloadHelper().download(new URL(rakamUIConfig.getUI()),
                                     new File(UI_DIRECTORY, "ui.zip").toPath(),
-                                    new HttpDownloadHelper.NullProgress());
+                                    new HttpDownloadHelper.VerboseProgress(System.out));
 
                             File file = new File(UI_DIRECTORY, "ui.zip");
                             extractFolder(file, UI_DIRECTORY);
