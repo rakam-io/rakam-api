@@ -1,13 +1,13 @@
-package org.rakam.collection.event.jdbc;
+package org.rakam.collection.event.metastore.impl;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import org.rakam.JDBCConfig;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;

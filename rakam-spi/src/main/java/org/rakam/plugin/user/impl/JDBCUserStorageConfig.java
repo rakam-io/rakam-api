@@ -1,4 +1,4 @@
-package org.rakam.plugin.user.jdbc;
+package org.rakam.plugin.user.impl;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;

@@ -1,4 +1,4 @@
-package org.rakam;
+package org.rakam.plugin;
 
 import io.airlift.configuration.Config;
 

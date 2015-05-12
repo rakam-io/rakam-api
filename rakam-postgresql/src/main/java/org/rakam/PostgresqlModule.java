@@ -15,13 +15,14 @@ import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStream;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.PostgresqlUserService;
 import org.rakam.plugin.user.PostgresqlUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.metastore.jdbc.JDBCQueryMetadata;
+import org.rakam.analysis.JDBCQueryMetadata;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import static java.lang.String.format;

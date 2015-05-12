@@ -1,11 +1,11 @@
-package org.rakam.report.metastore.jdbc;
+package org.rakam.analysis;
 
 import com.facebook.presto.sql.SQLFormatter;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.units.Duration;
-import org.rakam.JDBCConfig;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;

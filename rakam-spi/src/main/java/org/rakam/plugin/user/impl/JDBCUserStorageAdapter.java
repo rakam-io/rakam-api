@@ -1,4 +1,4 @@
-package org.rakam.plugin.user.jdbc;
+package org.rakam.plugin.user.impl;
 
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
@@ -8,9 +8,9 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import org.rakam.JDBCConfig;
 import org.rakam.collection.FieldType;
 import org.rakam.plugin.Column;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.User;
@@ -92,7 +92,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
         try {
             return DriverManager.getConnection(jdbcConfig.getUrl(), jdbcConfig.getUsername(), jdbcConfig.getPassword());
         } catch (SQLException e) {
-            throw new IllegalStateException(format("couldn't connect user storage using jdbc connection %s", jdbcConfig.getUrl()));
+            throw new IllegalStateException(String.format("couldn't connect user storage using jdbc connection %s", jdbcConfig.getUrl()));
         }
     }
 
@@ -138,13 +138,13 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
         String orderBy = sortColumn == null ? "" : format(" ORDER BY %s %s", sortColumn.column, sortColumn.order);
 
-        String query = format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s", columns, jdbcConfig.getTable(),  where,  orderBy,  limit, offset);
+        String query = String.format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s", columns, jdbcConfig.getTable(), where, orderBy, limit, offset);
 
         CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() ->
                 dao.createQuery(query).map(mapper).list());
 
         CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() ->
-                dao.createQuery(format("SELECT count(*) FROM %s %s", jdbcConfig.getTable(), where))
+                dao.createQuery(String.format("SELECT count(*) FROM %s %s", jdbcConfig.getTable(), where))
                         .map(new LongMapper(1)).first());
 
         CompletableFuture<QueryResult> result = new CompletableFuture<>();
@@ -204,7 +204,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
         String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
 
         // TODO: fix
-        return CompletableFuture.completedFuture(dao.createQuery(format("SELECT %s FROM %s WHERE %s = %s",
+        return CompletableFuture.completedFuture(dao.createQuery(String.format("SELECT %s FROM %s WHERE %s = %s",
                 columns,
                 jdbcConfig.getTable(),
                 moduleConfig.getIdentifierColumn(),
@@ -225,7 +225,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
         }
         Column column = any.get();
 
-        Update statement = dao.createStatement(format("UPDATE %s SET %s = :value WHERE %s = %s",
+        Update statement = dao.createStatement(String.format("UPDATE %s SET %s = :value WHERE %s = %s",
                 jdbcConfig.getTable(),
                 property,
                 moduleConfig.getIdentifierColumn(),

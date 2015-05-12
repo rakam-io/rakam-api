@@ -1,10 +1,10 @@
-package org.rakam.plugin.user.jdbc;
+package org.rakam.plugin.user.impl;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
-import org.rakam.JDBCConfig;
 import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserStorage;
 
