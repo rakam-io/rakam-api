@@ -4,6 +4,9 @@
   "dependencies": {
     "bower": "0.6.x"
   },
+  "engines": {
+    "node": "0.10.x"
+  },
   "scripts": {
     "postinstall": "./node_modules/bower/bin/bower install"
   }
