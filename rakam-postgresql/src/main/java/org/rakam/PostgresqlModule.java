@@ -2,6 +2,7 @@ package org.rakam;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
+import com.google.inject.name.Names;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.analysis.postgresql.PostgresqlContinuousQueryService;
 import org.rakam.analysis.postgresql.PostgresqlEventStore;
@@ -54,6 +55,11 @@ public class PostgresqlModule extends RakamModule {
         jdbcConfig.setTable("rakam_metadata");
         jdbcConfig.setPassword(config.getPassword());
         jdbcConfig.setUsername(config.getUsername());
+
+        binder.bind(JDBCConfig.class)
+                .annotatedWith(Names.named("report.metadata.store.jdbc"))
+                .toInstance(jdbcConfig);
+
         JDBCQueryMetadata jdbcQueryMetadata = new JDBCQueryMetadata(jdbcConfig);
         binder.bind(QueryMetadataStore.class).toInstance(jdbcQueryMetadata);
     }
