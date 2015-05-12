@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.Enumeration;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
@@ -55,6 +56,7 @@ public class RakamUIModule extends RakamModule {
                 UI_DIRECTORY.mkdirs();
 
                 try {
+                    Path dest = new File(UI_DIRECTORY, "ui.zip").toPath();
                     switch (uri.getScheme()) {
                         case "github":
                             String url;
@@ -73,8 +75,10 @@ public class RakamUIModule extends RakamModule {
                                 url = uri.getAuthority() + "/" + substring + "/archive/" + name + ".zip";
                             }
                             try {
-                                new HttpDownloadHelper().download(new URL("https://github.com/" + url),
-                                        new File(UI_DIRECTORY, "ui.zip").toPath(),
+                                String spec = "https://github.com/" + url;
+                                LOGGER.info("Downloading {} to {}.", spec, dest.toFile().getAbsolutePath());
+                                new HttpDownloadHelper().download(new URL(spec),
+                                        dest,
                                         new HttpDownloadHelper.VerboseProgress(System.out));
 
                                 File file = new File(UI_DIRECTORY, "ui.zip");
@@ -91,7 +95,7 @@ public class RakamUIModule extends RakamModule {
                         case "http":
                         case "https":
                             new HttpDownloadHelper().download(new URL(rakamUIConfig.getUI()),
-                                    new File(UI_DIRECTORY, "ui.zip").toPath(),
+                                    dest,
                                     new HttpDownloadHelper.VerboseProgress(System.out));
 
                             File file = new File(UI_DIRECTORY, "ui.zip");
