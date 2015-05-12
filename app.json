@@ -22,9 +22,9 @@
       "description": "Enable GeoIP module. It attaches location information to collections that has 'ip' attribute.",
       "value": "true"
     },
-    "RAKAM_ENABLE_UI": {
-      "description": "Enable web interface that uses Rakam API",
-      "value": "true"
+    "RAKAM_UI_SOURCE": {
+      "description": "The web application that will be deployed to Rakam. Leave this empty if you don't want to use any web interface.",
+      "value": "https://github.com/buremba/rakam-ui/releases/download/v0.1-alpha/rakam-ui-with-components.zip"
     }
   }
 }
