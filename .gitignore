@@ -1,5 +1,5 @@
-rakam-ui/
 plugins/*
+_ui/*
 
 .idea/
 *.iml

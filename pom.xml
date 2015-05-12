@@ -23,7 +23,7 @@
         <module>rakam-presto-kafka</module>
         <module>rakam-postgresql</module>
         <module>mapper/rakam-mapper-geoip</module>
-        <!--<module>rakam-ui</module>-->
+        <module>rakam-ui</module>
     </modules>
 
     <properties>

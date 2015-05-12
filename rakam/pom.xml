@@ -27,6 +27,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-ui</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
             <version>1.0-rc2</version>
@@ -176,23 +181,16 @@
         </plugins>
     </build>
 
-    <profiles>
-        <profile>
-            <id>ui</id>
-            <dependencies>
-                <dependency>
-                    <groupId>org.rakam</groupId>
-                    <artifactId>rakam-ui</artifactId>
-                    <version>0.1-SNAPSHOT</version>
-                </dependency>
-            </dependencies>
-            <activation>
-                <property>
-                    <name>RAKAM_ENABLE_UI</name>
-                    <value>true</value>
-                </property>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-        </profile>
-    </profiles>
+    <!--<profiles>-->
+        <!--<profile>-->
+            <!--<id>ui</id>-->
+            <!--<activation>-->
+                <!--<property>-->
+                    <!--<name>RAKAM_ENABLE_UI</name>-->
+                    <!--<value>true</value>-->
+                <!--</property>-->
+                <!--<activeByDefault>true</activeByDefault>-->
+            <!--</activation>-->
+        <!--</profile>-->
+    <!--</profiles>-->
 </project>

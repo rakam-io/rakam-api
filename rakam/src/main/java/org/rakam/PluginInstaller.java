@@ -12,6 +12,7 @@ import org.apache.maven.shared.invoker.InvocationRequest;
 import org.apache.maven.shared.invoker.InvocationResult;
 import org.rakam.config.PluginConfig;
 import org.rakam.plugin.RakamModule;
+import org.rakam.ui.HttpDownloadHelper;
 import org.slf4j.LoggerFactory;
 import org.sonatype.aether.artifact.Artifact;
 
@@ -226,8 +227,6 @@ public class PluginInstaller
 
 
             }
-
-
     }
 
     private void loadPlugin(URLClassLoader pluginClassLoader)

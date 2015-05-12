@@ -27,8 +27,6 @@ import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
 import org.rakam.config.PluginConfig;
-import org.rakam.kume.Cluster;
-import org.rakam.kume.ClusterBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
@@ -85,11 +83,11 @@ public class ServiceStarter {
             builder.add(rakamModule);
         }
 
-        builder.add(binder -> {
-            binder.bind(Cluster.class).toProvider(() -> {
-                return new ClusterBuilder().start();
-            }).in(Scopes.SINGLETON);
-        });
+//        builder.add(binder -> {
+//            binder.bind(Cluster.class).toProvider(() -> {
+//                return new ClusterBuilder().start();
+//            }).in(Scopes.SINGLETON);
+//        });
 
         builder.add(new ServiceRecipe());
 

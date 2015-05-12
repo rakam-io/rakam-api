@@ -95,7 +95,7 @@ public class QueryHttpService extends HttpService {
     @Path("/execute")
     public void execute(RakamHttpRequest request) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
-            request.response("the response should accept text/event-stream", HttpResponseStatus.NOT_ACCEPTABLE).end();
+            request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
         }
 

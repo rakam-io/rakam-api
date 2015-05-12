@@ -1,7 +1,6 @@
-package org.rakam;
+package org.rakam.ui;
 
 import java.io.Closeable;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -48,10 +47,10 @@ public class HttpDownloadHelper {
         try {
             getThread.setDaemon(true);
             getThread.start();
-            getThread.join(10000);
+            getThread.join(50000);
 
             if (getThread.isAlive()) {
-                throw new RuntimeException("The GET operation took longer than " + 10000 + ", stopping it.");
+                throw new RuntimeException("The GET operation took longer than " + 50000 + ", stopping it.");
             }
         }
         catch (InterruptedException ie) {
@@ -258,8 +257,8 @@ public class HttpDownloadHelper {
 
             if (connection instanceof HttpURLConnection) {
                 ((HttpURLConnection) connection).setInstanceFollowRedirects(false);
-                ((HttpURLConnection) connection).setUseCaches(true);
-                ((HttpURLConnection) connection).setConnectTimeout(5000);
+                connection.setUseCaches(true);
+                connection.setConnectTimeout(5000);
             }
             connection.setRequestProperty("User-Agent", "elasticsearch-plugin-manager");
 
@@ -308,7 +307,7 @@ public class HttpDownloadHelper {
             return connection;
         }
 
-        private boolean downloadFile() throws FileNotFoundException, IOException {
+        private boolean downloadFile() throws IOException {
             IOException lastEx = null;
             for (int i = 0; i < 3; i++) {
                 // this three attempt trick is to get round quirks in different

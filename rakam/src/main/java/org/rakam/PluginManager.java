@@ -7,6 +7,7 @@ package org.rakam;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
+import org.rakam.ui.HttpDownloadHelper;
 
 import java.io.File;
 import java.io.IOException;

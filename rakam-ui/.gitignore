@@ -1,0 +1,8 @@
+node_modules
+.idea/*
+npm-debug.log
+node
+etc
+node_tmp
+target
+*.iml
