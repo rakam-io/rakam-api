@@ -2,6 +2,7 @@ package org.rakam.report.postgresql;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
@@ -30,7 +31,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
+import static java.lang.String.format;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 
 /**
@@ -64,8 +67,13 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     }
 
     @Override
+    public QueryExecution executeQuery(String project, String sqlQuery, int maxLimit) {
+        return executeRawQuery(buildQuery(project, sqlQuery, maxLimit));
+    }
+
+    @Override
     public QueryExecution executeQuery(String project, String sqlQuery) {
-        return executeRawQuery(buildQuery(project, sqlQuery));
+        return executeRawQuery(buildQuery(project, sqlQuery, null));
     }
 
     public QueryExecution executeRawQuery(String query) {
@@ -80,32 +88,55 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         return connectionPool.getConnection();
     }
 
-    private String buildQuery(String project, String query) {
+    private Function<QualifiedName, String> tableNameMapper(String project) {
+        return node -> {
+            if (node.getPrefix().isPresent()) {
+                switch (node.getPrefix().get().toString()) {
+                    case "continuous":
+                        return project + "." + CONTINUOUS_QUERY_PREFIX + node.getSuffix();
+                    case "materialized":
+                        return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
+                    default:
+                        throw new IllegalArgumentException("Schema does not exist: " + node.getPrefix().get().toString());
+                }
+            }
+            return project + "." + node.getSuffix();
+        };
+    }
+
+    private String buildQuery(String project, String query, Integer maxLimit) {
+        StringBuilder builder = new StringBuilder();
+        Query statement;
+        synchronized (parser) {
+            statement = (Query) parser.createStatement(query);
+        }
+        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 0);
+
+        if(maxLimit != null) {
+            if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
+                throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
+            } else {
+                builder.append(" LIMIT ").append(maxLimit);
+            }
+        }
+
+        return builder.toString();
+    }
+
+    private String buildStatement(String project, String query) {
         StringBuilder builder = new StringBuilder();
         com.facebook.presto.sql.tree.Statement statement;
         synchronized (parser) {
             statement = parser.createStatement(query);
         }
-        new QueryFormatter(builder, node -> {
-            QualifiedName name = node.getName();
-            if(name.getPrefix().isPresent()) {
-                switch (name.getPrefix().get().toString()) {
-                    case "continuous":
-                        return project + "." + CONTINUOUS_QUERY_PREFIX + name.getSuffix();
-                    case "materialized":
-                        return project + "." + MATERIALIZED_VIEW_PREFIX + name.getSuffix();
-                    default:
-                        throw new IllegalArgumentException("Schema does not exist: "+name.getPrefix().get().toString());
-                }
-            }
-            return project + "." + name.getSuffix();
-        }).process(statement, 0);
+        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 0);
+
         return builder.toString();
     }
 
     @Override
     public QueryExecution executeStatement(String project, String sqlQuery) {
-        return executeRawStatement(buildQuery(project, sqlQuery));
+        return executeRawStatement(buildStatement(project, sqlQuery));
     }
 
     public static class PostgresqlQueryExecution implements QueryExecution {

@@ -1,9 +1,7 @@
 package org.rakam.report;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
-import org.rakam.JsonSkeleton;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.MaterializedView;
@@ -69,17 +67,22 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public Object schema(@ApiParam(name="project", required = true) String project) {
-        return new JsonSkeleton() {
-            @JsonProperty("materialized-views")
-            public final List views = service.getSchemas(project).entrySet().stream()
-                    // ignore system tables
+    public List<Schema> schema(@ApiParam(name="project", required = true) String project) {
+        return service.getSchemas(project).entrySet().stream()
                     .filter(entry -> !entry.getKey().startsWith("_"))
-                    .map(entry -> new JsonSkeleton() {
-                        public final String name = entry.getKey();
-                        public final List<SchemaField> fields = entry.getValue();
-                    }).collect(Collectors.toList());
-        };
+                    .map(entry -> new Schema(entry.getKey(), entry.getValue()))
+                    .collect(Collectors.toList());
+    }
+
+    public static class Schema {
+        public final String name;
+
+        public Schema(String name, List<SchemaField> fields) {
+            this.name = name;
+            this.fields = fields;
+        }
+
+        public final List<SchemaField> fields;
     }
 
     /**

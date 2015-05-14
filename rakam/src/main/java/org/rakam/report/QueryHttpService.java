@@ -130,9 +130,14 @@ public class QueryHttpService extends HttpService {
 //        }
 //        String sqlQuery = namedQuery.build();
 
+        if(query.limit !=null && query.limit > 5000) {
+            response.send("result", encode(HttpServer.errorMessage("maximum value of limit is 5000", 400))).end();
+            return;
+        }
+
         QueryExecution execute;
         try {
-            execute = executor.executeQuery(query.project, query.query);
+            execute = executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit);
         } catch (Exception e) {
             response.send("result", encode(HttpServer.errorMessage("couldn't parse query: " + e.getMessage(), 400))).end();
             return;
@@ -219,16 +224,19 @@ public class QueryHttpService extends HttpService {
         public final String project;
         public final String query;
         public final Segment segment;
+        public final Integer limit;
         public final Map<String, Binding> bindings;
 
         @JsonCreator
         public ExecuteQuery(@JsonProperty("project") String project,
                             @JsonProperty("query") String query,
                             @JsonProperty("segment") Segment segment,
+                            @JsonProperty("limit") Integer limit,
                             @JsonProperty("bindings") Map<String, Binding> bindings) {
             this.project = project;
             this.query = query;
             this.segment = segment;
+            this.limit = limit;
             this.bindings = bindings;
         }
 

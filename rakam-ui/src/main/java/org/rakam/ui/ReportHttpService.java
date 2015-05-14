@@ -1,13 +1,13 @@
 package org.rakam.ui;
 
 import com.google.inject.Inject;
+import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
@@ -55,7 +55,7 @@ public class ReportHttpService extends HttpService {
     @ApiOperation(value = "Analyzes query and returns referenced tables",
             authorizations = @Authorization(value = "api_key", type = "api_key")
     )
-    @Path("/create")
+    @Path("/analyze")
     public JsonResponse analyze(@ParamBody String query) {
         return JsonResponse.success();
     }

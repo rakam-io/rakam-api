@@ -1,11 +1,13 @@
 package org.rakam.plugin;
 
 import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.rakam.server.http.annotations.ApiParam;
 import io.airlift.units.Duration;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiParamIgnore;
 
 import java.time.Instant;
@@ -13,6 +15,7 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/02/15 22:03.
@@ -50,6 +53,11 @@ public class MaterializedView {
         this.options = options;
         this.updateInterval = updateInterval;
 
+        checkState(this.query instanceof Query, "Expression is not query");
+        checkState((!((Query) this.query).getLimit().isPresent()),
+                "The query of materialized view can't contain LIMIT statement");
+        checkState(!(((QuerySpecification) ((Query) this.query).getQueryBody()).getLimit().isPresent()),
+                "The query of materialized view can't contain LIMIT statement");
         checkArgument(this.table_name.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "table_name must only contain alphanumeric characters and _");
     }

@@ -3,7 +3,6 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.inject.Inject;
-import org.rakam.JsonSkeleton;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.Column;
@@ -71,11 +70,18 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
-    public Object metadata(@ApiParam(name = "project", required = true) String project) {
-        return new JsonSkeleton() {
-            public final List<Column> columns = service.getMetadata(project);
-            public final String identifierColumn = config.getIdentifierColumn();
-        };
+    public MetadataResponse metadata(@ApiParam(name = "project", required = true) String project) {
+        return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
+    }
+
+    public static class MetadataResponse {
+        public final List<Column> columns;
+        public final String identifierColumn;
+
+        public MetadataResponse(String identifierColumn, List<Column> columns) {
+            this.identifierColumn = identifierColumn;
+            this.columns = columns;
+        }
     }
 
     /**

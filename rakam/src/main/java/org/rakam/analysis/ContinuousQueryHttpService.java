@@ -79,7 +79,7 @@ public class ContinuousQueryHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
     public List<Collection> schema(@ApiParam(name="project", required = true) String project) {
-        return  service.getSchemas(project).entrySet().stream()
+        return service.getSchemas(project).entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new Collection(entry.getKey(), entry.getValue()))
