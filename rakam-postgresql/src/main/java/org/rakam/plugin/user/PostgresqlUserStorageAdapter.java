@@ -263,6 +263,9 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         return queryExecutor.executeRawQuery(format("select * from %s.%s where %s = %d", project, USER_TABLE, PRIMARY_KEY, getUserId(userId)))
                 .getResult().thenApply(result -> {
                     HashMap<String, Object> properties = Maps.newHashMap();
+                    if(result.getResult().isEmpty()) {
+                        return null;
+                    }
                     List<Object> objects = result.getResult().get(0);
                     List<? extends SchemaField> metadata = result.getMetadata();
 

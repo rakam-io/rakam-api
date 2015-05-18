@@ -160,6 +160,7 @@ public class ServiceStarter {
             Multibinder.newSetBinder(binder, EventMapper.class);
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+            httpServices.addBinding().to(ProjectHttpService.class);
             httpServices.addBinding().to(MaterializedViewHttpService.class);
             httpServices.addBinding().to(UserHttpService.class);
             httpServices.addBinding().to(EventHttpService.class);

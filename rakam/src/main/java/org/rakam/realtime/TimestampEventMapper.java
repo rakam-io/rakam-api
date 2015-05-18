@@ -1,6 +1,7 @@
 package org.rakam.realtime;
 
 import com.facebook.presto.jdbc.internal.guava.collect.ImmutableList;
+import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -15,8 +16,9 @@ import java.time.Instant;
 public class TimestampEventMapper implements EventMapper {
     @Override
     public void map(Event event) {
-        if(event.properties().get("time") == null) {
-            event.properties().put("time", Instant.now().getEpochSecond());
+        GenericRecord properties = event.properties();
+        if(properties.get("time") == null) {
+            properties.put("time", Instant.now().getEpochSecond());
         }
     }
 

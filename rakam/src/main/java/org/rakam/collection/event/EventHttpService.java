@@ -8,31 +8,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
 import org.rakam.collection.Event;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.SystemEventListener;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.JsonResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -68,7 +62,21 @@ public class EventHttpService extends HttpService {
 
     private boolean processEvent(Event event) {
         for (EventProcessor processor : processors) {
-            processor.process(event);
+            try {
+                processor.process(event);
+            } catch (Exception e) {
+                LOGGER.error("An error occurred while processing event in "+processor.getClass().getName(), e);
+                return false;
+            }
+        }
+
+        for (EventMapper mapper : mappers) {
+            try {
+                mapper.map(event);
+            } catch (Exception e) {
+                LOGGER.error("An error occurred while processing event in "+mapper.getClass().getName(), e);
+                return false;
+            }
         }
 
         for (EventMapper mapper : mappers) {
@@ -115,49 +123,13 @@ public class EventHttpService extends HttpService {
             } catch (IOException e) {
                 request.response("json couldn't parsed", BAD_REQUEST).end();
                 return;
+            } catch (Exception e) {
+                request.response(e.getMessage(), BAD_REQUEST).end();
+                return;
             }
             boolean b = processEvent(event);
             request.response(b ? "1" : "0", b ? OK : BAD_GATEWAY).end();
         });
-    }
-
-    @ApiOperation(value = "Create project",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
-    )
-    @JsonRequest
-    @Path("/createProject")
-    public JsonResponse createProject(@ApiParam(name="project") String project) {
-        metastore.createProject(project);
-        systemEventListeners.forEach(listener -> listener.onCreateProject(project));
-        return JsonResponse.success();
-    }
-
-    /**
-     * {"collections":[{"name":"pageView","fields":[{"name":"url","type":"STRING","nullable":true},{"name":"id","type":"LONG","nullable":false}]}]}
-     * @apiExample {curl} Example usage:
-     * curl 'http://localhost:9999/event/schema' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId"}'
-     */
-    @JsonRequest
-    @ApiOperation(value = "Get collection schema")
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
-    @Path("/schema")
-    public List<Collection> schema(@ApiParam(name = "project", required = true) String project) {
-        return metastore.getCollections(project).entrySet().stream()
-                // ignore system tables
-                .filter(entry -> !entry.getKey().startsWith("_"))
-                .map(entry -> new Collection(entry.getKey(), entry.getValue()))
-                .collect(Collectors.toList());
-    }
-
-    public static class Collection {
-        public final String name;
-        public final List<SchemaField> fields;
-
-        public Collection(String name, List<SchemaField> fields) {
-            this.name = name;
-            this.fields = fields;
-        }
     }
 
     public static class EventParserJsonFactory extends JsonFactory {

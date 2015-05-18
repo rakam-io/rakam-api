@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import org.rakam.PostgresqlPoolDataSource;
+import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryError;
@@ -50,10 +51,12 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
+    private final PostgresqlMetastore metastore;
 
     @Inject
-    public PostgresqlQueryExecutor(PostgresqlPoolDataSource connectionPool) {
+    public PostgresqlQueryExecutor(PostgresqlPoolDataSource connectionPool, PostgresqlMetastore metastore) {
         this.connectionPool = connectionPool;
+        this.metastore = metastore;
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.createStatement().execute("CREATE OR REPLACE FUNCTION to_unixtime(timestamp) RETURNS double precision" +
@@ -68,11 +71,19 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery, int maxLimit) {
+        // TODO: cache projects?
+        if(metastore.getProjects().contains(project)) {
+            throw new IllegalArgumentException("project is not valid");
+        }
         return executeRawQuery(buildQuery(project, sqlQuery, maxLimit));
     }
 
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery) {
+        // TODO: cache projects?
+        if(metastore.getProjects().contains(project)) {
+            throw new IllegalArgumentException("project is not valid");
+        }
         return executeRawQuery(buildQuery(project, sqlQuery, null));
     }
 
@@ -110,6 +121,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         synchronized (parser) {
             statement = (Query) parser.createStatement(query);
         }
+
         new QueryFormatter(builder, tableNameMapper(project)).process(statement, 0);
 
         if(maxLimit != null) {

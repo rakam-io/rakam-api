@@ -1,10 +1,12 @@
 package org.rakam.analysis.postgresql;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import org.rakam.PostgresqlPoolDataSource;
+import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
@@ -72,32 +74,6 @@ public class PostgresqlMetastore implements Metastore {
         return map;
     }
 
-//    @Override
-//    public Map<String, List<SchemaField>> getCollections(String project) {
-//        checkProject(project);
-//        Map<String, List<SchemaField>> table = Maps.newHashMap();
-//
-//        try(Connection connection = connectionPool.getConnection()) {
-//            ResultSet resultSet = connection.createStatement().executeQuery("select column_name, data_type, table_name, is_nullable\n" +
-//                    "from INFORMATION_SCHEMA.COLUMNS where table_schema = '"+project+"' and table_name not like '\\_%' ESCAPE '\\'");
-//            while (resultSet.next()) {
-//                String tableName = resultSet.getString("table_name");
-//                List<SchemaField> schemaFields = table.get(tableName);
-//                if(schemaFields == null) {
-//                    schemaFields = new LinkedList<>();
-//                    table.put(tableName, schemaFields);
-//                }
-//                schemaFields.add(new SchemaField(
-//                        resultSet.getString("column_name"),
-//                        fromSql(resultSet.getString("data_type")),
-//                        resultSet.getString("is_nullable").equals("YES")));
-//            }
-//        } catch (SQLException e) {
-//            Throwables.propagate(e);
-//        }
-//        return table;
-//    }
-
     @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
         checkProject(project);
@@ -139,11 +115,31 @@ public class PostgresqlMetastore implements Metastore {
     @Override
     public void createProject(String project) {
         checkProject(project);
+        if(project.equals("information_schema")) {
+            throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
+        }
         try(Connection connection = connectionPool.getConnection()) {
             connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS "+project);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Override
+    public List<String> getProjects() {
+        ImmutableList.Builder<String> builder = ImmutableList.builder();
+        try(Connection connection = connectionPool.getConnection()) {
+            ResultSet schemas = connection.getMetaData().getSchemas();
+            while(schemas.next()) {
+                String table_schem = schemas.getString("table_schem");
+                if(!table_schem.equals("information_schema") && !table_schem.startsWith("pg_") && !table_schem.equals("public")) {
+                    builder.add(table_schem);
+                }
+            }
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+        return builder.build();
     }
 
     @Override
@@ -168,22 +164,22 @@ public class PostgresqlMetastore implements Metastore {
     }
 
     @Override
-    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) {
+    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
         if(collection.equals("public")) {
             throw new IllegalArgumentException("Collection name 'public' is not allowed.");
         }
         if(collection.startsWith("pg_") || collection.startsWith("_")) {
             throw new IllegalArgumentException("Collection names must not start with 'pg_' and '_' prefix.");
         }
-        if(!collection.matches("^[a-zA-Z0-9]*$")) {
+        if(!collection.matches("^[a-zA-Z0-9_]*$")) {
             throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
         }
 
-        String queryEnd = null;
+        List<SchemaField> currentFields = Lists.newArrayList();
+        String query = null;
         try(Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
             ResultSet columns = connection.getMetaData().getColumns("", project, collection, null);
-            List<SchemaField> currentFields = Lists.newArrayList();
             HashSet<String> strings = new HashSet<>();
             while (columns.next()) {
                 String colName = columns.getString("COLUMN_NAME");
@@ -192,33 +188,52 @@ public class PostgresqlMetastore implements Metastore {
             }
 
             if(currentFields.size() == 0) {
-                queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
+                if(!getProjects().contains(project)) {
+                    throw new ProjectNotExistsException();
+                }
+                String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
                         .map(f -> {
                             currentFields.add(f);
                             return f;
                         })
                         .map(f -> format("\"%s\" %s NULL", f.getName(), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
+                if(queryEnd.isEmpty()) {
+                    return currentFields;
+                }
+                query = format("CREATE TABLE %s.%s (%s)", project, collection, queryEnd);
             }else {
-                queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
+                String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
                         .map(f -> {
                             currentFields.add(f);
                             return f;
                         })
                         .map(f -> format("ADD COLUMN \"%s\" %s NULL", f.getName(), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
+                if(queryEnd.isEmpty()) {
+                    return currentFields;
+                }
+                query = format("ALTER TABLE %s.%s %s", project, collection, queryEnd);
             }
 
-            if(queryEnd.isEmpty()) {
-                return fields;
-            }
-            connection.createStatement().execute(format("ALTER TABLE %s.%s %s", project, collection, queryEnd));
+            connection.createStatement().execute(query);
             connection.commit();
             connection.setAutoCommit(true);
             return currentFields;
         } catch (SQLException e ) {
-            // TODO: should we try again until this operation is done successfully, what about infinite loops?
-            return createOrGetCollectionField(project, collection, fields);
+            // syntax error exception
+            if(e.getSQLState().equals("42601") || e.getSQLState().equals("42939")) {
+                throw new IllegalStateException("One of the column names is not valid because it collides with reserved keywords in Postgresql. : "+
+                        (currentFields.stream().map(SchemaField::getName).collect(Collectors.joining(", "))) +
+                        "See http://www.postgresql.org/docs/devel/static/sql-keywords-appendix.html");
+            }else
+            // column or table already exists
+            if(e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42701") || e.getSQLState().equals("42710")) {
+                // TODO: should we try again until this operation is done successfully, what about infinite loops?
+                return createOrGetCollectionField(project, collection, fields);
+            }else {
+                throw new IllegalStateException();
+            }
         }
     }
 

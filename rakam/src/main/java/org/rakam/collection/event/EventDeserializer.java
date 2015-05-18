@@ -12,12 +12,14 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.api.client.repackaged.com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.codehaus.jackson.node.NullNode;
+import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -86,7 +88,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         ((SaveableReaderBasedJsonParser) jp).save();
                         jp.skipChildren();
                     } else {
-                        properties = parseProperties(project, collection, jp);
+                        try {
+                            properties = parseProperties(project, collection, jp);
+                        } catch (ProjectNotExistsException e) {
+                            throw Throwables.propagate(e);
+                        }
                     }
                     break;
             }
@@ -101,7 +107,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             SaveableReaderBasedJsonParser customJp = (SaveableReaderBasedJsonParser) jp;
             if (customJp.isSaved()) {
                 customJp.load();
-                properties = parseProperties(project, collection, jp);
+                try {
+                    properties = parseProperties(project, collection, jp);
+                } catch (ProjectNotExistsException e) {
+                    throw Throwables.propagate(e);
+                }
             } else {
                 throw new JsonMappingException("properties is null");
             }
@@ -109,7 +119,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         return Event.create(project, collection, properties);
     }
 
-    private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException {
+    private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException, ProjectNotExistsException {
         Tuple key = new Tuple(project, collection);
         Schema avroSchema = schemaCache.get(key);
         List<SchemaField> schema;
@@ -175,7 +185,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
         if (newFields != null) {
             final List<SchemaField> finalNewFields = newFields;
-            moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(finalNewFields, fieldName, field));
+            moduleFields.dependentFields.forEach((fieldName, field) ->
+                    addConditionalModuleField(finalNewFields, fieldName, field));
 
             List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
@@ -242,7 +253,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case DOUBLE:
                 return Schema.create(Schema.Type.DOUBLE);
             case BOOLEAN:
-                return Schema.create(Schema.Type.DOUBLE);
+                return Schema.create(Schema.Type.BOOLEAN);
             case DATE:
                 return Schema.create(Schema.Type.INT);
             case HYPERLOGLOG:

@@ -114,7 +114,7 @@ public class KafkaOffsetManager {
                     String notExistMessage = format("Table '%s.%s' does not exist",
                             prestoConfig.getColdStorageConnector(), tableName);
 
-                    // this is a workaround until presto starts to use sql error codes.
+                    // A workaround until presto starts to use sql error codes.
                     if (error.message.equals(notExistMessage)) {
                         String format = format("CREATE TABLE %s.%s AS SELECT * FROM %s.%s",
                                 prestoConfig.getColdStorageConnector(), tableName,

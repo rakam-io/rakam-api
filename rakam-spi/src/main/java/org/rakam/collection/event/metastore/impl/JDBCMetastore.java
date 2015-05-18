@@ -72,6 +72,11 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
+    public List<String> getProjects() {
+        return null;
+    }
+
+    @Override
     public List<SchemaField> getCollection(String project, String collection) {
         return getSchema(dao, project, collection);
     }
