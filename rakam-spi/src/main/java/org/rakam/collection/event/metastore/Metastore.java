@@ -11,6 +11,7 @@ import java.util.Map;
 public interface Metastore {
     Map<String, List<String>> getAllCollections();
     Map<String, List<SchemaField>> getCollections(String project);
+    void createProject(String project);
     List<SchemaField> getCollection(String project, String collection);
     List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields);
 }

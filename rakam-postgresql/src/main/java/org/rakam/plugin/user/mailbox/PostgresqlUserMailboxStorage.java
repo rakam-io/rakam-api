@@ -91,7 +91,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
                     "  content TEXT NOT NULL," +
                     "  parentId INT," +
                     "  seen BOOL DEFAULT FALSE NOT NULL," +
-                    "  time TIMESTAMPZ NOT NULL," +
+                    "  time TIMESTAMP NOT NULL," +
                     "  PRIMARY KEY (id)" +
                     "  )", tableName));
 
@@ -172,19 +172,32 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public List<Message> getConversation(String project, Object userId, Integer parentId, int limit, int offset) {
+        long user;
+        if(userId instanceof Number) {
+            user = ((Number) userId).longValue();
+        }else
+        if(userId instanceof String) {
+            try {
+                user = Long.parseLong((String) userId);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException();
+            }
+        }else {
+            throw new IllegalArgumentException();
+        }
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps;
             if (parentId == null) {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
                         "._user_mailbox WHERE to_user = ? AND parentId IS NULL ORDER BY time DESC LIMIT ? OFFSET ?");
-                ps.setObject(1, userId);
+                ps.setObject(1, user);
                 ps.setInt(2, limit);
                 ps.setInt(3, offset);
             } else {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
                         "._user_mailbox WHERE (to_user = ? OR from_user = ?) AND (parentId = ? OR id = ?) ORDER BY time DESC LIMIT ? OFFSET ?");
-                ps.setObject(1, userId);
-                ps.setObject(2, userId);
+                ps.setObject(1, user);
+                ps.setObject(2, user);
                 ps.setInt(3, parentId);
                 ps.setInt(4, parentId);
                 ps.setInt(5, limit);

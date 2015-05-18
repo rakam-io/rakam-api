@@ -53,6 +53,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
 
+        // TODO: get all collections of the projects and check there is a collision between existing fields in collections
+        // TODO: and fields that are added by installed modules
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
 

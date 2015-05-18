@@ -27,8 +27,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
-import static org.rakam.util.JsonHelper.encode;
-import static org.rakam.util.JsonHelper.jsonObject;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 08/11/14 21:04.
@@ -52,17 +50,24 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
-    public String create(@ApiParam(name = "project", required = true) String project,
-                         @ApiParam(name = "properties", required = true) Map<String, Object> properties) {
+    public CreateUserResponse create(@ApiParam(name = "project", required = true) String project,
+                                     @ApiParam(name = "properties", required = true) Map<String, Object> properties) {
+        Object o;
         try {
-            service.create(project, properties);
+            o = service.create(project, properties);
         } catch (Exception e) {
-            return encode(jsonObject()
-                    .put("success", false)
-                    .put("error", e.getMessage()));
+            throw new RakamException(e.getMessage(), 400);
         }
 
-        return encode(jsonObject().put("success", true));
+        return new CreateUserResponse(o);
+    }
+
+    public static class CreateUserResponse {
+        public final Object identifier;
+
+        public CreateUserResponse(Object identifier) {
+            this.identifier = identifier;
+        }
     }
 
     @JsonRequest

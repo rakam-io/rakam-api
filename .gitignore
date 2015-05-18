@@ -1,5 +1,6 @@
 plugins/*
 _ui/*
+data/*
 
 .idea/
 *.iml

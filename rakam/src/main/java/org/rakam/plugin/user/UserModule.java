@@ -2,10 +2,14 @@ package org.rakam.plugin.user;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
+import com.google.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserPluginConfig;
+import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 
@@ -18,6 +22,10 @@ public class UserModule extends RakamModule {
     protected void setup(Binder binder) {
         Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
         webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
+
+
+        Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
+        events.addBinding().to(UserStorageListener.class).in(Scopes.SINGLETON);
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
@@ -37,5 +45,23 @@ public class UserModule extends RakamModule {
     @Override
     public String description() {
         return "Analyze your users";
+    }
+
+    public static class UserStorageListener implements SystemEventListener {
+
+        private final UserStorage storage;
+        private final UserMailboxStorage mailboxStorage;
+
+        @Inject
+        public UserStorageListener(UserStorage storage, UserMailboxStorage mailboxStorage) {
+            this.storage = storage;
+            this.mailboxStorage = mailboxStorage;
+        }
+
+        @Override
+        public void onCreateProject(String project) {
+            mailboxStorage.createProject(project);
+            storage.createProject(project);
+        }
     }
 }

@@ -18,7 +18,7 @@ public class UserPluginConfig {
     private String lastSeenColumn;
     private String identifierColumn;
 
-    @Config("user.storage.identifier_column")
+    @Config("plugin.user.storage.identifier_column")
     public UserPluginConfig setIdentifierColumn(String colName) {
         this.identifierColumn = colName;
         return this;

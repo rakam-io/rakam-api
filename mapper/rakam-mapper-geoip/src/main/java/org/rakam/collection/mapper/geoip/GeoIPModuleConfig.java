@@ -13,6 +13,7 @@ public class GeoIPModuleConfig {
     private boolean enabled;
     private String database;
     private List<String> attributes;
+    private String databaseUrl;
 
     @Config("plugin.geoip.enabled")
     public GeoIPModuleConfig setEnabled(Boolean enabled)
@@ -31,6 +32,13 @@ public class GeoIPModuleConfig {
         this.database = type;
         return this;
     }
+
+    @Config("plugin.geoip.database.url")
+    public GeoIPModuleConfig setDatabaseUrl(String type)
+    {
+        this.databaseUrl = type;
+        return this;
+    }
     @Config("plugin.geoip.attributes")
     public GeoIPModuleConfig setAttributes(String attributes)
     {
@@ -40,6 +48,11 @@ public class GeoIPModuleConfig {
 
     public String getDatabase() {
         return database;
+    }
+
+
+    public String getDatabaseUrl() {
+        return databaseUrl;
     }
 
     public List<String> getAttributes() {

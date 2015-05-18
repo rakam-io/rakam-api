@@ -131,9 +131,19 @@ public class PostgresqlMetastore implements Metastore {
                         resultSet.getString("NULLABLE").equals("1")));
             }
         } catch (SQLException e) {
-            Throwables.propagate(e);
+            throw Throwables.propagate(e);
         }
         return table;
+    }
+
+    @Override
+    public void createProject(String project) {
+        checkProject(project);
+        try(Connection connection = connectionPool.getConnection()) {
+            connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS "+project);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
@@ -169,6 +179,7 @@ public class PostgresqlMetastore implements Metastore {
             throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
         }
 
+        String queryEnd = null;
         try(Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
             ResultSet columns = connection.getMetaData().getColumns("", project, collection, null);
@@ -179,30 +190,29 @@ public class PostgresqlMetastore implements Metastore {
                 strings.add(colName);
                 currentFields.add(new Column(colName, fromSql(columns.getInt("DATA_TYPE")), true));
             }
-            String query;
+
             if(currentFields.size() == 0) {
-                String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
+                queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
                         .map(f -> {
                             currentFields.add(f);
                             return f;
                         })
                         .map(f -> format("\"%s\" %s NULL", f.getName(), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
-
-                query = format("CREATE TABLE %s.%s (%s)", project, collection, queryEnd);
             }else {
-                String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
+                queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
                         .map(f -> {
                             currentFields.add(f);
                             return f;
                         })
                         .map(f -> format("ADD COLUMN \"%s\" %s NULL", f.getName(), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
-
-                query = format("ALTER TABLE %s.%s %s", project, collection, queryEnd);
             }
 
-            connection.createStatement().execute(query);
+            if(queryEnd.isEmpty()) {
+                return fields;
+            }
+            connection.createStatement().execute(format("ALTER TABLE %s.%s %s", project, collection, queryEnd));
             connection.commit();
             connection.setAutoCommit(true);
             return currentFields;
@@ -222,8 +232,9 @@ public class PostgresqlMetastore implements Metastore {
             case DATE:
             case ARRAY:
             case TIME:
-            case DOUBLE:
                 return type.name();
+            case DOUBLE:
+                return "double precision";
             default:
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }

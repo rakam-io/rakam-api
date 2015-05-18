@@ -41,11 +41,18 @@ public class PostgresqlEventStore implements EventStore {
     }
 
     private void bindParam(Connection connection, PreparedStatement ps, Schema.Field field, Object value) throws SQLException {
+        int pos = field.pos()+1;
+
         Schema.Type type = field.schema().getType();
         if(type == Schema.Type.UNION) {
             type = field.schema().getTypes().get(1).getType();
         }
-        int pos = field.pos()+1;
+
+        if(value == null) {
+            ps.setNull(pos, 0);
+            return;
+        }
+
         switch (type) {
             case ARRAY:
                 ps.setArray(pos, connection.createArrayOf("varchar", ((List) value).toArray()));
@@ -94,46 +101,4 @@ public class PostgresqlEventStore implements EventStore {
 
         return query.append("\") VALUES (").append(params.toString()).append(")").toString();
     }
-
-//    private PooledObjectFactory initializePool(Schema schema) {
-//        return new PooledObjectFactory<Tuple<Connection, PreparedStatement>>() {
-//            @Override
-//            public PooledObject<Tuple<Connection, PreparedStatement>> makeObject() throws Exception {
-//
-//
-//                Connection connection = DriverManager.getConnection(
-//                        format("jdbc:postgresql://%s/%s", postgresqlConfig.getHost(), postgresqlConfig.getDatabase()),
-//                        postgresqlConfig.getUsername(),
-//                        postgresqlConfig.getPassword());
-//                PreparedStatement statement = connection.prepareStatement("INSERT INTO %s (%s) VALUES (%s)", postgresqlConfig.getT);
-//                return new DefaultPooledObject<>(new Tuple<>(connection, statement));
-//            }
-//
-//            @Override
-//            public void destroyObject(PooledObject<Tuple<Connection, PreparedStatement>> p) throws Exception {
-//                Tuple<Connection, PreparedStatement> object = p.getObject();
-//                object.v2().close();
-//                object.v1().close();
-//            }
-//
-//            @Override
-//            public boolean validateObject(PooledObject<Tuple<Connection, PreparedStatement>> p) {
-//                try {
-//                    return !p.getObject().v1().isClosed();
-//                } catch (SQLException e) {
-//                    return false;
-//                }
-//            }
-//
-//            @Override
-//            public void activateObject(PooledObject<Tuple<Connection, PreparedStatement>> p) throws Exception {
-//
-//            }
-//
-//            @Override
-//            public void passivateObject(PooledObject<Tuple<Connection, PreparedStatement>> p) throws Exception {
-//                p.getObject().v2().clearParameters();
-//            }
-//        };
-//    }
 }

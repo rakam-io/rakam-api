@@ -10,6 +10,7 @@ import com.google.inject.Inject;
 import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -22,6 +23,7 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.JsonResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,13 +51,15 @@ public class EventHttpService extends HttpService {
     private final Set<EventProcessor> processors;
     private final EventStore eventStore;
     private final Set<EventMapper> mappers;
+    private final Set<SystemEventListener> systemEventListeners;
 
     @Inject
-    public EventHttpService(EventStore eventStore, Metastore metastore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
+    public EventHttpService(EventStore eventStore, Metastore metastore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Set<SystemEventListener> systemEventListeners) {
         this.processors = eventProcessors;
         this.eventStore = eventStore;
         this.mappers = mappers;
         this.metastore = metastore;
+        this.systemEventListeners = systemEventListeners;
 
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Event.class, deserializer);
@@ -117,20 +121,18 @@ public class EventHttpService extends HttpService {
         });
     }
 
+    @ApiOperation(value = "Create project",
+            authorizations = @Authorization(value = "api_key", type = "api_key")
+    )
+    @JsonRequest
+    @Path("/createProject")
+    public JsonResponse createProject(@ApiParam(name="project") String project) {
+        metastore.createProject(project);
+        systemEventListeners.forEach(listener -> listener.onCreateProject(project));
+        return JsonResponse.success();
+    }
+
     /**
-     * @api {post} /event/schema Get event schema
-     * @apiVersion 0.1.0
-     * @apiName GetEventSchema
-     * @apiGroup event
-     * @apiDescription Returns event metadata.
-     * @apiSuccess (200) {Object[]} collections  List of collections
-     * @apiSuccess (200) {String} collections.name  The name of the collection
-     * @apiSuccess (200) {Object[]} collections.fields  The name of the collection
-     * @apiSuccess (200) {String} collections.fields.name  The name of the collection
-     * @apiSuccess (200) {String="STRING","ARRAY","LONG","DOUBLE","BOOLEAN","DATE","HYPERLOGLOG","TIME"} collections.fields.type The data type of the field
-     * @apiSuccess (200) {Boolean} collections.fields.nullable The value can be null
-     * @apiSuccessExample {json} Success-Response:
-     * HTTP/1.1 200 OK
      * {"collections":[{"name":"pageView","fields":[{"name":"url","type":"STRING","nullable":true},{"name":"id","type":"LONG","nullable":false}]}]}
      * @apiExample {curl} Example usage:
      * curl 'http://localhost:9999/event/schema' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId"}'

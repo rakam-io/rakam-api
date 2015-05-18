@@ -1,4 +1,4 @@
-package org.rakam.ui;
+package org.rakam.collection.mapper.geoip;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -353,3 +353,4 @@ public class HttpDownloadHelper {
         }
     }
 }
+

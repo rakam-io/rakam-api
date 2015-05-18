@@ -67,8 +67,6 @@ public class ServiceStarter {
     public static void main(String[] args) throws Throwable {
         if (args.length > 0) {
             System.setProperty("config", args[0]);
-        } else {
-            System.setProperty("config", "config.properties");
         }
 
         ImmutableSet.Builder<Module> builder = ImmutableSet.builder();

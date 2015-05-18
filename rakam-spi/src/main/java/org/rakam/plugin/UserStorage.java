@@ -18,7 +18,7 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:32.
  */
 public interface UserStorage {
-    public void create(String project, Map<String, Object> properties);
+    public Object create(String project, Map<String, Object> properties);
     public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
     public List<Column> getMetadata(String project);
     public CompletableFuture<User> getUser(String project, Object userId);

@@ -54,18 +54,18 @@
             <artifactId>auto-service</artifactId>
             <version>1.0-rc2</version>
         </dependency>
-        <!--<dependency>-->
-            <!--<groupId>org.rakam</groupId>-->
-            <!--<artifactId>netty-rest</artifactId>-->
-            <!--<version>0.1-SNAPSHOT</version>-->
-            <!--<scope>system</scope>-->
-            <!--<systemPath>${basedir}/../netty-rest/pom.xml</systemPath>-->
-        <!--</dependency>-->
         <dependency>
-            <groupId>com.github.buremba</groupId>
+            <groupId>org.rakam</groupId>
             <artifactId>netty-rest</artifactId>
-            <version>${netty.rest.version}</version>
+            <version>0.1-SNAPSHOT</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/../netty-rest/pom.xml</systemPath>
         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.github.buremba</groupId>-->
+            <!--<artifactId>netty-rest</artifactId>-->
+            <!--<version>${netty.rest.version}</version>-->
+        <!--</dependency>-->
     </dependencies>
 
     <build>

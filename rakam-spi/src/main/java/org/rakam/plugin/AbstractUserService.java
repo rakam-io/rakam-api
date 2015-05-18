@@ -20,8 +20,12 @@ public abstract class AbstractUserService {
         this.storage = storage;
     }
 
-    public void create(String project, Map<String, Object> properties) {
-        storage.create(project, properties);
+    public Object create(String project, Map<String, Object> properties) {
+        return storage.create(project, properties);
+    }
+
+    public void createProject(String project) {
+        storage.createProject(project);
     }
 
     public List<Column> getMetadata(String project) {

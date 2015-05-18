@@ -41,12 +41,6 @@ public class MetadataConfig {
         return eventStore;
     }
 
-    @Config("user.store")
-    public MetadataConfig setUserStore(String actorStore) {
-        this.userStore = actorStore;
-        return this;
-    }
-
     public String getUserStore() {
         return userStore;
     }
