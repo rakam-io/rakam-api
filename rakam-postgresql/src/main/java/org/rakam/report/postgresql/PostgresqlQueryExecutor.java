@@ -72,7 +72,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery, int maxLimit) {
         // TODO: cache projects?
-        if(metastore.getProjects().contains(project)) {
+        if(!metastore.getProjects().contains(project)) {
             throw new IllegalArgumentException("project is not valid");
         }
         return executeRawQuery(buildQuery(project, sqlQuery, maxLimit));
@@ -81,7 +81,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery) {
         // TODO: cache projects?
-        if(metastore.getProjects().contains(project)) {
+        if(!metastore.getProjects().contains(project)) {
             throw new IllegalArgumentException("project is not valid");
         }
         return executeRawQuery(buildQuery(project, sqlQuery, null));

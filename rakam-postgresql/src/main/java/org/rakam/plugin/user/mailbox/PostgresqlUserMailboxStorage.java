@@ -60,11 +60,15 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
         checkNotNull(toUser, "toUser is null");
         checkNotNull(message, "message is null");
         checkNotNull(date, "date is null");
+
+        long from = castUserId(fromUser);
+        long to = castUserId(toUser);
+
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO " + project + "._user_mailbox (from_user, to_user, parentId, content, time) VALUES (?, ?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
-            ps.setObject(1, fromUser);
-            ps.setObject(2, toUser);
+            ps.setLong(1, from);
+            ps.setLong(2, to);
             ps.setObject(3, parentId);
             String escapedMessage = HtmlEscapers.htmlEscaper().escape(message);
             ps.setString(4, escapedMessage);
@@ -170,8 +174,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
         };
     }
 
-    @Override
-    public List<Message> getConversation(String project, Object userId, Integer parentId, int limit, int offset) {
+    private long castUserId(Object userId) {
         long user;
         if(userId instanceof Number) {
             user = ((Number) userId).longValue();
@@ -185,6 +188,12 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
         }else {
             throw new IllegalArgumentException();
         }
+        return user;
+    }
+
+    @Override
+    public List<Message> getConversation(String project, Object userId, Integer parentId, int limit, int offset) {
+        long user = castUserId(userId);
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps;
             if (parentId == null) {
@@ -218,10 +227,11 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public void markMessagesAsRead(String project, Object userId, int[] messageIds) {
+        long user = castUserId(userId);
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("UPDATE " + project +
                     "._user_mailbox SET seen = true WHERE to_user = ? and id in ?");
-            ps.setObject(1, userId);
+            ps.setLong(1, user);
             ps.setArray(2, connection.createArrayOf("int", Arrays.stream(messageIds).mapToObj(Integer::new).toArray()));
             ps.executeUpdate();
         } catch (SQLException e) {
