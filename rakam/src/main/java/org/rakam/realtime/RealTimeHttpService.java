@@ -129,7 +129,7 @@ public class RealTimeHttpService extends HttpService {
             return f;
         }
 
-        long now = Instant.now().getEpochSecond();
+        long now = Instant.now().getEpochSecond() - 5;
 
         long previousWindow = (dateStart == null ? (now - window.getSeconds()) : dateStart.getEpochSecond()) / 5;
         long currentWindow = (dateEnd == null ? now : dateEnd.getEpochSecond()) / 5;
@@ -137,12 +137,12 @@ public class RealTimeHttpService extends HttpService {
         RealTimeReport report = JsonHelper.convert(continuousQuery.options.get("report"), RealTimeReport.class);
 
         Object timeCol = aggregate ? currentWindow : "time";
-        String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC",
+        String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol,
                 report.dimension!=null ? report.dimension+"," : "",
                 aggregate ? report.aggregation : "",
                 "continuous." + continuousQuery.tableName,
-                format("time between %d and %d", previousWindow, currentWindow),
+                format("time >= %d", previousWindow)+(dateEnd== null ? "" : format("AND time <", format("time >= %d", previousWindow)+(dateEnd== null ? "" : format("AND dateEnd.getEpochSecond()")))),
                 report.dimension!=null && aggregate ? "GROUP BY "+report.dimension : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
@@ -171,7 +171,6 @@ public class RealTimeHttpService extends HttpService {
                         }
                         return new RealTimeQueryResult(previousISO, currentISO, newData);
                     } else {
-
                         Map<String, List<Object>> newData = data.stream()
                                 .collect(Collectors.groupingBy(g ->
                                         ISO_INSTANT.format(Instant.ofEpochSecond(((Number) g.get(0)).longValue()))

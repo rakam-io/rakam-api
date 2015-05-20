@@ -272,10 +272,11 @@ public class PostgresqlMetastore implements Metastore {
                 return FieldType.BOOLEAN;
             case Types.DATE:
                 return FieldType.DATE;
-            case Types.TIME:
-            case Types.TIME_WITH_TIMEZONE:
             case Types.TIMESTAMP:
             case Types.TIMESTAMP_WITH_TIMEZONE:
+                return FieldType.TIMESTAMP;
+            case Types.TIME:
+            case Types.TIME_WITH_TIMEZONE:
                 return FieldType.TIME;
             case Types.LONGVARCHAR:
             case Types.NVARCHAR:

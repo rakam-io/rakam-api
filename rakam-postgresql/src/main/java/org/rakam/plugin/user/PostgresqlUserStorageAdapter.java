@@ -158,7 +158,10 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                     } else {
                         field = filter.aggregation.field;
                     }
-                    builder.append(" group by \"user\"");
+                    builder.append(" group by \"user\" ");
+                    if(filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
+                        builder.append(" having ");
+                    }
                     if (filter.aggregation.minimum != null) {
                         builder.append(format("%s(\"%s\") > %d", filter.aggregation.type, field, filter.aggregation.minimum));
                         filters.add((format("id in (%s)", builder.toString())));

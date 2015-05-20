@@ -196,7 +196,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 List<ContinuousQuery> queriesForCollection = continuousQueries.stream()
                         .filter(p -> p.collections.contains(collection)).collect(Collectors.toList());
 
-                if(queriesForCollection.size() == 0){
+                if(queriesForCollection.size() == 0) {
                     continue;
                 }
 
@@ -220,15 +220,16 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 "DECLARE updatedRows record;\n");
 
         builder.append(format(
-                "BEGIN\n" +
-                "   SELECT CAST (EXTRACT(epoch FROM now()) AS int4) AS TIME into newTime;\n" +
+                "BEGIN\n" + // do not include current unix timestamp because
+                            // events might be collection in this unix timestamp after this query is executed
+                "   SELECT CAST (EXTRACT(epoch FROM now()) AS int4)-2 AS TIME into newTime;\n" +
                 "   SELECT last_sync into lastTime FROM collections_last_sync WHERE project = '%1$s' AND collection = '%2$s';\n\n" +
                 "   IF lastTime IS NULL THEN\n" +
                 "       INSERT INTO collections_last_sync VALUES ('%1$s', '%2$s', newTime)\n" +
                 "       RETURNING last_sync into lastTime;\n" +
                 "   END IF;\n\n"+
                 "   CREATE TEMPORARY TABLE stream ON COMMIT DROP AS (\n" +
-                "       SELECT * FROM %1$s.%2$s WHERE TIME BETWEEN lastTime AND newTime\n" +
+                "       SELECT * FROM %1$s.%2$s WHERE \"time\" >= lastTime AND \"time\" < newTime\n" +
                 "   );\n\n", project, collection));
 
         for (ContinuousQuery report : queriesForCollection) {
@@ -267,12 +268,18 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                     .collect(Collectors.joining(", "));
             returningFields = returningFields.isEmpty() ? "1": returningFields;
 
+            String matchUpdateAndInsert = metadata.entrySet().stream()
+                    .filter(c -> c.getValue() == null)
+                    .map(c -> '"' + c.getKey() + '"')
+                    .collect(Collectors.joining(", "));
+            matchUpdateAndInsert = matchUpdateAndInsert.isEmpty() ? "1": matchUpdateAndInsert;
+
             // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
             // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
             builder.append(format("   WITH updated AS (UPDATE %s.%s SET %s FROM stream_%s %s RETURNING %s)\n",
                     project, tableName, aggFields, tableName, groupedWhere, returningFields));
-            builder.append(format("   INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE NOT EXISTS (SELECT * FROM updated) );\n",
-                    project, tableName, tableName));
+            builder.append(format("   INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE ROW(%s) NOT IN (SELECT %s FROM updated) );\n",
+                    project, tableName, tableName, matchUpdateAndInsert, matchUpdateAndInsert));
             builder.append(
                     "   PERFORM pg_advisory_unlock(tableHash);\n\n");
         }

@@ -4,10 +4,13 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -54,13 +57,20 @@ public class JDBCReportMetadata {
     }
 
     public void save(Report report) {
-        dao.createStatement("INSERT INTO reports (project, slug, name, query, options) VALUES (:project, :slug, :name, :query, :options)")
-                .bind("project", report.project)
-                .bind("name", report.name)
-                .bind("query", report.query)
-                .bind("slug", report.slug)
-                .bind("options", JsonHelper.encode(report.options, false))
-                .execute();
+        try {
+            dao.createStatement("INSERT INTO reports (project, slug, name, query, options) VALUES (:project, :slug, :name, :query, :options)")
+                    .bind("project", report.project)
+                    .bind("name", report.name)
+                    .bind("query", report.query)
+                    .bind("slug", report.slug)
+                    .bind("options", JsonHelper.encode(report.options, false))
+                    .execute();
+        } catch (UnableToExecuteStatementException e) {
+            if(e.getCause() instanceof SQLException && ((SQLException) e.getCause()).getSQLState().equals("23505")) {
+                // TODO: replace
+                throw new RakamException("Report already exists", 400);
+            }
+        }
     }
 
     public Object get(String project, String name) {
