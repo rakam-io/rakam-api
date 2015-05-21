@@ -21,6 +21,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
+import org.rakam.util.NotImplementedException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -129,10 +130,9 @@ public class RealTimeHttpService extends HttpService {
             return f;
         }
 
-        long now = Instant.now().getEpochSecond() - 5;
-
-        long previousWindow = (dateStart == null ? (now - window.getSeconds()) : dateStart.getEpochSecond()) / 5;
-        long currentWindow = (dateEnd == null ? now : dateEnd.getEpochSecond()) / 5;
+        long last_update = continuousQuery.lastUpdate().getEpochSecond();
+        long previousWindow = (dateStart == null ? (last_update - window.getSeconds()) : dateStart.getEpochSecond()) / 5;
+        long currentWindow = (dateEnd == null ? last_update : dateEnd.getEpochSecond()) / 5;
 
         RealTimeReport report = JsonHelper.convert(continuousQuery.options.get("report"), RealTimeReport.class);
 
@@ -140,9 +140,9 @@ public class RealTimeHttpService extends HttpService {
         String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol,
                 report.dimension!=null ? report.dimension+"," : "",
-                aggregate ? report.aggregation : "",
+                aggregate ? getAggregationMethod(report.aggregation) : "",
                 "continuous." + continuousQuery.tableName,
-                format("time >= %d", previousWindow)+(dateEnd== null ? "" : format("AND time <", format("time >= %d", previousWindow)+(dateEnd== null ? "" : format("AND dateEnd.getEpochSecond()")))),
+                format("time >= %d", previousWindow)+(dateEnd== null ? "" : format("AND time <", format("time >= %d AND time <= %d", previousWindow, currentWindow))),
                 report.dimension!=null && aggregate ? "GROUP BY "+report.dimension : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
@@ -153,6 +153,7 @@ public class RealTimeHttpService extends HttpService {
                 String currentISO = ISO_INSTANT.format(Instant.ofEpochSecond(currentWindow*5));
 
                 List<List<Object>> data = result.getResult();
+
                 if(!aggregate) {
                     if(report.dimension == null) {
                         List<List<Object>> newData = Lists.newLinkedList();
@@ -190,6 +191,22 @@ public class RealTimeHttpService extends HttpService {
             }
             return result;
         });
+    }
+
+    private String getAggregationMethod(AggregationType aggregation) {
+        switch (aggregation) {
+            case COUNT:
+            case SUM:
+                return "sum";
+            case MINIMUM:
+                return "min";
+            case MAXIMUM:
+                return "max";
+            case AVERAGE:
+                throw new UnsupportedOperationException();
+            default:
+                throw new NotImplementedException();
+        }
     }
 
     public static class RealTimeQueryResult {

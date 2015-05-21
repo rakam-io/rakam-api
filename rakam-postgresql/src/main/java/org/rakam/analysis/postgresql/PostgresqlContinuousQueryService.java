@@ -14,6 +14,7 @@ import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.Statement;
 import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
@@ -31,6 +32,11 @@ import org.rakam.util.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -289,6 +295,29 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
         builder.append("\n END$$;");
         return builder.toString();
+    }
+
+    @Override
+    public ContinuousQuery get(String project, String name) {
+        ContinuousQuery continuousQuery = super.get(project, name);
+
+        try(Connection connection = executor.getConnection()) {
+            ResultSet resultSet;
+            if(continuousQuery.collections.isEmpty()) {
+                resultSet = connection.createStatement().executeQuery("select min(last_sync) from collections_last_sync");
+            }else {
+                PreparedStatement statement = connection.prepareStatement("select min(last_sync) from collections_last_sync where collection = any(?)");
+                statement.setArray(1, connection.createArrayOf("text", continuousQuery.collections.toArray()));
+                resultSet = statement.executeQuery();
+            }
+            if(resultSet.next()) {
+                continuousQuery.setLastUpdate(Instant.ofEpochSecond(resultSet.getLong(1)));
+            }
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+
+        return continuousQuery;
     }
 
     private String buildUpdateState(String tableName, String key, PostgresqlFunction value) {

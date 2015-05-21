@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.rakam.server.http.annotations.ApiParam;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,8 @@ public class ContinuousQuery {
     public final List<String> collections;
     @ApiParam(name = "options", value="Additional information about the continuous query", required = false)
     public final Map<String, Object> options;
+
+    private transient Instant last_update;
 
     @JsonCreator
     public ContinuousQuery(@JsonProperty("project") String project,
@@ -74,5 +77,13 @@ public class ContinuousQuery {
 
     public String getTableName() {
         return "_continuous_"+tableName;
+    }
+
+    public synchronized void setLastUpdate(Instant last_update) {
+        this.last_update = last_update;
+    }
+
+    public Instant lastUpdate() {
+        return last_update;
     }
 }
