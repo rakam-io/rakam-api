@@ -81,6 +81,7 @@
                             <annotationProcessor>com.google.auto.value.processor.AutoValueProcessor</annotationProcessor>
                             <annotationProcessor>com.google.auto.service.processor.AutoServiceProcessor</annotationProcessor>
                         </annotationProcessors>
+                        <encoding>UTF-8</encoding>
                     </configuration>
                 </plugin>
             </plugins>
