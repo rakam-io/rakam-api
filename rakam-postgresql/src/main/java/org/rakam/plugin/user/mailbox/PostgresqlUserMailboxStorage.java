@@ -76,7 +76,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
             ps.executeUpdate();
             ResultSet generatedKeys = ps.getGeneratedKeys();
             generatedKeys.next();
-            return new Message(project, generatedKeys.getInt(1), fromUser, toUser, message, parentId, false, date);
+            return new Message(project, generatedKeys.getInt(1), fromUser, toUser, message, parentId, false, date.toEpochMilli());
         } catch (SQLException e) {
             LOGGER.error("Error while saving user message", e);
             throw Throwables.propagate(e);
@@ -95,17 +95,19 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
                     "  content TEXT NOT NULL," +
                     "  parentId INT," +
                     "  seen BOOL DEFAULT FALSE NOT NULL," +
-                    "  time TIMESTAMP NOT NULL," +
+                    "  time TIMESTAMPTZ NOT NULL," +
                     "  PRIMARY KEY (id)" +
                     "  )", tableName));
 
+            String msg = "'msg\n" +
+                    "{\"id\":' || NEW.id ||', \"to_user\": ' || NEW.to_user || ', \"from_user\": ' || NEW.from_user || ', \"content\": '||to_json(NEW.content)||', \"parent_id\": '||NEW.parentid||', \"seen\": '||NEW.seen||', \"time\": '||extract(epoch from NEW.time at time zone 'utc')*1000||'}'";
             statement.execute(format("CREATE OR REPLACE FUNCTION user_mailbox_notification()" +
                     "  RETURNS trigger AS" +
                     "  $BODY$" +
                     "    BEGIN" +
-                    "        PERFORM pg_notify('%1$s_' || NEW.to_user || '" + USER_NOTIFICATION_SUFFIX + "', 'msg\n' || row_to_json((NEW))::text);" +
-                    "        PERFORM pg_notify('%1$s_' || NEW.from_user || '" + USER_NOTIFICATION_SUFFIX + "', 'msg\n' || row_to_json((NEW))::text);" +
-                    "        PERFORM pg_notify('%1$s" + USER_NOTIFICATION_ALL_SUFFIX + "', 'msg\n' || row_to_json((NEW))::text);" +
+                    "        PERFORM pg_notify('%1$s_' || NEW.to_user || '" + USER_NOTIFICATION_SUFFIX + "', "+msg+");" +
+                    "        PERFORM pg_notify('%1$s_' || NEW.from_user || '" + USER_NOTIFICATION_SUFFIX + "', "+msg+");" +
+                    "        PERFORM pg_notify('%1$s" + USER_NOTIFICATION_ALL_SUFFIX + "', "+msg+");" +
                     "        RETURN NEW;" +
                     "    END;" +
                     "  $BODY$ LANGUAGE plpgsql;", projectId));
@@ -192,16 +194,17 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     }
 
     @Override
-    public List<Message> getConversation(String project, Object userId, Integer parentId, int limit, int offset) {
+    public List<Message> getConversation(String project, Object userId, Integer parentId, int limit, long offset) {
         long user = castUserId(userId);
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps;
             if (parentId == null) {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
-                        "._user_mailbox WHERE to_user = ? AND parentId IS NULL ORDER BY time DESC LIMIT ? OFFSET ?");
+                        "._user_mailbox WHERE (to_user = ? OR from_user = ?) AND parentId IS NULL ORDER BY time DESC LIMIT ? OFFSET ?");
                 ps.setObject(1, user);
-                ps.setInt(2, limit);
-                ps.setInt(3, offset);
+                ps.setObject(2, user);
+                ps.setInt(3, limit);
+                ps.setLong(4, offset);
             } else {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
                         "._user_mailbox WHERE (to_user = ? OR from_user = ?) AND (parentId = ? OR id = ?) ORDER BY time DESC LIMIT ? OFFSET ?");
@@ -210,14 +213,14 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
                 ps.setInt(3, parentId);
                 ps.setInt(4, parentId);
                 ps.setInt(5, limit);
-                ps.setInt(6, offset);
+                ps.setLong(6, offset);
             }
             ResultSet resultSet = ps.executeQuery();
             ImmutableList.Builder<Message> builder = ImmutableList.builder();
             while (resultSet.next()) {
                 builder.add(new Message(project, resultSet.getInt(1), resultSet.getObject(2), resultSet.getObject(6),
                         resultSet.getString(3), parentId,
-                        resultSet.getBoolean(4), resultSet.getTimestamp(5).toInstant()));
+                        resultSet.getBoolean(4), resultSet.getTimestamp(5).toInstant().toEpochMilli()));
             }
             return builder.build();
         } catch (SQLException e) {

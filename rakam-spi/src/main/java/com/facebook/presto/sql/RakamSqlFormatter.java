@@ -72,37 +72,42 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Iterables.transform;
 
-public final class SQLFormatter
+public final class RakamSqlFormatter
 {
     private static final String INDENT = "   ";
 
-    private SQLFormatter() {}
+    private RakamSqlFormatter() {}
 
     public static String formatSql(Node root)
     {
         StringBuilder builder = new StringBuilder();
-        new Formatter(builder).process(root, 0);
+        new Formatter(builder, 0).process(root, new ArrayList<>());
         return builder.toString();
+    }
+    
+    public static class Context {
+        
     }
 
     public static class Formatter
-            extends AstVisitor<Void, Integer>
+            extends AstVisitor<Void, List<String>>
     {
         private final StringBuilder builder;
-
-        public Formatter(StringBuilder builder)
+        private final int indent;
+        public Formatter(StringBuilder builder, int indent)
         {
             this.builder = builder;
+            this.indent = indent;
         }
 
         @Override
-        protected Void visitNode(Node node, Integer indent)
+        protected Void visitNode(Node node,List<String> referencedTables)
         {
             throw new UnsupportedOperationException("not yet implemented: " + node);
         }
 
         @Override
-        protected Void visitExpression(Expression node, Integer indent)
+        protected Void visitExpression(Expression node,List<String> referencedTables)
         {
             checkArgument(indent == 0, "visitExpression should only be called at root");
             builder.append(formatExpression(node));
@@ -110,14 +115,14 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitUnnest(Unnest node, Integer indent)
+        protected Void visitUnnest(Unnest node,List<String> referencedTables)
         {
             builder.append(node.toString());
             return null;
         }
 
         @Override
-        protected Void visitQuery(Query node, Integer indent)
+        protected Void visitQuery(Query node,List<String> referencedTables)
         {
             if (node.getWith().isPresent()) {
                 With with = node.getWith().get();
@@ -132,7 +137,8 @@ public final class SQLFormatter
                     append(indent, query.getName());
                     appendAliasColumns(builder, query.getColumnNames());
                     builder.append(" AS ");
-                    process(new TableSubquery(query.getQuery()), indent);
+                    process(new TableSubquery(query.getQuery()), referencedTables);
+                    referencedTables.add(query.getName());
                     builder.append('\n');
                     if (queries.hasNext()) {
                         builder.append(", ");
@@ -140,7 +146,7 @@ public final class SQLFormatter
                 }
             }
 
-            processRelation(node.getQueryBody(), indent);
+            processRelation(node.getQueryBody(), referencedTables);
 
             if (!node.getOrderBy().isEmpty()) {
                 append(indent, "ORDER BY " + formatSortItems(node.getOrderBy()))
@@ -162,15 +168,15 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitQuerySpecification(QuerySpecification node, Integer indent)
+        protected Void visitQuerySpecification(QuerySpecification node,List<String> referencedTables)
         {
-            process(node.getSelect(), indent);
+            process(node.getSelect(), referencedTables);
 
             if (node.getFrom().isPresent()) {
                 append(indent, "FROM");
                 builder.append('\n');
                 append(indent, "  ");
-                process(node.getFrom().get(), indent);
+                process(node.getFrom().get(), referencedTables);
             }
 
             builder.append('\n');
@@ -203,7 +209,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitSelect(Select node, Integer indent)
+        protected Void visitSelect(Select node,List<String> referencedTables)
         {
             append(indent, "SELECT");
             if (node.isDistinct()) {
@@ -217,13 +223,13 @@ public final class SQLFormatter
                             .append(indentString(indent))
                             .append(first ? "  " : ", ");
 
-                    process(item, indent);
+                    process(item, referencedTables);
                     first = false;
                 }
             }
             else {
                 builder.append(' ');
-                process(getOnlyElement(node.getSelectItems()), indent);
+                process(getOnlyElement(node.getSelectItems()), referencedTables);
             }
 
             builder.append('\n');
@@ -232,7 +238,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitSingleColumn(SingleColumn node, Integer indent)
+        protected Void visitSingleColumn(SingleColumn node,List<String> referencedTables)
         {
             builder.append(formatExpression(node.getExpression()));
             if (node.getAlias().isPresent()) {
@@ -246,7 +252,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitAllColumns(AllColumns node, Integer context)
+        protected Void visitAllColumns(AllColumns node, List<String> referencedTables)
         {
             builder.append(node.toString());
 
@@ -254,14 +260,14 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitTable(Table node, Integer indent)
+        protected Void visitTable(Table node,List<String> referencedTables)
         {
             builder.append(node.getName().toString());
             return null;
         }
 
         @Override
-        protected Void visitJoin(Join node, Integer indent)
+        protected Void visitJoin(Join node,List<String> referencedTables)
         {
             JoinCriteria criteria = node.getCriteria().orElse(null);
             String type = node.getType().toString();
@@ -272,7 +278,7 @@ public final class SQLFormatter
             if (node.getType() != Join.Type.IMPLICIT) {
                 builder.append('(');
             }
-            process(node.getLeft(), indent);
+            process(node.getLeft(), referencedTables);
 
             builder.append('\n');
             if (node.getType() == Join.Type.IMPLICIT) {
@@ -282,7 +288,7 @@ public final class SQLFormatter
                 append(indent, type).append(" JOIN ");
             }
 
-            process(node.getRight(), indent);
+            process(node.getRight(), referencedTables);
 
             if (node.getType() != Join.Type.CROSS && node.getType() != Join.Type.IMPLICIT) {
                 if (criteria instanceof JoinUsing) {
@@ -310,9 +316,9 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitAliasedRelation(AliasedRelation node, Integer indent)
+        protected Void visitAliasedRelation(AliasedRelation node,List<String> referencedTables)
         {
-            process(node.getRelation(), indent);
+            process(node.getRelation(), referencedTables);
 
             builder.append(' ')
                     .append(node.getAlias());
@@ -323,9 +329,9 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitSampledRelation(SampledRelation node, Integer indent)
+        protected Void visitSampledRelation(SampledRelation node,List<String> referencedTables)
         {
-            process(node.getRelation(), indent);
+            process(node.getRelation(), referencedTables);
 
             builder.append(" TABLESAMPLE ")
                     .append(node.getType())
@@ -344,7 +350,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitValues(Values node, Integer indent)
+        protected Void visitValues(Values node,List<String> referencedTables)
         {
             builder.append(" VALUES ");
 
@@ -362,12 +368,12 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitTableSubquery(TableSubquery node, Integer indent)
+        protected Void visitTableSubquery(TableSubquery node,List<String> referencedTables)
         {
             builder.append('(')
                     .append('\n');
 
-            process(node.getQuery(), indent + 1);
+            process(node.getQuery(), referencedTables);
 
             append(indent, ") ");
 
@@ -375,12 +381,12 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitUnion(Union node, Integer indent)
+        protected Void visitUnion(Union node,List<String> referencedTables)
         {
             Iterator<Relation> relations = node.getRelations().iterator();
 
             while (relations.hasNext()) {
-                processRelation(relations.next(), indent);
+                processRelation(relations.next(), referencedTables);
 
                 if (relations.hasNext()) {
                     builder.append("UNION ");
@@ -394,27 +400,27 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitExcept(Except node, Integer indent)
+        protected Void visitExcept(Except node,List<String> referencedTables)
         {
-            processRelation(node.getLeft(), indent);
+            processRelation(node.getLeft(), referencedTables);
 
             builder.append("EXCEPT ");
             if (!node.isDistinct()) {
                 builder.append("ALL ");
             }
 
-            processRelation(node.getRight(), indent);
+            processRelation(node.getRight(), referencedTables);
 
             return null;
         }
 
         @Override
-        protected Void visitIntersect(Intersect node, Integer indent)
+        protected Void visitIntersect(Intersect node,List<String> referencedTables)
         {
             Iterator<Relation> relations = node.getRelations().iterator();
 
             while (relations.hasNext()) {
-                processRelation(relations.next(), indent);
+                processRelation(relations.next(), referencedTables);
 
                 if (relations.hasNext()) {
                     builder.append("INTERSECT ");
@@ -428,7 +434,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitCreateView(CreateView node, Integer indent)
+        protected Void visitCreateView(CreateView node,List<String> referencedTables)
         {
             builder.append("CREATE ");
             if (node.isReplace()) {
@@ -438,13 +444,13 @@ public final class SQLFormatter
                     .append(node.getName())
                     .append(" AS\n");
 
-            process(node.getQuery(), indent);
+            process(node.getQuery(), referencedTables);
 
             return null;
         }
 
         @Override
-        protected Void visitDropView(DropView node, Integer context)
+        protected Void visitDropView(DropView node, List<String> referencedTables)
         {
             builder.append("DROP VIEW ")
                     .append(node.getName());
@@ -453,7 +459,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitExplain(Explain node, Integer indent)
+        protected Void visitExplain(Explain node,List<String> referencedTables)
         {
             builder.append("EXPLAIN ");
 
@@ -479,13 +485,13 @@ public final class SQLFormatter
 
             builder.append("\n");
 
-            process(node.getStatement(), indent);
+            process(node.getStatement(), referencedTables);
 
             return null;
         }
 
         @Override
-        protected Void visitShowCatalogs(ShowCatalogs node, Integer context)
+        protected Void visitShowCatalogs(ShowCatalogs node, List<String> referencedTables)
         {
             builder.append("SHOW CATALOGS");
 
@@ -493,7 +499,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitShowSchemas(ShowSchemas node, Integer context)
+        protected Void visitShowSchemas(ShowSchemas node, List<String> referencedTables)
         {
             builder.append("SHOW SCHEMAS");
 
@@ -506,7 +512,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitShowTables(ShowTables node, Integer context)
+        protected Void visitShowTables(ShowTables node, List<String> referencedTables)
         {
             builder.append("SHOW TABLES");
 
@@ -522,7 +528,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitShowColumns(ShowColumns node, Integer context)
+        protected Void visitShowColumns(ShowColumns node, List<String> referencedTables)
         {
             builder.append("SHOW COLUMNS FROM ")
                     .append(node.getTable());
@@ -531,7 +537,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitShowPartitions(ShowPartitions node, Integer context)
+        protected Void visitShowPartitions(ShowPartitions node, List<String> referencedTables)
         {
             builder.append("SHOW PARTITIONS FROM ")
                     .append(node.getTable());
@@ -555,7 +561,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitShowFunctions(ShowFunctions node, Integer context)
+        protected Void visitShowFunctions(ShowFunctions node, List<String> referencedTables)
         {
             builder.append("SHOW FUNCTIONS");
 
@@ -563,7 +569,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitShowSession(ShowSession node, Integer context)
+        protected Void visitShowSession(ShowSession node, List<String> referencedTables)
         {
             builder.append("SHOW SESSION");
 
@@ -571,19 +577,19 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitCreateTable(CreateTable node, Integer indent)
+        protected Void visitCreateTable(CreateTable node,List<String> referencedTables)
         {
             builder.append("CREATE TABLE ")
                     .append(node.getName())
                     .append(" AS ");
 
-            process(node.getQuery(), indent);
+            process(node.getQuery(), referencedTables);
 
             return null;
         }
 
         @Override
-        protected Void visitDropTable(DropTable node, Integer context)
+        protected Void visitDropTable(DropTable node, List<String> referencedTables)
         {
             builder.append("DROP TABLE ")
                     .append(node.getTableName());
@@ -592,7 +598,7 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitRenameTable(RenameTable node, Integer context)
+        protected Void visitRenameTable(RenameTable node, List<String> referencedTables)
         {
             builder.append("ALTER TABLE ")
                     .append(node.getSource())
@@ -603,19 +609,19 @@ public final class SQLFormatter
         }
 
         @Override
-        protected Void visitInsert(Insert node, Integer indent)
+        protected Void visitInsert(Insert node,List<String> referencedTables)
         {
             builder.append("INSERT INTO ")
                     .append(node.getTarget())
                     .append(" ");
 
-            process(node.getQuery(), indent);
+            process(node.getQuery(), referencedTables);
 
             return null;
         }
 
         @Override
-        public Void visitSetSession(SetSession node, Integer context)
+        public Void visitSetSession(SetSession node, List<String> referencedTables)
         {
             builder.append("SET SESSION ")
                     .append(node.getName())
@@ -626,7 +632,7 @@ public final class SQLFormatter
         }
 
         @Override
-        public Void visitResetSession(ResetSession node, Integer context)
+        public Void visitResetSession(ResetSession node, List<String> referencedTables)
         {
             builder.append("RESET SESSION ")
                     .append(node.getName());
@@ -634,7 +640,7 @@ public final class SQLFormatter
             return null;
         }
 
-        private void processRelation(Relation relation, Integer indent)
+        private void processRelation(Relation relation,List<String> referencedTables)
         {
             // TODO: handle this properly
             if (relation instanceof Table) {
@@ -643,7 +649,7 @@ public final class SQLFormatter
                         .append('\n');
             }
             else {
-                process(relation, indent);
+                process(relation, referencedTables);
             }
         }
 

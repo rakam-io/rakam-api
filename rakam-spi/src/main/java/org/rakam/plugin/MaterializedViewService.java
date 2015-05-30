@@ -1,6 +1,6 @@
 package org.rakam.plugin;
 
-import com.facebook.presto.sql.SQLFormatter;
+import com.facebook.presto.sql.RakamSqlFormatter;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryExecution;
@@ -32,7 +32,7 @@ public abstract class MaterializedViewService {
 
     public CompletableFuture<Void> create(MaterializedView materializedView) {
         QueryResult result = queryExecutor.executeStatement(materializedView.project, format("CREATE TABLE materialized.%s AS (%s LIMIT 0)",
-                materializedView.table_name, SQLFormatter.formatSql(materializedView.query))).getResult().join();
+                materializedView.table_name, RakamSqlFormatter.formatSql(materializedView.query))).getResult().join();
         if(result.isFailed()) {
             throw new RakamException("Couldn't created table: "+result.getError().toString(), 400);
         }

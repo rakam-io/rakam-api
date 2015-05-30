@@ -1,6 +1,13 @@
 package org.rakam.plugin.user;
 
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.Expression;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import org.rakam.collection.SchemaField;
+import org.rakam.plugin.UserPluginConfig;
+import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.Message;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.server.http.HttpServer;
@@ -23,7 +30,12 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.rakam.util.JsonHelper.encode;
 
@@ -34,10 +46,18 @@ import static org.rakam.util.JsonHelper.encode;
 @Api(value = "/user/mailbox", description = "UserMailbox", tags = {"user", "user-mailbox"})
 public class UserMailboxHttpService extends HttpService {
     private final UserMailboxStorage storage;
+    private final MailBoxWebSocketService webSocketService;
+    private final UserStorage userStorage;
+    private final UserPluginConfig config;
+    private final SqlParser sqlParser;
 
     @Inject
-    public UserMailboxHttpService(UserMailboxStorage storage) {
+    public UserMailboxHttpService(UserStorage userStorage, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
+        this.userStorage = userStorage;
         this.storage = storage;
+        this.config = config;
+        this.webSocketService = webSocketService;
+        this.sqlParser = new SqlParser();
     }
 
     @Path("/get")
@@ -54,9 +74,9 @@ public class UserMailboxHttpService extends HttpService {
     public List<Message> get(@ApiParam(name = "project", value = "Project id", required = true) String project,
                              @ApiParam(name = "user", value = "User id", required = true) String user,
                              @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
-                             @ApiParam(name = "limit", value = "Message query result limit", allowableValues = "range[1,100]", required = false) int limit,
-                             @ApiParam(name = "offset", value = "Message query result offset", required = false) int offset) {
-        return storage.getConversation(project, user, parent, limit, offset);
+                             @ApiParam(name = "limit", value = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
+                             @ApiParam(name = "offset", value = "Message query result offset", required = false) Long offset) {
+        return storage.getConversation(project, user, parent, limit == null ? 100 : limit, offset == null ? 0L : offset);
     }
 
     @Path("/listen")
@@ -134,14 +154,61 @@ public class UserMailboxHttpService extends HttpService {
             @ApiResponse(code = 404, message = "User does not exist.")})
     public Message send(@ApiParam(name = "project", value = "Project id", required = true) String project,
                         @ApiParam(name = "from_user", required = true) String fromUser,
-                        @ApiParam(name = "to_user", required = false) String toUser,
+                        @ApiParam(name = "to_user", required = true) String toUser,
                         @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
                         @ApiParam(name = "message", value = "The content of the message", required = false) String message,
-                        @ApiParam(name = "timestamp", value = "The zoned datetime of the message", required = true) Instant datetime) {
+                        @ApiParam(name = "timestamp", value = "The timestamp of the message", required = true) long datetime) {
         try {
-            return storage.send(project, fromUser, toUser==null ? 0 : toUser, parent, message, datetime);
+            return storage.send(project, fromUser, toUser==null ? 0 : toUser, parent, message, Instant.ofEpochMilli(datetime));
         } catch (Exception e) {
             throw new RakamException("Error while sending message: "+e.getMessage(), 400);
         }
+    }
+
+    @Path("/getOnlineUsers")
+    @POST
+    @JsonRequest
+    @ApiOperation(value = "Get connected users",
+            authorizations = @Authorization(value = "api_key", type = "api_key")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@ApiParam(name = "project", value = "Project id", required = true) String project,
+                                                    @ApiParam(name = "properties", value = "User properties", required = false) List<String> properties) {
+
+        Collection<Object> connectedUsers = webSocketService.getConnectedUsers(project);
+        if(properties == null) {
+            return CompletableFuture.completedFuture(connectedUsers.stream()
+                    .map(id -> ImmutableMap.of(config.getIdentifierColumn(), id))
+                    .collect(Collectors.toList()));
+        }
+
+        if(connectedUsers.isEmpty()) {
+            return CompletableFuture.completedFuture(ImmutableList.of());
+        }
+
+        String expressionStr = config.getIdentifierColumn() + " in (" + connectedUsers.stream()
+                .map(id -> (id instanceof Number) ? id.toString() : "'" + id + "'")
+                .collect(Collectors.joining(", ")) + ")";
+
+        Expression expression;
+        try {
+            synchronized (sqlParser) {
+                expression = sqlParser.createExpression(expressionStr);
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException();
+        }
+
+        return userStorage.filter(project, expression, null, null, 1000, 0).thenApply(queryResult -> {
+            List<? extends SchemaField> metadata = queryResult.getMetadata();
+            return queryResult.getResult().stream().map(row -> {
+                Map<String, Object> map = new HashMap();
+                for (int i = 0; i < metadata.size(); i++) {
+                    map.put(metadata.get(i).getName(), row.get(i));
+                }
+                return map;
+            }).collect(Collectors.toList());
+        });
     }
 }

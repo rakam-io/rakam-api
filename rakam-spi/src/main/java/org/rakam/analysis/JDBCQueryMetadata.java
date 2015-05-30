@@ -1,6 +1,6 @@
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.SQLFormatter;
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -92,7 +92,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 .bind("project", materializedView.project)
                 .bind("name", materializedView.name)
                 .bind("table_name", materializedView.table_name)
-                .bind("query", SQLFormatter.formatSql(materializedView.query))
+                .bind("query", RakamSqlFormatter.formatSql(materializedView.query))
                 .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
         .bind("options", JsonHelper.encode(materializedView.options, false))
                 .execute();

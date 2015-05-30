@@ -2,9 +2,11 @@ package org.rakam.plugin.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.AttributeKey;
@@ -20,6 +22,8 @@ import org.rakam.util.JsonHelper;
 import javax.ws.rs.Path;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +36,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @Path("/user/mailbox/subscribe")
 @Api(value = "/user/mailbox/subscribe", description = "Websocket service for subscribing user mails in real-time",
         tags = "user", consumes = "ws", produces = "ws", protocols = "ws")
+@Singleton
 public class MailBoxWebSocketService extends WebSocketService {
     public static final AttributeKey<String> USER_ID = AttributeKey.valueOf("user_id");
     public static final AttributeKey<String> PROJECT_ID = AttributeKey.valueOf("project_id");
@@ -126,6 +131,13 @@ public class MailBoxWebSocketService extends WebSocketService {
             this.content = content;
             this.toUser = toUser;
         }
+    }
+
+    public Collection<Object> getConnectedUsers(String project) {
+        Map<Object, List<ChannelHandlerContext>> objectListMap = connectedClients.get(project);
+        if(objectListMap == null)
+            return ImmutableList.of();
+        return Collections.unmodifiableSet(objectListMap.keySet());
     }
 
     public static class WSMessage {

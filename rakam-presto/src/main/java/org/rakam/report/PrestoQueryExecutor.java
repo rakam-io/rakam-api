@@ -18,6 +18,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Statement;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
 import org.rakam.util.QueryFormatter;
 
@@ -99,7 +100,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
         synchronized (parser) {
             statement = (Query) parser.createStatement(query);
         }
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 0);
+        new QueryFormatter(builder, tableNameMapper(project)).process(statement, Lists.newArrayList());
 
         if(maxLimit != null) {
             if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
@@ -118,7 +119,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
         synchronized (parser) {
             statement = parser.createStatement(query);
         }
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 0);
+        new QueryFormatter(builder, tableNameMapper(project)).process(statement, Lists.newArrayList());
 
         return builder.toString();
     }

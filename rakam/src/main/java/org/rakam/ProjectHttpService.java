@@ -14,6 +14,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
 
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
 import java.util.Set;
@@ -49,7 +50,7 @@ public class ProjectHttpService extends HttpService {
     @ApiOperation(value = "List created projects",
             authorizations = @Authorization(value = "api_key", type = "api_key")
     )
-    @JsonRequest
+    @GET
     @Path("/list")
     public List<String> getProjects() {
         return metastore.getProjects();

@@ -34,14 +34,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.convert;
 
@@ -149,8 +148,8 @@ public class RealTimeHttpService extends HttpService {
         return executor.executeQuery(continuousQuery.project, sqlQuery).getResult().thenApply(result -> {
             if (!result.isFailed()) {
 
-                String previousISO = ISO_INSTANT.format(Instant.ofEpochSecond(previousWindow*5));
-                String currentISO = ISO_INSTANT.format(Instant.ofEpochSecond(currentWindow*5));
+                long previousTimestamp = previousWindow * 5;
+                long currentTimestamp = currentWindow * 5;
 
                 List<List<Object>> data = result.getResult();
 
@@ -159,33 +158,36 @@ public class RealTimeHttpService extends HttpService {
                         List<List<Object>> newData = Lists.newLinkedList();
                         int currentDataIdx = 0;
                         for (long current = previousWindow; current < currentWindow; current++) {
-                            String formattedTime = ISO_INSTANT.format(Instant.ofEpochSecond(current*5));
                             if (data.size() > currentDataIdx) {
                                 List<Object> objects = data.get(currentDataIdx++);
                                 Long time = ((Number) objects.get(0)).longValue();
                                 if (time == current) {
-                                    newData.add(ImmutableList.of(formattedTime, objects.get(1)));
+                                    newData.add(ImmutableList.of(current*5, objects.get(1)));
                                     continue;
                                 }
                             }
-                            newData.add(ImmutableList.of(formattedTime, 0));
+                            newData.add(ImmutableList.of(current*5, 0));
                         }
-                        return new RealTimeQueryResult(previousISO, currentISO, newData);
+                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     } else {
-                        Map<String, List<Object>> newData = data.stream()
-                                .collect(Collectors.groupingBy(g ->
-                                        ISO_INSTANT.format(Instant.ofEpochSecond(((Number) g.get(0)).longValue()))
-                                        , TreeMap::new, Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
-                        return new RealTimeQueryResult(previousISO, currentISO, newData);
+                        Map<Object, List<Object>> newData = data.stream()
+                                .collect(Collectors.groupingBy(o -> new Function<List<Object>, Object>() {
+                                                                   @Override
+                                                                   public Object apply(List<Object> o) {
+                                                                       return o.get(0);
+                                                                   }
+                                                               },
+                                        Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
+                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     }
                 } else {
                     if(report.dimension == null) {
-                        return new RealTimeQueryResult(previousISO, currentISO, data.size() > 0 ? data.get(0).get(1) : 0);
+                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
                     } else {
                         List<ImmutableList<Object>> newData = data.stream()
                                 .map(m -> ImmutableList.of(m.get(1), m.get(2)))
                                 .collect(Collectors.toList());
-                        return new RealTimeQueryResult(previousISO, currentISO, newData);
+                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     }
                 }
             }
@@ -210,11 +212,11 @@ public class RealTimeHttpService extends HttpService {
     }
 
     public static class RealTimeQueryResult {
-        public final String start;
-        public final String end;
+        public final long start;
+        public final long end;
         public final Object result;
 
-        public RealTimeQueryResult(String start, String end, Object result) {
+        public RealTimeQueryResult(long start, long end, Object result) {
             this.start = start;
             this.end = end;
             this.result = result;

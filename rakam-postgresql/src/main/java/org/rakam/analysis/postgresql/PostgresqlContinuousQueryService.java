@@ -1,6 +1,6 @@
 package org.rakam.analysis.postgresql;
 
-import com.facebook.presto.sql.SQLFormatter;
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.Expression;
@@ -16,6 +16,7 @@ import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -75,7 +76,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
             if(!result.isFailed()) {
                 // we obtained the lock so we're the master node.
                 LOGGER.info("Became the master node. Scheduling periodic table updates for materialized and continuous queries.");
-                updater.scheduleAtFixedRate(this::updateTable, 10, 10, TimeUnit.SECONDS);
+                updater.scheduleAtFixedRate(this::updateTable, 5, 5, TimeUnit.SECONDS);
             }else {
                 LOGGER.error("Error while obtaining lock from Postgresql: {}", result.getError());
             }
@@ -85,17 +86,17 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     private String replaceSourceTable(String query, String sampleCollection) {
         Statement statement = new SqlParser().createStatement(query);
         StringBuilder builder = new StringBuilder();
-        statement.accept(new SQLFormatter.Formatter(builder) {
+        statement.accept(new RakamSqlFormatter.Formatter(builder, 0) {
             @Override
-            protected Void visitTable(Table node, Integer indent) {
+            protected Void visitTable(Table node, List<String> referencedTables) {
                 if(node.getName().getSuffix().equals("stream")) {
                     builder.append(sampleCollection);
                     return null;
                 }else {
-                    return super.visitTable(node, indent);
+                    return super.visitTable(node, referencedTables);
                 }
             }
-        }, 0);
+        }, Lists.newArrayList());
         return builder.toString();
     }
 

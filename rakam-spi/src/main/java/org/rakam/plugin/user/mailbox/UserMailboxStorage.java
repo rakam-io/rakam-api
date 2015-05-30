@@ -12,7 +12,7 @@ public interface UserMailboxStorage {
     public void createProject(String projectId);
     public MessageListener listen(String projectId, String user, Consumer<Data> messageConsumer);
     public MessageListener listenAllUsers(String projectId, Consumer<Data> messageConsumer);
-    List<Message> getConversation(String project, Object userId, Integer parentId, int limit, int offset);
+    List<Message> getConversation(String project, Object userId, Integer parentId, int limit, long offset);
     public void markMessagesAsRead(String project, Object userId, int[] messageIds);
 
     public static interface MessageListener {
