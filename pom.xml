@@ -30,7 +30,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
         <java.version>1.8</java.version>
-        <netty.rest.version>0.1-rc2</netty.rest.version>
+        <netty.rest.version>0d2e5f00ea</netty.rest.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
