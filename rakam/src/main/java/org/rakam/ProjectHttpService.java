@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.rakam.util.ValidationUtil.checkProject;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 18/05/15 22:02.
  */
@@ -42,6 +44,7 @@ public class ProjectHttpService extends HttpService {
     @JsonRequest
     @Path("/create")
     public JsonResponse createProject(@ApiParam(name="name") String name) {
+        checkProject(name);
         metastore.createProject(name);
         systemEventListeners.forEach(listener -> listener.onCreateProject(name));
         return JsonResponse.success();

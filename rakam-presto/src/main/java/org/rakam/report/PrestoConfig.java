@@ -9,11 +9,23 @@ public class PrestoConfig {
     private String address = "127.0.0.1:8080";
     private String dataConnectorName;
     private String streamConnectorName;
+    private String storage;
 
     @Config("presto.address")
     public PrestoConfig setAddress(String address)
     {
         this.address = address;
+        return this;
+    }
+
+    public String getStorage() {
+        return storage;
+    }
+
+    @Config("presto.storage")
+    public PrestoConfig setStorage(String storage)
+    {
+        this.storage = storage;
         return this;
     }
 

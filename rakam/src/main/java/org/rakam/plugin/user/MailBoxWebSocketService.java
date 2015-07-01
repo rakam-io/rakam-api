@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.util.AttributeKey;
@@ -23,10 +24,10 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -42,15 +43,19 @@ public class MailBoxWebSocketService extends WebSocketService {
     public static final AttributeKey<String> PROJECT_ID = AttributeKey.valueOf("project_id");
     public static final AttributeKey<MessageListener> LISTENER = AttributeKey.valueOf("listener");
     private final UserMailboxStorage storage;
-    private final Map<String, Map<Object, List<ChannelHandlerContext>>> connectedClients = new ConcurrentHashMap<>();
+    private final Map<String, Map<Object, List<Channel>>> connectedClients = new ConcurrentHashMap<>();
 
     @Inject
-    public MailBoxWebSocketService(UserMailboxStorage storage) {
-        this.storage = storage;
+    public MailBoxWebSocketService(com.google.common.base.Optional<UserMailboxStorage> storage) {
+        this.storage = storage.orNull();
     }
 
     @Override
     public void onOpen(WebSocketRequest request) {
+        if(storage == null) {
+            // TODO: inform user.
+            request.context().close();
+        }
         List<String> userParam = request.params().get("user");
         List<String> projectParam = request.params().get("project");
 
@@ -64,16 +69,16 @@ public class MailBoxWebSocketService extends WebSocketService {
             context.attr(PROJECT_ID).set(project);
             connectedClients
                     .computeIfAbsent(project, s -> Maps.newConcurrentMap())
-                    .computeIfAbsent(user, s -> Lists.newArrayList()).add(context);
+                    .computeIfAbsent(user, s -> Lists.newArrayList()).add(context.channel());
         } else {
             request.context().close();
             return;
         }
 
         MessageListener listen = storage.listen(project, user, data -> {
-            Map<Object, List<ChannelHandlerContext>> users = connectedClients.get(project);
+            Map<Object, List<Channel>> users = connectedClients.get(project);
             if (users != null) {
-                List<ChannelHandlerContext> channels = users.get(user);
+                List<Channel> channels = users.get(user);
                 if(channels != null) {
                     channels.forEach(channel -> channel.writeAndFlush(new TextWebSocketFrame(data.op + "\n" + data.payload)));
                 }
@@ -114,7 +119,7 @@ public class MailBoxWebSocketService extends WebSocketService {
     public void onClose(ChannelHandlerContext ctx) {
         connectedClients
                 .computeIfAbsent(ctx.attr(PROJECT_ID).get(), s -> Maps.newConcurrentMap())
-                .computeIfAbsent(ctx.attr(USER_ID).get(), s -> Lists.newArrayList()).remove(ctx);
+                .computeIfAbsent(ctx.attr(USER_ID).get(), s -> Lists.newArrayList()).remove(ctx.channel());
         ctx.attr(LISTENER).get().shutdown();
     }
 
@@ -134,10 +139,12 @@ public class MailBoxWebSocketService extends WebSocketService {
     }
 
     public Collection<Object> getConnectedUsers(String project) {
-        Map<Object, List<ChannelHandlerContext>> objectListMap = connectedClients.get(project);
+        Map<Object, List<Channel>> objectListMap = connectedClients.get(project);
         if(objectListMap == null)
             return ImmutableList.of();
-        return Collections.unmodifiableSet(objectListMap.keySet());
+        return objectListMap.entrySet().stream()
+                .filter(e -> !e.getValue().isEmpty())
+                .map(e -> e.getKey()).collect(Collectors.toList());
     }
 
     public static class WSMessage {

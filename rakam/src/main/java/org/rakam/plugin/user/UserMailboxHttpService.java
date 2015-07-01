@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.rakam.util.JsonHelper.encode;
 
 /**
@@ -52,9 +53,9 @@ public class UserMailboxHttpService extends HttpService {
     private final SqlParser sqlParser;
 
     @Inject
-    public UserMailboxHttpService(UserStorage userStorage, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
+    public UserMailboxHttpService(UserStorage userStorage, UserPluginConfig config, com.google.common.base.Optional<UserMailboxStorage> storage, MailBoxWebSocketService webSocketService) {
         this.userStorage = userStorage;
-        this.storage = storage;
+        this.storage = storage.orNull();
         this.config = config;
         this.webSocketService = webSocketService;
         this.sqlParser = new SqlParser();
@@ -76,7 +77,7 @@ public class UserMailboxHttpService extends HttpService {
                              @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
                              @ApiParam(name = "limit", value = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
                              @ApiParam(name = "offset", value = "Message query result offset", required = false) Long offset) {
-        return storage.getConversation(project, user, parent, limit == null ? 100 : limit, offset == null ? 0L : offset);
+        return storage.getConversation(project, user, parent, firstNonNull(limit, 100), firstNonNull(offset, 0L));
     }
 
     @Path("/listen")

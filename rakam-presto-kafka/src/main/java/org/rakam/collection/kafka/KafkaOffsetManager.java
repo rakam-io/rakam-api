@@ -74,6 +74,14 @@ public class KafkaOffsetManager {
     }
 
     void updateOffsets() {
+        try {
+            updateOffsetsInternal();
+        } catch (Exception e) {
+            LOGGER.warn("An error occurred while executing processor queries for Kafka.", e);
+        }
+    }
+
+    private void updateOffsetsInternal() {
         Instant start = Instant.now();
         List<String> allTopics = metastore.getAllCollections()
                 .entrySet().stream()
@@ -86,7 +94,10 @@ public class KafkaOffsetManager {
         Map<String, Long> topicOffsets = getTopicOffsets(allTopics);
         List<CompletableFuture> futures = Lists.newArrayList();
 
-        topicOffsets.forEach((key, finalOffset) -> {
+        for (Map.Entry<String, Long> entry : topicOffsets.entrySet()) {
+            String key = entry.getKey();
+            Long finalOffset = entry.getValue();
+
             String[] projectCollection = key.split("_", 2);
 
             long colOffset;
@@ -114,7 +125,7 @@ public class KafkaOffsetManager {
                     String notExistMessage = format("Table '%s.%s' does not exist",
                             prestoConfig.getColdStorageConnector(), tableName);
 
-                    // A workaround until presto starts to use sql error codes.
+                    // A workaround until Presto starts to use sql error codes.
                     if (error.message.equals(notExistMessage)) {
                         String format = format("CREATE TABLE %s.%s AS SELECT * FROM %s.%s",
                                 prestoConfig.getColdStorageConnector(), tableName,
@@ -142,7 +153,7 @@ public class KafkaOffsetManager {
                 }
             });
             futures.add(voidCompletableFuture);
-        });
+        }
 
         CompletableFuture.allOf(futures.stream().toArray(CompletableFuture[]::new)).join();
         LOGGER.info(format("successfully processed batches in %s", Duration.between(start, Instant.now())));
@@ -150,7 +161,7 @@ public class KafkaOffsetManager {
 
     private void failSafe(String zkKey, long value, long finalOffset, QueryError error) {
         LOGGER.error(format("Couldn't processed messages (%d - %d) in Kafka broker: %s", value, finalOffset, error));
-        updateOffset(zkKey, finalOffset);
+//        updateOffset(zkKey, finalOffset);
     }
 
     private void successfullyProcessed(String zkKey, long finalOffset) {
@@ -177,7 +188,7 @@ public class KafkaOffsetManager {
                 prestoConfig.getHotStorageConnector(), project, collection, startOffset, endOffset));
 
         int i = 0;
-        builder.append(format(", batch as (INSERT INTO %1$s.%2$s.%3$s SELECT * FROM %3$s)",
+        builder.append(format(", batch as (INSERT INTO %1$s.%2$s.%3$s SELECT * FROM stream)",
                 prestoConfig.getColdStorageConnector(), project, collection));
         if(reports != null) {
             List<ContinuousQuery> queriesForCollection = reports.stream()

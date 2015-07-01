@@ -5,9 +5,9 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.units.Duration;
-import org.rakam.plugin.JDBCConfig;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
@@ -57,6 +57,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
         DBI dbi = new DBI(format(config.getUrl(), config.getUsername(), config.getPassword()),
                 config.getUsername(), config.getPassword());
+
         dao = dbi.open();
         setup();
     }

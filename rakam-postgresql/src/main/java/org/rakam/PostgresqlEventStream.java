@@ -27,6 +27,7 @@ public class PostgresqlEventStream implements EventStream {
         pg.setDatabase(config.getDatabase());
         pg.setHost(config.getHost());
         pg.setPassword(config.getPassword());
+        pg.setPort(config.getPort());
         pg.setUser(config.getUsername());
         try {
             this.asyncConn = (PGConnection) pg.getConnection();

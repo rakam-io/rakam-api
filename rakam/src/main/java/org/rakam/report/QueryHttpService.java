@@ -124,12 +124,6 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-//        NamedQuery namedQuery = new NamedQuery(query.query);
-//        if(query.bindings != null) {
-//            query.bindings.forEach((bindName, binding) -> namedQuery.bind(bindName, binding.type, binding.value));
-//        }
-//        String sqlQuery = namedQuery.build();
-
         if(query.limit !=null && query.limit > 5000) {
             response.send("result", encode(HttpServer.errorMessage("maximum value of limit is 5000", 400))).end();
             return;

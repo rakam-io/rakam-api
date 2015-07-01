@@ -60,6 +60,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     private final QueryMetadataStore reportDatabase;
     private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
+    private final static long PG_LOCK_KEY = 6374637467687647L;
 
     @Inject
     public PostgresqlContinuousQueryService(Metastore metastore, QueryMetadataStore reportDatabase, PostgresqlQueryExecutor executor) {
@@ -72,12 +73,12 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 .setUncaughtExceptionHandler((t, e) ->
                         LOGGER.error("Error while updating continuous query table.", e))
                 .build());
-        updater.execute(() -> executor.executeRawQuery("select pg_advisory_lock(8888)").getResult().thenAccept(result -> {
-            if(!result.isFailed()) {
+        updater.execute(() -> executor.executeRawQuery("select pg_advisory_lock("+PG_LOCK_KEY+")").getResult().thenAccept(result -> {
+            if (!result.isFailed()) {
                 // we obtained the lock so we're the master node.
                 LOGGER.info("Became the master node. Scheduling periodic table updates for materialized and continuous queries.");
                 updater.scheduleAtFixedRate(this::updateTable, 5, 5, TimeUnit.SECONDS);
-            }else {
+            } else {
                 LOGGER.error("Error while obtaining lock from Postgresql: {}", result.getError());
             }
         }));
@@ -162,7 +163,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
         String prestoQuery = format("drop table continuous.%s", continuousQuery.project, continuousQuery.tableName);
         return executor.executeQuery(project, prestoQuery).getResult().thenApply(result -> {
-            if(result.getError() == null) {
+            if (result.getError() == null) {
                 reportDatabase.createContinuousQuery(continuousQuery);
             }
             return result;
@@ -240,10 +241,25 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 "   );\n\n", project, collection));
 
         for (ContinuousQuery report : queriesForCollection) {
+            Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
+                    new TypeReference<Map<String, PostgresqlFunction>>() {});
+
+            String query;
+            String notNullKeys = metadata.entrySet().stream()
+                    .filter(c -> c.getValue() == null)
+                    .map(c -> '"' + c.getKey() + '"' + " IS NOT NULL ")
+                    .collect(Collectors.joining(" AND "));
+            if(notNullKeys.isEmpty()) {
+                query = report.query;
+            }else {
+                // the grouping keys are primary keys in postgresql so NULL values are now allowed in that part of the query.
+                // TODO: there should be better ways to handle this problem, filtering rows is not that cheap considering the column may not be indexed
+                query = format("(SELECT * FROM (%s) q WHERE %s)", report.query, notNullKeys);
+            }
 
             builder.append(format(
                     "   CREATE TEMPORARY TABLE stream_%s ON COMMIT DROP AS (%s);\n",
-                    report.getTableName(), report.query));
+                    report.getTableName(), query));
 
             builder.append(format(
                     "   tableHash := ('x'||substr(md5('%s.%s'),1,16))::bit(64)::bigint;\n",
@@ -251,9 +267,6 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
             builder.append(
                     "   PERFORM pg_advisory_lock(tableHash);\n");
-
-            Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
-                    new TypeReference<Map<String, PostgresqlFunction>>() {});
 
             String tableName = report.getTableName();
             String aggFields = metadata.entrySet().stream()

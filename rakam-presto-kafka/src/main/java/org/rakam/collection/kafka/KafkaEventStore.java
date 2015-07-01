@@ -118,9 +118,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     public void takeLeadership(CuratorFramework curatorFramework) throws Exception {
         if(executorService == null) {
             ThreadFactory build = new ThreadFactoryBuilder()
-                    .setNameFormat("kafka-offset-worker")
-                    .setUncaughtExceptionHandler((t, e) ->
-                            LOGGER.error("An error occurred while executing processor queries for Kafka.", e)).build();
+                    .setNameFormat("kafka-offset-worker").build();
             executorService = Executors.newSingleThreadScheduledExecutor(build);
         }
         executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);

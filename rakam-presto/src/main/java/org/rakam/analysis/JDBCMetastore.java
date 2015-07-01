@@ -1,35 +1,38 @@
-package org.rakam.collection.event.metastore.impl;
+package org.rakam.analysis;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.thrift.TException;
+import org.apache.thrift.TSerializer;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.JDBCConfig;
+import org.rakam.report.PrestoConfig;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 11/02/15 15:57.
- */
 @Singleton
 public class JDBCMetastore implements Metastore {
-
     private final Handle dao;
     private final DBI dbi;
+    private final PrestoConfig prestoConfig;
 
     @Inject
-    public JDBCMetastore(@Named("event.schema.store.jdbc") JDBCConfig config) {
+    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCConfig config, PrestoConfig prestoConfig) {
+        this.prestoConfig = prestoConfig;
         dbi = new DBI(String.format(config.getUrl(), config.getUsername(), config.getPassword()),
                 config.getUsername(), config.getPassword());
         dao = dbi.open();
@@ -40,6 +43,17 @@ public class JDBCMetastore implements Metastore {
                 "  schema TEXT NOT NULL,\n" +
                 "  PRIMARY KEY (project, collection)"+
                 ")")
+                .execute();
+
+        dao.createStatement("CREATE TABLE IF NOT EXISTS cold_storage_table_metadata (" +
+                "  databaseName VARCHAR(255) NOT NULL,\n" +
+                "  tableName VARCHAR(255) NOT NULL,\n" +
+                "  metadata TEXT NOT NULL, PRIMARY KEY (databaseName, tableName))")
+                .execute();
+
+        dao.createStatement("CREATE TABLE IF NOT EXISTS cold_storage_database_metadata (" +
+                "  databaseName VARCHAR(255) NOT NULL,\n" +
+                "  metadata TEXT NOT NULL, PRIMARY KEY (databaseName))")
                 .execute();
     }
 
@@ -68,7 +82,22 @@ public class JDBCMetastore implements Metastore {
 
     @Override
     public void createProject(String project) {
-        return;
+        Database database = new Database(project, "Default Rakam Database", prestoConfig.getStorage()+ File.separator + project,
+                Maps.newHashMap());
+
+        TSerializer serializer = new TSerializer();
+        byte[] data;
+        try {
+            data = serializer.serialize(database);
+        }
+        catch (TException e) {
+            throw new RuntimeException();
+        }
+
+        dao.createStatement("INSERT INTO cold_storage_database_metadata (databaseName, metadata) VALUES(:databaseName, :metadata)")
+                .bind("databaseName", database.getName())
+                .bind("metadata", data)
+                .execute();
     }
 
     @Override
@@ -92,10 +121,11 @@ public class JDBCMetastore implements Metastore {
     @Override
     public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields) {
         return dbi.inTransaction((dao, status) -> {
-            List<SchemaField> fields = getSchema(dao, project, collection);
+            // TODO: race condition ?
+            List<SchemaField> fields = Lists.newCopyOnWriteArrayList(getSchema(dao, project, collection));
             if(fields == null) {
                 dao.createStatement("INSERT INTO collection_schema (project, collection, schema) VALUES (:project, :collection, :schema)")
-                        .bind("schema", JsonHelper.encodeAsBytes(newFields))
+                        .bind("schema", JsonHelper.encode(newFields))
                         .bind("project", project)
                         .bind("collection", collection)
                         .execute();

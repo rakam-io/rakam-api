@@ -12,14 +12,6 @@
     <artifactId>rakam</artifactId>
     <name>rakam</name>
 
-    <repositories>
-        <repository>
-            <id>git-rakam</id>
-            <name>Rakam github based repo</name>
-            <url>https://github.com/buremba/rakam-plugins-mvn/raw/master/</url>
-        </repository>
-    </repositories>
-
     <dependencies>
         <dependency>
             <groupId>org.rakam</groupId>
@@ -188,7 +180,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>2.4-SNAPSHOT</version>
+                <version>2.4</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -196,6 +188,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <minimizeJar>true</minimizeJar>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
@@ -210,17 +203,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <!--<profiles>-->
-        <!--<profile>-->
-            <!--<id>ui</id>-->
-            <!--<activation>-->
-                <!--<property>-->
-                    <!--<name>RAKAM_ENABLE_UI</name>-->
-                    <!--<value>true</value>-->
-                <!--</property>-->
-                <!--<activeByDefault>true</activeByDefault>-->
-            <!--</activation>-->
-        <!--</profile>-->
-    <!--</profiles>-->
 </project>

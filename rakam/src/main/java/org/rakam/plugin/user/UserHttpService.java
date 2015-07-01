@@ -39,8 +39,8 @@ public class UserHttpService extends HttpService {
     private final AbstractUserService service;
 
     @Inject
-    public UserHttpService(UserPluginConfig config, AbstractUserService service) {
-        this.service = service;
+    public UserHttpService(UserPluginConfig config, com.google.common.base.Optional<AbstractUserService> service) {
+        this.service = service.orNull();
         this.config = config;
         this.sqlParser = new SqlParser();
     }
@@ -52,6 +52,9 @@ public class UserHttpService extends HttpService {
     @Path("/create")
     public CreateUserResponse create(@ApiParam(name = "project", required = true) String project,
                                      @ApiParam(name = "properties", required = true) Map<String, Object> properties) {
+        if(service == null) {
+            throw new RakamException("user service is not available.", 501);
+        }
         Object o;
         try {
             o = service.create(project, properties);
@@ -76,6 +79,9 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
     public MetadataResponse metadata(@ApiParam(name = "project", required = true) String project) {
+        if(service == null) {
+            throw new RakamException("user service is not available.", 501);
+        }
         return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
     }
 
@@ -103,6 +109,9 @@ public class UserHttpService extends HttpService {
                                                  @ApiParam(name = "sorting", required = false) Sorting sorting,
                                                  @ApiParam(name = "offset", required = false) int offset,
                                                  @ApiParam(name = "limit", required = false) int limit) {
+        if(service == null) {
+            throw new RakamException("user service is not available.", 501);
+        }
         Expression expression;
         if (filter != null) {
             try {
@@ -133,6 +142,9 @@ public class UserHttpService extends HttpService {
                                                                                   @ApiParam(name = "user", required = true) String user,
                                                                                   @ApiParam(name = "limit", required = false) Integer limit,
                                                                                   @ApiParam(name = "offset", required = false) Long offset) {
+        if(service == null) {
+            throw new RakamException("user service is not available.", 501);
+        }
         return service.getEvents(project, user, limit == null ? 15 : limit, offset == null ? 0 : offset);
     }
 
@@ -147,6 +159,9 @@ public class UserHttpService extends HttpService {
     @Path("/get")
     public CompletableFuture<org.rakam.plugin.user.User> getUser(@ApiParam(name = "project", required = true) String project,
                                                                  @ApiParam(name = "user", required = true) String user) {
+        if(service == null) {
+            throw new RakamException("user service is not available.", 501);
+        }
         return service.getUser(project, user);
     }
 
@@ -160,6 +175,9 @@ public class UserHttpService extends HttpService {
                                         @ApiParam(name = "user", required = true) Object user,
                                         @ApiParam(name = "property", required = true) String property,
                                         @ApiParam(name = "value", required = true) Object value) {
+        if(service == null) {
+            throw new RakamException("user service is not available.", 501);
+        }
         service.setUserProperty(project, user, property, value);
         return JsonResponse.success();
     }

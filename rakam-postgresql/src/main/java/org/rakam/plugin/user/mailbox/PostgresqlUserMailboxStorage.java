@@ -21,6 +21,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -45,6 +46,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
         PGDataSource pg = new PGDataSource();
         pg.setDatabase(config.getDatabase());
         pg.setHost(config.getHost());
+        pg.setPort(config.getPort());
         pg.setPassword(config.getPassword());
         pg.setUser(config.getUsername());
         try {
@@ -151,12 +153,18 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     }
 
+    AtomicLong lastMessage = new AtomicLong(Instant.now().getEpochSecond());
+
     @Override
     public MessageListener listenAllUsers(String projectId, Consumer<Data> consumer) {
         PGNotificationListener listener = (processId, channelName, payload) -> {
+            if(lastMessage.get()+2 > Instant.now().getEpochSecond()) {
+                return;
+            }
             int idx = payload.indexOf("\n");
             Operation op = Operation.valueOf(payload.substring(0, idx));
             consumer.accept(new Data(op, payload.substring(idx + 1)));
+            lastMessage.set(Instant.now().getEpochSecond());
         };
         asyncConn.addNotificationListener(projectId + USER_NOTIFICATION_ALL_SUFFIX, listener);
 

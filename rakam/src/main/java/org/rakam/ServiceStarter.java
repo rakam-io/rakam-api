@@ -11,6 +11,7 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
+import com.google.inject.multibindings.OptionalBinder;
 import com.wordnik.swagger.models.Contact;
 import com.wordnik.swagger.models.Info;
 import com.wordnik.swagger.models.License;
@@ -27,10 +28,13 @@ import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
 import org.rakam.config.PluginConfig;
+import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.UserHttpService;
+import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.MaterializedViewHttpService;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.QueryHttpService;
@@ -158,6 +162,9 @@ public class ServiceStarter {
 
             Multibinder.newSetBinder(binder, EventProcessor.class);
             Multibinder.newSetBinder(binder, EventMapper.class);
+            OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
+            OptionalBinder.newOptionalBinder(binder, UserStorage.class);
+            OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(ProjectHttpService.class);

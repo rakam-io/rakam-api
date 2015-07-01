@@ -127,8 +127,8 @@ public class EventHttpService extends HttpService {
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
             }
-            boolean b = processEvent(event);
-            request.response(b ? "1" : "0", b ? OK : BAD_GATEWAY).end();
+            boolean eventProcessed = processEvent(event);
+            request.response(eventProcessed ? "1" : "0", eventProcessed ? OK : BAD_GATEWAY).end();
         });
     }
 
