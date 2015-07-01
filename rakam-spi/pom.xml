@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>rakam-spi</artifactId>
+    <name>rakam-spi</name>
 
     <dependencies>
         <dependency>

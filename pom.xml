@@ -17,7 +17,6 @@
     </repositories>
 
     <modules>
-        <module>rakam</module>
         <module>rakam-spi</module>
         <module>rakam-presto</module>
         <module>rakam-presto-kafka</module>
@@ -25,13 +24,14 @@
         <module>mapper/rakam-mapper-geoip</module>
         <module>rakam-ui</module>
         <module>rakam-kinesis-redshift</module>
+        <module>rakam</module>
     </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
         <java.version>1.8</java.version>
-        <netty.rest.version>0d2e5f00ea</netty.rest.version>
+        <netty.rest.version>23d69df4ae</netty.rest.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
@@ -55,28 +55,28 @@
             <artifactId>auto-service</artifactId>
             <version>1.0-rc2</version>
         </dependency>
-        <dependency>
-            <groupId>org.rakam</groupId>
-            <artifactId>netty-rest</artifactId>
-            <version>0.1-SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>${basedir}/../netty-rest/pom.xml</systemPath>
-        </dependency>
         <!--<dependency>-->
-            <!--<groupId>com.github.buremba</groupId>-->
+            <!--<groupId>org.rakam</groupId>-->
             <!--<artifactId>netty-rest</artifactId>-->
-            <!--<version>${netty.rest.version}</version>-->
-            <!--<exclusions>-->
-                <!--<exclusion>-->
-                    <!--<groupId>org.slf4j</groupId>-->
-                    <!--<artifactId>slf4j-log4j12</artifactId>-->
-                <!--</exclusion>-->
-                <!--<exclusion>-->
-                    <!--<groupId>log4j</groupId>-->
-                    <!--<artifactId>log4j</artifactId>-->
-                <!--</exclusion>-->
-            <!--</exclusions>-->
+            <!--<version>0.1-SNAPSHOT</version>-->
+            <!--<scope>system</scope>-->
+            <!--<systemPath>${basedir}/../netty-rest/pom.xml</systemPath>-->
         <!--</dependency>-->
+        <dependency>
+            <groupId>com.github.buremba</groupId>
+            <artifactId>netty-rest</artifactId>
+            <version>${netty.rest.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
 
     <build>
