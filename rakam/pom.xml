@@ -20,6 +20,11 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
+            <artifactId>rakam-kinesis-redshift</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.rakam</groupId>
             <artifactId>rakam-ui</artifactId>
             <version>${project.version}</version>
         </dependency>

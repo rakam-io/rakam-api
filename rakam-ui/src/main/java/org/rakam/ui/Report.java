@@ -13,7 +13,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class Report {
     @ApiParam(name = "project", required = true)
     public final String project;
-    @ApiParam(name = "name", value="Short name of the report", required = true)
+    @ApiParam(name = "slug", value="Short name of the report", required = true)
     public final String slug;
     @ApiParam(name = "name", value="The name of the report", required = true)
     public final String name;

@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
@@ -77,6 +78,9 @@ public class UserMailboxHttpService extends HttpService {
                              @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
                              @ApiParam(name = "limit", value = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
                              @ApiParam(name = "offset", value = "Message query result offset", required = false) Long offset) {
+        if(storage == null) {
+            throw new RakamException("not implemented", 501);
+        }
         return storage.getConversation(project, user, parent, firstNonNull(limit, 100), firstNonNull(offset, 0L));
     }
 
@@ -90,6 +94,10 @@ public class UserMailboxHttpService extends HttpService {
             authorizations = @Authorization(value = "api_key", type = "api_key")
     )
     public void listen(RakamHttpRequest request) {
+        if(storage == null) {
+            request.response("not implemented", HttpResponseStatus.NOT_IMPLEMENTED).end();
+            return;
+        }
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
         List<String> project = request.params().get("project");
@@ -136,6 +144,9 @@ public class UserMailboxHttpService extends HttpService {
             @ApiParam(name = "project", value = "Project id", required = true) String project,
             @ApiParam(name = "user", value = "User id", required = true) String user,
             @ApiParam(name = "message_ids", value = "The list of of message ids that will be marked as read", required = true) int[] message_ids) {
+        if(storage == null) {
+            throw new RakamException("not implemented", 501);
+        }
         storage.markMessagesAsRead(project, user, message_ids);
         return JsonResponse.success();
     }
@@ -159,6 +170,9 @@ public class UserMailboxHttpService extends HttpService {
                         @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
                         @ApiParam(name = "message", value = "The content of the message", required = false) String message,
                         @ApiParam(name = "timestamp", value = "The timestamp of the message", required = true) long datetime) {
+        if(storage == null) {
+            throw new RakamException("not implemented", 501);
+        }
         try {
             return storage.send(project, fromUser, toUser==null ? 0 : toUser, parent, message, Instant.ofEpochMilli(datetime));
         } catch (Exception e) {
@@ -177,6 +191,9 @@ public class UserMailboxHttpService extends HttpService {
     public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@ApiParam(name = "project", value = "Project id", required = true) String project,
                                                     @ApiParam(name = "properties", value = "User properties", required = false) List<String> properties) {
 
+        if(storage == null) {
+            throw new RakamException("not implemented", 501);
+        }
         Collection<Object> connectedUsers = webSocketService.getConnectedUsers(project);
         if(properties == null) {
             return CompletableFuture.completedFuture(connectedUsers.stream()

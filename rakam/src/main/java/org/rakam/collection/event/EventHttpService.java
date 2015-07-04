@@ -124,7 +124,7 @@ public class EventHttpService extends HttpService {
                 request.response("json couldn't parsed", BAD_REQUEST).end();
                 return;
             } catch (Exception e) {
-                request.response(e.getMessage(), BAD_REQUEST).end();
+                request.response(e.toString(), BAD_REQUEST).end();
                 return;
             }
             boolean eventProcessed = processEvent(event);

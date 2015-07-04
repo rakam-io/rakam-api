@@ -249,24 +249,14 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         }
     }
 
-    private long getUserId(Object userId) {
-        if (userId instanceof String) {
-            return Long.parseLong((String) userId);
-        } else if (userId instanceof Number) {
-            return ((Number) userId).longValue();
-        } else {
-            throw new IllegalArgumentException();
-        }
-    }
-
     @Override
-    public CompletableFuture<org.rakam.plugin.user.User> getUser(String project, Object userId) {
+    public CompletableFuture<org.rakam.plugin.user.User> getUser(String project, String userId) {
         checkProject(project);
 
-        return queryExecutor.executeRawQuery(format("select * from %s.%s where %s = %d", project, USER_TABLE, PRIMARY_KEY, getUserId(userId)))
+        return queryExecutor.executeRawQuery(format("select * from %s.%s where %s = %d", project, USER_TABLE, PRIMARY_KEY, Long.parseLong(userId)))
                 .getResult().thenApply(result -> {
                     HashMap<String, Object> properties = Maps.newHashMap();
-                    if(result.getResult().isEmpty()) {
+                    if (result.getResult().isEmpty()) {
                         return null;
                     }
                     List<Object> objects = result.getResult().get(0);
@@ -290,7 +280,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public void setUserProperty(String project, Object user, String property, Object value) {
+    public void setUserProperty(String project, String userId, String property, Object value) {
         checkProject(project);
         checkTableColumn(property, "user property");
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
@@ -306,7 +296,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
             PreparedStatement statement = conn.prepareStatement("update " + project + "." + USER_TABLE + " set " + property +
                     " = ? where " + PRIMARY_KEY + " = ?");
             statement.setObject(1, value);
-            statement.setLong(2, getUserId(user));
+            statement.setLong(2, Long.parseLong(userId));
             statement.executeUpdate();
         } catch (SQLException e) {
             throw Throwables.propagate(e);

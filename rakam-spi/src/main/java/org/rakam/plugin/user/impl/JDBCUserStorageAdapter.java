@@ -200,7 +200,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public CompletableFuture<User> getUser(String project, Object userId) {
+    public CompletableFuture<User> getUser(String project, String userId) {
         String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
 
         // TODO: fix
@@ -218,7 +218,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public void setUserProperty(String project, Object user, String property, Object value) {
+    public void setUserProperty(String project, String user, String property, Object value) {
         Optional<Column> any = getMetadata(project).stream().filter(column -> column.getName().equals(property)).findAny();
         if(!any.isPresent()) {
             throw new NoSuchElementException("column is not exist");

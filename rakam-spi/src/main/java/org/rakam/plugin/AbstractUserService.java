@@ -40,7 +40,7 @@ public abstract class AbstractUserService {
         return storage.getUser(project, user);
     }
 
-    public void setUserProperty(String project, Object user, String property, Object value) {
+    public void setUserProperty(String project, String user, String property, Object value) {
         storage.setUserProperty(project, user, property, value);
     }
 

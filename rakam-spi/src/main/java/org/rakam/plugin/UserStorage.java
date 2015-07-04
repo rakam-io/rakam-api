@@ -21,8 +21,8 @@ public interface UserStorage {
     public Object create(String project, Map<String, Object> properties);
     public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
     public List<Column> getMetadata(String project);
-    public CompletableFuture<User> getUser(String project, Object userId);
-    void setUserProperty(String project, Object user, String property, Object value);
+    public CompletableFuture<User> getUser(String project, String userId);
+    void setUserProperty(String project, String user, String property, Object value);
     void createProject(String project);
 
     public static class Sorting {

@@ -88,7 +88,6 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
     @Override
     public void store(Event event) {
-        // TODO: find a way to make it zero-copy
         DatumWriter writer = new GenericDatumWriter(event.properties().getSchema());
         KByteArrayOutputStream out = buffer.get();
 
@@ -102,6 +101,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
         }
 
         int endPosition = out.position();
+        // TODO: find a way to make it zero-copy
         byte[] copy = out.copy(startPosition, endPosition);
 
         if(out.remaining() < 1000) {

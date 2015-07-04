@@ -56,7 +56,7 @@ public class ReportHttpService extends HttpService {
             authorizations = @Authorization(value = "api_key", type = "api_key")
     )
     @Path("/analyze")
-    public JsonResponse analyze(@ParamBody String query) {
+    public JsonResponse analyze(@ApiParam(name="query", value = "query", required = true) String query) {
         return JsonResponse.success();
     }
 

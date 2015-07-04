@@ -1,6 +1,7 @@
 package org.rakam.util;
 
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -71,5 +72,10 @@ public class KByteArrayOutputStream extends OutputStream {
 
     public int remaining() {
         return buf.length - position;
+    }
+
+    public ByteBuffer getBuffer(int startPosition, int endPosition) {
+        return ByteBuffer.wrap(buf, startPosition, endPosition);
+
     }
 }

@@ -172,9 +172,9 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/set_property")
     public JsonResponse setUserProperty(@ApiParam(name = "project", required = true) String project,
-                                        @ApiParam(name = "user", required = true) Object user,
+                                        @ApiParam(name = "user", required = true) String user,
                                         @ApiParam(name = "property", required = true) String property,
-                                        @ApiParam(name = "value", required = true) Object value) {
+                                        @ApiParam(name = "value", required = true) String value) {
         if(service == null) {
             throw new RakamException("user service is not available.", 501);
         }

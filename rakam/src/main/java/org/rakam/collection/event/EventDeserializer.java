@@ -167,7 +167,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     List<Schema.Field> avroFields = copyFields(avroSchema.getFields());
                     newFields.stream()
                             .filter(f -> !avroFields.stream().anyMatch(af -> af.name().equals(f.getName())))
-                            .map(this::generateAvroSchema).forEach(x -> avroFields.add(x));
+                            .map(EventDeserializer::generateAvroSchema).forEach(x -> avroFields.add(x));
 
                     avroSchema = Schema.createRecord("collection", null, null, false);
                     avroSchema.setFields(avroFields);
@@ -222,16 +222,16 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         fields.add(newField);
     }
 
-    private Schema convertAvroSchema(List<SchemaField> fields) {
+    public static Schema convertAvroSchema(List<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()
-                .map(this::generateAvroSchema).collect(Collectors.toList());
+                .map(EventDeserializer::generateAvroSchema).collect(Collectors.toList());
 
         Schema schema = Schema.createRecord("collection", null, null, false);
         schema.setFields(avroFields);
         return schema;
     }
 
-    private Schema.Field generateAvroSchema(SchemaField field) {
+    private static Schema.Field generateAvroSchema(SchemaField field) {
             Schema es;
             if (field.isNullable()) {
                 es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
@@ -242,7 +242,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             }
     }
 
-    private Schema getAvroSchema(FieldType type) {
+    private static Schema getAvroSchema(FieldType type) {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);
