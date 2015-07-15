@@ -51,7 +51,7 @@ public class RakamUIModule extends RakamModule {
 
         if(uri.getScheme().equals("file")) {
             directory = new File(uri.getHost(), uri.getPath());
-        }else {
+        } else {
             if (!UI_DIRECTORY.exists()) {
                 UI_DIRECTORY.mkdirs();
 

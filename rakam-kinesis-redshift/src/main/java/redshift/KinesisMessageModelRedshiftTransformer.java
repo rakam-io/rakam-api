@@ -15,7 +15,6 @@
 package redshift;
 
 import com.amazonaws.services.kinesis.connectors.KinesisConnectorConfiguration;
-import com.amazonaws.services.kinesis.connectors.redshift.RedshiftTransformer;
 import com.amazonaws.services.kinesis.model.Record;
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
@@ -29,63 +28,67 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.util.Tuple;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.apache.avro.Schema.Type.NULL;
 
-public class KinesisMessageModelRedshiftTransformer extends RedshiftTransformer<Event> {
+public class KinesisMessageModelRedshiftTransformer {
     private final char delim;
     private final Metastore metastore;
-    private final String collection;
-    private final String project;
+    private Map<Tuple<String, String>, Schema> schemaCache;
 
     /**
      * Creates a new KinesisMessageModelRedshiftTransformer.
-     * 
+     *
      * @param config The configuration containing the Amazon Redshift data delimiter
      */
     public KinesisMessageModelRedshiftTransformer(Metastore metastore, KinesisConnectorConfiguration config) {
-        super(Event.class);
         this.metastore = metastore;
         delim = config.REDSHIFT_DATA_DELIMITER;
-        String[] projectCollection = config.KINESIS_INPUT_STREAM.split("_", 2);
-        this.project = projectCollection[0];
-        this.collection = projectCollection[1];
+        schemaCache = new ConcurrentHashMap<>();
     }
 
-    @Override
-    public Event toClass(Record record) throws IOException {
+    public void clearSchemaCache() {
+        schemaCache.clear();
+    }
+
+    public Event fromClass(Record record) throws IOException {
+        ByteBuffer data = record.getData();
+        byte[] projectBytes = new byte[readInt(data)];
+        data.get(projectBytes);
+
+        byte[] collectionBytes = new byte[readInt(data)];
+        data.get(collectionBytes);
+
+        String project = new String(projectBytes);
+        String collection = new String(collectionBytes);
+
+        Schema avroSchema = schemaCache.get(new Tuple<>(project, collection));
+        if(avroSchema == null) {
+            avroSchema = updateAndGetSchema(project, collection);
+        }
+
+        GenericRecord avroRecord = new GenericData.Record(avroSchema);
+        BinaryDecoder binaryDecoder = DecoderFactory.get().binaryDecoder(data.array(), data.position(), data.remaining(), null);
+        new DynamicDatumReader<>(avroSchema).read(avroRecord, binaryDecoder);
+        return Event.create(project, collection, avroRecord);
+    }
+
+    private Schema updateAndGetSchema(String project, String collection) {
         List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
         if(rakamSchema == null) {
             throw new IllegalStateException("metadata server screwed up");
         }
         Schema avroSchema = convertAvroSchema(rakamSchema);
-        GenericRecord avroRecord = new GenericData.Record(avroSchema);
-        BinaryDecoder binaryDecoder = DecoderFactory.get().binaryDecoder(record.getData().array(), null);
-        new DynamicDatumReader<>(avroSchema).read(avroRecord, binaryDecoder);
-        return Event.create(project, record.getPartitionKey(), avroRecord);
-    }
-
-    @Override
-    public String toDelimitedString(Event record) {
-        GenericRecord properties = record.properties();
-        int size = properties.getSchema().getFields().size() - 1;
-        StringBuilder b = new StringBuilder();
-
-        for (int i = 0; i < size; i++) {
-            Object obj = properties.get(i);
-            if(obj != null) {
-                b.append(obj);
-            }
-            b.append(delim);
-        }
-        b.append(properties.get(size))
-                .append("\n");
-
-        return b.toString();
+        schemaCache.put(new Tuple<>(project, collection), avroSchema);
+        return avroSchema;
     }
 
     private static Schema.Field generateAvroSchema(SchemaField field) {
@@ -129,6 +132,31 @@ public class KinesisMessageModelRedshiftTransformer extends RedshiftTransformer<
             default:
                 throw new IllegalStateException();
         }
+    }
+
+    private static int readInt(ByteBuffer buffer) throws IOException {
+        int b = buffer.get() & 0xff;
+        int n = b & 0x7f;
+        if (b > 0x7f) {
+            b = buffer.get() & 0xff;
+            n ^= (b & 0x7f) << 7;
+            if (b > 0x7f) {
+                b = buffer.get() & 0xff;
+                n ^= (b & 0x7f) << 14;
+                if (b > 0x7f) {
+                    b = buffer.get() & 0xff;
+                    n ^= (b & 0x7f) << 21;
+                    if (b > 0x7f) {
+                        b = buffer.get() & 0xff;
+                        n ^= (b & 0x7f) << 28;
+                        if (b > 0x7f) {
+                            throw new IOException("Invalid int encoding");
+                        }
+                    }
+                }
+            }
+        }
+        return (n >>> 1) ^ -(n & 1); // back to two's-complement
     }
 
 }

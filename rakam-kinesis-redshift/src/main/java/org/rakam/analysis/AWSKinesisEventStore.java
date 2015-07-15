@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
@@ -13,13 +12,16 @@ import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
-import redshift.KinesisUtils;
+
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/07/15 06:47.
  */
 public class AWSKinesisEventStore implements EventStore {
     private final AmazonKinesisClient kinesis;
+    private final AWSConfig config;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
@@ -32,6 +34,29 @@ public class AWSKinesisEventStore implements EventStore {
     public AWSKinesisEventStore(AWSConfig config) {
         AWSCredentials credentials = new BasicAWSCredentials(config.getAccessKey(), config.getSecretAccessKey());
         this.kinesis = new AmazonKinesisClient(credentials);
+        this.config = config;
+    }
+
+    public static void encodeInt(int n, OutputStream out) throws IOException {
+        // move sign to low-order bit, and flip others if negative
+        n = (n << 1) ^ (n >> 31);
+        if ((n & ~0x7F) != 0) {
+            out.write((n | 0x80) & 0xFF);
+            n >>>= 7;
+            if (n > 0x7F) {
+                out.write((n | 0x80) & 0xFF);
+                n >>>= 7;
+                if (n > 0x7F) {
+                    out.write((n | 0x80) & 0xFF);
+                    n >>>= 7;
+                    if (n > 0x7F) {
+                        out.write((n | 0x80) & 0xFF);
+                        n >>>= 7;
+                    }
+                }
+            }
+        }
+        out.write(n);
     }
 
     @Override
@@ -42,7 +67,15 @@ public class AWSKinesisEventStore implements EventStore {
         int startPosition = out.position();
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
 
+        byte[] project = event.project().getBytes();
+        byte[] collection = event.collection().getBytes();
+
         try {
+            encodeInt(project.length, out);
+            out.write(project);
+            encodeInt(collection.length, out);
+            out.write(collection);
+
             writer.write(event.properties(), encoder);
         } catch (Exception e) {
             throw new RuntimeException("Couldn't serialize event", e);
@@ -56,16 +89,9 @@ public class AWSKinesisEventStore implements EventStore {
         }
 
         try {
-            kinesis.putRecord(event.project()+"_"+event.collection(), out.getBuffer(startPosition, endPosition - startPosition),
+            kinesis.putRecord(config.getKinesisStream(), out.getBuffer(startPosition, endPosition - startPosition),
                     Integer.toString(((int) Math.random()*100)));
         } catch (ResourceNotFoundException e) {
-            KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, event.project()+"_"+event.collection(), 2);
-            try {
-                kinesis.putRecord(event.project(), out.getBuffer(startPosition, endPosition), event.collection());
-            } catch (AmazonClientException e1) {
-                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-            }
-        }catch (RuntimeException e) {
             throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
         }
     }

@@ -29,7 +29,7 @@ public class MaterializedView {
     @ApiParam(name = "table_name", value="The table name of the materialized view that can be used when querying", required = true)
     public final String table_name;
     @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true)
-    public final Statement query;
+    public final String query;
     @ApiParam(name = "options", value="Additional information about the materialized view", required = false)
     public final Map<String, Object> options;
     @ApiParam(name = "update_interval", value="", required = false)
@@ -47,16 +47,20 @@ public class MaterializedView {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
         this.table_name = checkNotNull(table_name, "table_name is required");
-        synchronized (SQL_PARSER) {
-            this.query = SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
-        }
+        this.query = checkNotNull(query, "query is required");
         this.options = options;
         this.updateInterval = updateInterval;
+    }
 
-        checkState(this.query instanceof Query, "Expression is not query");
-        checkState((!((Query) this.query).getLimit().isPresent()),
+    public void validateQuery() {
+        Statement query;
+        synchronized (SQL_PARSER) {
+            query = SQL_PARSER.createStatement(this.query);
+        }
+        checkState(query instanceof Query, "Expression is not query");
+        checkState((!((Query) query).getLimit().isPresent()),
                 "The query of materialized view can't contain LIMIT statement");
-        checkState(!(((QuerySpecification) ((Query) this.query).getQueryBody()).getLimit().isPresent()),
+        checkState(!(((QuerySpecification) ((Query) query).getQueryBody()).getLimit().isPresent()),
                 "The query of materialized view can't contain LIMIT statement");
         checkArgument(this.table_name.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "table_name must only contain alphanumeric characters and _");

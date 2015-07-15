@@ -149,6 +149,9 @@ public class GeoIPEventMapper implements EventMapper {
             return;
         }
 
+//        countryLookup.isp()
+//        countryLookup.connectionType()
+
         Country country = response.getCountry();
 
         for (String attribute : attributes) {

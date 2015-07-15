@@ -40,6 +40,13 @@ public abstract class RakamModule implements ConfigurationAwareModule {
         return configurationFactory.build(configClass);
     }
 
+    protected synchronized String getConfig(String config)
+    {
+        String value = configurationFactory.getProperties().get(config);
+        configurationFactory.consumeProperty(config);
+        return value;
+    }
+
     protected synchronized <T> T buildConfigObject(Class<T> configClass, String prefix)
     {
         ConfigurationModule.bindConfig(binder).prefixedWith(prefix).to(configClass);

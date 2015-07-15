@@ -10,7 +10,7 @@ import java.util.List;
  * Created by buremba <Burak Emre Kabakcı> on 21/07/14 05:21.
  */
 public interface QueryMetadataStore {
-    public void saveMaterializedView(MaterializedView materializedView);
+    public void createMaterializedView(MaterializedView materializedView);
 
     public void deleteMaterializedView(String project, String name);
 

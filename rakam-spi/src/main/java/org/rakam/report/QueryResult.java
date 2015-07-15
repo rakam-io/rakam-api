@@ -1,6 +1,7 @@
 package org.rakam.report;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.google.common.base.Joiner;
 import org.rakam.collection.SchemaField;
 
 import java.util.HashMap;
@@ -62,5 +63,38 @@ public class QueryResult {
 
     public List<? extends SchemaField> getMetadata() {
         return metadata;
+    }
+
+    @Override
+    public String toString() {
+        return "QueryResult{" +
+                (error == null ? "" : "error=" + error) +
+                ", result=" + Joiner.on(", ").join(result) +
+                ", metadata=" + metadata +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof QueryResult)) return false;
+
+        QueryResult result1 = (QueryResult) o;
+
+        if (error != null ? !error.equals(result1.error) : result1.error != null) return false;
+        if (metadata != null ? !metadata.equals(result1.metadata) : result1.metadata != null) return false;
+        if (properties != null ? !properties.equals(result1.properties) : result1.properties != null) return false;
+        if (result != null ? !result.equals(result1.result) : result1.result != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result1 = metadata != null ? metadata.hashCode() : 0;
+        result1 = 31 * result1 + (result != null ? result.hashCode() : 0);
+        result1 = 31 * result1 + (error != null ? error.hashCode() : 0);
+        result1 = 31 * result1 + (properties != null ? properties.hashCode() : 0);
+        return result1;
     }
 }

@@ -9,6 +9,7 @@ import com.amazonaws.services.kinesis.connectors.UnmodifiableBuffer;
 import com.amazonaws.services.kinesis.connectors.interfaces.IEmitter;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -77,7 +78,7 @@ public class RedshiftManifestEmitter implements IEmitter<Record> {
     private static final String MANIFEST_PREFIX = "_manifests/";
 
     public RedshiftManifestEmitter(KinesisConnectorConfiguration configuration) {
-        fileTable = configuration.REDSHIFT_FILE_TABLE;
+        fileTable = "public.files";
         fileKeyColumn = configuration.REDSHIFT_FILE_KEY_COLUMN;
         dataDelimiter = configuration.REDSHIFT_DATA_DELIMITER;
         copyMandatory = configuration.REDSHIFT_COPY_MANDATORY;
@@ -105,10 +106,10 @@ public class RedshiftManifestEmitter implements IEmitter<Record> {
             String project = projectCollection[0];
             String collection = projectCollection[1];
             Connection conn = null;
-            List<String> files = records.stream().map(record -> project + "/" + collection + "/" + record)
+            List<String> files = records.stream().map(record -> project + "/" + collection + "/" + new String(record.getData().array()))
                     .collect(Collectors.toList());
 
-            String manifestFileName = getManifestFile(files);
+            String manifestFileName = getManifestFile(project, collection, files);
             // Copy to Amazon Redshift using manifest file
             try {
                 conn = DriverManager.getConnection(redshiftURL, loginProps);
@@ -122,7 +123,7 @@ public class RedshiftManifestEmitter implements IEmitter<Record> {
                 }
 
                 if (deduplicatedRecords.size() != records.size()) {
-                    manifestFileName = getManifestFile(deduplicatedRecords);
+                    manifestFileName = getManifestFile(project, collection, deduplicatedRecords);
                 }
                 // Write manifest file to Amazon S3
                 try {
@@ -139,7 +140,7 @@ public class RedshiftManifestEmitter implements IEmitter<Record> {
                 conn.commit();
                 LOGGER.info("Successful Amazon Redshift manifest copy of " + getNumberOfCopiedRecords(conn) + " records from "
                         + deduplicatedRecords.size() + " files using manifest s3://" + s3Bucket + "/"
-                        + getManifestFile(files));
+                        + manifestFileName);
                 closeConnection(conn);
                 s3Client.deleteObject(s3Bucket, manifestFileName);
             } catch (SQLException | IOException e) {
@@ -155,6 +156,13 @@ public class RedshiftManifestEmitter implements IEmitter<Record> {
             }
         }
         return fails;
+    }
+
+    private String getManifestFile(String project, String collection, List<String> records) {
+        String[] firstSequence = records.get(0).split("/", 2);
+        String[] lastSequence = records.get(records.size() - 1).split("/", 2);
+        return MANIFEST_PREFIX + project + "/" + collection + "/" + firstSequence[firstSequence.length-1] + "-" + lastSequence[lastSequence.length-1];
+
     }
 
     private void rollbackAndCloseConnection(Connection conn) {
@@ -197,7 +205,9 @@ public class RedshiftManifestEmitter implements IEmitter<Record> {
         // upload generated manifest file
         PutObjectRequest putObjectRequest =
                 new PutObjectRequest(s3Bucket, fileName, new ByteArrayInputStream(fileContents.getBytes()), null);
-        s3Client.putObject(putObjectRequest);
+        ObjectMetadata objectMetadata = new ObjectMetadata();
+        objectMetadata.setContentLength(fileContents.length());
+        s3Client.putObject(putObjectRequest.withMetadata(objectMetadata));
         return fileName;
     }
 
@@ -368,17 +378,6 @@ public class RedshiftManifestEmitter implements IEmitter<Record> {
         s.append(append);
         return s.toString();
     }
-
-    /**
-     * Manifest file is named in the format manifests/{firstFileName}-{lastFileName}
-     *
-     * @param records
-     * @return Manifest file name
-     */
-    private String getManifestFile(List<String> records) {
-        return MANIFEST_PREFIX + records.get(0) + "-" + records.get(records.size() - 1);
-    }
-
     /**
      * Format for Amazon Redshift Manifest File:
      *

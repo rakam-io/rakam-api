@@ -41,7 +41,6 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
-import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.convert;
 
 /**
@@ -68,10 +67,10 @@ public class RealTimeHttpService extends HttpService {
     }
 
     /**
-     * Creates realtime report using continuous queries.
+     * Creates real-time report using continuous queries.
      * This module adds a new attribute called 'time' to events, it's simply a unix epoch that represents the seconds the event is occurred.
      * Continuous query continuously aggregates 'time' column and
-     * realtime module executes queries on continuous query table similar to 'select count from stream_count where time > now() - interval 5 second'
+     * real-time module executes queries on continuous query table similar to 'select count from stream_count where time > now() - interval 5 second'
      *
      * curl 'http://localhost:9999/realtime/create' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection", "aggregation": "COUNT"}'
      */
@@ -227,11 +226,11 @@ public class RealTimeHttpService extends HttpService {
      * curl 'http://localhost:9999/realtime/list' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId"}'
      */
     @JsonRequest
-    @ApiOperation(value = "List realtime reports")
+    @ApiOperation(value = "List real-time reports")
     @Path("/list")
-    public Object list(@ApiParam(name="project", required = true) String project) {
+    public List<RealTimeReport> list(@ApiParam(name="project", required = true) String project) {
         if (project == null) {
-            return errorMessage("project parameter is required", 400);
+            throw new RakamException("project parameter is required", 400);
         }
         return service.list(project).stream()
                 .filter(report -> report.options != null && Objects.equals(report.options.get("type"), "realtime"))

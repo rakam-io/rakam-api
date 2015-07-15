@@ -40,4 +40,26 @@ public class SchemaField {
                 ", nullable=" + nullable +
                 '}';
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof SchemaField)) return false;
+
+        SchemaField that = (SchemaField) o;
+
+        if (nullable != that.nullable) return false;
+        if (!name.equals(that.name)) return false;
+        if (type != that.type) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name.hashCode();
+        result = 31 * result + type.hashCode();
+        result = 31 * result + (nullable ? 1 : 0);
+        return result;
+    }
 }

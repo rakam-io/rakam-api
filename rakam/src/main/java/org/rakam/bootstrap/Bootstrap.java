@@ -166,10 +166,11 @@ public class Bootstrap
             ConditionalModule annotation = module.getClass().getAnnotation(ConditionalModule.class);
             if(annotation != null) {
                 String value = configurationFactory.getProperties().get(annotation.config());
-                if(!annotation.value().equals(value)) {
-                    continue;
-                }else{
+                String annValue = annotation.value();
+                if(annValue.isEmpty() || annValue.equals(value)) {
                     configurationFactory.consumeProperty(annotation.config());
+                } else{
+                   continue;
                 }
             }
             if (module instanceof ConfigurationAwareModule) {

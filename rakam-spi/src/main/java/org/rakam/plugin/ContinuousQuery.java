@@ -55,7 +55,10 @@ public class ContinuousQuery {
     }
 
     public void validateQuery(String query) throws ParsingException, IllegalArgumentException {
-        Query statement = (Query) SQL_PARSER.createStatement(query);
+        Query statement;
+        synchronized (this) {
+            statement = (Query) SQL_PARSER.createStatement(query);
+        }
 
         QueryBody queryBody = statement.getQueryBody();
         // it's ugly and seems complex but actually can be expressed simply by naming variables and
@@ -66,8 +69,8 @@ public class ContinuousQuery {
                 !((QuerySpecification) queryBody).getFrom().isPresent() ||
                 !(((QuerySpecification) queryBody).getFrom().get() instanceof Table) ||
                 !((Table) ((QuerySpecification) queryBody).getFrom().get()).getName().getParts().equals(ImmutableList.of("stream"))) {
-            throw new IllegalArgumentException("The FROM part of the query must be 'stream' for continuous queries. " +
-                    "Example: 'SELECT count(1) FROM stream GROUP BY country''");
+//            throw new IllegalArgumentException("The FROM part of the query must be 'stream' for continuous queries. " +
+//                    "Example: 'SELECT count(1) FROM stream GROUP BY country''");
         }
 
         if (statement.getLimit().isPresent()) {

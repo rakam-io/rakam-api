@@ -14,7 +14,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public abstract class ContinuousQueryService {
 
-    private final QueryMetadataStore database;
+    protected final QueryMetadataStore database;
 
     public ContinuousQueryService(QueryMetadataStore database) {
         this.database = database;

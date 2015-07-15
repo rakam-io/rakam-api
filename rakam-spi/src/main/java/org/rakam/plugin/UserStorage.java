@@ -66,12 +66,6 @@ public interface UserStorage {
         public final Expression filterExpression;
         public final EventFilterAggregation aggregation;
 
-        public EventFilter(String collection, Expression filterExpression, EventFilterAggregation aggregation) {
-            this.collection = collection;
-            this.filterExpression = filterExpression;
-            this.aggregation = aggregation;
-        }
-
         @JsonCreator
         public EventFilter(@JsonProperty("collection") String collection,
                            @JsonProperty("filter") String filterExpression,
@@ -90,6 +84,7 @@ public interface UserStorage {
             }
             this.aggregation = aggregation;
         }
+
     }
 
     public static enum AggregationType {

@@ -1,0 +1,78 @@
+strategy: template
+continuous_queries:
+  - name: Pageviews
+    table_name: pageviews
+    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+
+materialized_queries:
+  - name: Pageviews
+    table_name: pageviews
+    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+
+reports:
+  - name: Pageviews
+    slug: pageviews
+    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+    options:
+      chart_type: line
+      dimensions:
+        - time
+      measures:
+        - count
+      variables:
+        time:
+          type: date-range
+          default: last_day
+collections:
+  pageView:
+    columns:
+      - url:
+          type: string
+      - device_id:
+          type: string
+      - _user:
+          type: string
+      - _time:
+          type: string
+      - session_id:
+          type: string
+      - platform:
+          type: string
+      - referrer_url:
+          type: string
+      - user_agent:
+          type: string
+      - timezone:
+          type: string
+      - browser_language:
+          type: string
+      - resolution:
+          type: string
+      - ip:
+          type: string
+      - os_name:
+          type: string
+      - os_version:
+          type: string
+      - device_model:
+          type: string
+      - language:
+          type: string
+  revenue:
+    columns:
+      - product_id:
+          type: string
+      - _user:
+          type: string
+      - _time:
+          type: string
+      - quantity:
+          type: string
+      - price:
+          type: string
+  firstVisit:
+    columns:
+      - _user:
+          type: string
+      - _time:
+          type: string

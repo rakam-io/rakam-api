@@ -12,6 +12,7 @@ public class AWSConfig {
     private String s3Bucket;
     private String streamName;
     private String kinesisCollectionStreamPrefix;
+    private String kinesisStream;
 
     @Config("aws.access_key")
     public AWSConfig setAccessKey(String accessKey) {
@@ -23,6 +24,10 @@ public class AWSConfig {
     public AWSConfig setManifestStreamName(String streamName) {
         this.streamName = streamName;
         return this;
+    }
+
+    public String getKinesisStream() {
+        return kinesisStream;
     }
 
     public String getManifestStreamName() {
@@ -40,6 +45,14 @@ public class AWSConfig {
         this.s3Bucket = S3Bucket;
         return this;
     }
+
+    @Config("aws.event.kinesis.stream")
+    public AWSConfig setKinesisStream(String kinesisStream) {
+        this.kinesisStream = kinesisStream;
+        return this;
+    }
+
+
 
     public String getS3Bucket() {
         return s3Bucket;

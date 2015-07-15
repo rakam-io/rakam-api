@@ -16,10 +16,10 @@ import com.amazonaws.services.kinesis.connectors.interfaces.IKinesisConnectorPip
 import com.amazonaws.services.kinesis.connectors.interfaces.ITransformer;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import io.airlift.units.Duration;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.util.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 03/07/15 08:27.
@@ -47,14 +46,16 @@ public class KinesisStreamWorkerManager {
 
     private final Metastore metastore;
     private final AWSConfig config;
-    private final Map<Tuple<String, String>, S3ManifestConnectorExecutor> workers;
+    private final Map<Tuple<String, String>, Thread> workers;
     private final ExecutorService executorService;
     private final AmazonKinesisClient kinesisClient;
+    private final ContinuousQueryService continuousQueryService;
     private final RedshiftConfig redshiftConfig;
     private ScheduledExecutorService scheduler = null;
 
     @Inject
-    public KinesisStreamWorkerManager(AWSConfig config, RedshiftConfig redshiftConfig, Metastore metastore) {
+    public KinesisStreamWorkerManager(AWSConfig config, RedshiftConfig redshiftConfig, Metastore metastore, ContinuousQueryService continuousQueryService) {
+        this.continuousQueryService = continuousQueryService;
         this.workers = new HashMap<>();
         this.config = config;
         this.redshiftConfig = redshiftConfig;
@@ -65,6 +66,7 @@ public class KinesisStreamWorkerManager {
         this.kinesisClient = new AmazonKinesisClient(credentialProvider);
         S3Utils.createBucket(new AmazonS3Client(credentialProvider), config.getS3Bucket());
         KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesisClient, config.getManifestStreamName(), 1);
+        KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesisClient, config.getKinesisStream(), 1);
 
     }
 
@@ -79,9 +81,7 @@ public class KinesisStreamWorkerManager {
         if(scheduler != null) {
             throw new IllegalStateException("workers are already initialized");
         }
-        scheduler = Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("stream-discovery").build());
-        scheduler.scheduleAtFixedRate(this::createWorkers, 0, 10, TimeUnit.SECONDS);
+        createWorker();
     }
 
     @PreDestroy()
@@ -90,35 +90,20 @@ public class KinesisStreamWorkerManager {
         scheduler.shutdown();
     }
 
-    private void createWorkers() {
-        metastore.getAllCollections().forEach((project, collections) -> collections.stream().filter(collection -> !workers.containsKey(new Tuple(project, collection))).forEach(collection -> {
-            S3ManifestConnectorExecutor value;
-            try {
-                value = new S3ManifestConnectorExecutor(config, metastore, project+"_"+collection, config.getS3Bucket() + "/" + project+"/"+collection);
-            } catch (Exception e) {
-                LOGGER.error("Error creating Kinesis stream worker", e);
-                return;
-            }
-            LOGGER.info("Created Kinesis stream worker for collection {} of project {}", project, collection);
+    private void createWorker() {
 
-            workers.put(new Tuple(project, collection), value);
-            executorService.execute(() -> {
-                try {
-                    value.run();
-                } catch (Exception e) {
-                    LOGGER.error("An error occurred while processing messages in Kinesis stream.", e);
-                }
-            });
-            RedshiftManifestExecutor redshiftExecutor = new RedshiftManifestExecutor(config, redshiftConfig);
+        Thread value;
+        try {
+            value = new Thread(new S3ManifestConnectorExecutor(config, metastore, config.getKinesisStream(), continuousQueryService, config.getS3Bucket()));
+        } catch (Exception e) {
+            LOGGER.error("Error creating Kinesis stream worker", e);
+            return;
+        }
+        LOGGER.info("Created Kinesis stream worker.");
+        value.start();
 
-            executorService.execute(() -> {
-                try {
-                    redshiftExecutor.run();
-                } catch (Exception e) {
-                    LOGGER.error("An error occurred while processing messages in Kinesis stream.", e);
-                }
-            });
-        }));
+        Thread redshiftExecutor = new Thread(new RedshiftManifestExecutor(config, redshiftConfig));
+        redshiftExecutor.start();
     }
 
 
@@ -171,7 +156,6 @@ public class KinesisStreamWorkerManager {
         @Override
         public IEmitter<Record> getEmitter(KinesisConnectorConfiguration configuration) {
             Properties properties = new Properties();
-            properties.setProperty(KinesisConnectorConfiguration.PROP_REDSHIFT_FILE_TABLE, "public.file");
             properties.setProperty(KinesisConnectorConfiguration.PROP_REDSHIFT_DATA_DELIMITER, "|");
             properties.setProperty(KinesisConnectorConfiguration.PROP_REDSHIFT_URL, redshiftConfig.getUrl());
             properties.setProperty(KinesisConnectorConfiguration.PROP_REDSHIFT_USERNAME, redshiftConfig.getUsername());

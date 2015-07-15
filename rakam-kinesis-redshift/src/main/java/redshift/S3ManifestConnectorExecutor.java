@@ -17,16 +17,17 @@ package redshift;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.internal.StaticCredentialsProvider;
+import com.amazonaws.services.kinesis.clientlibrary.interfaces.IRecordProcessorFactory;
 import com.amazonaws.services.kinesis.connectors.KinesisConnectorConfiguration;
-import com.amazonaws.services.kinesis.connectors.KinesisConnectorExecutorBase;
-import com.amazonaws.services.kinesis.connectors.KinesisConnectorRecordProcessorFactory;
 import com.amazonaws.services.s3.AmazonS3Client;
 import io.airlift.units.Duration;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.rakam.analysis.AWSConfig;
-import org.rakam.collection.Event;
+import org.rakam.analysis.AWSKinesisConsumer;
+import org.rakam.analysis.KinesisExecutorBase;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.plugin.ContinuousQueryService;
 
 import java.util.Properties;
 
@@ -34,26 +35,28 @@ import java.util.Properties;
  * This class defines the execution of a Amazon Kinesis Connector.
  * 
  */
-public class S3ManifestConnectorExecutor extends KinesisConnectorExecutorBase<Event, byte[]> {
+public class S3ManifestConnectorExecutor extends KinesisExecutorBase {
     private static final Log LOG = LogFactory.getLog(S3ManifestConnectorExecutor.class);
 
     protected final KinesisConnectorConfiguration config;
+    private final ContinuousQueryService continuousQueryService;
     private final Properties properties;
     private final AWSConfig AWSConfig;
     private final Metastore metastore;
     private final String s3Bucket;
 
-    public S3ManifestConnectorExecutor(AWSConfig config, Metastore metastore, String kinesisStream, String s3Bucket) {
+    public S3ManifestConnectorExecutor(AWSConfig config, Metastore metastore, String kinesisStream, ContinuousQueryService continuousQueryService, String s3Bucket) {
         this.AWSConfig = config;
         this.metastore = metastore;
+        this.continuousQueryService = continuousQueryService;
         this.s3Bucket = s3Bucket;
 
         properties = new Properties();
         properties.setProperty(KinesisConnectorConfiguration.PROP_APP_NAME, "rakam-kinesis-consumer-"+kinesisStream);
-        properties.setProperty(KinesisConnectorConfiguration.PROP_BUFFER_BYTE_SIZE_LIMIT, Integer.toString(1024 * 1024 * 50));
+        properties.setProperty(KinesisConnectorConfiguration.PROP_BUFFER_BYTE_SIZE_LIMIT, Integer.toString(1024 * 50));
         properties.setProperty(KinesisConnectorConfiguration.PROP_KINESIS_OUTPUT_STREAM, config.getManifestStreamName());
         properties.setProperty(KinesisConnectorConfiguration.PROP_KINESIS_INPUT_STREAM, kinesisStream);
-        properties.setProperty(KinesisConnectorConfiguration.PROP_BUFFER_RECORD_COUNT_LIMIT, Integer.toString(10000));
+        properties.setProperty(KinesisConnectorConfiguration.PROP_BUFFER_RECORD_COUNT_LIMIT, Integer.toString(100));
         properties.setProperty(KinesisConnectorConfiguration.PROP_BUFFER_MILLISECONDS_LIMIT, Long.toString(Duration.valueOf("1m").toMillis()));
         properties.setProperty(KinesisConnectorConfiguration.PROP_S3_BUCKET, s3Bucket);
 
@@ -97,11 +100,11 @@ public class S3ManifestConnectorExecutor extends KinesisConnectorExecutorBase<Ev
         AmazonS3Client client = new AmazonS3Client(config.AWS_CREDENTIALS_PROVIDER);
         client.setEndpoint(config.S3_ENDPOINT);
         LOG.info("Creating Amazon S3 bucket " + s3Bucket);
-        S3Utils.createBucket(client, s3Bucket.substring(0, s3Bucket.indexOf("/")));
+        S3Utils.createBucket(client, s3Bucket);
     }
 
     @Override
-    public KinesisConnectorRecordProcessorFactory<Event, byte[]> getKinesisConnectorRecordProcessorFactory() {
-        return new KinesisConnectorRecordProcessorFactory(new S3ManifestPipeline(metastore), config);
+    public IRecordProcessorFactory getKinesisConnectorRecordProcessorFactory() {
+        return () -> new AWSKinesisConsumer(config, continuousQueryService, metastore);
     }
 }

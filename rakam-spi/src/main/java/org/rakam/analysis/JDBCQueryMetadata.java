@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -88,12 +87,12 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     @Override
-    public void saveMaterializedView(MaterializedView materializedView) {
+    public void createMaterializedView(MaterializedView materializedView) {
         dao.createStatement("INSERT INTO materialized_views (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
                 .bind("project", materializedView.project)
                 .bind("name", materializedView.name)
                 .bind("table_name", materializedView.table_name)
-                .bind("query", RakamSqlFormatter.formatSql(materializedView.query))
+                .bind("query", materializedView.query)
                 .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
         .bind("options", JsonHelper.encode(materializedView.options, false))
                 .execute();
