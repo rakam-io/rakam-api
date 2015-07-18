@@ -31,6 +31,7 @@ import org.rakam.config.PluginConfig;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
+import org.rakam.plugin.EventStream;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.UserHttpService;
@@ -163,6 +164,7 @@ public class ServiceStarter {
             Multibinder.newSetBinder(binder, EventProcessor.class);
             Multibinder.newSetBinder(binder, EventMapper.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
+            OptionalBinder.newOptionalBinder(binder, EventStream.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 

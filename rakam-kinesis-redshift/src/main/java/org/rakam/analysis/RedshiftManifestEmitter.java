@@ -13,7 +13,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import redshift.RedshiftUtils;
+import org.rakam.analysis.util.aws.RedshiftUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

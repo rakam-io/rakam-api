@@ -2,7 +2,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.junit.Test;
-import org.rakam.analysis.DynamoDBContinuousQueryService;
+import org.rakam.analysis.stream.RakamContinuousQueryService;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.analysis.stream.StreamingEmitter;
 import org.rakam.collection.Event;
@@ -29,7 +29,7 @@ import static java.util.Collections.unmodifiableList;
 public class ContinuousQueryTest {
     @Test
     public void testTest() throws IOException {
-        DynamoDBContinuousQueryService service = new DynamoDBContinuousQueryService(new QueryMetadataStore() {
+        RakamContinuousQueryService service = new RakamContinuousQueryService(new QueryMetadataStore() {
             @Override
             public void createMaterializedView(MaterializedView materializedView) {
 

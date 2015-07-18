@@ -13,8 +13,7 @@ import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
-import java.io.IOException;
-import java.io.OutputStream;
+import static org.rakam.analysis.util.SerializationHelper.encodeInt;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/07/15 06:47.
@@ -35,28 +34,6 @@ public class AWSKinesisEventStore implements EventStore {
         AWSCredentials credentials = new BasicAWSCredentials(config.getAccessKey(), config.getSecretAccessKey());
         this.kinesis = new AmazonKinesisClient(credentials);
         this.config = config;
-    }
-
-    public static void encodeInt(int n, OutputStream out) throws IOException {
-        // move sign to low-order bit, and flip others if negative
-        n = (n << 1) ^ (n >> 31);
-        if ((n & ~0x7F) != 0) {
-            out.write((n | 0x80) & 0xFF);
-            n >>>= 7;
-            if (n > 0x7F) {
-                out.write((n | 0x80) & 0xFF);
-                n >>>= 7;
-                if (n > 0x7F) {
-                    out.write((n | 0x80) & 0xFF);
-                    n >>>= 7;
-                    if (n > 0x7F) {
-                        out.write((n | 0x80) & 0xFF);
-                        n >>>= 7;
-                    }
-                }
-            }
-        }
-        out.write(n);
     }
 
     @Override

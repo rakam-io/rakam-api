@@ -17,6 +17,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
+import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -68,7 +69,11 @@ public class MaterializedViewHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
     public List<Schema> schema(@ApiParam(name="project", required = true) String project) {
-        return service.getSchemas(project).entrySet().stream()
+        Map<String, List<SchemaField>> schemas = service.getSchemas(project);
+        if(schemas == null) {
+            throw new RakamException("project does not exist", 404);
+        }
+        return schemas.entrySet().stream()
                     .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new Schema(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toList());

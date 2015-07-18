@@ -49,7 +49,7 @@ class SinkOperatorFactory implements OperatorFactory {
 
             @Override
             public void finish() {
-                finished.set(true);;
+                finished.set(true);
             }
 
             @Override

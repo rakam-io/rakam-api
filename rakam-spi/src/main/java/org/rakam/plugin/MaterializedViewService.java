@@ -53,7 +53,7 @@ public abstract class MaterializedViewService {
         return database.getMaterializedView(project, name);
     }
 
-    public abstract Map<String, List<SchemaField>> getSchemas(String s);
+    public abstract Map<String, List<SchemaField>> getSchemas(String project);
 
     public QueryExecution update(MaterializedView materializedView) {
         if(materializedView.lastUpdate!=null) {

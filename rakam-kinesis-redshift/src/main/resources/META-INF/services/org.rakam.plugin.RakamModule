@@ -1,2 +1,2 @@
-RedshiftModule
-AWSKinesisModule
+org.rakam.aws.RedshiftModule
+org.rakam.aws.AWSKinesisModule

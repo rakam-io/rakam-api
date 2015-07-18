@@ -41,13 +41,11 @@ public class S3ManifestEmitter implements IEmitter<Event> {
     private static final Log LOG = LogFactory.getLog(S3ManifestEmitter.class);
     private final AmazonKinesisClient kinesisClient;
     private final String manifestStream;
-    private final String inputStream;
     private final AmazonS3Client s3client;
     private final String s3Bucket;
 
     public S3ManifestEmitter(KinesisConnectorConfiguration configuration) {
         manifestStream = configuration.KINESIS_OUTPUT_STREAM;
-        inputStream = configuration.KINESIS_INPUT_STREAM;
         s3Bucket = configuration.S3_BUCKET;
         s3client = new AmazonS3Client(configuration.AWS_CREDENTIALS_PROVIDER);
 

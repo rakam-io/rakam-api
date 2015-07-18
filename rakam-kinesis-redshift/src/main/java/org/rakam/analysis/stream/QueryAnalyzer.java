@@ -46,7 +46,7 @@ import com.facebook.presto.sql.planner.SubPlan;
 import com.facebook.presto.sql.planner.optimizations.PlanOptimizer;
 import com.facebook.presto.sql.tree.Statement;
 import com.google.common.collect.ImmutableList;
-import org.apache.avro.generic.GenericRecord;
+import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
 
 import java.util.ArrayList;
@@ -93,28 +93,25 @@ public class QueryAnalyzer
     public QueryAnalyzer()
     {
         this.metadataManager.addConnectorMetadata("stream", "stream", connectorMetadata);
-        this.splitManager.addConnectorSplitManager("stream", new MyConnectorSplitManager());
+        this.splitManager.addConnectorSplitManager("stream", new SingleNodeConnectorSplitManager());
         this.planOptimizersFactory =
                 new PlanOptimizersFactory(metadataManager, sqlParser, splitManager, new IndexManager(), new FeaturesConfig(), true);
         List<PlanOptimizer> planOptimizers = new ArrayList<>(planOptimizersFactory.get());
-        planOptimizers.add(new StreamPlanOptimizer(metadataManager));
+        planOptimizers.add(new IntermediateQueryOptimizer(metadataManager));
         this.logicalPlanner = new LogicalPlanner(session, planOptimizers, idAllocator, metadataManager);
     }
 
-    public Session getSession() {
+    public static Session getSession() {
         return session;
     }
 
-    public ContinuousQueryExecutor planPartial(String sql, List<GenericRecord> records, List<SchemaField> columns, Consumer<Page> sink) {
+    public ContinuousQueryExecutor executeIntermediate(String sql, Iterable<Event> records, List<SchemaField> columns, Consumer<Page> sink) {
         LocalExecutionPlanner.LocalExecutionPlan plan1 = plan(sql, (split, cols) -> {
             checkNotNull(cols, "columns is null");
-            return new RecordPageSource(new MyRecordSet(cols, records));
+            return new RecordPageSource(new EventRecordSet(cols, records));
         }, columns, (operatorId, sourceType) ->
                 new SinkOperatorFactory(sourceType, operatorId, sink));
-        return getExecutor(plan1);
-    }
 
-    public ContinuousQueryExecutor getExecutor(LocalExecutionPlanner.LocalExecutionPlan plan1) {
         ExecutorService executorService = Executors.newFixedThreadPool(1);
         Executor executor = command -> executorService.execute(command);
         PipelineContext pipelineContext = new PipelineContext(new TaskContext(new TaskId("0"), executor, session), executor, false, false);
@@ -124,7 +121,7 @@ public class QueryAnalyzer
         return new ContinuousQueryExecutor(collect);
     }
 
-    public synchronized LocalExecutionPlanner.LocalExecutionPlan plan(String sql, ConnectorPageSourceProvider connectorPageSourceProvider, List<SchemaField> columns, OutputFactory outputFactory) {
+    private synchronized LocalExecutionPlanner.LocalExecutionPlan plan(String sql, ConnectorPageSourceProvider connectorPageSourceProvider, List<SchemaField> columns, OutputFactory outputFactory) {
         connectorMetadata.setContext(new QueryContext().setColumns(columns));
         Statement statement = sqlParser.createStatement(sql);
         Analysis analysis = analyzer.analyze(statement);
@@ -192,7 +189,7 @@ public class QueryAnalyzer
         return metadataManager;
     }
 
-    public static class MyConnectorSplitManager implements ConnectorSplitManager {
+    public static class SingleNodeConnectorSplitManager implements ConnectorSplitManager {
         @Override
         public ConnectorPartitionResult getPartitions(ConnectorTableHandle table, TupleDomain<ConnectorColumnHandle> tupleDomain) {
             return new ConnectorPartitionResult(ImmutableList.of(new ConnectorPartition() {

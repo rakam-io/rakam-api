@@ -32,7 +32,7 @@ public class ContinuousQueryExecutor {
     }
 
     public void execute() {
-        ConnectorSplit connectorSplit = new MyConnectorSplit();
+        ConnectorSplit connectorSplit = new DummyConnectorSplit();
         ((SourceOperator) operators.get(0)).addSplit(new Split("stream", connectorSplit));
         try {
             for (int i = 0; i < operators.size() - 1; i++) {
@@ -81,7 +81,7 @@ public class ContinuousQueryExecutor {
         }
     }
 
-    private static class MyConnectorSplit implements ConnectorSplit {
+    private static class DummyConnectorSplit implements ConnectorSplit {
         @Override
         public boolean isRemotelyAccessible() {
             throw new UnsupportedOperationException();

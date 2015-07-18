@@ -18,6 +18,7 @@ import org.rakam.util.RakamException;
 
 import javax.ws.rs.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -79,7 +80,11 @@ public class ContinuousQueryHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
     public List<Collection> schema(@ApiParam(name="project", required = true) String project) {
-        return service.getSchemas(project).entrySet().stream()
+        Map<String, List<SchemaField>> schemas = service.getSchemas(project);
+        if(schemas == null) {
+            throw new RakamException("project does not exist", 404);
+        }
+        return schemas.entrySet().stream()
                     // ignore system tables
                     .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new Collection(entry.getKey(), entry.getValue()))
