@@ -12,7 +12,7 @@ import java.io.InputStream;
 public class RecipeConfigTest {
     @Test
     public void test() throws IOException {
-        InputStream io = getClass().getResource("ecommerce_test.yml").openStream();
+        InputStream io = getClass().getResourceAsStream("recipes/ecommerce_test.yml");
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         Recipe recipe = mapper.readValue(io, Recipe.class);
 

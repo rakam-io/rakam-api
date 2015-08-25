@@ -9,7 +9,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.collection.FieldType;
-import org.rakam.plugin.Column;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
@@ -53,7 +53,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
     private final JDBCUserStorageConfig config;
     private final UserPluginConfig moduleConfig;
     private final JDBCConfig jdbcConfig;
-    private List<Column> metadata;
+    private List<SchemaField> metadata;
     Handle dao;
 
     ResultSetMapper<List<Object>> mapper = new ResultSetMapper<List<Object>>() {
@@ -71,7 +71,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
         @Override
         public User map(int index, ResultSet r, StatementContext ctx) throws SQLException {
             HashMap<String, Object> properties = new HashMap<>();
-            for (Column column : getMetadata("project")) {
+            for (SchemaField column : getMetadata("project")) {
                 properties.put(column.getName(), r.getObject(column.getName()));
             }
             return new User(null, r.getString(1), properties);
@@ -126,7 +126,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
             filterQuery = null;
         }
 
-        List<Column> projectColumns = getMetadata(project);
+        List<SchemaField> projectColumns = getMetadata(project);
         String columns = Joiner.on(", ").join(projectColumns.stream().map(col -> col.getName()).toArray());
         String where = filterQuery == null || filterQuery.isEmpty() ? "" : " WHERE " + filterQuery;
 
@@ -161,10 +161,10 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public List<Column> getMetadata(String project) {
+    public List<SchemaField> getMetadata(String project) {
 
         if (metadata == null) {
-            LinkedList<Column> columns = new LinkedList<>();
+            LinkedList<SchemaField> columns = new LinkedList<>();
 
             try(Connection conn = getConnection()) {
                 DatabaseMetaData metaData = conn.getMetaData();
@@ -187,7 +187,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
                     } catch (IllegalStateException e) {
                         continue;
                     }
-                    columns.add(new Column(columnName, fieldType, uniqueColumns.indexOf(columnName) > -1));
+                    columns.add(new SchemaField(columnName, fieldType, null, uniqueColumns.indexOf(columnName) > -1, null, null, null));
                 }
 
             } catch (SQLException e) {
@@ -210,7 +210,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
                 moduleConfig.getIdentifierColumn(),
                 userId)).map((index, r, ctx) -> {
             HashMap<String, Object> properties = new HashMap<>();
-            for (Column column : getMetadata(project)) {
+            for (SchemaField column : getMetadata(project)) {
                 properties.put(column.getName(), r.getObject(column.getName()));
             }
             return new User(project, userId, properties);
@@ -219,11 +219,11 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
     @Override
     public void setUserProperty(String project, String user, String property, Object value) {
-        Optional<Column> any = getMetadata(project).stream().filter(column -> column.getName().equals(property)).findAny();
+        Optional<SchemaField> any = getMetadata(project).stream().filter(column -> column.getName().equals(property)).findAny();
         if(!any.isPresent()) {
             throw new NoSuchElementException("column is not exist");
         }
-        Column column = any.get();
+        SchemaField column = any.get();
 
         Update statement = dao.createStatement(String.format("UPDATE %s SET %s = :value WHERE %s = %s",
                 jdbcConfig.getTable(),

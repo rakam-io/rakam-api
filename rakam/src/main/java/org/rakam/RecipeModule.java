@@ -4,10 +4,13 @@ import com.facebook.presto.hive.$internal.com.google.common.base.Throwables;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.service.AutoService;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.event.metastore.Metastore;
@@ -22,79 +25,90 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 15/07/15 12:29.
  */
 @AutoService(RakamModule.class)
-@ConditionalModule(config = "recipe")
+@ConditionalModule(config = "recipes")
 public class RecipeModule extends RakamModule {
-
-    private final QueryMetadataStore queryMetadataStore;
-    private final Metastore metastore;
-
-    @Inject
-    public RecipeModule(Metastore metastore, QueryMetadataStore queryMetadataStore) {
-        this.metastore = metastore;
-        this.queryMetadataStore = queryMetadataStore;
-    }
 
     @Override
     protected void setup(Binder binder) {
-        String recipeConfig = getConfig("recipe");
+        RecipeConfig recipes = buildConfigObject(RecipeConfig.class);
 
-        URI recipeUri;
-        try {
-            recipeUri = new URI(recipeConfig);
-        } catch (URISyntaxException e) {
-            throw Throwables.propagate(new InvalidConfigurationException("The value of 'recipe' config must be an URI."));
-        }
+        boolean set_default = false;
+        for (String recipeConfig : recipes.getRecipes()) {
+            URI recipeUri;
+            try {
+                recipeUri = new URI(recipeConfig);
+            } catch (URISyntaxException e) {
+                throw Throwables.propagate(new InvalidConfigurationException("The value of 'recipe' config must be an URI."));
+            }
 
-        InputStream stream;
-        switch (recipeUri.getScheme()) {
-            case "file":
-                try {
-                    stream = new FileInputStream(recipeUri.getPath());
-                } catch (FileNotFoundException e) {
-                    throw Throwables.propagate(e);
-                }
-                break;
-            case "http":
-            case "https":
-                try {
-                    stream = recipeUri.toURL().openStream();
-                } catch (IOException e) {
-                    binder.addError("The value of 'recipe' property '%s' is not an URL");
+            String path = "/" + recipeUri.getHost() + recipeUri.getPath();
+            InputStream stream;
+            switch (recipeUri.getScheme()) {
+                case "file":
+                    try {
+                        stream = new FileInputStream(path);
+                    } catch (FileNotFoundException e) {
+                        throw Throwables.propagate(e);
+                    }
+                    break;
+                case "resources":
+                    stream = getClass().getResourceAsStream(path);
+                    if(stream == null) {
+                        throw new IllegalArgumentException("Recipe file couldn't found: "+recipeUri);
+                    }
+                    break;
+                case "http":
+                case "https":
+                    try {
+                        stream = recipeUri.toURL().openStream();
+                    } catch (IOException e) {
+                        binder.addError("The value of 'recipe' property '%s' is not an URL");
+                        return;
+                    }
+                    break;
+                default:
+                    binder.addError("The scheme of 'recipe' %s is not valid", recipeConfig, recipeUri.getScheme());
                     return;
-                }
-                break;
-            default:
-                binder.addError("The scheme of 'recipe' %s is not valid", recipeConfig, recipeUri.getScheme());
+            }
+
+            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+            Recipe recipe;
+            try {
+                recipe = mapper.readValue(stream, Recipe.class);
+            } catch (IOException e) {
+                binder.addError("'recipes' file %s couldn't parsed: %s", recipeConfig, e.getMessage());
                 return;
-        }
+            }
 
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        Recipe recipe;
-        try {
-            recipe = mapper.readValue(stream, Recipe.class);
-        } catch (IOException e) {
-            binder.addError("'recipe' file %s couldn't parsed: %s", recipeConfig, e.getMessage());
-            return;
-        }
+            switch (recipe.getStrategy()) {
+                case DEFAULT:
+                    if(set_default) {
+                        binder.addError("Only one recipe can use DEFAULT strategy.");
+                        return;
+                    }
+                    binder.bind(Recipe.class).toInstance(recipe);
+                    Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
+                    events.addBinding().to(RecipeLoader.class).in(Scopes.SINGLETON);
+                    set_default = true;
+                    break;
+                case SPECIFIC:
+                    Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
+                    hooks.addBinding().toInstance(new RecipeLoaderSingle(recipe));
+//                    Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
+//                    hooks.addBinding().toInstance(new RecipeLoaderSingle(recipe));
+//                    new RecipeLoader(recipe)
+//                            .onCreateProject(recipe.project());
+                    break;
+                default:
+                    throw new IllegalStateException();
 
-        binder.bind(Recipe.class).toInstance(recipe);
-
-        switch (recipe.getStrategy()) {
-            case DEFAULT:
-                Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
-                events.addBinding().to(RecipeLoader.class).in(Scopes.SINGLETON);
-                break;
-            case SPECIFIC:
-                new RecipeLoader(recipe, metastore, queryMetadataStore).onCreateProject(recipe.getProject());
-                break;
-            default:
-                throw new IllegalStateException();
-
+            }
         }
     }
 
@@ -133,19 +147,63 @@ public class RecipeModule extends RakamModule {
 
                 recipe.getContinuousQueryBuilders().stream()
                         .map(builder -> builder.createContinuousQuery(project))
-                        .forEach(continuousQuery -> {
-                            queryMetadataStore.createContinuousQuery(continuousQuery);
-                        });
+                        .forEach(continuousQuery ->
+                                queryMetadataStore.createContinuousQuery(continuousQuery));
 
                 recipe.getMaterializedViewBuilders().stream()
                         .map(builder -> builder.createMaterializedView(project))
-                        .forEach(continuousQuery -> {
-                            queryMetadataStore.createMaterializedView(continuousQuery);
-                        });
+                        .forEach(continuousQuery ->
+                                queryMetadataStore.createMaterializedView(continuousQuery));
+
+                recipe.getReports().stream().forEach(reportBuilder ->  {
+                    reportBuilder.createReport(project);
+                });
             });
         }
 
     }
 
+    public static class RecipeConfig {
 
+        private List<String> recipes;
+
+        @Config("recipes")
+        public RecipeConfig setRecipes(String recipes) {
+            this.recipes = ImmutableList.copyOf(Splitter.on(',')
+                    .omitEmptyStrings().trimResults()
+                    .split(recipes));
+            return this;
+        }
+
+        public List<String> getRecipes() {
+            return recipes;
+        }
+    }
+
+    public static class RecipeLoaderSingle implements InjectionHook {
+
+        private final Recipe recipe;
+        private Metastore metastore;
+        private QueryMetadataStore queryMetadataStore;
+
+        public RecipeLoaderSingle(Recipe recipe) {
+            this.recipe = recipe;
+        }
+
+        @Inject
+        public void setMetastore(Metastore metastore) {
+            this.metastore = metastore;
+        }
+
+        @Inject
+        public void setQueryMetadataStore(QueryMetadataStore queryMetadataStore) {
+            this.queryMetadataStore = queryMetadataStore;
+        }
+
+        @Override
+        public void call() {
+            new RecipeLoader(recipe, metastore, queryMetadataStore)
+                    .onCreateProject(recipe.getProject());
+        }
+    }
 }

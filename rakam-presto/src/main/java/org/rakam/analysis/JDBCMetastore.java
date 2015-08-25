@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.facebook.presto.hive.$internal.com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -19,10 +20,13 @@ import org.skife.jdbi.v2.Query;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Singleton
 public class JDBCMetastore implements Metastore {
@@ -58,10 +62,10 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public Map<String, List<String>> getAllCollections() {
+    public Map<String, Collection<String>> getAllCollections() {
         Query<Map<String, Object>> bind = dao.createQuery("SELECT project, collection from collection_schema");
 
-        Map<String, List<String>> table = Maps.newHashMap();
+        Map<String, Collection<String>> table = Maps.newHashMap();
         bind.forEach(row ->
                 table.computeIfAbsent((String) row.get("project"),
                         (key) -> Lists.newArrayList()).add((String) row.get("collection")));
@@ -78,6 +82,15 @@ public class JDBCMetastore implements Metastore {
         bind.forEach(row ->
                 table.put((String) row.get("collection"), Arrays.asList(JsonHelper.read((String) row.get("schema"), SchemaField[].class))));
         return table;
+    }
+
+    @Override
+    public Set<String> getCollectionNames(String project) {
+        Query<Map<String, Object>> bind = dao.createQuery("SELECT collection from collection_schema WHERE project = :project")
+                .bind("project", project);
+
+        return bind.list().stream().map(row ->
+                (String) row.get("collection")).collect(Collectors.toSet());
     }
 
     @Override
@@ -101,8 +114,10 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public List<String> getProjects() {
-        return null;
+    public Set<String> getProjects() {
+        return ImmutableSet.copyOf(
+                dao.createQuery("select distinct project from collection_schema")
+                        .map((index, r, ctx) -> r.getString(1)).iterator());
     }
 
     @Override

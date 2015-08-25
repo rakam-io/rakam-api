@@ -19,6 +19,7 @@ import org.rakam.plugin.JDBCConfig;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 
 import java.util.List;
 
@@ -44,14 +45,22 @@ public class JDBCCustomReportMetadata {
                 "  report_type VARCHAR(255) NOT NULL," +
                 "  project VARCHAR(255) NOT NULL," +
                 "  name VARCHAR(255) NOT NULL," +
-                "  data TEXT NOT NULL" +
-                "  PRIMARY KEY (report_type, project)" +
+                "  data TEXT NOT NULL," +
+                "  PRIMARY KEY (report_type, project, name)" +
                 "  )")
                 .execute();
+        try {
+            dao.createStatement("CREATE INDEX report_type_idx ON custom_reports(report_type, project)")
+                    .execute();
+        } catch (UnableToExecuteStatementException e) {
+            // IF NOT EXIST feature is not supported by majority of RDBMSs.
+            // Since this INDEX is optional, swallow exception
+            // since the exception is probably about duplicate indexes.
+        }
     }
 
     public void addReport(CustomReport report) {
-        dao.createStatement("INSERT INTO custom_reports (report_type, project, name, date) VALUES (:reportType, :project, :name, :date)")
+        dao.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
                 .bind("reportType", report.reportType)
                 .bind("project", report.project)
                 .bind("name", report.name)
@@ -75,5 +84,12 @@ public class JDBCCustomReportMetadata {
                 .map((i, resultSet, statementContext) -> {
                     return new CustomReport(reportType, project, resultSet.getString(1), JsonHelper.read(resultSet.getString(2)));
                 }).list();
+    }
+
+    public void delete(String reportType, String project, String name) {
+        dao.createStatement("DELETE FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name)")
+                .bind("reportType", reportType)
+                .bind("project", project)
+                .bind("name", name).execute();
     }
 }

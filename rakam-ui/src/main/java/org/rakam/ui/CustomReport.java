@@ -13,8 +13,27 @@
  */
 package org.rakam.ui;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 23/08/15 18:55.
  */
 public class CustomReport {
+    public final String reportType;
+    public final String project;
+    public final String name;
+    public final JsonNode data;
+
+    @JsonCreator
+    public CustomReport(@JsonProperty("report_type") String reportType,
+                        @JsonProperty("project") String project,
+                        @JsonProperty("name") String name,
+                        @JsonProperty("data") JsonNode data) {
+        this.reportType = reportType;
+        this.project = project;
+        this.name = name;
+        this.data = data;
+    }
 }

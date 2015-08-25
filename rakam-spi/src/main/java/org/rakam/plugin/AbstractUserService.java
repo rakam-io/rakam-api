@@ -3,6 +3,7 @@ package org.rakam.plugin;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
 import org.rakam.report.QueryResult;
 
@@ -28,7 +29,7 @@ public abstract class AbstractUserService {
         storage.createProject(project);
     }
 
-    public List<Column> getMetadata(String project) {
+    public List<SchemaField> getMetadata(String project) {
         return storage.getMetadata(project);
     }
 

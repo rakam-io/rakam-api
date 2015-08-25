@@ -8,5 +8,5 @@ import org.rakam.collection.event.FieldDependencyBuilder;
  */
 public interface EventMapper {
     void map(Event event);
-    public void addFieldDependency(FieldDependencyBuilder builder);
+    void addFieldDependency(FieldDependencyBuilder builder);
 }

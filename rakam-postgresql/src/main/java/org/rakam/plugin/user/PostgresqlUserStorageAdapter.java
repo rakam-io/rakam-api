@@ -12,7 +12,6 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.Column;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
@@ -37,6 +36,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
+import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -129,7 +129,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     @Override
     public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset) {
         checkProject(project);
-        List<Column> projectColumns = getMetadata(project);
+        List<SchemaField> projectColumns = getMetadata(project);
         String columns = Joiner.on(", ").join(projectColumns.stream().map(col -> col.getName()).toArray());
 
         LinkedList<String> filters = new LinkedList<>();
@@ -153,7 +153,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                         builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.filterExpression, null));
                     }
                     String field;
-                    if (filter.aggregation.type == AggregationType.COUNT && filter.aggregation.field == null) {
+                    if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
                         field = "user";
                     } else {
                         field = filter.aggregation.field;
@@ -218,9 +218,9 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public List<Column> getMetadata(String project) {
+    public List<SchemaField> getMetadata(String project) {
         checkProject(project);
-        LinkedList<Column> columns = new LinkedList<>();
+        LinkedList<SchemaField> columns = new LinkedList<>();
 
         try (Connection conn = queryExecutor.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
@@ -240,7 +240,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 } catch (IllegalStateException e) {
                     continue;
                 }
-                columns.add(new Column(columnName, fieldType, uniqueColumns.indexOf(columnName) > -1));
+                columns.add(new SchemaField(columnName, fieldType, uniqueColumns.indexOf(columnName) > -1));
             }
             return columns;
 

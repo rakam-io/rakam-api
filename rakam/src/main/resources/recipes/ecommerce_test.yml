@@ -1,4 +1,4 @@
-strategy: template
+strategy: default
 continuous_queries:
   - name: Pageviews
     table_name: pageviews
@@ -38,10 +38,12 @@ collections:
           type: string
       - platform:
           type: string
+          category: Technology
       - referrer_url:
           type: string
       - user_agent:
           type: string
+          category: Technology
       - timezone:
           type: string
       - browser_language:
@@ -50,14 +52,19 @@ collections:
           type: string
       - ip:
           type: string
+          category: User Information
       - os_name:
           type: string
+          category: Technology
       - os_version:
           type: string
+          category: Technology
       - device_model:
           type: string
+          category: Technology
       - language:
           type: string
+          category: User Information
   revenue:
     columns:
       - product_id:

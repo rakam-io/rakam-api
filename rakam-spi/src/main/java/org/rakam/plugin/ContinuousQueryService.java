@@ -21,7 +21,7 @@ public abstract class ContinuousQueryService {
     }
 
     public abstract CompletableFuture<QueryResult> create(ContinuousQuery report);
-    public abstract CompletableFuture<QueryResult> delete(String project, String name);
+    public abstract CompletableFuture<Boolean> delete(String project, String name);
 
     public List<ContinuousQuery> list(String project) {
         return database.getContinuousQueries(project);

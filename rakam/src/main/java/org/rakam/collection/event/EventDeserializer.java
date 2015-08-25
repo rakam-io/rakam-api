@@ -1,5 +1,6 @@
 package org.rakam.collection.event;
 
+import com.facebook.presto.hive.$internal.com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
@@ -61,6 +62,40 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
 
         this.moduleFields = builder.build();
+        checkExistingEvents();
+    }
+
+    private void checkExistingEvents() {
+        schemaRegistry.getProjects().forEach(project ->
+                schemaRegistry.getCollections(project).forEach((collection, fields) -> {
+            List<SchemaField> collect = moduleFields.constantFields.stream()
+                    .filter(constant ->
+                            !fields.stream()
+                                    .anyMatch(existing -> check(constant, existing))).collect(Collectors.toList());
+
+            fields.forEach(field -> moduleFields.dependentFields.getOrDefault(field.getName(), ImmutableList.of()).stream()
+                    .filter(dependentField -> !fields.stream()
+                            .anyMatch(existing -> check(dependentField, existing)))
+                    .forEach(collect::add));
+
+            if(!collect.isEmpty()) {
+                try {
+                    schemaRegistry.createOrGetCollectionField(project, collection, collect);
+                } catch (ProjectNotExistsException e) {
+                    throw Throwables.propagate(e);
+                }
+            }
+        }));
+    }
+
+    private boolean check(SchemaField existing, SchemaField moduleField) {
+        if(existing.getName().equals(moduleField.getName())) {
+            if (!existing.getType().equals(moduleField.getType())) {
+                throw new IllegalStateException("Module field "+existing.getName()+" type does not match existing field in event");
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override

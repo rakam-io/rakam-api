@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 * Created by buremba <Burak Emre Kabakcı> on 28/07/15 00:55.
 */
 class InMemoryMetastore implements Metastore {
-    Map<String, Map<String, List<SchemaField>>> collections = new HashMap<>();
+    private final Map<String, Map<String, List<SchemaField>>> collections = new HashMap<>();
 
     @Override
     public Map<String, Collection<String>> getAllCollections() {
@@ -30,6 +30,11 @@ class InMemoryMetastore implements Metastore {
     @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
         return collections.get(project);
+    }
+
+    @Override
+    public Set<String> getCollectionNames(String project) {
+        return collections.get(project).keySet();
     }
 
     @Override

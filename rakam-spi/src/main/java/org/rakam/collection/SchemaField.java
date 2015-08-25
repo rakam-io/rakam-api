@@ -2,6 +2,7 @@ package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 10/03/15 03:40.
@@ -9,27 +10,75 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class SchemaField {
     private final String name;
     private final FieldType type;
-    private final boolean nullable;
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
+    private final Boolean nullable;
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
+    private final Boolean unique;
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
+    private final String description;
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
+    private final String descriptiveName;
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
+    private final String category;
 
     @JsonCreator
     public SchemaField(@JsonProperty("name") String name,
                        @JsonProperty("type") FieldType type,
-                       @JsonProperty("nullable") boolean nullable) {
+                       @JsonProperty("nullable") Boolean nullable,
+                       @JsonProperty("unique") Boolean unique,
+                       @JsonProperty("descriptiveName") String descriptiveName,
+                       @JsonProperty("description") String description,
+                       @JsonProperty("category") String category) {
         this.name = name;
         this.type = type;
         this.nullable = nullable;
+        this.unique = unique;
+        this.descriptiveName = descriptiveName;
+        this.description = description;
+        this.category = category;
     }
 
+    public SchemaField(String name, FieldType type, Boolean nullable) {
+        this(name, type, nullable, null, null, null, null);
+    }
+
+    @JsonProperty
     public String getName() {
         return name;
     }
 
+    @JsonProperty
     public FieldType getType() {
         return type;
     }
 
-    public boolean isNullable() {
+    @JsonProperty
+    public Boolean isUnique() {
+        return unique;
+    }
+
+    @JsonProperty
+    public Boolean isNullable() {
         return nullable;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    @JsonProperty
+    public String getDescriptiveName() {
+        if(descriptiveName == null) {
+            String replace = name.replace("_", " ");
+            return Character.toUpperCase(replace.charAt(0)) + replace.substring(1);
+        }
+        return descriptiveName;
+    }
+
+    @JsonProperty
+    @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
+    public String getDescription() {
+        return description;
     }
 
     @Override

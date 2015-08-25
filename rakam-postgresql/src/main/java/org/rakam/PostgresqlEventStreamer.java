@@ -144,7 +144,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
         if(collection.filter!=null) {
             return collection.filter.accept(new ExpressionFormatter.Formatter() {
                 @Override
-                protected String visitQualifiedNameReference(QualifiedNameReference node, Void context) {
+                protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean context) {
                     List<String> parts = new ArrayList<>();
                     parts.add("NEW.");
                     parts.addAll(node.getName()

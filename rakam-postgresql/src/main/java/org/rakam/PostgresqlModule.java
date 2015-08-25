@@ -3,6 +3,7 @@ package org.rakam;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Singleton;
+import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
 import org.rakam.analysis.JDBCQueryMetadata;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
@@ -20,9 +21,7 @@ import org.rakam.plugin.EventStream;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.PostgresqlUserService;
-import org.rakam.plugin.user.PostgresqlUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
@@ -42,15 +41,12 @@ public class PostgresqlModule extends RakamModule {
         // TODO: implement postgresql specific materialized view service
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Singleton.class);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Singleton.class);
-        binder.bind(ContinuousQueryService.class).to(PostgresqlContinuousQueryService.class).in(Singleton.class);
+        OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class)
+                .setBinding()
+                .to(PostgresqlContinuousQueryService.class).in(Singleton.class);
         binder.bind(EventStream.class).to(PostgresqlEventStream.class).in(Singleton.class);
         binder.bind(AbstractUserService.class).to(PostgresqlUserService.class).in(Singleton.class);
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Singleton.class);
-
-        MetadataConfig metadataConfig = buildConfigObject(MetadataConfig.class);
-        if(metadataConfig.getUserStore() == null || metadataConfig.getUserStore().equals("postgresql")) {
-            binder.bind(UserStorage.class).to(PostgresqlUserStorageAdapter.class).in(Singleton.class);
-        }
 
         JDBCConfig jdbcConfig = new JDBCConfig();
         jdbcConfig.setUrl(format("jdbc:postgresql://%s:%d/%s", config.getHost(), config.getPort(), config.getDatabase()));

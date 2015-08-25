@@ -7,9 +7,11 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.wordnik.swagger.models.Contact;
@@ -22,19 +24,19 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import org.rakam.analysis.ContinuousQueryHttpService;
-import org.rakam.analysis.stream.EventStreamHttpService;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
 import org.rakam.config.PluginConfig;
 import org.rakam.plugin.AbstractUserService;
+import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.UserStorage;
-import org.rakam.plugin.user.UserHttpService;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.MaterializedViewHttpService;
 import org.rakam.report.PrestoConfig;
@@ -98,6 +100,10 @@ public class ServiceStarter {
         app.requireExplicitBindings(false);
 
         Injector injector = app.strictConfig().initialize();
+
+        Set<InjectionHook> hooks = injector.getInstance(
+                Key.get(new TypeLiteral<Set<InjectionHook>>() {}));
+        hooks.forEach(org.rakam.InjectionHook::call);
 
         HttpServerConfig httpConfig = injector.getInstance(HttpServerConfig.class);
 
@@ -163,17 +169,19 @@ public class ServiceStarter {
 
             Multibinder.newSetBinder(binder, EventProcessor.class);
             Multibinder.newSetBinder(binder, EventMapper.class);
+            Multibinder.newSetBinder(binder, InjectionHook.class);
+            Multibinder.newSetBinder(binder, SystemEventListener.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
             OptionalBinder.newOptionalBinder(binder, EventStream.class);
+            OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+            httpServices.addBinding().to(AdminHttpService.class);
             httpServices.addBinding().to(ProjectHttpService.class);
             httpServices.addBinding().to(MaterializedViewHttpService.class);
-            httpServices.addBinding().to(UserHttpService.class);
             httpServices.addBinding().to(EventHttpService.class);
-            httpServices.addBinding().to(EventStreamHttpService.class);
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
 

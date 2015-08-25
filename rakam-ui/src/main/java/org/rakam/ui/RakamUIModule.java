@@ -20,7 +20,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Enumeration;
-import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -117,18 +116,19 @@ public class RakamUIModule extends RakamModule {
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(ReportHttpService.class);
-        File serverDir = new File(directory, Optional.ofNullable(rakamUIConfig.getDirectory()).orElse("/"));
-        httpServices.addBinding().toInstance(new RakamUIWebService(serverDir));
+        httpServices.addBinding().to(CustomReportHttpService.class);
+        httpServices.addBinding().to(CustomPageHttpService.class);
+        httpServices.addBinding().to(RakamUIWebService.class);
     }
 
     @Override
     public String name() {
-        return null;
+        return "Web Interface for Rakam APIs";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Can be used as a BI tool and a tool that allows you to create your customized analytics service frontend.";
     }
 
     public static class RakamUIConfig {
@@ -197,8 +197,6 @@ public class RakamUIModule extends RakamModule {
                 dest.close();
                 is.close();
             }
-
-
         }
     }
 }

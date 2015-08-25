@@ -1,5 +1,7 @@
 package org.rakam.ui;
 
+import com.google.common.base.Throwables;
+import com.google.inject.Inject;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
@@ -20,6 +22,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -27,6 +31,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 
@@ -56,8 +61,17 @@ public class RakamUIWebService extends HttpService {
     public static final int HTTP_CACHE_SECONDS = 60;
     private final File directory;
 
-    public RakamUIWebService(File directory) {
-        this.directory = directory;
+    @Inject
+    public RakamUIWebService(RakamUIModule.RakamUIConfig config) {
+        URI uri;
+        try {
+            uri = new URI(config.getUI());
+        } catch (URISyntaxException e) {
+            throw Throwables.propagate(e);
+        }
+
+        File directory = new File(uri.getHost(), uri.getPath());
+        this.directory = new File(directory, Optional.ofNullable(config.getDirectory()).orElse("/"));
     }
 
     @Path("/*")
@@ -199,7 +213,7 @@ public class RakamUIWebService extends HttpService {
         request.response(response).end();
     }
 
-    private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
+    static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
         SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
 
@@ -212,7 +226,7 @@ public class RakamUIWebService extends HttpService {
         response.headers().set(LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
     }
 
-    private static void setContentTypeHeader(HttpResponse response, File file) {
+    static void setContentTypeHeader(HttpResponse response, File file) {
         MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
         response.headers().set(CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath()));
     }

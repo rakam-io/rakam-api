@@ -1,9 +1,7 @@
 package org.rakam.report;
 
 import com.google.inject.Inject;
-import io.netty.channel.EventLoopGroup;
 import org.rakam.collection.SchemaField;
-import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.server.http.HttpService;
@@ -15,7 +13,6 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
@@ -26,9 +23,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.rakam.report.QueryHttpService.handleQueryExecution;
 import static org.rakam.server.http.HttpServer.errorMessage;
-import static org.rakam.util.JsonHelper.encode;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
@@ -37,11 +32,13 @@ import static org.rakam.util.JsonHelper.encode;
 @Api(value = "/materialized-view", description = "Materialized View", tags = "materialized-view")
 public class MaterializedViewHttpService extends HttpService {
     private final MaterializedViewService service;
-    private EventLoopGroup eventLoopGroup;
+    private final QueryHttpService queryService;
 
     @Inject
-    public MaterializedViewHttpService(MaterializedViewService service) {
-        this.service = service;
+    public MaterializedViewHttpService(MaterializedViewService service, QueryHttpService queryService) {MaterializedViewService service1;
+        service1 = service;
+        this.service = service1;
+        this.queryService = queryService;
     }
 
     /**
@@ -136,18 +133,8 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     public void update(RakamHttpRequest request) {
-        RakamHttpRequest.StreamResponse response = request.streamResponse();
-
-        Map<String, String> params = request.params().entrySet().stream()
-                .collect(Collectors.toMap(k -> k.getKey(), k -> k.getValue().get(0)));
-        MaterializedViewRequest query = JsonHelper.convert(params, MaterializedViewRequest.class);
-
-        if(query.project == null || query.name == null) {
-            response.send("result", encode(errorMessage("request is invalid", 400))).end();
-        }
-
-        QueryExecution update = service.update(service.get(query.project, query.name));
-        handleQueryExecution(eventLoopGroup, response, update);
+        queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
+                query -> service.update(service.get(query.project, query.name)));
     }
 
     public static class MaterializedViewRequest {
@@ -170,8 +157,4 @@ public class MaterializedViewHttpService extends HttpService {
         return service.get(project, name);
     }
 
-    @Inject
-    public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup) {
-        this.eventLoopGroup = eventLoopGroup;
-    }
 }

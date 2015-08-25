@@ -8,7 +8,6 @@ import io.airlift.configuration.Config;
 public class MetadataConfig {
     private String metastore;
     private String eventStore;
-    private String userStore;
     private String reportMetastore;
 
     @Config("event.schema.store")
@@ -39,9 +38,5 @@ public class MetadataConfig {
 
     public String getEventStore() {
         return eventStore;
-    }
-
-    public String getUserStore() {
-        return userStore;
     }
 }

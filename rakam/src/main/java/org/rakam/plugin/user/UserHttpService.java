@@ -3,9 +3,9 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.inject.Inject;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.AbstractUserService.CollectionEvent;
-import org.rakam.plugin.Column;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.UserStorage.Sorting;
@@ -34,6 +34,7 @@ import static java.lang.String.format;
 @Path("/user")
 @Api(value = "/user", description = "User", tags = "user")
 public class UserHttpService extends HttpService {
+    private final static String MODULE_NOT_ACTIVE_MESSAGE = "user service is not available.";
     private final UserPluginConfig config;
     private final SqlParser sqlParser;
     private final AbstractUserService service;
@@ -53,7 +54,7 @@ public class UserHttpService extends HttpService {
     public CreateUserResponse create(@ApiParam(name = "project", required = true) String project,
                                      @ApiParam(name = "properties", required = true) Map<String, Object> properties) {
         if(service == null) {
-            throw new RakamException("user service is not available.", 501);
+            throw new RakamException(MODULE_NOT_ACTIVE_MESSAGE, 501);
         }
         Object o;
         try {
@@ -80,16 +81,16 @@ public class UserHttpService extends HttpService {
     @Path("/metadata")
     public MetadataResponse metadata(@ApiParam(name = "project", required = true) String project) {
         if(service == null) {
-            throw new RakamException("user service is not available.", 501);
+            throw new RakamException(MODULE_NOT_ACTIVE_MESSAGE, 501);
         }
         return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
     }
 
     public static class MetadataResponse {
-        public final List<Column> columns;
+        public final List<SchemaField> columns;
         public final String identifierColumn;
 
-        public MetadataResponse(String identifierColumn, List<Column> columns) {
+        public MetadataResponse(String identifierColumn, List<SchemaField> columns) {
             this.identifierColumn = identifierColumn;
             this.columns = columns;
         }
@@ -110,7 +111,7 @@ public class UserHttpService extends HttpService {
                                                  @ApiParam(name = "offset", required = false) int offset,
                                                  @ApiParam(name = "limit", required = false) int limit) {
         if(service == null) {
-            throw new RakamException("user service is not available.", 501);
+            throw new RakamException(MODULE_NOT_ACTIVE_MESSAGE, 501);
         }
         Expression expression;
         if (filter != null) {
@@ -143,7 +144,7 @@ public class UserHttpService extends HttpService {
                                                                                   @ApiParam(name = "limit", required = false) Integer limit,
                                                                                   @ApiParam(name = "offset", required = false) Long offset) {
         if(service == null) {
-            throw new RakamException("user service is not available.", 501);
+            throw new RakamException(MODULE_NOT_ACTIVE_MESSAGE, 501);
         }
         return service.getEvents(project, user, limit == null ? 15 : limit, offset == null ? 0 : offset);
     }
@@ -160,7 +161,7 @@ public class UserHttpService extends HttpService {
     public CompletableFuture<org.rakam.plugin.user.User> getUser(@ApiParam(name = "project", required = true) String project,
                                                                  @ApiParam(name = "user", required = true) String user) {
         if(service == null) {
-            throw new RakamException("user service is not available.", 501);
+            throw new RakamException(MODULE_NOT_ACTIVE_MESSAGE, 501);
         }
         return service.getUser(project, user);
     }
@@ -176,7 +177,7 @@ public class UserHttpService extends HttpService {
                                         @ApiParam(name = "property", required = true) String property,
                                         @ApiParam(name = "value", required = true) String value) {
         if(service == null) {
-            throw new RakamException("user service is not available.", 501);
+            throw new RakamException(MODULE_NOT_ACTIVE_MESSAGE, 501);
         }
         service.setUserProperty(project, user, property, value);
         return JsonResponse.success();

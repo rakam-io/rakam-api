@@ -21,11 +21,11 @@ public class PostgresqlUserMailboxModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "Postgresql backend for user storage";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Stores user data in Postgresql or connects your existing Postgresql server";
     }
 }

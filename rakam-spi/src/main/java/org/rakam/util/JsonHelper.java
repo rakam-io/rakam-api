@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import com.google.common.base.Throwables;
 
@@ -29,6 +30,7 @@ public class JsonHelper {
 //        simpleModule.addSerializer(new SchemaSerializer());
 //        mapper.registerModule(simpleModule);
         mapper.registerModule(new JSR310Module());
+        mapper.registerModule(new Jdk8Module());
     }
 
     private JsonHelper() {

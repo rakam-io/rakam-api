@@ -1,7 +1,7 @@
 package org.rakam.aws;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -9,17 +9,18 @@ import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.Column;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -50,8 +51,8 @@ public class RedshiftMetastore implements Metastore {
     }
 
     @Override
-    public Map<String, List<String>> getAllCollections() {
-        Map<String, List<String>> map = Maps.newHashMap();
+    public Map<String, Collection<String>> getAllCollections() {
+        Map<String, Collection<String>> map = Maps.newHashMap();
         try(Connection connection = connectionPool.getConnection()) {
             ResultSet dbColumns = connection.getMetaData().getTables("", null, null, null);
             while (dbColumns.next()) {
@@ -60,7 +61,7 @@ public class RedshiftMetastore implements Metastore {
                     continue;
                 }
                 String tableName = dbColumns.getString("TABLE_NAME");
-                List<String> table = map.get(schemaName);
+                Collection<String> table = map.get(schemaName);
                 if(table == null) {
                     table = Lists.newLinkedList();
                     map.put(schemaName, table);
@@ -112,6 +113,28 @@ public class RedshiftMetastore implements Metastore {
     }
 
     @Override
+    public Set<String> getCollectionNames(String project) {
+        checkProject(project);
+
+        HashSet<String> tables = new HashSet<>();
+
+        try(Connection connection = connectionPool.getConnection()) {
+            ResultSet tableRs = connection.getMetaData().getTables("", project, null, new String[]{"TABLE"});
+            while(tableRs.next()) {
+                String tableName = tableRs.getString("table_name");
+
+                if(!tableName.startsWith("_")) {
+                    tables.add(tableName);
+                }
+            }
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+
+        return tables;
+    }
+
+    @Override
     public void createProject(String project) {
         checkProject(project);
         if(project.equals("information_schema")) {
@@ -125,8 +148,8 @@ public class RedshiftMetastore implements Metastore {
     }
 
     @Override
-    public List<String> getProjects() {
-        ImmutableList.Builder<String> builder = ImmutableList.builder();
+    public Set<String> getProjects() {
+        ImmutableSet.Builder<String> builder = ImmutableSet.builder();
         try(Connection connection = connectionPool.getConnection()) {
             ResultSet schemas = connection.getMetaData().getSchemas();
             while(schemas.next()) {
@@ -182,7 +205,7 @@ public class RedshiftMetastore implements Metastore {
             while (columns.next()) {
                 String colName = columns.getString("COLUMN_NAME");
                 strings.add(colName);
-                currentFields.add(new Column(colName, fromSql(columns.getInt("DATA_TYPE")), true));
+                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE")), true));
             }
 
             if(currentFields.size() == 0) {

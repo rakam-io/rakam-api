@@ -13,8 +13,33 @@
  */
 package org.rakam;
 
+import com.google.auto.service.AutoService;
+import com.google.inject.Binder;
+import com.google.inject.multibindings.Multibinder;
+import org.rakam.analysis.FunnelAnalyzerHttpService;
+import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.RakamModule;
+import org.rakam.server.http.HttpService;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 22/08/15 00:25.
  */
-public class FunnelAnalyzerModule {
+@AutoService(RakamModule.class)
+@ConditionalModule(config = "user.funnel-analysis.enabled", value = "true")
+public class FunnelAnalyzerModule extends RakamModule {
+    @Override
+    protected void setup(Binder binder) {
+        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+        httpServices.addBinding().to(FunnelAnalyzerHttpService.class);
+    }
+
+    @Override
+    public String name() {
+        return null;
+    }
+
+    @Override
+    public String description() {
+        return null;
+    }
 }

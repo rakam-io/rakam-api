@@ -26,6 +26,4 @@ public class TimestampEventMapper implements EventMapper {
     public void addFieldDependency(FieldDependencyBuilder builder) {
         builder.addFields(ImmutableList.of(new SchemaField("time", FieldType.LONG, false)));
     }
-
-
 }

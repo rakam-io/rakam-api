@@ -1,16 +1,12 @@
 package org.rakam.aws;
 
 import com.google.inject.Binder;
-import org.rakam.analysis.stream.RakamContinuousQueryService;
+import org.rakam.analysis.RedshiftConfig;
 import org.rakam.analysis.RedshiftMaterializedViewService;
-import org.rakam.analysis.RedshiftQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.ConditionalModule;
-import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.report.QueryExecutor;
-import org.rakam.analysis.RedshiftConfig;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
@@ -24,8 +20,7 @@ public class RedshiftModule extends RakamModule {
         bindConfig(binder).to(RedshiftConfig.class);
         binder.bind(Metastore.class).to(RedshiftMetastore.class);
 
-        binder.bind(QueryExecutor.class).to(RedshiftQueryExecutor.class);
-        binder.bind(ContinuousQueryService.class).to(RakamContinuousQueryService.class);
+//        binder.bind(ContinuousQueryService.class).to(RakamContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(RedshiftMaterializedViewService.class);
     }
 

@@ -30,7 +30,7 @@ public class JDBCUserStorageModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "JDBC backend for ";
     }
 
     @Override

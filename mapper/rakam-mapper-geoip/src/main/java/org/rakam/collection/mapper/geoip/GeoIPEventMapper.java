@@ -188,7 +188,7 @@ public class GeoIPEventMapper implements EventMapper {
                 .collect(Collectors.toList()));
     }
 
-    private FieldType getType(String attr) {
+    private static FieldType getType(String attr) {
         switch (attr) {
             case "country":
             case "countryCode":

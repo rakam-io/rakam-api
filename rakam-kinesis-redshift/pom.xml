@@ -13,14 +13,29 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.3.4</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>amazon-kinesis-client</artifactId>
             <version>1.4.0</version>
         </dependency>
         <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk</artifactId>
+            <version>1.9.37</version>
+        </dependency>
+        <dependency>
             <groupId>com.hazelcast</groupId>
-            <artifactId>hazelcast</artifactId>
+            <artifactId>hazelcast-client</artifactId>
             <version>3.5</version>
+        </dependency>
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>configuration</artifactId>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -40,7 +55,6 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-parser</artifactId>
-            <version>0.97</version>
         </dependency>
         <dependency>
             <groupId>de.javakaffee</groupId>
@@ -50,7 +64,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-main</artifactId>
-            <version>0.97</version>
+            <version>${presto.version}</version>
         </dependency>
         <dependency>
             <groupId>com.esotericsoftware</groupId>
@@ -62,11 +76,6 @@
             <artifactId>rakam-spi</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>amazon-kinesis-connectors</artifactId>
-            <version>1.1.2</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

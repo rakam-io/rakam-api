@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
  * Created by buremba <Burak Emre Kabakcı> on 25/04/15 20:30.
  */
 public class PrestoMaterializedViewService extends MaterializedViewService {
+    public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
+
     private final Metastore metastore;
     private final PrestoQueryExecutor queryExecutor;
 
@@ -42,7 +44,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return list(project).stream()
-                .map(view -> new Tuple<>(view.table_name, metastore.getCollection(project, queryExecutor.MATERIALIZED_VIEW_PREFIX + view.table_name)))
+                .map(view -> new Tuple<>(view.table_name, metastore.getCollection(project, MATERIALIZED_VIEW_PREFIX + view.table_name)))
                 .collect(Collectors.toMap(t -> t.v1(), t -> t.v2()));
     }
 }

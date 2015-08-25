@@ -13,7 +13,7 @@ import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
-import static org.rakam.analysis.util.SerializationHelper.encodeInt;
+import static org.rakam.analysis.util.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/07/15 06:47.
@@ -34,6 +34,7 @@ public class AWSKinesisEventStore implements EventStore {
         AWSCredentials credentials = new BasicAWSCredentials(config.getAccessKey(), config.getSecretAccessKey());
         this.kinesis = new AmazonKinesisClient(credentials);
         this.config = config;
+        createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
     }
 
     @Override
@@ -44,14 +45,9 @@ public class AWSKinesisEventStore implements EventStore {
         int startPosition = out.position();
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
 
-        byte[] project = event.project().getBytes();
-        byte[] collection = event.collection().getBytes();
-
         try {
-            encodeInt(project.length, out);
-            out.write(project);
-            encodeInt(collection.length, out);
-            out.write(collection);
+            encoder.writeString(event.project());
+            encoder.writeString(event.collection());
 
             writer.write(event.properties(), encoder);
         } catch (Exception e) {
@@ -66,8 +62,8 @@ public class AWSKinesisEventStore implements EventStore {
         }
 
         try {
-            kinesis.putRecord(config.getKinesisStream(), out.getBuffer(startPosition, endPosition - startPosition),
-                    Integer.toString(((int) Math.random()*100)));
+            kinesis.putRecord(config.getEventStoreStreamName(), out.getBuffer(startPosition, endPosition - startPosition),
+                    event.project()+"_"+event.collection());
         } catch (ResourceNotFoundException e) {
             throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
         }

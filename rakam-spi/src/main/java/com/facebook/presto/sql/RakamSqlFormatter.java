@@ -16,7 +16,6 @@ package com.facebook.presto.sql;
 import com.facebook.presto.sql.tree.AliasedRelation;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.CreateTable;
 import com.facebook.presto.sql.tree.CreateView;
 import com.facebook.presto.sql.tree.DropTable;
 import com.facebook.presto.sql.tree.DropView;
@@ -83,10 +82,6 @@ public final class RakamSqlFormatter
         StringBuilder builder = new StringBuilder();
         new Formatter(builder, 0).process(root, new ArrayList<>());
         return builder.toString();
-    }
-    
-    public static class Context {
-        
     }
 
     public static class Formatter
@@ -577,18 +572,6 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitCreateTable(CreateTable node,List<String> referencedTables)
-        {
-            builder.append("CREATE TABLE ")
-                    .append(node.getName())
-                    .append(" AS ");
-
-            process(node.getQuery(), referencedTables);
-
-            return null;
-        }
-
-        @Override
         protected Void visitDropTable(DropTable node, List<String> referencedTables)
         {
             builder.append("DROP TABLE ")
@@ -623,12 +606,7 @@ public final class RakamSqlFormatter
         @Override
         public Void visitSetSession(SetSession node, List<String> referencedTables)
         {
-            builder.append("SET SESSION ")
-                    .append(node.getName())
-                    .append(" = ")
-                    .append(formatStringLiteral(node.getValue()));
-
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override

@@ -1,5 +1,6 @@
 package org.rakam.report;
 
+import com.facebook.presto.hive.$internal.com.google.common.base.Throwables;
 import com.facebook.presto.jdbc.internal.airlift.http.client.HttpClientConfig;
 import com.facebook.presto.jdbc.internal.airlift.http.client.HttpRequestFilter;
 import com.facebook.presto.jdbc.internal.airlift.http.client.Request;
@@ -37,14 +38,14 @@ import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Buil
 import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
 import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
+import static org.rakam.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
+import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CATALOG_NAME;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 09/03/15 16:10.
  */
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
-    public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
-
     private final SqlParser parser = new SqlParser();
     private final PrestoConfig prestoConfig;
     private final JettyHttpClient httpClient = new JettyHttpClient(
@@ -78,19 +79,29 @@ public class PrestoQueryExecutor implements QueryExecutor {
 
     private Function<QualifiedName, String> tableNameMapper(String project) {
         return  node -> {
-            if(node.getPrefix().isPresent()) {
+            if (node.getPrefix().isPresent()) {
                 switch (node.getPrefix().get().toString()) {
                     case "continuous":
-                        return "stream." + project + "." + node.getSuffix();
+                        return PRESTO_STREAMING_CATALOG_NAME + "." + project + "." + node.getSuffix();
                     case "materialized":
-                        return project + "."+ MATERIALIZED_VIEW_PREFIX + node.getSuffix();
+                        return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
                     default:
-                        throw new IllegalArgumentException("Schema does not exist: "+node.getPrefix().get().toString());
+                        throw new IllegalArgumentException("Schema does not exist: " + node.getPrefix().get().toString());
                 }
             }
 
-            QualifiedName prefix = node.getPrefix().orElse(new QualifiedName(prestoConfig.getColdStorageConnector()));
-            return prefix.getSuffix() + "." + project + "." + node.getSuffix();
+            QualifiedName prefix = node.getPrefix()
+                    .orElse(new QualifiedName(prestoConfig.getColdStorageConnector()));
+            String hotStorageConnector = prestoConfig.getHotStorageConnector();
+            String table = project + "." + node.getSuffix();
+
+            if (hotStorageConnector != null) {
+                return "(select * from " + prefix.getSuffix() + "." + table + " union all " +
+                        "select * from " + hotStorageConnector + "." + table + ")" +
+                        " as " + node.getSuffix();
+            } else {
+                return prefix.getSuffix() + "." + table;
+            }
         };
     }
 
@@ -98,9 +109,14 @@ public class PrestoQueryExecutor implements QueryExecutor {
         StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {
-            statement = (Query) parser.createStatement(query);
+            try {
+                statement = (Query) parser.createStatement(query);
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
         }
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, Lists.newArrayList());
+        new QueryFormatter(builder, tableNameMapper(project))
+                .process(statement, Lists.newArrayList());
 
         if(maxLimit != null) {
             if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {

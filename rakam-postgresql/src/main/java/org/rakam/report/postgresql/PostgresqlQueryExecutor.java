@@ -8,9 +8,9 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import org.rakam.PostgresqlPoolDataSource;
-import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -28,6 +28,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -52,10 +53,11 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
-    private final PostgresqlMetastore metastore;
+    private final Metastore metastore;
 
+    private volatile Set<String> projectCache;
     @Inject
-    public PostgresqlQueryExecutor(PostgresqlPoolDataSource connectionPool, PostgresqlMetastore metastore) {
+    public PostgresqlQueryExecutor(PostgresqlPoolDataSource connectionPool, Metastore metastore) {
         this.connectionPool = connectionPool;
         this.metastore = metastore;
 
@@ -70,20 +72,37 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
     }
 
+    private synchronized void updateProjectCache() {
+        projectCache = metastore.getProjects();
+    }
+
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery, int maxLimit) {
-        // TODO: cache projects?
-        if(!metastore.getProjects().contains(project)) {
-            throw new IllegalArgumentException("project is not valid");
+        if(projectExists(project)) {
+            throw new IllegalArgumentException("Project is not valid");
         }
         return executeRawQuery(buildQuery(project, sqlQuery, maxLimit));
     }
 
+    private boolean projectExists(String project) {
+        if(projectCache == null) {
+            updateProjectCache();
+        }
+
+        if(!projectCache.contains(project)) {
+            updateProjectCache();
+            if(!projectCache.contains(project)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery) {
-        // TODO: cache projects?
-        if(!metastore.getProjects().contains(project)) {
-            throw new IllegalArgumentException("project is not valid");
+        if(projectExists(project)) {
+            throw new IllegalArgumentException("Project is not valid");
         }
         return executeRawQuery(buildQuery(project, sqlQuery, null));
     }

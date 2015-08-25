@@ -20,7 +20,9 @@ import io.airlift.configuration.ConfigurationModule;
 import io.airlift.configuration.ConfigurationValidator;
 import io.airlift.configuration.ValidationErrorModule;
 import io.airlift.configuration.WarningsMonitor;
+import org.rakam.SystemRegistry;
 import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.RakamModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static com.google.common.collect.Maps.fromProperties;
 
@@ -167,9 +170,9 @@ public class Bootstrap
             if(annotation != null) {
                 String value = configurationFactory.getProperties().get(annotation.config());
                 String annValue = annotation.value();
-                if(annValue.isEmpty() || annValue.equals(value)) {
+                if((annValue.isEmpty() && value != null) || annValue.equals(value)) {
                     configurationFactory.consumeProperty(annotation.config());
-                } else{
+                } else {
                    continue;
                 }
             }
@@ -222,6 +225,16 @@ public class Bootstrap
                 }
             });
         }
+        moduleList.add(binder -> {
+            SystemRegistry systemRegistry = new SystemRegistry(installedModules.stream()
+                    .filter(module -> module instanceof RakamModule)
+                    .map(module -> {
+                        RakamModule rakamModule = (RakamModule) module;
+                        return new SystemRegistry.Module(rakamModule.name(), rakamModule.description(), rakamModule.getClass().getName());
+                    }).collect(Collectors.toList()));
+            binder.bind(SystemRegistry.class).toInstance(systemRegistry);
+        });
+
         moduleList.addAll(installedModules);
 
         // create the injector

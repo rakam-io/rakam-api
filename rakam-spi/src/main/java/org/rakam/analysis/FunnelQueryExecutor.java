@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import org.rakam.report.QueryExecution;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,7 +30,7 @@ import static org.rakam.util.ValidationUtil.checkCollection;
  * Created by buremba <Burak Emre Kabakcı> on 19/08/15 23:19.
  */
 public interface FunnelQueryExecutor {
-    QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension);
+    QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers);
 
     @AutoValue
     abstract class FunnelStep {
@@ -38,17 +39,18 @@ public interface FunnelQueryExecutor {
         @JsonProperty
         public abstract String collection();
         @JsonProperty
-        public abstract Expression filterExpression();
+        public abstract Optional<Expression> filterExpression();
 
         @JsonCreator
         public static FunnelStep create(@JsonProperty("collection") String collection,
-                                        @JsonProperty("filterExpression") String filterExpression) {
+                                        @JsonProperty("filterExpression") Optional<String> filterExpression) {
             checkCollection(collection);
-            Expression expression;
-            synchronized (parser) {
-                expression = parser.createExpression(filterExpression);
-            }
-            return new AutoValue_FunnelAnalysis_FunnelStep(collection, expression);
+            return new AutoValue_FunnelQueryExecutor_FunnelStep(collection,
+                    filterExpression.map(FunnelStep::parseExpression));
+        }
+
+        private static synchronized Expression parseExpression(String filterExpression) {
+            return parser.createExpression(filterExpression);
         }
     }
 }

@@ -12,5 +12,48 @@
 
     <artifactId>rakam-mapper-website</artifactId>
 
+    <repositories>
+        <repository>
+            <id>com.snowplowanalytics</id>
+            <name>SnowPlow Analytics</name>
+            <url>http://maven.snplow.com/releases</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-spi</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.snowplowanalytics</groupId>
+            <artifactId>referer-parser_2.11</artifactId>
+            <version>0.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ua-parser</groupId>
+            <artifactId>uap-java</artifactId>
+            <version>1.3.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.15</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
 
 </project>

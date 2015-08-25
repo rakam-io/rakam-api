@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public enum AggregationType {
     COUNT,
+    COUNT_UNIQUE,
     SUM,
     MINIMUM,
     MAXIMUM,

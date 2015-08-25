@@ -15,9 +15,7 @@
 package org.rakam.analysis.util.aws;
 
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.regions.RegionUtils;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.connectors.KinesisConnectorConfiguration;
 import com.amazonaws.services.kinesis.model.CreateStreamRequest;
 import com.amazonaws.services.kinesis.model.DeleteStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
@@ -35,23 +33,6 @@ import java.util.List;
 public class KinesisUtils {
 
     private static Log LOG = LogFactory.getLog(KinesisUtils.class);
-
-    /**
-     * Creates the Amazon Kinesis stream specified by config.KINESIS_INPUT_STREAM
-     * 
-     * @param config
-     *        The configuration with the specified input stream name and {@link com.amazonaws.auth.AWSCredentialsProvider}
-     */
-    public static void createInputStream(KinesisConnectorConfiguration config) {
-        AmazonKinesisClient kinesisClient = new AmazonKinesisClient(config.AWS_CREDENTIALS_PROVIDER);
-        kinesisClient.setRegion(RegionUtils.getRegion(config.REGION_NAME));
-        if (config.KINESIS_ENDPOINT != null) {
-            kinesisClient.setEndpoint(config.KINESIS_ENDPOINT);
-        }
-        createAndWaitForStreamToBecomeAvailable(kinesisClient,
-                config.KINESIS_INPUT_STREAM,
-                config.KINESIS_INPUT_STREAM_SHARD_COUNT);
-    }
 
     /**
      * Creates an Amazon Kinesis stream if it does not exist and waits for it to become available

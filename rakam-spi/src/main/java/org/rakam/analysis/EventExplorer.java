@@ -14,20 +14,29 @@
 package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 14/08/15 07:17.
  */
 public interface EventExplorer {
-    CompletableFuture<QueryResult> analyze(String project, Measure measureType, String grouping, String segment, String filterExpression, LocalDate startDate, LocalDate endDate);
+    CompletableFuture<QueryResult> analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate);
+    CompletableFuture<QueryResult> getEventStatistics(String project, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
+    List<String> getExtraDimensions(String project);
 
-    public enum TimestampTransformation {
-        HOUR, DAY, WEEK, MONTH, QUARTER, DAY_PART, DAY_OF_WEEK;
+    List<String> getEventDimensions(String project);
+
+    enum TimestampTransformation {
+        HOUR_OF_DAY, DAY_OF_MONTH, WEEK_OF_YEAR, MONTH_OF_YEAR, QUARTER_OF_YEAR, DAY_PART, DAY_OF_WEEK, HOUR, DAY, MONTH, YEAR;
 
         @JsonCreator
         public static TimestampTransformation fromString(String key) {
@@ -35,21 +44,41 @@ public interface EventExplorer {
         }
     }
 
-    public static class Measure {
-        private final String column;
-        private final AggregationType aggregation;
+    class Measure {
+        public final String column;
+        public final AggregationType aggregation;
 
-        public Measure(String column, AggregationType aggregation) {
+        @JsonCreator
+        public Measure(@JsonProperty("column") String column,
+                       @JsonProperty("aggregation") AggregationType aggregation) {
             this.column = column;
             this.aggregation = aggregation;
         }
+    }
 
-        public String getColumn() {
-            return column;
+    class Reference {
+        public final ReferenceType type;
+        public final String value;
+
+        @JsonCreator
+        public Reference(@JsonProperty("type") ReferenceType type,
+                         @JsonProperty("value") String value) {
+            this.type = checkNotNull(type, "type is null");
+            this.value = checkNotNull(value, "value is null");
+        }
+    }
+
+    enum ReferenceType {
+        COLUMN, REFERENCE;
+
+        @JsonCreator
+        public static ReferenceType get(String name) {
+            return valueOf(name.toUpperCase());
         }
 
-        public AggregationType getAggregation() {
-            return aggregation;
+        @JsonProperty
+        public String value() {
+            return name();
         }
     }
 }

@@ -10,25 +10,25 @@ import java.util.List;
  * Created by buremba <Burak Emre Kabakcı> on 21/07/14 05:21.
  */
 public interface QueryMetadataStore {
-    public void createMaterializedView(MaterializedView materializedView);
+    void createMaterializedView(MaterializedView materializedView);
 
-    public void deleteMaterializedView(String project, String name);
+    void deleteMaterializedView(String project, String name);
 
-    public MaterializedView getMaterializedView(String project, String name);
+    MaterializedView getMaterializedView(String project, String name);
 
-    public List<MaterializedView> getMaterializedViews(String project);
+    List<MaterializedView> getMaterializedViews(String project);
 
-    public List<MaterializedView> getAllMaterializedViews();
+    List<MaterializedView> getAllMaterializedViews();
 
     void updateMaterializedView(String project, String name, Instant last_update);
 
-    public void createContinuousQuery(ContinuousQuery report);
+    void createContinuousQuery(ContinuousQuery report);
 
-    public void deleteContinuousQuery(String project, String name);
+    void deleteContinuousQuery(String project, String name);
 
-    public List<ContinuousQuery> getContinuousQueries(String project);
+    List<ContinuousQuery> getContinuousQueries(String project);
 
-    public ContinuousQuery getContinuousQuery(String project, String name);
+    ContinuousQuery getContinuousQuery(String project, String name);
 
     List<ContinuousQuery> getAllContinuousQueries();
 }

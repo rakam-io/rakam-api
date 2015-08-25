@@ -4,7 +4,9 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
+import org.rakam.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
@@ -18,14 +20,14 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:32.
  */
 public interface UserStorage {
-    public Object create(String project, Map<String, Object> properties);
-    public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
-    public List<Column> getMetadata(String project);
-    public CompletableFuture<User> getUser(String project, String userId);
+    Object create(String project, Map<String, Object> properties);
+    CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
+    List<SchemaField> getMetadata(String project);
+    CompletableFuture<User> getUser(String project, String userId);
     void setUserProperty(String project, String user, String property, Object value);
     void createProject(String project);
 
-    public static class Sorting {
+    class Sorting {
         public final String column;
         public final Ordering order;
 
@@ -37,11 +39,11 @@ public interface UserStorage {
         }
     }
 
-    public static enum Ordering {
+    enum Ordering {
         asc, desc
     }
 
-    public static class EventFilterAggregation {
+    class EventFilterAggregation {
         public final AggregationType type;
         public final String field;
         public final Long minimum;
@@ -59,7 +61,7 @@ public interface UserStorage {
         }
     }
 
-    public static class EventFilter {
+    class EventFilter {
         public static final SqlParser SQL_PARSER = new SqlParser();
 
         public final String collection;
@@ -85,27 +87,5 @@ public interface UserStorage {
             this.aggregation = aggregation;
         }
 
-    }
-
-    public static enum AggregationType {
-        COUNT,
-        SUM,
-        MINIMUM,
-        MAXIMUM,
-        APPROXIMATE_UNIQUE,
-        VARIANCE,
-        POPULATION_VARIANCE,
-        STANDARD_DEVIATION,
-        AVERAGE;
-
-        @JsonCreator
-        public static AggregationType get(String name) {
-            return valueOf(name.toUpperCase());
-        }
-
-        @JsonProperty
-        public String value() {
-            return name();
-        }
     }
 }

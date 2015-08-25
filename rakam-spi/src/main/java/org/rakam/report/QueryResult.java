@@ -2,6 +2,7 @@ package org.rakam.report;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import org.rakam.collection.SchemaField;
 
 import java.util.HashMap;
@@ -12,8 +13,10 @@ import java.util.Map;
  * Created by buremba <Burak Emre Kabakcı> on 02/04/15 05:07.
  */
 public class QueryResult {
+    private static final QueryResult EMPTY = new QueryResult(ImmutableList.of(), ImmutableList.of());
+
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
-    private final List<? extends SchemaField> metadata;
+    private final List<SchemaField> metadata;
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final List<List<Object>> result;
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
@@ -21,18 +24,22 @@ public class QueryResult {
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private Map<String, Object> properties = null;
 
-    private QueryResult(List<? extends SchemaField> metadata, List<List<Object>> result, QueryError error, Map<String, Object> properties) {
+    private QueryResult(List<SchemaField> metadata, List<List<Object>> result, QueryError error, Map<String, Object> properties) {
         this.metadata = metadata;
         this.result = result;
         this.error = error;
         this.properties = properties;
     }
 
-    public QueryResult(List<? extends SchemaField> metadata, List<List<Object>> result) {
+    public static QueryResult empty() {
+        return EMPTY;
+    }
+
+    public QueryResult(List<SchemaField> metadata, List<List<Object>> result) {
         this(metadata, result, null, null);
     }
 
-    public QueryResult(List<? extends SchemaField> metadata, List<List<Object>> result, Map<String, Object> properties) {
+    public QueryResult(List<SchemaField> metadata, List<List<Object>> result, Map<String, Object> properties) {
         this(metadata, result, null, properties);
     }
 
@@ -69,8 +76,8 @@ public class QueryResult {
     public String toString() {
         return "QueryResult{" +
                 (error == null ? "" : "error=" + error) +
-                ", result=" + Joiner.on(", ").join(result) +
-                ", metadata=" + metadata +
+                ", result=" + (result == null ? "" : Joiner.on(", ").join(result))+
+                ", metadata=" + (metadata == null ? "" : metadata) +
                 '}';
     }
 

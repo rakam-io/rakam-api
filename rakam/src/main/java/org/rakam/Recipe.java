@@ -24,7 +24,7 @@ public class Recipe {
     private final Map<String, Collection> collections;
     private final List<MaterializedViewBuilder> materializedViews;
     private final List<ContinuousQueryBuilder> continuousQueries;
-    private final List<Report> reports;
+    private final List<ReportBuilder> reports;
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
@@ -32,7 +32,7 @@ public class Recipe {
                   @JsonProperty("collections") Map<String, Collection> collections,
                   @JsonProperty("materialized_queries") List<MaterializedViewBuilder> materializedQueries,
                   @JsonProperty("continuous_queries") List<ContinuousQueryBuilder> continuousQueries,
-                  @JsonProperty("reports") List<Report> reports) {
+                  @JsonProperty("reports") List<ReportBuilder> reports) {
         if(strategy != Strategy.SPECIFIC && project != null) {
             throw new IllegalArgumentException("'project' parameter can be used when 'strategy' is 'specific'");
         }
@@ -64,7 +64,7 @@ public class Recipe {
         return continuousQueries;
     }
 
-    public List<Report> getReports() {
+    public List<ReportBuilder> getReports() {
         return reports;
     }
 
@@ -131,13 +131,38 @@ public class Recipe {
         }
     }
 
+    public static class ReportBuilder {
+        private final String slug;
+        private final String name;
+        private final String query;
+        private final Map<String, Object> options;
+
+        @JsonCreator
+        public ReportBuilder(@JsonProperty("slug") String slug,
+                             @JsonProperty("name") String name,
+                             @JsonProperty("query") String query,
+                             @JsonProperty("options") Map<String, Object> options) {
+            this.slug = slug;
+            this.name = name;
+            this.query = query;
+            this.options = options;
+        }
+
+        public Report createReport(String project) {
+            return new Report(project, slug, name, query, options);
+        }
+    }
+
     public static class SchemaFieldInfo {
+        private final FieldType category;
         private final FieldType type;
         private final boolean nullable;
 
         @JsonCreator
-        public SchemaFieldInfo(@JsonProperty("type") FieldType type,
+        public SchemaFieldInfo(@JsonProperty("category") FieldType category,
+                               @JsonProperty("type") FieldType type,
                                @JsonProperty("nullable") Boolean nullable) {
+            this.category = category;
             this.type = type;
             this.nullable = nullable == null ? true : nullable;
         }
@@ -149,9 +174,18 @@ public class Recipe {
         public boolean isNullable() {
             return nullable;
         }
+
+        public FieldType getCategory() {
+            return category;
+        }
     }
 
-    public enum Strategy {
-        DEFAULT, SPECIFIC
+    public static enum Strategy {
+        DEFAULT, SPECIFIC;
+
+        @JsonCreator
+        public static Strategy get(String name) {
+            return valueOf(name.toUpperCase());
+        }
     }
 }

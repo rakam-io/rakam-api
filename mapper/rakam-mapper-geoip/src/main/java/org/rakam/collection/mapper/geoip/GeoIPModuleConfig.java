@@ -10,21 +10,9 @@ import java.util.List;
  * Created by buremba <Burak Emre Kabakcı> on 12/02/15 21:09.
  */
 public class GeoIPModuleConfig {
-    private boolean enabled;
     private String database;
     private List<String> attributes;
     private String databaseUrl;
-
-    @Config("plugin.geoip.enabled")
-    public GeoIPModuleConfig setEnabled(Boolean enabled)
-    {
-        this.enabled = enabled == null ? false : enabled;
-        return this;
-    }
-
-    public boolean getEnabled() {
-        return enabled;
-    }
 
     @Config("plugin.geoip.database")
     public GeoIPModuleConfig setDatabase(String type)

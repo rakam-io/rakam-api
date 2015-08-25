@@ -43,7 +43,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     final static Logger LOGGER = LoggerFactory.getLogger(KafkaEventStore.class);
     final static String ZK_OFFSET_PATH = "/collectionOffsets";
 
-    private final KafkaOffsetManager kafkaManager;
+//    private final KafkaOffsetManager kafkaManager;
     private final Producer<byte[], byte[]> producer;
     private final long updateInterval;
     ScheduledExecutorService executorService;
@@ -56,9 +56,9 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     };
 
     @Inject
-    public KafkaEventStore(KafkaOffsetManager kafkaManager, @Named("event.store.kafka") KafkaConfig config) {
+    public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config) {
         config = checkNotNull(config, "config is null");
-        this.kafkaManager = checkNotNull(kafkaManager, "kafkaManager is null");
+//        this.kafkaManager = checkNotNull(kafkaManager, "kafkaManager is null");
 
         Properties props = new Properties();
         props.put("metadata.broker.list", config.getNodes().stream().map(HostAddress::toString).collect(Collectors.joining(",")));
@@ -80,7 +80,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
             LOGGER.error(format("Couldn't create event offset path %s", ZK_OFFSET_PATH), e);
         }
 
-        kafkaManager.setZookeeper(client);
+//        kafkaManager.setZookeeper(client);
 
 
         new LeaderSelector(client, ZK_OFFSET_PATH, this).start();
@@ -121,7 +121,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
                     .setNameFormat("kafka-offset-worker").build();
             executorService = Executors.newSingleThreadScheduledExecutor(build);
         }
-        executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);
+//        executorService.scheduleAtFixedRate(kafkaManager::updateOffsets, updateInterval, updateInterval, TimeUnit.SECONDS);
     }
 
     @Override

@@ -18,7 +18,6 @@ import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ForHttpServer;
 import org.rakam.server.http.HttpServer;
@@ -38,13 +37,14 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -61,6 +61,13 @@ public class QueryHttpService extends HttpService {
     @Inject
     public QueryHttpService(QueryExecutor executor) {
         this.executor = executor;
+    }
+
+
+    @Path("/execute")
+    @JsonRequest
+    public CompletableFuture<QueryResult> execute(ExecuteQuery query) {
+        return executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult();
     }
 
     /**
@@ -94,6 +101,11 @@ public class QueryHttpService extends HttpService {
     @Consumes("text/event-stream")
     @Path("/execute")
     public void execute(RakamHttpRequest request) {
+        handleServerSentQueryExecution(request, ExecuteQuery.class, query ->
+                executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit));
+    }
+
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executerFunction) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
@@ -106,40 +118,25 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        ExecuteQuery query;
+        T query;
         try {
-            query = JsonHelper.readSafe(data.get(0), ExecuteQuery.class);
+            query = JsonHelper.readSafe(data.get(0), clazz);
         } catch (IOException e) {
-            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed", 400))).end();
-            return;
-        }
-
-        if (query.project == null) {
-            response.send("result", encode(HttpServer.errorMessage("project parameter is required", 400))).end();
-            return;
-        }
-
-        if (query.query == null) {
-            response.send("result", encode(HttpServer.errorMessage("query parameter is required", 400))).end();
-            return;
-        }
-
-        if(query.limit !=null && query.limit > 5000) {
-            response.send("result", encode(HttpServer.errorMessage("maximum value of limit is 5000", 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: "+e.getMessage(), 400))).end();
             return;
         }
 
         QueryExecution execute;
         try {
-            execute = executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit);
+            execute = executerFunction.apply(query);
         } catch (Exception e) {
-            response.send("result", encode(HttpServer.errorMessage("couldn't parse query: " + e.getMessage(), 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), 400))).end();
             return;
         }
-        handleQueryExecution(eventLoopGroup, response, execute);
+        handleServerSentQueryExecution(eventLoopGroup, response, execute);
     }
 
-    static void handleQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
+    private void handleServerSentQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
         query.getResult().whenComplete((result, ex) -> {
             if (ex != null) {
                 response.send("result", encode(jsonObject()
@@ -183,13 +180,14 @@ public class QueryHttpService extends HttpService {
 
                 // this is just a workaround, fixme
                 ObjectNode jsonNodes = jsonObject();
-                for (List<Object> objects : result.getResult()) {
-                    for (int i = 0; i < objects.size(); i++) {
-                        if(objects.get(i) == null && metadata.get(i).getType()==FieldType.STRING) {
-                            objects.set(i, "null");
-                        }
-                    }
-                }
+//                for (List<Object> objects : result.getResult()) {
+//                    for (int i = 0; i < objects.size(); i++) {
+//                        if(objects.get(i) == null && metadata.get(i).getType() == STRING) {
+//                            objects.set(i, "null");
+//                        }
+//                    }
+//                }
+
                 response.send("result", encode(jsonNodes
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
@@ -219,31 +217,20 @@ public class QueryHttpService extends HttpService {
         public final String query;
         public final Segment segment;
         public final Integer limit;
-        public final Map<String, Binding> bindings;
 
         @JsonCreator
         public ExecuteQuery(@JsonProperty("project") String project,
                             @JsonProperty("query") String query,
                             @JsonProperty("segment") Segment segment,
-                            @JsonProperty("limit") Integer limit,
-                            @JsonProperty("bindings") Map<String, Binding> bindings) {
-            this.project = project;
-            this.query = query;
+                            @JsonProperty("limit") Integer limit) {
+            this.project = checkNotNull(project, "project is empty");
+            this.query = checkNotNull(query, "query is empty");;
             this.segment = segment;
-            this.limit = limit;
-            this.bindings = bindings;
-        }
-
-        public static class Binding {
-            public final FieldType type;
-            public final Object value;
-
-            @JsonCreator
-            public Binding(@JsonProperty("type") FieldType type,
-                           @JsonProperty("value") Object value) {
-                this.type = type;
-                this.value = value;
+            if(limit !=null && limit > 5000) {
+                throw new IllegalArgumentException("maximum value of limit is 5000");
             }
+            this.limit = limit;
+
         }
 
         public static class Segment {

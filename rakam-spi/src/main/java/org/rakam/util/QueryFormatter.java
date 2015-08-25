@@ -4,6 +4,8 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.tree.CreateTable;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Table;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Iterables;
 
 import java.util.List;
 import java.util.function.Function;
@@ -36,12 +38,15 @@ public class QueryFormatter
     @Override
     protected Void visitCreateTable(CreateTable node, List<String> referencedTables)
     {
-        builder.append("CREATE TABLE ")
-                .append(tableNameMapper.apply(node.getName()))
-                .append(" AS ");
+        this.builder.append("CREATE TABLE ");
+        if(node.isNotExists()) {
+            this.builder.append("IF NOT EXISTS ");
+        }
 
-        process(node.getQuery(), referencedTables);
-
+        this.builder.append(node.getName()).append(" (");
+        Joiner.on(", ").appendTo(this.builder, Iterables.transform(node.getElements(),
+                (element) -> element.getName() + " " + element.getType()));
+        this.builder.append(")");
         return null;
     }
 }

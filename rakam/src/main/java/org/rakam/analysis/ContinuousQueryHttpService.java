@@ -31,8 +31,8 @@ public class ContinuousQueryHttpService extends HttpService {
     private final ContinuousQueryService service;
 
     @Inject
-    public ContinuousQueryHttpService(ContinuousQueryService service) {
-        this.service = service;
+    public ContinuousQueryHttpService(com.google.common.base.Optional<ContinuousQueryService> service) {
+        this.service = service.orNull();
     }
 
     /**
@@ -112,8 +112,8 @@ public class ContinuousQueryHttpService extends HttpService {
     public Object delete(@ApiParam(name="project", required = true) String project,
                          @ApiParam(name="name", required = true) String name) {
         return service.delete(project, name).thenApply(result -> {
-            if(result.isFailed()) {
-                return JsonResponse.error(result.getError().message);
+            if(result) {
+                return JsonResponse.error("Error while deleting.");
             }else {
                 return JsonResponse.success();
             }

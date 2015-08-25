@@ -5,6 +5,7 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,8 +14,8 @@ import java.util.stream.Collectors;
 * Created by buremba <Burak Emre Kabakcı> on 28/07/15 00:44.
 */
 class InMemoryQueryMetadataStore implements QueryMetadataStore {
-    List<ContinuousQuery> continuousQueries;
-    List<MaterializedView> materializedViews;
+    private final List<ContinuousQuery> continuousQueries = new ArrayList<>();
+    private final List<MaterializedView> materializedViews = new ArrayList<>();
 
     @Override
     public void createMaterializedView(MaterializedView materializedView) {

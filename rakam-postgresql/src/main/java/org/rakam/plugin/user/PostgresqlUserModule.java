@@ -13,8 +13,35 @@
  */
 package org.rakam.plugin.user;
 
+import com.google.auto.service.AutoService;
+import com.google.inject.Binder;
+import com.google.inject.Scopes;
+import com.google.inject.Singleton;
+import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.UserStorage;
+import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 12/08/15 04:25.
  */
-public class PostgresqlUserModule {
+@AutoService(RakamModule.class)
+@ConditionalModule(config="plugin.user.storage", value="postgresql")
+public class PostgresqlUserModule extends RakamModule {
+    @Override
+    protected void setup(Binder binder) {
+        binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
+        binder.bind(UserStorage.class).to(PostgresqlUserStorageAdapter.class)
+                .in(Singleton.class);
+    }
+
+    @Override
+    public String name() {
+        return "Postgresql backend for user storage";
+    }
+
+    @Override
+    public String description() {
+        return "Postgresql user storage backend for basic CRUD and search operations.";
+    }
 }

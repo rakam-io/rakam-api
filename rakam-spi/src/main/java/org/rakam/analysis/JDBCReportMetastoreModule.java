@@ -28,11 +28,11 @@ public class JDBCReportMetastoreModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "JDBC report metadata store";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Stores report metadata (materialized, continuous queries) in RDBMS databases";
     }
 }

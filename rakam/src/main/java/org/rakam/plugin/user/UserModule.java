@@ -6,6 +6,7 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserPluginConfig;
@@ -18,6 +19,7 @@ import org.rakam.server.http.WebSocketService;
  * Created by buremba <Burak Emre Kabakcı> on 14/03/15 16:17.
  */
 @AutoService(RakamModule.class)
+@ConditionalModule(config="plugin.user.enabled", value = "true")
 public class UserModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {

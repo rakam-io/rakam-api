@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -77,7 +76,6 @@
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
-            <version>4.0-beta5</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
@@ -87,7 +85,6 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-jdbc</artifactId>
-            <version>0.94</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -128,8 +125,6 @@
         <dependency>
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value</artifactId>
-            <version>1.0-rc1</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.yaml</groupId>
@@ -153,11 +148,17 @@
             <artifactId>maven-invoker</artifactId>
             <version>2.2</version>
         </dependency>
+
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-parser</artifactId>
-            <version>0.94</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.buremba</groupId>
+            <artifactId>netty-rest</artifactId>
+        </dependency>
+
         <!-- Temporary solution until we release Kume to Maven Central repository-->
         <dependency>
             <groupId>com.github.buremba</groupId>
@@ -213,4 +214,75 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>bundled-with-ui</id>
+            <activation>
+                <property>
+                    <name>debug</name>
+                    <value>test</value>
+                </property>
+                <!--<file>-->
+                    <!--<missing>target/generated-sources/axistools/wsdl2java/org/apache/maven</missing>-->
+                <!--</file>-->
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.googlecode.maven-download-plugin</groupId>
+                        <artifactId>download-maven-plugin</artifactId>
+                        <version>1.2.1</version>
+                        <executions>
+                            <execution>
+                                <id>install-jbpm</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>wget</goal>
+                                </goals>
+                                <configuration>
+                                    <url>https://github.com/buremba/rakam-ui/archive/master.zip</url>
+                                    <unpack>true</unpack>
+                                    <outputDirectory>${basedir}/src/main/resources/rakam-ui</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.github.eirslett</groupId>
+                        <artifactId>frontend-maven-plugin</artifactId>
+                        <version>0.0.23</version>
+
+                        <configuration>
+                            <workingDirectory>${basedir}/src/main/resources/rakam-ui</workingDirectory>
+                        </configuration>
+
+                        <executions>
+
+                            <execution>
+                                <id>install node and npm</id>
+                                <goals>
+                                    <goal>install-node-and-npm</goal>
+                                </goals>
+                                <configuration>
+                                    <nodeVersion>v0.12.2</nodeVersion>
+                                    <npmVersion>2.7.6</npmVersion>
+                                </configuration>
+                            </execution>
+
+                            <execution>
+                                <id>bower install</id>
+                                <goals>
+                                    <goal>bower</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>install</arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

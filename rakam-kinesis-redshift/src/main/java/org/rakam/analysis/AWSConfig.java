@@ -10,35 +10,22 @@ import io.airlift.configuration.Config;
 public class AWSConfig {
     private String accessKey;
     private String secretAccessKey;
-    private boolean kinesisWorker;
     private String s3Bucket;
-    private String streamName;
-    private String kinesisCollectionStreamPrefix;
-    private String kinesisStream;
+    private String eventStoreStreamName;
+
+
+    public String getEventStoreStreamName() {
+        return eventStoreStreamName;
+    }
+
+    @Config("event.store.kinesis.stream")
+    public void setEventStoreStreamName(String eventStoreStreamName) {
+        this.eventStoreStreamName = eventStoreStreamName;
+    }
 
     @Config("aws.access_key")
     public AWSConfig setAccessKey(String accessKey) {
         this.accessKey = accessKey;
-        return this;
-    }
-
-    @Config("aws.event.manifest.stream_name")
-    public AWSConfig setManifestStreamName(String streamName) {
-        this.streamName = streamName;
-        return this;
-    }
-
-    public String getKinesisStream() {
-        return kinesisStream;
-    }
-
-    public String getManifestStreamName() {
-        return streamName;
-    }
-
-    @Config("aws.kinesis.worker")
-    public AWSConfig setKinesisWorker(boolean kinesisWorker) {
-        this.kinesisWorker = kinesisWorker;
         return this;
     }
 
@@ -48,20 +35,8 @@ public class AWSConfig {
         return this;
     }
 
-    @Config("aws.event.kinesis.stream")
-    public AWSConfig setKinesisStream(String kinesisStream) {
-        this.kinesisStream = kinesisStream;
-        return this;
-    }
-
-
-
     public String getS3Bucket() {
         return s3Bucket;
-    }
-
-    public boolean getKinesisWorker() {
-        return kinesisWorker;
     }
 
     public String getAccessKey() {

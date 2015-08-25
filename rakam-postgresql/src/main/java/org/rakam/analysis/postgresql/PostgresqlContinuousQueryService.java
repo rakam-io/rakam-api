@@ -39,6 +39,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -158,15 +159,17 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     }
 
     @Override
-    public CompletableFuture<QueryResult> delete(String project, String name) {
+    public CompletableFuture<Boolean> delete(String project, String name) {
         ContinuousQuery continuousQuery = reportDatabase.getContinuousQuery(project, name);
 
         String prestoQuery = format("drop table continuous.%s", continuousQuery.project, continuousQuery.tableName);
         return executor.executeQuery(project, prestoQuery).getResult().thenApply(result -> {
             if (result.getError() == null) {
-                reportDatabase.createContinuousQuery(continuousQuery);
+                reportDatabase.deleteContinuousQuery(continuousQuery.project, continuousQuery.tableName);
+                return true;
+            } else {
+                return false;
             }
-            return result;
         });
     }
 
@@ -191,7 +194,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         Map<String, List<ContinuousQuery>> allContinuousQueries = reportDatabase.getAllContinuousQueries().stream()
                 .collect(Collectors.groupingBy(k -> k.project));
 
-        for (Map.Entry<String, List<String>> entry : metastore.getAllCollections().entrySet()) {
+        for (Map.Entry<String, Collection<String>> entry : metastore.getAllCollections().entrySet()) {
             String project = entry.getKey();
 
             List<ContinuousQuery> continuousQueries = allContinuousQueries.get(project);

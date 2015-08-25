@@ -30,7 +30,8 @@ public class FieldDependencyBuilder {
 
     private void checkFields(List<SchemaField> fields) {
         SchemaField[] collisions = fields.stream()
-                .filter(newField -> constantFields.stream().anyMatch(f -> f.getName().equals(newField.getName())))
+                .filter(newField -> constantFields.stream()
+                        .anyMatch(f -> f.getName().equals(newField.getName()) && !f.getType().equals(newField.getType())))
                 .toArray(SchemaField[]::new);
         checkState(collisions.length == 0, "Fields already exists: ", Arrays.toString(collisions));
 

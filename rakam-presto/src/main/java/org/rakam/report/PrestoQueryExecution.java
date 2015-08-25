@@ -82,9 +82,10 @@ public class PrestoQueryExecution implements QueryExecution {
                 return FieldType.STRING;
             case StandardTypes.TIME:
             case StandardTypes.TIME_WITH_TIME_ZONE:
+                return FieldType.TIME;
             case StandardTypes.TIMESTAMP:
             case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
-                return FieldType.TIME;
+                return FieldType.TIMESTAMP;
             default:
                 throw new NoSuchElementException();
         }
