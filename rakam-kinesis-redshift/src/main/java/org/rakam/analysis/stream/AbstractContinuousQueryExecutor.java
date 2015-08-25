@@ -16,10 +16,10 @@ import java.util.List;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 12/07/15 08:41.
  */
-public class ContinuousQueryExecutor {
+public class AbstractContinuousQueryExecutor {
     private final List<Operator> operators;
 
-    public ContinuousQueryExecutor(List<Driver> drivers) {
+    public AbstractContinuousQueryExecutor(List<Driver> drivers) {
         Driver driver = drivers.get(0);
         Field f;
         try {
