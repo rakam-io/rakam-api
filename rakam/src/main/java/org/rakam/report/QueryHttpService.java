@@ -12,7 +12,6 @@ import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
@@ -138,7 +137,9 @@ public class QueryHttpService extends HttpService {
 
     private void handleServerSentQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
         query.getResult().whenComplete((result, ex) -> {
-            if (ex != null) {
+            if(response.isClosed()) {
+              query.kill();
+            } else if (ex != null) {
                 response.send("result", encode(jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
@@ -149,46 +150,9 @@ public class QueryHttpService extends HttpService {
                         .put("query", query.getQuery())
                         .put("error", result.getError().message))).end();
             } else {
-//                List<List<Object>> resultData;
-//                if(executeQuery.segment != null) {
-//                    List<List<Object>> data = result.getResult();
-//                    Object[] segments = data.stream().map(row -> row.get(1).toString()).collect(Collectors.toSet()).toArray();
-//
-//                    List<List<Object>> newData = new LinkedList<>();
-//                    data.stream().collect(Collectors.groupingBy(item -> item.get(0))).forEach((key, rows) -> {
-//                        Object[] list = new Object[segments.length + 1];
-//                        list[0] = key;
-//
-//                        Map<Object, List<List<Object>>> segmented = rows.stream().collect(Collectors.groupingBy(row -> row.get(1)));
-//                        for (int i = 0; i < segments.length; i++) {
-//                            Object segment = segments[i];
-//                            List<List<Object>> lists = segmented.get(segment);
-//                            if (lists == null) {
-//                                list[i + 1] = 0;
-//                            } else {
-//                                list[i + 1] = lists.get(2);
-//                            }
-//                        }
-//                        newData.add(Arrays.asList(list));
-//                    });
-//                    resultData = newData;
-//                } else {
-//                    resultData = result.getResult();
-//                }
-
                 List<? extends SchemaField> metadata = result.getMetadata();
 
-                // this is just a workaround, fixme
-                ObjectNode jsonNodes = jsonObject();
-//                for (List<Object> objects : result.getResult()) {
-//                    for (int i = 0; i < objects.size(); i++) {
-//                        if(objects.get(i) == null && metadata.get(i).getType() == STRING) {
-//                            objects.set(i, "null");
-//                        }
-//                    }
-//                }
-
-                response.send("result", encode(jsonNodes
+                response.send("result", encode(jsonObject()
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
                         .putPOJO("result", result.getResult())
@@ -199,7 +163,9 @@ public class QueryHttpService extends HttpService {
         eventLoopGroup.schedule(new Runnable() {
             @Override
             public void run() {
-                if(!query.isFinished()) {
+                if(response.isClosed()) {
+                    query.kill();
+                } else if(!query.isFinished()) {
                     response.send("stats", encode(query.currentStats()));
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
                 }

@@ -228,6 +228,11 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         public String getQuery() {
             return query;
         }
+
+        @Override
+        public void kill() {
+            // TODO: Find a way to kill Postgresql query.
+        }
     }
 
     private static QueryResult resultSetToQueryResult(ResultSet resultSet) {

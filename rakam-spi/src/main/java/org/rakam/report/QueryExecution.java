@@ -11,4 +11,5 @@ public interface QueryExecution {
     boolean isFinished();
     CompletableFuture<QueryResult> getResult();
     String getQuery();
+    void kill();
 }

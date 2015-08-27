@@ -120,5 +120,10 @@ public class PrestoQueryExecution implements QueryExecution {
         return client.getQuery();
     }
 
+    @Override
+    public void kill() {
+        client.close();
+    }
+
 
 }

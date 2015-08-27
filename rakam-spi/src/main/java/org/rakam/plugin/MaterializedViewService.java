@@ -80,6 +80,11 @@ public abstract class MaterializedViewService {
                     public String getQuery() {
                         return null;
                     }
+
+                    @Override
+                    public void kill() {
+                        throw new UnsupportedOperationException();
+                    }
                 };
             }
         }

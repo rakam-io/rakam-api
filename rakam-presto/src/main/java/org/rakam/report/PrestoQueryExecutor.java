@@ -21,6 +21,8 @@ import com.facebook.presto.sql.tree.Statement;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
+import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
@@ -28,10 +30,13 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.airlift.http.client.HttpUriBuilder.uriBuilder;
 import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
@@ -54,17 +59,16 @@ public class PrestoQueryExecutor implements QueryExecutor {
                     .setSocksProxy(getSystemSocksProxy()),
             new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
             ImmutableSet.of(new UserAgentRequestFilter("rakam")));
-
-    private final PrestoConfig prestoAddress;
+    private final Metastore metastore;
 
     @Inject
-    public PrestoQueryExecutor(PrestoConfig prestoConfig1, PrestoConfig prestoConfig) {
-        this.prestoConfig = prestoConfig1;
-        this.prestoAddress = prestoConfig;
+    public PrestoQueryExecutor(PrestoConfig prestoConfig, Metastore metastore) {
+        this.prestoConfig = prestoConfig;
+        this.metastore = metastore;
     }
 
     public PrestoQueryExecution executeRawQuery(String query) {
-        return new PrestoQueryExecution(startQuery(prestoAddress, query));
+        return new PrestoQueryExecution(startQuery(query));
     }
 
     @Override
@@ -90,17 +94,28 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 }
             }
 
-            QualifiedName prefix = node.getPrefix()
-                    .orElse(new QualifiedName(prestoConfig.getColdStorageConnector()));
-            String hotStorageConnector = prestoConfig.getHotStorageConnector();
-            String table = project + "." + node.getSuffix();
+            // special prefix for all columns
+            if (node.getSuffix().equals("_all")) {
+                Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+                String columns = collections.values().stream()
+                        .flatMap(item -> item.stream()).distinct()
+                        .map(field -> field.getName()).collect(Collectors.joining(", "));
 
-            if (hotStorageConnector != null) {
-                return "(select * from " + prefix.getSuffix() + "." + table + " union all " +
-                        "select * from " + hotStorageConnector + "." + table + ")" +
-                        " as " + node.getSuffix();
-            } else {
-                return prefix.getSuffix() + "." + table;
+                return "(" +collections.keySet().stream()
+                        .map(collection -> format("select %s from %s", columns.isEmpty() ? "1" : columns, collection))
+                        .collect(Collectors.joining(" union all ")) + ")";
+            }else {
+                QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
+                String hotStorageConnector = prestoConfig.getHotStorageConnector();
+                String table = project + "." + node.getSuffix();
+
+                if (hotStorageConnector != null) {
+                    return "(select * from " + prefix.getSuffix() + "." + table + " union all " +
+                            "select * from " + hotStorageConnector + "." + table + ")" +
+                            " as " + node.getSuffix();
+                } else {
+                    return prefix.getSuffix() + "." + table;
+                }
             }
         };
     }
@@ -145,9 +160,9 @@ public class PrestoQueryExecutor implements QueryExecutor {
         return executeRawQuery(buildStatement(project, sqlQuery));
     }
 
-    private StatementClient startQuery(PrestoConfig config, String query) {
+    private StatementClient startQuery(String query) {
 
-        HostAndPort hostAndPort = HostAndPort.fromString(config.getAddress());
+        HostAndPort hostAndPort = HostAndPort.fromString(prestoConfig.getAddress());
         URI uri = uriBuilder()
                 .scheme("http")
                 .host(hostAndPort.getHostText())
@@ -158,7 +173,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 uri,
                 "rakam",
                 "api-server",
-                config.getColdStorageConnector(),
+                prestoConfig.getColdStorageConnector(),
                 "default",
                 TimeZone.getDefault().getID(),
                 Locale.ENGLISH,
