@@ -16,6 +16,8 @@ package org.rakam.analysis;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Inject;
+import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
+import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
 import org.rakam.report.QueryHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -54,6 +56,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                 retentionQueryExecutor.query(query.project,
                         Optional.ofNullable(query.firstAction),
                         Optional.ofNullable(query.returningAction),
+                        query.dateUnit,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
                         query.endDate));
@@ -61,23 +64,25 @@ public class RetentionAnalyzerHttpService extends HttpService {
 
     private static class RetentionQuery {
         public final @ApiParam(name = "project", required = true) String project;
-        public final @ApiParam(name = "steps", required = true)
-        RetentionQueryExecutor.RetentionAction firstAction;
-        RetentionQueryExecutor.RetentionAction returningAction;
+        public final @ApiParam(name = "first_action", required = true) RetentionAction firstAction;
+        public final @ApiParam(name = "returning_action", required = true) RetentionAction returningAction;
         public final @ApiParam(name = "dimension", required = false) String dimension;
+        public final @ApiParam(name = "date_unit", required = false) DateUnit dateUnit;
         public final @ApiParam(name = "startDate", required = true) LocalDate startDate;
         public final @ApiParam(name = "endDate", required = true) LocalDate endDate;
 
         @JsonCreator
         private RetentionQuery(@JsonProperty("project") String project,
-                            @JsonProperty("firstAction") RetentionQueryExecutor.RetentionAction firstAction,
-                            @JsonProperty("returningAction") RetentionQueryExecutor.RetentionAction returningAction,
+                            @JsonProperty("first_action") RetentionAction firstAction,
+                            @JsonProperty("returning_action") RetentionAction returningAction,
+                            @JsonProperty("date_unit") DateUnit dateUnit,
                             @JsonProperty("dimension") String dimension,
                             @JsonProperty("startDate") LocalDate startDate,
                             @JsonProperty("endDate") LocalDate endDate) {
             this.project = project;
             this.firstAction = firstAction;
             this.returningAction = returningAction;
+            this.dateUnit = dateUnit;
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;

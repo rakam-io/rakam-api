@@ -15,6 +15,7 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCMetastore;
 import org.rakam.analysis.PrestoAbstractUserService;
 import org.rakam.analysis.PrestoMaterializedViewService;
+import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
@@ -61,6 +62,10 @@ public class PrestoModule extends RakamModule {
 
         if ("true".equals(getConfig("user.funnel-analysis.enabled"))) {
             binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
+        }
+
+        if ("true".equals(getConfig("user.retention-analysis.enabled"))) {
+            binder.bind(RetentionQueryExecutor.class).to(PrestoRetentionQueryExecutor.class);
         }
 
 

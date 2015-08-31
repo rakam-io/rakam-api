@@ -29,7 +29,13 @@ import static org.rakam.util.ValidationUtil.checkCollection;
  * Created by buremba <Burak Emre Kabakcı> on 27/08/15 06:41.
  */
 public interface RetentionQueryExecutor {
-    QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
+    QueryExecution query(String project,
+                         Optional<RetentionAction> firstAction,
+                         Optional<RetentionAction> returningAction,
+                         DateUnit dateUnit,
+                         Optional<String> dimension,
+                         LocalDate startDate,
+                         LocalDate endDate);
 
     @AutoValue
     abstract class RetentionAction {
@@ -38,7 +44,7 @@ public interface RetentionQueryExecutor {
         @JsonProperty
         public abstract String collection();
         @JsonProperty
-        public abstract Optional<Expression> filterExpression();
+        public abstract Optional<Expression> filter();
 
         @JsonCreator
         public static RetentionAction create(@JsonProperty("collection") String collection,
@@ -50,6 +56,15 @@ public interface RetentionQueryExecutor {
 
         private static synchronized Expression parseExpression(String filterExpression) {
             return parser.createExpression(filterExpression);
+        }
+    }
+
+    enum DateUnit {
+        DAY, WEEK, MONTH;
+
+        @JsonCreator
+        public static DateUnit get(String name) {
+            return valueOf(name.toUpperCase());
         }
     }
 }
