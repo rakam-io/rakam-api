@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import org.rakam.report.QueryExecution;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -60,11 +61,21 @@ public interface RetentionQueryExecutor {
     }
 
     enum DateUnit {
-        DAY, WEEK, MONTH;
+        DAY(ChronoUnit.DAYS), WEEK(ChronoUnit.WEEKS), MONTH(ChronoUnit.MONTHS);
+
+        private final ChronoUnit temporalUnit;
+
+        DateUnit(ChronoUnit temporalUnit) {
+            this.temporalUnit = temporalUnit;
+        }
 
         @JsonCreator
         public static DateUnit get(String name) {
             return valueOf(name.toUpperCase());
+        }
+
+        public ChronoUnit getTemporalUnit() {
+            return temporalUnit;
         }
     }
 }
