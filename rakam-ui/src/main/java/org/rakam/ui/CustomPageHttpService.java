@@ -27,18 +27,16 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -67,42 +65,73 @@ public class CustomPageHttpService extends HttpService {
         path = new File(directory.getPath() + File.separator + "static/views/page/page_template.template");
     }
 
+    @Path("/frame")
+    @GET
+    public void frame(RakamHttpRequest request) {
+        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        String data = "<!DOCTYPE html> \n" +
+                "<html>\n" +
+                "   <body>\n" +
+                "  \t  <script>\n" +
+                "        var frame;\n" +
+                "        window.onerror = function(message, url, lineNumber) {\n" +
+                "            console.log(121);window.parent.postMessage({\n" +
+                "                type: 'error',\n" +
+                "                message: message,\n" +
+                "                url: url,\n" +
+                "                lineNumber: lineNumber\n" +
+                "            }, '*');\n" +
+                "        };\n" +
+                "        window.addEventListener('message', function(e) {\n" +
+                "            var data = JSON.parse(e.data);\n" +
+                "            if (data.html) {\n" +
+                "                if(frame) document.body.removeChild(frame);\n" +
+                "                frame = document.createElement('iframe');\n" +
+                "                frame.setAttribute('style', 'border:none;width:100%;height:100%;margin:0;padding:0;position:absolute;');\n" +
+                "                frame.setAttribute('sandbox', 'allow-forms allow-popups allow-scripts allow-same-origin');\n" +
+                "                document.body.appendChild(frame);\n" +
+                "                frame.contentWindow.API_URL = data.apiUrl;\n" +
+                "                frame.contentWindow.PROJECT = data.project;\n" +
+                "                frame.contentWindow.document.write(data.html +'<script>window.onerror = function(message, url, lineNumber) {console.log(2);}<\\/script>');\n" +
+                "                frame.contentWindow.document.close();\n" +
+                "            }\n" +
+                "        });\n" +
+                "\t  </script>\n" +
+                "   </body>\n" +
+                "</html>";
+
+        response.headers().set(CONTENT_TYPE, "text/html");
+        HttpHeaders.setContentLength(response, data.length());
+        request.context().write(response);
+        request.context().write(Unpooled.wrappedBuffer(data.getBytes()));
+        ChannelFuture lastContentFuture = request.context().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+
+        if (!HttpHeaders.isKeepAlive(request)) {
+            lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+        }
+    }
+
     @Path("/render")
     @POST
     public void render(RakamHttpRequest request) {
-        request.bodyHandler(buff -> {
-            QueryStringDecoder decoder = new QueryStringDecoder(buff, false);
+        request.bodyHandler(body -> {
+            QueryStringDecoder decoder = new QueryStringDecoder(body, false);
             Map<String, List<String>> parameters = decoder.parameters();
-            String html = parameters.get("html").get(0);
-            String js = parameters.get("js").get(0);
-            String css = parameters.get("css").get(0);
-
-            String template;
-            try {
-                template = new String(Files.readAllBytes(path.toPath()));
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            }
-
-            String data = String.format(template, js, css, html);
+            String data = parameters.get("data").get(0);
 
             HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-            HttpHeaders.setContentLength(response, data.length());
+
             response.headers().set(CONTENT_TYPE, "text/html");
-
-            if (HttpHeaders.isKeepAlive(request)) {
-                response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-            }
-
+            response.headers().set("Content-Security-Policy", "default-src *");
+            HttpHeaders.setContentLength(response, data.length());
             request.context().write(response);
             request.context().write(Unpooled.wrappedBuffer(data.getBytes()));
-
             ChannelFuture lastContentFuture = request.context().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 
             if (!HttpHeaders.isKeepAlive(request)) {
                 lastContentFuture.addListener(ChannelFutureListener.CLOSE);
             }
-
         });
+
     }
 }

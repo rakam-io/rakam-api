@@ -11,7 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.rakam.report;
+package org.rakam.analysis.postgresql;
+
+/**
+ * Created by buremba <Burak Emre Kabakcı> on 09/09/15 19:58.
+ */
 
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
@@ -19,6 +23,8 @@ import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.report.QueryExecution;
+import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -36,17 +42,15 @@ import static java.lang.String.format;
 /**
  * Created by buremba <Burak Emre Kabakcı> on 27/08/15 06:49.
  */
-public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
+public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor {
     private final int MAXIMUM_LEAD = 15;
-    private final PrestoQueryExecutor executor;
+    private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
-    private final PrestoConfig config;
 
     @Inject
-    public PrestoRetentionQueryExecutor(PrestoQueryExecutor executor, Metastore metastore, PrestoConfig config) {
+    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor, Metastore metastore) {
         this.executor = executor;
         this.metastore = metastore;
-        this.config = config;
     }
 
     @Override
@@ -131,15 +135,15 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
             String dimensionColumn = dimension.isPresent() ? "data.dimension" : timeTransformation;
 
             query = format("with first_action as (\n" +
-                    "  %s\n" +
-                    "), \n" +
-                    "returning_action as (\n" +
-                    "  %s\n" +
-                    ") \n" +
-                    "select %s, null as lead, count(distinct user) count from first_action data group by 1,2 union all\n" +
-                    "select %s, %s, count(distinct data.user) \n" +
-                    "from first_action data join returning_action on (data.user = returning_action.user) \n" +
-                    "where data.time < returning_action.time and %s < %d group by 1, 2",
+                            "  %s\n" +
+                            "), \n" +
+                            "returning_action as (\n" +
+                            "  %s\n" +
+                            ") \n" +
+                            "select %s, null as lead, count(distinct user) count from first_action data group by 1,2 union all\n" +
+                            "select %s, %s, count(distinct data.user) \n" +
+                            "from first_action data join returning_action on (data.user = returning_action.user) \n" +
+                            "where data.time < returning_action.time and %s < %d group by 1, 2",
                     firstActionQuery, from.toString(), dimensionColumn,
                     dimensionColumn, timeSubtraction,
                     timeSubtraction, MAXIMUM_LEAD);
@@ -200,8 +204,9 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
         return format("select user, %s as time %s from %s where time between %d and %d %s",
                 timeColumn,
                 dimension.isPresent() ? ", "+dimension.get()+" as dimension" : "",
-                config.getColdStorageConnector() + "." + project +"."+collection,
+                project +"."+collection,
                 startTs, endTs,
                 exp.isPresent() ? "and " + exp.get().accept(new ExpressionFormatter.Formatter(), false) : "");
     }
 }
+

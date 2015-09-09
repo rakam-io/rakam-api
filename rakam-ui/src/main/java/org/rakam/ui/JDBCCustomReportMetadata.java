@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
@@ -60,11 +61,19 @@ public class JDBCCustomReportMetadata {
     }
 
     public void addReport(CustomReport report) {
-        dao.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
-                .bind("reportType", report.reportType)
-                .bind("project", report.project)
-                .bind("name", report.name)
-                .bind("data", JsonHelper.encode(report.data)).execute();
+        try {
+            dao.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
+                    .bind("reportType", report.reportType)
+                    .bind("project", report.project)
+                    .bind("name", report.name)
+                    .bind("data", JsonHelper.encode(report.data)).execute();
+        } catch (Exception e) {
+            // TODO move it to transaction
+            if (getReport(report.reportType, report.project, report.name) != null) {
+                throw new RakamException("Report already exists", 400);
+            }
+            throw e;
+        }
     }
 
     public CustomReport getReport(String reportType, String project, String name) {

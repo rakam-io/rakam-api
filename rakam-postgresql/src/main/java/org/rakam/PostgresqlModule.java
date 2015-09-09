@@ -5,12 +5,16 @@ import com.google.inject.Binder;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
+import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCQueryMetadata;
+import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.analysis.postgresql.PostgresqlContinuousQueryService;
 import org.rakam.analysis.postgresql.PostgresqlEventStore;
+import org.rakam.analysis.postgresql.PostgresqlFunnelQueryExecutor;
 import org.rakam.analysis.postgresql.PostgresqlMaterializedViewService;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
+import org.rakam.analysis.postgresql.PostgresqlRetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.AbstractUserService;
@@ -60,6 +64,14 @@ public class PostgresqlModule extends RakamModule {
 
         JDBCQueryMetadata jdbcQueryMetadata = new JDBCQueryMetadata(jdbcConfig);
         binder.bind(QueryMetadataStore.class).toInstance(jdbcQueryMetadata);
+
+        if ("true".equals(getConfig("user.funnel-analysis.enabled"))) {
+            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
+        }
+
+        if ("true".equals(getConfig("user.retention-analysis.enabled"))) {
+            binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
+        }
     }
 
     @Override
