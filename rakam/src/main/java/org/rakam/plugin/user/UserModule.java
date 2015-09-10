@@ -28,11 +28,13 @@ public class UserModule extends RakamModule {
 
         Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
         events.addBinding().to(UserStorageListener.class).in(Scopes.SINGLETON);
+        UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
-        httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
 
-        UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
+        if (userPluginConfig.getStorageModule() != null) {
+            httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
+        }
 
         if(userPluginConfig.isMailboxEnabled()) {
             httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);

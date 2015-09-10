@@ -6,6 +6,7 @@ import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.RealTimeConfig;
 import org.rakam.server.http.HttpService;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;

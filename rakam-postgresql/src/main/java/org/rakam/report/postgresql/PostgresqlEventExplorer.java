@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.rakam.report;
+package org.rakam.report.postgresql;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
@@ -20,6 +20,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.realtime.AggregationType;
+import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.NotSupportedException;
@@ -50,17 +51,16 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.WEEK_OF_Y
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.YEAR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.realtime.AggregationType.COUNT;
-import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CATALOG_NAME;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 /**
- * Created by buremba <Burak Emre Kabakcı> on 13/08/15 18:16.
+ * Created by buremba <Burak Emre Kabakcı> on 10/09/15 03:10.
  */
-public class PrestoEventExplorer implements EventExplorer {
+public class PostgresqlEventExplorer implements EventExplorer {
 
     private final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big.";
 
-    private final PrestoQueryExecutor executor;
+    private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
     private final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
@@ -69,7 +69,6 @@ public class PrestoEventExplorer implements EventExplorer {
             .put(WEEK_OF_YEAR, "week(%s) as time")
             .put(MONTH_OF_YEAR, "month(%s) as time")
             .put(QUARTER_OF_YEAR, "quarter(%s) as time")
-//                    .put(DAY_PART, "CASE WHEN hour(from_unixtime(time)) > 12 THEN 'afternoon' ELSE 'night' END")
             .put(DAY_OF_WEEK, "day_of_week(%s) as time")
             .put(HOUR, "date_trunc('hour', %s) as time")
             .put(DAY, "cast(%s as date) as time")
@@ -78,7 +77,7 @@ public class PrestoEventExplorer implements EventExplorer {
             .build();
 
     @Inject
-    public PrestoEventExplorer(PrestoQueryExecutor executor, Metastore metastore) {
+    public PostgresqlEventExplorer(PostgresqlQueryExecutor executor, Metastore metastore) {
         this.executor = executor;
         this.metastore = metastore;
     }
@@ -319,23 +318,23 @@ public class PrestoEventExplorer implements EventExplorer {
             query = format("select collection, %s, total from (", format(timestampMapping.get(aggregationMethod), "time")) +
                     collectionNames.stream()
                             .map(collection ->
-                                    format("select '%s' as collection, from_unixtime(time*3600) time, total from %s.%s._total_%s ",
+                                    format("select '%s' as collection, from_unixtime(time*3600) time, total from %s._total_%s ",
                                             collection,
-                                            PRESTO_STREAMING_CATALOG_NAME,
+                                            PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX,
                                             project,
                                             collection))
                             .collect(Collectors.joining(" union "))+
                     format(") where time between date '%s' and date '%s' + interval '1' day", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
-                            .map(collection ->
-                                    format("select '%s' as collection, sum(total) from %s.%s._total_%s where time between to_unixtime(date '%s')/3600 and to_unixtime(date '%s' + interval '1' day)/3600",
-                                            collection,
-                                            PRESTO_STREAMING_CATALOG_NAME,
-                                            project,
-                                            collection,
-                                            startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
-                            .collect(Collectors.joining(" union "));
+                    .map(collection ->
+                            format("select '%s' as collection, sum(total) from %s.%s._total_%s where time between to_unixtime(date '%s')/3600 and to_unixtime(date '%s' + interval '1' day)/3600",
+                                    collection,
+                                    PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX,
+                                    project,
+                                    collection,
+                                    startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
+                    .collect(Collectors.joining(" union "));
         }
 
         return executor.executeRawQuery(query).getResult();

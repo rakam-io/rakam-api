@@ -1,8 +1,8 @@
 package org.rakam.report;
 
-import com.facebook.presto.hive.$internal.com.google.common.collect.ImmutableList;
-import com.facebook.presto.hive.$internal.com.google.common.collect.ImmutableMap;
 import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Scopes;
@@ -21,10 +21,12 @@ import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.plugin.EventExplorerConfig;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
+import org.rakam.plugin.UserPluginConfig;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
@@ -53,21 +55,23 @@ public class PrestoModule extends RakamModule {
                     .setBinding().to(PrestoAbstractUserService.class);
         }
 
-        if ("true".equals( getConfig("event-explorer.enabled"))) {
+
+        if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
 
             Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
             events.addBinding().to(EventExplorerListener.class).in(Scopes.SINGLETON);
         }
 
-        if ("true".equals(getConfig("user.funnel-analysis.enabled"))) {
+        UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
+
+        if (userPluginConfig.isFunnelAnalysisEnabled()) {
             binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
         }
 
-        if ("true".equals(getConfig("user.retention-analysis.enabled"))) {
+        if (userPluginConfig.isRetentionAnalysisEnabled()) {
             binder.bind(RetentionQueryExecutor.class).to(PrestoRetentionQueryExecutor.class);
         }
-
 
     }
 

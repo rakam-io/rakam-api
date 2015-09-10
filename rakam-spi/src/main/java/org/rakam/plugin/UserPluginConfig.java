@@ -17,6 +17,8 @@ public class UserPluginConfig {
     private String sessionColumn;
     private String lastSeenColumn;
     private String identifierColumn;
+    private boolean funnelAnalysisEnabled;
+    private boolean retentionAnalysisEnabled;
 
     @Config("plugin.user.storage.identifier_column")
     public UserPluginConfig setIdentifierColumn(String colName) {
@@ -44,6 +46,24 @@ public class UserPluginConfig {
 
     public boolean isMailboxEnabled() {
         return mailboxEnabled;
+    }
+
+    @Config("user.funnel-analysis.enabled")
+    public void setFunnelAnalysisEnabled(boolean funnelAnalysisEnabled) {
+        this.funnelAnalysisEnabled = funnelAnalysisEnabled;
+    }
+
+    public boolean isFunnelAnalysisEnabled() {
+        return funnelAnalysisEnabled;
+    }
+
+    @Config("user.retention-analysis.enabled")
+    public void setRetentionAnalysisEnabled(boolean retentionAnalysisEnabled) {
+        this.retentionAnalysisEnabled = retentionAnalysisEnabled;
+    }
+
+    public boolean isRetentionAnalysisEnabled() {
+        return retentionAnalysisEnabled;
     }
 
     @Config("plugin.user.storage.hide_columns")

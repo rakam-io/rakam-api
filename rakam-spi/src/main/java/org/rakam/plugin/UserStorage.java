@@ -26,6 +26,7 @@ public interface UserStorage {
     CompletableFuture<User> getUser(String project, String userId);
     void setUserProperty(String project, String user, String property, Object value);
     void createProject(String project);
+    boolean isEventFilterSupported();
 
     class Sorting {
         public final String column;

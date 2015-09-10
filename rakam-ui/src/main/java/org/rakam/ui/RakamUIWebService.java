@@ -1,5 +1,6 @@
 package org.rakam.ui;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import io.netty.channel.ChannelFuture;
@@ -12,6 +13,11 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
+import org.rakam.plugin.EventExplorerConfig;
+import org.rakam.plugin.EventStreamConfig;
+import org.rakam.plugin.RealTimeConfig;
+import org.rakam.plugin.UserPluginConfig;
+import org.rakam.plugin.UserStorage;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 
@@ -60,18 +66,74 @@ public class RakamUIWebService extends HttpService {
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     public static final int HTTP_CACHE_SECONDS = 60;
     private final File directory;
+    private final ActiveModuleList activeModules;
 
     @Inject
-    public RakamUIWebService(RakamUIModule.RakamUIConfig config) {
+    public RakamUIWebService(RakamUIModule.RakamUIConfig config, ActiveModuleListBuilder activeModuleListBuilder) {
         URI uri;
         try {
             uri = new URI(config.getUI());
         } catch (URISyntaxException e) {
             throw Throwables.propagate(e);
         }
+        activeModules = activeModuleListBuilder.build();
+        directory = new File(new File(uri.getHost(), uri.getPath()), Optional.ofNullable(config.getDirectory()).orElse("/"));
+    }
 
-        File directory = new File(uri.getHost(), uri.getPath());
-        this.directory = new File(directory, Optional.ofNullable(config.getDirectory()).orElse("/"));
+    private static class ActiveModuleListBuilder {
+        private final UserPluginConfig userPluginConfig;
+        private final RealTimeConfig realtimeConfig;
+        private final EventStreamConfig eventStreamConfig;
+        private final EventExplorerConfig eventExplorerConfig;
+        private final UserStorage userStorage;
+
+        @Inject
+        public ActiveModuleListBuilder(UserPluginConfig userPluginConfig, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserStorage userStorage) {
+           this.userPluginConfig = userPluginConfig;
+           this.realtimeConfig = realtimeConfig;
+           this.eventStreamConfig = eventStreamConfig;
+           this.eventExplorerConfig = eventExplorerConfig;
+           this.userStorage = userStorage;
+        }
+
+        public ActiveModuleList build() {
+            return new ActiveModuleList(userPluginConfig, realtimeConfig, eventStreamConfig, eventExplorerConfig, userStorage);
+        }
+    }
+    private static class ActiveModuleList {
+        @JsonProperty
+        private final boolean userStorage;
+        @JsonProperty
+        private final boolean userMailbox;
+        @JsonProperty
+        private final boolean funnelAnalysisEnabled;
+        @JsonProperty
+        private final boolean retentionAnalysisEnabled;
+        @JsonProperty
+        private final boolean eventExplorer;
+        @JsonProperty
+        private final boolean realtime;
+        @JsonProperty
+        private final boolean eventStream;
+        @JsonProperty
+        private final boolean userStorageEventFilter;
+
+        private ActiveModuleList(UserPluginConfig userPluginConfig, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserStorage userStorage) {
+            this.userStorage = userPluginConfig.getStorageModule() != null;
+            this.userMailbox = userPluginConfig.getMailBoxStorageModule() != null;
+            this.funnelAnalysisEnabled = userPluginConfig.isFunnelAnalysisEnabled();
+            this.retentionAnalysisEnabled = userPluginConfig.isRetentionAnalysisEnabled();
+            this.eventExplorer = eventExplorerConfig.isEventExplorerEnabled();
+            this.realtime = realtimeConfig.isRealtimeModuleEnabled();
+            this.eventStream = eventStreamConfig.isEventStreamEnabled();
+            this.userStorageEventFilter = userStorage.isEventFilterSupported();
+        }
+    }
+
+    @Path("/ui/active-modules")
+    @javax.ws.rs.GET
+    public ActiveModuleList modules() {
+        return activeModules;
     }
 
     @Path("/*")

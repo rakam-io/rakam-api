@@ -12,9 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import static com.facebook.presto.hive.$internal.com.google.common.primitives.Ints.checkedCast;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.Math.min;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -60,12 +63,10 @@ public class PrestoAbstractUserService extends AbstractUserService {
                                         prestoConfig.getColdStorageConnector() + "." + project + "." + entry.getKey(),
                                         user))
                 .collect(Collectors.joining(" union all "));
-        return executor.executeRawQuery(format("select json from (%s) order by time desc limit %d offset %s", sqlQuery, limit, offset)).getResult()
-                .thenApply(result -> {
-                    Object collect = result.getResult().stream()
-                            .map(s -> new CollectionEvent((String) s.get(0), JsonHelper.read(s.get(1).toString(), Map.class)))
-                            .collect(Collectors.toList());
-                    return (List<CollectionEvent>) collect;
-                });
+        return executor.executeRawQuery(format("select json from (%s) order by time desc limit %d", sqlQuery, limit, offset+limit)).getResult()
+                .thenApply(result -> (List<CollectionEvent>) IntStream.range(min(checkedCast(offset), result.getResult().size()), min(checkedCast(offset + limit), result.getResult().size()))
+                        .mapToObj(i -> result.getResult().get(i))
+                        .map(s -> new CollectionEvent((String) s.get(0), JsonHelper.read(s.get(1).toString(), Map.class)))
+                        .collect(Collectors.toList()));
     }
 }

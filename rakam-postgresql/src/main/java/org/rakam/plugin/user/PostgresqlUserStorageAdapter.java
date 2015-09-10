@@ -328,4 +328,9 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 "  PRIMARY KEY (%s)" +
                 ")", project, USER_TABLE, PRIMARY_KEY, PRIMARY_KEY));
     }
+
+    @Override
+    public boolean isEventFilterSupported() {
+        return true;
+    }
 }
