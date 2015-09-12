@@ -128,7 +128,7 @@ public class RealTimeHttpService extends HttpService {
             return f;
         }
 
-        long last_update = continuousQuery.lastUpdate().getEpochSecond();
+        long last_update = Instant.now().getEpochSecond();
         long previousWindow = (dateStart == null ? (last_update - window.getSeconds()) : dateStart.getEpochSecond()) / 5;
         long currentWindow = (dateEnd == null ? last_update : dateEnd.getEpochSecond()) / 5;
 

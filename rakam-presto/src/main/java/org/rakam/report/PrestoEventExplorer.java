@@ -22,7 +22,6 @@ import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.realtime.AggregationType;
 import org.rakam.util.RakamException;
 
-import javax.ws.rs.NotSupportedException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -119,7 +118,7 @@ public class PrestoEventExplorer implements EventExplorer {
             case REFERENCE:
                 return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "from_unixtime(time)");
             default:
-                throw new NotSupportedException("Unknown reference type: " + ref.value);
+                throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
     }
 
@@ -130,7 +129,7 @@ public class PrestoEventExplorer implements EventExplorer {
             case REFERENCE:
                 return "time";
             default:
-                throw new NotSupportedException("Unknown reference type: " + ref.value);
+                throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
     }
 
@@ -305,7 +304,7 @@ public class PrestoEventExplorer implements EventExplorer {
             case REFERENCE:
                 return false;
             default:
-                throw new NotSupportedException("Unknown reference type: " + ref.value);
+                throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
     }
 

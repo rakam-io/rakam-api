@@ -14,6 +14,7 @@
 package org.rakam.ui;
 
 import com.google.common.base.Throwables;
+import com.google.common.io.ByteStreams;
 import com.google.inject.Inject;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -22,20 +23,18 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http.QueryStringDecoder;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.JsonResponse;
 
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -47,22 +46,11 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 @Path("/custom-page")
 @Api(value = "/custom-page", description = "Custom page module", tags = "report, ui")
 public class CustomPageHttpService extends HttpService {
-
-    private final File path;
+    private final CustomPageDatabase database;
 
     @Inject
-    public CustomPageHttpService(RakamUIModule.RakamUIConfig config) {
-        URI uri;
-        try {
-            uri = new URI(config.getUI());
-        } catch (URISyntaxException e) {
-            throw Throwables.propagate(e);
-        }
-
-        File directory = new File(uri.getHost(), uri.getPath());
-        directory = new File(directory, Optional.ofNullable(config.getDirectory()).orElse("/"));
-
-        path = new File(directory.getPath() + File.separator + "static/views/page/page_template.template");
+    public CustomPageHttpService(CustomPageDatabase database) {
+        this.database = database;
     }
 
     @Path("/frame")
@@ -111,27 +99,79 @@ public class CustomPageHttpService extends HttpService {
         }
     }
 
-    @Path("/render")
-    @POST
-    public void render(RakamHttpRequest request) {
-        request.bodyHandler(body -> {
-            QueryStringDecoder decoder = new QueryStringDecoder(body, false);
-            Map<String, List<String>> parameters = decoder.parameters();
-            String data = parameters.get("data").get(0);
-
-            HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-
-            response.headers().set(CONTENT_TYPE, "text/html");
-            response.headers().set("Content-Security-Policy", "default-src *");
-            HttpHeaders.setContentLength(response, data.length());
-            request.context().write(response);
-            request.context().write(Unpooled.wrappedBuffer(data.getBytes()));
-            ChannelFuture lastContentFuture = request.context().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-
-            if (!HttpHeaders.isKeepAlive(request)) {
-                lastContentFuture.addListener(ChannelFutureListener.CLOSE);
-            }
-        });
-
+    @Path("/save")
+    @JsonRequest
+    public JsonResponse save(@ApiParam(name = "project") String project,
+                             @ApiParam(name = "name") String name,
+                             @ApiParam(name = "files") Map<String, String> files) {
+        database.save(project, name, files);
+        return JsonResponse.success();
     }
+
+    @Path("/delete")
+    @JsonRequest
+    public JsonResponse delete(String project, String name) {
+        database.delete(project, name);
+        return JsonResponse.success();
+    }
+
+    @Path("/get")
+    @JsonRequest
+    public Map<String, String> get(@ApiParam(name = "project") String project,
+                                   @ApiParam(name = "name") String name) {
+        return database.get(project, name);
+    }
+
+    @Path("/display/*")
+    @GET
+    public void display(RakamHttpRequest request) {
+        String path = request.path().substring(21);
+        String[] projectCustomPage = path.split("/", 3);
+        byte[] bytes;
+        try {
+            bytes = ByteStreams.toByteArray(database.getFile(projectCustomPage[0], projectCustomPage[1], projectCustomPage[2]));
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+        HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+
+        response.headers().set(CONTENT_TYPE, "text/html");
+        HttpHeaders.setContentLength(response, bytes.length);
+        request.context().write(response);
+        request.context().write(Unpooled.wrappedBuffer(bytes));
+        ChannelFuture lastContentFuture = request.context().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+
+        if (!HttpHeaders.isKeepAlive(request)) {
+            lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+        }
+    }
+
+    @Path("/list")
+    @JsonRequest
+    public List<String> list(@ApiParam(name = "project") String project) {
+        return database.list(project);
+    }
+
+//    @Path("/render")
+//    @POST
+//    public void render(RakamHttpRequest request) {
+//        request.bodyHandler(body -> {
+//            QueryStringDecoder decoder = new QueryStringDecoder(body, false);
+//            Map<String, List<String>> parameters = decoder.parameters();
+//            String data = parameters.get("data").get(0);
+//
+//            HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+//
+//            response.headers().set(CONTENT_TYPE, "text/html");
+//            response.headers().set("Content-Security-Policy", "default-src *");
+//            HttpHeaders.setContentLength(response, data.length());
+//            request.context().write(response);
+//            request.context().write(Unpooled.wrappedBuffer(data.getBytes()));
+//            ChannelFuture lastContentFuture = request.context().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+//
+//            if (!HttpHeaders.isKeepAlive(request)) {
+//                lastContentFuture.addListener(ChannelFutureListener.CLOSE);
+//            }
+//        });
+//    }
 }

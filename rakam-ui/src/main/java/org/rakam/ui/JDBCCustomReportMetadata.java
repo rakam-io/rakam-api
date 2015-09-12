@@ -60,7 +60,7 @@ public class JDBCCustomReportMetadata {
         }
     }
 
-    public void addReport(CustomReport report) {
+    public void add(CustomReport report) {
         try {
             dao.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
                     .bind("reportType", report.reportType)
@@ -69,14 +69,14 @@ public class JDBCCustomReportMetadata {
                     .bind("data", JsonHelper.encode(report.data)).execute();
         } catch (Exception e) {
             // TODO move it to transaction
-            if (getReport(report.reportType, report.project, report.name) != null) {
+            if (get(report.reportType, report.project, report.name) != null) {
                 throw new RakamException("Report already exists", 400);
             }
             throw e;
         }
     }
 
-    public CustomReport getReport(String reportType, String project, String name) {
+    public CustomReport get(String reportType, String project, String name) {
         return dao.createQuery("SELECT data FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name")
                 .bind("reportType", reportType)
                 .bind("project", project)
@@ -86,7 +86,7 @@ public class JDBCCustomReportMetadata {
                 }).first();
     }
 
-    public List<CustomReport> listReports(String reportType, String project) {
+    public List<CustomReport> list(String reportType, String project) {
         return dao.createQuery("SELECT name, data FROM custom_reports WHERE report_type = :reportType AND project = :project")
                 .bind("reportType", reportType)
                 .bind("project", project)

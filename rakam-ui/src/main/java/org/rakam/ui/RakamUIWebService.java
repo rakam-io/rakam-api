@@ -69,7 +69,7 @@ public class RakamUIWebService extends HttpService {
     private final ActiveModuleList activeModules;
 
     @Inject
-    public RakamUIWebService(RakamUIModule.RakamUIConfig config, ActiveModuleListBuilder activeModuleListBuilder) {
+    public RakamUIWebService(RakamUIConfig config, ActiveModuleListBuilder activeModuleListBuilder) {
         URI uri;
         try {
             uri = new URI(config.getUI());

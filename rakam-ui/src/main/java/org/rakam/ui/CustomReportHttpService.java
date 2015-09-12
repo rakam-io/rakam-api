@@ -51,7 +51,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/list")
     public List<CustomReport> list(@ApiParam(name="report_type", required = true) String reportType,
                                    @ApiParam(name="project", required = true) String project) {
-        return metadata.listReports(reportType, project);
+        return metadata.list(reportType, project);
     }
 
     @JsonRequest
@@ -62,7 +62,7 @@ public class CustomReportHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
     public JsonResponse create(@ParamBody CustomReport report) {
-        metadata.addReport(report);
+        metadata.add(report);
         return JsonResponse.success();
     }
 
@@ -91,6 +91,6 @@ public class CustomReportHttpService extends HttpService {
     public Object get(@ApiParam(name="report_type", required = true) String reportType,
                       @ApiParam(name="project", value = "Project id", required = true) String project,
                       @ApiParam(name="name", value = "Report name", required = true) String name) {
-        return metadata.getReport(reportType, project, name);
+        return metadata.get(reportType, project, name);
     }
 }

@@ -45,7 +45,7 @@
         <air.version>0.101</air.version>
         <presto.version>0.114</presto.version>
         <java.version>1.8</java.version>
-        <netty.rest.version>f60816e90e</netty.rest.version>
+        <netty.rest.version>09e02bd462</netty.rest.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
@@ -71,6 +71,12 @@
                 <groupId>io.airlift</groupId>
                 <artifactId>configuration</artifactId>
                 <version>${air.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro</artifactId>
+                <version>1.7.7</version>
             </dependency>
 
             <dependency>

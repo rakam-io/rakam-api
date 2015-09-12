@@ -27,6 +27,7 @@ import org.rakam.server.http.annotations.ApiImplicitParam;
 import org.rakam.server.http.annotations.ApiImplicitParams;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
@@ -65,7 +66,7 @@ public class QueryHttpService extends HttpService {
 
     @Path("/execute")
     @JsonRequest
-    public CompletableFuture<QueryResult> execute(ExecuteQuery query) {
+    public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
         return executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult();
     }
 
@@ -179,39 +180,24 @@ public class QueryHttpService extends HttpService {
     }
 
     public static class ExecuteQuery {
+        @ApiParam(name = "project", required = true)
         public final String project;
+        @ApiParam(name = "query", required = true)
         public final String query;
-        public final Segment segment;
+        @ApiParam(name = "limit", required = false)
         public final Integer limit;
 
         @JsonCreator
         public ExecuteQuery(@JsonProperty("project") String project,
                             @JsonProperty("query") String query,
-                            @JsonProperty("segment") Segment segment,
                             @JsonProperty("limit") Integer limit) {
             this.project = checkNotNull(project, "project is empty");
             this.query = checkNotNull(query, "query is empty");;
-            this.segment = segment;
             if(limit !=null && limit > 5000) {
                 throw new IllegalArgumentException("maximum value of limit is 5000");
             }
             this.limit = limit;
 
-        }
-
-        public static class Segment {
-            public final String x;
-            public final String category;
-            public final String value;
-
-            @JsonCreator
-            public Segment(@JsonProperty("x") String x,
-                           @JsonProperty("category") String category,
-                           @JsonProperty("value") String value) {
-                this.x = x;
-                this.category = category;
-                this.value = value;
-            }
         }
     }
 

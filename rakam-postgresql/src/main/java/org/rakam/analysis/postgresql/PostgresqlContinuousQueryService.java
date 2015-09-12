@@ -37,7 +37,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -328,7 +327,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 resultSet = statement.executeQuery();
             }
             if(resultSet.next()) {
-                continuousQuery.setLastUpdate(Instant.ofEpochSecond(resultSet.getLong(1)));
+//                continuousQuery.setLastUpdate(Instant.ofEpochSecond(resultSet.getLong(1)));
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
