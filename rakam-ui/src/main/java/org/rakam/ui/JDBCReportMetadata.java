@@ -73,9 +73,9 @@ public class JDBCReportMetadata {
         }
     }
 
-    public Object get(String project, String name) {
-        return dao.createQuery("SELECT project, slug, name, query, options FROM reports WHERE project = :project AND name = :name")
+    public Report get(String project, String slug) {
+        return dao.createQuery("SELECT project, slug, name, query, options FROM reports WHERE project = :project AND slug = :slug")
                 .bind("project", project)
-                .bind("name", name).map(mapper).list();
+                .bind("slug", slug).map(mapper).first();
     }
 }

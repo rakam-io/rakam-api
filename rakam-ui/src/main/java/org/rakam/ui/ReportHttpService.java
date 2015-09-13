@@ -72,8 +72,8 @@ public class ReportHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/get")
-    public Object get(@ApiParam(name="project", value = "Project id", required = true) String project,
-                      @ApiParam(name="name", value = "Report name", required = true) String name) {
-        return metadata.get(project, name);
+    public Report get(@ApiParam(name="project", value = "Project id", required = true) String project,
+                      @ApiParam(name="slug", value = "Report name", required = true) String slug) {
+        return metadata.get(project, slug);
     }
 }

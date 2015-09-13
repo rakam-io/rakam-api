@@ -13,7 +13,9 @@
  */
 package org.rakam.ui;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.rakam.plugin.JDBCConfig;
@@ -22,10 +24,9 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.RakamException;
+import org.rakam.util.JsonResponse;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.ws.rs.Path;
 import java.util.List;
@@ -60,6 +61,7 @@ public class DashboardService extends HttpService {
                 "  id SERIAL," +
                 "  dashboard int NOT NULL REFERENCES dashboard(id) ON DELETE CASCADE," +
                 "  name VARCHAR(255) NOT NULL," +
+                "  directive VARCHAR(255) NOT NULL," +
                 "  data TEXT NOT NULL," +
                 "  PRIMARY KEY (id)" +
                 "  )")
@@ -68,78 +70,128 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/create")
-    public void create(@ApiParam("project") String project,
-                       @ApiParam("name") String name) {
-        try {
-            dao.createStatement("INSERT INTO dashboard (project, name) VALUES (:project, :name)")
+    public JsonResponse create(@ApiParam("project") String project,
+                               @ApiParam("name") String name) {
+        dao.createStatement("INSERT INTO dashboard (project, name) VALUES (:project, :name)")
                     .bind("project", project)
                     .bind("name", name).execute();
-        } catch (Exception e) {
-            // TODO move it to transaction
-            if (get(project, name) != null) {
-                throw new RakamException("Dashboard already exists", 400);
-            }
-            throw e;
-        }
+        return JsonResponse.success();
     }
 
     @JsonRequest
     @Path("/delete")
-    public void delete(@ApiParam(name="project") String project,
-                       @ApiParam(name="name") String name) {
+    public JsonResponse delete(@ApiParam(name = "project") String project,
+                               @ApiParam(name = "name") String name) {
         dao.createStatement("DELETE FROM dashboard WHERE project = :project AND name = :name")
                     .bind("project", project)
                     .bind("name", name).execute();
+        return JsonResponse.success();
     }
 
     @JsonRequest
     @Path("/get")
     public List<DashboardItem> get(@ApiParam(name="project") String project,
-                                   @ApiParam(name="name") String name) {
-        return dao.createQuery("SELECT id, data FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE name = :name)")
-                .bind("name", name).map((i, r, statementContext) -> {
-                    return new DashboardItem(r.getInt(1), JsonHelper.read(r.getString(2), ObjectNode.class));
+                                   @ApiParam(name="id") int id) {
+        return dao.createQuery("SELECT id, name, directive, data FROM dashboard_items WHERE dashboard = :id")
+                .bind("id", id).map((i, r, statementContext) -> {
+                    return new DashboardItem(r.getInt(1), r.getString(2), r.getString(3), JsonHelper.read(r.getString(4), JsonNode.class));
                 }).list();
     }
 
     @JsonRequest
     @Path("/list")
-    public List<String> list(@ApiParam(name="project") String project) {
-        return dao.createQuery("SELECT name FROM dashboard WHERE project = :project")
-                .bind("project", project).map(StringMapper.FIRST).list();
+    public List<Dashboard> list(@ApiParam(name="project") String project) {
+        return dao.createQuery("SELECT id, name FROM dashboard WHERE project = :project")
+                .bind("project", project).map((i, resultSet, statementContext) -> {
+                    return new Dashboard(resultSet.getInt(1), resultSet.getString(2));
+                }).list();
+    }
+
+    public static class Dashboard {
+        public final int id;
+        public final String name;
+
+        public Dashboard(int id, String name) {
+            this.id = id;
+            this.name = name;
+        }
     }
 
     public static class DashboardItem {
         public final int id;
-        public final ObjectNode data;
+        public final JsonNode data;
+        public final String directive;
+        public final String name;
 
-        public DashboardItem(int id, ObjectNode data) {
+        @JsonCreator
+        public DashboardItem(@JsonProperty("id") int id,
+                             @JsonProperty("name") String name,
+                             @JsonProperty("directive") String directive,
+                             @JsonProperty("data") JsonNode data) {
             this.id = id;
+            this.directive = directive;
+            this.name = name;
             this.data = data;
         }
     }
 
     @JsonRequest
     @Path("/add_item")
-    public void addToDashboard(@ApiParam(name="project") String project,
-                               @ApiParam(name="dashboardName") String dashboardName,
+    public JsonResponse addToDashboard(@ApiParam(name="project") String project,
+                               @ApiParam(name="dashboard") int dashboard,
                                @ApiParam(name="name") String itemName,
-                               @ApiParam(name="data") ObjectNode data) {
-        dao.createStatement("INSERT INTO dashboard_items (dashboard, name, data) VALUES ((SELECT id FROM dashboard WHERE project = :project AND name = :dashboardName), :name, :data)")
+                               @ApiParam(name="directive") String directive,
+                               @ApiParam(name="data") JsonNode data) {
+        dao.createStatement("INSERT INTO dashboard_items (dashboard, name, directive, data) VALUES (:dashboard, :name, :directive, :data)")
                 .bind("project", project)
-                .bind("dashboardName", dashboardName)
+                .bind("dashboard", dashboard)
                 .bind("name", itemName)
+                .bind("directive", directive)
                 .bind("data", JsonHelper.encode(data)).execute();
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @Path("/update_dashboard")
+    public JsonResponse updateDashboard(@ApiParam(name="project") String project,
+                               @ApiParam(name="dashboard") int dashboard,
+                               @ApiParam(name="items") List<DashboardItem> items) {
+
+        dao.inTransaction((handle, transactionStatus) -> {
+            for (DashboardItem item : items) {
+                handle.createStatement("UPDATE dashboard_items SET name = :name, directive = :directive, data = :data WHERE id = :id")
+                        .bind("id", item.id)
+                        .bind("name", item.name)
+                        .bind("directive", item.directive)
+                        .bind("data", JsonHelper.encode(item.data)).execute();
+            }
+            return null;
+        });
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @Path("/rename_item")
+    public JsonResponse updateDashboard(@ApiParam(name="project") String project,
+                               @ApiParam(name="dashboard") int dashboard,
+                               @ApiParam(name="id") int id,
+                               @ApiParam(name="name") int name) {
+
+        dao.createStatement("UPDATE dashboard_items SET name = :name WHERE id = :id")
+                .bind("id", id)
+                .bind("name", name).execute();
+        return JsonResponse.success();
     }
 
     @JsonRequest
     @Path("/remove_item")
-    public void removeFromDashboard(@ApiParam(name="project") String project,
-                                    @ApiParam(name="dashboardName") String dashboardName,
-                                    @ApiParam(name="name") String itemName) {
-        dao.createStatement("DELETE FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project = :project AND name = :dashboardName) AND name = :name")
+    public JsonResponse removeFromDashboard(@ApiParam(name = "project") String project,
+                                            @ApiParam(name = "dashboard") int dashboard,
+                                            @ApiParam(name = "id") int id) {
+        dao.createStatement("DELETE FROM dashboard_items WHERE dashboard = :dashboard AND id = :id")
                 .bind("project", project)
-                .bind("dashboardName", dashboardName)
-                .bind("name", itemName).execute();
+                .bind("dashboard", dashboard)
+                .bind("id", id).execute();
+        return JsonResponse.success();
     }
 }

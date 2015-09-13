@@ -71,13 +71,13 @@ public class RealTimeHttpService extends HttpService {
      * This module adds a new attribute called 'time' to events, it's simply a unix epoch that represents the seconds the event is occurred.
      * Continuous query continuously aggregates 'time' column and
      * real-time module executes queries on continuous query table similar to 'select count from stream_count where time > now() - interval 5 second'
-     *
+     * 
      * curl 'http://localhost:9999/realtime/create' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection", "aggregation": "COUNT"}'
      */
     @JsonRequest
     @ApiOperation(value = "Create realtime report")
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
     public CompletableFuture<JsonResponse> create(@ParamBody RealTimeReport query) {
         String tableName = toSlug(query.name);
@@ -106,14 +106,14 @@ public class RealTimeHttpService extends HttpService {
     @ApiOperation(value = "Get realtime report")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "Report does not exist.") })
+            @ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
-    public CompletableFuture<Object> get(@ApiParam(name="project", required = true) String project,
-                                         @ApiParam(name="name", required = true) String name,
-                                         @ApiParam(name="filter", required = false) String filter,
-                                         @ApiParam(name="aggregate", required = false) boolean aggregate,
-                                         @ApiParam(name="date_start", required = false) Instant dateStart,
-                                         @ApiParam(name="date_end", required = false) Instant dateEnd) {
+    public CompletableFuture<Object> get(@ApiParam(name = "project", required = true) String project,
+                                         @ApiParam(name = "name", required = true) String name,
+                                         @ApiParam(name = "filter", required = false) String filter,
+                                         @ApiParam(name = "aggregate", required = false) boolean aggregate,
+                                         @ApiParam(name = "date_start", required = false) Instant dateStart,
+                                         @ApiParam(name = "date_end", required = false) Instant dateEnd) {
         Expression expression;
         if (filter != null) {
             expression = sqlParser.createExpression(filter);
@@ -137,11 +137,11 @@ public class RealTimeHttpService extends HttpService {
         Object timeCol = aggregate ? currentWindow : "time";
         String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol,
-                report.dimension!=null ? report.dimension+"," : "",
+                report.dimension != null ? report.dimension + "," : "",
                 aggregate ? getAggregationMethod(report.aggregation) : "",
                 "continuous." + continuousQuery.tableName,
-                format("time >= %d", previousWindow)+(dateEnd== null ? "" : format("AND time <", format("time >= %d AND time <= %d", previousWindow, currentWindow))),
-                report.dimension!=null && aggregate ? "GROUP BY "+report.dimension : "",
+                format("time >= %d", previousWindow) + (dateEnd == null ? "" : format("AND time <", format("time >= %d AND time <= %d", previousWindow, currentWindow))),
+                report.dimension != null && aggregate ? "GROUP BY " + report.dimension : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
         return executor.executeQuery(continuousQuery.project, sqlQuery).getResult().thenApply(result -> {
@@ -152,8 +152,8 @@ public class RealTimeHttpService extends HttpService {
 
                 List<List<Object>> data = result.getResult();
 
-                if(!aggregate) {
-                    if(report.dimension == null) {
+                if (!aggregate) {
+                    if (report.dimension == null) {
                         List<List<Object>> newData = Lists.newLinkedList();
                         int currentDataIdx = 0;
                         for (long current = previousWindow; current < currentWindow; current++) {
@@ -161,26 +161,26 @@ public class RealTimeHttpService extends HttpService {
                                 List<Object> objects = data.get(currentDataIdx++);
                                 Long time = ((Number) objects.get(0)).longValue();
                                 if (time == current) {
-                                    newData.add(ImmutableList.of(current*5, objects.get(1)));
+                                    newData.add(ImmutableList.of(current * 5, objects.get(1)));
                                     continue;
                                 }
                             }
-                            newData.add(ImmutableList.of(current*5, 0));
+                            newData.add(ImmutableList.of(current * 5, 0));
                         }
                         return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     } else {
                         Map<Object, List<Object>> newData = data.stream()
                                 .collect(Collectors.groupingBy(o -> new Function<List<Object>, Object>() {
-                                                                   @Override
-                                                                   public Object apply(List<Object> o) {
-                                                                       return o.get(0);
-                                                                   }
-                                                               },
+                                            @Override
+                                            public Object apply(List<Object> o) {
+                                                return o.get(0);
+                                            }
+                                        },
                                         Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
                         return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     }
                 } else {
-                    if(report.dimension == null) {
+                    if (report.dimension == null) {
                         return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
                     } else {
                         List<ImmutableList<Object>> newData = data.stream()
@@ -228,7 +228,7 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "List real-time reports")
     @Path("/list")
-    public List<RealTimeReport> list(@ApiParam(name="project", required = true) String project) {
+    public List<RealTimeReport> list(@ApiParam(name = "project", required = true) String project) {
         if (project == null) {
             throw new RakamException("project parameter is required", 400);
         }
@@ -245,8 +245,8 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete realtime report")
     @Path("/delete")
-    public Object delete(@ApiParam(name="project", required = true) String project,
-                         @ApiParam(name="name", required = true) String name) {
+    public Object delete(@ApiParam(name = "project", required = true) String project,
+                         @ApiParam(name = "name", required = true) String name) {
 
         // TODO: Check if it's a real-time report.
         service.delete(project, name);
@@ -262,7 +262,7 @@ public class RealTimeHttpService extends HttpService {
 
         StringBuilder builder = new StringBuilder();
         if (dimension != null)
-            builder.append(" "+dimension+", ");
+            builder.append(" " + dimension + ", ");
 
         switch (aggType) {
             case AVERAGE:
