@@ -1,4 +1,4 @@
-package org.rakam.analysis;
+package org.rakam.aws;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -13,7 +13,7 @@ import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
-import static org.rakam.analysis.util.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
+import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/07/15 06:47.

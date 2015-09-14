@@ -1,6 +1,3 @@
-import com.facebook.presto.block.BlockEncodingManager;
-import com.facebook.presto.block.PagesSerde;
-import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.PageBuilder;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
@@ -9,27 +6,19 @@ import com.facebook.presto.spi.type.AbstractType;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.DoubleType;
 import com.facebook.presto.spi.type.VarcharType;
-import com.facebook.presto.type.TypeRegistry;
 import com.google.common.collect.ImmutableList;
-import io.airlift.slice.InputStreamSliceInput;
-import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
 import org.junit.Test;
-import org.rakam.analysis.PageDatumReader;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -58,25 +47,25 @@ public class SerializationTest {
         writer.write(record, encoder);
         encoder.flush();
 
-        PageDatumReader pageDatumReader = new PageDatumReader(pageBuilder, schema);
-
-        byte[] bytes = output.toByteArray();
-
-        DecoderFactory decoderFactory = DecoderFactory.get();
-        BinaryDecoder binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, null);
-
-        for (int i = 0; i < 5000; i++) {
-            binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, binaryDecoder);
-
-            pageDatumReader.read(null, binaryDecoder);
-        }
-
-        long l = System.currentTimeMillis();
-        for (int i = 0; i < 10000000; i++) {
-            binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, binaryDecoder);
-            pageDatumReader.read(null, binaryDecoder);
-        }
-        System.out.println(System.currentTimeMillis()-l);
+//        PageDatumReader pageDatumReader = new PageDatumReader(pageBuilder, schema);
+//
+//        byte[] bytes = output.toByteArray();
+//
+//        DecoderFactory decoderFactory = DecoderFactory.get();
+//        BinaryDecoder binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, null);
+//
+//        for (int i = 0; i < 5000; i++) {
+//            binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, binaryDecoder);
+//
+//            pageDatumReader.read(null, binaryDecoder);
+//        }
+//
+//        long l = System.currentTimeMillis();
+//        for (int i = 0; i < 10000000; i++) {
+//            binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, binaryDecoder);
+//            pageDatumReader.read(null, binaryDecoder);
+//        }
+//        System.out.println(System.currentTimeMillis()-l);
     }
 
     @Test
@@ -118,30 +107,30 @@ public class SerializationTest {
         writer.write(record, encoder);
         encoder.flush();
 
-        PageDatumReader pageDatumReader = new PageDatumReader(pageBuilder, schema);
-
-        byte[] bytes = output.toByteArray();
-
-        DecoderFactory decoderFactory = DecoderFactory.get();
-        BinaryDecoder binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, null);
-
-        for (int i = 0; i < 10000000; i++) {
-            binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, binaryDecoder);
-            pageDatumReader.read(null, binaryDecoder);
-        }
-
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        BlockEncodingManager serde = new BlockEncodingManager(new TypeRegistry());
-
-        PagesSerde.writePages(serde, new OutputStreamSliceOutput(out), pageBuilder.build());
-
-        byte[] serializedPage = out.toByteArray();
-
-        long l = System.currentTimeMillis();
-        Iterator<Page> pageIterator = PagesSerde
-                .readPages(serde, new InputStreamSliceInput(new ByteArrayInputStream(serializedPage)));
-        ImmutableList.copyOf(pageIterator);
-        System.out.println(System.currentTimeMillis()-l);
+//        PageDatumReader pageDatumReader = new PageDatumReader(pageBuilder, schema);
+//
+//        byte[] bytes = output.toByteArray();
+//
+//        DecoderFactory decoderFactory = DecoderFactory.get();
+//        BinaryDecoder binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, null);
+//
+//        for (int i = 0; i < 10000000; i++) {
+//            binaryDecoder = decoderFactory.binaryDecoder(bytes, 0, bytes.length, binaryDecoder);
+//            pageDatumReader.read(null, binaryDecoder);
+//        }
+//
+//        ByteArrayOutputStream out = new ByteArrayOutputStream();
+//        BlockEncodingManager serde = new BlockEncodingManager(new TypeRegistry());
+//
+//        PagesSerde.writePages(serde, new OutputStreamSliceOutput(out), pageBuilder.build());
+//
+//        byte[] serializedPage = out.toByteArray();
+//
+//        long l = System.currentTimeMillis();
+//        Iterator<Page> pageIterator = PagesSerde
+//                .readPages(serde, new InputStreamSliceInput(new ByteArrayInputStream(serializedPage)));
+//        ImmutableList.copyOf(pageIterator);
+//        System.out.println(System.currentTimeMillis()-l);
     }
 
     @Test

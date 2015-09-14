@@ -3,10 +3,9 @@ package org.rakam.aws;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
-import org.rakam.analysis.AWSConfig;
-import org.rakam.analysis.AWSKinesisEventStore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.EventStream;
 import org.rakam.plugin.RakamModule;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
@@ -21,10 +20,7 @@ public class AWSKinesisModule extends RakamModule {
     protected void setup(Binder binder) {
         bindConfig(binder).to(AWSConfig.class);
         binder.bind(EventStore.class).to(AWSKinesisEventStore.class).in(Scopes.SINGLETON);
-//        binder.bind(EventStream.class).to(AWSKinesisEventStream.class).in(Scopes.SINGLETON);
-//        if(awsConfig.getKinesisWorker()) {
-//            binder.bind(KinesisStreamWorkerManager.class).asEagerSingleton();
-//        }
+        binder.bind(EventStream.class).to(KinesisEventStream.class).in(Scopes.SINGLETON);
     }
 
     @Override

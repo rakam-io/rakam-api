@@ -1,7 +1,6 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -28,8 +27,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -37,7 +34,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 
@@ -70,14 +66,8 @@ public class RakamUIWebService extends HttpService {
 
     @Inject
     public RakamUIWebService(RakamUIConfig config, ActiveModuleListBuilder activeModuleListBuilder) {
-        URI uri;
-        try {
-            uri = new URI(config.getUI());
-        } catch (URISyntaxException e) {
-            throw Throwables.propagate(e);
-        }
         activeModules = activeModuleListBuilder.build();
-        directory = new File(new File(uri.getHost(), uri.getPath()), Optional.ofNullable(config.getDirectory()).orElse("/"));
+        directory = config.getUIDirectory();
     }
 
     private static class ActiveModuleListBuilder {

@@ -71,7 +71,7 @@ public class RealTimeHttpService extends HttpService {
      * This module adds a new attribute called 'time' to events, it's simply a unix epoch that represents the seconds the event is occurred.
      * Continuous query continuously aggregates 'time' column and
      * real-time module executes queries on continuous query table similar to 'select count from stream_count where time > now() - interval 5 second'
-     * 
+     *
      * curl 'http://localhost:9999/realtime/create' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection", "aggregation": "COUNT"}'
      */
     @JsonRequest

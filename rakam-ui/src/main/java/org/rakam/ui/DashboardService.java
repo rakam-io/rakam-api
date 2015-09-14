@@ -27,6 +27,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.util.IntegerMapper;
 
 import javax.ws.rs.Path;
 import java.util.List;
@@ -70,12 +71,12 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/create")
-    public JsonResponse create(@ApiParam("project") String project,
-                               @ApiParam("name") String name) {
-        dao.createStatement("INSERT INTO dashboard (project, name) VALUES (:project, :name)")
+    public Dashboard create(@ApiParam(name="project") String project,
+                            @ApiParam(name="name") String name) {
+        int id = dao.createQuery("INSERT INTO dashboard (project, name) VALUES (:project, :name) RETURNING id")
                     .bind("project", project)
-                    .bind("name", name).execute();
-        return JsonResponse.success();
+                    .bind("name", name).map(IntegerMapper.FIRST).first();
+        return new Dashboard(id, name);
     }
 
     @JsonRequest
@@ -172,7 +173,7 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/rename_item")
-    public JsonResponse updateDashboard(@ApiParam(name="project") String project,
+    public JsonResponse renameDashboardItem(@ApiParam(name="project") String project,
                                @ApiParam(name="dashboard") int dashboard,
                                @ApiParam(name="id") int id,
                                @ApiParam(name="name") int name) {

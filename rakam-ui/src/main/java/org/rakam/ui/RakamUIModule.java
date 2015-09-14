@@ -33,9 +33,6 @@ public class RakamUIModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
-        if (rakamUIConfig.getUI() == null) {
-            return;
-        }
         bindConfig(binder)
                 .annotatedWith(Names.named("ui.metadata.store.jdbc"))
                 .prefixedWith("ui.metadata.store.jdbc")

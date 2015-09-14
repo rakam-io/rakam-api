@@ -22,29 +22,18 @@ import java.util.Locale;
  * Created by buremba <Burak Emre Kabakcı> on 11/09/15 01:34.
  */
 public class RakamUIConfig {
-    private String ui;
-    private String directory;
+    private File uiDirectory;
     private RakamUIModule.CustomPageBackend customPageBackend;
     private File customPageBackendDirectory;
 
-    @Config("ui.source")
-    public RakamUIConfig setUI(String ui) {
-        this.ui = ui;
-        return this;
-    }
-
-    public String getUI() {
-        return ui;
-    }
-
     @Config("ui.directory")
-    public RakamUIConfig setDirectory(String directory) {
-        this.directory = directory;
+    public RakamUIConfig setUIDirectory(File uiDirectory) {
+        this.uiDirectory = uiDirectory;
         return this;
     }
 
-    public String getDirectory() {
-        return directory;
+    public File getUIDirectory() {
+        return uiDirectory;
     }
 
     @Config("ui.custom-page.backend")

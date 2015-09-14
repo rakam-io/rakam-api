@@ -1,4 +1,4 @@
-package org.rakam.analysis;
+package org.rakam.aws;
 
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.internal.StaticCredentialsProvider;

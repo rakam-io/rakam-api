@@ -154,12 +154,12 @@ public class Recipe {
     }
 
     public static class SchemaFieldInfo {
-        private final FieldType category;
+        private final String category;
         private final FieldType type;
         private final boolean nullable;
 
         @JsonCreator
-        public SchemaFieldInfo(@JsonProperty("category") FieldType category,
+        public SchemaFieldInfo(@JsonProperty("category") String category,
                                @JsonProperty("type") FieldType type,
                                @JsonProperty("nullable") Boolean nullable) {
             this.category = category;
@@ -175,7 +175,7 @@ public class Recipe {
             return nullable;
         }
 
-        public FieldType getCategory() {
+        public String getCategory() {
             return category;
         }
     }
