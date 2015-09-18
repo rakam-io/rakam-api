@@ -18,6 +18,7 @@ import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.analysis.stream.EventStreamHttpService;
 import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.EventStreamConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
@@ -29,8 +30,10 @@ import org.rakam.server.http.HttpService;
 public class EventStreamModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
-        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
-        httpServices.addBinding().to(EventStreamHttpService.class);
+        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
+            Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+            httpServices.addBinding().to(EventStreamHttpService.class);
+        }
     }
 
     @Override

@@ -46,6 +46,7 @@ public class AWSKinesisEventStore implements EventStore {
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
 
         try {
+
             encoder.writeString(event.project());
             encoder.writeString(event.collection());
 

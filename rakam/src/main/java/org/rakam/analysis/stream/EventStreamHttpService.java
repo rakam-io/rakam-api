@@ -21,7 +21,6 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.RakamException;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -47,8 +46,8 @@ public class EventStreamHttpService extends HttpService {
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public EventStreamHttpService(com.google.common.base.Optional<EventStream> stream) {
-        this.stream = stream.orNull();
+    public EventStreamHttpService(EventStream stream) {
+        this.stream = stream;
         this.sqlParser = new SqlParser();
     }
 
@@ -62,9 +61,6 @@ public class EventStreamHttpService extends HttpService {
     @Consumes("text/event-stream")
     @Path("/subscribe")
     public void subscribe(RakamHttpRequest request) {
-        if(stream == null) {
-            throw new RakamException("event stream service is not available.", 501);
-        }
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
             request.response("the response should accept text/event-stream", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;

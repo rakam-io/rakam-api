@@ -19,7 +19,7 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
-            <artifactId>rakam-kinesis-redshift</artifactId>
+            <artifactId>rakam-aws-kinesis</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

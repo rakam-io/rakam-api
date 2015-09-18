@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>rakam-aws-kinesis</artifactId>
+    <name>rakam-aws-kinesis</name>
 
     <dependencies>
         <dependency>
@@ -20,7 +21,7 @@
         <dependency>
             <groupId>com.hazelcast</groupId>
             <artifactId>hazelcast-client</artifactId>
-            <version>3.5.2</version>
+            <version>3.5</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>

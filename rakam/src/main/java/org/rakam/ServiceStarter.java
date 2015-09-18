@@ -33,7 +33,6 @@ import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
-import org.rakam.plugin.EventStream;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.UserStorage;
@@ -77,7 +76,6 @@ public class ServiceStarter {
         }
 
         ImmutableSet.Builder<Module> builder = ImmutableSet.builder();
-
         ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
         for (Module module : modules) {
             if (!(module instanceof RakamModule)) {
@@ -98,7 +96,6 @@ public class ServiceStarter {
 
         Bootstrap app = new Bootstrap(builder.build());
         app.requireExplicitBindings(false);
-
         Injector injector = app.strictConfig().initialize();
 
         Set<InjectionHook> hooks = injector.getInstance(
@@ -172,7 +169,6 @@ public class ServiceStarter {
             Multibinder.newSetBinder(binder, InjectionHook.class);
             Multibinder.newSetBinder(binder, SystemEventListener.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
-            OptionalBinder.newOptionalBinder(binder, EventStream.class);
             OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
