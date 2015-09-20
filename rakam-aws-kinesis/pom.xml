@@ -29,6 +29,11 @@
             <version>1.4.0</version>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>Kume</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
         </dependency>

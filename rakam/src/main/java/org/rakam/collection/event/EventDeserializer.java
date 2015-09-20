@@ -19,7 +19,6 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.codehaus.jackson.node.NullNode;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -27,6 +26,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
+import org.rakam.util.AvroUtil;
 import org.rakam.util.Tuple;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
-import static org.apache.avro.Schema.Type.NULL;
+import static org.rakam.util.AvroUtil.convertAvroSchema;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 11/02/15 23:50.
@@ -202,7 +202,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     List<Schema.Field> avroFields = copyFields(avroSchema.getFields());
                     newFields.stream()
                             .filter(f -> !avroFields.stream().anyMatch(af -> af.name().equals(f.getName())))
-                            .map(EventDeserializer::generateAvroSchema).forEach(x -> avroFields.add(x));
+                            .map(AvroUtil::generateAvroSchema).forEach(x -> avroFields.add(x));
 
                     avroSchema = Schema.createRecord("collection", null, null, false);
                     avroSchema.setFields(avroFields);
@@ -255,49 +255,6 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             }
         }
         fields.add(newField);
-    }
-
-    public static Schema convertAvroSchema(List<SchemaField> fields) {
-        List<Schema.Field> avroFields = fields.stream()
-                .map(EventDeserializer::generateAvroSchema).collect(Collectors.toList());
-
-        Schema schema = Schema.createRecord("collection", null, null, false);
-        schema.setFields(avroFields);
-        return schema;
-    }
-
-    private static Schema.Field generateAvroSchema(SchemaField field) {
-            Schema es;
-            if (field.isNullable()) {
-                es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
-                return new Schema.Field(field.getName(), es, null, NullNode.getInstance());
-            } else {
-                es = getAvroSchema(field.getType());
-                return new Schema.Field(field.getName(), es, null, null);
-            }
-    }
-
-    private static Schema getAvroSchema(FieldType type) {
-        switch (type) {
-            case STRING:
-                return Schema.create(Schema.Type.STRING);
-            case ARRAY:
-                return Schema.create(Schema.Type.ARRAY);
-            case LONG:
-                return Schema.create(Schema.Type.LONG);
-            case DOUBLE:
-                return Schema.create(Schema.Type.DOUBLE);
-            case BOOLEAN:
-                return Schema.create(Schema.Type.BOOLEAN);
-            case DATE:
-                return Schema.create(Schema.Type.INT);
-            case HYPERLOGLOG:
-                return Schema.create(Schema.Type.BYTES);
-            case TIME:
-                return Schema.create(Schema.Type.LONG);
-            default:
-                throw new IllegalStateException();
-        }
     }
 
     private Object getValue(JsonNode jsonNode, FieldType type) {

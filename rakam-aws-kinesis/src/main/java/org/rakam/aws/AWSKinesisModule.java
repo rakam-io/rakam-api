@@ -10,17 +10,28 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
-import com.hazelcast.config.Config;
+import com.hazelcast.client.HazelcastClient;
+import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.config.GlobalSerializerConfig;
-import com.hazelcast.config.JoinConfig;
-import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.MemberAttributeEvent;
+import com.hazelcast.core.MembershipEvent;
+import com.hazelcast.core.MembershipListener;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.StreamSerializer;
 import de.javakaffee.kryoserializers.UnmodifiableCollectionsSerializer;
 import de.javakaffee.kryoserializers.guava.ImmutableListSerializer;
 import org.objenesis.strategy.StdInstantiatorStrategy;
+import org.rakam.aws.KinesisEventStream.EventStreamService;
+import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.kume.Cluster;
+import org.rakam.kume.ClusterBuilder;
+import org.rakam.kume.ClusterMembership;
+import org.rakam.kume.JoinerService;
+import org.rakam.kume.Member;
+import org.rakam.kume.service.ServiceInitializer;
+import org.rakam.kume.util.NetworkUtil;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStream;
@@ -29,6 +40,8 @@ import org.rakam.plugin.RakamModule;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
@@ -45,6 +58,8 @@ public class AWSKinesisModule extends RakamModule {
         binder.bind(EventStream.class).to(KinesisEventStream.class).in(Scopes.SINGLETON);
         binder.bind(HazelcastInstance.class).toProvider(HazelcastInstanceProvider.class)
                 .in(Scopes.SINGLETON);
+        binder.bind(Cluster.class).toProvider(KumeClusterProvider.class)
+                .in(Scopes.SINGLETON);
     }
 
     @Override
@@ -58,6 +73,43 @@ public class AWSKinesisModule extends RakamModule {
     }
 
 
+    protected static class KumeClusterProvider implements Provider<Cluster> {
+
+        private final HazelcastInstance hazelcast;
+        private final Metastore metastore;
+
+        @Inject
+        public KumeClusterProvider(HazelcastInstance hazelcast, Metastore metastore) {
+            this.hazelcast = hazelcast;
+            this.metastore = metastore;
+        }
+
+        @Override
+        public Cluster get() {
+
+            List<Member> collect = hazelcast.getCluster().getMembers().stream()
+                    .map(mem -> {
+                        String addr = mem.getStringAttribute("kumeSocketAddress");
+                        int endIndex = addr.indexOf(':');
+                        return new Member(addr.substring(0, endIndex), Integer.parseInt(addr.substring(endIndex+1)));
+                    })
+                    .collect(Collectors.toList());
+
+            Cluster cluster = new ClusterBuilder()
+                    .members(collect)
+                    .services(new ServiceInitializer()
+                            .add("eventListener", bus -> new EventStreamService(bus, metastore)))
+                    .serverAddress(NetworkUtil.getDefaultAddress(), 5656)
+                    .joinStrategy(new HazelcastJoinerStrategy(hazelcast))
+                    .mustJoinCluster(true)
+                    .client(true)
+                    .start();
+            hazelcast.getSet("clients").add(cluster.getLocalMember());
+
+            return cluster;
+        }
+    }
+
     protected static class HazelcastInstanceProvider implements Provider<HazelcastInstance> {
         private final AWSConfig awsConfig;
 
@@ -68,14 +120,8 @@ public class AWSKinesisModule extends RakamModule {
 
         @Override
         public HazelcastInstance get() {
-            Config config = new Config();
-            JoinConfig join = config.getNetworkConfig().getJoin();
-            join.getMulticastConfig().setEnabled(false);
-            join.getTcpIpConfig().setEnabled(true);
-            join.getTcpIpConfig().addMember("127.0.0.1");
-            config.getNetworkConfig().getInterfaces().clear();
-            config.getNetworkConfig().getInterfaces().addInterface("127.0.0.1");
-            config.getNetworkConfig().getInterfaces().setEnabled(true);
+            ClientConfig config = new ClientConfig();
+            config.getNetworkConfig().addAddress("127.0.0.1");
 //            AwsConfig hazelcastAwsConfig = join.getAwsConfig();
 //            hazelcastAwsConfig.setAccessKey(awsConfig.getAccessKey());
 //            hazelcastAwsConfig.setSecretKey(awsConfig.getSecretAccessKey());
@@ -86,7 +132,7 @@ public class AWSKinesisModule extends RakamModule {
                     .setGlobalSerializerConfig(
                             new GlobalSerializerConfig().setImplementation(new SchemaFieldStreamSerializer()));
 
-            return Hazelcast.newHazelcastInstance(config);
+            return HazelcastClient.newHazelcastClient(config);
         }
 
         private static class SchemaFieldStreamSerializer implements StreamSerializer<Object> {
@@ -141,6 +187,42 @@ public class AWSKinesisModule extends RakamModule {
                 pool.release(borrow);
                 return obj;
             }
+
+        }
+    }
+
+    private static class HazelcastJoinerStrategy implements JoinerService {
+        HazelcastInstance hazelcastInstance;
+
+        public HazelcastJoinerStrategy(HazelcastInstance hazelcastInstance) {
+            this.hazelcastInstance = hazelcastInstance;
+        }
+
+        @Override
+        public void onStart(ClusterMembership clusterMembership) {
+            hazelcastInstance.getCluster().addMembershipListener(new MembershipListener() {
+                @Override
+                public void memberAdded(MembershipEvent membershipEvent) {
+                    String addr = membershipEvent.getMember().getStringAttribute("kumeSocketAddress");
+                    int endIndex = addr.indexOf(':');
+                    Member member = new Member(addr.substring(0, endIndex), Integer.parseInt(addr.substring(endIndex + 1)));
+                    clusterMembership.addMember(member);
+                }
+
+                @Override
+                public void memberRemoved(MembershipEvent membershipEvent) {
+//                    clusterMembership.removeMember(new Member(membershipEvent.getMember().getSocketAddress()));
+                }
+
+                @Override
+                public void memberAttributeChanged(MemberAttributeEvent memberAttributeEvent) {
+
+                }
+            });
+        }
+
+        @Override
+        public void onClose() {
 
         }
     }
