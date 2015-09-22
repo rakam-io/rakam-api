@@ -15,7 +15,7 @@ package org.rakam.ui;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;

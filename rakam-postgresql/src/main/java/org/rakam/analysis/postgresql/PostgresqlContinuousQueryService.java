@@ -20,7 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
@@ -30,9 +30,8 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.Tuple;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -55,7 +54,7 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 02:34.
  */
 public class PostgresqlContinuousQueryService extends ContinuousQueryService {
-    final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlContinuousQueryService.class);
+    final static Logger LOGGER = Logger.get(PostgresqlContinuousQueryService.class);
 
     private final QueryMetadataStore reportDatabase;
     private final PostgresqlQueryExecutor executor;

@@ -4,7 +4,6 @@ import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import com.google.inject.Inject;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
@@ -12,6 +11,8 @@ import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
+
+import javax.inject.Inject;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
@@ -34,7 +35,6 @@ public class AWSKinesisEventStore implements EventStore {
         AWSCredentials credentials = new BasicAWSCredentials(config.getAccessKey(), config.getSecretAccessKey());
         this.kinesis = new AmazonKinesisClient(credentials);
         this.config = config;
-        createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
     }
 
     @Override
@@ -46,7 +46,6 @@ public class AWSKinesisEventStore implements EventStore {
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
 
         try {
-
             encoder.writeString(event.project());
             encoder.writeString(event.collection());
 
@@ -66,7 +65,11 @@ public class AWSKinesisEventStore implements EventStore {
             kinesis.putRecord(config.getEventStoreStreamName(), out.getBuffer(startPosition, endPosition - startPosition),
                     event.project()+"_"+event.collection());
         } catch (ResourceNotFoundException e) {
-            throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
+            try {
+                createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+            } catch (Exception e1) {
+                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
+            }
         }
     }
 }

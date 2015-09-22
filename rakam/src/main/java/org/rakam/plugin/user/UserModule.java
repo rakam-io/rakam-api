@@ -3,7 +3,7 @@ package org.rakam.plugin.user;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.ConditionalModule;

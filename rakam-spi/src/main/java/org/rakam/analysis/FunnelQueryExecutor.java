@@ -26,9 +26,6 @@ import java.util.Optional;
 
 import static org.rakam.util.ValidationUtil.checkCollection;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 19/08/15 23:19.
- */
 public interface FunnelQueryExecutor {
     QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers);
 

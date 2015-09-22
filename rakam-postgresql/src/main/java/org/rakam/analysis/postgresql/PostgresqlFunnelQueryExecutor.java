@@ -14,7 +14,7 @@
 package org.rakam.analysis.postgresql;
 
 import com.facebook.presto.sql.ExpressionFormatter;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;

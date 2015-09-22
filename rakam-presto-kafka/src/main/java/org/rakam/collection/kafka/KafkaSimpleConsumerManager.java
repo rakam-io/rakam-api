@@ -5,10 +5,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.inject.Singleton;
+import io.airlift.log.Logger;
 import kafka.javaapi.consumer.SimpleConsumer;
 import org.rakam.util.HostAddress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
@@ -23,7 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @Singleton
 public class KafkaSimpleConsumerManager {
 
-    final static Logger LOGGER = LoggerFactory.getLogger(KafkaSimpleConsumerManager.class);
+    final static Logger LOGGER = Logger.get(KafkaSimpleConsumerManager.class);
 
     private final LoadingCache<HostAddress, SimpleConsumer> consumerCache;
 

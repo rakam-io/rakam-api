@@ -11,6 +11,8 @@ import ua_parser.Client;
 import ua_parser.Parser;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.util.Map;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 19/07/15 21:46.
@@ -27,7 +29,7 @@ public class UserAgentEventMapper implements EventMapper {
     }
 
     @Override
-    public void map(Event event) {
+    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         Object user_agent = event.properties().get("user_agent");
         if(user_agent == null) {
             Client parsed = uaParser.parse((String) user_agent);
@@ -36,11 +38,7 @@ public class UserAgentEventMapper implements EventMapper {
             event.properties().put("os", parsed.os.family);
             event.properties().put("os_version", parsed.os.minor + " / " + parsed.os.major);
             event.properties().put("device_family", parsed.device.family);
-
-
         }
-
-
     }
 
     @Override

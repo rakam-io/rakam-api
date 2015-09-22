@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.PostgresqlPoolDataSource;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;

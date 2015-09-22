@@ -6,11 +6,10 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.impossibl.postgres.api.jdbc.PGConnection;
 import com.impossibl.postgres.api.jdbc.PGNotificationListener;
+import io.airlift.log.Logger;
 import org.rakam.plugin.CollectionStreamQuery;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -27,7 +26,7 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 23:50.
  */
 public class PostgresqlEventStreamer implements EventStream.EventStreamer {
-    final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlEventStream.class);
+    final static Logger LOGGER = Logger.get(PostgresqlEventStream.class);
 
     private final PGConnection conn;
     private boolean open;

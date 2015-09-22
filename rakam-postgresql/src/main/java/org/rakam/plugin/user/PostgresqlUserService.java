@@ -1,6 +1,6 @@
 package org.rakam.plugin.user;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;

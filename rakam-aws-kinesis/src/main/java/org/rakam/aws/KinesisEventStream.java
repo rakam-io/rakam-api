@@ -1,6 +1,5 @@
 package org.rakam.aws;
 
-import com.google.inject.Inject;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.kume.Cluster;
 import org.rakam.kume.ServiceContext;
@@ -10,6 +9,7 @@ import org.rakam.plugin.CollectionStreamQuery;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
 
+import javax.inject.Inject;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -25,11 +25,9 @@ import java.util.stream.Collectors;
  */
 public class KinesisEventStream implements EventStream {
     private final EventStreamService rpcService;
-    private final Metastore metastore;
 
     @Inject
     public KinesisEventStream(Cluster cluster, Metastore metastore) {
-        this.metastore = metastore;
         rpcService = cluster.getService("eventListener");
     }
 

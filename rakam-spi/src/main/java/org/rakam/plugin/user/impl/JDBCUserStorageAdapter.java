@@ -9,9 +9,9 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.airlift.log.Logger;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.JDBCConfig;
@@ -25,9 +25,8 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Update;
 import org.skife.jdbi.v2.util.LongMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -54,7 +53,7 @@ import static java.lang.String.format;
  */
 @Singleton
 public class JDBCUserStorageAdapter implements UserStorage {
-    final static Logger LOGGER = LoggerFactory.getLogger(JDBCUserStorageAdapter.class);
+    final static Logger LOGGER = Logger.get(JDBCUserStorageAdapter.class);
 
     private final JDBCUserStorageConfig config;
     private final UserPluginConfig moduleConfig;

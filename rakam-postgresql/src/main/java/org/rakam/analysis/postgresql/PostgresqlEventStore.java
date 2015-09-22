@@ -1,7 +1,7 @@
 package org.rakam.analysis.postgresql;
 
 import com.google.common.base.Throwables;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;

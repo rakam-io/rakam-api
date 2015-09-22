@@ -1,6 +1,6 @@
 package org.rakam.analysis.postgresql;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;

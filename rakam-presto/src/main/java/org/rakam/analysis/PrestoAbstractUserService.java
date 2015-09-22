@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import com.google.inject.Inject;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;
@@ -8,15 +7,16 @@ import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
 import org.rakam.util.JsonHelper;
 
+import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.facebook.presto.hive.$internal.com.google.common.primitives.Ints.checkedCast;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.primitives.UnsignedBytes.checkedCast;
 import static java.lang.Math.min;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;

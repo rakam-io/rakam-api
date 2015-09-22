@@ -15,7 +15,7 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;

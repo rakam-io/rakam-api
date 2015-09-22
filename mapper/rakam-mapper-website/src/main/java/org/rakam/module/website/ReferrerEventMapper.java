@@ -12,7 +12,9 @@ import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URISyntaxException;
+import java.util.Map;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 18/07/15 16:37.
@@ -30,7 +32,7 @@ public class ReferrerEventMapper implements EventMapper {
     }
 
     @Override
-    public void map(Event event) {
+    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         Object referrer = event.properties().get("referrer");
         Object url = event.properties().get("url");
         Referer parse;

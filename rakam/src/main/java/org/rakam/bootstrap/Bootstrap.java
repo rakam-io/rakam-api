@@ -2,6 +2,7 @@ package org.rakam.bootstrap;
 
 import com.google.common.annotations.Beta;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
@@ -20,11 +21,10 @@ import io.airlift.configuration.ConfigurationModule;
 import io.airlift.configuration.ConfigurationValidator;
 import io.airlift.configuration.ValidationErrorModule;
 import io.airlift.configuration.WarningsMonitor;
+import io.airlift.log.Logger;
 import org.rakam.SystemRegistry;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.util.Collections;
@@ -38,7 +38,7 @@ import static com.google.common.collect.Maps.fromProperties;
 
 public class Bootstrap
 {
-    private final Logger log = LoggerFactory.getLogger(Bootstrap.class);
+    private final Logger log = Logger.get(Bootstrap.class);
     private final List<Module> modules;
 
     private Map<String, String> requiredConfigurationProperties;
@@ -170,9 +170,8 @@ public class Bootstrap
             if(annotation != null) {
                 String value = configurationFactory.getProperties().get(annotation.config());
                 String annValue = annotation.value();
-                if((annValue.isEmpty() && value != null) || annValue.equals(value)) {
-                    configurationFactory.consumeProperty(annotation.config());
-                } else {
+                configurationFactory.consumeProperty(annotation.config());
+                if(!((annValue.isEmpty() && value != null) || annValue.equals(value))) {
                    continue;
                 }
             }
@@ -186,7 +185,12 @@ public class Bootstrap
 
         // Validate configuration
         ConfigurationValidator configurationValidator = new ConfigurationValidator(configurationFactory, warningsMonitor);
-        List<Message> messages = configurationValidator.validate(installedModules);
+        List<Message> messages;
+        try {
+            messages = configurationValidator.validate(installedModules);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
 
         // at this point all config file properties should be used
         // so we can calculate the unused properties

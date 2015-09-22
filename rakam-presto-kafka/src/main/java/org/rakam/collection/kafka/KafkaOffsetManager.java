@@ -3,6 +3,7 @@ package org.rakam.collection.kafka;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.airlift.log.Logger;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
@@ -13,7 +14,6 @@ import kafka.javaapi.TopicMetadata;
 import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.TopicMetadataResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
-import org.apache.log4j.Logger;
 import org.rakam.util.HostAddress;
 import org.rakam.util.RakamException;
 
@@ -33,7 +33,7 @@ import static java.lang.String.format;
  */
 @Singleton
 public class KafkaOffsetManager {
-    private final static Logger LOGGER = Logger.getLogger(KafkaOffsetManager.class);
+    private final static Logger LOGGER = Logger.get(KafkaOffsetManager.class);
     private final KafkaSimpleConsumerManager consumerManager;
     private final KafkaConfig config;
 

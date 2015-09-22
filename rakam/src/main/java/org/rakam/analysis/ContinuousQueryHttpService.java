@@ -1,6 +1,6 @@
 package org.rakam.analysis;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;

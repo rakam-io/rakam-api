@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import com.google.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
@@ -9,6 +8,7 @@ import org.rakam.plugin.MaterializedViewService;
 import org.rakam.report.PrestoQueryExecutor;
 import org.rakam.util.Tuple;
 
+import javax.inject.Inject;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;

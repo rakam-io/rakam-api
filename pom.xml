@@ -7,10 +7,20 @@
     <packaging>pom</packaging>
     <version>0.1-SNAPSHOT</version>
 
+    <parent>
+        <groupId>io.airlift</groupId>
+        <artifactId>airbase</artifactId>
+        <version>43</version>
+    </parent>
+
     <repositories>
         <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>bintray-buremba-maven</id>
+            <name>bintray</name>
+            <url>http://dl.bintray.com/buremba/maven</url>
         </repository>
     </repositories>
 
@@ -40,16 +50,23 @@
     </modules>
 
     <properties>
+        <air.main.basedir>${project.basedir}</air.main.basedir>
+        <air.java.version>1.8.0-40</air.java.version>
+        <air.check.skip-extended>true</air.check.skip-extended>
+        <air.check.skip-license>true</air.check.skip-license>
+        <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
         <air.version>0.101</air.version>
         <presto.version>0.114</presto.version>
         <java.version>1.8</java.version>
-        <netty.rest.version>09e02bd462</netty.rest.version>
+        <jackson.version>2.4.5</jackson.version>
+        <netty.rest.version>0.1-rc1</netty.rest.version>
+        <kume.version>0.1-rc1</kume.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
-        <maven.resources.plugin.version>2.6</maven.resources.plugin.version>
         <maven.clean.plugin.version>2.5</maven.clean.plugin.version>
         <maven.surefire.plugin.version>2.14</maven.surefire.plugin.version>
         <maven.failsafe.plugin.version>2.14</maven.failsafe.plugin.version>
@@ -64,12 +81,43 @@
                 <groupId>com.google.auto.value</groupId>
                 <artifactId>auto-value</artifactId>
                 <version>1.0-rc1</version>
-                <scope>provided</scope>
+                <optional>true</optional>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.code.findbugs</groupId>
+                        <artifactId>jsr305</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
-
+            <dependency>
+                <groupId>org.rakam</groupId>
+                <artifactId>kume</artifactId>
+                <version>${kume.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>configuration</artifactId>
+                <version>${air.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.ws.rs</groupId>
+                <artifactId>javax.ws.rs-api</artifactId>
+                <version>2.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>4.0.28.Final</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>javax.inject</groupId>
+                <artifactId>javax.inject</artifactId>
+                <version>1</version>
+            </dependency>
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>log</artifactId>
                 <version>${air.version}</version>
             </dependency>
 
@@ -77,6 +125,12 @@
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro</artifactId>
                 <version>1.7.7</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.xerial.snappy</groupId>
+                        <artifactId>snappy-java</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>
@@ -100,7 +154,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.datatype</groupId>
                 <artifactId>jackson-datatype-jdk8</artifactId>
-                <version>2.4.3</version>
+                <version>${jackson.version}</version>
             </dependency>
 
             <dependency>
@@ -110,15 +164,45 @@
             </dependency>
 
             <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jsr310</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>2.4.3</version>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-dbcp2</artifactId>
+                <version>2.1</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jdbi</groupId>
+                <artifactId>jdbi</artifactId>
+                <version>2.59</version>
             </dependency>
 
             <dependency>
                 <groupId>com.facebook.presto</groupId>
                 <artifactId>presto-parser</artifactId>
                 <version>${presto.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.airlift</groupId>
+                        <artifactId>slice</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>
@@ -131,27 +215,11 @@
                 <groupId>com.google.auto.service</groupId>
                 <artifactId>auto-service</artifactId>
                 <version>1.0-rc2</version>
+                <optional>true</optional>
             </dependency>
 
-            <!--<dependency>-->
-                <!--<groupId>org.rakam</groupId>-->
-                <!--<artifactId>netty-rest</artifactId>-->
-                <!--<version>0.1-SNAPSHOT</version>-->
-                <!--<scope>system</scope>-->
-                <!--<systemPath>${basedir}/../netty-rest/pom.xml</systemPath>-->
-                <!--<exclusions>-->
-                    <!--<exclusion>-->
-                        <!--<groupId>org.slf4j</groupId>-->
-                        <!--<artifactId>slf4j-log4j12</artifactId>-->
-                    <!--</exclusion>-->
-                    <!--<exclusion>-->
-                        <!--<groupId>log4j</groupId>-->
-                        <!--<artifactId>log4j</artifactId>-->
-                    <!--</exclusion>-->
-                <!--</exclusions>-->
-            <!--</dependency>-->
             <dependency>
-                <groupId>com.github.buremba</groupId>
+                <groupId>org.rakam</groupId>
                 <artifactId>netty-rest</artifactId>
                 <version>${netty.rest.version}</version>
                 <exclusions>
@@ -160,12 +228,19 @@
                         <artifactId>slf4j-log4j12</artifactId>
                     </exclusion>
                     <exclusion>
+                        <groupId>com.fasterxml.jackson.datatype</groupId>
+                        <artifactId>jackson-datatype-joda</artifactId>
+                    </exclusion>
+                    <exclusion>
                         <groupId>log4j</groupId>
                         <artifactId>log4j</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.commons</groupId>
+                        <artifactId>commons-lang3</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
-
         </dependencies>
     </dependencyManagement>
 
@@ -176,14 +251,35 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
-                        <encoding>UTF-8</encoding>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <encoding>${project.build.sourceEncoding}</encoding>
+                        <!-- due to occasional java.lang.IllegalStateException: endPosTable already set errors caused by jvm we had to switch off this feature -->
                         <useIncrementalCompilation>false</useIncrementalCompilation>
                     </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.gaul</groupId>
+                <artifactId>modernizer-maven-plugin</artifactId>
+                <version>1.4.0</version>
+                <configuration>
+                    <javaVersion>1.8</javaVersion>
+                    <failOnViolations>false</failOnViolations>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>modernizer</id>
+                        <goals>
+                            <goal>modernizer</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

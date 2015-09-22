@@ -1,11 +1,11 @@
 package org.rakam;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
@@ -14,21 +14,21 @@ import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
-import com.wordnik.swagger.models.Contact;
-import com.wordnik.swagger.models.Info;
-import com.wordnik.swagger.models.License;
-import com.wordnik.swagger.models.Swagger;
-import com.wordnik.swagger.models.auth.ApiKeyAuthDefinition;
-import com.wordnik.swagger.models.auth.In;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.swagger.models.Contact;
+import io.swagger.models.Info;
+import io.swagger.models.License;
+import io.swagger.models.Swagger;
+import io.swagger.models.auth.ApiKeyAuthDefinition;
+import io.swagger.models.auth.In;
 import org.rakam.analysis.ContinuousQueryHttpService;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
-import org.rakam.config.PluginConfig;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
@@ -45,9 +45,8 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 import org.rakam.util.HostAddress;
 import org.rakam.util.JsonHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -68,7 +67,7 @@ import static java.lang.String.format;
  * Created by buremba on 21/12/13.
  */
 public class ServiceStarter {
-    final static Logger LOGGER = LoggerFactory.getLogger(ServiceStarter.class);
+    final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
     public static void main(String[] args) throws Throwable {
         if (args.length > 0) {
@@ -184,14 +183,6 @@ public class ServiceStarter {
             Multibinder.newSetBinder(binder, WebSocketService.class);
 
             bindConfig(binder).to(HttpServerConfig.class);
-            PluginConfig pluginConfig = buildConfigObject(PluginConfig.class);
-
-            try {
-                new PluginInstaller(pluginConfig, this::install)
-                        .loadPlugins();
-            } catch (Exception e) {
-                binder.addError(e);
-            }
 
             binder.bind(EventLoopGroup.class)
                     .annotatedWith(ForHttpServer.class)
@@ -253,14 +244,14 @@ public class ServiceStarter {
                     continue;
                 }
 
-                LOGGER.trace("--- adding plugin [{}]", plugin.toAbsolutePath());
+                LOGGER.debug("--- adding plugin [{}]", plugin.toAbsolutePath());
 
                 try {
                     // add the root
                     addURL.invoke(classLoader, plugin.toUri().toURL());
                     // gather files to add
                     List<Path> libFiles = Lists.newArrayList();
-                    libFiles.addAll(Arrays.asList(files(plugin)));
+                    libFiles.addAll(ImmutableList.copyOf(files(plugin)));
                     Path libLocation = plugin.resolve("lib");
                     if (Files.isDirectory(libLocation)) {
                         libFiles.addAll(Arrays.asList(files(libLocation)));

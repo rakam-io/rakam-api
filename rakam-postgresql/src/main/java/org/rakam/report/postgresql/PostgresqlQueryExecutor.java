@@ -6,7 +6,7 @@ import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import org.rakam.PostgresqlPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -17,9 +17,8 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.QueryFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -43,7 +42,7 @@ import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
  * Created by buremba <Burak Emre Kabakcı> on 06/04/15 00:48.
  */
 public class PostgresqlQueryExecutor implements QueryExecutor {
-    final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlQueryExecutor.class);
+    final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
     final SqlParser parser = new SqlParser();
     public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";

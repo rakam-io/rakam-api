@@ -16,8 +16,7 @@ package org.rakam.bootstrap;
  * limitations under the License.
  */
 
-
-import org.slf4j.Logger;
+import io.airlift.log.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;

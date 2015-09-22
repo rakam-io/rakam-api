@@ -3,15 +3,14 @@ package org.rakam.plugin.user.mailbox;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.html.HtmlEscapers;
-import com.google.inject.Inject;
 import com.impossibl.postgres.api.jdbc.PGConnection;
 import com.impossibl.postgres.api.jdbc.PGNotificationListener;
 import com.impossibl.postgres.jdbc.PGDataSource;
+import io.airlift.log.Logger;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -31,7 +30,7 @@ import static java.lang.String.format;
  * Created by buremba <Burak Emre Kabakcı> on 30/03/15 06:22.
  */
 public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
-    final static Logger LOGGER = LoggerFactory.getLogger(PostgresqlUserMailboxStorage.class);
+    final static Logger LOGGER = Logger.get(PostgresqlUserMailboxStorage.class);
 
     private final PostgresqlQueryExecutor queryExecutor;
     private final PGConnection asyncConn;

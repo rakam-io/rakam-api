@@ -6,9 +6,9 @@ import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.inject.Inject;
+import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpHeaders;
 import org.rakam.collection.Event;
-import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -16,21 +16,32 @@ import org.rakam.plugin.SystemEventListener;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiImplicitParam;
+import org.rakam.server.http.annotations.ApiImplicitParams;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.rakam.server.http.annotations.AuthorizationScope;
 
+import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.Charset;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.List;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableMap.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static org.rakam.util.JsonHelper.encode;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 25/10/14 21:48.
@@ -38,9 +49,9 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 @Path("/event")
 @Api(value = "/event", description = "Event collection module", tags = "event")
 public class EventHttpService extends HttpService {
-    final static Logger LOGGER = LoggerFactory.getLogger(EventHttpService.class);
+    final static Logger LOGGER = Logger.get(EventHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
-    private final Metastore metastore;
+    private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 
     private final Set<EventProcessor> processors;
     private final EventStore eventStore;
@@ -48,11 +59,10 @@ public class EventHttpService extends HttpService {
     private final Set<SystemEventListener> systemEventListeners;
 
     @Inject
-    public EventHttpService(EventStore eventStore, Metastore metastore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Set<SystemEventListener> systemEventListeners) {
+    public EventHttpService(EventStore eventStore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Set<SystemEventListener> systemEventListeners) {
         this.processors = eventProcessors;
         this.eventStore = eventStore;
         this.mappers = mappers;
-        this.metastore = metastore;
         this.systemEventListeners = systemEventListeners;
 
         SimpleModule module = new SimpleModule();
@@ -60,7 +70,7 @@ public class EventHttpService extends HttpService {
         jsonMapper.registerModule(module);
     }
 
-    private boolean processEvent(Event event) {
+    private boolean processEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
         for (EventProcessor processor : processors) {
             try {
                 processor.process(event);
@@ -72,15 +82,11 @@ public class EventHttpService extends HttpService {
 
         for (EventMapper mapper : mappers) {
             try {
-                mapper.map(event);
+                mapper.map(event, headers, socketAddress);
             } catch (Exception e) {
                 LOGGER.error("An error occurred while processing event in "+mapper.getClass().getName(), e);
                 return false;
             }
-        }
-
-        for (EventMapper mapper : mappers) {
-            mapper.map(event);
         }
 
         try {
@@ -107,18 +113,56 @@ public class EventHttpService extends HttpService {
      */
     @POST
     @ApiOperation(value = "Collect event",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "api_key", type = "api_key", scopes = { @AuthorizationScope(scope = "add:pet", description = "") })
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/collect")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "project", value = "The project id of the event", required = true, dataType = "string", paramType = "formData"),
+            @ApiImplicitParam(name = "collection", value = "Collection of the event", required = true, dataType = "string", paramType = "formData"),
+            @ApiImplicitParam(name = "properties", value = "Event properties", required = true, dataType = "object", paramType = "formData")
+    })
     public void collect(RakamHttpRequest request) {
+
+        InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
+                .remoteAddress();
+        HttpHeaders headers = request.headers();
+        String checksum = headers.get("Content-MD5");
+
         request.bodyHandler(buff -> {
-            Event event;
+            if(checksum != null) {
+                MessageDigest md;
+                try {
+                    md = MessageDigest.getInstance("MD5");
+                } catch (NoSuchAlgorithmException e) {
+                    request.response("Internal Error", INTERNAL_SERVER_ERROR).end();
+                    return;
+                }
+                if(!md.digest(checksum.getBytes(UTF8_CHARSET))
+                        .equals(buff.getBytes(UTF8_CHARSET))) {
+                    request.response(encode(of("error", "checksum is invalid")),
+                            BAD_REQUEST).end();
+                    return;
+                }
+            }
+
+            boolean eventProcessed;
+
             try {
-                event = jsonMapper.readValue(buff, Event.class);
+                // a trick to identify the type of the json data.
+                if(buff.charAt(0) == '[') {
+                    Event event = jsonMapper.readValue(buff, Event.class);
+                    eventProcessed = processEvent(event, headers, socketAddress.getAddress());
+                } else {
+                    List<Event> events = jsonMapper.readValue(buff, List.class);
+                    eventProcessed = true;
+                    for (Event event : events) {
+                        eventProcessed &= processEvent(event, headers, socketAddress.getAddress());
+                    }
+                }
             } catch (JsonMappingException e) {
-                request.response(e.getMessage()).end();
+                request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (IOException e) {
                 request.response("json couldn't parsed", BAD_REQUEST).end();
@@ -127,7 +171,7 @@ public class EventHttpService extends HttpService {
                 request.response(e.toString(), BAD_REQUEST).end();
                 return;
             }
-            boolean eventProcessed = processEvent(event);
+
             request.response(eventProcessed ? "1" : "0", eventProcessed ? OK : BAD_GATEWAY).end();
         });
     }

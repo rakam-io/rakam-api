@@ -1,6 +1,6 @@
 package org.rakam.report;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;

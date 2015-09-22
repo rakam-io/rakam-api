@@ -1,9 +1,8 @@
 package org.rakam.analysis;
 
-import com.facebook.presto.hive.$internal.com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -18,6 +17,7 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
 
+import javax.inject.Inject;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;

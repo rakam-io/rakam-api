@@ -5,5 +5,5 @@ package org.rakam;
  */
 @FunctionalInterface
 public interface InjectionHook {
-    public void call();
+    void call();
 }

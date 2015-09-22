@@ -2,7 +2,7 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.AbstractUserService.CollectionEvent;

@@ -1,6 +1,6 @@
 package org.rakam.report;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;

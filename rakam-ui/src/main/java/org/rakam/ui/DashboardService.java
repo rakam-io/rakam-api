@@ -16,7 +16,7 @@ package org.rakam.ui;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import com.google.inject.name.Named;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.server.http.HttpService;

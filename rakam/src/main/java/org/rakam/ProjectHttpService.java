@@ -1,6 +1,6 @@
 package org.rakam;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.SystemEventListener;

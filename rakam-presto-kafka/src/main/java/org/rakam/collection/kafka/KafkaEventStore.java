@@ -1,9 +1,9 @@
 package org.rakam.collection.kafka;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.airlift.log.Logger;
 import kafka.common.FailedToSendMessageException;
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
@@ -18,13 +18,12 @@ import org.apache.curator.framework.recipes.leader.LeaderSelector;
 import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.rakam.plugin.EventStore;
 import org.rakam.collection.Event;
+import org.rakam.plugin.EventStore;
 import org.rakam.util.HostAddress;
 import org.rakam.util.KByteArrayOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -40,7 +39,7 @@ import static java.lang.String.format;
  */
 @Singleton
 public class KafkaEventStore implements EventStore, LeaderSelectorListener {
-    final static Logger LOGGER = LoggerFactory.getLogger(KafkaEventStore.class);
+    final static Logger LOGGER = Logger.get(KafkaEventStore.class);
     final static String ZK_OFFSET_PATH = "/collectionOffsets";
 
 //    private final KafkaOffsetManager kafkaManager;

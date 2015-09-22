@@ -14,7 +14,7 @@
 package org.rakam.report;
 
 import com.facebook.presto.sql.ExpressionFormatter;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.analysis.FunnelQueryExecutor;
 
 import java.time.LocalDate;

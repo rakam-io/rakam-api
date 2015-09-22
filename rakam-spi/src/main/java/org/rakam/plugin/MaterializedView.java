@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.units.Duration;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiParamIgnore;
 
 import java.time.Instant;
 import java.util.Map;
@@ -34,7 +33,6 @@ public class MaterializedView {
     public final Map<String, Object> options;
     @ApiParam(name = "update_interval", value="", required = false)
     public final Duration updateInterval;
-    @ApiParamIgnore
     public Instant lastUpdate;
 
     @JsonCreator

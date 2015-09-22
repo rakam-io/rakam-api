@@ -13,7 +13,7 @@
  */
 package org.rakam.ui;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import com.google.inject.name.Named;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.util.JsonHelper;

@@ -11,14 +11,13 @@ import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.Country;
+import io.airlift.log.Logger;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -27,9 +26,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
@@ -37,7 +36,7 @@ import java.util.zip.GZIPInputStream;
  * Created by buremba on 26/05/14.
  */
 public class GeoIPEventMapper implements EventMapper {
-    final static Logger LOGGER = LoggerFactory.getLogger(GeoIPEventMapper.class);
+    final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);
 
     private final static List<String> ATTRIBUTES = ImmutableList.of("country","countryCode","region","city","latitude","longitude","timezone");
     DatabaseReader countryLookup;
@@ -122,26 +121,13 @@ public class GeoIPEventMapper implements EventMapper {
     }
 
     @Override
-    public void map(Event event) {
+    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         GenericRecord properties = event.properties();
-        Object IP = properties.get("ip");
-        InetAddress ipAddress;
-        try {
-            if(!(IP instanceof String)) {
-                return;
-            }
-            ipAddress = InetAddress.getByName((String) IP);
-            if(ipAddress == null) {
-                return;
-            }
-        } catch (UnknownHostException e) {
-            return;
-        }
 
         // TODO: lazy initialization
         CityResponse response;
         try {
-            response = countryLookup.city(ipAddress);
+            response = countryLookup.city(sourceAddress);
         } catch (AddressNotFoundException e) {
             return;
         }catch (Exception e) {

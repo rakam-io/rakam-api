@@ -3,6 +3,7 @@ package org.rakam.realtime;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import org.rakam.TimestampEventMapper;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;

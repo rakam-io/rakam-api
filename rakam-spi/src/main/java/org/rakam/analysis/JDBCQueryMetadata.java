@@ -1,6 +1,6 @@
 package org.rakam.analysis;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.units.Duration;

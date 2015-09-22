@@ -7,7 +7,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
@@ -19,6 +18,7 @@ import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
 
+import javax.inject.Inject;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;

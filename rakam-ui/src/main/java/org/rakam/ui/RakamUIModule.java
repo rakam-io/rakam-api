@@ -1,18 +1,17 @@
 package org.rakam.ui;
 
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.binder.AnnotatedBindingBuilder;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
+import io.airlift.log.Logger;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.server.http.HttpService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -28,7 +27,7 @@ import static io.airlift.configuration.ConfigurationModule.bindConfig;
  * Created by buremba <Burak Emre Kabakcı> on 16/04/15 21:21.
  */
 public class RakamUIModule extends RakamModule {
-    final static Logger LOGGER = LoggerFactory.getLogger(RakamUIModule.class);
+    final static Logger LOGGER = Logger.get(RakamUIModule.class);
 
     @Override
     protected void setup(Binder binder) {

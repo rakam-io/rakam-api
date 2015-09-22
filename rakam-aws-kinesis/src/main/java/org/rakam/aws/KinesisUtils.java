@@ -22,8 +22,7 @@ import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.ListStreamsRequest;
 import com.amazonaws.services.kinesis.model.ListStreamsResult;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import io.airlift.log.Logger;
 
 import java.util.List;
 
@@ -32,7 +31,7 @@ import java.util.List;
  */
 public class KinesisUtils {
 
-    private static Log LOG = LogFactory.getLog(KinesisUtils.class);
+    private static Logger LOG = Logger.get(KinesisUtils.class);
 
     /**
      * Creates an Amazon Kinesis stream if it does not exist and waits for it to become available

@@ -15,7 +15,7 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
 import org.rakam.report.QueryHttpService;

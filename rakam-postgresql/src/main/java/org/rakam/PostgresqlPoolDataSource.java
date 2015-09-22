@@ -1,6 +1,6 @@
 package org.rakam;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.rakam.analysis.postgresql.PostgresqlConfig;

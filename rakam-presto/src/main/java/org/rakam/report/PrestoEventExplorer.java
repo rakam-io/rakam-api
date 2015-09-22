@@ -14,7 +14,7 @@
 package org.rakam.report;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;

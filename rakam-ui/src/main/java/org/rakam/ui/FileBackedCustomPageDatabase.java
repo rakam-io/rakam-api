@@ -15,7 +15,7 @@ package org.rakam.ui;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.util.RakamException;
 
 import java.io.ByteArrayInputStream;

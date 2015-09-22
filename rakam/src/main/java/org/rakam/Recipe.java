@@ -2,7 +2,7 @@ package org.rakam;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import io.airlift.units.Duration;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;

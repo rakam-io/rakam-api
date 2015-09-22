@@ -39,8 +39,8 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static org.rakam.util.JsonHelper.convert;
 
 /**
@@ -62,8 +62,8 @@ public class RealTimeHttpService extends HttpService {
 
     @Inject
     public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor) {
-        this.service = checkNotNull(service, "service is null");
-        this.executor = checkNotNull(executor, "executor is null");
+        this.service = requireNonNull(service, "service is null");
+        this.executor = requireNonNull(executor, "executor is null");
     }
 
     /**

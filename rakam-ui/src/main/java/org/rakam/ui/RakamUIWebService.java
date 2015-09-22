@@ -1,7 +1,7 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;

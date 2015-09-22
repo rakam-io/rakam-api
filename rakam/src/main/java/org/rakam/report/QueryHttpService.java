@@ -13,7 +13,6 @@ import com.facebook.presto.sql.tree.SortItem;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Ints;
-import com.google.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -31,6 +30,7 @@ import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
+import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -191,8 +191,8 @@ public class QueryHttpService extends HttpService {
         public ExecuteQuery(@JsonProperty("project") String project,
                             @JsonProperty("query") String query,
                             @JsonProperty("limit") Integer limit) {
-            this.project = checkNotNull(project, "project is empty");
-            this.query = checkNotNull(query, "query is empty");;
+            this.project = requireNonNull(project, "project is empty");
+            this.query = requireNonNull(query, "query is empty");;
             if(limit !=null && limit > 5000) {
                 throw new IllegalArgumentException("maximum value of limit is 5000");
             }

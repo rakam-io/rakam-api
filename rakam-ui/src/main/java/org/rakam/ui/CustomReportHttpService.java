@@ -13,7 +13,7 @@
  */
 package org.rakam.ui;
 
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;

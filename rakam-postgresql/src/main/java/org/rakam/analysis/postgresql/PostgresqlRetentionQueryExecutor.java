@@ -20,7 +20,7 @@ package org.rakam.analysis.postgresql;
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.primitives.Ints;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.QueryExecution;

@@ -7,7 +7,6 @@ import com.esotericsoftware.kryo.pool.KryoFactory;
 import com.esotericsoftware.kryo.pool.KryoPool;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.hazelcast.client.HazelcastClient;
@@ -35,8 +34,10 @@ import org.rakam.kume.util.NetworkUtil;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStream;
+import org.rakam.plugin.EventStreamConfig;
 import org.rakam.plugin.RakamModule;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,11 +56,13 @@ public class AWSKinesisModule extends RakamModule {
     protected void setup(Binder binder) {
         bindConfig(binder).to(AWSConfig.class);
         binder.bind(EventStore.class).to(AWSKinesisEventStore.class).in(Scopes.SINGLETON);
-        binder.bind(EventStream.class).to(KinesisEventStream.class).in(Scopes.SINGLETON);
-        binder.bind(HazelcastInstance.class).toProvider(HazelcastInstanceProvider.class)
-                .in(Scopes.SINGLETON);
-        binder.bind(Cluster.class).toProvider(KumeClusterProvider.class)
-                .in(Scopes.SINGLETON);
+        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
+            binder.bind(HazelcastInstance.class).toProvider(HazelcastInstanceProvider.class)
+                    .in(Scopes.SINGLETON);
+            binder.bind(EventStream.class).to(KinesisEventStream.class).in(Scopes.SINGLETON);
+            binder.bind(Cluster.class).toProvider(KumeClusterProvider.class)
+                    .in(Scopes.SINGLETON);
+        }
     }
 
     @Override

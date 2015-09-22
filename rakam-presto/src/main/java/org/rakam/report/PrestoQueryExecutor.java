@@ -1,6 +1,5 @@
 package org.rakam.report;
 
-import com.facebook.presto.hive.$internal.com.google.common.base.Throwables;
 import com.facebook.presto.jdbc.internal.airlift.http.client.HttpClientConfig;
 import com.facebook.presto.jdbc.internal.airlift.http.client.HttpRequestFilter;
 import com.facebook.presto.jdbc.internal.airlift.http.client.Request;
@@ -18,6 +17,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Statement;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
