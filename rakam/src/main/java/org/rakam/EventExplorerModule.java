@@ -27,11 +27,11 @@ public class EventExplorerModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "Event Explorer Module";
     }
 
     @Override
     public String description() {
-        return null;
+        return "It allows analyzing and visualizing events via a simple interface.";
     }
 }

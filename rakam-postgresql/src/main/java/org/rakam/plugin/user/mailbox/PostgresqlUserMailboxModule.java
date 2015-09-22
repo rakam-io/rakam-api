@@ -26,6 +26,6 @@ public class PostgresqlUserMailboxModule extends RakamModule {
 
     @Override
     public String description() {
-        return "Stores user data in Postgresql or connects your existing Postgresql server";
+        return "Stores user data in Postgresql or connects your existing Postgresql server.";
     }
 }

@@ -35,11 +35,11 @@ public class RetentionAnalyzerModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "Retention Analyzer Module";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Analyzes events of each user and allows you to improve your user acquisition and retention activities.";
     }
 }

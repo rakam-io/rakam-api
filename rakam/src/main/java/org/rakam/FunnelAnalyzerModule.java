@@ -35,11 +35,11 @@ public class FunnelAnalyzerModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "Funnel Analyzer Module";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Analyzes event data and creates funnels of user activities.";
     }
 }

@@ -30,11 +30,11 @@ public class JDBCUserStorageModule extends RakamModule {
 
     @Override
     public String name() {
-        return "JDBC backend for ";
+        return "JDBC Backend for User Data";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Allows you to plug your existing RDBMS databases to Rakam.";
     }
 }

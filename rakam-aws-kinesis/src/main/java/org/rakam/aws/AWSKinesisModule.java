@@ -72,7 +72,7 @@ public class AWSKinesisModule extends RakamModule {
 
     @Override
     public String description() {
-        return "Puts your events directly to AWS Kinesis streams";
+        return "Puts your events directly to AWS Kinesis streams.";
     }
 
 

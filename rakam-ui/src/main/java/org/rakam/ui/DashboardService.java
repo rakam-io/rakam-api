@@ -16,7 +16,6 @@ package org.rakam.ui;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import javax.inject.Inject;
 import com.google.inject.name.Named;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.server.http.HttpService;
@@ -29,6 +28,7 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.IntegerMapper;
 
+import javax.inject.Inject;
 import javax.ws.rs.Path;
 import java.util.List;
 
@@ -71,8 +71,8 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/create")
-    public Dashboard create(@ApiParam(name="project") String project,
-                            @ApiParam(name="name") String name) {
+    public Dashboard create(@ApiParam(name="project", required = true) String project,
+                            @ApiParam(name="name", required = true) String name) {
         int id = dao.createQuery("INSERT INTO dashboard (project, name) VALUES (:project, :name) RETURNING id")
                     .bind("project", project)
                     .bind("name", name).map(IntegerMapper.FIRST).first();
@@ -81,8 +81,8 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/delete")
-    public JsonResponse delete(@ApiParam(name = "project") String project,
-                               @ApiParam(name = "name") String name) {
+    public JsonResponse delete(@ApiParam(name = "project", required = true) String project,
+                               @ApiParam(name = "name", required = true) String name) {
         dao.createStatement("DELETE FROM dashboard WHERE project = :project AND name = :name")
                     .bind("project", project)
                     .bind("name", name).execute();
@@ -91,8 +91,8 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/get")
-    public List<DashboardItem> get(@ApiParam(name="project") String project,
-                                   @ApiParam(name="id") int id) {
+    public List<DashboardItem> get(@ApiParam(name="project", required = true) String project,
+                                   @ApiParam(name="id", required = true) int id) {
         return dao.createQuery("SELECT id, name, directive, data FROM dashboard_items WHERE dashboard = :id")
                 .bind("id", id).map((i, r, statementContext) -> {
                     return new DashboardItem(r.getInt(1), r.getString(2), r.getString(3), JsonHelper.read(r.getString(4), JsonNode.class));
@@ -101,7 +101,7 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/list")
-    public List<Dashboard> list(@ApiParam(name="project") String project) {
+    public List<Dashboard> list(@ApiParam(name="project", required = true) String project) {
         return dao.createQuery("SELECT id, name FROM dashboard WHERE project = :project")
                 .bind("project", project).map((i, resultSet, statementContext) -> {
                     return new Dashboard(resultSet.getInt(1), resultSet.getString(2));
