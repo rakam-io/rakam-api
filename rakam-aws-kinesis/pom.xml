@@ -14,17 +14,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.hazelcast</groupId>
-            <artifactId>hazelcast-all</artifactId>
-            <version>3.5</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>net.sourceforge.findbugs</groupId>
-                    <artifactId>annotations</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-presto</artifactId>
             <version>${project.version}</version>

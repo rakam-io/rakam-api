@@ -22,10 +22,10 @@
             <artifactId>rakam-aws-kinesis</artifactId>
             <version>${project.version}</version>
             <!--<exclusions>-->
-                <!--<exclusion>-->
-                    <!--<groupId>org.ow2.asm</groupId>-->
-                    <!--<artifactId>asm</artifactId>-->
-                <!--</exclusion>-->
+            <!--<exclusion>-->
+            <!--<groupId>org.ow2.asm</groupId>-->
+            <!--<artifactId>asm</artifactId>-->
+            <!--</exclusion>-->
             <!--</exclusions>-->
         </dependency>
         <dependency>
@@ -193,32 +193,46 @@
     <build>
         <pluginManagement>
             <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>2.10</version>
-                <executions>
-                    <execution>
-                        <id>default</id>
-                        <phase>process-test-classes</phase>
-                        <goals>
-                            <goal>analyze-only</goal>
-                            <goal>analyze-duplicate</goal>
-                            <goal>analyze-dep-mgt</goal>
-                        </goals>
-                        <configuration>
-                            <failOnWarning>true</failOnWarning>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>2.4</version>
+                    <executions>
+                        <execution>
+                            <id>copy-dependencies</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>copy-dependencies</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>2.10</version>
+                    <executions>
+                        <execution>
+                            <id>default</id>
+                            <phase>process-test-classes</phase>
+                            <goals>
+                                <goal>analyze-only</goal>
+                                <goal>analyze-duplicate</goal>
+                                <goal>analyze-dep-mgt</goal>
+                            </goals>
+                            <configuration>
+                                <failOnWarning>true</failOnWarning>
 
-                            <ignoredUnusedDeclaredDependencies>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto-kafka</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws-kinesis</ignoredUnusedDeclaredDependency>
-                            </ignoredUnusedDeclaredDependencies>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+                                <ignoredUnusedDeclaredDependencies>
+                                    <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip</ignoredUnusedDeclaredDependency>
+                                    <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto-kafka</ignoredUnusedDeclaredDependency>
+                                    <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql</ignoredUnusedDeclaredDependency>
+                                    <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws-kinesis</ignoredUnusedDeclaredDependency>
+                                </ignoredUnusedDeclaredDependencies>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>

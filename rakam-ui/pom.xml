@@ -81,6 +81,73 @@
             <artifactId>javax.inject</artifactId>
             <scope>provided</scope>
         </dependency>
-
     </dependencies>
+
+    <profiles>
+        <profile>
+            <id>bundled-with-ui</id>
+            <activation>
+                <property>
+                    <name>download-ui</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.googlecode.maven-download-plugin</groupId>
+                        <artifactId>download-maven-plugin</artifactId>
+                        <version>1.2.1</version>
+                        <executions>
+                            <execution>
+                                <id>install-jbpm</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>wget</goal>
+                                </goals>
+                                <configuration>
+                                    <url>https://github.com/buremba/rakam-ui/archive/master.zip</url>
+                                    <unpack>true</unpack>
+                                    <outputDirectory>${basedir}/src/main/resources/rakam-ui</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.github.eirslett</groupId>
+                        <artifactId>frontend-maven-plugin</artifactId>
+                        <version>0.0.23</version>
+
+                        <configuration>
+                            <workingDirectory>${basedir}/src/main/resources/rakam-ui</workingDirectory>
+                        </configuration>
+
+                        <executions>
+
+                            <execution>
+                                <id>install node and npm</id>
+                                <goals>
+                                    <goal>install-node-and-npm</goal>
+                                </goals>
+                                <configuration>
+                                    <nodeVersion>v0.12.2</nodeVersion>
+                                    <npmVersion>2.7.6</npmVersion>
+                                </configuration>
+                            </execution>
+
+                            <execution>
+                                <id>bower install</id>
+                                <goals>
+                                    <goal>bower</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>install</arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
