@@ -31,4 +31,4 @@ project/plugins/project/
 # Scala-IDE specific
 .scala_dependencies
 
-rakam-ui/.bowerrc
+rakam-ui/src/main/resources/rakam-ui/rakam-ui-master/*

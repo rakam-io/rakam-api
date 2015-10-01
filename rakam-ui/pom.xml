@@ -108,7 +108,7 @@
                                 <configuration>
                                     <url>https://github.com/buremba/rakam-ui/archive/master.zip</url>
                                     <unpack>true</unpack>
-                                    <outputDirectory>${basedir}/src/main/resources/rakam-ui</outputDirectory>
+                                    <outputDirectory>${basedir}/src/main/resources</outputDirectory>
                                 </configuration>
                             </execution>
                         </executions>
@@ -119,7 +119,7 @@
                         <version>0.0.23</version>
 
                         <configuration>
-                            <workingDirectory>${basedir}/src/main/resources/rakam-ui</workingDirectory>
+                            <workingDirectory>${basedir}/src/main/resources/rakam-ui-master</workingDirectory>
                         </configuration>
 
                         <executions>
@@ -129,6 +129,7 @@
                                 <goals>
                                     <goal>install-node-and-npm</goal>
                                 </goals>
+                                <phase>process-resources</phase>
                                 <configuration>
                                     <nodeVersion>v0.12.2</nodeVersion>
                                     <npmVersion>2.7.6</npmVersion>
@@ -137,6 +138,8 @@
 
                             <execution>
                                 <id>npm install</id>
+                                <phase>process-resources</phase>
+
                                 <goals>
                                     <goal>npm</goal>
                                 </goals>
@@ -144,6 +147,7 @@
 
                             <execution>
                                 <id>bower install</id>
+                                <phase>process-resources</phase>
                                 <goals>
                                     <goal>bower</goal>
                                 </goals>

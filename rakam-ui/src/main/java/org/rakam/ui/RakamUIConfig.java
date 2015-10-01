@@ -18,11 +18,8 @@ import io.airlift.configuration.Config;
 import java.io.File;
 import java.util.Locale;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 11/09/15 01:34.
- */
 public class RakamUIConfig {
-    private File uiDirectory;
+    private File uiDirectory = new File("rakam-ui/src/main/resources/rakam-ui-master/app");
     private RakamUIModule.CustomPageBackend customPageBackend;
     private File customPageBackendDirectory;
 
