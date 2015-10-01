@@ -136,6 +136,13 @@
                             </execution>
 
                             <execution>
+                                <id>npm install</id>
+                                <goals>
+                                    <goal>npm</goal>
+                                </goals>
+                            </execution>
+
+                            <execution>
                                 <id>bower install</id>
                                 <goals>
                                     <goal>bower</goal>
