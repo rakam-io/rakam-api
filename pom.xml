@@ -93,16 +93,6 @@
                 <groupId>org.rakam</groupId>
                 <artifactId>kume</artifactId>
                 <version>${kume.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.airlift</groupId>
-                <artifactId>configuration</artifactId>
-                <version>${air.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.rakam</groupId>
-                <artifactId>kume</artifactId>
-                <version>0.1-SNAPSHOT</version>
                 <exclusions>
                     <exclusion>
                         <groupId>ch.qos.logback</groupId>
@@ -114,6 +104,11 @@
                         </artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>configuration</artifactId>
+                <version>${air.version}</version>
             </dependency>
             <dependency>
                 <groupId>javax.ws.rs</groupId>
