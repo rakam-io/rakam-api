@@ -6,6 +6,7 @@ import java.io.IOException;
  * Created by buremba <Burak Emre Kabakcı> on 24/07/15 22:51.
  */
 public class SerializationTest {
+
     @Test
     public void test() throws IOException {
 //        PageBuilder pageBuilder = new PageBuilder(ImmutableList.of(BigintType.BIGINT, VarcharType.VARCHAR, VarcharType.VARCHAR));

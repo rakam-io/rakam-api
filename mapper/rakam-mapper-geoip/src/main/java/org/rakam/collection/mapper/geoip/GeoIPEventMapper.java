@@ -38,7 +38,7 @@ import java.util.zip.GZIPInputStream;
 public class GeoIPEventMapper implements EventMapper {
     final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);
 
-    private final static List<String> ATTRIBUTES = ImmutableList.of("country","countryCode","region","city","latitude","longitude","timezone");
+    private final static List<String> ATTRIBUTES = ImmutableList.of("country","country_code","region","city","latitude","longitude","timezone");
     DatabaseReader countryLookup;
     String[] attributes;
 
@@ -131,7 +131,7 @@ public class GeoIPEventMapper implements EventMapper {
         } catch (AddressNotFoundException e) {
             return;
         }catch (Exception e) {
-            LOGGER.error("Error while search for location information. ", e);
+            LOGGER.error(e, "Error while search for location information. ");
             return;
         }
 
@@ -145,8 +145,8 @@ public class GeoIPEventMapper implements EventMapper {
                 case "country":
                     properties.put("country", country.getName());
                     break;
-                case "countryCode":
-                    properties.put("countryCode", country.getIsoCode());
+                case "country_code":
+                    properties.put("country_code", country.getIsoCode());
                     break;
                 case "region":
                     properties.put("region", response.getContinent().getName());
@@ -177,7 +177,7 @@ public class GeoIPEventMapper implements EventMapper {
     private static FieldType getType(String attr) {
         switch (attr) {
             case "country":
-            case "countryCode":
+            case "country_code":
             case "region":
             case "city":
             case "timezone":

@@ -4,7 +4,6 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
-import javax.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
@@ -27,6 +26,8 @@ import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.UserPluginConfig;
+
+import javax.inject.Inject;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
@@ -100,7 +101,7 @@ public class PrestoModule extends RakamModule {
                     "_total_" + collection,
                     QUERY,
                     ImmutableList.of(collection),
-                    ImmutableMap.of());
+                    ImmutableList.of(), ImmutableMap.of());
             continuousQueryService.create(report);
         }
     }

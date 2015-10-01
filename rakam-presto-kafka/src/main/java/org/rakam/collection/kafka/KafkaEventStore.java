@@ -76,7 +76,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
             if(client.checkExists().forPath(ZK_OFFSET_PATH) == null)
                 client.create().forPath(ZK_OFFSET_PATH);
         } catch (Exception e) {
-            LOGGER.error(format("Couldn't create event offset path %s", ZK_OFFSET_PATH), e);
+            LOGGER.error(e, format("Couldn't create event offset path %s", ZK_OFFSET_PATH));
         }
 
 //        kafkaManager.setZookeeper(client);

@@ -2,7 +2,6 @@ package org.rakam;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.inject.Inject;
 import io.airlift.units.Duration;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -10,6 +9,7 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.ui.Report;
 
+import javax.inject.Inject;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -111,23 +111,26 @@ public class Recipe {
         private final String tableName;
         private final String query;
         private final List<String> collections;
+        private final List<String> partitionKeys;
         private final Map<String, Object> options;
 
         @JsonCreator
         public ContinuousQueryBuilder(@JsonProperty("name") String name,
-                               @JsonProperty("table_name") String tableName,
-                               @JsonProperty("query") String query,
-                               @JsonProperty("collections") List<String> collections,
-                               @JsonProperty("options") Map<String, Object> options) {
+                                      @JsonProperty("table_name") String tableName,
+                                      @JsonProperty("query") String query,
+                                      @JsonProperty("collections") List<String> collections,
+                                      @JsonProperty("partition_keys") List<String> partitionKeys,
+                                      @JsonProperty("options") Map<String, Object> options) {
             this.name = name;
             this.tableName = tableName;
             this.query = query;
             this.collections = collections;
+            this.partitionKeys = partitionKeys;
             this.options = options;
         }
 
         public ContinuousQuery createContinuousQuery(String project) {
-            return new ContinuousQuery(project, name, tableName, query, collections, options);
+            return new ContinuousQuery(project, name, tableName, query, collections, partitionKeys, options);
         }
     }
 

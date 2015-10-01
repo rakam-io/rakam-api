@@ -28,7 +28,7 @@ public interface QueryMetadataStore {
 
     List<ContinuousQuery> getContinuousQueries(String project);
 
-    ContinuousQuery getContinuousQuery(String project, String name);
+    ContinuousQuery getContinuousQuery(String project, String tableNme);
 
     List<ContinuousQuery> getAllContinuousQueries();
 }

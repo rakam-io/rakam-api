@@ -132,7 +132,7 @@ public class Bootstrap
         initialized = true;
 
         Thread.currentThread().setUncaughtExceptionHandler((t, e) ->
-                log.error("Uncaught exception in thread %s", t.getName(), e));
+                log.error(e, "Uncaught exception in thread %s", t.getName()));
 
         Map<String, String> requiredProperties;
         ConfigurationFactory configurationFactory;
@@ -242,7 +242,12 @@ public class Bootstrap
         moduleList.addAll(installedModules);
 
         // create the injector
-        Injector injector = Guice.createInjector(Stage.PRODUCTION, moduleList.build());
+        Injector injector;
+        try {
+            injector = Guice.createInjector(Stage.PRODUCTION, moduleList.build());
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
 
         // Create the life-cycle manager
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);

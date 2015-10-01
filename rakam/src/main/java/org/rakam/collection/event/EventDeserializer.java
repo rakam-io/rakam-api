@@ -222,6 +222,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             final List<SchemaField> finalNewFields = newFields;
             moduleFields.dependentFields.forEach((fieldName, field) ->
                     addConditionalModuleField(finalNewFields, fieldName, field));
+            moduleFields.constantFields.forEach(field ->
+                    addModuleField(finalNewFields, field));
 
             List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);

@@ -15,6 +15,7 @@ public class RealTimeReport {
     @NotNull public final String project;
     @NotNull public final String name;
     @NotNull public final String chart;
+    @NotNull public final String table_name;
     @NotNull public final AggregationType aggregation;
     public final List<String> collections;
 
@@ -29,12 +30,14 @@ public class RealTimeReport {
                           @JsonProperty("chart") String chart,
                           @JsonProperty("collections") List<String> collections,
                           @JsonProperty("aggregation") AggregationType aggregation,
+                          @JsonProperty("table_name") String tableName,
                           @JsonProperty("filter") String filter,
                           @JsonProperty("measure") String measure,
                           @JsonProperty("dimension") String dimension) {
         this.project = checkNotNull(project, "project is required");
         this.chart = checkNotNull(chart, "chart is required");
         this.name = checkNotNull(name, "name is required");
+        this.table_name = checkNotNull(tableName, "project is required");
         this.collections = checkNotNull(collections, "collections is required");
         this.filter = filter;
         this.aggregation = checkNotNull(aggregation, "aggregation is required");

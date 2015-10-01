@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import javax.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.units.Duration;
@@ -11,11 +10,9 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import javax.inject.Inject;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -30,26 +27,21 @@ import static java.lang.String.format;
 public class JDBCQueryMetadata implements QueryMetadataStore {
     Handle dao;
 
-    ResultSetMapper<MaterializedView> reportMapper = new ResultSetMapper<MaterializedView>() {
-        @Override
-        public MaterializedView map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-            Long update_interval = r.getLong("update_interval");
-            return new MaterializedView(
-                    r.getString("project"),
-                    r.getString("name"), r.getString("table_name"), r.getString("query"),
-                    update_interval!= null ? new Duration(update_interval, TimeUnit.MILLISECONDS) : null,
-                    // we can't use nice postgresql features since we also want to support mysql
-                    JsonHelper.read(r.getString("options"), Map.class));
-        }
+    ResultSetMapper<MaterializedView> reportMapper = (index, r, ctx) -> {
+        Long update_interval = r.getLong("update_interval");
+        return new MaterializedView(
+                r.getString("project"),
+                r.getString("name"), r.getString("table_name"), r.getString("query"),
+                update_interval!= null ? new Duration(update_interval, TimeUnit.MILLISECONDS) : null,
+                // we can't use nice postgresql features since we also want to support mysql
+                JsonHelper.read(r.getString("options"), Map.class));
     };
 
-    ResultSetMapper<ContinuousQuery> continuousQueryMapper = new ResultSetMapper<ContinuousQuery>() {
-        @Override
-        public ContinuousQuery map(int index, ResultSet r, StatementContext ctx) throws SQLException {
-            return new ContinuousQuery(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
-                    JsonHelper.read(r.getString(5), List.class), JsonHelper.read(r.getString(6), Map.class));
-        }
-    };
+    ResultSetMapper<ContinuousQuery> continuousQueryMapper = (index, r, ctx) ->
+            new ContinuousQuery(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
+            JsonHelper.read(r.getString(5), List.class),
+            JsonHelper.read(r.getString(6), List.class),
+            JsonHelper.read(r.getString(7), Map.class));
 
     @Inject
     public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCConfig config) {
@@ -79,6 +71,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 "  query TEXT NOT NULL," +
                 // in order to support mysql, we use json string instead of array type.
                 "  collections TEXT," +
+                "  partition_keys TEXT," +
                 "  table_name TEXT," +
                 "  options TEXT," +
                 "  PRIMARY KEY (project, name)" +
@@ -99,59 +92,60 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     @Override
-    public void updateMaterializedView(String project, String name, Instant last_update) {
-        dao.createStatement("UPDATE materialized_views SET last_update = :last_update WHERE project = :project AND name = :name")
+    public void updateMaterializedView(String project, String tableName, Instant last_update) {
+        dao.createStatement("UPDATE materialized_views SET last_update = :last_update WHERE project = :project AND table_name = :name")
                 .bind("project", project)
-                .bind("name", name)
+                .bind("name", tableName)
                 .bind("last_update", last_update.toEpochMilli())
                 .execute();
     }
 
     @Override
     public void createContinuousQuery(ContinuousQuery report) {
-        dao.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, options) VALUES (:project, :name, :tableName, :query, :collections, :options)")
+        dao.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, options) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
                 .bind("project", report.project)
                 .bind("name", report.name)
                 .bind("tableName", report.tableName)
                 .bind("query", report.query)
                 .bind("collections", JsonHelper.encode(report.collections))
+                .bind("partitionKeys", JsonHelper.encode(report.partitionKeys))
                 .bind("options", JsonHelper.encode(report.options))
 //                .bind("last_update", new java.sql.Time(Instant.now().toEpochMilli()))
                 .execute();
     }
 
     @Override
-    public void deleteContinuousQuery(String project, String name) {
-        dao.createStatement("DELETE FROM reports continuous_queries project = :project AND name = :name")
+    public void deleteContinuousQuery(String project, String tableName) {
+        dao.createStatement("DELETE FROM reports continuous_queries project = :project AND table_name = :name")
                 .bind("project", project)
-                .bind("name", name).execute();
+                .bind("name", tableName).execute();
     }
 
     @Override
     public List<ContinuousQuery> getContinuousQueries(String project) {
 
-        return dao.createQuery("SELECT project, name, table_name, query, collections, options FROM continuous_queries WHERE project = :project")
+        return dao.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options FROM continuous_queries WHERE project = :project")
                 .bind("project", project).map(continuousQueryMapper).list();
     }
 
     @Override
-    public ContinuousQuery getContinuousQuery(String project, String name) {
-        return dao.createQuery("SELECT project, name, table_name, query, collections, options FROM continuous_queries WHERE project = :project AND name = :name")
-                .bind("project", project).bind("name", name).map(continuousQueryMapper).first();
+    public ContinuousQuery getContinuousQuery(String project, String tableName) {
+        return dao.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options FROM continuous_queries WHERE project = :project AND table_name = :name")
+                .bind("project", project).bind("name", tableName).map(continuousQueryMapper).first();
     }
 
     @Override
-    public void deleteMaterializedView(String project, String name) {
-        dao.createStatement("DELETE FROM materialized_views WHERE project = :project AND name = :name")
+    public void deleteMaterializedView(String project, String tableName) {
+        dao.createStatement("DELETE FROM materialized_views WHERE project = :project AND table_name = :name")
                 .bind("project", project)
-                .bind("name", name).execute();
+                .bind("name", tableName).execute();
     }
 
     @Override
-    public MaterializedView getMaterializedView(String project, String name) {
-        return dao.createQuery("SELECT project, name, query, strategy, options from materialized_views WHERE project = :project AND name = :name")
+    public MaterializedView getMaterializedView(String project, String tableName) {
+        return dao.createQuery("SELECT project, name, query, strategy, options from materialized_views WHERE project = :project AND table_name = :name")
                 .bind("project", project)
-                .bind("name", name).map(reportMapper).first();
+                .bind("name", tableName).map(reportMapper).first();
     }
 
     @Override
@@ -169,12 +163,14 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public List<ContinuousQuery> getAllContinuousQueries() {
-        return dao.createQuery("SELECT project, name, table_name, query, collections, options from continuous_queries")
+        return dao.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options from continuous_queries")
                 .map((index, r, ctx) -> {
                     return new ContinuousQuery(
                             r.getString("project"),
                             r.getString("name"), r.getString("table_name"), r.getString("query"),
-                            JsonHelper.read(r.getString("collections"), List.class), JsonHelper.read(r.getString("options"), Map.class));
+                            JsonHelper.read(r.getString("collections"), List.class),
+                            JsonHelper.read(r.getString("partition_keys"), List.class),
+                            JsonHelper.read(r.getString("options"), Map.class));
                 }).list();
     }
 }

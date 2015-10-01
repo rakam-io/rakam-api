@@ -94,6 +94,7 @@ public class RealTimeHttpService extends HttpService {
                 tableName,
                 sqlQuery,
                 query.collections,
+                ImmutableList.of(),
                 ImmutableMap.of("type", "realtime", "report", query));
         return service.create(report).thenApply(JsonResponse::map);
     }
@@ -109,7 +110,7 @@ public class RealTimeHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
     public CompletableFuture<Object> get(@ApiParam(name = "project", required = true) String project,
-                                         @ApiParam(name = "name", required = true) String name,
+                                         @ApiParam(name = "table_name", required = true) String tableName,
                                          @ApiParam(name = "filter", required = false) String filter,
                                          @ApiParam(name = "aggregate", required = false) boolean aggregate,
                                          @ApiParam(name = "date_start", required = false) Instant dateStart,
@@ -121,7 +122,7 @@ public class RealTimeHttpService extends HttpService {
             expression = null;
         }
 
-        ContinuousQuery continuousQuery = service.get(project, name);
+        ContinuousQuery continuousQuery = service.get(project, tableName);
         if (continuousQuery == null) {
             CompletableFuture<Object> f = new CompletableFuture<>();
             f.completeExceptionally(new RakamException("Couldn't found rule", 400));
@@ -170,12 +171,7 @@ public class RealTimeHttpService extends HttpService {
                         return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     } else {
                         Map<Object, List<Object>> newData = data.stream()
-                                .collect(Collectors.groupingBy(o -> new Function<List<Object>, Object>() {
-                                            @Override
-                                            public Object apply(List<Object> o) {
-                                                return o.get(0);
-                                            }
-                                        },
+                                .collect(Collectors.groupingBy(entry -> (Function<List<Object>, Object>) list -> list.get(0),
                                         Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
                         return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     }

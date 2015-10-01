@@ -157,7 +157,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
             if(ex==null) {
                 result.complete(new QueryResult(projectColumns, data.join(), ImmutableMap.of("totalResult", totalResult.join())));
             } else {
-                LOGGER.error("Error while executing query on user data-set.", ex);
+                LOGGER.error(ex, "Error while executing query on user data-set.");
                 result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0)));
             }
         });

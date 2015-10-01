@@ -1,22 +1,26 @@
 package org.rakam.report;
 
-import javax.inject.Inject;
-import org.rakam.collection.FieldType;
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.AstVisitor;
+import com.facebook.presto.sql.tree.Join;
+import com.facebook.presto.sql.tree.QualifiedNameReference;
+import com.facebook.presto.sql.tree.Query;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
-import org.rakam.util.Tuple;
 
+import javax.inject.Inject;
+
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.rakam.report.PrestoQueryExecution.fromPrestoType;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 02/04/15 04:38.
@@ -37,6 +41,23 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
+        Query statement = (Query) new SqlParser().createStatement(report.query);
+        statement.accept(new AstVisitor<Void, Void>() {
+            @Override
+            protected Void visitQualifiedNameReference(QualifiedNameReference node, Void context)
+            {
+                if(!node.getName().equals("stream")) {
+                    throw new IllegalArgumentException("Continuous queries must only reference 'stream' table.");
+                }
+                return null;
+            }
+
+            @Override
+            protected Void visitJoin(Join node, Void context)
+            {
+                throw new IllegalArgumentException("Currently, continuous tables don't support JOINs.");
+            }
+        }, null);
         database.createContinuousQuery(report);
         return CompletableFuture.completedFuture(QueryResult.empty());
     }
@@ -58,18 +79,24 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
-        Function<List<Object>, SchemaField> listSchemaFieldFunction = row ->
-                new SchemaField(
-                        (String) row.get(0),
-                        PrestoQueryExecution.fromPrestoType((String) row.get(1)),
-                        (Boolean) row.get(2));
+        List<SimpleImmutableEntry<String, CompletableFuture<QueryResult>>> collect = database.getContinuousQueries(project).stream()
+                .map(query -> {
+                    PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("describe %s.%s.%s",
+                            PRESTO_STREAMING_CATALOG_NAME, project, query.tableName));
+                    return new SimpleImmutableEntry<>(query.tableName, prestoQueryExecution
+                            .getResult());
+                }).collect(Collectors.toList());
 
-        return database.getContinuousQueries(project).parallelStream()
-                .map(query -> new Tuple<String, QueryResult>(query.tableName, executor.executeRawQuery(
-                        format("describe %s.%s.%s", PRESTO_STREAMING_CATALOG_NAME, project, query.tableName))
-                        .getResult().join()))
-                .collect(Collectors.toMap(item -> item.v1(), item -> item.v2().getResult().stream()
-                        .map(listSchemaFieldFunction).collect(Collectors.toList())));
+        CompletableFuture.allOf(collect.stream().map(c -> c.getValue()).toArray(CompletableFuture[]::new)).join();
+
+        return collect.stream().collect(
+                Collectors.toMap(
+                        item -> item.getKey(),
+                        item -> item.getValue().join().getResult()
+                            .stream()
+                            .map(row -> new SchemaField((String) row.get(0), fromPrestoType((String) row.get(1)), (Boolean) row.get(2)))
+                            .collect(Collectors.toList())
+                ));
 
     }
 }

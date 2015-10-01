@@ -4,7 +4,6 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
-import javax.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
@@ -39,6 +38,8 @@ import org.rakam.plugin.user.PostgresqlUserService;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlEventExplorer;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+
+import javax.inject.Inject;
 
 import static java.lang.String.format;
 
@@ -119,7 +120,7 @@ public class PostgresqlModule extends RakamModule {
                     "_total_" + collection,
                     QUERY,
                     ImmutableList.of(collection),
-                    ImmutableMap.of());
+                    ImmutableList.of(), ImmutableMap.of());
             continuousQueryService.create(report);
         }
     }

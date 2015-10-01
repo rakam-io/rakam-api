@@ -31,6 +31,8 @@ public class ContinuousQuery {
     public final String tableName;
     @ApiParam(name = "collections", value="The source collections that will be streamed", required = true)
     public final List<String> collections;
+    @ApiParam(name = "partition_keys", value="Partition columns of the table", required = false)
+    public final List<String> partitionKeys;
     @ApiParam(name = "options", value="Additional information about the continuous query", required = false)
     public final Map<String, Object> options;
 
@@ -40,6 +42,7 @@ public class ContinuousQuery {
                            @JsonProperty("table_name") String tableName,
                            @JsonProperty("query") String query,
                            @JsonProperty("collections") List<String> collections,
+                           @JsonProperty("partition_keys") List<String> partitionKeys,
                            @JsonProperty("options") Map<String, Object> options)
             throws ParsingException, IllegalArgumentException {
         this.project = checkNotNull(project, "project is required");
@@ -48,6 +51,7 @@ public class ContinuousQuery {
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.collections = collections;
         this.options = options;
+        this.partitionKeys = partitionKeys == null ? ImmutableList.of() : partitionKeys;
         validateQuery(query);
     }
 

@@ -46,9 +46,6 @@ public class AWSKinesisEventStore implements EventStore {
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
 
         try {
-            encoder.writeString(event.project());
-            encoder.writeString(event.collection());
-
             writer.write(event.properties(), encoder);
         } catch (Exception e) {
             throw new RuntimeException("Couldn't serialize event", e);

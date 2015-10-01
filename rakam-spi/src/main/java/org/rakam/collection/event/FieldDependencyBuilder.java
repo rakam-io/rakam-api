@@ -8,8 +8,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Sets.newHashSet;
 
 /**
  * Created by buremba <Burak Emre Kabakcı> on 14/03/15 22:24.
@@ -33,7 +35,7 @@ public class FieldDependencyBuilder {
                 .filter(newField -> constantFields.stream()
                         .anyMatch(f -> f.getName().equals(newField.getName()) && !f.getType().equals(newField.getType())))
                 .toArray(SchemaField[]::new);
-        checkState(collisions.length == 0, "Fields already exists: ", Arrays.toString(collisions));
+        checkState(collisions.length == 0, "Module field collides with existing field that has another type exists: ", Arrays.toString(collisions));
 
         collisions = dependentFields.values().stream()
                 .flatMap(col -> col.stream())
@@ -44,15 +46,15 @@ public class FieldDependencyBuilder {
     }
 
     FieldDependency build() {
-        return new FieldDependency(constantFields, dependentFields);
+        return new FieldDependency(newHashSet(constantFields), dependentFields);
     }
 
     public static class FieldDependency {
-        public final List<SchemaField> constantFields;
+        public final Set<SchemaField> constantFields;
         public final Map<String, List<SchemaField>> dependentFields;
 
-        public FieldDependency(List<SchemaField> constantFields, Map<String, List<SchemaField>> dependentFields) {
-            this.constantFields = Collections.unmodifiableList(constantFields);
+        public FieldDependency(Set<SchemaField> constantFields, Map<String, List<SchemaField>> dependentFields) {
+            this.constantFields = Collections.unmodifiableSet(constantFields);
             this.dependentFields = Collections.unmodifiableMap(dependentFields);
         }
     }

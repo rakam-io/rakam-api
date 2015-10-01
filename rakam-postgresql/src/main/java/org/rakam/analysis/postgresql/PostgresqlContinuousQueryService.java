@@ -70,7 +70,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
         ScheduledExecutorService updater = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                 .setUncaughtExceptionHandler((t, e) ->
-                        LOGGER.error("Error while updating continuous query table.", e))
+                        LOGGER.error(e, "Error while updating continuous query table."))
                 .build());
         updater.execute(() -> executor.executeRawQuery("select pg_advisory_lock("+PG_LOCK_KEY+")").getResult().thenAccept(result -> {
             if (!result.isFailed()) {
@@ -117,7 +117,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         if(report.options == null) {
             report = new ContinuousQuery(report.project,
                     report.name, report.tableName,
-                    report.query, report.collections, ImmutableMap.of("_metadata", continuousQueryMetadata));
+                    report.query, report.collections, report.partitionKeys, ImmutableMap.of("_metadata", continuousQueryMetadata));
         }else {
             if(report.options.containsKey("_metadata")) {
                 throw new IllegalArgumentException("_metadata option is reserved");
@@ -132,7 +132,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
                 report = new ContinuousQuery(report.project,
                         report.name, report.tableName,
-                        report.query, report.collections, map);
+                        report.query, report.collections, report.partitionKeys, map);
             }
         }
         final ContinuousQuery finalReport = report;

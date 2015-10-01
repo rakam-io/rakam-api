@@ -38,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.jdbc.internal.airlift.http.client.HttpUriBuilder.uriBuilder;
 import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
 import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
 import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
@@ -162,12 +161,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
 
     private StatementClient startQuery(String query) {
 
-        HostAndPort hostAndPort = HostAndPort.fromString(prestoConfig.getAddress());
-        URI uri = uriBuilder()
-                .scheme("http")
-                .host(hostAndPort.getHostText())
-                .port(hostAndPort.getPort())
-                .build();
+        URI uri = prestoConfig.getAddress();
 
         ClientSession session = new ClientSession(
                 uri,

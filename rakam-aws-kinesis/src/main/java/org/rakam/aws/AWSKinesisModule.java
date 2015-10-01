@@ -1,48 +1,37 @@
 package org.rakam.aws;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.pool.KryoFactory;
-import com.esotericsoftware.kryo.pool.KryoPool;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.auto.service.AutoService;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.io.ByteStreams;
 import com.google.inject.Binder;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
-import com.hazelcast.client.HazelcastClient;
-import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.config.GlobalSerializerConfig;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.MemberAttributeEvent;
-import com.hazelcast.core.MembershipEvent;
-import com.hazelcast.core.MembershipListener;
-import com.hazelcast.nio.ObjectDataInput;
-import com.hazelcast.nio.ObjectDataOutput;
-import com.hazelcast.nio.serialization.StreamSerializer;
-import de.javakaffee.kryoserializers.UnmodifiableCollectionsSerializer;
-import de.javakaffee.kryoserializers.guava.ImmutableListSerializer;
-import org.objenesis.strategy.StdInstantiatorStrategy;
-import org.rakam.aws.KinesisEventStream.EventStreamService;
-import org.rakam.collection.event.metastore.Metastore;
+import io.airlift.configuration.Config;
 import org.rakam.kume.Cluster;
-import org.rakam.kume.ClusterBuilder;
 import org.rakam.kume.ClusterMembership;
 import org.rakam.kume.JoinerService;
 import org.rakam.kume.Member;
-import org.rakam.kume.service.ServiceInitializer;
-import org.rakam.kume.util.NetworkUtil;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.EventStreamConfig;
 import org.rakam.plugin.RakamModule;
+import org.rakam.report.PrestoConfig;
+import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.List;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
@@ -55,13 +44,11 @@ public class AWSKinesisModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         bindConfig(binder).to(AWSConfig.class);
+        bindConfig(binder).to(KumeConfig.class);
         binder.bind(EventStore.class).to(AWSKinesisEventStore.class).in(Scopes.SINGLETON);
         if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
-            binder.bind(HazelcastInstance.class).toProvider(HazelcastInstanceProvider.class)
-                    .in(Scopes.SINGLETON);
-            binder.bind(EventStream.class).to(KinesisEventStream.class).in(Scopes.SINGLETON);
-            binder.bind(Cluster.class).toProvider(KumeClusterProvider.class)
-                    .in(Scopes.SINGLETON);
+            binder.bind(Cluster.class).toProvider(KumeClusterInstanceProvider.class).in(Scopes.SINGLETON);
+            binder.bind(EventStream.class).toProvider(KinesisEventStreamProvider.class).in(Scopes.SINGLETON);
         }
     }
 
@@ -75,158 +62,87 @@ public class AWSKinesisModule extends RakamModule {
         return "Puts your events directly to AWS Kinesis streams.";
     }
 
+    public static class KumeConfig {
+        private int port;
 
-    protected static class KumeClusterProvider implements Provider<Cluster> {
-
-        private final HazelcastInstance hazelcast;
-        private final Metastore metastore;
-
-        @Inject
-        public KumeClusterProvider(HazelcastInstance hazelcast, Metastore metastore) {
-            this.hazelcast = hazelcast;
-            this.metastore = metastore;
+        @Config("kinesis.streamer.kume.port")
+        public void setPort(int port) {
+            this.port = port;
         }
 
-        @Override
-        public Cluster get() {
-
-            List<Member> collect = hazelcast.getCluster().getMembers().stream()
-                    .map(mem -> {
-                        String addr = mem.getStringAttribute("kumeSocketAddress");
-                        int endIndex = addr.indexOf(':');
-                        return new Member(addr.substring(0, endIndex), Integer.parseInt(addr.substring(endIndex+1)));
-                    })
-                    .collect(Collectors.toList());
-
-            Cluster cluster = new ClusterBuilder()
-                    .members(collect)
-                    .services(new ServiceInitializer()
-                            .add("eventListener", bus -> new EventStreamService(bus, metastore)))
-                    .serverAddress(NetworkUtil.getDefaultAddress(), 5656)
-                    .joinStrategy(new HazelcastJoinerStrategy(hazelcast))
-                    .mustJoinCluster(true)
-                    .client(true)
-                    .start();
-            hazelcast.getSet("clients").add(cluster.getLocalMember());
-
-            return cluster;
+        public int getPort() {
+            return port;
         }
     }
 
-    protected static class HazelcastInstanceProvider implements Provider<HazelcastInstance> {
-        private final AWSConfig awsConfig;
+    protected  static class KinesisEventStreamProvider implements Provider<EventStream> {
+
+        private final Cluster cluster;
 
         @Inject
-        HazelcastInstanceProvider(AWSConfig config) {
-            this.awsConfig = config;
+        public KinesisEventStreamProvider(Cluster cluster) {
+            this.cluster = cluster;
         }
 
         @Override
-        public HazelcastInstance get() {
-            ClientConfig config = new ClientConfig();
-            config.getNetworkConfig().addAddress("127.0.0.1");
-//            AwsConfig hazelcastAwsConfig = join.getAwsConfig();
-//            hazelcastAwsConfig.setAccessKey(awsConfig.getAccessKey());
-//            hazelcastAwsConfig.setSecretKey(awsConfig.getSecretAccessKey());
-//            hazelcastAwsConfig.setSecurityGroupName("test");
-//            hazelcastAwsConfig.setEnabled(true);
-
-            config.getSerializationConfig()
-                    .setGlobalSerializerConfig(
-                            new GlobalSerializerConfig().setImplementation(new SchemaFieldStreamSerializer()));
-
-            return HazelcastClient.newHazelcastClient(config);
-        }
-
-        private static class SchemaFieldStreamSerializer implements StreamSerializer<Object> {
-
-            private final KryoFactory factory;
-            private final KryoPool pool;
-
-            public SchemaFieldStreamSerializer() {
-                factory = () -> {
-                    Kryo kryo = new Kryo();
-                    UnmodifiableCollectionsSerializer.registerSerializers(kryo);
-                    ImmutableListSerializer.registerSerializers(kryo);
-                    kryo.setInstantiatorStrategy(new Kryo.DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
-                    return kryo;
-                };
-                pool = new KryoPool.Builder(factory).softReferences().build();
-            }
-
-            @Override
-            public int getTypeId() {
-                return 21;
-            }
-
-            @Override
-            public void destroy() {
-
-            }
-
-            @Override
-            public void write(ObjectDataOutput out, Object object) throws IOException {
-                Kryo borrow = pool.borrow();
-                Output output = new Output(new OutputStream() {
-                    @Override
-                    public void write(int b) throws IOException {
-                        out.write(b);
-                    }
-                });
-                borrow.writeClassAndObject(output, object);
-                output.flush();
-                pool.release(borrow);
-            }
-
-            @Override
-            public Object read(ObjectDataInput in) throws IOException {
-                Kryo borrow = pool.borrow();
-                Object obj = borrow.readClassAndObject(new Input(new InputStream() {
-                    @Override
-                    public int read() throws IOException {
-                        return in.readByte();
-                    }
-                }));
-                pool.release(borrow);
-                return obj;
-            }
-
+        public EventStream get() {
+            return cluster.getService("eventStreamer");
         }
     }
 
-    private static class HazelcastJoinerStrategy implements JoinerService {
-        HazelcastInstance hazelcastInstance;
 
-        public HazelcastJoinerStrategy(HazelcastInstance hazelcastInstance) {
-            this.hazelcastInstance = hazelcastInstance;
+    public static class KumeJoinerService implements JoinerService {
+        private final URL coordinatorAddress;
+        private final KumeConfig config;
+        private ClusterMembership membership;
+        private Set<String> nodes;
+
+        public KumeJoinerService(PrestoConfig prestoConfig, KumeConfig config) {
+            this.config = config;
+            try {
+                URI address = prestoConfig.getAddress();
+                this.coordinatorAddress = new URL(
+                        address.getScheme()+"://"+
+                        address.getHost()+":"+
+                        address.getPort()+"/v1/node");
+            } catch (MalformedURLException e) {
+                throw Throwables.propagate(e);
+            }
+            nodes = ImmutableSet.of();
         }
 
         @Override
-        public void onStart(ClusterMembership clusterMembership) {
-            hazelcastInstance.getCluster().addMembershipListener(new MembershipListener() {
-                @Override
-                public void memberAdded(MembershipEvent membershipEvent) {
-                    String addr = membershipEvent.getMember().getStringAttribute("kumeSocketAddress");
-                    int endIndex = addr.indexOf(':');
-                    Member member = new Member(addr.substring(0, endIndex), Integer.parseInt(addr.substring(endIndex + 1)));
-                    clusterMembership.addMember(member);
-                }
-
-                @Override
-                public void memberRemoved(MembershipEvent membershipEvent) {
-//                    clusterMembership.removeMember(new Member(membershipEvent.getMember().getSocketAddress()));
-                }
-
-                @Override
-                public void memberAttributeChanged(MemberAttributeEvent memberAttributeEvent) {
-
-                }
-            });
+        public void onStart(ClusterMembership membership) {
+            this.membership = membership;
+            Executors.newSingleThreadScheduledExecutor()
+                    .scheduleAtFixedRate(this::updateNode, 1, 1, TimeUnit.SECONDS);
         }
 
-        @Override
-        public void onClose() {
+        private void updateNode() {
 
+            try {
+                ArrayNode result;
+                try {
+                    URLConnection yc = coordinatorAddress.openConnection();
+                    byte[] json = ByteStreams.toByteArray(yc.getInputStream());
+                    result = JsonHelper.read(json, ArrayNode.class);
+                } catch (IOException e) {
+                    return;
+                }
+
+                Set<String> activeNodes = StreamSupport.stream(result.spliterator(), false)
+                            .map(node -> URI.create(node.get("uri").asText()).getHost()).collect(Collectors.toSet());
+                activeNodes.add(coordinatorAddress.getHost());
+
+                Set<String> removedNodes = nodes.stream().filter(node -> !activeNodes.contains(node)).collect(Collectors.toSet());
+                Set<String> newNodes = activeNodes.stream().filter(node -> !nodes.contains(node)).collect(Collectors.toSet());
+
+                newNodes.forEach(node -> membership.addMember(new Member(node, config.getPort())));
+                removedNodes.forEach(node -> membership.removeMember(new Member(node, config.getPort())));
+                nodes = newNodes;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 }

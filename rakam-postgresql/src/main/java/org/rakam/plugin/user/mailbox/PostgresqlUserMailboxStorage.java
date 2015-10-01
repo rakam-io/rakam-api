@@ -79,7 +79,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
             generatedKeys.next();
             return new Message(project, generatedKeys.getInt(1), fromUser, toUser, message, parentId, false, date.toEpochMilli());
         } catch (SQLException e) {
-            LOGGER.error("Error while saving user message", e);
+            LOGGER.error(e, "Error while saving user message");
             throw Throwables.propagate(e);
         }
     }

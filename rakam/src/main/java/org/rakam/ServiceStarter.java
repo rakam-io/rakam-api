@@ -85,12 +85,6 @@ public class ServiceStarter {
             builder.add(rakamModule);
         }
 
-//        builder.add(binder -> {
-//            binder.bind(Cluster.class).toProvider(() -> {
-//                return new ClusterBuilder().start();
-//            }).in(Scopes.SINGLETON);
-//        });
-
         builder.add(new ServiceRecipe());
 
         Bootstrap app = new Bootstrap(builder.build());
@@ -132,7 +126,7 @@ public class ServiceStarter {
                     .title("Rakam API Documentation")
                     .version("1.0")
                     .description("An analytics platform API that lets you create your own analytics services.")
-                    .contact(new Contact().email("contact@getrakam.com"))
+                    .contact(new Contact().email("contact@rakam.com"))
                     .license(new License()
                             .name("Apache License 2.0")
                             .url("http://www.apache.org/licenses/LICENSE-2.0.html"));

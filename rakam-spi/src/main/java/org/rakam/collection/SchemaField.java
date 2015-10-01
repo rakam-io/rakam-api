@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import java.util.Locale;
+
 /**
  * Created by buremba <Burak Emre Kabakcı> on 10/03/15 03:40.
  */
@@ -29,7 +31,7 @@ public class SchemaField {
                        @JsonProperty("descriptiveName") String descriptiveName,
                        @JsonProperty("description") String description,
                        @JsonProperty("category") String category) {
-        this.name = name;
+        this.name = name.toLowerCase(Locale.ENGLISH);
         this.type = type;
         this.nullable = nullable;
         this.unique = unique;

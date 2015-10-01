@@ -4,7 +4,6 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import javax.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserPluginConfig;
@@ -26,6 +25,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
+import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -88,7 +88,7 @@ public class UserMailboxHttpService extends HttpService {
     @Consumes("text/event-stream")
     @GET
     @ApiImplicitParams({
-            @ApiImplicitParam(name = "project", value = "User's name", required = true, dataType = "string", paramType = "query"),
+            @ApiImplicitParam(name = "project", required = true, dataType = "string", paramType = "query"),
     })
     @ApiOperation(value = "Listen all mailboxes in a project",
             authorizations = @Authorization(value = "api_key", type = "api_key")

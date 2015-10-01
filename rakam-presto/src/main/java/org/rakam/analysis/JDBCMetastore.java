@@ -1,5 +1,10 @@
 package org.rakam.analysis;
 
+import com.google.common.base.Throwables;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -13,10 +18,12 @@ import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.report.PrestoConfig;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
 import java.util.Arrays;
@@ -26,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -33,13 +42,36 @@ public class JDBCMetastore implements Metastore {
     private final Handle dao;
     private final DBI dbi;
     private final PrestoConfig prestoConfig;
+    private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
+    private final LoadingCache<String, Set<String>> collectionCache;
 
     @Inject
     public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCConfig config, PrestoConfig prestoConfig) {
         this.prestoConfig = prestoConfig;
-        dbi = new DBI(String.format(config.getUrl(), config.getUsername(), config.getPassword()),
-                config.getUsername(), config.getPassword());
+        dbi = new DBI(config.getUrl(), config.getUsername(), config.getPassword());
         dao = dbi.open();
+
+        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
+            @Override
+            public List<SchemaField> load(ProjectCollection key) throws Exception {
+                List<SchemaField> schema = getSchema(dao, key.project, key.collection);
+                if(schema == null) {
+                    return ImmutableList.of();
+                }
+                return schema;
+            }
+        });
+
+        collectionCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
+            @Override
+            public Set<String> load(String project) throws Exception {
+                Query<Map<String, Object>> bind = dao.createQuery("SELECT collection from collection_schema WHERE project = :project")
+                        .bind("project", project);
+
+                return bind.list().stream().map(row ->
+                        (String) row.get("collection")).collect(Collectors.toSet());
+            }
+        });
 
         dao.createStatement("CREATE TABLE IF NOT EXISTS collection_schema (" +
                 "  project VARCHAR(255) NOT NULL,\n" +
@@ -86,11 +118,11 @@ public class JDBCMetastore implements Metastore {
 
     @Override
     public Set<String> getCollectionNames(String project) {
-        Query<Map<String, Object>> bind = dao.createQuery("SELECT collection from collection_schema WHERE project = :project")
-                .bind("project", project);
-
-        return bind.list().stream().map(row ->
-                (String) row.get("collection")).collect(Collectors.toSet());
+        try {
+            return collectionCache.get(project);
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
@@ -122,9 +154,14 @@ public class JDBCMetastore implements Metastore {
 
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
-        return getSchema(dao, project, collection);
+        try {
+            return schemaCache.get(new ProjectCollection(project, collection));
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
+    @Nullable
     private List<SchemaField> getSchema(Handle dao, String project, String collection) {
         Query<Map<String, Object>> bind = dao.createQuery("SELECT schema from collection_schema WHERE project = :project AND collection = :collection")
                 .bind("project", project)
@@ -134,11 +171,11 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields) {
-        return dbi.inTransaction((dao, status) -> {
-            // TODO: race condition ?
-            List<SchemaField> fields = Lists.newCopyOnWriteArrayList(getSchema(dao, project, collection));
-            if(fields == null) {
+    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields) {
+        List<SchemaField> schemaFields = dbi.inTransaction((dao, status) -> {
+            List<SchemaField> schema = getSchema(dao, project, collection);
+
+            if (schema == null) {
                 dao.createStatement("INSERT INTO collection_schema (project, collection, schema) VALUES (:project, :collection, :schema)")
                         .bind("schema", JsonHelper.encode(newFields))
                         .bind("project", project)
@@ -146,14 +183,16 @@ public class JDBCMetastore implements Metastore {
                         .execute();
                 return newFields;
             } else {
+                List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);
+
                 List<SchemaField> _newFields = Lists.newArrayList();
 
                 for (SchemaField field : newFields) {
                     Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
-                    if(!first.isPresent()) {
+                    if (!first.isPresent()) {
                         _newFields.add(field);
                     } else {
-                        if(first.get().getType() != field.getType())
+                        if (first.get().getType() != field.getType())
                             throw new IllegalArgumentException();
                     }
                 }
@@ -168,5 +207,8 @@ public class JDBCMetastore implements Metastore {
             }
 
         });
+        schemaCache.refresh(new ProjectCollection(project, collection));
+        collectionCache.refresh(project);
+        return schemaFields;
     }
 }

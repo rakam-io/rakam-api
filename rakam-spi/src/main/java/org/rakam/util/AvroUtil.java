@@ -49,7 +49,7 @@ public class AvroUtil {
     }
 
 
-    private static Schema getAvroSchema(FieldType type) {
+    public static Schema getAvroSchema(FieldType type) {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);

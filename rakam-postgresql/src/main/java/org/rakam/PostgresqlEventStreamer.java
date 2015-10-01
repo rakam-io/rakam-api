@@ -94,7 +94,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                         getProcedureName(collection.collection)));
             }
         } catch (SQLException e) {
-            LOGGER.error("Couldn't deleted functions and triggers from Postgresql server. Ticket: " + ticket, e);
+            LOGGER.error(e, "Couldn't deleted functions and triggers from Postgresql server. Ticket: " + ticket);
         } finally {
             open = false;
         }
@@ -131,7 +131,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                     conn.rollback();
                     shutdown();
                 } catch (SQLException e1) {
-                    LOGGER.error("Error while executing rollback on Postgresql server", e);
+                    LOGGER.error(e, "Error while executing rollback on Postgresql server");
                     return false;
                 }
             }

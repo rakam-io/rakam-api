@@ -75,7 +75,7 @@ public class EventHttpService extends HttpService {
             try {
                 processor.process(event);
             } catch (Exception e) {
-                LOGGER.error("An error occurred while processing event in "+processor.getClass().getName(), e);
+                LOGGER.error(e, "An error occurred while processing event in "+processor.getClass().getName());
                 return false;
             }
         }
@@ -84,7 +84,7 @@ public class EventHttpService extends HttpService {
             try {
                 mapper.map(event, headers, socketAddress);
             } catch (Exception e) {
-                LOGGER.error("An error occurred while processing event in "+mapper.getClass().getName(), e);
+                LOGGER.error(e, "An error occurred while processing event in "+mapper.getClass().getName());
                 return false;
             }
         }
@@ -92,7 +92,7 @@ public class EventHttpService extends HttpService {
         try {
             eventStore.store(event);
         } catch (Exception e) {
-            LOGGER.error("error while storing event.", e);
+            LOGGER.error(e, "error while storing event.");
             return false;
         }
 
@@ -151,7 +151,7 @@ public class EventHttpService extends HttpService {
 
             try {
                 // a trick to identify the type of the json data.
-                if(buff.charAt(0) == '[') {
+                if(buff.charAt(0) != '[') {
                     Event event = jsonMapper.readValue(buff, Event.class);
                     eventProcessed = processEvent(event, headers, socketAddress.getAddress());
                 } else {
@@ -168,7 +168,8 @@ public class EventHttpService extends HttpService {
                 request.response("json couldn't parsed", BAD_REQUEST).end();
                 return;
             } catch (Exception e) {
-                request.response(e.toString(), BAD_REQUEST).end();
+                LOGGER.error(e, "Error while collecting event");
+                request.response(e.toString(), INTERNAL_SERVER_ERROR).end();
                 return;
             }
 

@@ -67,7 +67,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     "    IMMUTABLE" +
                     "    RETURNS NULL ON NULL INPUT");
         } catch (SQLException e) {
-            LOGGER.error("Error while creating required Postgresql procedures.", e.getMessage());
+            LOGGER.error(e, "Error while creating required Postgresql procedures.");
         }
     }
 
