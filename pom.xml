@@ -32,12 +32,6 @@
         </license>
     </licenses>
 
-    <scm>
-        <connection>scm:git:git://github.com/buremba/rakam.git</connection>
-        <url>https://github.com/buremba/rakam</url>
-        <tag>HEAD</tag>
-    </scm>
-
     <modules>
         <module>rakam-spi</module>
         <module>rakam-presto</module>
@@ -301,4 +295,17 @@
         </plugins>
     </build>
 
+    <scm>
+        <connection>scm:git:https://github.com/buremba/rakam.git</connection>
+        <developerConnection>scm:git:git@github.com:buremba/rakam.git</developerConnection>
+        <url>https://github.com/buremba/rakam</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>bintray-repo-maven</id>
+            <url>https://api.bintray.com/maven/buremba/maven/rakam/;publish=1</url>
+        </repository>
+    </distributionManagement>
 </project>

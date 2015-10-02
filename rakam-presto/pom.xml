@@ -99,6 +99,4 @@
             <artifactId>jdbi</artifactId>
         </dependency>
     </dependencies>
-
-
 </project>

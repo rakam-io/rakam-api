@@ -19,7 +19,7 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-    
+
     <dependencies>
         <dependency>
             <groupId>org.rakam</groupId>
