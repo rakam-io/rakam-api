@@ -101,10 +101,8 @@ public class AWSKinesisModule extends RakamModule {
             this.config = config;
             try {
                 URI address = prestoConfig.getAddress();
-                this.coordinatorAddress = new URL(
-                        address.getScheme()+"://"+
-                        address.getHost()+":"+
-                        address.getPort()+"/v1/node");
+                this.coordinatorAddress = new URL(address.toURL().toExternalForm()+
+                        "/v1/node");
             } catch (MalformedURLException e) {
                 throw Throwables.propagate(e);
             }

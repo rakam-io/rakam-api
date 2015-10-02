@@ -11,6 +11,14 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>rakam-presto-kafka</artifactId>
 
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <dependencies>
         <dependency>
             <groupId>com.google.auto.service</groupId>
