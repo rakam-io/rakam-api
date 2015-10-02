@@ -5,11 +5,11 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>0.1</version>
+        <version>0.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>rakam-spi</artifactId>
-    <version>0.1</version>
+    <version>0.2-SNAPSHOT</version>
     <name>rakam-spi</name>
 
     <licenses>
