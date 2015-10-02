@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.Join;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
@@ -84,14 +85,13 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
         CompletableFuture.allOf(collect.stream().map(c -> c.getValue()).toArray(CompletableFuture[]::new)).join();
 
-        return collect.stream().collect(
-                Collectors.toMap(
-                        item -> item.getKey(),
-                        item -> item.getValue().join().getResult()
-                            .stream()
-                            .map(row -> new SchemaField((String) row.get(0), fromPrestoType((String) row.get(1)), (Boolean) row.get(2)))
-                            .collect(Collectors.toList())
-                ));
-
+        ImmutableMap.Builder<String, List<SchemaField>> builder = ImmutableMap.builder();
+        for (SimpleImmutableEntry<String, CompletableFuture<QueryResult>> entry : collect) {
+            builder.put(entry.getKey(), entry.getValue().join().getResult()
+                    .stream()
+                    .map(row -> new SchemaField((String) row.get(0), fromPrestoType((String) row.get(1)), (Boolean) row.get(2)))
+                    .collect(Collectors.toList()));
+        }
+        return builder.build();
     }
 }
