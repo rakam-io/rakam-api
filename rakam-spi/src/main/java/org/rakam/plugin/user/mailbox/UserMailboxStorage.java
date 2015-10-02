@@ -6,23 +6,23 @@ import java.util.function.Consumer;
 
 
 public interface UserMailboxStorage {
-    public Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date);
-    public void createProject(String projectId);
-    public MessageListener listen(String projectId, String user, Consumer<Data> messageConsumer);
-    public MessageListener listenAllUsers(String projectId, Consumer<Data> messageConsumer);
+    Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date);
+    void createProject(String projectId);
+    MessageListener listen(String projectId, String user, Consumer<Data> messageConsumer);
+    MessageListener listenAllUsers(String projectId, Consumer<Data> messageConsumer);
     List<Message> getConversation(String project, Object userId, Integer parentId, int limit, long offset);
-    public void markMessagesAsRead(String project, Object userId, int[] messageIds);
+    void markMessagesAsRead(String project, Object userId, int[] messageIds);
 
-    public static interface MessageListener {
-        public void shutdown();
+    interface MessageListener {
+        void shutdown();
     }
 
 
-    public static enum Operation {
+    enum Operation {
         msg, typing
     }
 
-    public static class Data {
+    class Data {
         public final Operation op;
         public final String payload;
 

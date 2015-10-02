@@ -1,5 +1,6 @@
 package org.rakam;
 
+import io.airlift.log.Logger;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.SystemEventListener;
@@ -26,6 +27,7 @@ import static org.rakam.util.ValidationUtil.checkProject;
 @Path("/project")
 @Api(value = "/project", description = "Project operations", tags = "project")
 public class ProjectHttpService extends HttpService {
+    Logger logger = Logger.get(ProjectHttpService.class);
 
     private final Set<SystemEventListener> systemEventListeners;
     private final Metastore metastore;
@@ -44,7 +46,9 @@ public class ProjectHttpService extends HttpService {
     public JsonResponse createProject(@ApiParam(name="name") String name) {
         checkProject(name);
         metastore.createProject(name);
-        systemEventListeners.forEach(listener -> listener.onCreateProject(name));
+        for (SystemEventListener listener : systemEventListeners) {
+            listener.onCreateProject(name);
+        }
         return JsonResponse.success();
     }
 

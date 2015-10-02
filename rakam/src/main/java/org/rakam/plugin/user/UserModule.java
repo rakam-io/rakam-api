@@ -11,10 +11,14 @@ import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 
 import javax.inject.Inject;
+
+import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.enabled", value = "true")
@@ -53,15 +57,21 @@ public class UserModule extends RakamModule {
 
         private final Optional<UserStorage> storage;
         private final Optional<UserMailboxStorage> mailboxStorage;
+        private final PostgresqlQueryExecutor queryExecutor;
 
         @Inject
-        public UserStorageListener(com.google.common.base.Optional<UserStorage> storage, com.google.common.base.Optional<UserMailboxStorage> mailboxStorage) {
+        public UserStorageListener(com.google.common.base.Optional<UserStorage> storage, com.google.common.base.Optional<UserMailboxStorage> mailboxStorage, PostgresqlQueryExecutor queryExecutor) {
             this.storage = storage;
             this.mailboxStorage = mailboxStorage;
+            this.queryExecutor = queryExecutor;
         }
 
         @Override
         public void onCreateProject(String project) {
+            checkProject(project);
+            // if event.store is not postgresql, schema may not exist.
+            queryExecutor.executeRawQuery(format("CREATE SCHEMA IF NOT EXISTS %s", project)).getResult().join();
+
             if(mailboxStorage.isPresent()) {
                 mailboxStorage.get().createProject(project);
             }
