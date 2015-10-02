@@ -14,8 +14,9 @@
 package org.rakam.report;
 
 import com.facebook.presto.sql.ExpressionFormatter;
-import javax.inject.Inject;
 import org.rakam.analysis.FunnelQueryExecutor;
+
+import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -24,9 +25,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 21/08/15 15:27.
- */
 public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     private final PrestoQueryExecutor executor;
     private final String coldStorageConnector;

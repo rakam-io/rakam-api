@@ -27,9 +27,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/07/15 12:29.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "recipes")
 public class RecipeModule extends RakamModule {

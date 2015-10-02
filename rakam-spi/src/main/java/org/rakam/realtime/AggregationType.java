@@ -3,9 +3,7 @@ package org.rakam.realtime;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/02/15 23:36.
- */
+
 public enum AggregationType {
     COUNT,
     COUNT_UNIQUE,

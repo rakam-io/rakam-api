@@ -1,7 +1,6 @@
 package org.rakam.collection.kafka;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import javax.inject.Inject;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
@@ -11,6 +10,8 @@ import org.rakam.plugin.StreamResponse;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
 
+import javax.inject.Inject;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,9 +19,6 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:13.
- */
 public class KafkaStream implements EventStream {
 
     private final KafkaOffsetManager offsetManager;

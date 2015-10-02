@@ -1,16 +1,14 @@
 package org.rakam;
 
-import javax.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 
+import javax.inject.Inject;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 11/05/15 04:25.
- */
 @Singleton
 public class PostgresqlPoolDataSource {
 

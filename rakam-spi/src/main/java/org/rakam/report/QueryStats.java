@@ -3,9 +3,6 @@ package org.rakam.report;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
-* Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:54.
-*/
 public class QueryStats {
     public final int percentage;
     public final String state;

@@ -32,9 +32,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
-/**
- * Created by buremba on 26/05/14.
- */
+
 public class GeoIPEventMapper implements EventMapper {
     final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);
 

@@ -15,7 +15,6 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
 import org.rakam.report.QueryHttpService;
@@ -26,14 +25,13 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 
+import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.time.LocalDate;
 import java.util.Optional;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 27/08/15 06:40.
- */
 @Path("/retention")
 @Api(value = "/retention", description = "Retention Analyzer module", tags = "event")
 public class RetentionAnalyzerHttpService extends HttpService {

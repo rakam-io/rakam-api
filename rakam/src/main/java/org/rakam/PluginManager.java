@@ -1,8 +1,5 @@
 package org.rakam;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 09/05/15 16:20.
- */
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
@@ -20,9 +17,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- */
 public class PluginManager {
     private static final File pluginsDirectory = new File(new File(System.getProperty("user.dir")), "plugins");
 

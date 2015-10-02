@@ -4,9 +4,6 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import io.airlift.configuration.Config;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/07/15 06:48.
- */
 public class AWSConfig {
     private String accessKey;
     private String secretAccessKey;

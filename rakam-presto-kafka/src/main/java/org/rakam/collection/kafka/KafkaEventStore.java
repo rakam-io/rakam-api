@@ -1,5 +1,6 @@
 package org.rakam.collection.kafka;
 
+import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
@@ -20,7 +21,6 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
-import org.rakam.util.HostAddress;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
@@ -34,15 +34,11 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/02/15 03:25.
- */
 @Singleton
 public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     final static Logger LOGGER = Logger.get(KafkaEventStore.class);
     final static String ZK_OFFSET_PATH = "/collectionOffsets";
 
-//    private final KafkaOffsetManager kafkaManager;
     private final Producer<byte[], byte[]> producer;
     private final long updateInterval;
     ScheduledExecutorService executorService;
@@ -57,10 +53,9 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     @Inject
     public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config) {
         config = checkNotNull(config, "config is null");
-//        this.kafkaManager = checkNotNull(kafkaManager, "kafkaManager is null");
 
         Properties props = new Properties();
-        props.put("metadata.broker.list", config.getNodes().stream().map(HostAddress::toString).collect(Collectors.joining(",")));
+        props.put("metadata.broker.list", config.getNodes().stream().map(HostAndPort::toString).collect(Collectors.joining(",")));
         props.put("serializer.class", config.SERIALIZER);
 
         ProducerConfig producerConfig = new ProducerConfig(props);
@@ -78,9 +73,6 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
         } catch (Exception e) {
             LOGGER.error(e, format("Couldn't create event offset path %s", ZK_OFFSET_PATH));
         }
-
-//        kafkaManager.setZookeeper(client);
-
 
         new LeaderSelector(client, ZK_OFFSET_PATH, this).start();
     }

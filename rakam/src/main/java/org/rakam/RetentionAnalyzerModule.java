@@ -21,9 +21,6 @@ import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 29/08/15 22:07.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "user.retention-analysis.enabled", value = "true")
 public class RetentionAnalyzerModule extends RakamModule {

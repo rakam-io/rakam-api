@@ -13,9 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
-* Created by buremba <Burak Emre Kabakcı> on 28/07/15 00:55.
-*/
 class InMemoryMetastore implements Metastore {
     private final Map<String, Map<String, List<SchemaField>>> collections = new HashMap<>();
 

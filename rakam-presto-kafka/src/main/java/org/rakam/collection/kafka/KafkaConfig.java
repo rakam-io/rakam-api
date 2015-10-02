@@ -2,33 +2,31 @@ package org.rakam.collection.kafka;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.net.HostAndPort;
 import io.airlift.configuration.Config;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
-import org.rakam.util.HostAddress;
 
 import javax.validation.constraints.Size;
+
 import java.util.Set;
 
 import static com.google.common.collect.Iterables.transform;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/02/15 01:42.
- */
 public class KafkaConfig
 {
     private static final int KAFKA_DEFAULT_PORT = 9092;
     public static final String SERIALIZER = "kafka.serializer.DefaultEncoder";
 
-    private Set<HostAddress> nodes = ImmutableSet.of();
+    private Set<HostAndPort> nodes = ImmutableSet.of();
     private Duration kafkaConnectTimeout = Duration.valueOf("10s");
     private DataSize kafkaBufferSize = new DataSize(64, DataSize.Unit.KILOBYTE);
     private Duration commitInterval = Duration.valueOf("5s");
-    private HostAddress zookeeperNode;
+    private HostAndPort zookeeperNode;
 
     @Size(min = 1)
-    public Set<HostAddress> getNodes()
+    public Set<HostAndPort> getNodes()
     {
         return nodes;
     }
@@ -43,7 +41,7 @@ public class KafkaConfig
     @Config("zookeeper.connect")
     public KafkaConfig setZookeeperNode(String node)
     {
-        this.zookeeperNode = (node == null) ? null : toHostAddress(node);
+        this.zookeeperNode = (node == null) ? null : HostAndPort.fromString(node);
         return this;
     }
 
@@ -87,19 +85,19 @@ public class KafkaConfig
         return this;
     }
 
-    public HostAddress getZookeeperNode() {
+    public HostAndPort getZookeeperNode() {
         return zookeeperNode;
     }
 
-    public static ImmutableSet<HostAddress> parseNodes(String nodes)
+    public static ImmutableSet<HostAndPort> parseNodes(String nodes)
     {
         Splitter splitter = Splitter.on(',').omitEmptyStrings().trimResults();
         return ImmutableSet.copyOf(transform(splitter.split(nodes), KafkaConfig::toHostAddress));
     }
 
-    private static HostAddress toHostAddress(String value)
+    private static HostAndPort toHostAddress(String value)
     {
-        return HostAddress.fromString(value).withDefaultPort(KAFKA_DEFAULT_PORT);
+        return HostAndPort.fromString(value).withDefaultPort(KAFKA_DEFAULT_PORT);
     }
 }
 

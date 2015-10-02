@@ -22,9 +22,6 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 06/04/15 23:50.
- */
 public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     final static Logger LOGGER = Logger.get(PostgresqlEventStream.class);
 

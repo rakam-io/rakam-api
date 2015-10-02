@@ -12,9 +12,6 @@
  * limitations under the License.
  */
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 28/09/15 18:24.
- */
 public class Test {
     @org.junit.Test
     public void testName() throws Exception {

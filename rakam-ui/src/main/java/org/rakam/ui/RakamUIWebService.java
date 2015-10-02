@@ -53,9 +53,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 09/05/15 00:49.
- */
+
 @Path("/")
 public class RakamUIWebService extends HttpService {
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";

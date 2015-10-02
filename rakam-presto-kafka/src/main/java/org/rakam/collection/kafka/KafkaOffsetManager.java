@@ -1,6 +1,7 @@
 package org.rakam.collection.kafka;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.net.HostAndPort;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
@@ -14,7 +15,6 @@ import kafka.javaapi.TopicMetadata;
 import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.TopicMetadataResponse;
 import kafka.javaapi.consumer.SimpleConsumer;
-import org.rakam.util.HostAddress;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -28,9 +28,6 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/02/15 00:01.
- */
 @Singleton
 public class KafkaOffsetManager {
     private final static Logger LOGGER = Logger.get(KafkaOffsetManager.class);
@@ -49,7 +46,7 @@ public class KafkaOffsetManager {
     }
 
     private Map<String, Long> getTopicOffsets(List<String> topics) {
-        ArrayList<HostAddress> nodes = new ArrayList<>(config.getNodes());
+        ArrayList<HostAndPort> nodes = new ArrayList<>(config.getNodes());
         Collections.shuffle(nodes);
 
         SimpleConsumer simpleConsumer = consumerManager.getConsumer(nodes.get(0));
@@ -65,7 +62,7 @@ public class KafkaOffsetManager {
                 if (leader == null) { // Leader election going on...
                     LOGGER.warn(format("No leader for partition %s/%s found!", metadata.topic(), part.partitionId()));
                 } else {
-                    HostAddress leaderHost = HostAddress.fromParts(leader.host(), leader.port());
+                    HostAndPort leaderHost = HostAndPort.fromParts(leader.host(), leader.port());
                     SimpleConsumer leaderConsumer = consumerManager.getConsumer(leaderHost);
 
                     long offset = findAllOffsets(leaderConsumer, metadata.topic(), part.partitionId())[0];

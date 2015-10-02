@@ -10,9 +10,6 @@ import org.rakam.plugin.RakamModule;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:21.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config="event.store", value="kafka")
 public class KafkaCollectorModule extends RakamModule  {

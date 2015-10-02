@@ -17,9 +17,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 23/08/15 18:55.
- */
+
 public class CustomReport {
     public final String reportType;
     public final String project;

@@ -4,9 +4,6 @@ import io.airlift.configuration.Config;
 
 import java.net.URI;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 07/03/15 00:33.
- */
 public class PrestoConfig {
     private URI address;
     private String dataConnectorName;

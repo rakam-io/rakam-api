@@ -16,9 +16,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/02/15 22:03.
- */
+
 public class MaterializedView {
     private final static SqlParser SQL_PARSER = new SqlParser();
     @ApiParam(name = "project", required = true)

@@ -26,9 +26,6 @@ import java.util.function.Consumer;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 30/03/15 06:22.
- */
 public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     final static Logger LOGGER = Logger.get(PostgresqlUserMailboxStorage.class);
 

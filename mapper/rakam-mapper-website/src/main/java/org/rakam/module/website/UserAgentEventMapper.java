@@ -14,9 +14,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Map;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 19/07/15 21:46.
- */
 public class UserAgentEventMapper implements EventMapper {
     private final Parser uaParser;
 

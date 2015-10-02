@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 11/02/15 15:57.
- */
+
 public interface Metastore {
     Map<String, Collection<String>> getAllCollections();
 

@@ -16,9 +16,6 @@ import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.util.Map;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 18/07/15 16:37.
- */
 public class ReferrerEventMapper implements EventMapper {
 
     private final Parser parser;

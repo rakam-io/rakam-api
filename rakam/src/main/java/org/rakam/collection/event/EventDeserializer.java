@@ -43,9 +43,6 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 11/02/15 23:50.
- */
 public class EventDeserializer extends JsonDeserializer<Event> {
     private final Metastore schemaRegistry;
     private final Map<Tuple<String, String>, Schema> schemaCache;

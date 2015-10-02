@@ -38,9 +38,6 @@ import java.util.function.Function;
 import static java.lang.String.format;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 06/04/15 00:48.
- */
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
     final SqlParser parser = new SqlParser();

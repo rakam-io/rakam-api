@@ -15,9 +15,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/04/15 05:30.
- */
+
 public abstract class MaterializedViewService {
     private final QueryMetadataStore database;
     private final QueryExecutor queryExecutor;

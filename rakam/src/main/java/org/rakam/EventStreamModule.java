@@ -22,9 +22,6 @@ import org.rakam.plugin.EventStreamConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/08/15 15:17.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config="event.stream.enabled", value = "true")
 public class EventStreamModule extends RakamModule {

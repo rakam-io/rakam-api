@@ -5,9 +5,6 @@ import io.airlift.configuration.Config;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/**
-* Created by buremba <Burak Emre Kabakcı> on 11/02/15 01:31.
-*/
 public class PostgresqlConfig {
     private String database = "rakam";
     private String username = "postgres";

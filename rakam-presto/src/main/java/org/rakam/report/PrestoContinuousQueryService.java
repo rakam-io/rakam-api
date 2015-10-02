@@ -22,21 +22,16 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 import static org.rakam.report.PrestoQueryExecution.fromPrestoType;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/04/15 04:38.
- */
 public class PrestoContinuousQueryService extends ContinuousQueryService {
     public final static String PRESTO_STREAMING_CATALOG_NAME = "streaming";
     private final QueryMetadataStore database;
     private final PrestoQueryExecutor executor;
-    private final Metastore metastore;
 
     @Inject
     public PrestoContinuousQueryService(QueryMetadataStore database, PrestoQueryExecutor executor, Metastore metastore) {
         super(database);
         this.database = database;
         this.executor = executor;
-        this.metastore = metastore;
     }
 
     @Override

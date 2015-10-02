@@ -2,7 +2,6 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
-import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.AbstractUserService.CollectionEvent;
@@ -20,17 +19,16 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
+import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 08/11/14 21:04.
- */
 @Path("/user")
 @Api(value = "/user", description = "User", tags = "user")
 public class UserHttpService extends HttpService {
@@ -89,9 +87,6 @@ public class UserHttpService extends HttpService {
         }
     }
 
-    /**
-     * curl 'http://localhost:9999/user/create' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "limit": 100, "offset": 100, "filter": "age > 30"}'
-     */
     @JsonRequest
     @ApiOperation(value = "Search users")
     @ApiResponses(value = {
@@ -119,9 +114,6 @@ public class UserHttpService extends HttpService {
         return service.filter(project, expression, event_filter, sorting, limit, offset);
     }
 
-    /**
-     * curl 'http://localhost:9999/user/get_events' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "limit": 100, "user": 100}'
-     */
     @POST
     @JsonRequest
     @ApiOperation(value = "Get events of the user")
@@ -136,9 +128,6 @@ public class UserHttpService extends HttpService {
         return service.getEvents(project, user, limit == null ? 15 : limit, offset == null ? 0 : offset);
     }
 
-    /**
-     * curl 'http://localhost:9999/user/get' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "user": 100}'
-     */
     @JsonRequest
     @ApiOperation(value = "Get user")
     @ApiResponses(value = {

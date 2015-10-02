@@ -1,7 +1,6 @@
 package org.rakam.analysis.postgresql;
 
 import com.google.common.base.Throwables;
-import javax.inject.Inject;
 import com.google.inject.Singleton;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -9,14 +8,13 @@ import org.rakam.PostgresqlPoolDataSource;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 
+import javax.inject.Inject;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/02/15 16:22.
- */
 @Singleton
 public class PostgresqlEventStore implements EventStore {
     PostgresqlPoolDataSource connectionPool;

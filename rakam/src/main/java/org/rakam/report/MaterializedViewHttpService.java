@@ -1,6 +1,5 @@
 package org.rakam.report;
 
-import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
@@ -16,8 +15,10 @@ import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
+import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -25,9 +26,6 @@ import java.util.stream.Collectors;
 
 import static org.rakam.server.http.HttpServer.errorMessage;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/02/15 01:14.
- */
 @Path("/materialized-view")
 @Api(value = "/materialized-view", description = "Materialized View", tags = "materialized-view")
 public class MaterializedViewHttpService extends HttpService {
@@ -41,9 +39,6 @@ public class MaterializedViewHttpService extends HttpService {
         this.queryService = queryService;
     }
 
-    /**
-     *     curl 'http://localhost:9999/materialized-view/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
-     */
     @JsonRequest
     @ApiOperation(value = "Get lists of the materialized views")
     @ApiResponses(value = {
@@ -57,9 +52,6 @@ public class MaterializedViewHttpService extends HttpService {
         return service.list(project);
     }
 
-    /**
-     *     curl 'http://localhost:9999/materialized-view/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId"}'
-     */
     @JsonRequest
     @ApiOperation(value = "Get schemas of the materialized views")
     @ApiResponses(value = {
@@ -94,11 +86,9 @@ public class MaterializedViewHttpService extends HttpService {
      * You can also trigger an update using using '/view/update' endpoint.
      * This feature is similar to MATERIALIZED VIEWS in RDBMSs.
      *
-     * @apiParamExample {json} Request-Example:
-     *     {"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}
-     *
-     * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/materialized-view/create' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
+     * curl 'http://localhost:9999/materialized-view/create' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
+     * @param query materialized view query
+     * @return the status
      */
     @JsonRequest
     @ApiOperation(value = "Create new materialized view")
@@ -126,6 +116,7 @@ public class MaterializedViewHttpService extends HttpService {
      * This feature is similar to UPDATE MATERIALIZED VIEWS in RDBMSs.
      *
      *     curl 'http://localhost:9999/materialized-view/update' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
+     * @param request http request object
      */
     @GET
     @Path("/update")

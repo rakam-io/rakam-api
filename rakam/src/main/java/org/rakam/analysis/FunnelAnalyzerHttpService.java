@@ -15,7 +15,6 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.inject.Inject;
 import org.rakam.report.QueryHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -24,8 +23,10 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 
+import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -33,9 +34,6 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 21/08/15 18:05.
- */
 @Path("/funnel")
 @Api(value = "/funnel", description = "Funnel Analyzer module", tags = "event")
 public class FunnelAnalyzerHttpService extends HttpService {

@@ -20,9 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 10/02/15 18:03.
- */
+
 @Singleton
 public class JDBCQueryMetadata implements QueryMetadataStore {
     Handle dao;

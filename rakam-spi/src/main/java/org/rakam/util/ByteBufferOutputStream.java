@@ -4,9 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/02/15 17:22.
- */
+
 public class ByteBufferOutputStream extends OutputStream {
     private ByteBuffer byteBuffer;
 

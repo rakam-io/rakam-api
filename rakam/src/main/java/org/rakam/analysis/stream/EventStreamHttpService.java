@@ -6,7 +6,6 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import javax.inject.Inject;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -22,9 +21,11 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.util.JsonHelper;
 
+import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -35,9 +36,6 @@ import static java.lang.String.format;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:49.
- */
 @Path("/stream")
 @Api(value = "/stream", description = "Event Stream", tags = "stream")
 public class EventStreamHttpService extends HttpService {
@@ -51,9 +49,6 @@ public class EventStreamHttpService extends HttpService {
         this.sqlParser = new SqlParser();
     }
 
-    /**
-     *     curl 'http://localhost:9999/stream/subsribe/get?data={"project": "projectId", "collections": [{collection: "pageView", filter: "url LIKE 'http://rakam.io/docs%'"}]}' -H 'Content-Type: text/event-stream;charset=UTF-8'
-     */
     @GET
     @ApiOperation(value = "Subscribe Event Stream", notes = "Subscribes the event stream periodically to the client.")
     @ApiResponses(value = {

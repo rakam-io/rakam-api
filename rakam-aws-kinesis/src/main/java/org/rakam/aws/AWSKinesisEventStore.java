@@ -16,9 +16,6 @@ import javax.inject.Inject;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/07/15 06:47.
- */
 public class AWSKinesisEventStore implements EventStore {
     private final AmazonKinesisClient kinesis;
     private final AWSConfig config;

@@ -16,9 +16,7 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 08/03/15 00:17.
- */
+
 public class ContinuousQuery {
     private final static SqlParser SQL_PARSER = new SqlParser();
     @ApiParam(name = "project", required = true)

@@ -12,9 +12,6 @@ import org.rakam.server.http.HttpService;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/02/15 13:34.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "real-time.enabled", value="true")
 public class RealTimeModule extends RakamModule {

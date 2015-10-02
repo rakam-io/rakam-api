@@ -23,9 +23,7 @@ import java.util.zip.ZipFile;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 16/04/15 21:21.
- */
+
 public class RakamUIModule extends RakamModule {
     final static Logger LOGGER = Logger.get(RakamUIModule.class);
 

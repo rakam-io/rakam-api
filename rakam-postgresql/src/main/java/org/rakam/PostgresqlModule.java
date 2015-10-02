@@ -43,9 +43,6 @@ import javax.inject.Inject;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:23.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="postgresql")
 public class PostgresqlModule extends RakamModule {

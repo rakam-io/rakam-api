@@ -9,6 +9,12 @@
     </parent>
 
     <artifactId>rakam-postgresql</artifactId>
+    <name>rakam-postgresql</name>
+    <description>Rakam Postgresql Module</description>
+
+    <properties>
+        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+    </properties>
 
     <dependencies>
         <dependency>

@@ -28,9 +28,7 @@ import org.rakam.util.JsonResponse;
 import javax.ws.rs.Path;
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 23/08/15 19:14.
- */
+
 @Path("/custom-report")
 @Api(value = "/custom-report", description = "Custom Report module", tags = "report")
 public class CustomReportHttpService extends HttpService {

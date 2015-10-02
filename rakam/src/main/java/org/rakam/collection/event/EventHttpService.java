@@ -43,9 +43,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.rakam.util.JsonHelper.encode;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 25/10/14 21:48.
- */
 @Path("/event")
 @Api(value = "/event", description = "Event collection module", tags = "event")
 public class EventHttpService extends HttpService {
@@ -99,18 +96,6 @@ public class EventHttpService extends HttpService {
         return true;
     }
 
-    /**
-     * @api {post} /event/collect Collect event
-     * @apiVersion 0.1.0
-     * @apiName CollectEvent
-     * @apiGroup event
-     * @apiDescription Stores event data for specified project and collection tuple.
-     * @apiParam {String} project   Project tracker code that the event belongs.
-     * @apiParam {String} collection    Collection name. (pageView, register etc.)
-     * @apiParam {Object} properties    The properties of the event.
-     * @apiExample {curl} Example usage:
-     * curl 'http://localhost:9999/event/collect' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "collection": "pageView", "properties": { "url": "http://rakam.io" } }'
-     */
     @POST
     @ApiOperation(value = "Collect event",
             authorizations = @Authorization(value = "api_key", type = "api_key", scopes = { @AuthorizationScope(scope = "add:pet", description = "") })

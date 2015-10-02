@@ -1,12 +1,13 @@
 package org.rakam.analysis.postgresql;
 
-import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.Tuple;
+
+import javax.inject.Inject;
 
 import java.time.Clock;
 import java.util.List;
@@ -16,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Created by buremba <Burak Emre Kabakcı> on 25/04/15 20:29.
  * TODO: replace this with Postgresql MATERIALIZED VIEW feature
  */
 public class PostgresqlMaterializedViewService extends MaterializedViewService {

@@ -6,9 +6,7 @@ import org.rakam.plugin.MaterializedView;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 21/07/14 05:21.
- */
+
 public interface QueryMetadataStore {
     void createMaterializedView(MaterializedView materializedView);
 

@@ -10,9 +10,7 @@ import org.rakam.plugin.UserStorage;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 17/03/15 18:08.
- */
+
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.storage", value="jdbc")
 public class JDBCUserStorageModule extends RakamModule {

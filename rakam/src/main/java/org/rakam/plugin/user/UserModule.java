@@ -3,21 +3,19 @@ package org.rakam.plugin.user;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
 import com.google.inject.Binder;
-import javax.inject.Inject;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.ConditionalModule;
-import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/03/15 16:17.
- */
+import javax.inject.Inject;
+
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.enabled", value = "true")
 public class UserModule extends RakamModule {

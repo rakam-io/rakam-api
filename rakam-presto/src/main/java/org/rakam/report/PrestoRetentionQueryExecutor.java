@@ -16,9 +16,10 @@ package org.rakam.report;
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.primitives.Ints;
-import javax.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
+
+import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -33,9 +34,6 @@ import java.util.stream.IntStream;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 27/08/15 06:49.
- */
 public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
     private final int MAXIMUM_LEAD = 15;
     private final PrestoQueryExecutor executor;

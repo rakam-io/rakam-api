@@ -9,9 +9,13 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.rakam</groupId>
     <artifactId>rakam-ui</artifactId>
-    <version>0.2-SNAPSHOT</version>
+    <name>rakam-ui</name>
+    <description>Rakam Web Application Module</description>
+
+    <properties>
+        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+    </properties>
 
     <dependencies>
         <dependency>

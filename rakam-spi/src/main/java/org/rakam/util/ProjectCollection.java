@@ -13,9 +13,7 @@
  */
 package org.rakam.util;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 20/09/15 02:58.
- */
+
 public class ProjectCollection {
     public final String project;
     public final String collection;

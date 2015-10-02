@@ -15,9 +15,7 @@ package org.rakam.plugin;
 
 import io.airlift.configuration.Config;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 10/09/15 03:41.
- */
+
 public class EventExplorerConfig {
     private boolean enabled;
 

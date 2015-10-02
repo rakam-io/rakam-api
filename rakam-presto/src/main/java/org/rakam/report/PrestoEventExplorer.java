@@ -14,13 +14,14 @@
 package org.rakam.report;
 
 import com.google.common.collect.ImmutableMap;
-import javax.inject.Inject;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.realtime.AggregationType;
 import org.rakam.util.RakamException;
+
+import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -52,9 +53,6 @@ import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CATALOG_NAME;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 13/08/15 18:16.
- */
 public class PrestoEventExplorer implements EventExplorer {
 
     private final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big.";

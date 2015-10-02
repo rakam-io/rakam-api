@@ -6,9 +6,6 @@ import io.airlift.configuration.Config;
 
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 12/02/15 21:09.
- */
 public class GeoIPModuleConfig {
     private String database;
     private List<String> attributes;

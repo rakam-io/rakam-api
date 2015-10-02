@@ -48,9 +48,6 @@ import static java.util.Objects.requireNonNull;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 16/04/15 20:03.
- */
 @Path("/query")
 @Api(value = "/query", description = "Query module", tags = "query")
 @Produces({"application/json"})
@@ -70,28 +67,6 @@ public class QueryHttpService extends HttpService {
         return executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult();
     }
 
-    /**
-     * @api {post} /query/execute Execute query
-     * @apiVersion 0.1.0
-     * @apiName ExecuteQuery
-     * @apiGroup query
-     * @apiDescription Executes SQL Queries on the fly and returns the result directly to the user
-     *
-     * @apiError Project does not exist.
-     * @apiError Query Error
-     *
-     * @apiErrorExample {json} Error-Response:
-     *     HTTP/1.1 500 Internal Server Error
-     *     {"success": false, "message": "Error Message"}
-     *
-     * @apiParam {String} project   Project tracker code
-     * @apiParam {Number} offset   Offset results
-     * @apiParam {Number} limit   Limit results
-     * @apiParam {Object[]} [filters]  Predicate that will be applied to user data
-     *
-     * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/report/execute' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{ "project": "projectId", "limit": 100, "offset": 100, "filters": }'
-     */
     @GET
     @ApiImplicitParams({
             @ApiImplicitParam(name = "project", value = "User's name", required = true, dataType = "string", paramType = "query"),
@@ -201,48 +176,17 @@ public class QueryHttpService extends HttpService {
         }
     }
 
-    /**
-     * @api {post} /query/explain Explain Query
-     * @apiVersion 0.1.0
-     * @apiName ExplainQuery
-     * @apiGroup query
-     * @apiDescription Parses query and returns the dimensions and measures of the query
-     *
-     * @apiError Query couldn't parsed
-     *
-     * @apiParam {String} query   Sql query
-     *
-     * @apiParamExample {json} Request-Example:
-     *     {"query": "SELECT year(time), count(1) from visits GROUP BY 1"}
-     *
-     * @apiSuccess (200) {String} project Project tracker code
-     *
-     * @apiSuccessExample {json} Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "query": "SELECT year(time), count(1) from visits GROUP BY 1",
-     *     }
-     *
-     * @apiExample {curl} Example usage:
-     *     curl 'http://localhost:9999/query/explain' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
-     */
     @JsonRequest
     @Path("/explain")
     public Object explain(@ApiParam(name="query", value = "Query", required = true) String query) {
-
-//        NamedQuery namedQuery = new NamedQuery(query);
-//        namedQuery.parameters().forEach(param -> namedQuery.bind(param, FieldType.LONG, null));
-//        String query = namedQuery.build();
         try {
             Query statement;
             try {
                 statement = (Query) new SqlParser().createStatement(query);
             } catch (Exception e) {
-//                return new ResponseQuery(null, null, null, Lists.newArrayList(namedQuery.parameters()));
                 return new ResponseQuery(null, null, null, null);
             }
             QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
-//            Expression where = queryBody.getWhere().orElse(null);
 
             Function<Expression, Integer> mapper = item -> {
                 if (item instanceof QualifiedNameReference) {

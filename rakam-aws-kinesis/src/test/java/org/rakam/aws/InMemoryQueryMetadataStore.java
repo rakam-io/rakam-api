@@ -10,9 +10,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
-* Created by buremba <Burak Emre Kabakcı> on 28/07/15 00:44.
-*/
 class InMemoryQueryMetadataStore implements QueryMetadataStore {
     private final List<ContinuousQuery> continuousQueries = new ArrayList<>();
     private final List<MaterializedView> materializedViews = new ArrayList<>();

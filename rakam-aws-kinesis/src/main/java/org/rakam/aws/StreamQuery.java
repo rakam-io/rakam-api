@@ -19,9 +19,6 @@ import org.rakam.plugin.CollectionStreamQuery;
 
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 17/09/15 02:31.
- */
 public class StreamQuery {
     public final String id;
     public final String memberId;

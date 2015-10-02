@@ -14,10 +14,11 @@
 package org.rakam.analysis.postgresql;
 
 import com.facebook.presto.sql.ExpressionFormatter;
-import javax.inject.Inject;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+
+import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -26,9 +27,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 09/09/15 20:00.
- */
 public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     private final PostgresqlQueryExecutor executor;
 

@@ -4,12 +4,13 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import javax.inject.Inject;
 import org.rakam.PostgresqlPoolDataSource;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+
+import javax.inject.Inject;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -27,9 +28,6 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 06/04/15 19:09.
- */
 public class PostgresqlMetastore implements Metastore {
     PostgresqlPoolDataSource connectionPool;
 

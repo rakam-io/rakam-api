@@ -6,9 +6,7 @@ import org.rakam.Recipe;
 import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 13/07/15 12:39.
- */
+
 public class RecipeConfigTest {
     @Test
     public void test() throws IOException {

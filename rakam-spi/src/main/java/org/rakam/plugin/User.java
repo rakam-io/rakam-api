@@ -5,9 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 29/03/15 23:10.
- */
+
 public class User {
     public final String project;
     public final Object id;

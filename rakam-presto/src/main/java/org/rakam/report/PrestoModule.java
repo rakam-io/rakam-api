@@ -31,9 +31,6 @@ import javax.inject.Inject;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/04/15 06:31.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="presto")
 public class PrestoModule extends RakamModule {

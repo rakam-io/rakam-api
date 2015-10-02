@@ -40,9 +40,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 25/08/15 01:50.
- */
+
 @Path("/custom-page")
 @Api(value = "/custom-page", description = "Custom page module", tags = "report, ui")
 public class CustomPageHttpService extends HttpService {

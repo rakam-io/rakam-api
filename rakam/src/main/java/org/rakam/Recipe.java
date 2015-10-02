@@ -15,9 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
-* Created by buremba <Burak Emre Kabakcı> on 15/07/15 11:04.
-*/
 public class Recipe {
     private final Strategy strategy;
     private final String project;

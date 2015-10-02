@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import javax.inject.Inject;
 import com.google.inject.Singleton;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -20,7 +19,9 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.util.JsonHelper;
 
+import javax.inject.Inject;
 import javax.ws.rs.Path;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
@@ -31,9 +32,6 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 31/03/15 04:21.
- */
 @Path("/user/mailbox/subscribe")
 @Api(value = "/user/mailbox/subscribe", description = "Websocket service for subscribing user mails in real-time",
         tags = "user", consumes = "ws", produces = "ws", protocols = "ws")

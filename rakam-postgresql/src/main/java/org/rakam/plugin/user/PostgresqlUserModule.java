@@ -22,9 +22,6 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 12/08/15 04:25.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.storage", value="postgresql")
 public class PostgresqlUserModule extends RakamModule {

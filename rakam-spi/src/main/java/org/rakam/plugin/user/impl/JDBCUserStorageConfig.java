@@ -11,9 +11,7 @@ import java.util.Spliterators;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:27.
- */
+
 public class JDBCUserStorageConfig {
     private List<String> columns;
     private String sessionColumn;

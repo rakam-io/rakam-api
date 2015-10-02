@@ -24,9 +24,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.avro.Schema.Type.NULL;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 20/09/15 02:53.
- */
+
 public class AvroUtil {
     public static Schema convertAvroSchema(List<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()

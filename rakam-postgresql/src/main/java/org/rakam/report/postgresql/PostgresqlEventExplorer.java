@@ -14,7 +14,6 @@
 package org.rakam.report.postgresql;
 
 import com.google.common.collect.ImmutableMap;
-import javax.inject.Inject;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -22,6 +21,8 @@ import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
+
+import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -52,9 +53,6 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromStrin
 import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 10/09/15 03:10.
- */
 public class PostgresqlEventExplorer implements EventExplorer {
 
     private final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big.";

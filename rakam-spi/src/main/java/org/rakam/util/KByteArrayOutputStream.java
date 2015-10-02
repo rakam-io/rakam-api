@@ -4,9 +4,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/02/15 18:21.
- */
+
 public class KByteArrayOutputStream extends OutputStream {
     protected byte buf[];
 

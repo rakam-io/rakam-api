@@ -25,9 +25,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/08/15 07:17.
- */
+
 public interface EventExplorer {
     CompletableFuture<QueryResult> analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate);
     CompletableFuture<QueryResult> getEventStatistics(String project, Optional<String> dimension, LocalDate startDate, LocalDate endDate);

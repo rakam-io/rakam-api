@@ -15,7 +15,6 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.inject.Inject;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
@@ -24,7 +23,9 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 
+import javax.inject.Inject;
 import javax.ws.rs.Path;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -33,9 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/08/15 07:15.
- */
 @Path("/event-explorer")
 @Api(value = "/event-explorer", description = "Event explorer module", tags = "event")
 public class EventExplorerHttpService extends HttpService {

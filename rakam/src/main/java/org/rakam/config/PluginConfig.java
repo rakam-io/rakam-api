@@ -7,9 +7,6 @@ import io.airlift.configuration.Config;
 import java.io.File;
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 10/05/15 04:48.
- */
 public class PluginConfig {
     private List<String> plugins;
     private File pluginDir = new File(System.getProperty("user.dir"), "plugins");

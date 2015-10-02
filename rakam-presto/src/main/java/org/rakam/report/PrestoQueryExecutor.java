@@ -45,9 +45,6 @@ import static java.lang.String.format;
 import static org.rakam.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CATALOG_NAME;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 09/03/15 16:10.
- */
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
     private final SqlParser parser = new SqlParser();

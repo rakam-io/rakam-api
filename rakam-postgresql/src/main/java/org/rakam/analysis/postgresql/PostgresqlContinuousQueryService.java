@@ -50,9 +50,6 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 06/04/15 02:34.
- */
 public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     final static Logger LOGGER = Logger.get(PostgresqlContinuousQueryService.class);
 

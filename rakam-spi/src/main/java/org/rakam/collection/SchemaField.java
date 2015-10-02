@@ -6,9 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Locale;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 10/03/15 03:40.
- */
+
 public class SchemaField {
     private final String name;
     private final FieldType type;

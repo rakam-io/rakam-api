@@ -26,9 +26,7 @@ import java.util.Optional;
 
 import static org.rakam.util.ValidationUtil.checkCollection;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 27/08/15 06:41.
- */
+
 public interface RetentionQueryExecutor {
     QueryExecution query(String project,
                          Optional<RetentionAction> firstAction,

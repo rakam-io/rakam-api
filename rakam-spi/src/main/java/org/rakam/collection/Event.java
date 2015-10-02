@@ -5,9 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import org.apache.avro.generic.GenericRecord;
 
-/**
- * Created by buremba on 21/12/13.
- */
+
 @AutoValue
 public abstract class Event {
     @JsonProperty

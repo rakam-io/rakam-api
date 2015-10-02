@@ -13,6 +13,19 @@
         <version>43</version>
     </parent>
 
+    <name>rakam-root</name>
+    <description>Rakam</description>
+    <url>https://github.com/buremba/rakam</url>
+
+    <inceptionYear>2014</inceptionYear>
+
+    <developers>
+        <developer>
+            <name>Burak Emre Kabakci</name>
+            <email>emrekabakci@gmail.com</email>
+        </developer>
+    </developers>
+
     <repositories>
         <repository>
             <snapshots>

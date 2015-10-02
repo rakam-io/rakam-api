@@ -22,9 +22,6 @@ import org.rakam.report.PrestoConfig;
 
 import javax.inject.Inject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 30/09/15 14:34.
- */
 class KumeClusterInstanceProvider implements Provider<Cluster> {
 
     private final AWSKinesisModule.KumeConfig config;

@@ -26,9 +26,7 @@ import java.util.List;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 23/08/15 18:45.
- */
+
 public class JDBCCustomReportMetadata {
     private Handle dao;
 

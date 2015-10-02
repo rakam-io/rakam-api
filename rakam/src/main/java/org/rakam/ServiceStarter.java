@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
@@ -43,10 +44,10 @@ import org.rakam.report.QueryHttpService;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
-import org.rakam.util.HostAddress;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -63,9 +64,7 @@ import java.util.Set;
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 import static java.lang.String.format;
 
-/**
- * Created by buremba on 21/12/13.
- */
+
 public class ServiceStarter {
     final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
@@ -141,7 +140,7 @@ public class ServiceStarter {
                     webSocketServices, swagger,
                     eventExecutors, JsonHelper.getMapper());
 
-            HostAddress address = config.getAddress();
+            HostAndPort address = config.getAddress();
             try {
                 httpServer.bind(address.getHostText(), address.getPort());
             } catch (InterruptedException e) {

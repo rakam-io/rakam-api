@@ -8,9 +8,7 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/02/15 03:20.
- */
+
 public class RealTimeReport {
     @NotNull public final String project;
     @NotNull public final String name;

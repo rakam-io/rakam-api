@@ -16,20 +16,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 25/04/15 20:30.
- */
 public class PrestoMaterializedViewService extends MaterializedViewService {
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final Metastore metastore;
-    private final PrestoQueryExecutor queryExecutor;
 
     @Inject
     public PrestoMaterializedViewService(PrestoQueryExecutor queryExecutor, QueryMetadataStore database, Metastore metastore, Clock clock) {
         super(queryExecutor, database, clock);
         this.metastore = metastore;
-        this.queryExecutor = queryExecutor;
 
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
             for (MaterializedView materializedView : database.getAllMaterializedViews()) {

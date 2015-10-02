@@ -8,9 +8,6 @@ import org.rakam.plugin.RakamModule;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 30/03/15 15:55.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.mailbox.adapter", value="postgresql")
 public class PostgresqlUserMailboxModule extends RakamModule {

@@ -21,9 +21,6 @@ import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 22/08/15 00:25.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "user.funnel-analysis.enabled", value = "true")
 public class FunnelAnalyzerModule extends RakamModule {

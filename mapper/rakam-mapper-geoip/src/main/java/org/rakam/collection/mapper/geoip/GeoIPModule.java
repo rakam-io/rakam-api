@@ -8,9 +8,6 @@ import org.rakam.plugin.RakamModule;
 
 import java.io.IOException;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/02/15 13:25.
- */
 @ConditionalModule(config = "plugin.geoip.enabled", value="true")
 public class GeoIPModule extends RakamModule {
     @Override

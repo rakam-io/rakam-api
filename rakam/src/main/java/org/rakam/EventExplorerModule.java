@@ -10,9 +10,6 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/07/15 12:29.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "event-explorer.enabled", value = "true")
 public class EventExplorerModule extends RakamModule {

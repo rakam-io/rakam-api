@@ -6,9 +6,7 @@ import io.airlift.configuration.Config;
 
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:27.
- */
+
 public class UserPluginConfig {
     private String storageModule;
     private List<String> hiddenColumns;

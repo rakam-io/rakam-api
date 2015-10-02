@@ -16,9 +16,7 @@ import java.util.Map;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 16/04/15 20:20.
- */
+
 public class JDBCReportMetadata {
     private final Handle dao;
 

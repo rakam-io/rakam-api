@@ -3,9 +3,7 @@ package org.rakam.util;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.rakam.report.QueryResult;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/05/15 01:39.
- */
+
 public class JsonResponse {
     private static final JsonResponse SUCCESS = new JsonResponse(true);
 

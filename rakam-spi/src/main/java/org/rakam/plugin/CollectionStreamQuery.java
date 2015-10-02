@@ -15,9 +15,7 @@ package org.rakam.plugin;
 
 import com.facebook.presto.sql.tree.Expression;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 17/09/15 02:33.
- */
+
 public class CollectionStreamQuery {
     public final String collection;
     public final Expression filter;

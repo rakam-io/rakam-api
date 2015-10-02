@@ -1,8 +1,6 @@
 package org.rakam.plugin.user.mailbox;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 17/03/15 02:09.
- */
+
 public class Message {
     public final int id;
     public final String content;

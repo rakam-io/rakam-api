@@ -1,8 +1,6 @@
 package org.rakam.util;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 19/10/14 03:25.
- */
+
 public class Tuple<V1, V2> {
 
     private final V1 v1;

@@ -9,9 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/04/15 04:37.
- */
+
 public abstract class ContinuousQueryService {
 
     protected final QueryMetadataStore database;

@@ -34,9 +34,7 @@ import java.util.List;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 12/09/15 18:58.
- */
+
 @Path("/ui/dashboard")
 @Api(value = "/ui/dashboard", description = "Dashboard service", tags = "rakam-ui")
 public class DashboardService extends HttpService {

@@ -43,9 +43,6 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.util.JsonHelper.convert;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/02/15 14:30.
- */
 @Singleton
 @Api(value = "/realtime", description = "Realtime module", tags = "realtime",
         authorizations = @Authorization(value = "api_key", type = "api_key"))
@@ -70,38 +67,37 @@ public class RealTimeHttpService extends HttpService {
      * Creates real-time report using continuous queries.
      * This module adds a new attribute called 'time' to events, it's simply a unix epoch that represents the seconds the event is occurred.
      * Continuous query continuously aggregates 'time' column and
-     * real-time module executes queries on continuous query table similar to 'select count from stream_count where time > now() - interval 5 second'
+     * real-time module executes queries on continuous query table similar to 'select count from stream_count where time &gt; now() - interval 5 second'
      *
      * curl 'http://localhost:9999/realtime/create' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection", "aggregation": "COUNT"}'
+     * @param report real-time report
+     * @return a future that contains the operation status
      */
     @JsonRequest
     @ApiOperation(value = "Create realtime report")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
-    public CompletableFuture<JsonResponse> create(@ParamBody RealTimeReport query) {
-        String tableName = toSlug(query.name);
+    public CompletableFuture<JsonResponse> create(@ParamBody RealTimeReport report) {
+        String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
                 .append(format("(time / %d) as time, ", slideInterval.getSeconds()))
-                .append(createSelect(query.aggregation, query.measure, query.dimension))
+                .append(createSelect(report.aggregation, report.measure, report.dimension))
                 .append(" from stream")
-                .append(query.filter == null ? "" : "where " + query.filter)
-                .append(query.dimension != null ? " group by 1, 2" : " group by 1").toString();
+                .append(report.filter == null ? "" : "where " + report.filter)
+                .append(report.dimension != null ? " group by 1, 2" : " group by 1").toString();
 
-        ContinuousQuery report = new ContinuousQuery(query.project,
-                query.name,
+        ContinuousQuery query = new ContinuousQuery(report.project,
+                report.name,
                 tableName,
                 sqlQuery,
-                query.collections,
+                report.collections,
                 ImmutableList.of(),
-                ImmutableMap.of("type", "realtime", "report", query));
-        return service.create(report).thenApply(JsonResponse::map);
+                ImmutableMap.of("type", "realtime", "report", report));
+        return service.create(query).thenApply(JsonResponse::map);
     }
 
-    /**
-     * curl 'http://localhost:9999/realtime/get' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection", "aggregation": "COUNT"}'
-     */
     @JsonRequest
     @POST
     @ApiOperation(value = "Get realtime report")
@@ -218,9 +214,6 @@ public class RealTimeHttpService extends HttpService {
         }
     }
 
-    /**
-     * curl 'http://localhost:9999/realtime/list' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId"}'
-     */
     @JsonRequest
     @ApiOperation(value = "List real-time reports")
     @Path("/list")
@@ -234,10 +227,6 @@ public class RealTimeHttpService extends HttpService {
                 .collect(Collectors.toList());
     }
 
-
-    /**
-     * curl 'http://localhost:9999/realtime/delete' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection"}'
-     */
     @JsonRequest
     @ApiOperation(value = "Delete realtime report")
     @Path("/delete")

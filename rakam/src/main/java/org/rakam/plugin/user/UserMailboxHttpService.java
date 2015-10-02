@@ -41,9 +41,6 @@ import java.util.stream.Collectors;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.rakam.util.JsonHelper.encode;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 17/03/15 00:12.
- */
 @Path("/user/mailbox")
 @Api(value = "/user/mailbox", description = "UserMailbox", tags = {"user", "user-mailbox"})
 public class UserMailboxHttpService extends HttpService {
@@ -112,24 +109,6 @@ public class UserMailboxHttpService extends HttpService {
         response.listenClose(() -> update.shutdown());
     }
 
-    /**
-     * @api {post} /user/mailbox/mark_as_read Mark user mails as read
-     * @apiVersion 0.1.0
-     * @apiName MarkUserMailAsRead
-     * @apiGroup userMailbox
-     * @apiDescription Marks the specified mails as read.
-     * @apiError Project does not exist.
-     * @apiError User does not exist.
-     * @apiError Message does not exist.
-     * @apiSuccessExample {json} Success-Response:
-     * HTTP/1.1 200 OK
-     * {"success": true}
-     * @apiParam {String} project   Project tracker code.
-     * @apiParam {String} user    User ID
-     * @apiParam {Number[]} message_ids  The list of of message ids that will be marked as read.
-     * @apiExample {curl} Example usage:
-     * curl 'http://localhost:9999/user/mailbox/mark_as_read' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "user": 12, "message_ids": [1] }'
-     */
     @JsonRequest
     @ApiOperation(value = "Mark user mail as read",
             notes = "Marks the specified mails as read.",
@@ -151,9 +130,6 @@ public class UserMailboxHttpService extends HttpService {
         return JsonResponse.success();
     }
 
-    /**
-     * curl 'http://localhost:9999/user/mailbox/send' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{ "project": "projectId", "user": 1, "message": "Hello there!" }'
-     */
     @Path("/send")
     @POST
     @JsonRequest

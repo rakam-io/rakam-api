@@ -13,9 +13,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 24/07/15 18:55.
- */
 public class KinesisEventStream extends Service implements EventStream {
 
     private final ServiceContext<KinesisEventStream> ctx;

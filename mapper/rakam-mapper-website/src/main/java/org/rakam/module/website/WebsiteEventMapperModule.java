@@ -8,9 +8,6 @@ import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 19/07/15 22:16.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "module.website.mapper", value = "true")
 public class WebsiteEventMapperModule extends RakamModule {

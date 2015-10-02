@@ -9,9 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/04/15 05:07.
- */
+
 public class QueryResult {
     private static final QueryResult EMPTY = new QueryResult(ImmutableList.of(), ImmutableList.of());
 

@@ -2,9 +2,7 @@ package org.rakam.plugin;
 
 import io.airlift.configuration.Config;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 30/03/15 16:52.
- */
+
 public class JDBCConfig {
     private String url;
     private String table;

@@ -9,7 +9,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import javax.inject.Inject;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserStorage;
@@ -17,6 +16,8 @@ import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+
+import javax.inject.Inject;
 
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
@@ -41,9 +42,6 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/05/15 00:00.
- */
 public class PostgresqlUserStorageAdapter implements UserStorage {
     public static final String USER_TABLE = "_users";
     public static final String PRIMARY_KEY = "id";

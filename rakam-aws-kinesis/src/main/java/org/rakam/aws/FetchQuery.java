@@ -13,9 +13,6 @@
  */
 package org.rakam.aws;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 30/09/15 14:08.
- */
 public class FetchQuery {
     public final String ticket;
 

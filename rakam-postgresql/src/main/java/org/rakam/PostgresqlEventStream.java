@@ -13,9 +13,6 @@ import javax.inject.Inject;
 import java.sql.SQLException;
 import java.util.List;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 06/04/15 23:31.
- */
 public class PostgresqlEventStream implements EventStream {
     final static Logger LOGGER = Logger.get(PostgresqlEventStream.class);
     private final PGConnection asyncConn;

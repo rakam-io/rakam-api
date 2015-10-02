@@ -13,9 +13,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Sets.newHashSet;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 14/03/15 22:24.
- */
+
 public class FieldDependencyBuilder {
     private final List<SchemaField> constantFields = Lists.newArrayList();
     private final Map<String, List<SchemaField>> dependentFields = Maps.newHashMap();

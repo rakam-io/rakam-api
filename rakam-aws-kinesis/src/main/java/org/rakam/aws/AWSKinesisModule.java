@@ -35,9 +35,6 @@ import java.util.stream.StreamSupport;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/07/15 06:40.
- */
 @AutoService(RakamModule.class)
 @ConditionalModule(config="event.store", value="kinesis")
 public class AWSKinesisModule extends RakamModule {

@@ -48,9 +48,7 @@ import java.util.stream.IntStream;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:46.
- */
+
 @Singleton
 public class JDBCUserStorageAdapter implements UserStorage {
     final static Logger LOGGER = Logger.get(JDBCUserStorageAdapter.class);

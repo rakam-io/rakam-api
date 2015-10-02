@@ -3,9 +3,6 @@ package org.rakam.analysis;
 import org.rakam.plugin.StreamResponse;
 import org.rakam.server.http.RakamHttpRequest;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 02/04/15 08:30.
- */
 public class StreamResponseAdapter implements StreamResponse {
     private final RakamHttpRequest.StreamResponse response;
 

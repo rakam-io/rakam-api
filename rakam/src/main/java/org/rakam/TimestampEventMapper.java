@@ -28,9 +28,6 @@ import java.util.Map;
 
 import static com.facebook.presto.jdbc.internal.guava.collect.ImmutableList.of;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 21/09/15 18:39.
- */
 public class TimestampEventMapper implements EventMapper {
     private static final String TIME_EXTRA_PROPERTY = "Upload-Time";
 

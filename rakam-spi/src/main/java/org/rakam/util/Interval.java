@@ -19,9 +19,7 @@ import java.util.regex.Pattern;
 
 import static org.rakam.util.TimeUtil.UTCTime;
 
-/**
- * Created by buremba on 21/12/13.
- */
+
 
 public abstract class Interval implements JsonSerializable {
     final static Pattern parser = Pattern.compile("^([0-9]+)([a-z]+)s?$");

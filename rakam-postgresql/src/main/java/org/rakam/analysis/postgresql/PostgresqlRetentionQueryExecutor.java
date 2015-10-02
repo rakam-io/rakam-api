@@ -13,18 +13,15 @@
  */
 package org.rakam.analysis.postgresql;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 09/09/15 19:58.
- */
-
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.primitives.Ints;
-import javax.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+
+import javax.inject.Inject;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -39,9 +36,6 @@ import java.util.stream.IntStream;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 27/08/15 06:49.
- */
 public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor {
     private final int MAXIMUM_LEAD = 15;
     private final PostgresqlQueryExecutor executor;

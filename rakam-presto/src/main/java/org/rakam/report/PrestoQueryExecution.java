@@ -17,9 +17,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:57.
- */
 public class PrestoQueryExecution implements QueryExecution {
     // doesn't seem to be a good way but presto client uses a synchronous http client
     // so it blocks the thread when executing queries

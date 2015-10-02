@@ -9,9 +9,7 @@ import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 24/03/15 03:26.
- */
+
 @AutoService(RakamModule.class)
 @ConditionalModule(config="report.metadata.store", value="jdbc")
 public class JDBCReportMetastoreModule extends RakamModule {

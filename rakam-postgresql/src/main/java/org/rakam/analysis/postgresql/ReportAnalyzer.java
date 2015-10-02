@@ -13,9 +13,6 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 19/01/15 00:03.
- */
 public class ReportAnalyzer {
 
     public static ObjectNode execute(Connection conn, String sql) throws SQLException {

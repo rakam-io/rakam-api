@@ -17,9 +17,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by buremba on 17/01/14.
- */
+
 public class JsonHelper {
     private final static ObjectMapper mapper = new ObjectMapper();
     private final static ObjectMapper prettyMapper = new ObjectMapper();

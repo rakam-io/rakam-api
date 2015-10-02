@@ -2,9 +2,7 @@ package org.rakam.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/09/14 01:04.
- */
+
 public class ValidationUtil {
     public static void checkProject(String project) {
         checkNotNull(project, "project is null");

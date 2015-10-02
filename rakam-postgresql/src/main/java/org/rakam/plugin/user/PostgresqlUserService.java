@@ -1,11 +1,12 @@
 package org.rakam.plugin.user;
 
-import javax.inject.Inject;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
+
+import javax.inject.Inject;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -16,9 +17,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 29/04/15 20:58.
- */
 public class PostgresqlUserService extends AbstractUserService {
     private final Metastore metastore;
     private final PostgresqlQueryExecutor executor;

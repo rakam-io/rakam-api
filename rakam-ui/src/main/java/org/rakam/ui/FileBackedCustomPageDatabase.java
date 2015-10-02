@@ -31,9 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 11/09/15 00:50.
- */
+
 public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     private final File directory;
 

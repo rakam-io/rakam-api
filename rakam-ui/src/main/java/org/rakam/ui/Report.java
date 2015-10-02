@@ -9,9 +9,7 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 16/04/15 20:24.
- */
+
 public class Report {
     @ApiParam(name = "project", required = true)
     public final String project;

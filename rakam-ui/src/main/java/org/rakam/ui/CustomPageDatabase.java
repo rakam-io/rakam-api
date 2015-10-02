@@ -17,9 +17,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 10/09/15 17:48.
- */
+
 public interface CustomPageDatabase {
     void save(String project, String name, Map<String, String> files);
     List<String> list(String project);

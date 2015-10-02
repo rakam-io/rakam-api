@@ -16,9 +16,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/03/15 21:32.
- */
+
 public interface UserStorage {
     Object create(String project, Map<String, Object> properties);
     CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);

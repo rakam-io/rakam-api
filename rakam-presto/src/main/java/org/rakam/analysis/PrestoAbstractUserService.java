@@ -21,9 +21,6 @@ import static java.lang.Math.min;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 29/04/15 20:26.
- */
 public class PrestoAbstractUserService extends AbstractUserService {
     private final Metastore metastore;
     private final PrestoConfig prestoConfig;

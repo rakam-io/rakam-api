@@ -8,9 +8,7 @@ import io.airlift.configuration.ConfigurationModule;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-/**
- * Created by buremba on 29/03/14.
- */
+
 public abstract class RakamModule implements ConfigurationAwareModule {
     private ConfigurationFactory configurationFactory;
     private Binder binder;

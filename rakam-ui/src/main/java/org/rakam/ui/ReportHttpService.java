@@ -14,9 +14,7 @@ import org.rakam.util.JsonResponse;
 
 import javax.ws.rs.Path;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 15/04/15 22:43.
- */
+
 @Path("/report")
 @Api(value = "/report", description = "Report analyzer module", tags = "report")
 public class ReportHttpService extends HttpService {

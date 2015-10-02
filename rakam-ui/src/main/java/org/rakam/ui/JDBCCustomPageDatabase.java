@@ -28,9 +28,7 @@ import java.util.Map;
 
 import static java.lang.String.format;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 10/09/15 17:36.
- */
+
 public class JDBCCustomPageDatabase implements CustomPageDatabase {
 
     private final Handle dao;

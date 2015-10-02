@@ -1,6 +1,5 @@
 package org.rakam;
 
-import javax.inject.Inject;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.SystemEventListener;
@@ -14,17 +13,16 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
 
+import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.rakam.util.ValidationUtil.checkProject;
 
-/**
- * Created by buremba <Burak Emre Kabakcı> on 19/07/15 23:01.
- */
 @Path("/project")
 @Api(value = "/project", description = "Project operations", tags = "project")
 public class ProjectHttpService extends HttpService {
@@ -59,11 +57,6 @@ public class ProjectHttpService extends HttpService {
         return metastore.getProjects();
     }
 
-    /**
-     * {"collections":[{"name":"pageView","fields":[{"name":"url","type":"STRING","nullable":true},{"name":"id","type":"LONG","nullable":false}]}]}
-     * @apiExample {curl} Example usage:
-     * curl 'http://localhost:9999/event/schema' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId"}'
-     */
     @JsonRequest
     @ApiOperation(value = "Get collection schema")
     @ApiResponses(value = {
