@@ -6,11 +6,16 @@
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
         <version>0.1-SNAPSHOT</version>
-        <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>rakam-mapper-website</artifactId>
+    <name>rakam-mapper-website</name>
+    <description>Rakam website event mapper module</description>
+
+    <properties>
+        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+    </properties>
 
     <repositories>
         <repository>
