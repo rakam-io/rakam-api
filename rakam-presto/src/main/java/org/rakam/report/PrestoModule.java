@@ -15,7 +15,6 @@ import org.rakam.plugin.*;
 
 import javax.inject.Inject;
 
-import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 @AutoService(RakamModule.class)
@@ -31,8 +30,6 @@ public class PrestoModule extends RakamModule {
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
 
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "presto.metastore.jdbc");
-
-        checkState(org.postgresql.Driver.isRegistered()); 
 
         JDBCPoolDataSource dataSource = new JDBCPoolDataSource(config);
         binder.bind(JDBCPoolDataSource.class)

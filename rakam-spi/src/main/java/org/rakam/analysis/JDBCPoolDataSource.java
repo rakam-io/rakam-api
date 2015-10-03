@@ -6,6 +6,7 @@ import org.rakam.plugin.JDBCConfig;
 import java.net.URI;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 public class JDBCPoolDataSource extends HikariDataSource {
 
@@ -34,6 +35,7 @@ public class JDBCPoolDataSource extends HikariDataSource {
     private String getClassName(String scheme) {
         switch (scheme) {
             case "postgresql":
+                checkState(org.postgresql.Driver.isRegistered());
                 return "org.postgresql.ds.PGSimpleDataSource";
             default:
                 throw new IllegalArgumentException("Currently, only Postgresql JDBC adapter is supported.");
