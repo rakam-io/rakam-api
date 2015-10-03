@@ -1,7 +1,5 @@
 package org.rakam.aws;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -29,8 +27,7 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Inject
     public AWSKinesisEventStore(AWSConfig config) {
-        AWSCredentials credentials = new BasicAWSCredentials(config.getAccessKey(), config.getSecretAccessKey());
-        this.kinesis = new AmazonKinesisClient(credentials);
+        this.kinesis = new AmazonKinesisClient(config.getCredentials());
         this.config = config;
     }
 
