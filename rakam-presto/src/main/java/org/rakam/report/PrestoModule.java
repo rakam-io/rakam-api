@@ -32,7 +32,7 @@ public class PrestoModule extends RakamModule {
 
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "presto.metastore.jdbc");
 
-        checkState(org.postgresql.Driver.isRegistered());
+        checkState(org.postgresql.Driver.isRegistered()); 
 
         JDBCPoolDataSource dataSource = new JDBCPoolDataSource(config);
         binder.bind(JDBCPoolDataSource.class)
