@@ -273,6 +273,7 @@ public class HttpDownloadHelper {
                 throw new IOException("Can't get " + source + " to " + dest, lastEx);
             }
 
+            dest.toFile().mkdirs();
             os = Files.newOutputStream(dest);
             progress.beginDownload();
             boolean finished = false;
