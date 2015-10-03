@@ -43,12 +43,12 @@ public class GeoIPEventMapper implements EventMapper {
     private File downloadOrGetFile(String fileUrl) throws Exception {
         URL url = new URL(fileUrl);
         String name = url.getFile().substring(url.getFile().lastIndexOf('/') + 1, url.getFile().length());
-        File data = new File("data/" + name);
-        data.getParentFile().mkdir();
+        File data = new File("/tmp/rakam/" + name);
+        data.getParentFile().mkdirs();
 
         String extension = Files.getFileExtension(data.getAbsolutePath());
         if(extension.equals("gz")) {
-            File extractedFile = new File("data/" + Files.getNameWithoutExtension(data.getAbsolutePath()));
+            File extractedFile = new File("/tmp/rakam/" + Files.getNameWithoutExtension(data.getAbsolutePath()));
             if(extractedFile.exists()) {
                 return extractedFile;
             }

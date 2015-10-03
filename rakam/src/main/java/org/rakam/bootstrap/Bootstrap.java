@@ -13,25 +13,16 @@ import com.google.inject.Stage;
 import com.google.inject.spi.Message;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.bootstrap.LifeCycleModule;
-import io.airlift.configuration.ConfigurationAwareModule;
-import io.airlift.configuration.ConfigurationFactory;
-import io.airlift.configuration.ConfigurationInspector;
-import io.airlift.configuration.ConfigurationLoader;
-import io.airlift.configuration.ConfigurationModule;
-import io.airlift.configuration.ConfigurationValidator;
-import io.airlift.configuration.ValidationErrorModule;
-import io.airlift.configuration.WarningsMonitor;
+import io.airlift.configuration.*;
 import io.airlift.log.Logger;
+import io.airlift.log.Logging;
+import io.airlift.log.LoggingConfiguration;
 import org.rakam.SystemRegistry;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 
 import java.io.PrintWriter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.Maps.fromProperties;
@@ -130,6 +121,10 @@ public class Bootstrap
     {
         Preconditions.checkState(!initialized, "Already initialized");
         initialized = true;
+        Logging logging = null;
+        if(this.initializeLogging) {
+            logging = Logging.initialize();
+        }
 
         Thread.currentThread().setUncaughtExceptionHandler((t, e) ->
                 log.error(e, "Uncaught exception in thread %s", t.getName()));
@@ -159,6 +154,12 @@ public class Bootstrap
         properties = ImmutableSortedMap.copyOf(properties);
 
         configurationFactory = new ConfigurationFactory(properties);
+
+        if(logging != null) {
+            this.log.info("Initializing logging");
+            LoggingConfiguration messages1 = configurationFactory.build(LoggingConfiguration.class);
+            logging.configure(messages1);
+        }
 
         // create warning logger now that we have logging initialized
         final WarningsMonitor warningsMonitor = message -> log.warn(message);

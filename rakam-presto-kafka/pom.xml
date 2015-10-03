@@ -78,6 +78,12 @@
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-framework</artifactId>
             <version>2.7.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.curator</groupId>
@@ -102,6 +108,12 @@
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-client</artifactId>
             <version>2.7.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>
