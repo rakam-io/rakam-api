@@ -13,43 +13,44 @@
  */
 package org.rakam.ui;
 
-import javax.inject.Inject;
 import com.google.inject.name.Named;
-import org.rakam.plugin.JDBCConfig;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 
+import javax.inject.Inject;
 import java.util.List;
-
-import static java.lang.String.format;
 
 
 public class JDBCCustomReportMetadata {
-    private Handle dao;
+    private final DBI dbi;
 
     @Inject
-    public JDBCCustomReportMetadata(@Named("report.metadata.store.jdbc") JDBCConfig config) {
-
-        DBI dbi = new DBI(format(config.getUrl(), config.getUsername(), config.getPassword()),
-                config.getUsername(), config.getPassword());
-        dao = dbi.open();
+    public JDBCCustomReportMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+        dbi = new DBI(dataSource);
         setup();
+        createIndexIfNotExists();
     }
 
     public void setup() {
-        dao.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
-                "  report_type VARCHAR(255) NOT NULL," +
-                "  project VARCHAR(255) NOT NULL," +
-                "  name VARCHAR(255) NOT NULL," +
-                "  data TEXT NOT NULL," +
-                "  PRIMARY KEY (report_type, project, name)" +
-                "  )")
-                .execute();
-        try {
-            dao.createStatement("CREATE INDEX report_type_idx ON custom_reports(report_type, project)")
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
+                    "  report_type VARCHAR(255) NOT NULL," +
+                    "  project VARCHAR(255) NOT NULL," +
+                    "  name VARCHAR(255) NOT NULL," +
+                    "  data TEXT NOT NULL," +
+                    "  PRIMARY KEY (report_type, project, name)" +
+                    "  )")
+                    .execute();
+        }
+    }
+
+    private void createIndexIfNotExists() {
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("CREATE INDEX report_type_idx ON custom_reports(report_type, project)")
                     .execute();
         } catch (UnableToExecuteStatementException e) {
             // IF NOT EXIST feature is not supported by majority of RDBMSs.
@@ -59,8 +60,8 @@ public class JDBCCustomReportMetadata {
     }
 
     public void add(CustomReport report) {
-        try {
-            dao.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
                     .bind("reportType", report.reportType)
                     .bind("project", report.project)
                     .bind("name", report.name)
@@ -75,28 +76,34 @@ public class JDBCCustomReportMetadata {
     }
 
     public CustomReport get(String reportType, String project, String name) {
-        return dao.createQuery("SELECT data FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name")
-                .bind("reportType", reportType)
-                .bind("project", project)
-                .bind("name", name)
-                .map((i, resultSet, statementContext) -> {
-                    return new CustomReport(reportType, project, name, JsonHelper.read(resultSet.getString(2)));
-                }).first();
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT data FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name")
+                    .bind("reportType", reportType)
+                    .bind("project", project)
+                    .bind("name", name)
+                    .map((i, resultSet, statementContext) -> {
+                        return new CustomReport(reportType, project, name, JsonHelper.read(resultSet.getString(2)));
+                    }).first();
+        }
     }
 
     public List<CustomReport> list(String reportType, String project) {
-        return dao.createQuery("SELECT name, data FROM custom_reports WHERE report_type = :reportType AND project = :project")
-                .bind("reportType", reportType)
-                .bind("project", project)
-                .map((i, resultSet, statementContext) -> {
-                    return new CustomReport(reportType, project, resultSet.getString(1), JsonHelper.read(resultSet.getString(2)));
-                }).list();
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT name, data FROM custom_reports WHERE report_type = :reportType AND project = :project")
+                    .bind("reportType", reportType)
+                    .bind("project", project)
+                    .map((i, resultSet, statementContext) -> {
+                        return new CustomReport(reportType, project, resultSet.getString(1), JsonHelper.read(resultSet.getString(2)));
+                    }).list();
+        }
     }
 
     public void delete(String reportType, String project, String name) {
-        dao.createStatement("DELETE FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name)")
-                .bind("reportType", reportType)
-                .bind("project", project)
-                .bind("name", name).execute();
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("DELETE FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name)")
+                    .bind("reportType", reportType)
+                    .bind("project", project)
+                    .bind("name", name).execute();
+        }
     }
 }

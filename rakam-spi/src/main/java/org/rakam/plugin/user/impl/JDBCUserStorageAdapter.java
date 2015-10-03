@@ -12,9 +12,9 @@ import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.User;
@@ -27,19 +27,12 @@ import org.skife.jdbi.v2.Update;
 import org.skife.jdbi.v2.util.LongMapper;
 
 import javax.inject.Inject;
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
@@ -55,32 +48,21 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
     private final JDBCUserStorageConfig config;
     private final UserPluginConfig moduleConfig;
-    private final JDBCConfig jdbcConfig;
     private final LoadingCache<String, List<SchemaField>> metadataCache;
-    Handle dao;
+    private final DBI dbi;
 
     @Inject
-    public JDBCUserStorageAdapter(@Named("plugin.user.storage.jdbc") JDBCConfig jdbcConfig, JDBCUserStorageConfig config, UserPluginConfig moduleConfig) {
+    public JDBCUserStorageAdapter(@Named("plugin.user.storage.jdbc") JDBCPoolDataSource dataSource, JDBCUserStorageConfig config, UserPluginConfig moduleConfig) {
         this.config = config;
         this.moduleConfig = moduleConfig;
-        this.jdbcConfig = jdbcConfig;
 
-        DBI dbi = new DBI(() -> getConnection());
-        dao = dbi.open();
+        dbi = new DBI(dataSource);
         metadataCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<SchemaField>>() {
             @Override
             public List<SchemaField> load(String key) throws Exception {
                 return getMetadataInternal(key);
             }
         });
-    }
-
-    private Connection getConnection() {
-        try {
-            return DriverManager.getConnection(jdbcConfig.getUrl(), jdbcConfig.getUsername(), jdbcConfig.getPassword());
-        } catch (SQLException e) {
-            throw new IllegalStateException(String.format("couldn't connect user storage using jdbc connection %s", jdbcConfig.getUrl()));
-        }
     }
 
     @Override
@@ -131,23 +113,29 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
         String query = String.format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s", columns, table, where, orderBy, limit, offset);
 
-        CompletableFuture<List<List<Object>>> data = CompletableFuture.supplyAsync(() ->
-                dao.createQuery(query).map((i, resultSet, statementContext) -> {
-                    List<SchemaField> schemaFields = getMetadata(project);
+        CompletableFuture<List<List<Object>>> data;
+        CompletableFuture<Long> totalResult;
 
-                    return IntStream.range(1, schemaFields.size()+1).mapToObj(idx -> {
-                        try {
-                            return resultSet.getObject(idx);
-                        } catch (SQLException e) {
-                            throw Throwables.propagate(e);
-                        }
-                    }).collect(Collectors.toList());
+        try(Handle handle = dbi.open()) {
+            // TODO: find an efficient way to handle facets.
+            data = CompletableFuture.supplyAsync(() ->
+                    handle.createQuery(query).map((i, resultSet, statementContext) -> {
+                        List<SchemaField> schemaFields = getMetadata(project);
 
-                }).list());
+                        return IntStream.range(1, schemaFields.size() + 1).mapToObj(idx -> {
+                            try {
+                                return resultSet.getObject(idx);
+                            } catch (SQLException e) {
+                                throw Throwables.propagate(e);
+                            }
+                        }).collect(Collectors.toList());
 
-        CompletableFuture<Long> totalResult = CompletableFuture.supplyAsync(() ->
-                dao.createQuery(String.format("SELECT count(*) FROM %s %s", table, where))
-                        .map(new LongMapper(1)).first());
+                    }).list());
+
+            totalResult = CompletableFuture.supplyAsync(() ->
+                    handle.createQuery(String.format("SELECT count(*) FROM %s %s", table, where))
+                            .map(new LongMapper(1)).first());
+        }
 
         CompletableFuture<QueryResult> result = new CompletableFuture<>();
 
@@ -179,8 +167,8 @@ public class JDBCUserStorageAdapter implements UserStorage {
         String table = config.getMappings().get(project);
         LinkedList<SchemaField> columns = new LinkedList<>();
 
-        try(Connection conn = getConnection()) {
-            DatabaseMetaData metaData = conn.getMetaData();
+        try(Handle handle = dbi.open()) {
+            DatabaseMetaData metaData = handle.getConnection().getMetaData();
             String[] schemaTable = table.split("\\.", 2);
             String schema = null;
             if(schemaTable.length > 1) {
@@ -219,19 +207,20 @@ public class JDBCUserStorageAdapter implements UserStorage {
     @Override
     public CompletableFuture<User> getUser(String project, String userId) {
         String columns = Joiner.on(", ").join(getMetadata(project).stream().map(col -> col.getName()).toArray());
-
-        // TODO: fix
-        return CompletableFuture.completedFuture(dao.createQuery(String.format("SELECT %s FROM %s WHERE %s = %s",
-                columns,
-                config.getMappings().get(project),
-                moduleConfig.getIdentifierColumn(),
-                userId)).map((index, r, ctx) -> {
-            HashMap<String, Object> properties = new HashMap<>();
-            for (SchemaField column : getMetadata(project)) {
-                properties.put(column.getName(), r.getObject(column.getName()));
-            }
-            return new User(project, userId, properties);
-        }).first());
+        try(Handle handle = dbi.open()) {
+            // TODO: fix
+            return CompletableFuture.completedFuture(handle.createQuery(String.format("SELECT %s FROM %s WHERE %s = %s",
+                    columns,
+                    config.getMappings().get(project),
+                    moduleConfig.getIdentifierColumn(),
+                    userId)).map((index, r, ctx) -> {
+                HashMap<String, Object> properties = new HashMap<>();
+                for (SchemaField column : getMetadata(project)) {
+                    properties.put(column.getName(), r.getObject(column.getName()));
+                }
+                return new User(project, userId, properties);
+            }).first());
+        }
     }
 
     @Override
@@ -242,11 +231,14 @@ public class JDBCUserStorageAdapter implements UserStorage {
         }
         SchemaField column = any.get();
 
-        Update statement = dao.createStatement(String.format("UPDATE %s SET %s = :value WHERE %s = %s",
-                config.getMappings().get(project),
-                property,
-                moduleConfig.getIdentifierColumn(),
-                user));
+        Update statement;
+        try(Handle handle = dbi.open()) {
+            statement = handle.createStatement(String.format("UPDATE %s SET %s = :value WHERE %s = %s",
+                    config.getMappings().get(project),
+                    property,
+                    moduleConfig.getIdentifierColumn(),
+                    user));
+        }
 
         switch (column.getType()) {
             case DATE:

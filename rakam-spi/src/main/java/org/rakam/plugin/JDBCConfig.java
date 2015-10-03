@@ -8,6 +8,7 @@ public class JDBCConfig {
     private String table;
     private String username;
     private String password = "";
+    private Integer maxConnection;
 
     @Config("url")
     public JDBCConfig setUrl(String configLocation) {
@@ -27,6 +28,16 @@ public class JDBCConfig {
 
     public String getUsername() {
         return username;
+    }
+
+    @Config("max_connection")
+    public JDBCConfig setMaxConnection(Integer maxConnection) {
+        this.maxConnection = maxConnection;
+        return this;
+    }
+
+    public Integer getMaxConnection() {
+        return maxConnection;
     }
 
     @Config("password")

@@ -13,47 +13,44 @@
  */
 package org.rakam.ui;
 
-import javax.inject.Inject;
 import com.google.inject.name.Named;
-import org.rakam.plugin.JDBCConfig;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.StringMapper;
 
+import javax.inject.Inject;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
-import static java.lang.String.format;
-
 
 public class JDBCCustomPageDatabase implements CustomPageDatabase {
 
-    private final Handle dao;
+    private final DBI dbi;
 
     @Inject
-    public JDBCCustomPageDatabase(@Named("ui.metadata.store.jdbc") JDBCConfig config) {
-        DBI dbi = new DBI(format(config.getUrl(), config.getUsername(), config.getPassword()),
-                config.getUsername(), config.getPassword());
-        dao = dbi.open();
+    public JDBCCustomPageDatabase(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+        dbi = new DBI(dataSource);
         setup();
     }
 
     public void setup() {
-        dao.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
+        dbi.inTransaction((handle, transactionStatus) ->
+                handle.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
                 "  project VARCHAR(255) NOT NULL," +
                 "  name VARCHAR(255) NOT NULL," +
                 "  data TEXT NOT NULL," +
                 "  PRIMARY KEY (project, name)" +
                 "  )")
-                .execute();
+                .execute());
     }
 
     public void save(String project, String name, Map<String, String> files) {
-        try {
-            dao.createStatement("INSERT INTO custom_page (project, name, data) VALUES (:project, :name, :data)")
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("INSERT INTO custom_page (project, name, data) VALUES (:project, :name, :data)")
                     .bind("project", project)
                     .bind("name", name)
                     .bind("data", JsonHelper.encode(files)).execute();
@@ -67,18 +64,22 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
     }
 
     public List<String> list(String project) {
-        return dao.createQuery("SELECT name FROM custom_page WHERE project = :project")
-                .bind("project", project)
-                .map(StringMapper.FIRST).list();
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT name FROM custom_page WHERE project = :project")
+                    .bind("project", project)
+                    .map(StringMapper.FIRST).list();
+        }
     }
 
     public Map<String, String> get(String project, String name) {
-        return dao.createQuery("SELECT data FROM custom_page WHERE project = :project AND name = :name")
-                .bind("project", project)
-                .bind("name", name)
-                .map((i, resultSet, statementContext) -> {
-                    return JsonHelper.read(resultSet.getString(2), Map.class);
-                }).first();
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT data FROM custom_page WHERE project = :project AND name = :name")
+                    .bind("project", project)
+                    .bind("name", name)
+                    .map((i, resultSet, statementContext) -> {
+                        return JsonHelper.read(resultSet.getString(2), Map.class);
+                    }).first();
+        }
     }
 
     @Override
@@ -88,8 +89,10 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
 
     @Override
     public void delete(String project, String name) {
-        dao.createStatement("DELETE FROM custom_page WHERE project = :project AND name = :name)")
-                .bind("project", project)
-                .bind("name", name).execute();
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("DELETE FROM custom_page WHERE project = :project AND name = :name)")
+                    .bind("project", project)
+                    .bind("name", name).execute();
+        }
     }
 }

@@ -16,8 +16,10 @@ package org.rakam.plugin.user;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
-import com.google.inject.Singleton;
+import com.google.inject.name.Names;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
@@ -27,9 +29,15 @@ import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 public class PostgresqlUserModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
+        JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
+
+        binder.bind(JDBCPoolDataSource.class)
+                .annotatedWith(Names.named("store.adapter.postgresql"))
+                .toInstance(new JDBCPoolDataSource(config));
+
         binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(UserStorage.class).to(PostgresqlUserStorageAdapter.class)
-                .in(Singleton.class);
+                .in(Scopes.SINGLETON);
     }
 
     @Override

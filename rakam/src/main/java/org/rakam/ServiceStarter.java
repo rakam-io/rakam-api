@@ -5,14 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
-import com.google.inject.AbstractModule;
-import com.google.inject.Binder;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.Module;
-import com.google.inject.Scopes;
-import com.google.inject.Singleton;
-import com.google.inject.TypeLiteral;
+import com.google.inject.*;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
@@ -30,16 +23,9 @@ import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.event.EventHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
-import org.rakam.plugin.AbstractUserService;
-import org.rakam.plugin.ContinuousQueryService;
-import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.EventProcessor;
-import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEventListener;
-import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.*;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.MaterializedViewHttpService;
-import org.rakam.report.PrestoConfig;
 import org.rakam.report.QueryHttpService;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
@@ -47,7 +33,6 @@ import org.rakam.server.http.WebSocketService;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -182,8 +167,6 @@ public class ServiceStarter {
                     .to(NioEventLoopGroup.class)
                     .in(Scopes.SINGLETON);
 
-            bindConfig(binder).to(PrestoConfig.class);
-            bindConfig(binder).to(MetadataConfig.class);
             binder.bind(WebServiceRecipe.class);
         }
     }

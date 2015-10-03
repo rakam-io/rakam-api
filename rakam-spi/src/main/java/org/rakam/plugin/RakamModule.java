@@ -3,10 +3,14 @@ package org.rakam.plugin;
 import com.google.inject.Binder;
 import io.airlift.configuration.ConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
-import io.airlift.configuration.ConfigurationModule;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 
 public abstract class RakamModule implements ConfigurationAwareModule {
@@ -34,7 +38,7 @@ public abstract class RakamModule implements ConfigurationAwareModule {
 
     protected synchronized <T> T buildConfigObject(Class<T> configClass)
     {
-        ConfigurationModule.bindConfig(binder).to(configClass);
+        bindConfig(binder).to(configClass);
         return configurationFactory.build(configClass);
     }
 
@@ -47,8 +51,18 @@ public abstract class RakamModule implements ConfigurationAwareModule {
 
     protected synchronized <T> T buildConfigObject(Class<T> configClass, String prefix)
     {
-        ConfigurationModule.bindConfig(binder).prefixedWith(prefix).to(configClass);
-        return configurationFactory.build(configClass);
+        bindConfig(binder).prefixedWith(prefix).to(configClass);
+        try {
+            Method method = configurationFactory.getClass()
+                    .getDeclaredMethod("build", Class.class, String.class);
+            method.setAccessible(true);
+            Object invoke = method.invoke(configurationFactory, configClass, prefix);
+            Field instance = invoke.getClass().getDeclaredField("instance");
+            instance.setAccessible(true);
+            return (T) instance.get(invoke);
+        } catch (NoSuchMethodException|IllegalAccessException|InvocationTargetException|NoSuchFieldException e) {
+            throw new IllegalStateException("Internal error related to airlift.configuration library", e);
+        }
     }
 
     protected synchronized void install(RakamModule module)

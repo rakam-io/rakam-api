@@ -4,36 +4,21 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.binder.AnnotatedBindingBuilder;
 import com.google.inject.multibindings.Multibinder;
-import com.google.inject.name.Names;
-import io.airlift.log.Logger;
-import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.server.http.HttpService;
 
 import javax.inject.Inject;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import static io.airlift.configuration.ConfigurationModule.bindConfig;
-
 
 public class RakamUIModule extends RakamModule {
-    final static Logger LOGGER = Logger.get(RakamUIModule.class);
-
     @Override
     protected void setup(Binder binder) {
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
-        bindConfig(binder)
-                .annotatedWith(Names.named("ui.metadata.store.jdbc"))
-                .prefixedWith("ui.metadata.store.jdbc")
-                .to(JDBCConfig.class);
 
         AnnotatedBindingBuilder<CustomPageDatabase> customPageDb = binder.bind(CustomPageDatabase.class);
         switch (rakamUIConfig.getCustomPageBackend()) {
@@ -48,7 +33,8 @@ public class RakamUIModule extends RakamModule {
         Multibinder.newSetBinder(binder, SystemEventListener.class)
                 .addBinding().to(DefaultDashboardCreator.class);
 
-        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+        Multibinder<HttpService> httpServices = Multibinder
+                .newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(ReportHttpService.class);
         httpServices.addBinding().to(CustomReportHttpService.class);
         httpServices.addBinding().to(CustomPageHttpService.class);

@@ -3,10 +3,9 @@ package org.rakam.analysis;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
-import io.airlift.configuration.ConfigurationModule;
-import org.rakam.plugin.JDBCConfig;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 
 
@@ -16,10 +15,12 @@ public class JDBCReportMetastoreModule extends RakamModule {
 
     @Override
     protected void setup(Binder binder) {
-        ConfigurationModule.bindConfig(binder)
+        JDBCConfig config = buildConfigObject(JDBCConfig.class,
+                "report.metadata.store.jdbc");
+
+        binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("report.metadata.store.jdbc"))
-                .prefixedWith("report.metadata.store.jdbc")
-                .to(JDBCConfig.class);
+                .toInstance(new JDBCPoolDataSource(config));
 
         binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class);
     }

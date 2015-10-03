@@ -6,33 +6,22 @@ import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.inject.name.Named;
 import io.airlift.log.Logger;
-import org.rakam.PostgresqlPoolDataSource;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.report.QueryError;
-import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryResult;
-import org.rakam.report.QueryStats;
+import org.rakam.report.*;
 import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Function;
 
 import static java.lang.String.format;
@@ -44,16 +33,16 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
-    private final PostgresqlPoolDataSource connectionPool;
+    private final JDBCPoolDataSource connectionPool;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
     private final Metastore metastore;
-
     private volatile Set<String> projectCache;
+
     @Inject
-    public PostgresqlQueryExecutor(PostgresqlPoolDataSource connectionPool, Metastore metastore) {
+    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, Metastore metastore) {
         this.connectionPool = connectionPool;
         this.metastore = metastore;
 
@@ -172,7 +161,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         private final CompletableFuture<QueryResult> result;
         private final String query;
 
-        public PostgresqlQueryExecution(PostgresqlPoolDataSource connectionPool, String sqlQuery, boolean update) {
+        public PostgresqlQueryExecution(JDBCPoolDataSource connectionPool, String sqlQuery, boolean update) {
             this.query = sqlQuery;
 
             this.result = CompletableFuture.supplyAsync(() -> {

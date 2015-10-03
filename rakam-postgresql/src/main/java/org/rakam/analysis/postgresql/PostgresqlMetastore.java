@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import org.rakam.PostgresqlPoolDataSource;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -29,10 +29,10 @@ import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlMetastore implements Metastore {
-    PostgresqlPoolDataSource connectionPool;
+    JDBCPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlMetastore(PostgresqlPoolDataSource connectionPool) {
+    public PostgresqlMetastore(JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
 
         try(Connection connection = connectionPool.getConnection()) {
