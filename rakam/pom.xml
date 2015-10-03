@@ -129,6 +129,10 @@
         </dependency>
         <dependency>
             <groupId>io.airlift</groupId>
+            <artifactId>log-manager</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.airlift</groupId>
             <artifactId>bootstrap</artifactId>
             <version>${air.version}</version>
         </dependency>
