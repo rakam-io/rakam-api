@@ -1,6 +1,8 @@
 package org.rakam.aws;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import io.airlift.configuration.Config;
 
@@ -39,7 +41,11 @@ public class AWSConfig {
         return secretAccessKey;
     }
 
-    public StaticCredentialsProvider getCredentials() {
+    public AWSCredentialsProvider getCredentials() {
+        if(accessKey == null || secretAccessKey == null) {
+            return new DefaultAWSCredentialsProviderChain();
+        }
+
         return new StaticCredentialsProvider(new BasicAWSCredentials(getAccessKey(), getSecretAccessKey()));
     }
 }
