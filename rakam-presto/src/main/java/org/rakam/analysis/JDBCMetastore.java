@@ -88,8 +88,8 @@ public class JDBCMetastore implements Metastore {
                     .execute();
 
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
-                    "  project TEXT NOT NULL,\n" +
-                    "  location TEXT NOT NULL, PRIMARY KEY (project))")
+                    "  name TEXT NOT NULL,\n" +
+                    "  location TEXT NOT NULL, PRIMARY KEY (name))")
                     .execute();
             return null;
         });

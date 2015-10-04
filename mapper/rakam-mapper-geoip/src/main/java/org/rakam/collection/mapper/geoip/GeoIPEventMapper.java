@@ -24,21 +24,154 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.URL;
+import java.net.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
+import static org.rakam.collection.mapper.geoip.GeoIPModuleConfig.SourceType.ip_field;
+import static org.rakam.collection.mapper.geoip.GeoIPModuleConfig.SourceType.request_ip;
+
 
 public class GeoIPEventMapper implements EventMapper {
     final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);
 
     private final static List<String> ATTRIBUTES = ImmutableList.of("country","country_code","region","city","latitude","longitude","timezone");
-    DatabaseReader countryLookup;
-    String[] attributes;
+    private final DatabaseReader countryLookup;
+    private final String[] attributes;
+    private final GeoIPModuleConfig config;
+
+    public GeoIPEventMapper(GeoIPModuleConfig config) throws IOException {
+        Preconditions.checkNotNull(config, "config is null");
+        this.config = config;
+        InputStream countryDatabase;
+        if(config.getDatabase() != null) {
+            countryDatabase = new FileInputStream(config.getDatabase());
+        } else
+        if(config.getDatabaseUrl() != null) {
+            try {
+                countryDatabase = new FileInputStream(downloadOrGetFile(config.getDatabaseUrl()));
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        } else {
+            throw new IllegalStateException();
+        }
+
+        countryLookup = new DatabaseReader.Builder(countryDatabase).fileMode(Reader.FileMode.MEMORY).build();
+        if(config.getAttributes() != null) {
+            for (String attr : config.getAttributes()) {
+                if(!ATTRIBUTES.contains(attr)) {
+                    throw new IllegalArgumentException("Attribute "+attr+" is not exist. Available attributes: " +
+                            Joiner.on(", ").join(ATTRIBUTES));
+                }
+            }
+            attributes = config.getAttributes().stream().toArray(String[]::new);
+        } else {
+            attributes = ATTRIBUTES.toArray(new String[ATTRIBUTES.size()]);
+        }
+    }
+
+    @Override
+    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
+        GenericRecord properties = event.properties();
+
+        InetAddress address;
+        if(config.getSource() == ip_field) {
+            String ip = (String) properties.get("ip");
+            if(ip == null) {
+                return;
+            }
+            try {
+                // it's slow because java performs reverse hostname lookup.
+                address = Inet4Address.getByName(ip);
+            } catch (UnknownHostException e) {
+                return;
+            }
+        } else
+        if(config.getSource() == request_ip) {
+            address = sourceAddress;
+        } else {
+            throw new IllegalStateException("source is not supported");
+        }
+
+        CityResponse response;
+        try {
+            response = countryLookup.city(address);
+        } catch (AddressNotFoundException e) {
+            return;
+        }catch (Exception e) {
+            LOGGER.error(e, "Error while search for location information. ");
+            return;
+        }
+
+//        countryLookup.isp()
+//        countryLookup.connectionType()
+
+        Country country = response.getCountry();
+
+        for (String attribute : attributes) {
+            switch (attribute) {
+                case "country":
+                    properties.put("country", country.getName());
+                    break;
+                case "country_code":
+                    properties.put("country_code", country.getIsoCode());
+                    break;
+                case "region":
+                    properties.put("region", response.getContinent().getName());
+                    break;
+                case "city":
+                    properties.put("city", response.getCity().getName());
+                    break;
+                case "latitude":
+                    properties.put("latitude", response.getLocation().getLatitude());
+                    break;
+                case "longitude":
+                    properties.put("longitude", response.getLocation().getLongitude());
+                    break;
+                case "timezone":
+                    properties.put("timezone", response.getLocation().getTimeZone());
+                    break;
+            }
+        }
+    }
+
+    @Override
+    public void addFieldDependency(FieldDependencyBuilder builder) {
+        List<SchemaField> fields = Arrays.stream(attributes)
+                .map(attr -> new SchemaField(attr, getType(attr), true))
+                .collect(Collectors.toList());
+
+        switch (config.getSource()) {
+            case request_ip:
+                builder.addFields(fields);
+                break;
+            case ip_field:
+                builder.addFields("ip", fields);
+                break;
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
+    private static FieldType getType(String attr) {
+        switch (attr) {
+            case "country":
+            case "country_code":
+            case "region":
+            case "city":
+            case "timezone":
+                return FieldType.STRING;
+            case "latitude":
+            case "longitude":
+                return FieldType.DOUBLE;
+            default:
+                throw new IllegalStateException();
+        }
+    }
 
     private File downloadOrGetFile(String fileUrl) throws Exception {
         URL url = new URL(fileUrl);
@@ -87,106 +220,4 @@ public class GeoIPEventMapper implements EventMapper {
             return data;
         }
     }
-
-    public GeoIPEventMapper(GeoIPModuleConfig config) throws IOException {
-        Preconditions.checkNotNull(config, "config is null");
-        InputStream countryDatabase;
-        if(config.getDatabase() != null) {
-            countryDatabase = new FileInputStream(config.getDatabase());
-        } else
-        if(config.getDatabaseUrl() != null) {
-            try {
-                countryDatabase = new FileInputStream(downloadOrGetFile(config.getDatabaseUrl()));
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
-            }
-        } else {
-            throw new IllegalStateException();
-        }
-
-        countryLookup = new DatabaseReader.Builder(countryDatabase).fileMode(Reader.FileMode.MEMORY).build();
-        if(config.getAttributes() != null) {
-            for (String attr : config.getAttributes()) {
-                if(!ATTRIBUTES.contains(attr)) {
-                    throw new IllegalArgumentException("Attribute "+attr+" is not exist. Available attributes: " +
-                            Joiner.on(", ").join(ATTRIBUTES));
-                }
-            }
-            attributes = config.getAttributes().stream().toArray(String[]::new);
-        } else {
-            attributes = ATTRIBUTES.toArray(new String[ATTRIBUTES.size()]);
-        }
-    }
-
-    @Override
-    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
-        GenericRecord properties = event.properties();
-
-        // TODO: lazy initialization
-        CityResponse response;
-        try {
-            response = countryLookup.city(sourceAddress);
-        } catch (AddressNotFoundException e) {
-            return;
-        }catch (Exception e) {
-            LOGGER.error(e, "Error while search for location information. ");
-            return;
-        }
-
-//        countryLookup.isp()
-//        countryLookup.connectionType()
-
-        Country country = response.getCountry();
-
-        for (String attribute : attributes) {
-            switch (attribute) {
-                case "country":
-                    properties.put("country", country.getName());
-                    break;
-                case "country_code":
-                    properties.put("country_code", country.getIsoCode());
-                    break;
-                case "region":
-                    properties.put("region", response.getContinent().getName());
-                    break;
-                case "city":
-                    properties.put("city", response.getCity().getName());
-                    break;
-                case "latitude":
-                    properties.put("latitude", response.getLocation().getLatitude());
-                    break;
-                case "longitude":
-                    properties.put("longitude", response.getLocation().getLongitude());
-                    break;
-                case "timezone":
-                    properties.put("timezone", response.getLocation().getTimeZone());
-                    break;
-            }
-        }
-    }
-
-    @Override
-    public void addFieldDependency(FieldDependencyBuilder builder) {
-        builder.addFields("ip", Arrays.stream(attributes)
-                .map(attr -> new SchemaField(attr, getType(attr), true))
-                .collect(Collectors.toList()));
-    }
-
-    private static FieldType getType(String attr) {
-        switch (attr) {
-            case "country":
-            case "country_code":
-            case "region":
-            case "city":
-            case "timezone":
-                return FieldType.STRING;
-            case "latitude":
-            case "longitude":
-                return FieldType.DOUBLE;
-            default:
-                throw new IllegalStateException();
-        }
-    }
-
-
 }

@@ -10,12 +10,29 @@ public class GeoIPModuleConfig {
     private String database;
     private List<String> attributes;
     private String databaseUrl;
+    private SourceType source = SourceType.ip_field;
+
+    public enum SourceType {
+        request_ip,
+        ip_field
+    }
 
     @Config("plugin.geoip.database")
     public GeoIPModuleConfig setDatabase(String type)
     {
         this.database = type;
         return this;
+    }
+
+    @Config("plugin.geoip.check-ip-field")
+    public GeoIPModuleConfig setSource(SourceType source)
+    {
+        this.source = source;
+        return this;
+    }
+
+    public SourceType getSource() {
+        return source;
     }
 
     @Config("plugin.geoip.database.url")
