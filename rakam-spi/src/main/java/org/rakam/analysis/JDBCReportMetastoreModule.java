@@ -20,7 +20,7 @@ public class JDBCReportMetastoreModule extends RakamModule {
 
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("report.metadata.store.jdbc"))
-                .toInstance(new JDBCPoolDataSource(config));
+                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
         binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class);
     }

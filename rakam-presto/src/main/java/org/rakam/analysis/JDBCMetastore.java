@@ -10,9 +10,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import org.apache.hadoop.hive.metastore.api.Database;
-import org.apache.thrift.TException;
-import org.apache.thrift.TSerializer;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.PrestoConfig;
@@ -84,18 +81,35 @@ public class JDBCMetastore implements Metastore {
                     ")")
                     .execute();
 
-            handle.createStatement("CREATE TABLE IF NOT EXISTS cold_storage_table_metadata (" +
-                    "  databaseName VARCHAR(255) NOT NULL,\n" +
-                    "  tableName VARCHAR(255) NOT NULL,\n" +
-                    "  metadata TEXT NOT NULL, PRIMARY KEY (databaseName, tableName))")
+            handle.createStatement("CREATE TABLE IF NOT EXISTS collection_partition (" +
+                    "  project TEXT NOT NULL,\n" +
+                    "  collection TEXT NOT NULL,\n" +
+                    "  partitions TEXT NOT NULL, PRIMARY KEY (project, collection))")
                     .execute();
 
-            handle.createStatement("CREATE TABLE IF NOT EXISTS cold_storage_database_metadata (" +
-                    "  databaseName VARCHAR(255) NOT NULL,\n" +
-                    "  metadata TEXT NOT NULL, PRIMARY KEY (databaseName))")
+            handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
+                    "  project TEXT NOT NULL,\n" +
+                    "  location TEXT NOT NULL, PRIMARY KEY (project))")
                     .execute();
             return null;
         });
+    }
+
+    public List<String> getPartitions(String project, String collection) {
+        try(Handle handle = dbi.open()) {
+            return JsonHelper.read(handle.createQuery("SELECT partitions from collection_partition WHERE project = :project AND collection = :collection")
+                    .bind("project", project)
+                    .bind("collection", collection).map(StringMapper.FIRST)
+                    .first(), List.class);
+        }
+    }
+
+    public String getDatabaseLocation(String project) {
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT location from project WHERE name = :name")
+                    .bind("name", project).map(StringMapper.FIRST)
+                    .first();
+        }
     }
 
     @Override
@@ -134,22 +148,10 @@ public class JDBCMetastore implements Metastore {
 
     @Override
     public void createProject(String project) {
-        Database database = new Database(project, "Default Rakam Database", prestoConfig.getStorage()+ File.separator + project,
-                Maps.newHashMap());
-
-        TSerializer serializer = new TSerializer();
-        byte[] data;
-        try {
-            data = serializer.serialize(database);
-        }
-        catch (TException e) {
-            throw new RuntimeException();
-        }
-
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO cold_storage_database_metadata (databaseName, metadata) VALUES(:databaseName, :metadata)")
-                    .bind("databaseName", database.getName())
-                    .bind("metadata", data)
+            handle.createStatement("INSERT INTO project (name, location) VALUES(:name, :location)")
+                    .bind("name", project)
+                    .bind("location", prestoConfig.getStorage() + File.separator + project)
                     .execute();
         }
     }
@@ -158,7 +160,7 @@ public class JDBCMetastore implements Metastore {
     public Set<String> getProjects() {
         try(Handle handle = dbi.open()) {
             return ImmutableSet.copyOf(
-                    handle.createQuery("select databaseName from cold_storage_database_metadata")
+                    handle.createQuery("select name from project")
                             .map(StringMapper.FIRST).iterator());
         }
     }
@@ -192,6 +194,7 @@ public class JDBCMetastore implements Metastore {
                         .bind("project", project)
                         .bind("collection", collection)
                         .execute();
+                createCollection(project, collection);
                 return newFields;
             } else {
                 List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);
@@ -221,5 +224,8 @@ public class JDBCMetastore implements Metastore {
         schemaCache.refresh(new ProjectCollection(project, collection));
         collectionCache.refresh(project);
         return schemaFields;
+    }
+
+    private void createCollection(String project, String collection) {
     }
 }

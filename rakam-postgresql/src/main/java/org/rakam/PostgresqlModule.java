@@ -30,11 +30,11 @@ public class PostgresqlModule extends RakamModule {
 
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("store.adapter.postgresql"))
-                .toInstance(new JDBCPoolDataSource(config));
+                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("report.metadata.store.jdbc"))
-                .toInstance(new JDBCPoolDataSource(config));
+                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).in(Scopes.SINGLETON);
         // TODO: implement postgresql specific materialized view service

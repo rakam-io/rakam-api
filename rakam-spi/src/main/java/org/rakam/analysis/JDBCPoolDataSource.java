@@ -4,13 +4,16 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.rakam.plugin.JDBCConfig;
 
 import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 public class JDBCPoolDataSource extends HikariDataSource {
+    private static final Map<String, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
 
-    public JDBCPoolDataSource(JDBCConfig config) {
+    private JDBCPoolDataSource(JDBCConfig config) {
         checkArgument(config.getUrl() != null, "JDBC url is required");
         setJdbcUrl(config.getUrl());
         setUsername(config.getUsername());
@@ -40,6 +43,10 @@ public class JDBCPoolDataSource extends HikariDataSource {
             default:
                 throw new IllegalArgumentException("Currently, only Postgresql JDBC adapter is supported.");
         }
+    }
 
+    public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config) {
+        return pools.computeIfAbsent(config.getUrl(),
+                key -> new JDBCPoolDataSource(config));
     }
 }

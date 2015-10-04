@@ -33,7 +33,7 @@ public class PostgresqlUserModule extends RakamModule {
 
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("store.adapter.postgresql"))
-                .toInstance(new JDBCPoolDataSource(config));
+                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
         binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(UserStorage.class).to(PostgresqlUserStorageAdapter.class)
