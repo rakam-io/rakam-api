@@ -81,27 +81,12 @@ public class JDBCMetastore implements Metastore {
                     ")")
                     .execute();
 
-            handle.createStatement("CREATE TABLE IF NOT EXISTS collection_partition (" +
-                    "  project TEXT NOT NULL,\n" +
-                    "  collection TEXT NOT NULL,\n" +
-                    "  partitions TEXT NOT NULL, PRIMARY KEY (project, collection))")
-                    .execute();
-
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
                     "  name TEXT NOT NULL,\n" +
                     "  location TEXT NOT NULL, PRIMARY KEY (name))")
                     .execute();
             return null;
         });
-    }
-
-    public List<String> getPartitions(String project, String collection) {
-        try(Handle handle = dbi.open()) {
-            return JsonHelper.read(handle.createQuery("SELECT partitions from collection_partition WHERE project = :project AND collection = :collection")
-                    .bind("project", project)
-                    .bind("collection", collection).map(StringMapper.FIRST)
-                    .first(), List.class);
-        }
     }
 
     public String getDatabaseLocation(String project) {
@@ -151,7 +136,8 @@ public class JDBCMetastore implements Metastore {
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO project (name, location) VALUES(:name, :location)")
                     .bind("name", project)
-                    .bind("location", prestoConfig.getStorage() + File.separator + project)
+                    // todo: file.separator returns local filesystem property?
+                    .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
                     .execute();
         }
     }
@@ -168,7 +154,9 @@ public class JDBCMetastore implements Metastore {
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
         try {
-            return schemaCache.get(new ProjectCollection(project, collection));
+            ProjectCollection key = new ProjectCollection(project, collection);
+            schemaCache.refresh(key);
+            return schemaCache.get(key);
         } catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }

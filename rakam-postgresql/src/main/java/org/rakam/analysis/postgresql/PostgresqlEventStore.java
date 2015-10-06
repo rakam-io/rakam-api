@@ -27,7 +27,7 @@ public class PostgresqlEventStore implements EventStore {
     @Override
     public void store(org.rakam.collection.Event event) {
         GenericRecord record = event.properties();
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             PreparedStatement ps = connection.prepareStatement(getQuery(event));
             for (Schema.Field field : event.properties().getSchema().getFields()) {
                 bindParam(connection, ps, field, record.get(field.pos()));

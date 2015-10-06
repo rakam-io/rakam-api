@@ -4,5 +4,5 @@ import org.rakam.collection.Event;
 
 
 public interface EventStore {
-    public void store(Event event);
+    void store(Event event);
 }

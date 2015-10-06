@@ -35,7 +35,7 @@ public class PostgresqlMetastore implements Metastore {
     public PostgresqlMetastore(JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
 
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             Statement statement = connection.createStatement();
             statement.execute("" +
                     "  CREATE TABLE IF NOT EXISTS public.collections_last_sync (" +
@@ -52,7 +52,7 @@ public class PostgresqlMetastore implements Metastore {
     @Override
     public Map<String, Collection<String>> getAllCollections() {
         Map<String, Collection<String>> map = Maps.newHashMap();
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             ResultSet dbColumns = connection.getMetaData().getTables("", null, null, null);
             while (dbColumns.next()) {
                 String schemaName = dbColumns.getString("TABLE_SCHEM");
@@ -78,7 +78,7 @@ public class PostgresqlMetastore implements Metastore {
         checkProject(project);
         Map<String, List<SchemaField>> table = Maps.newHashMap();
 
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             HashSet<String> tables = new HashSet<>();
             ResultSet tableRs = connection.getMetaData().getTables("", project, null, new String[]{"TABLE"});
             while(tableRs.next()) {
@@ -118,7 +118,7 @@ public class PostgresqlMetastore implements Metastore {
 
         HashSet<String> tables = new HashSet<>();
 
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             ResultSet tableRs = connection.getMetaData().getTables("", project, null, new String[]{"TABLE"});
             while(tableRs.next()) {
                 String tableName = tableRs.getString("table_name");
@@ -140,7 +140,7 @@ public class PostgresqlMetastore implements Metastore {
         if(project.equals("information_schema")) {
             throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
         }
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS "+project);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -150,7 +150,7 @@ public class PostgresqlMetastore implements Metastore {
     @Override
     public Set<String> getProjects() {
         ImmutableSet.Builder<String> builder = ImmutableSet.builder();
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             ResultSet schemas = connection.getMetaData().getSchemas();
             while(schemas.next()) {
                 String table_schem = schemas.getString("table_schem");
@@ -167,7 +167,7 @@ public class PostgresqlMetastore implements Metastore {
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
         List<SchemaField> schemaFields = Lists.newArrayList();
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             ResultSet dbColumns = connection.getMetaData().getColumns("", project, collection, null);
             while (dbColumns.next()) {
                 String columnName = dbColumns.getString("COLUMN_NAME");
@@ -199,7 +199,7 @@ public class PostgresqlMetastore implements Metastore {
 
         List<SchemaField> currentFields = Lists.newArrayList();
         String query;
-        try(Connection connection = connectionPool.getConnection()) {
+        try(Connection connection = connectionPool.openConnection()) {
             connection.setAutoCommit(false);
             ResultSet columns = connection.getMetaData().getColumns("", project, collection, null);
             HashSet<String> strings = new HashSet<>();

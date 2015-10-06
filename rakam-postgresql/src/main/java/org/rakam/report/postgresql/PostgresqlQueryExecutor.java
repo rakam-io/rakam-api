@@ -46,7 +46,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         this.connectionPool = connectionPool;
         this.metastore = metastore;
 
-        try (Connection connection = connectionPool.getConnection()) {
+        try (Connection connection = connectionPool.openConnection()) {
             connection.createStatement().execute("CREATE OR REPLACE FUNCTION to_unixtime(timestamp) RETURNS double precision" +
                     "    AS 'select extract(epoch from $1);'" +
                     "    LANGUAGE SQL" +
@@ -101,7 +101,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     }
 
     public Connection getConnection() throws SQLException {
-        return connectionPool.getConnection();
+        return connectionPool.openConnection();
     }
 
     private Function<QualifiedName, String> tableNameMapper(String project) {
@@ -165,7 +165,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             this.query = sqlQuery;
 
             this.result = CompletableFuture.supplyAsync(() -> {
-                try (Connection connection = connectionPool.getConnection()) {
+                try (Connection connection = connectionPool.openConnection()) {
                     Statement statement = connection.createStatement();
                     if(update) {
                         statement.execute(sqlQuery);
