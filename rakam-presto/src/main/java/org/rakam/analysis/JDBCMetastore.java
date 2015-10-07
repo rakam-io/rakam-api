@@ -19,14 +19,22 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.TransactionStatus;
+import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -154,9 +162,7 @@ public class JDBCMetastore implements Metastore {
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
         try {
-            ProjectCollection key = new ProjectCollection(project, collection);
-            schemaCache.refresh(key);
-            return schemaCache.get(key);
+            return schemaCache.get(new ProjectCollection(project, collection));
         } catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
@@ -172,48 +178,61 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields) {
-        List<SchemaField> schemaFields = dbi.inTransaction((dao, status) -> {
-            List<SchemaField> schema = getSchema(dao, project, collection);
+    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields, Consumer<ProjectCollection> listener) throws ProjectNotExistsException {
+        List<SchemaField> schemaFields;
+        try {
+            schemaFields = dbi.inTransaction((dao, status) -> {
+                List<SchemaField> schema = getSchema(dao, project, collection);
 
-            if (schema == null) {
-                dao.createStatement("INSERT INTO collection_schema (project, collection, schema) VALUES (:project, :collection, :schema)")
-                        .bind("schema", JsonHelper.encode(newFields))
-                        .bind("project", project)
-                        .bind("collection", collection)
-                        .execute();
-                createCollection(project, collection);
-                return newFields;
-            } else {
-                List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);
-
-                List<SchemaField> _newFields = Lists.newArrayList();
-
-                for (SchemaField field : newFields) {
-                    Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
-                    if (!first.isPresent()) {
-                        _newFields.add(field);
-                    } else {
-                        if (first.get().getType() != field.getType())
-                            throw new IllegalArgumentException();
+                if (schema == null) {
+                    if(!getProjects().contains(project)) {
+                        throw new ProjectNotExistsException();
                     }
+                    dao.createStatement("INSERT INTO collection_schema (project, collection, schema) VALUES (:project, :collection, :schema)")
+                            .bind("schema", JsonHelper.encode(newFields))
+                            .bind("project", project)
+                            .bind("collection", collection)
+                            .execute();
+                    listener.accept(new ProjectCollection(project, collection));
+                    return newFields;
+                } else {
+                    List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);
+
+                    List<SchemaField> _newFields = Lists.newArrayList();
+
+                    for (SchemaField field : newFields) {
+                        Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
+                        if (!first.isPresent()) {
+                            _newFields.add(field);
+                        } else {
+                            if (first.get().getType() != field.getType())
+                                throw new IllegalArgumentException();
+                        }
+                    }
+
+                    fields.addAll(_newFields);
+                    dao.createStatement("UPDATE collection_schema SET schema = :schema WHERE project = :project AND collection = :collection")
+                            .bind("schema", JsonHelper.encode(fields))
+                            .bind("project", project)
+                            .bind("collection", collection)
+                            .execute();
+                    return fields;
                 }
 
-                fields.addAll(_newFields);
-                dao.createStatement("UPDATE collection_schema SET schema = :schema WHERE project = :project AND collection = :collection")
-                        .bind("schema", JsonHelper.encode(fields))
-                        .bind("project", project)
-                        .bind("collection", collection)
-                        .execute();
-                return fields;
+            });
+        } catch (CallbackFailedException e) {
+            // TODO: find a better way to handle this.
+            if(e.getCause() instanceof ProjectNotExistsException) {
+                throw (ProjectNotExistsException) e.getCause();
             }
-
-        });
+            if(e.getCause() instanceof IllegalArgumentException) {
+                throw (IllegalArgumentException) e.getCause();
+            } else {
+                throw e;
+            }
+        }
         schemaCache.refresh(new ProjectCollection(project, collection));
         collectionCache.refresh(project);
         return schemaFields;
-    }
-
-    private void createCollection(String project, String collection) {
     }
 }

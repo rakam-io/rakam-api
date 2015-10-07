@@ -9,9 +9,9 @@ import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.util.ProjectCollection;
 
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -23,6 +23,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -186,7 +187,7 @@ public class PostgresqlMetastore implements Metastore {
     }
 
     @Override
-    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
+    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields, Consumer<ProjectCollection> listener) throws ProjectNotExistsException {
         if(collection.equals("public")) {
             throw new IllegalArgumentException("Collection name 'public' is not allowed.");
         }
@@ -252,7 +253,7 @@ public class PostgresqlMetastore implements Metastore {
             // column or table already exists
             if(e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42701") || e.getSQLState().equals("42710")) {
                 // TODO: should we try again until this operation is done successfully, what about infinite loops?
-                return createOrGetCollectionField(project, collection, fields);
+                return createOrGetCollectionField(project, collection, fields, listener);
             }else {
                 throw new IllegalStateException();
             }

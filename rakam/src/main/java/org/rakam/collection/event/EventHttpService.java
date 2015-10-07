@@ -23,6 +23,7 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.AuthorizationScope;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -152,9 +153,12 @@ public class EventHttpService extends HttpService {
             } catch (IOException e) {
                 request.response("json couldn't parsed", BAD_REQUEST).end();
                 return;
-            } catch (Exception e) {
+            } catch (RakamException e) {
+                request.response(e.getMessage(), BAD_REQUEST).end();
+                return;
+            }catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
-                request.response(e.toString(), INTERNAL_SERVER_ERROR).end();
+                request.response(e.getMessage(), INTERNAL_SERVER_ERROR).end();
                 return;
             }
 

@@ -9,9 +9,24 @@ import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
 import org.rakam.MetadataConfig;
-import org.rakam.analysis.*;
+import org.rakam.analysis.EventExplorer;
+import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.JDBCMetastore;
+import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.PrestoAbstractUserService;
+import org.rakam.analysis.PrestoMaterializedViewService;
+import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.*;
+import org.rakam.plugin.AbstractUserService;
+import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.plugin.EventExplorerConfig;
+import org.rakam.plugin.JDBCConfig;
+import org.rakam.plugin.MaterializedViewService;
+import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEventListener;
+import org.rakam.plugin.UserPluginConfig;
 
 import javax.inject.Inject;
 

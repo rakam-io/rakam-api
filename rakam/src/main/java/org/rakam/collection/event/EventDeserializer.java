@@ -16,6 +16,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.airlift.log.Logger;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ProjectNotExistsException;
@@ -25,7 +26,9 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.SystemEventListener;
 import org.rakam.util.AvroUtil;
+import org.rakam.util.ProjectCollection;
 import org.rakam.util.Tuple;
 
 import javax.inject.Inject;
@@ -44,12 +47,15 @@ import static java.util.stream.StreamSupport.stream;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 
 public class EventDeserializer extends JsonDeserializer<Event> {
+    private Logger logger = Logger.get(EventDeserializer.class);
+
     private final Metastore schemaRegistry;
     private final Map<Tuple<String, String>, Schema> schemaCache;
     private final FieldDependency moduleFields;
+    private final Set<SystemEventListener> listeners;
 
     @Inject
-    public EventDeserializer(Metastore schemaRegistry, Set<EventMapper> eventMappers) {
+    public EventDeserializer(Metastore schemaRegistry, Set<EventMapper> eventMappers, Set<SystemEventListener> listeners) {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
 
@@ -59,6 +65,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
 
         this.moduleFields = builder.build();
+        this.listeners = listeners;
         checkExistingEvents();
     }
 
@@ -77,12 +84,22 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             if(!collect.isEmpty()) {
                 try {
-                    schemaRegistry.createOrGetCollectionField(project, collection, collect);
+                    schemaRegistry.createOrGetCollectionField(project, collection, collect, this::callListeners);
                 } catch (ProjectNotExistsException e) {
                     throw Throwables.propagate(e);
                 }
             }
         }));
+    }
+
+    private void callListeners(ProjectCollection projectCollection) {
+        for (SystemEventListener listener : listeners) {
+            try {
+                listener.onCreateCollection(projectCollection.project, projectCollection.collection);
+            } catch (Exception e) {
+                logger.error(e, "Error while processing event listener");
+            }
+        }
     }
 
     private boolean check(SchemaField existing, SchemaField moduleField) {
@@ -169,7 +186,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
             moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
 
-            schema = schemaRegistry.createOrGetCollectionField(project, collection, fields);
+            schema = schemaRegistry.createOrGetCollectionField(project, collection, fields, this::callListeners);
             avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
 
@@ -222,7 +239,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             moduleFields.constantFields.forEach(field ->
                     addModuleField(finalNewFields, field));
 
-            List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields);
+            List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields, this::callListeners);
             Schema newAvroSchema = convertAvroSchema(newSchema);
             schemaCache.put(key, newAvroSchema);
             GenericData.Record newRecord = new GenericData.Record(newAvroSchema);

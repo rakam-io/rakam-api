@@ -11,12 +11,14 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
+import io.airlift.log.Logger;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
+import org.rakam.util.ProjectCollection;
 
 import javax.inject.Inject;
 import java.io.FileInputStream;
@@ -26,6 +28,8 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Consumer;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "recipes")
@@ -120,16 +124,19 @@ public class RecipeModule extends RakamModule {
     }
 
     private static class RecipeLoader implements SystemEventListener {
+        private Logger logger = Logger.get(RecipeLoader.class);
 
         private final Recipe recipe;
         private final Metastore metastore;
         private final QueryMetadataStore queryMetadataStore;
+        private final Set<SystemEventListener> listeners;
 
         @Inject
-        public RecipeLoader(Recipe recipe, Metastore metastore, QueryMetadataStore queryMetadataStore) {
+        public RecipeLoader(Recipe recipe, Metastore metastore, Set<SystemEventListener> listeners, QueryMetadataStore queryMetadataStore) {
             this.recipe = recipe;
             this.metastore = metastore;
             this.queryMetadataStore = queryMetadataStore;
+            this.listeners = listeners;
         }
 
         @Override
@@ -137,7 +144,18 @@ public class RecipeModule extends RakamModule {
             recipe.getCollections().forEach((collectionName, schema) -> {
                 metastore.createProject(project);
                 try {
-                    metastore.createOrGetCollectionField(project, collectionName, schema.getColumns());
+                    metastore.createOrGetCollectionField(project, collectionName, schema.getColumns(), new Consumer<ProjectCollection>() {
+                        @Override
+                        public void accept(ProjectCollection projectCollection) {
+                            for (SystemEventListener listener : listeners) {
+                                try {
+                                    listener.onCreateCollection(projectCollection.project, projectCollection.collection);
+                                } catch (Exception e) {
+                                    logger.error(e, "Error while processing event listener");
+                                }
+                            }
+                        }
+                    });
                 } catch (ProjectNotExistsException e) {
                     throw Throwables.propagate(e);
                 }
@@ -152,9 +170,8 @@ public class RecipeModule extends RakamModule {
                         .forEach(continuousQuery ->
                                 queryMetadataStore.createMaterializedView(continuousQuery));
 
-                recipe.getReports().stream().forEach(reportBuilder ->  {
-                    reportBuilder.createReport(project);
-                });
+                recipe.getReports().stream().forEach(reportBuilder ->
+                        reportBuilder.createReport(project));
             });
         }
 
@@ -182,6 +199,7 @@ public class RecipeModule extends RakamModule {
         private final Recipe recipe;
         private Metastore metastore;
         private QueryMetadataStore queryMetadataStore;
+        private Set<SystemEventListener> listeners;
 
         public RecipeLoaderSingle(Recipe recipe) {
             this.recipe = recipe;
@@ -197,9 +215,14 @@ public class RecipeModule extends RakamModule {
             this.queryMetadataStore = queryMetadataStore;
         }
 
+        @Inject
+        public void setListeners(Set<SystemEventListener> listeners) {
+            this.listeners = listeners;
+        }
+
         @Override
         public void call() {
-            new RecipeLoader(recipe, metastore, queryMetadataStore)
+            new RecipeLoader(recipe, metastore, listeners, queryMetadataStore)
                     .onCreateProject(recipe.getProject());
         }
     }

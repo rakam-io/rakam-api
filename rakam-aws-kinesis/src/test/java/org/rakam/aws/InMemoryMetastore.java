@@ -3,6 +3,7 @@ package org.rakam.aws;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.util.ProjectCollection;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 class InMemoryMetastore implements Metastore {
@@ -50,7 +52,7 @@ class InMemoryMetastore implements Metastore {
     }
 
     @Override
-    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields, Consumer<ProjectCollection> listener) throws ProjectNotExistsException {
         Map<String, List<SchemaField>> list = collections.get(project);
         if(list == null) {
             throw new ProjectNotExistsException();

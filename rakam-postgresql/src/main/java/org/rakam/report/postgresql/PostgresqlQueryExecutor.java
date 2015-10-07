@@ -12,16 +12,28 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.report.*;
+import org.rakam.report.QueryError;
+import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryResult;
+import org.rakam.report.QueryStats;
 import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static java.lang.String.format;
@@ -63,20 +75,20 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery, int maxLimit) {
-        if(projectExists(project)) {
+        if (projectExists(project)) {
             throw new IllegalArgumentException("Project is not valid");
         }
         return executeRawQuery(buildQuery(project, sqlQuery, maxLimit));
     }
 
     private boolean projectExists(String project) {
-        if(projectCache == null) {
+        if (projectCache == null) {
             updateProjectCache();
         }
 
-        if(!projectCache.contains(project)) {
+        if (!projectCache.contains(project)) {
             updateProjectCache();
-            if(!projectCache.contains(project)) {
+            if (!projectCache.contains(project)) {
                 return false;
             }
         }
@@ -86,7 +98,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery) {
-        if(projectExists(project)) {
+        if (projectExists(project)) {
             throw new IllegalArgumentException("Project is not valid");
         }
         return executeRawQuery(buildQuery(project, sqlQuery, null));
@@ -129,7 +141,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
         new QueryFormatter(builder, tableNameMapper(project)).process(statement, Lists.newArrayList());
 
-        if(maxLimit != null) {
+        if (maxLimit != null) {
             if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
                 throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
             } else {
@@ -167,19 +179,19 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             this.result = CompletableFuture.supplyAsync(() -> {
                 try (Connection connection = connectionPool.openConnection()) {
                     Statement statement = connection.createStatement();
-                    if(update) {
+                    if (update) {
                         statement.execute(sqlQuery);
                         // CREATE TABLE queries doesn't return any value and
                         // fail when using executeQuery so we face the result data
                         List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN, true));
                         List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
                         return new QueryResult(cols, data);
-                    }else {
+                    } else {
                         return resultSetToQueryResult(statement.executeQuery(sqlQuery));
                     }
                 } catch (Exception e) {
                     QueryError error;
-                    if(e instanceof SQLException) {
+                    if (e instanceof SQLException) {
                         SQLException cause = (SQLException) e;
                         error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode());
                     } else {
@@ -192,7 +204,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
         @Override
         public QueryStats currentStats() {
-            if(result.isDone()) {
+            if (result.isDone()) {
                 return new QueryStats(100, "FINISHED", null, null, null, null, null, null);
             } else {
                 return new QueryStats(0, "PROCESSING", null, null, null, null, null, null);
@@ -228,14 +240,14 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             int columnCount = metaData.getColumnCount();
 
             columns = new ArrayList<>(columnCount);
-            for (int i = 1; i < columnCount+1; i++) {
+            for (int i = 1; i < columnCount + 1; i++) {
                 columns.add(new SchemaField(metaData.getColumnName(i), fromSql(metaData.getColumnType(i)), true));
             }
 
             ImmutableList.Builder<List<Object>> builder = ImmutableList.builder();
             while (resultSet.next()) {
                 List<Object> rowBuilder = Arrays.asList(new Object[columnCount]);
-                for (int i = 1; i < columnCount+1; i++) {
+                for (int i = 1; i < columnCount + 1; i++) {
                     rowBuilder.set(i - 1, resultSet.getObject(i));
                 }
                 builder.add(rowBuilder);
