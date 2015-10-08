@@ -9,19 +9,56 @@ Rakam
 
 Analytics platform that allows you to create your analytics services.
 
-Please note that it’s currently under development and not ready for production.
-
 Features / Goals
 ------------
-Rakam is a modular data-warehouse API supports pre-aggregation and real-time features.
-It collects your data, saves in a columnar database and continuously aggregate it by using your pre-aggregation rules.
+Rakam is a super-fast modular analytics platform that gives you a set of features to create your own analytics service.
+
+Typical workflow of using Rakam:
+* Collect data from your clients using **[client Libraries](https://getrakam/doc)**
+* Make your event data richer with **[event mappers](https://getrakam/doc)** (ip-to-geolocation, referrer and user-agent parsers)
+* Process data in real-time and pre-aggregate using **[continuous queries](https://getrakam/doc)** (Stream processing with SQL!),
+* Store data in a **[data warehouse](https://getrakam.com)** to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
+* Analyze your event data with your custom SQL queries and integrated rich analytics features ([funnel queries](https://getrakam.com), [retention queries](https://getrakam.com), [real-time reports](https://getrakam.com), [event streams](https://getrakam.com))
+* Analyze your users with [integrated CRM tool]()
+* Visualize your data using [web application]() of Rakam similar to BI tools.
+* [Add your own modules]() to Rakam to customize Rakam for your special needs.
+
+All these features come with a single box, you just need to specify which modules you want to use using a configuration file (config.properties) and Rakam will do the rest for you.
+You can also start multiple instances and put them behind a load balancer if you need high availability or/and want to collect tens of thousands events per second.
 
 Deployment
 ------------
-You can easily test Rakam using Heroku button which uses Postgresql backend.
+There are multiple deployment types depending of your needs.
+
+If your event data-set can fit in a single server, we recommend using Postgresql backend. Rakam will collect all your events in row-oriented format in a Postgresql node. All the features provided by Rakam are supported in Postgresql deployment type.
+
+However Rakam is designed to be highly scalable in order to provide a solution for high work-loads. You can configure Rakam to send events to a distributed commit-log such as Apache Kafka or Amazon Kinesis in serialized Apache Avro format and process data in PrestoDB workers and store them in a distributed filesystem in a columnar format.
+
+You can easily deploy Rakam to Heroku using Heroku button, it setup a Heroku Postgresql instance for you and use Postgresql deployment type.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
+
+Or use Docker image: (Not ready at the moment)
+
+    docker run -d --name rakam -p 9999:9999 buremba/rakam
+
+Web application
+------------
+This repository contains Rakam API server that allows you to interact with Rakam using a REST interface. If you already have a frontend and developed a custom analytics service based on Rakam, it's all you need.
+
+However, we also developed Rakam Web Application that allows you to analyze your user and event data-set bu performing SQL queries, visualising your data in various charts, creating (realtime) dashboards and custom reports. You can turn Rakam into a analytics web service similar to Mixpanel, Kissmetrics and Localytics using the web application. Otherwise, Rakam is similar to Keen.io with SQL as query language and some extra features.
+
+Another nice property of Rakam web application is being BI (Business Intelligence) tool. If you can disable collect APIs and connect Rakam to your SQL database with JDBC adapter and use Rakam application to query your data in your database. Rakam Web Application has various charting formats, supports parametrized SQL queries, custom pages that allows you to design pages with internal components.
+
+Here are some of the screenshots of the web application to give you the taste of Rakam:
+
+![Example Report](https://cloud.githubusercontent.com/assets/82745/10375762/efa39b42-6e02-11e5-8ec0-06b1648e4f63.png)
+![Dashboards Page](https://cloud.githubusercontent.com/assets/82745/10375760/efa2ca96-6e02-11e5-931e-e0b78f478111.png)
+![Example Parametrized Report](https://cloud.githubusercontent.com/assets/82745/10375761/efa2f368-6e02-11e5-8db4-2ecad5024f60.png)
+![People Page](https://cloud.githubusercontent.com/assets/82745/10371727/678dddfe-6ded-11e5-9efa-e1ae8577e3a2.png)
+
 
 Contribution
 ------------
 Currently I'm actively working on Rakam. If you want to contribute the project or suggest an idea feel free to fork it or create a ticket for your suggestion. I promise to respond you ASAP.
+The purpose of Rakam is being generic data analysis tool that can be a solution for many use cases. Rakam still needs too much work and will be evolved based on people's needs so your thoughts are important.
