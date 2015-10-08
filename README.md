@@ -34,7 +34,7 @@ If your event data-set can fit in a single server, we recommend using Postgresql
 
 However Rakam is designed to be highly scalable in order to provide a solution for high work-loads. You can configure Rakam to send events to a distributed commit-log such as Apache Kafka or Amazon Kinesis in serialized Apache Avro format and process data in PrestoDB workers and store them in a distributed filesystem in a columnar format.
 
-You can easily deploy Rakam to Heroku using Heroku button, it setup a Heroku Postgresql instance for you and use Postgresql deployment type.
+You can easily deploy Rakam to Heroku using Heroku button, it setups a Heroku Postgresql instance for you and use Postgresql deployment type.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
 
@@ -46,9 +46,9 @@ Web application
 ------------
 This repository contains Rakam API server that allows you to interact with Rakam using a REST interface. If you already have a frontend and developed a custom analytics service based on Rakam, it's all you need.
 
-However, we also developed Rakam Web Application that allows you to analyze your user and event data-set bu performing SQL queries, visualising your data in various charts, creating (realtime) dashboards and custom reports. You can turn Rakam into a analytics web service similar to Mixpanel, Kissmetrics and Localytics using the web application. Otherwise, Rakam is similar to Keen.io with SQL as query language and some extra features.
+However, we also developed Rakam Web Application that allows you to analyze your user and event data-set but performing SQL queries, visualising your data in various charts, creating (real-time) dashboards and custom reports. You can turn Rakam into a analytics web service similar to Mixpanel, Kissmetrics and Localytics using the web application. Otherwise, Rakam is similar to Keen.io with SQL as query language and some extra features.
 
-Another nice property of Rakam web application is being BI (Business Intelligence) tool. If you can disable collect APIs and connect Rakam to your SQL database with JDBC adapter and use Rakam application to query your data in your database. Rakam Web Application has various charting formats, supports parametrized SQL queries, custom pages that allows you to design pages with internal components.
+Another nice property of Rakam web application is being BI (Business Intelligence) tool. If you can disable collect APIs and connect Rakam to your SQL database with JDBC adapter and use Rakam application to query your data in your database. Rakam Web Application has various charting formats, supports parameterized SQL queries, custom pages that allows you to design pages with internal components.
 
 Here are some of the screenshots of the web application to give you the taste of Rakam:
 
