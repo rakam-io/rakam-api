@@ -51,11 +51,14 @@ However, we also developed Rakam Web Application that allows you to analyze your
 Another nice property of Rakam web application is being BI (Business Intelligence) tool. If you can disable collect APIs and connect Rakam to your SQL database with JDBC adapter and use Rakam application to query your data in your database. Rakam Web Application has various charting formats, supports parameterized SQL queries, custom pages that allows you to design pages with internal components.
 
 Here are some of the screenshots of the web application to give you the taste of Rakam:
-
-![Example Report](https://cloud.githubusercontent.com/assets/82745/10375762/efa39b42-6e02-11e5-8ec0-06b1648e4f63.png)
-![Dashboards Page](https://cloud.githubusercontent.com/assets/82745/10375760/efa2ca96-6e02-11e5-931e-e0b78f478111.png)
+Example Report
+![Example Report](https://cloud.githubusercontent.com/assets/82745/10379265/1ea20b6e-6e16-11e5-86e5-22561c73228e.png)
+Dashboard Page
+![Dashboards Page](https://cloud.githubusercontent.com/assets/82745/10379255/1e082f9e-6e16-11e5-81bd-368a4a7c2aa1.png)
+Example Parametrized Report
 ![Example Parametrized Report](https://cloud.githubusercontent.com/assets/82745/10375761/efa2f368-6e02-11e5-8db4-2ecad5024f60.png)
-![People Page](https://cloud.githubusercontent.com/assets/82745/10371727/678dddfe-6ded-11e5-9efa-e1ae8577e3a2.png)
+People Page
+![People Page](https://cloud.githubusercontent.com/assets/82745/10379256/1e11c694-6e16-11e5-8a49-5eee6e74f112.png)
 
 
 Contribution
