@@ -18,8 +18,44 @@
     "heroku-postgresql:hobby-dev"
   ],
   "env": {
-    "RAKAM_GEOIP_ENABLE": {
-      "description": "Enable GeoIP module. It attaches location information to collections that has 'ip' attribute.",
+    "ENABLE_UI": {
+      "description": "Install web application for Rakam. If you disable it, only API server will be installed",
+      "value": "true"
+    },
+    "ENABLE_GEOIP_PLUGIN": {
+      "description": "GeoIP attaches location information to collections that has 'ip' attribute.",
+      "value": "true"
+    },
+    "GEOIP_DATABASE_URL": {
+      "description": "Maxmind GeoIP database url. Community version of Maxmind GeoIP is used by default but you can also provide your database URL",
+      "value": "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz"
+    },
+    "ENABLE_USER_PLUGIN": {
+      "description": "User module is basically a CRM integrated with your analytics service.",
+      "value": "true"
+    },
+    "ENABLE_USER_MAILBOX_PLUGIN": {
+      "description": "User mailbox module setups a mailbox for each user and allows you to send message to users and receive message from them.",
+      "value": "true"
+    },
+    "ENABLE_REALTIME_PLUGIN": {
+      "description": "Real-time module allows you to create real-time reports for your dashboards.",
+      "value": "true"
+    },
+    "ENABLE_EVENT_STREAM_PLUGIN": {
+      "description": "Event stream plugin subscribes event streams and notifies new events to you in real-time.",
+      "value": "true"
+    },
+    "ENABLE_EVENT_EXPLORER_PLUGIN": {
+      "description": "Event explorer plugin subscribes event streams and notifies new events to you in real-time.",
+      "value": "true"
+    },
+    "ENABLE_FUNNEL_PLUGIN": {
+      "description": "Funnel plugin depends on user attribute of events and allows you to run funnel queries.",
+      "value": "true"
+    },
+    "ENABLE_RETENTION_ANALYSIS_PLUGIN": {
+      "description": "Retention analysis plugin depends on user attribute of events and allows you to run retention queries.",
       "value": "true"
     }
   }

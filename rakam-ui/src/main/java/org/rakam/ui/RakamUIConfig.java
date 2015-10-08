@@ -22,10 +22,20 @@ public class RakamUIConfig {
     private File uiDirectory = new File("rakam-ui/src/main/resources/rakam-ui-master/app");
     private RakamUIModule.CustomPageBackend customPageBackend;
     private File customPageBackendDirectory;
+    private boolean enableUi = true;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
         this.uiDirectory = uiDirectory;
+        return this;
+    }
+
+    public boolean getEnableUI() {
+        return enableUi;
+    }
+    @Config("ui.directory")
+    public RakamUIConfig setEnableUI(boolean enableUi) {
+        this.enableUi = enableUi;
         return this;
     }
 
