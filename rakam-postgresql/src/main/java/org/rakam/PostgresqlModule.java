@@ -32,10 +32,6 @@ public class PostgresqlModule extends RakamModule {
                 .annotatedWith(Names.named("store.adapter.postgresql"))
                 .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
-        binder.bind(JDBCPoolDataSource.class)
-                .annotatedWith(Names.named("report.metadata.store.jdbc"))
-                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
-
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).in(Scopes.SINGLETON);
         // TODO: implement postgresql specific materialized view service
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
@@ -47,7 +43,14 @@ public class PostgresqlModule extends RakamModule {
         binder.bind(AbstractUserService.class).to(PostgresqlUserService.class).in(Scopes.SINGLETON);
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
 
-        binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class).in(Scopes.SINGLETON);;
+        // use same jdbc pool if report.metadata.store is not set explicitly.
+        if(getConfig("report.metadata.store") == null) {
+            binder.bind(JDBCPoolDataSource.class)
+                    .annotatedWith(Names.named("report.metadata.store.jdbc"))
+                    .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
+
+            binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class).in(Scopes.SINGLETON);
+        }
 
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PostgresqlEventExplorer.class);
