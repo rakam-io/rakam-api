@@ -2,6 +2,9 @@ package org.rakam.plugin;
 
 import io.airlift.configuration.Config;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 
 public class JDBCConfig {
     private String url;
@@ -11,8 +14,15 @@ public class JDBCConfig {
     private Integer maxConnection;
 
     @Config("url")
-    public JDBCConfig setUrl(String configLocation) {
-        this.url = configLocation;
+    public JDBCConfig setUrl(String url) throws URISyntaxException {
+        if(url.startsWith("jdbc:")) {
+            this.url = url;
+        } else {
+            URI dbUri = new URI(url);
+            this.username = dbUri.getUserInfo().split(":")[0];
+            this.password = dbUri.getUserInfo().split(":")[1];
+            this.url =  "jdbc:"+ convertScheme(dbUri.getScheme()) +"://" + dbUri.getHost() + ':' + dbUri.getPort() + dbUri.getPath();
+        }
         return this;
     }
 
@@ -59,4 +69,14 @@ public class JDBCConfig {
     public String getTable() {
         return table;
     }
+
+    public String convertScheme(String scheme) {
+        switch (scheme) {
+            case "postgres":
+                return "postgresql";
+            default:
+                return scheme;
+        }
+    }
+
 }

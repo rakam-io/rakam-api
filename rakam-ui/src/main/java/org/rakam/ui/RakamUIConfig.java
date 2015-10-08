@@ -14,13 +14,14 @@
 package org.rakam.ui;
 
 import io.airlift.configuration.Config;
+import org.rakam.ui.RakamUIModule.CustomPageBackend;
 
 import java.io.File;
 import java.util.Locale;
 
 public class RakamUIConfig {
     private File uiDirectory = new File("rakam-ui/src/main/resources/rakam-ui-master/app");
-    private RakamUIModule.CustomPageBackend customPageBackend;
+    private CustomPageBackend customPageBackend = CustomPageBackend.JDBC;
     private File customPageBackendDirectory;
     private boolean enableUi = true;
 
@@ -45,11 +46,11 @@ public class RakamUIConfig {
 
     @Config("ui.custom-page.backend")
     public RakamUIConfig setCustomPageBackend(String customPageBackend) {
-        this.customPageBackend = RakamUIModule.CustomPageBackend.valueOf(customPageBackend.toUpperCase(Locale.CHINESE));
+        this.customPageBackend = CustomPageBackend.valueOf(customPageBackend.toUpperCase(Locale.CHINESE));
         return this;
     }
 
-    public RakamUIModule.CustomPageBackend getCustomPageBackend() {
+    public CustomPageBackend getCustomPageBackend() {
         return customPageBackend;
     }
 
