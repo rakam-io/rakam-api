@@ -34,7 +34,7 @@ If your event data-set can fit in a single server, we recommend using Postgresql
 
 However Rakam is designed to be highly scalable in order to provide a solution for high work-loads. You can configure Rakam to send events to a distributed commit-log such as Apache Kafka or Amazon Kinesis in serialized Apache Avro format and process data in PrestoDB workers and store them in a distributed filesystem in a columnar format.
 
-You can easily deploy Rakam to Heroku using Heroku button, it setups a Heroku Postgresql instance for you and use Postgresql deployment type.
+You can easily deploy Rakam to Heroku using Heroku button, it adds Heroku Postgresql add-on to your app and use Postgresql deployment type.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
 
