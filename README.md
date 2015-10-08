@@ -52,12 +52,16 @@ Another nice property of Rakam web application is being BI (Business Intelligenc
 
 Here are some of the screenshots of the web application to give you the taste of Rakam:
 Example Report
+-----
 ![Example Report](https://cloud.githubusercontent.com/assets/82745/10379265/1ea20b6e-6e16-11e5-86e5-22561c73228e.png)
 Dashboard Page
+-----
 ![Dashboards Page](https://cloud.githubusercontent.com/assets/82745/10379255/1e082f9e-6e16-11e5-81bd-368a4a7c2aa1.png)
 Example Parametrized Report
+-----
 ![Example Parametrized Report](https://cloud.githubusercontent.com/assets/82745/10375761/efa2f368-6e02-11e5-8db4-2ecad5024f60.png)
 People Page
+-----
 ![People Page](https://cloud.githubusercontent.com/assets/82745/10379256/1e11c694-6e16-11e5-8a49-5eee6e74f112.png)
 
 
