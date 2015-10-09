@@ -12,6 +12,7 @@ import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.util.ProjectCollection;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,7 +34,7 @@ public class PostgresqlMetastore implements Metastore {
     JDBCPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlMetastore(JDBCPoolDataSource connectionPool) {
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
 
         try(Connection connection = connectionPool.openConnection()) {
