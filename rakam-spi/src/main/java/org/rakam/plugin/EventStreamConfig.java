@@ -17,7 +17,7 @@ import io.airlift.configuration.Config;
 
 
 public class EventStreamConfig {
-    private boolean enabled;
+    private boolean enabled = true;
 
     @Config("event.stream.enabled")
     public void setEventStreamEnabled(boolean enabled) {

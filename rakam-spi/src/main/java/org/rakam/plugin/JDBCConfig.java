@@ -21,7 +21,7 @@ public class JDBCConfig {
             URI dbUri = new URI(url);
             this.username = dbUri.getUserInfo().split(":")[0];
             this.password = dbUri.getUserInfo().split(":")[1];
-            this.url =  "jdbc:"+ convertScheme(dbUri.getScheme()) +"://" + dbUri.getHost() + ':' + dbUri.getPort() + dbUri.getPath();
+            this.url =  "jdbc:"+ convertScheme(dbUri.getScheme()) +"://" + dbUri.getHost() + ':' + dbUri.getPort() + dbUri.getPath() + "?" + dbUri.getQuery();
         }
         return this;
     }

@@ -34,7 +34,8 @@ public class RakamUIConfig {
     public boolean getEnableUI() {
         return enableUi;
     }
-    @Config("ui.directory")
+
+    @Config("ui.enable")
     public RakamUIConfig setEnableUI(boolean enableUi) {
         this.enableUi = enableUi;
         return this;

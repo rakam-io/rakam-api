@@ -3,6 +3,7 @@ package org.rakam.collection.mapper.geoip;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 
 import java.util.List;
 
@@ -41,7 +42,10 @@ public class GeoIPModuleConfig {
         this.databaseUrl = type;
         return this;
     }
+
     @Config("plugin.geoip.attributes")
+    @ConfigDescription("The list of attributes that will be attached to event. " +
+            "Available attributes: country, country_code, region,city, latitude, longitude, timezone")
     public GeoIPModuleConfig setAttributes(String attributes)
     {
         this.attributes = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(attributes));

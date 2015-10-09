@@ -8,12 +8,25 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
-import org.rakam.analysis.*;
-import org.rakam.analysis.postgresql.*;
+import org.rakam.analysis.EventExplorer;
+import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.JDBCQueryMetadata;
+import org.rakam.analysis.postgresql.PostgresqlContinuousQueryService;
+import org.rakam.analysis.postgresql.PostgresqlEventStore;
+import org.rakam.analysis.postgresql.PostgresqlMaterializedViewService;
+import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
-import org.rakam.plugin.*;
-import org.rakam.plugin.user.PostgresqlUserService;
+import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.plugin.EventExplorerConfig;
+import org.rakam.plugin.EventStore;
+import org.rakam.plugin.EventStream;
+import org.rakam.plugin.JDBCConfig;
+import org.rakam.plugin.MaterializedViewService;
+import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEventListener;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlEventExplorer;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
@@ -40,7 +53,6 @@ public class PostgresqlModule extends RakamModule {
                 .setBinding()
                 .to(PostgresqlContinuousQueryService.class).in(Scopes.SINGLETON);
         binder.bind(EventStream.class).to(PostgresqlEventStream.class);
-        binder.bind(AbstractUserService.class).to(PostgresqlUserService.class).in(Scopes.SINGLETON);
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
@@ -59,15 +71,7 @@ public class PostgresqlModule extends RakamModule {
             events.addBinding().to(EventExplorerListener.class).in(Scopes.SINGLETON);
         }
 
-        UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
-        if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
-        }
-
-        if (userPluginConfig.isRetentionAnalysisEnabled()) {
-            binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
-        }
     }
 
     @Override

@@ -29,7 +29,6 @@ public class PostgresqlUserService extends AbstractUserService {
     }
 
     @Override
-    // TODO: fixme: type inference doesn't work here due to a JDK bug.
     public CompletableFuture getEvents(String project, String user, int limit, long offset) {
         checkProject(project);
         checkNotNull(user);

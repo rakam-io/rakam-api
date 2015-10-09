@@ -1,7 +1,5 @@
 package org.rakam.ui;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.inject.Inject;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
@@ -12,15 +10,12 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
-import org.rakam.plugin.EventExplorerConfig;
-import org.rakam.plugin.EventStreamConfig;
-import org.rakam.plugin.RealTimeConfig;
-import org.rakam.plugin.UserPluginConfig;
-import org.rakam.plugin.UserStorage;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
 
 import javax.activation.MimetypesFileTypeMap;
+import javax.inject.Inject;
 import javax.ws.rs.Path;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -37,20 +32,9 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.DATE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
-import static io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.LAST_MODIFIED;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpMethod.GET;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 
@@ -66,56 +50,6 @@ public class RakamUIWebService extends HttpService {
     public RakamUIWebService(RakamUIConfig config, ActiveModuleListBuilder activeModuleListBuilder) {
         activeModules = activeModuleListBuilder.build();
         directory = config.getUIDirectory();
-    }
-
-    private static class ActiveModuleListBuilder {
-        private final UserPluginConfig userPluginConfig;
-        private final RealTimeConfig realtimeConfig;
-        private final EventStreamConfig eventStreamConfig;
-        private final EventExplorerConfig eventExplorerConfig;
-        private final UserStorage userStorage;
-
-        @Inject
-        public ActiveModuleListBuilder(UserPluginConfig userPluginConfig, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserStorage userStorage) {
-           this.userPluginConfig = userPluginConfig;
-           this.realtimeConfig = realtimeConfig;
-           this.eventStreamConfig = eventStreamConfig;
-           this.eventExplorerConfig = eventExplorerConfig;
-           this.userStorage = userStorage;
-        }
-
-        public ActiveModuleList build() {
-            return new ActiveModuleList(userPluginConfig, realtimeConfig, eventStreamConfig, eventExplorerConfig, userStorage);
-        }
-    }
-    private static class ActiveModuleList {
-        @JsonProperty
-        private final boolean userStorage;
-        @JsonProperty
-        private final boolean userMailbox;
-        @JsonProperty
-        private final boolean funnelAnalysisEnabled;
-        @JsonProperty
-        private final boolean retentionAnalysisEnabled;
-        @JsonProperty
-        private final boolean eventExplorer;
-        @JsonProperty
-        private final boolean realtime;
-        @JsonProperty
-        private final boolean eventStream;
-        @JsonProperty
-        private final boolean userStorageEventFilter;
-
-        private ActiveModuleList(UserPluginConfig userPluginConfig, RealTimeConfig realtimeConfig, EventStreamConfig eventStreamConfig, EventExplorerConfig eventExplorerConfig, UserStorage userStorage) {
-            this.userStorage = userPluginConfig.getStorageModule() != null;
-            this.userMailbox = userPluginConfig.getMailBoxStorageModule() != null;
-            this.funnelAnalysisEnabled = userPluginConfig.isFunnelAnalysisEnabled();
-            this.retentionAnalysisEnabled = userPluginConfig.isRetentionAnalysisEnabled();
-            this.eventExplorer = eventExplorerConfig.isEventExplorerEnabled();
-            this.realtime = realtimeConfig.isRealtimeModuleEnabled();
-            this.eventStream = eventStreamConfig.isEventStreamEnabled();
-            this.userStorageEventFilter = userStorage.isEventFilterSupported();
-        }
     }
 
     @Path("/ui/active-modules")

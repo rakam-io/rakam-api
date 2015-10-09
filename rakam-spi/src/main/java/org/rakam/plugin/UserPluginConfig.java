@@ -15,8 +15,8 @@ public class UserPluginConfig {
     private String sessionColumn;
     private String lastSeenColumn;
     private String identifierColumn;
-    private boolean funnelAnalysisEnabled;
-    private boolean retentionAnalysisEnabled;
+    private boolean funnelAnalysisEnabled = true;
+    private boolean retentionAnalysisEnabled = true;
 
     @Config("plugin.user.storage.identifier_column")
     public UserPluginConfig setIdentifierColumn(String colName) {
