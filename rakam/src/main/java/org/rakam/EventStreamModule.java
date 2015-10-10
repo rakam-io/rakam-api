@@ -40,6 +40,6 @@ public class EventStreamModule extends RakamModule {
 
     @Override
     public String description() {
-        return null;
+        return "Subscribes event stream and notifies new events in real-time";
     }
 }

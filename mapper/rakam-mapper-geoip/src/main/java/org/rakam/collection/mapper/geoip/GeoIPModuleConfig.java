@@ -10,7 +10,7 @@ import java.util.List;
 public class GeoIPModuleConfig {
     private String database;
     private List<String> attributes;
-    private String databaseUrl;
+    private String databaseUrl = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz";
     private SourceType source = SourceType.ip_field;
 
     public enum SourceType {

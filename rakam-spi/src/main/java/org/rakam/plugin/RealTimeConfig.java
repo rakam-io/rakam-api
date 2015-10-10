@@ -7,7 +7,6 @@ import io.airlift.units.MinDuration;
 
 public class RealTimeConfig {
     private Duration timeout = Duration.valueOf("45s");
-    private Duration updateInterval = Duration.valueOf("5s");
     private boolean enabled;
 
     @Config("real-time.enabled")

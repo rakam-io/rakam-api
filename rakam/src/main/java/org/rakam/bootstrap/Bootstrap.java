@@ -13,17 +13,27 @@ import com.google.inject.Stage;
 import com.google.inject.spi.Message;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.bootstrap.LifeCycleModule;
-import io.airlift.configuration.*;
+import io.airlift.configuration.ConfigurationAwareModule;
+import io.airlift.configuration.ConfigurationFactory;
+import io.airlift.configuration.ConfigurationInspector;
+import io.airlift.configuration.ConfigurationLoader;
+import io.airlift.configuration.ConfigurationModule;
+import io.airlift.configuration.ConfigurationValidator;
+import io.airlift.configuration.ValidationErrorModule;
+import io.airlift.configuration.WarningsMonitor;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.airlift.log.LoggingConfiguration;
-import org.rakam.SystemRegistry;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 
 import java.io.PrintWriter;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import static com.google.common.collect.Maps.fromProperties;
 
@@ -161,6 +171,8 @@ public class Bootstrap
             logging.configure(messages1);
         }
 
+        verifyUniqueModuleNames();
+
         // create warning logger now that we have logging initialized
         final WarningsMonitor warningsMonitor = message -> log.warn(message);
 
@@ -187,6 +199,7 @@ public class Bootstrap
         // Validate configuration
         ConfigurationValidator configurationValidator = new ConfigurationValidator(configurationFactory, warningsMonitor);
         List<Message> messages;
+
         try {
             messages = configurationValidator.validate(installedModules);
         } catch (Exception e) {
@@ -230,14 +243,9 @@ public class Bootstrap
                 }
             });
         }
+
         moduleList.add(binder -> {
-            SystemRegistry systemRegistry = new SystemRegistry(installedModules.stream()
-                    .filter(module -> module instanceof RakamModule)
-                    .map(module -> {
-                        RakamModule rakamModule = (RakamModule) module;
-                        return new SystemRegistry.Module(rakamModule.name(), rakamModule.description(), rakamModule.getClass().getName());
-                    }).collect(Collectors.toList()));
-            binder.bind(SystemRegistry.class).toInstance(systemRegistry);
+            binder.bind(SystemRegistry.class).toInstance(new SystemRegistry(modules, installedModules));
         });
 
         moduleList.addAll(installedModules);
@@ -259,6 +267,21 @@ public class Bootstrap
         }
 
         return injector;
+    }
+
+    private void verifyUniqueModuleNames() {
+        HashMap<String, Module> strings = new HashMap<>();
+
+        for (Module module : modules) {
+            if(module instanceof RakamModule) {
+                String name = ((RakamModule) module).name();
+                if(strings.containsKey(name)) {
+                    throw new IllegalStateException(String.format("Multiple modules with same name found: %s and %s have the same name %s",
+                            module.getClass().getName(), strings.get(name).getClass().getName(), name));
+                }
+            }
+        }
+
     }
 
     private static final String PROPERTY_NAME_COLUMN = "PROPERTY";

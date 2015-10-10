@@ -1,7 +1,5 @@
 package org.rakam;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
@@ -18,8 +16,6 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.configuration.ConfigurationFactory;
-import io.airlift.configuration.ConfigurationInspector;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -86,7 +82,7 @@ public class ServiceStarter {
             builder.add(rakamModule);
         }
 
-        builder.add(new ServiceRecipe(), new ConfigInspectorModule());
+        builder.add(new ServiceRecipe());
 
         Bootstrap app = new Bootstrap(builder.build());
         app.requireExplicitBindings(false);
@@ -188,46 +184,6 @@ public class ServiceStarter {
         }
 
 
-    }
-
-    public static class ConfigInspectorModule extends AbstractConfigurationAwareModule {
-
-        private ConfigurationFactory configurationFactory;
-
-        @Override
-        public synchronized void setConfigurationFactory(ConfigurationFactory configurationFactory) {
-            super.setConfigurationFactory(configurationFactory);
-            this.configurationFactory = configurationFactory;
-        }
-
-        @Override
-        protected void setup(Binder binder) {
-            ConfigurationInspector configurationInspector = new ConfigurationInspector();
-            ImmutableList.Builder<ConfigItem> builder = ImmutableList.builder();
-            for (ConfigurationInspector.ConfigRecord<?> config : configurationInspector.inspect(configurationFactory)) {
-                for (ConfigurationInspector.ConfigAttribute configAttribute : config.getAttributes()) {
-                    ConfigItem configItem = new ConfigItem(configAttribute.getPropertyName(), configAttribute.getDefaultValue(), configAttribute.getDescription());
-                    builder.add(configItem);
-                }
-            }
-
-            binder.bind(new TypeLiteral<List<ConfigItem>>(){}).toInstance(builder.build());
-        }
-
-        public static class ConfigItem {
-            public final String property;
-            public final String defaultValue;
-            public final String description;
-
-            @JsonCreator
-            public ConfigItem(@JsonProperty("property") String property,
-                              @JsonProperty("defaultValue") String defaultValue,
-                              @JsonProperty("description") String description) {
-                this.property = property;
-                this.defaultValue = defaultValue;
-                this.description = description;
-            }
-        }
     }
 
     public static boolean isAccessibleDirectory(Path directory) {

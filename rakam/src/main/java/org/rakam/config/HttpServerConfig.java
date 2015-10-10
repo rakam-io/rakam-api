@@ -7,7 +7,7 @@ public class HttpServerConfig {
     private static final int RAKAM_DEFAULT_PORT = 9999;
     private static final String RAKAM_DEFAULT_HOST = "0.0.0.0";
 
-    private HostAndPort address;
+    private HostAndPort address = HostAndPort.fromParts(RAKAM_DEFAULT_HOST, RAKAM_DEFAULT_PORT);
     private boolean disabled;
 
     @Config("http.server.address")

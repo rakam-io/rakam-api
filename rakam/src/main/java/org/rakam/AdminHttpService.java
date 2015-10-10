@@ -1,6 +1,6 @@
 package org.rakam;
 
-import org.rakam.ServiceStarter.ConfigInspectorModule.ConfigItem;
+import org.rakam.bootstrap.SystemRegistry;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -16,12 +16,10 @@ import java.util.List;
 @Api(value = "/admin", description = "System operations", tags = "admin")
 public class AdminHttpService extends HttpService {
     private final SystemRegistry systemRegistry;
-    private final List<ConfigItem> configItems;
 
     @Inject
-    public AdminHttpService(SystemRegistry systemRegistry, List<ConfigItem> configItems) {
+    public AdminHttpService(SystemRegistry systemRegistry) {
         this.systemRegistry = systemRegistry;
-        this.configItems = configItems;
     }
 
 
@@ -30,17 +28,7 @@ public class AdminHttpService extends HttpService {
     )
     @GET
     @Path("/modules")
-    public List<SystemRegistry.Module> getModules() {
+    public List<SystemRegistry.ModuleDescriptor> getModules() {
         return systemRegistry.getModules();
-    }
-
-
-    @ApiOperation(value = "List configurations",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
-    )
-    @GET
-    @Path("/configs")
-    public List<ConfigItem> getConfiguration() {
-        return configItems;
     }
 }
