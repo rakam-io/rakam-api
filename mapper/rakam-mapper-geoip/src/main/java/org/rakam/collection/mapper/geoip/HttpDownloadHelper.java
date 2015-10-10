@@ -1,3 +1,21 @@
+/*
+ * Licensed to Elasticsearch under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.rakam.collection.mapper.geoip;
 
 import java.io.Closeable;
@@ -12,10 +30,15 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 
+/*
+    Mostly taken from org.elasticsearch.common.http.client.HttpDownloadHelper
+ */
 public class HttpDownloadHelper {
+    private static final Duration maxDuration = Duration.ofMinutes(2);
 
     private boolean useTimestamp = false;
     private boolean skipExisting = false;
@@ -44,10 +67,10 @@ public class HttpDownloadHelper {
         try {
             getThread.setDaemon(true);
             getThread.start();
-            getThread.join(50000);
+            getThread.join(maxDuration.toMillis());
 
             if (getThread.isAlive()) {
-                throw new RuntimeException("The GET operation took longer than " + 50000 + ", stopping it.");
+                throw new RuntimeException("The GET operation took longer than " + maxDuration.getSeconds() + "s, stopping it.");
             }
         }
         catch (InterruptedException ie) {
@@ -60,30 +83,12 @@ public class HttpDownloadHelper {
     }
 
 
-    /**
-     * Interface implemented for reporting
-     * progress of downloading.
-     */
     public interface DownloadProgress {
-        /**
-         * begin a download
-         */
         void beginDownload();
-
-        /**
-         * tick handler
-         */
         void onTick();
-
-        /**
-         * end a download
-         */
         void endDownload();
     }
 
-    /**
-     * do nothing with progress info
-     */
     public static class NullProgress implements DownloadProgress {
         @Override
         public void beginDownload() {
@@ -100,9 +105,6 @@ public class HttpDownloadHelper {
         }
     }
 
-    /**
-     * verbose progress system prints to some output stream
-     */
     public static class VerboseProgress implements DownloadProgress {
         private int dots = 0;
         PrintWriter writer;
@@ -217,7 +219,7 @@ public class HttpDownloadHelper {
                 connection.setUseCaches(true);
                 connection.setConnectTimeout(5000);
             }
-            connection.setRequestProperty("User-Agent", "elasticsearch-plugin-manager");
+            connection.setRequestProperty("User-Agent", "rakam-plugin-manager");
 
             // connect to the remote site (may take some time)
             connection.connect();
@@ -277,7 +279,7 @@ public class HttpDownloadHelper {
             progress.beginDownload();
             boolean finished = false;
             try {
-                byte[] buffer = new byte[1024 * 100];
+                byte[] buffer = new byte[1024 * 500];
                 int length;
                 while (!isInterrupted() && (length = is.read(buffer)) >= 0) {
                     os.write(buffer, 0, length);
