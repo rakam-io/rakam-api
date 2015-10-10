@@ -38,9 +38,12 @@ You can easily deploy Rakam to Heroku using Heroku button, it adds Heroku Postgr
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
 
-Or use Docker image: (Not ready at the moment)
+Or use Docker image:
 
     docker run -d --name rakam -p 9999:9999 buremba/rakam
+    
+You can config the Rakam instance running on Docker container with environment variables. All properties in config.properties file can be set via RAKAM_property_name_dots_replaced_by_underscore. For example, if you want to set *store.adapter=postgresql* you can set environment variable *RAKAM_STORE_ADAPTER=postgresql* for your Docker container and it will generate config.properties from environment variables that start with *RAKAM_* prefix. *--env-file* flag for *docker run* is a good way of creating your Docker containers for Rakam, just define environment variables in a file and use it to create Rakam instances running on Docker containers.
+If Dockerfile can't find any enviroment variable starts with *RAKAM_*, it installs Postgresql node in same container and use it as backend data-store.
 
 Web application
 ------------
