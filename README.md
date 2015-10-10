@@ -42,7 +42,9 @@ Or use Docker image:
 
     docker run -d --name rakam -p 9999:9999 buremba/rakam
     
-You can config the Rakam instance running on Docker container with environment variables. All properties in config.properties file can be set via environment variable <sup>RAKAM_property_name_dots_replaced_by_underscore</sup>. For example, if you want to set *store.adapter=postgresql* you can set environment variable *RAKAM_STORE_ADAPTER=postgresql* for your Docker container and it will generate config.properties from environment variables that start with *RAKAM_* prefix. *--env-file* flag for *docker run* is a good way of creating your Docker containers for Rakam, just define environment variables in a file and use it to create Rakam instances running on Docker containers.
+You can config the Rakam instance running on Docker container with environment variables. All properties in config.properties file can be set via environment variable <sup>RAKAM_property_name_dots_replaced_by_underscore</sup>. For example, if you want to set *store.adapter=postgresql* you need to set environment variable *RAKAM_STORE_ADAPTER=postgresql*. Dockerfile will generate config.properties from environment variables in docker container that start with *RAKAM_* prefix.
+
+In order to set environment variables for containers, you may use *-e* flag for for *docker run* but we advice you to set all enviroment variables in a file and use  *--env-file* flag when running your container. Then you can share same file among the Rakam containers.
 If Dockerfile can't find any enviroment variable starts with *RAKAM_*, it installs Postgresql node in same container and use it as backend data-store.
 
 Web application
