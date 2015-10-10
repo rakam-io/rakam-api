@@ -14,7 +14,7 @@ Features / Goals
 Rakam is a super-fast modular analytics platform that gives you a set of features to create your own analytics service.
 
 Typical workflow of using Rakam:
-* Collect data from your clients using **[client Libraries](https://getrakam/doc)**
+* Collect data from your clients using **[client libraries](https://getrakam/doc)**
 * Make your event data richer with **[event mappers](https://getrakam/doc)** (ip-to-geolocation, referrer and user-agent parsers)
 * Process data in real-time and pre-aggregate using **[continuous queries](https://getrakam/doc)** (Stream processing with SQL!),
 * Store data in a **[data warehouse](https://getrakam.com)** to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
@@ -42,7 +42,7 @@ Or use Docker image:
 
     docker run -d --name rakam -p 9999:9999 buremba/rakam
     
-You can config the Rakam instance running on Docker container with environment variables. All properties in config.properties file can be set via RAKAM_property_name_dots_replaced_by_underscore. For example, if you want to set *store.adapter=postgresql* you can set environment variable *RAKAM_STORE_ADAPTER=postgresql* for your Docker container and it will generate config.properties from environment variables that start with *RAKAM_* prefix. *--env-file* flag for *docker run* is a good way of creating your Docker containers for Rakam, just define environment variables in a file and use it to create Rakam instances running on Docker containers.
+You can config the Rakam instance running on Docker container with environment variables. All properties in config.properties file can be set via environment variable <sup>RAKAM_property_name_dots_replaced_by_underscore</sup>. For example, if you want to set *store.adapter=postgresql* you can set environment variable *RAKAM_STORE_ADAPTER=postgresql* for your Docker container and it will generate config.properties from environment variables that start with *RAKAM_* prefix. *--env-file* flag for *docker run* is a good way of creating your Docker containers for Rakam, just define environment variables in a file and use it to create Rakam instances running on Docker containers.
 If Dockerfile can't find any enviroment variable starts with *RAKAM_*, it installs Postgresql node in same container and use it as backend data-store.
 
 Web application
