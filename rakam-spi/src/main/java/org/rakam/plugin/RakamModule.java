@@ -4,6 +4,7 @@ import com.google.inject.Binder;
 import io.airlift.configuration.ConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 
+import javax.validation.constraints.NotNull;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -73,6 +74,7 @@ public abstract class RakamModule implements ConfigurationAwareModule {
 
     protected abstract void setup(Binder binder);
 
+    @NotNull
     public abstract String name();
 
     public abstract String description();

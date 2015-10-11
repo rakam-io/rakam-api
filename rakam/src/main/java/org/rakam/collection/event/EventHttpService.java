@@ -22,7 +22,6 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.AuthorizationScope;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -38,10 +37,7 @@ import java.util.List;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableMap.of;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/event")
@@ -99,7 +95,7 @@ public class EventHttpService extends HttpService {
 
     @POST
     @ApiOperation(value = "Collect event",
-            authorizations = @Authorization(value = "api_key", type = "api_key", scopes = { @AuthorizationScope(scope = "add:pet", description = "") })
+            authorizations = @Authorization(value = "api_key", type = "api_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})

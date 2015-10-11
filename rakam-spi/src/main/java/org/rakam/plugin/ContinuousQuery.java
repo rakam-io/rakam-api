@@ -7,7 +7,6 @@ import com.facebook.presto.sql.tree.QueryBody;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.rakam.server.http.annotations.ApiParam;
 
@@ -19,29 +18,22 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ContinuousQuery {
     private final static SqlParser SQL_PARSER = new SqlParser();
-    @ApiParam(name = "project", required = true)
     public final String project;
-    @ApiParam(name = "name", value="The name of the continuous query", required = true)
     public final String name;
-    @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true)
     public final String query;
-    @ApiParam(name = "table_name", value="The table name of the continuous query that can be used when querying", required = true)
     public final String tableName;
-    @ApiParam(name = "collections", value="The source collections that will be streamed", required = true)
     public final List<String> collections;
-    @ApiParam(name = "partition_keys", value="Partition columns of the table", required = false)
     public final List<String> partitionKeys;
-    @ApiParam(name = "options", value="Additional information about the continuous query", required = false)
     public final Map<String, Object> options;
 
     @JsonCreator
-    public ContinuousQuery(@JsonProperty("project") String project,
-                           @JsonProperty("name") String name,
-                           @JsonProperty("table_name") String tableName,
-                           @JsonProperty("query") String query,
-                           @JsonProperty("collections") List<String> collections,
-                           @JsonProperty("partition_keys") List<String> partitionKeys,
-                           @JsonProperty("options") Map<String, Object> options)
+    public ContinuousQuery(@ApiParam(name = "project", required = true) String project,
+                           @ApiParam(name = "name", value="The name of the continuous query", required = true) String name,
+                           @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true) String tableName,
+                           @ApiParam(name = "table_name", value="The table name of the continuous query that can be used when querying", required = true) String query,
+                           @ApiParam(name = "collections", value="The source collections that will be streamed", required = true) List<String> collections,
+                           @ApiParam(name = "partition_keys", value="Partition columns of the table", required = false) List<String> partitionKeys,
+                           @ApiParam(name = "options", value="Additional information about the continuous query", required = false) Map<String, Object> options)
             throws ParsingException, IllegalArgumentException {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");

@@ -15,7 +15,6 @@ package org.rakam.ui;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
-import javax.inject.Inject;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -30,6 +29,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
 
+import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.IOException;
@@ -42,7 +42,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 
 @Path("/custom-page")
-@Api(value = "/custom-page", description = "Custom page module", tags = "report, ui")
+@Api(value = "/custom-page", description = "Custom page module", tags = "rakam-ui")
 public class CustomPageHttpService extends HttpService {
     private final CustomPageDatabase database;
 

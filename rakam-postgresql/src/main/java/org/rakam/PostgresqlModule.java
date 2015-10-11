@@ -76,12 +76,12 @@ public class PostgresqlModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "Postgresql Module";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Postgresql deployment type module";
     }
 
     public static class EventExplorerListener implements SystemEventListener {

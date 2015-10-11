@@ -26,11 +26,11 @@ public class KafkaCollectorModule extends RakamModule  {
 
     @Override
     public String name() {
-        return null;
+        return "Kafka Event Collector";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Sends events to Apache Kafka";
     }
 }

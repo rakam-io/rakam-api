@@ -14,21 +14,20 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
+import org.rakam.server.http.annotations.ApiParam;
 
 
 public class CustomReport {
     public final String reportType;
     public final String project;
     public final String name;
-    public final JsonNode data;
+    public final Object data;
 
     @JsonCreator
-    public CustomReport(@JsonProperty("report_type") String reportType,
-                        @JsonProperty("project") String project,
-                        @JsonProperty("name") String name,
-                        @JsonProperty("data") JsonNode data) {
+    public CustomReport(@ApiParam(name="report_type") String reportType,
+                        @ApiParam(name="project") String project,
+                        @ApiParam(name="name") String name,
+                        @ApiParam(name="data") Object data) {
         this.reportType = reportType;
         this.project = project;
         this.name = name;

@@ -2,7 +2,6 @@ package org.rakam.analysis;
 
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import io.airlift.units.Duration;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
@@ -12,10 +11,10 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import javax.inject.Inject;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 
 @Singleton
@@ -27,7 +26,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
         return new MaterializedView(
                 r.getString("project"),
                 r.getString("name"), r.getString("table_name"), r.getString("query"),
-                update_interval!= null ? new Duration(update_interval, TimeUnit.MILLISECONDS) : null,
+                update_interval!= null ? Duration.ofMillis(update_interval) : null,
                 // we can't use nice postgresql features since we also want to support mysql
                 JsonHelper.read(r.getString("options"), Map.class));
     };
