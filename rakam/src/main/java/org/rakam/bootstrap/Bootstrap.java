@@ -4,6 +4,7 @@ import com.google.common.annotations.Beta;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Guice;
@@ -32,6 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -40,7 +42,7 @@ import static com.google.common.collect.Maps.fromProperties;
 public class Bootstrap
 {
     private final Logger log = Logger.get(Bootstrap.class);
-    private final List<Module> modules;
+    private final Set<Module> modules;
 
     private Map<String, String> requiredConfigurationProperties;
     private Map<String, String> optionalConfigurationProperties;
@@ -58,7 +60,7 @@ public class Bootstrap
 
     public Bootstrap(Iterable<? extends Module> modules)
     {
-        this.modules = ImmutableList.copyOf(modules);
+        this.modules = ImmutableSet.copyOf(modules);
     }
 
     @Beta
@@ -176,7 +178,7 @@ public class Bootstrap
         // create warning logger now that we have logging initialized
         final WarningsMonitor warningsMonitor = message -> log.warn(message);
 
-        ImmutableList.Builder<Module> installedModulesBuilder = ImmutableList.builder();
+        ImmutableSet.Builder<Module> installedModulesBuilder = ImmutableSet.builder();
         // initialize configuration factory
         for (Module module : modules) {
             ConditionalModule annotation = module.getClass().getAnnotation(ConditionalModule.class);
@@ -194,7 +196,7 @@ public class Bootstrap
             }
             installedModulesBuilder.add(module);
         }
-        List<Module> installedModules = installedModulesBuilder.build();
+        Set<Module> installedModules = installedModulesBuilder.build();
 
         // Validate configuration
         ConfigurationValidator configurationValidator = new ConfigurationValidator(configurationFactory, warningsMonitor);

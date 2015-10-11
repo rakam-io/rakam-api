@@ -48,6 +48,9 @@ public class GeoIPEventMapper implements EventMapper {
         this.config = config;
         InputStream countryDatabase;
         if(config.getDatabase() != null) {
+            if(!config.getDatabase().exists()) {
+                throw new IllegalArgumentException("Database does not exist.");
+            }
             countryDatabase = new FileInputStream(config.getDatabase());
         } else
         if(config.getDatabaseUrl() != null) {

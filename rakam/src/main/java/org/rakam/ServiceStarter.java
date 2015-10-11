@@ -64,27 +64,14 @@ import static java.lang.String.format;
 
 
 public class ServiceStarter {
-    final static Logger LOGGER = Logger.get(ServiceStarter.class);
+    private final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
     public static void main(String[] args) throws Throwable {
         if (args.length > 0) {
             System.setProperty("config", args[0]);
         }
 
-        ImmutableSet.Builder<Module> builder = ImmutableSet.builder();
-        ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
-        for (Module module : modules) {
-            if (!(module instanceof RakamModule)) {
-                throw new IllegalStateException(format("Modules must be subclasses of org.rakam.module.RakamModule: %s",
-                        module.getClass().getName()));
-            }
-            RakamModule rakamModule = (RakamModule) module;
-            builder.add(rakamModule);
-        }
-
-        builder.add(new ServiceRecipe());
-
-        Bootstrap app = new Bootstrap(builder.build());
+        Bootstrap app = new Bootstrap(getModules());
         app.requireExplicitBindings(false);
         Injector injector = app.strictConfig().initialize();
 
@@ -100,6 +87,22 @@ public class ServiceStarter {
         }
 
         LOGGER.info("======== SERVER STARTED ========");
+    }
+
+    public static Set<Module> getModules() {
+        ImmutableSet.Builder<Module> builder = ImmutableSet.builder();
+        ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
+        for (Module module : modules) {
+            if (!(module instanceof RakamModule)) {
+                throw new IllegalStateException(format("Modules must be subclasses of org.rakam.module.RakamModule: %s",
+                        module.getClass().getName()));
+            }
+            RakamModule rakamModule = (RakamModule) module;
+            builder.add(rakamModule);
+        }
+
+        builder.add(new ServiceRecipe());
+        return builder.build();
     }
 
     @Singleton
@@ -149,6 +152,7 @@ public class ServiceStarter {
             binder().bind(HttpServer.class).toInstance(httpServer);
         }
     }
+
     public static class ServiceRecipe extends AbstractConfigurationAwareModule {
         @Override
         protected void setup(Binder binder) {

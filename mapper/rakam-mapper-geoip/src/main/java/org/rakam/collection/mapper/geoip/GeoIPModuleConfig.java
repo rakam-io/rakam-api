@@ -5,10 +5,11 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 
+import java.io.File;
 import java.util.List;
 
 public class GeoIPModuleConfig {
-    private String database;
+    private File database;
     private List<String> attributes;
     private String databaseUrl = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz";
     private SourceType source = SourceType.ip_field;
@@ -19,9 +20,9 @@ public class GeoIPModuleConfig {
     }
 
     @Config("plugin.geoip.database")
-    public GeoIPModuleConfig setDatabase(String type)
+    public GeoIPModuleConfig setDatabase(File database)
     {
-        this.database = type;
+        this.database = database;
         return this;
     }
 
@@ -52,7 +53,7 @@ public class GeoIPModuleConfig {
         return this;
     }
 
-    public String getDatabase() {
+    public File getDatabase() {
         return database;
     }
 

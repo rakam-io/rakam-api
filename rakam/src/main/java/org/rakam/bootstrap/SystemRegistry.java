@@ -13,16 +13,17 @@ import org.rakam.plugin.RakamModule;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SystemRegistry {
 
-    private final List<Module> modules;
-    private final List<Module> installedModules;
+    private final Set<Module> modules;
+    private final Set<Module> installedModules;
 
     private List<ModuleDescriptor> moduleDescriptors;
 
-    public SystemRegistry(List<Module> modules, List<Module> installedModules) {
+    public SystemRegistry(Set<Module> modules, Set<Module> installedModules) {
         this.modules = modules;
         this.installedModules = installedModules;
     }

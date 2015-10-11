@@ -17,7 +17,7 @@ public class GeoIPModule extends RakamModule {
         try {
             geoIPEventMapper = new GeoIPEventMapper(geoIPModuleConfig);
         } catch (IOException e) {
-            binder.addError("Error while loading GeoIP database %s", e.getMessage());
+            binder.addError(e);
             return;
         }
         Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
