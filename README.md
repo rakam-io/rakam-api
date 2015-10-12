@@ -14,11 +14,11 @@ Features / Goals
 Rakam is a super-fast modular analytics platform that gives you a set of features to create your own analytics service.
 
 Typical workflow of using Rakam:
-* Collect data from your clients using **[client libraries](https://getrakam/doc)**
-* Make your event data richer with **[event mappers](https://getrakam/doc)** (ip-to-geolocation, referrer and user-agent parsers)
+* Collect data from your clients using **[client libraries](https://getrakam/doc/Client_Libraries)**
+* Make your event data richer and cleaner with **[event mappers](https://getrakam/doc/Event-Mappers)**
 * Process data in real-time and pre-aggregate using **[continuous queries](https://getrakam/doc)** (Stream processing with SQL!),
-* Store data in a **[data warehouse](https://getrakam.com)** to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
-* Analyze your event data with your custom SQL queries and integrated rich analytics features ([funnel queries](https://getrakam.com), [retention queries](https://getrakam.com), [real-time reports](https://getrakam.com), [event streams](https://getrakam.com))
+* Store data in a data warehouse to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
+* Analyze your event data in your data warehouse with your custom SQL queries and integrated rich analytics features ([funnel queries](https://getrakam.com), [retention queries](https://getrakam.com), [real-time reports](https://getrakam.com), [event streams](https://getrakam.com))
 * Analyze your users with [integrated CRM tool]()
 * Visualize your data using [web application]() of Rakam similar to BI tools.
 * [Add your own modules]() to Rakam to customize Rakam for your special needs.
@@ -42,18 +42,18 @@ Or use Docker image:
 
     docker run -d --name rakam -p 9999:9999 buremba/rakam
     
-You can config the Rakam instance running on Docker container with environment variables. All properties in config.properties file can be set via environment variable <sup>RAKAM_property_name_dots_replaced_by_underscore</sup>. For example, if you want to set *store.adapter=postgresql* you need to set environment variable *RAKAM_STORE_ADAPTER=postgresql*. Dockerfile will generate config.properties from environment variables in docker container that start with *RAKAM_* prefix.
+You can config the Rakam instance running on Docker container with environment variables. All properties in config.properties file can be set via environment variable `RAKAM_property_name_dots_replaced_by_underscore`. For example, if you want to set `store.adapter=postgresql` you need to set environment variable `RAKAM_STORE_ADAPTER=postgresql`. Dockerfile will generate config.properties from environment variables in docker container that start with `RAKAM_` prefix.
 
-In order to set environment variables for containers, you may use *-e* flag for for *docker run* but we advice you to set all enviroment variables in a file and use  *--env-file* flag when running your container. Then you can share same file among the Rakam containers.
-If Dockerfile can't find any enviroment variable starts with *RAKAM_*, it installs Postgresql node in same container and use it as backend data-store.
+In order to set environment variables for containers, you may use `-e` flag for for `docker run` but we advice you to set all enviroment variables in a file and use  `--env-file` flag when running your container. Then you can share same file among the Rakam containers.
+If Dockerfile can't find any enviroment variable starts with `RAKAM_`, it installs Postgresql node in same container and use it as backend data-store.
 
 Web application
 ------------
 This repository contains Rakam API server that allows you to interact with Rakam using a REST interface. If you already have a frontend and developed a custom analytics service based on Rakam, it's all you need.
 
-However, we also developed Rakam Web Application that allows you to analyze your user and event data-set but performing SQL queries, visualising your data in various charts, creating (real-time) dashboards and custom reports. You can turn Rakam into a analytics web service similar to Mixpanel, Kissmetrics and Localytics using the web application. Otherwise, Rakam is similar to Keen.io with SQL as query language and some extra features.
+However, we also developed Rakam Web Application that allows you to analyze your user and event data-set but performing SQL queries, visualising your data in various charts, creating (real-time) dashboards and custom reports. You can turn Rakam into a analytics web service similar to [Mixpanel](https://mixpanel.com), [Kissmetrics](https://kissmetrics.com) and [Localytics](https://localytics.com) using the web application. Otherwise, Rakam server is similar to [Keen.io](http://keen.io) with SQL as query language and some extra features.
 
-Another nice property of Rakam web application is being BI (Business Intelligence) tool. If you can disable collect APIs and connect Rakam to your SQL database with JDBC adapter and use Rakam application to query your data in your database. Rakam Web Application has various charting formats, supports parameterized SQL queries, custom pages that allows you to design pages with internal components.
+Another nice property of Rakam web application is being BI `(Business Intelligence)` tool. If you can disable collect APIs and connect Rakam to your SQL database with JDBC adapter and use Rakam application to query your data in your database. Rakam Web Application has various charting formats, supports parameterized SQL queries, custom pages that allows you to design pages with internal components.
 
 Here are some of the screenshots of the web application to give you the taste of Rakam:
 Example Report
