@@ -18,7 +18,7 @@ Typical workflow of using Rakam:
 * Make your event data richer and cleaner with **[event mappers](https://getrakam/doc/Event-Mappers)**
 * Process data in real-time and pre-aggregate using **[continuous queries](https://getrakam/doc)** (Stream processing with SQL!),
 * Store data in a data warehouse to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
-* Analyze your event data in your data warehouse with your custom SQL queries and integrated rich analytics features ([funnel queries](https://getrakam.com), **[retention queries](https://getrakam.com)**, **[real-time reports](https://getrakam.com)**, **[event streams](https://getrakam.com)**)
+* Analyze your event data in your data warehouse with your custom SQL queries and integrated rich analytics features **([funnel queries](https://getrakam.com)**, **[retention queries](https://getrakam.com)**, **[real-time reports](https://getrakam.com)**, **[event streams](https://getrakam.com)**)
 * Analyze your users with **[integrated CRM tool]()**
 * Visualize your data using **[web application]()** of Rakam similar to BI tools.
 * **[Add your own modules]()** to Rakam to customize Rakam for your special needs.
