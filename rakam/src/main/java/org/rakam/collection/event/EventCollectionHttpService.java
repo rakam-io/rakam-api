@@ -10,9 +10,7 @@ import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.SystemEventListener;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -41,23 +39,19 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/event")
-@Api(value = "/event", description = "Event collection module", tags = "event")
-public class EventHttpService extends HttpService {
-    final static Logger LOGGER = Logger.get(EventHttpService.class);
+@Api(value = "/event", description = "Event collection module", tags = {"event", "collection"})
+public class EventCollectionHttpService extends HttpService {
+    final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
     private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
 
-    private final Set<EventProcessor> processors;
     private final EventStore eventStore;
     private final Set<EventMapper> mappers;
-    private final Set<SystemEventListener> systemEventListeners;
 
     @Inject
-    public EventHttpService(EventStore eventStore, EventDeserializer deserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Set<SystemEventListener> systemEventListeners) {
-        this.processors = eventProcessors;
+    public EventCollectionHttpService(EventStore eventStore, EventDeserializer deserializer, Set<EventMapper> mappers) {
         this.eventStore = eventStore;
         this.mappers = mappers;
-        this.systemEventListeners = systemEventListeners;
 
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Event.class, deserializer);
@@ -65,17 +59,9 @@ public class EventHttpService extends HttpService {
     }
 
     private boolean processEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
-        for (EventProcessor processor : processors) {
-            try {
-                processor.process(event);
-            } catch (Exception e) {
-                LOGGER.error(e, "An error occurred while processing event in "+processor.getClass().getName());
-                return false;
-            }
-        }
-
         for (EventMapper mapper : mappers) {
             try {
+                // TODO: bound event mappers to Netty Channels and run them in separate thread
                 mapper.map(event, headers, socketAddress);
             } catch (Exception e) {
                 LOGGER.error(e, "An error occurred while processing event in "+mapper.getClass().getName());

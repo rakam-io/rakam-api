@@ -27,13 +27,12 @@ import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
 import org.rakam.analysis.ContinuousQueryHttpService;
 import org.rakam.bootstrap.Bootstrap;
-import org.rakam.collection.event.EventHttpService;
+import org.rakam.collection.event.EventCollectionHttpService;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.UserStorage;
@@ -158,7 +157,6 @@ public class ServiceStarter {
         protected void setup(Binder binder) {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
 
-            Multibinder.newSetBinder(binder, EventProcessor.class);
             Multibinder.newSetBinder(binder, EventMapper.class);
             Multibinder.newSetBinder(binder, InjectionHook.class);
             Multibinder.newSetBinder(binder, SystemEventListener.class);
@@ -171,7 +169,7 @@ public class ServiceStarter {
             httpServices.addBinding().to(AdminHttpService.class);
             httpServices.addBinding().to(ProjectHttpService.class);
             httpServices.addBinding().to(MaterializedViewHttpService.class);
-            httpServices.addBinding().to(EventHttpService.class);
+            httpServices.addBinding().to(EventCollectionHttpService.class);
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
 

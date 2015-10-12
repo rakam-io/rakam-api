@@ -14,8 +14,13 @@ public class WebsiteEventMapperModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
-        eventMappers.addBinding().to(UserAgentEventMapper.class).in(Scopes.SINGLETON);
-        eventMappers.addBinding().to(ReferrerEventMapper.class).in(Scopes.SINGLETON);
+        WebsiteMapperConfig config = buildConfigObject(WebsiteMapperConfig.class);
+        if(config.getReferrer()) {
+            eventMappers.addBinding().to(ReferrerEventMapper.class).in(Scopes.SINGLETON);
+        }
+        if(config.getUserAgent()) {
+            eventMappers.addBinding().to(UserAgentEventMapper.class).in(Scopes.SINGLETON);
+        }
     }
 
     @Override

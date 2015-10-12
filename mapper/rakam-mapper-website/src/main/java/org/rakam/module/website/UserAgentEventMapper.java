@@ -28,22 +28,25 @@ public class UserAgentEventMapper implements EventMapper {
     @Override
     public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         Object user_agent = event.properties().get("user_agent");
-        if(user_agent == null) {
+        if(user_agent != null) {
             Client parsed = uaParser.parse((String) user_agent);
-            event.properties().put("user_agent", parsed.userAgent.family);
+            event.properties().put("user_agent_family", parsed.userAgent.family);
             event.properties().put("user_agent_version", parsed.userAgent.minor + " / " + parsed.userAgent.major);
             event.properties().put("os", parsed.os.family);
             event.properties().put("os_version", parsed.os.minor + " / " + parsed.os.major);
             event.properties().put("device_family", parsed.device.family);
+
+            event.properties().put("user_agent", null);
         }
     }
 
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
         builder.addFields("user_agent", ImmutableList.of(
+                new SchemaField("user_agent_family", FieldType.STRING, true),
+                new SchemaField("user_agent_version", FieldType.STRING, true),
                 new SchemaField("os", FieldType.STRING, true),
                 new SchemaField("os_version", FieldType.STRING, true),
-                new SchemaField("user_agent_version", FieldType.STRING, true),
                 new SchemaField("device_family", FieldType.STRING, true)
         ));
     }

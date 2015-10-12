@@ -8,6 +8,7 @@ import org.rakam.analysis.EventExplorerHttpService;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.server.http.HttpService;
 
 @AutoService(RakamModule.class)

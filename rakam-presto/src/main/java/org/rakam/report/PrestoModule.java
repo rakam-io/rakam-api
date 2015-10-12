@@ -22,10 +22,12 @@ import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventExplorerConfig;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
+import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.UserPluginConfig;
 
 import javax.inject.Inject;
@@ -74,6 +76,8 @@ public class PrestoModule extends RakamModule {
             binder.bind(RetentionQueryExecutor.class).to(PrestoRetentionQueryExecutor.class);
         }
 
+        Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
+        timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
     }
 
     @Override

@@ -10,8 +10,9 @@ public class RealTimeConfig {
     private boolean enabled;
 
     @Config("real-time.enabled")
-    public void setRealtimeModuleEnabled(boolean enabled) {
+    public RealTimeConfig setRealtimeModuleEnabled(boolean enabled) {
         this.enabled = enabled;
+        return this;
     }
 
     public boolean isRealtimeModuleEnabled() {

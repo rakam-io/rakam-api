@@ -11,14 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.rakam;
+package org.rakam.plugin;
 
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.plugin.EventMapper;
 import org.rakam.util.RakamException;
 
 import java.net.InetAddress;
@@ -26,7 +25,7 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.Map;
 
-import static com.facebook.presto.jdbc.internal.guava.collect.ImmutableList.of;
+import static com.google.common.collect.ImmutableList.of;
 
 public class TimestampEventMapper implements EventMapper {
     private static final String TIME_EXTRA_PROPERTY = "Upload-Time";

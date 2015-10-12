@@ -11,7 +11,6 @@ import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Ints;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -24,7 +23,9 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiImplicitParam;
 import org.rakam.server.http.annotations.ApiImplicitParams;
+import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
@@ -49,7 +50,7 @@ import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
 @Path("/query")
-@Api(value = "/query", description = "Query module", tags = "query")
+@Api(value = "/query", description = "Query module", tags = {"event", "query"})
 @Produces({"application/json"})
 public class QueryHttpService extends HttpService {
     private final QueryExecutor executor;
@@ -62,6 +63,9 @@ public class QueryHttpService extends HttpService {
 
 
     @Path("/execute")
+    @ApiOperation(value = "Collect event",
+            authorizations = @Authorization(value = "api_key", type = "api_key")
+    )
     @JsonRequest
     public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
         return executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult();
@@ -74,6 +78,9 @@ public class QueryHttpService extends HttpService {
             @ApiImplicitParam(name = "id", value = "User ID", required = true, dataType = "long", paramType = "query")
     })
     @Consumes("text/event-stream")
+    @ApiOperation(value = "Perform SQL queries on event dataset",
+            authorizations = @Authorization(value = "api_key", type = "api_key")
+    )
     @Path("/execute")
     public void execute(RakamHttpRequest request) {
         handleServerSentQueryExecution(request, ExecuteQuery.class, query ->
@@ -155,17 +162,14 @@ public class QueryHttpService extends HttpService {
     }
 
     public static class ExecuteQuery {
-        @ApiParam(name = "project", required = true)
         public final String project;
-        @ApiParam(name = "query", required = true)
         public final String query;
-        @ApiParam(name = "limit", required = false)
         public final Integer limit;
 
         @JsonCreator
-        public ExecuteQuery(@JsonProperty("project") String project,
-                            @JsonProperty("query") String query,
-                            @JsonProperty("limit") Integer limit) {
+        public ExecuteQuery(@ApiParam(name = "project") String project,
+                            @ApiParam(name = "query") String query,
+                            @ApiParam(name = "limit", required = false) Integer limit) {
             this.project = requireNonNull(project, "project is empty");
             this.query = requireNonNull(query, "query is empty");;
             if(limit !=null && limit > 5000) {
