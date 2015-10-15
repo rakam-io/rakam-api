@@ -91,7 +91,7 @@ public class MailBoxWebSocketService extends WebSocketService {
             response = WSMessage.class,
             request = String.class,
             responseContainer = "List",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = {@Authorization(value = "write_key"), @Authorization(value = "read_key")}
     )
 
     public void onMessage(ChannelHandlerContext ctx, String data) {

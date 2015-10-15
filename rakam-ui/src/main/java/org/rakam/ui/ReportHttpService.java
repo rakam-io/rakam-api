@@ -1,6 +1,5 @@
 package org.rakam.ui;
 
-import javax.inject.Inject;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -12,6 +11,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
 
+import javax.inject.Inject;
 import javax.ws.rs.Path;
 
 
@@ -28,7 +28,7 @@ public class ReportHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "List reports",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
@@ -39,7 +39,7 @@ public class ReportHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Create new report",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
@@ -51,7 +51,7 @@ public class ReportHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Delete report", notes = "Creates report and cached data.",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
@@ -65,7 +65,7 @@ public class ReportHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Get report", notes = "Returns report that has the specified name",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })

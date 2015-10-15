@@ -1,13 +1,16 @@
 package org.rakam;
 
 import com.google.auto.service.AutoService;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
+import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
+import com.impossibl.postgres.jdbc.PGDataSource;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.JDBCQueryMetadata;
@@ -23,6 +26,7 @@ import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventExplorerConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStream;
+import org.rakam.plugin.EventStreamConfig;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
@@ -32,6 +36,7 @@ import org.rakam.report.postgresql.PostgresqlEventExplorer;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
+import java.net.URISyntaxException;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="postgresql")
@@ -52,7 +57,29 @@ public class PostgresqlModule extends RakamModule {
         OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class)
                 .setBinding()
                 .to(PostgresqlContinuousQueryService.class).in(Scopes.SINGLETON);
-        binder.bind(EventStream.class).to(PostgresqlEventStream.class);
+
+        JDBCConfig asyncClientConfig;
+        try {
+            asyncClientConfig = new JDBCConfig()
+                    .setDataSource(PGDataSource.class.getName())
+                    .setMaxConnection(config.getMaxConnection())
+                    .setPassword(config.getPassword())
+                    .setTable(config.getTable())
+                    .setUrl(config.getUrl())
+                    .setUsername(config.getUsername());
+        } catch (URISyntaxException e) {
+            throw Throwables.propagate(e);
+        }
+
+        binder.bind(JDBCPoolDataSource.class)
+                .annotatedWith(Names.named("async-postgresql"))
+                .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
+                .in(Scopes.SINGLETON);
+
+        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
+            binder.bind(EventStream.class).to(PostgresqlEventStream.class);
+        }
+
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
@@ -101,6 +128,19 @@ public class PostgresqlModule extends RakamModule {
                     ImmutableList.of(collection),
                     ImmutableList.of(), ImmutableMap.of());
             continuousQueryService.create(report);
+        }
+    }
+
+    private static class JDBCPoolDataSourceProvider implements Provider<JDBCPoolDataSource> {
+        private final JDBCConfig asyncClientConfig;
+
+        public JDBCPoolDataSourceProvider(JDBCConfig asyncClientConfig) {
+            this.asyncClientConfig = asyncClientConfig;
+        }
+
+        @Override
+        public JDBCPoolDataSource get() {
+            return JDBCPoolDataSource.getOrCreateDataSource(asyncClientConfig);
         }
     }
 }

@@ -28,6 +28,8 @@ import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.user.mailbox.PostgresqlUserMailboxStorage;
+import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 @AutoService(RakamModule.class)
@@ -55,6 +57,10 @@ public class PostgresqlUserModule extends RakamModule {
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {
             binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
+        }
+
+        if ("postgresql".equals(getConfig("plugin.user.mailbox.adapter"))) {
+            binder.bind(UserMailboxStorage.class).to(PostgresqlUserMailboxStorage.class);
         }
     }
 

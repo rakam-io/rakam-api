@@ -23,6 +23,7 @@ import io.swagger.models.Contact;
 import io.swagger.models.Info;
 import io.swagger.models.License;
 import io.swagger.models.Swagger;
+import io.swagger.models.Tag;
 import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
 import org.rakam.analysis.ContinuousQueryHttpService;
@@ -64,6 +65,7 @@ import static java.lang.String.format;
 
 public class ServiceStarter {
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
+
 
     public static void main(String[] args) throws Throwable {
         if (args.length > 0) {
@@ -110,12 +112,14 @@ public class ServiceStarter {
         private final Set<WebSocketService> webSocketServices;
         private final Set<HttpService> httpServices;
         private final HttpServerConfig config;
+        private final Set<Tag> tags;
 
         @Inject
-        public WebServiceRecipe(Set<HttpService> httpServices, Set<WebSocketService> webSocketServices, HttpServerConfig config) {
+        public WebServiceRecipe(Set<HttpService> httpServices, Set<Tag> tags, Set<WebSocketService> webSocketServices, HttpServerConfig config) {
             this.httpServices = httpServices;
             this.webSocketServices = webSocketServices;
             this.config = config;
+            this.tags = tags;
         }
 
         @Override
@@ -131,7 +135,13 @@ public class ServiceStarter {
                             .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
 
             Swagger swagger = new Swagger().info(info)
-                    .securityDefinition("api_key", new ApiKeyAuthDefinition("api_key", In.HEADER));
+                    .tags(ImmutableList.copyOf(tags))
+                    .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER))
+                    .securityDefinition("read_key", new ApiKeyAuthDefinition().in(In.HEADER).name("read_key"))
+                    .securityDefinition("master_key", new ApiKeyAuthDefinition().in(In.HEADER).name("master_key"))
+
+                    .securityDefinition("ui_read_key", new ApiKeyAuthDefinition().in(In.HEADER))
+                    .securityDefinition("ui_master_key", new ApiKeyAuthDefinition().in(In.HEADER));
 
             NioEventLoopGroup eventExecutors = new NioEventLoopGroup();
 
@@ -164,6 +174,14 @@ public class ServiceStarter {
             OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
+
+            Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
+            tags.addBinding().toInstance(new Tag().name("event").description("").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("report").description("Generate reports from event data").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("admin").description("System related actions").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("query").description("").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("materialized-view").description("").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("continuous-query").description("").externalDocs(MetadataConfig.centralDocs));
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(AdminHttpService.class);

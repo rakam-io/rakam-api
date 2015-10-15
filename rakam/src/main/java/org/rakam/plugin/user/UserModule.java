@@ -5,6 +5,8 @@ import com.google.common.base.Optional;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.swagger.models.Tag;
+import org.rakam.MetadataConfig;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
@@ -32,6 +34,11 @@ public class UserModule extends RakamModule {
         events.addBinding().to(UserStorageListener.class).in(Scopes.SINGLETON);
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
+        Multibinder<Tag> tagMultibinder = Multibinder.newSetBinder(binder, Tag.class);
+        tagMultibinder.addBinding()
+                .toInstance(new Tag().name("user").description("User module for Rakam")
+                        .externalDocs(MetadataConfig.centralDocs));
+
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
 
         if (userPluginConfig.getStorageModule() != null) {
@@ -40,6 +47,10 @@ public class UserModule extends RakamModule {
 
         if(userPluginConfig.isMailboxEnabled()) {
             httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);
+
+            tagMultibinder.addBinding()
+                    .toInstance(new Tag().name("user-mailbox").description("")
+                            .externalDocs(MetadataConfig.centralDocs));
         }
     }
 

@@ -45,7 +45,7 @@ import static org.rakam.util.JsonHelper.convert;
 
 @Singleton
 @Api(value = "/realtime", description = "Realtime module", tags = "realtime",
-        authorizations = @Authorization(value = "api_key", type = "api_key"))
+        authorizations = @Authorization(value = "read_key"))
 @Path("/realtime")
 public class RealTimeHttpService extends HttpService {
     private final ContinuousQueryService service;

@@ -12,6 +12,7 @@ public class JDBCConfig {
     private String username;
     private String password = "";
     private Integer maxConnection;
+    private String dataSource;
 
     @Config("url")
     public JDBCConfig setUrl(String url) throws URISyntaxException {
@@ -19,8 +20,10 @@ public class JDBCConfig {
             this.url = url;
         } else {
             URI dbUri = new URI(url);
-            this.username = dbUri.getUserInfo().split(":")[0];
-            this.password = dbUri.getUserInfo().split(":")[1];
+            String[] split = dbUri.getUserInfo().split(":");
+            this.username = split[0];
+            if(split.length > 1)
+                this.password = split[1];
             this.url =  "jdbc:"+ convertScheme(dbUri.getScheme()) +"://" + dbUri.getHost() + ':' + dbUri.getPort() + dbUri.getPath() + "?" + dbUri.getQuery();
         }
         return this;
@@ -28,6 +31,16 @@ public class JDBCConfig {
 
     public String getUrl() {
         return url;
+    }
+
+    @Config("data-source")
+    public JDBCConfig setDataSource(String dataSource) {
+        this.dataSource = dataSource;
+        return this;
+    }
+
+    public String getDataSource() {
+        return dataSource;
     }
 
     @Config("username")
@@ -39,6 +52,7 @@ public class JDBCConfig {
     public String getUsername() {
         return username;
     }
+
 
     @Config("max_connection")
     public JDBCConfig setMaxConnection(Integer maxConnection) {
@@ -79,4 +93,31 @@ public class JDBCConfig {
         }
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof JDBCConfig)) return false;
+
+        JDBCConfig that = (JDBCConfig) o;
+
+        if (url != null ? !url.equals(that.url) : that.url != null) return false;
+        if (table != null ? !table.equals(that.table) : that.table != null) return false;
+        if (username != null ? !username.equals(that.username) : that.username != null) return false;
+        if (password != null ? !password.equals(that.password) : that.password != null) return false;
+        if (maxConnection != null ? !maxConnection.equals(that.maxConnection) : that.maxConnection != null)
+            return false;
+        return !(dataSource != null ? !dataSource.equals(that.dataSource) : that.dataSource != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = url != null ? url.hashCode() : 0;
+        result = 31 * result + (table != null ? table.hashCode() : 0);
+        result = 31 * result + (username != null ? username.hashCode() : 0);
+        result = 31 * result + (password != null ? password.hashCode() : 0);
+        result = 31 * result + (maxConnection != null ? maxConnection.hashCode() : 0);
+        result = 31 * result + (dataSource != null ? dataSource.hashCode() : 0);
+        return result;
+    }
 }

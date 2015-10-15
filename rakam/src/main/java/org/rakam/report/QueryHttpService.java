@@ -21,8 +21,6 @@ import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiImplicitParam;
-import org.rakam.server.http.annotations.ApiImplicitParams;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
@@ -50,7 +48,7 @@ import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
 @Path("/query")
-@Api(value = "/query", description = "Query module", tags = {"event", "query"})
+@Api(value = "/query", description = "Query module", tags = {"event-analysis"})
 @Produces({"application/json"})
 public class QueryHttpService extends HttpService {
     private final QueryExecutor executor;
@@ -63,8 +61,8 @@ public class QueryHttpService extends HttpService {
 
 
     @Path("/execute")
-    @ApiOperation(value = "Collect event",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+    @ApiOperation(value = "Analyze events",
+            authorizations = @Authorization(value = "read_key")
     )
     @JsonRequest
     public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
@@ -72,14 +70,9 @@ public class QueryHttpService extends HttpService {
     }
 
     @GET
-    @ApiImplicitParams({
-            @ApiImplicitParam(name = "project", value = "User's name", required = true, dataType = "string", paramType = "query"),
-            @ApiImplicitParam(name = "offset", value = "User's email", required = false, dataType = "string", paramType = "query"),
-            @ApiImplicitParam(name = "id", value = "User ID", required = true, dataType = "long", paramType = "query")
-    })
     @Consumes("text/event-stream")
-    @ApiOperation(value = "Perform SQL queries on event dataset",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+    @ApiOperation(value = "Analyze events", request = ExecuteQuery.class,
+            authorizations = @Authorization(value = "read_key")
     )
     @Path("/execute")
     public void execute(RakamHttpRequest request) {

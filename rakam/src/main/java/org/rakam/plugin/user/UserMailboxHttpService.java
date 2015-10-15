@@ -42,7 +42,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/user/mailbox")
-@Api(value = "/user/mailbox", description = "UserMailbox", tags = {"user", "user-mailbox"})
+@Api(value = "/user/mailbox", description = "UserMailbox", tags = {"user-mailbox"})
 public class UserMailboxHttpService extends HttpService {
     private final UserMailboxStorage storage;
     private final MailBoxWebSocketService webSocketService;
@@ -65,7 +65,7 @@ public class UserMailboxHttpService extends HttpService {
             notes = "Returns the last mails sent to the user",
             response = Message.class,
             responseContainer = "List",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "read_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
@@ -88,7 +88,7 @@ public class UserMailboxHttpService extends HttpService {
             @ApiImplicitParam(name = "project", required = true, dataType = "string", paramType = "query"),
     })
     @ApiOperation(value = "Listen all mailboxes in a project",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "read_key")
     )
     public void listen(RakamHttpRequest request) {
         if(storage == null) {
@@ -112,7 +112,7 @@ public class UserMailboxHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Mark user mail as read",
             notes = "Marks the specified mails as read.",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
@@ -135,7 +135,7 @@ public class UserMailboxHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Send mail to user",
             notes = "Sends a mail to users mailbox",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
@@ -160,7 +160,7 @@ public class UserMailboxHttpService extends HttpService {
     @POST
     @JsonRequest
     @ApiOperation(value = "Get connected users",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "read_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})

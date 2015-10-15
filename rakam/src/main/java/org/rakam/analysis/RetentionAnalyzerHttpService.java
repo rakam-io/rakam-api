@@ -45,7 +45,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Analyze event data-set",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "read_key")
     )
     @GET
     @Path("/analyze")

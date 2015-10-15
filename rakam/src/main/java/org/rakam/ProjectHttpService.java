@@ -39,7 +39,7 @@ public class ProjectHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Create project",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "master_key")
     )
     @JsonRequest
     @Path("/create")
@@ -53,7 +53,7 @@ public class ProjectHttpService extends HttpService {
     }
 
     @ApiOperation(value = "List created projects",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "master_key")
     )
     @GET
     @Path("/list")
@@ -62,7 +62,8 @@ public class ProjectHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get collection schema")
+    @ApiOperation(value = "Get collection schema",
+            authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema")

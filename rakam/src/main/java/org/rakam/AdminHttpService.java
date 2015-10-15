@@ -24,7 +24,7 @@ public class AdminHttpService extends HttpService {
 
 
     @ApiOperation(value = "List installed modules",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            authorizations = @Authorization(value = "master_key")
     )
     @GET
     @Path("/modules")

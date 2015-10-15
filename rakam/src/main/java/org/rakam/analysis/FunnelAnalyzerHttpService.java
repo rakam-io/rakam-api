@@ -14,7 +14,6 @@
 package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.report.QueryHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -26,7 +25,6 @@ import org.rakam.server.http.annotations.Authorization;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -47,7 +45,8 @@ public class FunnelAnalyzerHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Analyze event data-set",
-            authorizations = @Authorization(value = "api_key", type = "api_key")
+            request = FunnelQuery.class,
+            authorizations = @Authorization(value = "read_key")
     )
     @GET
     @Path("/analyze")
@@ -69,12 +68,12 @@ public class FunnelAnalyzerHttpService extends HttpService {
         public final @ApiParam(name = "enableOtherGrouping", required = false) boolean enableOtherGrouping;
 
         @JsonCreator
-        private FunnelQuery(@JsonProperty("project") String project,
-                            @JsonProperty("steps") List<FunnelQueryExecutor.FunnelStep> steps,
-                            @JsonProperty("dimension") String dimension,
-                            @JsonProperty("startDate") LocalDate startDate,
-                            @JsonProperty("endDate") LocalDate endDate,
-                            @JsonProperty("enableOtherGrouping") Boolean enableOtherGrouping) {
+        private FunnelQuery(@ApiParam(name="project") String project,
+                            @ApiParam(name="steps") List<FunnelQueryExecutor.FunnelStep> steps,
+                            @ApiParam(name="dimension") String dimension,
+                            @ApiParam(name="startDate") LocalDate startDate,
+                            @ApiParam(name="endDate") LocalDate endDate,
+                            @ApiParam(name="enableOtherGrouping") Boolean enableOtherGrouping) {
             this.project = project;
             this.enableOtherGrouping = enableOtherGrouping == null ? false : enableOtherGrouping.booleanValue();
             this.steps = checkNotNull(steps, "steps field is required");

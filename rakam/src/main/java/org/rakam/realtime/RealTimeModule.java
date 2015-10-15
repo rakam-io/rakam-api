@@ -3,11 +3,13 @@ package org.rakam.realtime;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.TimestampEventMapper;
+import io.swagger.models.Tag;
+import org.rakam.MetadataConfig;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.RealTimeConfig;
+import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.server.http.HttpService;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
@@ -25,6 +27,10 @@ public class RealTimeModule extends RakamModule {
 
         Multibinder<EventMapper> mappers = Multibinder.newSetBinder(binder, EventMapper.class);
         mappers.addBinding().to(TimestampEventMapper.class);
+
+        Multibinder.newSetBinder(binder, Tag.class).addBinding()
+                .toInstance( new Tag().name("realtime").description("")
+                        .externalDocs(MetadataConfig.centralDocs));
     }
 
     @Override

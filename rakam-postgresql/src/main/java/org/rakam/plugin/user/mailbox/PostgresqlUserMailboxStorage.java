@@ -3,11 +3,11 @@ package org.rakam.plugin.user.mailbox;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.html.HtmlEscapers;
+import com.google.inject.name.Named;
 import com.impossibl.postgres.api.jdbc.PGConnection;
 import com.impossibl.postgres.api.jdbc.PGNotificationListener;
-import com.impossibl.postgres.jdbc.PGDataSource;
 import io.airlift.log.Logger;
-import org.rakam.analysis.postgresql.PostgresqlConfig;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
@@ -30,26 +30,14 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     final static Logger LOGGER = Logger.get(PostgresqlUserMailboxStorage.class);
 
     private final PostgresqlQueryExecutor queryExecutor;
-    private final PGConnection asyncConn;
     private final static String USER_NOTIFICATION_SUFFIX = "_user_mailbox";
     private final static String USER_NOTIFICATION_ALL_SUFFIX = "_user_mailbox_all_listener";
+    private final JDBCPoolDataSource dataSource;
 
     @Inject
-    public PostgresqlUserMailboxStorage(PostgresqlQueryExecutor queryExecutor, PostgresqlConfig config) {
+    public PostgresqlUserMailboxStorage(PostgresqlQueryExecutor queryExecutor, @Named("async-postgresql") JDBCPoolDataSource dataSource) {
         this.queryExecutor = queryExecutor;
-
-        // TODO: make pool of connections
-        PGDataSource pg = new PGDataSource();
-        pg.setDatabase(config.getDatabase());
-        pg.setHost(config.getHost());
-        pg.setPort(config.getPort());
-        pg.setPassword(config.getPassword());
-        pg.setUser(config.getUsername());
-        try {
-            this.asyncConn = (PGConnection) pg.getConnection();
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
+        this.dataSource = dataSource;
     }
 
     @Override
@@ -123,29 +111,35 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public MessageListener listen(String projectId, String user, Consumer<Data> consumer) {
-        String name = projectId + "_" + user + USER_NOTIFICATION_SUFFIX;
+        try(Connection conn = dataSource.openConnection()) {
+            PGConnection asyncConn = ((PGConnection) conn);
+            String name = projectId + "_" + user + USER_NOTIFICATION_SUFFIX;
 
-        PGNotificationListener listener = (processId, channelName, payload) -> {
-            int idx = payload.indexOf("\n");
-            Operation op = Operation.valueOf(payload.substring(0, idx));
-            consumer.accept(new Data(op, payload.substring(idx + 1)));
-        };
-        asyncConn.addNotificationListener(name, listener);
+            PGNotificationListener listener = (processId, channelName, payload) -> {
+                int idx = payload.indexOf("\n");
+                Operation op = Operation.valueOf(payload.substring(0, idx));
+                consumer.accept(new Data(op, payload.substring(idx + 1)));
+            };
+            asyncConn.addNotificationListener(name, listener);
 
-        try (Statement statement = asyncConn.createStatement()) {
-            statement.execute("LISTEN " + name);
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-
-        return () -> {
             try (Statement statement = asyncConn.createStatement()) {
-                statement.execute(format("UNLISTEN %s_%s" + USER_NOTIFICATION_SUFFIX, projectId, user));
+                statement.execute("LISTEN " + name);
             } catch (SQLException e) {
                 throw Throwables.propagate(e);
             }
-            asyncConn.removeNotificationListener(listener);
-        };
+
+            return () -> {
+                try (Statement statement = asyncConn.createStatement()) {
+                    statement.execute(format("UNLISTEN %s_%s" + USER_NOTIFICATION_SUFFIX, projectId, user));
+                } catch (SQLException e) {
+                    throw Throwables.propagate(e);
+                }
+                asyncConn.removeNotificationListener(listener);
+            };
+
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
 
     }
 
@@ -153,31 +147,36 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public MessageListener listenAllUsers(String projectId, Consumer<Data> consumer) {
-        PGNotificationListener listener = (processId, channelName, payload) -> {
-            if(lastMessage.get()+2 > Instant.now().getEpochSecond()) {
-                return;
-            }
-            int idx = payload.indexOf("\n");
-            Operation op = Operation.valueOf(payload.substring(0, idx));
-            consumer.accept(new Data(op, payload.substring(idx + 1)));
-            lastMessage.set(Instant.now().getEpochSecond());
-        };
-        asyncConn.addNotificationListener(projectId + USER_NOTIFICATION_ALL_SUFFIX, listener);
+        try(Connection conn = dataSource.openConnection()) {
+            PGConnection asyncConn = ((PGConnection) conn);
+            PGNotificationListener listener = (processId, channelName, payload) -> {
+                if (lastMessage.get() + 2 > Instant.now().getEpochSecond()) {
+                    return;
+                }
+                int idx = payload.indexOf("\n");
+                Operation op = Operation.valueOf(payload.substring(0, idx));
+                consumer.accept(new Data(op, payload.substring(idx + 1)));
+                lastMessage.set(Instant.now().getEpochSecond());
+            };
+            asyncConn.addNotificationListener(projectId + USER_NOTIFICATION_ALL_SUFFIX, listener);
 
-        try (Statement statement = asyncConn.createStatement()) {
-            statement.execute("LISTEN " + projectId + USER_NOTIFICATION_ALL_SUFFIX);
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-
-        return () -> {
             try (Statement statement = asyncConn.createStatement()) {
-                statement.execute(format("UNLISTEN %s_user_mailbox_all_listener", projectId));
+                statement.execute("LISTEN " + projectId + USER_NOTIFICATION_ALL_SUFFIX);
             } catch (SQLException e) {
                 throw Throwables.propagate(e);
             }
-            asyncConn.removeNotificationListener(listener);
-        };
+
+            return () -> {
+                try (Statement statement = asyncConn.createStatement()) {
+                    statement.execute(format("UNLISTEN %s_user_mailbox_all_listener", projectId));
+                } catch (SQLException e) {
+                    throw Throwables.propagate(e);
+                }
+                asyncConn.removeNotificationListener(listener);
+            };
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     private long castUserId(Object userId) {

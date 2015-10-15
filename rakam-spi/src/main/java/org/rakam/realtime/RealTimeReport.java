@@ -1,7 +1,7 @@
 package org.rakam.realtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.rakam.server.http.annotations.ApiParam;
 
 import javax.validation.constraints.NotNull;
 import java.util.List;
@@ -23,15 +23,15 @@ public class RealTimeReport {
     public final String dimension;
 
     @JsonCreator
-    public RealTimeReport(@JsonProperty("project") String project,
-                          @JsonProperty("name") String name,
-                          @JsonProperty("chart") String chart,
-                          @JsonProperty("collections") List<String> collections,
-                          @JsonProperty("aggregation") AggregationType aggregation,
-                          @JsonProperty("table_name") String tableName,
-                          @JsonProperty("filter") String filter,
-                          @JsonProperty("measure") String measure,
-                          @JsonProperty("dimension") String dimension) {
+    public RealTimeReport(@ApiParam(name = "project") String project,
+                          @ApiParam(name ="name") String name,
+                          @ApiParam(name ="chart") String chart,
+                          @ApiParam(name ="collections", required = false) List<String> collections,
+                          @ApiParam(name ="aggregation") AggregationType aggregation,
+                          @ApiParam(name ="table_name") String tableName,
+                          @ApiParam(name ="filter", required = false) String filter,
+                          @ApiParam(name ="measure", required = false) String measure,
+                          @ApiParam(name ="dimension", required = false) String dimension) {
         this.project = checkNotNull(project, "project is required");
         this.chart = checkNotNull(chart, "chart is required");
         this.name = checkNotNull(name, "name is required");

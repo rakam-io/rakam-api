@@ -4,6 +4,9 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.binder.AnnotatedBindingBuilder;
 import com.google.inject.multibindings.Multibinder;
+import io.swagger.models.Tag;
+import org.rakam.MetadataConfig;
+import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.server.http.HttpService;
@@ -15,6 +18,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 
+@ConditionalModule(config = "ui.enable", value = "true")
 public class RakamUIModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
@@ -40,9 +44,11 @@ public class RakamUIModule extends RakamModule {
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(DashboardService.class);
 
-        if(rakamUIConfig.getEnableUI()) {
-            httpServices.addBinding().to(RakamUIWebService.class);
-        }
+        httpServices.addBinding().to(RakamUIWebService.class);
+
+        Multibinder.newSetBinder(binder, Tag.class).addBinding()
+                .toInstance(new Tag().name("rakam-web-interface").description("Rakam web interface specific endpoints")
+                        .externalDocs(MetadataConfig.centralDocs));
     }
 
     @Override

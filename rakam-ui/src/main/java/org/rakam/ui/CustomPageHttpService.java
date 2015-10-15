@@ -42,7 +42,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 
 @Path("/custom-page")
-@Api(value = "/custom-page", description = "Custom page module", tags = "rakam-ui")
+@Api(value = "/custom-page", description = "Custom page module", tags = "rakam-web-interface")
 public class CustomPageHttpService extends HttpService {
     private final CustomPageDatabase database;
 
