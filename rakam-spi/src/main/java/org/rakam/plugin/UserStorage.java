@@ -3,6 +3,7 @@ package org.rakam.plugin;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
@@ -76,6 +77,7 @@ public interface UserStorage {
             this.aggregation = aggregation;
         }
 
+        @JsonIgnore
         public synchronized Expression getExpression() {
             try {
                 return filterExpression  != null ? SQL_PARSER.createExpression(filterExpression) : null;

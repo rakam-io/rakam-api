@@ -40,11 +40,11 @@ public class MaterializedViewHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get lists of the materialized views")
+    @ApiOperation(value = "List views")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
-    public Object list(@ApiParam(name="project", required = true) String project) {
+    public Object listViews(@ApiParam(name="project", required = true) String project) {
         if (project == null) {
             return errorMessage("project parameter is required", 400);
         }
@@ -53,7 +53,7 @@ public class MaterializedViewHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get schemas of the materialized views")
+    @ApiOperation(value = "Get schemas")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
@@ -91,7 +91,7 @@ public class MaterializedViewHttpService extends HttpService {
      * @return the status
      */
     @JsonRequest
-    @ApiOperation(value = "Create new materialized view")
+    @ApiOperation(value = "Create view")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
@@ -120,7 +120,7 @@ public class MaterializedViewHttpService extends HttpService {
      */
     @GET
     @Path("/update")
-    @ApiOperation(value = "Update materialized view")
+    @ApiOperation(value = "Update view")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     public void update(RakamHttpRequest request) {
@@ -139,7 +139,7 @@ public class MaterializedViewHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get materialized view")
+    @ApiOperation(value = "Get view")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/get")

@@ -33,7 +33,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 @Path("/funnel")
-@Api(value = "/funnel", description = "Funnel Analyzer module", tags = "event")
+@Api(value = "/funnel", tags = "funnel")
 public class FunnelAnalyzerHttpService extends HttpService {
     private final FunnelQueryExecutor funnelQueryExecutor;
     private final QueryHttpService queryService;
@@ -44,13 +44,13 @@ public class FunnelAnalyzerHttpService extends HttpService {
         this.queryService = queryService;
     }
 
-    @ApiOperation(value = "Analyze event data-set",
+    @ApiOperation(value = "Execute query",
             request = FunnelQuery.class,
             authorizations = @Authorization(value = "read_key")
     )
     @GET
     @Path("/analyze")
-    public void execute(RakamHttpRequest request) {
+    public void analyze(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (query) ->
                 funnelQueryExecutor.query(query.project,
                         query.steps,

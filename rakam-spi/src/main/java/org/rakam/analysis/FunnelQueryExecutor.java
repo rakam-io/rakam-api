@@ -16,6 +16,7 @@ package org.rakam.analysis;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.report.QueryExecution;
 
@@ -41,7 +42,8 @@ public interface FunnelQueryExecutor {
             this.filterExpression = filterExpression;
         }
 
-        public static synchronized Expression parseExpression(String filterExpression) {
+        @JsonIgnore
+        public synchronized Expression getExpression() {
             return parser.createExpression(filterExpression);
         }
     }

@@ -71,7 +71,7 @@ public class EventExplorerHttpService extends HttpService {
         return eventExplorer.getEventDimensions(project);
     }
 
-    @ApiOperation(value = "Analyze event data-set",
+    @ApiOperation(value = "Perform simple query on event data",
             authorizations = @Authorization(value = "read_key")
     )
     @JsonRequest

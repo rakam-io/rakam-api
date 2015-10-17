@@ -74,7 +74,7 @@ public class RealTimeHttpService extends HttpService {
      * @return a future that contains the operation status
      */
     @JsonRequest
-    @ApiOperation(value = "Create realtime report")
+    @ApiOperation(value = "Create report")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
@@ -100,7 +100,7 @@ public class RealTimeHttpService extends HttpService {
 
     @JsonRequest
     @POST
-    @ApiOperation(value = "Get realtime report")
+    @ApiOperation(value = "Get report")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "Report does not exist.")})
@@ -215,9 +215,9 @@ public class RealTimeHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "List real-time reports")
+    @ApiOperation(value = "List reports")
     @Path("/list")
-    public List<RealTimeReport> list(@ApiParam(name = "project", required = true) String project) {
+    public List<RealTimeReport> listReports(@ApiParam(name = "project", required = true) String project) {
         if (project == null) {
             throw new RakamException("project parameter is required", 400);
         }
@@ -228,7 +228,7 @@ public class RealTimeHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Delete realtime report")
+    @ApiOperation(value = "Delete report")
     @Path("/delete")
     public Object delete(@ApiParam(name = "project", required = true) String project,
                          @ApiParam(name = "name", required = true) String name) {

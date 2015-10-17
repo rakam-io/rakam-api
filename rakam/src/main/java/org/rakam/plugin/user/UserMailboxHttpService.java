@@ -1,11 +1,8 @@
 package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.Expression;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.Message;
@@ -32,7 +29,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -87,7 +83,7 @@ public class UserMailboxHttpService extends HttpService {
     @ApiImplicitParams({
             @ApiImplicitParam(name = "project", required = true, dataType = "string", paramType = "query"),
     })
-    @ApiOperation(value = "Listen all mailboxes in a project",
+    @ApiOperation(value = "Listen all mailboxes",
             authorizations = @Authorization(value = "read_key")
     )
     public void listen(RakamHttpRequest request) {
@@ -110,7 +106,7 @@ public class UserMailboxHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Mark user mail as read",
+    @ApiOperation(value = "Mark mail as read",
             notes = "Marks the specified mails as read.",
             authorizations = @Authorization(value = "write_key")
     )
@@ -164,45 +160,43 @@ public class UserMailboxHttpService extends HttpService {
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
-    public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@ApiParam(name = "project", value = "Project id", required = true) String project,
-                                                    @ApiParam(name = "properties", value = "User properties", required = false) List<String> properties) {
+    public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@ApiParam(name = "project", value = "Project id", required = true) String project) {
 
         if(storage == null) {
             throw new RakamException("not implemented", 501);
         }
         Collection<Object> connectedUsers = webSocketService.getConnectedUsers(project);
-        if(properties == null) {
-            return CompletableFuture.completedFuture(connectedUsers.stream()
-                    .map(id -> ImmutableMap.of(config.getIdentifierColumn(), id))
-                    .collect(Collectors.toList()));
-        }
+        return CompletableFuture.completedFuture(connectedUsers.stream()
+                .map(id -> ImmutableMap.of(config.getIdentifierColumn(), id))
+                .collect(Collectors.toList()));
 
-        if(connectedUsers.isEmpty()) {
-            return CompletableFuture.completedFuture(ImmutableList.of());
-        }
-
-        String expressionStr = config.getIdentifierColumn() + " in (" + connectedUsers.stream()
-                .map(id -> (id instanceof Number) ? id.toString() : "'" + id + "'")
-                .collect(Collectors.joining(", ")) + ")";
-
-        Expression expression;
-        try {
-            synchronized (sqlParser) {
-                expression = sqlParser.createExpression(expressionStr);
-            }
-        } catch (Exception e) {
-            throw new IllegalStateException();
-        }
-
-        return userStorage.filter(project, expression, null, null, 1000, 0).thenApply(queryResult -> {
-            List<? extends SchemaField> metadata = queryResult.getMetadata();
-            return queryResult.getResult().stream().map(row -> {
-                Map<String, Object> map = new HashMap();
-                for (int i = 0; i < metadata.size(); i++) {
-                    map.put(metadata.get(i).getName(), row.get(i));
-                }
-                return map;
-            }).collect(Collectors.toList());
-        });
+        // implement filter by user properties
+//        if(connectedUsers.isEmpty()) {
+//            return CompletableFuture.completedFuture(ImmutableList.of());
+//        }
+//
+//        String expressionStr = config.getIdentifierColumn() + " in (" + connectedUsers.stream()
+//                .map(id -> (id instanceof Number) ? id.toString() : "'" + id + "'")
+//                .collect(Collectors.joining(", ")) + ")";
+//
+//        Expression expression;
+//        try {
+//            synchronized (sqlParser) {
+//                expression = sqlParser.createExpression(expressionStr);
+//            }
+//        } catch (Exception e) {
+//            throw new IllegalStateException();
+//        }
+//
+//        return userStorage.filter(project, expression, null, null, 1000, 0).thenApply(queryResult -> {
+//            List<? extends SchemaField> metadata = queryResult.getMetadata();
+//            return queryResult.getResult().stream().map(row -> {
+//                Map<String, Object> map = new HashMap();
+//                for (int i = 0; i < metadata.size(); i++) {
+//                    map.put(metadata.get(i).getName(), row.get(i));
+//                }
+//                return map;
+//            }).collect(Collectors.toList());
+//        });
     }
 }

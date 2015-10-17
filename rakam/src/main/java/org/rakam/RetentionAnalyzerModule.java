@@ -16,6 +16,7 @@ package org.rakam;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import io.swagger.models.Tag;
 import org.rakam.analysis.RetentionAnalyzerHttpService;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
@@ -28,6 +29,9 @@ public class RetentionAnalyzerModule extends RakamModule {
     protected void setup(Binder binder) {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(RetentionAnalyzerHttpService.class);
+
+        Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
+        tags.addBinding().toInstance(new Tag().name("retention").description("Retention Analyzer module").externalDocs(MetadataConfig.centralDocs));
     }
 
     @Override

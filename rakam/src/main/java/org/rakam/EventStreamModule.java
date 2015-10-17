@@ -16,9 +16,9 @@ package org.rakam;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import io.swagger.models.Tag;
 import org.rakam.analysis.stream.EventStreamHttpService;
 import org.rakam.plugin.ConditionalModule;
-import org.rakam.plugin.EventStreamConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 
@@ -27,10 +27,11 @@ import org.rakam.server.http.HttpService;
 public class EventStreamModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
-        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
-            Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
-            httpServices.addBinding().to(EventStreamHttpService.class);
-        }
+        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+        httpServices.addBinding().to(EventStreamHttpService.class);
+
+        Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
+        tags.addBinding().toInstance(new Tag().name("event-stream").description("Event Stream Module").externalDocs(MetadataConfig.centralDocs));
     }
 
     @Override

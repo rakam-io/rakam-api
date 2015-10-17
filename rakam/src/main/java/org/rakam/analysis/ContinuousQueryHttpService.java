@@ -43,7 +43,7 @@ public class ContinuousQueryHttpService extends HttpService {
      * @return a future that contains the operation status
      */
     @JsonRequest
-    @ApiOperation(value = "Create report")
+    @ApiOperation(value = "Create stream")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
@@ -60,11 +60,11 @@ public class ContinuousQueryHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "List reports")
+    @ApiOperation(value = "List queries")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
-    public Object list(@ApiParam(name="project", required = true) String project) {
+    public Object listQueries(@ApiParam(name="project", required = true) String project) {
         return service.list(project);
     }
 
@@ -96,7 +96,7 @@ public class ContinuousQueryHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Delete realtime report")
+    @ApiOperation(value = "Delete stream")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/delete")

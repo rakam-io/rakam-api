@@ -33,7 +33,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 @Path("/retention")
-@Api(value = "/retention", description = "Retention Analyzer module", tags = "event")
+@Api(value = "/retention", tags = "retention")
 public class RetentionAnalyzerHttpService extends HttpService {
     private final RetentionQueryExecutor retentionQueryExecutor;
     private final QueryHttpService queryService;
@@ -44,7 +44,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
         this.queryService = queryService;
     }
 
-    @ApiOperation(value = "Analyze event data-set",
+    @ApiOperation(value = "Execute query",
             authorizations = @Authorization(value = "read_key")
     )
     @GET

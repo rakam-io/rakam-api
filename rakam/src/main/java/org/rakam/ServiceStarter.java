@@ -135,6 +135,8 @@ public class ServiceStarter {
                             .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
 
             Swagger swagger = new Swagger().info(info)
+                    .host("https://app.getrakam.com")
+                    .basePath("/")
                     .tags(ImmutableList.copyOf(tags))
                     .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER))
                     .securityDefinition("read_key", new ApiKeyAuthDefinition().in(In.HEADER).name("read_key"))
@@ -176,10 +178,7 @@ public class ServiceStarter {
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
             Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
-            tags.addBinding().toInstance(new Tag().name("event").description("").externalDocs(MetadataConfig.centralDocs));
-            tags.addBinding().toInstance(new Tag().name("report").description("Generate reports from event data").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("admin").description("System related actions").externalDocs(MetadataConfig.centralDocs));
-            tags.addBinding().toInstance(new Tag().name("query").description("").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("materialized-view").description("").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("continuous-query").description("").externalDocs(MetadataConfig.centralDocs));
 

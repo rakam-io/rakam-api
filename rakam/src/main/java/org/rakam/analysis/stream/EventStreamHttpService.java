@@ -37,7 +37,7 @@ import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/stream")
-@Api(value = "/stream", description = "Event Stream", tags = "event")
+@Api(value = "/stream", tags = "event-stream")
 public class EventStreamHttpService extends HttpService {
     private final EventStream stream;
     private final SqlParser sqlParser;

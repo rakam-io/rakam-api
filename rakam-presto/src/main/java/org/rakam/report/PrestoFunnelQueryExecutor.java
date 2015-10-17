@@ -69,7 +69,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
         String filterExp = funnelStep.filterExpression != null ?
-                FunnelStep.parseExpression(funnelStep.filterExpression).accept(new ExpressionFormatter.Formatter(), false) : "";
+                funnelStep.getExpression().accept(new ExpressionFormatter.Formatter(), false) : "";
 
         String dimensionColumn = dimension.isPresent() ? dimension.get()+"," : "";
 
