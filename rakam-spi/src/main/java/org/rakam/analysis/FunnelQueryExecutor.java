@@ -17,7 +17,6 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.auto.value.AutoValue;
 import org.rakam.report.QueryExecution;
 
 import java.time.LocalDate;
@@ -29,21 +28,17 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public interface FunnelQueryExecutor {
     QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers);
 
-    @AutoValue
-    abstract class FunnelStep {
+    class FunnelStep {
         private static SqlParser parser = new SqlParser();
-
-        @JsonProperty
-        public abstract String collection();
-        @JsonProperty
-        public abstract Optional<Expression> filterExpression();
+        public final String collection;
+        public final Expression filterExpression;
 
         @JsonCreator
-        public static FunnelStep create(@JsonProperty("collection") String collection,
-                                        @JsonProperty("filterExpression") Optional<String> filterExpression) {
+        public FunnelStep(@JsonProperty("collection") String collection,
+                          @JsonProperty("filterExpression") String filterExpression) {
             checkCollection(collection);
-            return new AutoValue_FunnelQueryExecutor_FunnelStep(collection,
-                    filterExpression.map(FunnelStep::parseExpression));
+            this.collection = collection;
+            this.filterExpression = filterExpression == null ? null : FunnelStep.parseExpression(filterExpression);
         }
 
         private static synchronized Expression parseExpression(String filterExpression) {

@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
@@ -34,7 +33,6 @@ import java.util.List;
 
 
 @Path("/ui/dashboard")
-@Api(value = "/ui/dashboard", description = "Dashboard service", tags = "rakam-web-interface")
 public class DashboardService extends HttpService {
     private final DBI dbi;
 

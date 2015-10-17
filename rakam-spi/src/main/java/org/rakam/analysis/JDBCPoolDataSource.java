@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 public class JDBCPoolDataSource implements ConnectionFactory {
     private static final Map<String, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
@@ -58,15 +59,15 @@ public class JDBCPoolDataSource implements ConnectionFactory {
 //        setPoolName("generic-jdbc-query-executor");
     }
 
-//    private String getClassName(String scheme) {
-//        switch (scheme) {
-//            case "postgresql":
-//                checkState(org.postgresql.Driver.isRegistered());
-//                return "org.postgresql.ds.PGSimpleDataSource";
-//            default:
-//                throw new IllegalArgumentException("Currently, only Postgresql JDBC adapter is supported.");
-//        }
-//    }
+    private String getClassName(String scheme) {
+        switch (scheme) {
+            case "postgresql":
+                checkState(org.postgresql.Driver.isRegistered());
+                return "org.postgresql.ds.PGSimpleDataSource";
+            default:
+                throw new IllegalArgumentException("Currently, only Postgresql JDBC adapter is supported.");
+        }
+    }
 
     public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config) {
         return pools.computeIfAbsent(config.getUrl(),

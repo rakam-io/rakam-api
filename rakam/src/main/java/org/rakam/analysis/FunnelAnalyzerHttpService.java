@@ -68,7 +68,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
         public final @ApiParam(name = "enableOtherGrouping", required = false) boolean enableOtherGrouping;
 
         @JsonCreator
-        private FunnelQuery(@ApiParam(name="project") String project,
+        public FunnelQuery(@ApiParam(name="project") String project,
                             @ApiParam(name="steps") List<FunnelQueryExecutor.FunnelStep> steps,
                             @ApiParam(name="dimension") String dimension,
                             @ApiParam(name="startDate") LocalDate startDate,

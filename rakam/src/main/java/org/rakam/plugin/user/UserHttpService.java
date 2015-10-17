@@ -92,7 +92,7 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/search")
-    public CompletableFuture<QueryResult> search(@ApiParam(name = "project", required = true) String project,
+    public CompletableFuture<QueryResult> search(@ApiParam(name = "project") String project,
                                                  @ApiParam(name = "filter", required = false) String filter,
                                                  @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                                  @ApiParam(name = "sorting", required = false) Sorting sorting,

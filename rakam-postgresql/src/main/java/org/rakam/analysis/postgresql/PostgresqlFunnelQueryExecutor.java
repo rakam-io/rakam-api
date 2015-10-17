@@ -64,13 +64,12 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     private String convertFunnel(String project, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
-        String table = project + "." + funnelStep.collection();
+        String table = project + "." + funnelStep.collection;
         ZoneId utc = ZoneId.of("UTC");
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
-        String filterExp = funnelStep.filterExpression()
-                .map(exp -> ", " + exp.accept(new ExpressionFormatter.Formatter(), false))
-                .orElseGet(() -> "");
+        String filterExp = funnelStep.filterExpression != null ?
+                funnelStep.filterExpression.accept(new ExpressionFormatter.Formatter(), false) : "";
 
         String dimensionColumn = dimension.isPresent() ? dimension.get()+"," : "";
 

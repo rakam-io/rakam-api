@@ -24,7 +24,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
@@ -42,7 +41,6 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 
 @Path("/custom-page")
-@Api(value = "/custom-page", description = "Custom page module", tags = "rakam-web-interface")
 public class CustomPageHttpService extends HttpService {
     private final CustomPageDatabase database;
 

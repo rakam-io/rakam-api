@@ -14,12 +14,7 @@
 package org.rakam.ui;
 
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
@@ -30,7 +25,6 @@ import java.util.List;
 
 
 @Path("/custom-report")
-@Api(value = "/custom-report", description = "Custom Report module", tags = "report")
 public class CustomReportHttpService extends HttpService {
 
     private final JDBCCustomReportMetadata metadata;
@@ -41,11 +35,6 @@ public class CustomReportHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "List reports",
-            authorizations = @Authorization(value = "ui_read_key")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
     public List<CustomReport> list(@ApiParam(name="report_type", required = true) String reportType,
                                    @ApiParam(name="project", required = true) String project) {
@@ -53,11 +42,6 @@ public class CustomReportHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Create new report",
-            authorizations = @Authorization(value = "ui_write_key")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
     public JsonResponse create(@ParamBody CustomReport report) {
         metadata.add(report);
@@ -65,11 +49,6 @@ public class CustomReportHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Delete report", notes = "Creates report and cached data.",
-            authorizations = @Authorization(value = "ui_write_key")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/delete")
     public JsonResponse delete(@ApiParam(name="report_type", required = true) String reportType,
                                @ApiParam(name="project", value = "Project id", required = true) String project,
@@ -80,11 +59,6 @@ public class CustomReportHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get report", notes = "Returns report that has the specified name",
-            authorizations = @Authorization(value = "ui_read_key")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/get")
     public Object get(@ApiParam(name="report_type", required = true) String reportType,
                       @ApiParam(name="project", value = "Project id", required = true) String project,
