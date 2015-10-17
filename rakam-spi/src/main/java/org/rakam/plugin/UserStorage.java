@@ -64,7 +64,7 @@ public interface UserStorage {
         public static final SqlParser SQL_PARSER = new SqlParser();
 
         public final String collection;
-        public final Expression filterExpression;
+        public final String filterExpression;
         public final EventFilterAggregation aggregation;
 
         @JsonCreator
@@ -72,18 +72,16 @@ public interface UserStorage {
                            @JsonProperty("filter") String filterExpression,
                            @JsonProperty("aggregation") EventFilterAggregation aggregation) {
             this.collection = collection;
-            if(filterExpression != null) {
-                try {
-                    synchronized (SQL_PARSER) {
-                        this.filterExpression = SQL_PARSER.createExpression(filterExpression);
-                    }
-                } catch (Exception e) {
-                    throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), 400);
-                }
-            }else {
-                this.filterExpression = null;
-            }
+            this.filterExpression = filterExpression;
             this.aggregation = aggregation;
+        }
+
+        public synchronized Expression getExpression() {
+            try {
+                return filterExpression  != null ? SQL_PARSER.createExpression(filterExpression) : null;
+            } catch (Exception e) {
+                throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), 400);
+            }
         }
 
     }

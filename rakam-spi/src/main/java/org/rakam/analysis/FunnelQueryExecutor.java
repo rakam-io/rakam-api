@@ -31,17 +31,17 @@ public interface FunnelQueryExecutor {
     class FunnelStep {
         private static SqlParser parser = new SqlParser();
         public final String collection;
-        public final Expression filterExpression;
+        public final String filterExpression;
 
         @JsonCreator
         public FunnelStep(@JsonProperty("collection") String collection,
                           @JsonProperty("filterExpression") String filterExpression) {
             checkCollection(collection);
             this.collection = collection;
-            this.filterExpression = filterExpression == null ? null : FunnelStep.parseExpression(filterExpression);
+            this.filterExpression = filterExpression;
         }
 
-        private static synchronized Expression parseExpression(String filterExpression) {
+        public static synchronized Expression parseExpression(String filterExpression) {
             return parser.createExpression(filterExpression);
         }
     }
