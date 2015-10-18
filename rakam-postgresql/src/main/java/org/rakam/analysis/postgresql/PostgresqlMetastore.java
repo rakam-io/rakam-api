@@ -9,11 +9,13 @@ import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.util.CryptUtil;
 import org.rakam.util.ProjectCollection;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -44,6 +46,15 @@ public class PostgresqlMetastore implements Metastore {
                     "  project TEXT NOT NULL," +
                     "  collection TEXT NOT NULL," +
                     "  last_sync int4 NOT NULL," +
+                    "  PRIMARY KEY (project, collection)" +
+                    "  )");
+
+            statement.execute("" +
+                    "  CREATE TABLE IF NOT EXISTS public.api_keys (" +
+                    "  project TEXT NOT NULL," +
+                    "  master_key TEXT NOT NULL," +
+                    "  read_key TEXT NOT NULL," +
+                    "  write_key TEXT NOT NULL," +
                     "  PRIMARY KEY (project, collection)" +
                     "  )");
         } catch (SQLException e) {
@@ -139,15 +150,27 @@ public class PostgresqlMetastore implements Metastore {
     @Override
     public ProjectApiKeyList createProject(String project) {
         checkProject(project);
+
+        String masterKey = CryptUtil.generateKey(64);
+        String readKey = CryptUtil.generateKey(64);
+        String writeKey = CryptUtil.generateKey(64);
+
         if(project.equals("information_schema")) {
             throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
         }
         try(Connection connection = connectionPool.openConnection()) {
-            connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS "+project);
+            connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS " + project);
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_keys (master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)");
+            ps.setString(1,  masterKey);
+            ps.setString(2,  readKey);
+            ps.setString(3,  writeKey);
+            ps.setString(4,  project);
+            ps.execute();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
-        return null;
+
+        return new ProjectApiKeyList(masterKey, readKey, writeKey);
     }
 
     @Override

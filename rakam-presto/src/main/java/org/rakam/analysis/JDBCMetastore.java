@@ -38,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.rakam.util.ValidationUtil.checkProject;
+
 @Singleton
 public class JDBCMetastore implements Metastore {
     private final DBI dbi;
@@ -145,6 +147,8 @@ public class JDBCMetastore implements Metastore {
 
     @Override
     public ProjectApiKeyList createProject(String project) {
+        checkProject(project);
+
         String masterKey = CryptUtil.generateKey(64);
         String readKey = CryptUtil.generateKey(64);
         String writeKey = CryptUtil.generateKey(64);
