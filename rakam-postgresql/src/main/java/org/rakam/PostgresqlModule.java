@@ -8,7 +8,6 @@ import com.google.inject.Binder;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
 import com.impossibl.postgres.jdbc.PGDataSource;
 import org.rakam.analysis.EventExplorer;
@@ -54,9 +53,7 @@ public class PostgresqlModule extends RakamModule {
         // TODO: implement postgresql specific materialized view service
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
-        OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class)
-                .setBinding()
-                .to(PostgresqlContinuousQueryService.class).in(Scopes.SINGLETON);
+        binder.bind(ContinuousQueryService.class).to(PostgresqlContinuousQueryService.class).in(Scopes.SINGLETON);
 
         JDBCConfig asyncClientConfig;
         try {

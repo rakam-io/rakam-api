@@ -31,7 +31,10 @@ import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.Tuple;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -50,6 +53,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
+@Singleton
 public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     final static Logger LOGGER = Logger.get(PostgresqlContinuousQueryService.class);
 
@@ -57,6 +61,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
     private final static long PG_LOCK_KEY = 6374637467687647L;
+    private ScheduledExecutorService updater;
 
     @Inject
     public PostgresqlContinuousQueryService(Metastore metastore, QueryMetadataStore reportDatabase, PostgresqlQueryExecutor executor) {
@@ -64,12 +69,15 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         this.reportDatabase = reportDatabase;
         this.metastore = metastore;
         this.executor = executor;
+    }
 
-        ScheduledExecutorService updater = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+    @PostConstruct
+    private synchronized void electMasterNode() {
+        updater = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                 .setUncaughtExceptionHandler((t, e) ->
                         LOGGER.error(e, "Error while updating continuous query table."))
                 .build());
-        updater.execute(() -> executor.executeRawQuery("select pg_advisory_lock("+PG_LOCK_KEY+")").getResult().thenAccept(result -> {
+        updater.execute(() -> executor.executeRawQuery("select pg_advisory_lock(" + PG_LOCK_KEY + ")").getResult().thenAccept(result -> {
             if (!result.isFailed()) {
                 // we obtained the lock so we're the master node.
                 LOGGER.info("Became the master node. Scheduling periodic table updates for materialized and continuous queries.");
@@ -78,6 +86,11 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                 LOGGER.error("Error while obtaining lock from Postgresql: {}", result.getError());
             }
         }));
+    }
+
+    @PreDestroy
+    private void destroy() {
+        updater.shutdown();
     }
 
     private String replaceSourceTable(String query, String sampleCollection) {
