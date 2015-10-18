@@ -23,8 +23,12 @@ import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.Nullable;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import javax.inject.Inject;
+import javax.xml.bind.DatatypeConverter;
 import java.io.File;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -91,6 +95,9 @@ public class JDBCMetastore implements Metastore {
 
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
                     "  name TEXT NOT NULL,\n" +
+                    "  read_key TEXT NOT NULL,\n" +
+                    "  write_key TEXT NOT NULL,\n" +
+                    "  secret_key TEXT NOT NULL,\n" +
                     "  location TEXT NOT NULL, PRIMARY KEY (name))")
                     .execute();
             return null;
@@ -140,13 +147,21 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public void createProject(String project) {
+    public ProjectApiKeyList createProject(String project) {
         try(Handle handle = dbi.open()) {
+            KeyGenerator aes = KeyGenerator.getInstance("AES");
+            aes.init(256);
+            SecretKey secretKey = aes.generateKey();
+            byte[] encoded = secretKey.getEncoded();
+            return DatatypeConverter.printHexBinary(encoded).toLowerCase();
+
             handle.createStatement("INSERT INTO project (name, location) VALUES(:name, :location)")
                     .bind("name", project)
                     // todo: file.separator returns local filesystem property?
                     .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
                     .execute();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
         }
     }
 

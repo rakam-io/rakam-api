@@ -18,11 +18,23 @@ public interface Metastore {
 
     Set<String> getCollectionNames(String project);
 
-    void createProject(String project);
+    ProjectApiKeyList createProject(String project);
 
     Set<String> getProjects();
 
     List<SchemaField> getCollection(String project, String collection);
 
     List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields, Consumer<ProjectCollection> newCollectionListener) throws ProjectNotExistsException;
+
+    class ProjectApiKeyList {
+        public final String masterKey;
+        public final String readKey;
+        public final String writeKey;
+
+        public ProjectApiKeyList(String masterKey, String readKey, String writeKey) {
+            this.masterKey = masterKey;
+            this.readKey = readKey;
+            this.writeKey = writeKey;
+        }
+    }
 }
