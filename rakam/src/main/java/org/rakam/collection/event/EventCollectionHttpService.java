@@ -39,7 +39,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/event")
-@Api(value = "/event", description = "Event collection module", tags = {"event-collection"})
+@Api(value = "/event", description = "Event collection module", tags = {"event"})
 public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());

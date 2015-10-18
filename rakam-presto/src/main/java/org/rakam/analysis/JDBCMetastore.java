@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.inject.Inject;
+import javax.security.auth.DestroyFailedException;
 import javax.xml.bind.DatatypeConverter;
 import java.io.File;
 import java.security.NoSuchAlgorithmException;
@@ -148,20 +149,39 @@ public class JDBCMetastore implements Metastore {
 
     @Override
     public ProjectApiKeyList createProject(String project) {
-        try(Handle handle = dbi.open()) {
-            KeyGenerator aes = KeyGenerator.getInstance("AES");
-            aes.init(256);
-            SecretKey secretKey = aes.generateKey();
-            byte[] encoded = secretKey.getEncoded();
-            return DatatypeConverter.printHexBinary(encoded).toLowerCase();
+        String masterKey = generateKey();
+        String readKey = generateKey();
+        String writeKey = generateKey();
 
-            handle.createStatement("INSERT INTO project (name, location) VALUES(:name, :location)")
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("INSERT INTO project (name, location, master_key, read_key, write_key) VALUES(:name, :location, :master_key, :read_key, :write_key)")
                     .bind("name", project)
-                    // todo: file.separator returns local filesystem property?
+                    .bind("master_key", masterKey)
+                    .bind("read_key", readKey)
+                    .bind("write_key", writeKey)
+                     // todo: file.separator returns local filesystem property?
                     .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
                     .execute();
+        }
+
+        return new ProjectApiKeyList(masterKey, readKey, writeKey);
+    }
+
+    private String generateKey() {
+        SecretKey apiKey = null;
+        try {
+            KeyGenerator aes = KeyGenerator.getInstance("AES");
+            aes.init(256);
+            apiKey = aes.generateKey();
+            return DatatypeConverter.printHexBinary(apiKey.getEncoded()).toLowerCase();
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            throw Throwables.propagate(e);
+        } finally {
+            try {
+                apiKey.destroy();
+            } catch (DestroyFailedException e) {
+                throw Throwables.propagate(e);
+            }
         }
     }
 
