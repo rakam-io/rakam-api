@@ -29,7 +29,6 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SystemEventListener;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.ProjectCollection;
-import org.rakam.util.Tuple;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -50,7 +49,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     private Logger logger = Logger.get(EventDeserializer.class);
 
     private final Metastore schemaRegistry;
-    private final Map<Tuple<String, String>, Schema> schemaCache;
+    private final Map<ProjectCollection, Schema> schemaCache;
     private final FieldDependency moduleFields;
     private final Set<SystemEventListener> listeners;
 
@@ -169,7 +168,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     }
 
     private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException, ProjectNotExistsException {
-        Tuple key = new Tuple(project, collection);
+        ProjectCollection key = new ProjectCollection(project, collection);
         Schema avroSchema = schemaCache.get(key);
         List<SchemaField> schema;
         if (avroSchema == null) {

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.reflect.TypeToken;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import org.rakam.collection.Event;
@@ -14,8 +15,6 @@ import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiImplicitParam;
-import org.rakam.server.http.annotations.ApiImplicitParams;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
@@ -32,6 +31,7 @@ import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableMap.of;
@@ -64,7 +64,7 @@ public class EventCollectionHttpService extends HttpService {
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
                 mapper.map(event, headers, socketAddress);
             } catch (Exception e) {
-                LOGGER.error(e, "An error occurred while processing event in "+mapper.getClass().getName());
+                LOGGER.error(e, "An error occurred while processing event in " + mapper.getClass().getName());
                 return false;
             }
         }
@@ -80,17 +80,12 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(value = "Collect event",
+    @ApiOperation(value = "Collect event", response = Integer.class, request = EventBean.class,
             authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/collect")
-    @ApiImplicitParams({
-            @ApiImplicitParam(name = "project", value = "The project id of the event", required = true, dataType = "string", paramType = "formData"),
-            @ApiImplicitParam(name = "collection", value = "Collection of the event", required = true, dataType = "string", paramType = "formData"),
-            @ApiImplicitParam(name = "properties", value = "Event properties", required = true, dataType = "object", paramType = "formData")
-    })
     public void collect(RakamHttpRequest request) {
 
         InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
@@ -99,27 +94,15 @@ public class EventCollectionHttpService extends HttpService {
         String checksum = headers.get("Content-MD5");
 
         request.bodyHandler(buff -> {
-            if(checksum != null) {
-                MessageDigest md;
-                try {
-                    md = MessageDigest.getInstance("MD5");
-                } catch (NoSuchAlgorithmException e) {
-                    request.response("Internal Error", INTERNAL_SERVER_ERROR).end();
-                    return;
-                }
-                if(!md.digest(checksum.getBytes(UTF8_CHARSET))
-                        .equals(buff.getBytes(UTF8_CHARSET))) {
-                    request.response(encode(of("error", "checksum is invalid")),
-                            BAD_REQUEST).end();
-                    return;
-                }
+            if (checksum != null && !validateChecksum(request, checksum, buff)) {
+                return;
             }
 
             boolean eventProcessed;
 
             try {
                 // a trick to identify the type of the json data.
-                if(buff.charAt(0) != '[') {
+                if (buff.charAt(0) != '[') {
                     Event event = jsonMapper.readValue(buff, Event.class);
                     eventProcessed = processEvent(event, headers, socketAddress.getAddress());
                 } else {
@@ -138,7 +121,7 @@ public class EventCollectionHttpService extends HttpService {
             } catch (RakamException e) {
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
-            }catch (Exception e) {
+            } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
                 request.response(e.getMessage(), INTERNAL_SERVER_ERROR).end();
                 return;
@@ -146,6 +129,73 @@ public class EventCollectionHttpService extends HttpService {
 
             request.response(eventProcessed ? "1" : "0", eventProcessed ? OK : BAD_GATEWAY).end();
         });
+    }
+
+    static final class ListEventBean extends TypeToken<List<EventBean>> {
+    }
+
+    @POST
+    @ApiOperation(value = "Collect multiple events", request = ListEventBean.class, response = Integer.class,
+            authorizations = @Authorization(value = "write_key")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/collect")
+    public void batch(RakamHttpRequest request) {
+
+        InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
+                .remoteAddress();
+        HttpHeaders headers = request.headers();
+        String checksum = headers.get("Content-MD5");
+
+        request.bodyHandler(buff -> {
+            if (checksum != null && !validateChecksum(request, checksum, buff)) {
+                return;
+            }
+
+            boolean eventProcessed;
+
+            try {
+                List<Event> events = jsonMapper.readValue(buff, List.class);
+                eventProcessed = true;
+                for (Event event : events) {
+                    eventProcessed &= processEvent(event, headers, socketAddress.getAddress());
+                }
+            } catch (JsonMappingException e) {
+                request.response(e.getMessage(), BAD_REQUEST).end();
+                return;
+            } catch (IOException e) {
+                request.response("json couldn't parsed", BAD_REQUEST).end();
+                return;
+            } catch (RakamException e) {
+                request.response(e.getMessage(), BAD_REQUEST).end();
+                return;
+            } catch (Exception e) {
+                LOGGER.error(e, "Error while collecting event");
+                request.response(e.getMessage(), INTERNAL_SERVER_ERROR).end();
+                return;
+            }
+
+            request.response(eventProcessed ? "1" : "0", eventProcessed ? OK : BAD_GATEWAY).end();
+        });
+    }
+
+    private boolean validateChecksum(RakamHttpRequest request, String checksum, String expected) {
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            request.response("Internal Error", INTERNAL_SERVER_ERROR).end();
+            return false;
+        }
+        if (!md.digest(checksum.getBytes(UTF8_CHARSET))
+                .equals(expected.getBytes(UTF8_CHARSET))) {
+            request.response(encode(of("error", "checksum is invalid")),
+                    BAD_REQUEST).end();
+            return false;
+        }
+
+        return true;
     }
 
     public static class EventParserJsonFactory extends JsonFactory {
@@ -158,4 +208,18 @@ public class EventCollectionHttpService extends HttpService {
                     data, offset, offset + len, recyclable);
         }
     }
+
+    // we use this class only to create model in swagger definition.
+    private static class EventBean {
+        public final String project;
+        public final String collection;
+        public final Map<String, Object> properties;
+
+        private EventBean(String project, String collection, Map<String, Object> properties) {
+            this.project = project;
+            this.collection = collection;
+            this.properties = properties;
+        }
+    }
+
 }

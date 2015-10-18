@@ -13,6 +13,7 @@ import com.google.inject.name.Named;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.PrestoConfig;
+import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
@@ -23,13 +24,8 @@ import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.Nullable;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
 import javax.inject.Inject;
-import javax.security.auth.DestroyFailedException;
-import javax.xml.bind.DatatypeConverter;
 import java.io.File;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -149,9 +145,9 @@ public class JDBCMetastore implements Metastore {
 
     @Override
     public ProjectApiKeyList createProject(String project) {
-        String masterKey = generateKey();
-        String readKey = generateKey();
-        String writeKey = generateKey();
+        String masterKey = CryptUtil.generateKey(64);
+        String readKey = CryptUtil.generateKey(64);
+        String writeKey = CryptUtil.generateKey(64);
 
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO project (name, location, master_key, read_key, write_key) VALUES(:name, :location, :master_key, :read_key, :write_key)")
@@ -165,24 +161,6 @@ public class JDBCMetastore implements Metastore {
         }
 
         return new ProjectApiKeyList(masterKey, readKey, writeKey);
-    }
-
-    private String generateKey() {
-        SecretKey apiKey = null;
-        try {
-            KeyGenerator aes = KeyGenerator.getInstance("AES");
-            aes.init(256);
-            apiKey = aes.generateKey();
-            return DatatypeConverter.printHexBinary(apiKey.getEncoded()).toLowerCase();
-        } catch (NoSuchAlgorithmException e) {
-            throw Throwables.propagate(e);
-        } finally {
-            try {
-                apiKey.destroy();
-            } catch (DestroyFailedException e) {
-                throw Throwables.propagate(e);
-            }
-        }
     }
 
     @Override

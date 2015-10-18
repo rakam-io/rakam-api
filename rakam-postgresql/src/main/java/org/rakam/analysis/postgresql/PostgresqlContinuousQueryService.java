@@ -29,7 +29,6 @@ import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.Tuple;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -39,6 +38,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -184,8 +184,8 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return list(project).stream()
-                .map(view -> new Tuple<>(view.tableName, metastore.getCollection(project, view.getTableName())))
-                .collect(Collectors.toMap(t -> t.v1(), t -> t.v2()));
+                .map(view -> new AbstractMap.SimpleImmutableEntry<>(view.tableName, metastore.getCollection(project, view.getTableName())))
+                .collect(Collectors.toMap(t -> t.getKey(), t -> t.getValue()));
     }
 
     /*
