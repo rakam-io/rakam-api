@@ -37,8 +37,9 @@ class InMemoryMetastore implements Metastore {
     }
 
     @Override
-    public void createProject(String project) {
+    public ProjectApiKeyList createProject(String project) {
         collections.put(project, new HashMap<>());
+        return null;
     }
 
     @Override

@@ -137,7 +137,7 @@ public class PostgresqlMetastore implements Metastore {
     }
 
     @Override
-    public void createProject(String project) {
+    public ProjectApiKeyList createProject(String project) {
         checkProject(project);
         if(project.equals("information_schema")) {
             throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
@@ -147,6 +147,7 @@ public class PostgresqlMetastore implements Metastore {
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+        return null;
     }
 
     @Override
