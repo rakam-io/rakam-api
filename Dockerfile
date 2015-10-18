@@ -11,7 +11,7 @@ RUN git clone https://github.com/buremba/rakam-ui.git
 RUN cd rakam-ui && npm install
 
 RUN git clone https://github.com/buremba/rakam.git
-RUN cd rakam && mvn install
+RUN cd rakam && mvn install && cd rakam/target && tar -zxvf *-bundle.tar.gz
 
 RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
@@ -52,6 +52,6 @@ EXPOSE 9999
 
 #-Dlog.enable-console=false
 #-Dlog.output-file=../logs/app.log
-ENTRYPOINT ([ -f /etc/init.d/postgresql ] && /etc/init.d/postgresql start); java -Dlog.levels-file=../log.properties -Dui.directory=../rakam-ui/app -cp rakam/target/classes:rakam/target/dependency/* org.rakam.ServiceStarter ../config.properties
+ENTRYPOINT ([ -f /etc/init.d/postgresql ] && /etc/init.d/postgresql start); java -Dlog.levels-file=../log.properties -Dui.directory=../rakam-ui/app -cp rakam/target/rakam-*/lib/*: org.rakam.ServiceStarter ../config.properties
 
 RUN apt-get clean
