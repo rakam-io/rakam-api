@@ -48,7 +48,7 @@ import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
 @Path("/query")
-@Api(value = "/query", description = "Query module", tags = {"event-analysis"})
+@Api(value = "/query", description = "Query module", tags = {"event"})
 @Produces({"application/json"})
 public class QueryHttpService extends HttpService {
     private final QueryExecutor executor;

@@ -179,8 +179,9 @@ public class ServiceStarter {
 
             Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
             tags.addBinding().toInstance(new Tag().name("admin").description("System related actions").externalDocs(MetadataConfig.centralDocs));
-            tags.addBinding().toInstance(new Tag().name("materialized-view").description("").externalDocs(MetadataConfig.centralDocs));
-            tags.addBinding().toInstance(new Tag().name("continuous-query").description("").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("event").description("Event Analyzer").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("materialized-view").description("Materialized view").externalDocs(MetadataConfig.centralDocs));
+            tags.addBinding().toInstance(new Tag().name("continuous-query").description("Continuous query").externalDocs(MetadataConfig.centralDocs));
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(AdminHttpService.class);
