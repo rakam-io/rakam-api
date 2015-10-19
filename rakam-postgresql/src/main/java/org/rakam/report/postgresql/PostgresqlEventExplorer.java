@@ -308,6 +308,9 @@ public class PostgresqlEventExplorer implements EventExplorer {
     public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         checkProject(project);
         Set<String> collectionNames = metastore.getCollectionNames(project);
+        if(collectionNames.isEmpty()) {
+            return CompletableFuture.completedFuture(QueryResult.empty());
+        }
 
         String query;
         if (dimension.isPresent()) {

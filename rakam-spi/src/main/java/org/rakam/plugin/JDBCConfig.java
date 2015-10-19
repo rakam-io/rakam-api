@@ -24,7 +24,9 @@ public class JDBCConfig {
             this.username = split[0];
             if(split.length > 1)
                 this.password = split[1];
-            this.url =  "jdbc:"+ convertScheme(dbUri.getScheme()) +"://" + dbUri.getHost() + ':' + dbUri.getPort() + dbUri.getPath() + "?" + dbUri.getQuery();
+            this.url =  "jdbc:"+ convertScheme(dbUri.getScheme()) +"://" + dbUri.getHost() + ':' + dbUri.getPort()
+                    + dbUri.getPath()
+                    + (dbUri.getQuery() == null ? "" : "?" + dbUri.getQuery());
         }
         return this;
     }

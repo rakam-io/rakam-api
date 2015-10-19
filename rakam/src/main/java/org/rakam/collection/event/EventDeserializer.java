@@ -83,7 +83,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             if(!collect.isEmpty()) {
                 try {
-                    schemaRegistry.createOrGetCollectionField(project, collection, collect, this::callListeners);
+                    schemaRegistry.createOrGetCollectionField(project, collection, collect);
                 } catch (ProjectNotExistsException e) {
                     throw Throwables.propagate(e);
                 }
@@ -91,20 +91,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }));
     }
 
-    private void callListeners(ProjectCollection projectCollection) {
-        for (SystemEventListener listener : listeners) {
-            try {
-                listener.onCreateCollection(projectCollection.project, projectCollection.collection);
-            } catch (Exception e) {
-                logger.error(e, "Error while processing event listener");
-            }
-        }
-    }
-
     private boolean check(SchemaField existing, SchemaField moduleField) {
         if(existing.getName().equals(moduleField.getName())) {
             if (!existing.getType().equals(moduleField.getType())) {
-                throw new IllegalStateException("Module field "+existing.getName()+" type does not match existing field in event");
+                throw new IllegalStateException("Module field '"+existing.getName()+"' type does not match existing field in event");
             }
             return true;
         }
@@ -185,7 +175,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
             moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
 
-            schema = schemaRegistry.createOrGetCollectionField(project, collection, fields, this::callListeners);
+            schema = schemaRegistry.createOrGetCollectionField(project, collection, fields);
             avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
 
@@ -238,7 +228,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             moduleFields.constantFields.forEach(field ->
                     addModuleField(finalNewFields, field));
 
-            List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields, this::callListeners);
+            List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
             schemaCache.put(key, newAvroSchema);
             GenericData.Record newRecord = new GenericData.Record(newAvroSchema);

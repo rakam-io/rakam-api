@@ -1,17 +1,20 @@
 package org.rakam.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import com.google.common.base.Throwables;
+import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
 import java.io.IOException;
 import java.util.List;
@@ -29,6 +32,16 @@ public class JsonHelper {
 //        mapper.registerModule(simpleModule);
         mapper.registerModule(new JSR310Module());
         mapper.registerModule(new Jdk8Module());
+
+        SwaggerJacksonAnnotationIntrospector ai = new SwaggerJacksonAnnotationIntrospector();
+
+        mapper.registerModule(
+                new SimpleModule("swagger", Version.unknownVersion()) {
+                    @Override
+                    public void setupModule(SetupContext context) {
+                        context.insertAnnotationIntrospector(ai);
+                    }
+                });
     }
 
     private JsonHelper() {

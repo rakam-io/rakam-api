@@ -71,7 +71,7 @@ public class QueryHttpService extends HttpService {
 
     @GET
     @Consumes("text/event-stream")
-    @ApiOperation(value = "Analyze events", request = ExecuteQuery.class,
+    @ApiOperation(value = "Analyze events asynchronously", request = ExecuteQuery.class,
             authorizations = @Authorization(value = "read_key")
     )
     @Path("/execute")

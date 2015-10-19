@@ -6,8 +6,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
-import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
@@ -17,8 +17,6 @@ import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEventListener;
-import org.rakam.util.ProjectCollection;
 
 import javax.inject.Inject;
 import java.io.FileInputStream;
@@ -28,8 +26,6 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Set;
-import java.util.function.Consumer;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "recipes")
@@ -94,8 +90,7 @@ public class RecipeModule extends RakamModule {
                         return;
                     }
                     binder.bind(Recipe.class).toInstance(recipe);
-                    Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
-                    events.addBinding().to(RecipeLoader.class).in(Scopes.SINGLETON);
+                    binder.bind(RecipeLoader.class).asEagerSingleton();
                     set_default = true;
                     break;
                 case SPECIFIC:
@@ -123,56 +118,41 @@ public class RecipeModule extends RakamModule {
         return null;
     }
 
-    private static class RecipeLoader implements SystemEventListener {
+    private static class RecipeLoader {
         private Logger logger = Logger.get(RecipeLoader.class);
 
         private final Recipe recipe;
         private final Metastore metastore;
         private final QueryMetadataStore queryMetadataStore;
-        private final Set<SystemEventListener> listeners;
 
         @Inject
-        public RecipeLoader(Recipe recipe, Metastore metastore, Set<SystemEventListener> listeners, QueryMetadataStore queryMetadataStore) {
+        public RecipeLoader(Recipe recipe, Metastore metastore, QueryMetadataStore queryMetadataStore) {
             this.recipe = recipe;
             this.metastore = metastore;
             this.queryMetadataStore = queryMetadataStore;
-            this.listeners = listeners;
         }
 
-        @Override
-        public void onCreateProject(String project) {
+        @Subscribe public void onCreateProject(String project) {
             recipe.getCollections().forEach((collectionName, schema) -> {
-                metastore.createProject(project);
                 try {
-                    metastore.createOrGetCollectionField(project, collectionName, schema.getColumns(), new Consumer<ProjectCollection>() {
-                        @Override
-                        public void accept(ProjectCollection projectCollection) {
-                            for (SystemEventListener listener : listeners) {
-                                try {
-                                    listener.onCreateCollection(projectCollection.project, projectCollection.collection);
-                                } catch (Exception e) {
-                                    logger.error(e, "Error while processing event listener");
-                                }
-                            }
-                        }
-                    });
+                    metastore.createOrGetCollectionField(project, collectionName, schema.getColumns());
                 } catch (ProjectNotExistsException e) {
                     throw Throwables.propagate(e);
                 }
-
-                recipe.getContinuousQueryBuilders().stream()
-                        .map(builder -> builder.createContinuousQuery(project))
-                        .forEach(continuousQuery ->
-                                queryMetadataStore.createContinuousQuery(continuousQuery));
-
-                recipe.getMaterializedViewBuilders().stream()
-                        .map(builder -> builder.createMaterializedView(project))
-                        .forEach(continuousQuery ->
-                                queryMetadataStore.createMaterializedView(continuousQuery));
-
-                recipe.getReports().stream().forEach(reportBuilder ->
-                        reportBuilder.createReport(project));
             });
+
+            recipe.getContinuousQueryBuilders().stream()
+                    .map(builder -> builder.createContinuousQuery(project))
+                    .forEach(continuousQuery ->
+                            queryMetadataStore.createContinuousQuery(continuousQuery));
+
+            recipe.getMaterializedViewBuilders().stream()
+                    .map(builder -> builder.createMaterializedView(project))
+                    .forEach(continuousQuery ->
+                            queryMetadataStore.createMaterializedView(continuousQuery));
+
+            recipe.getReports().stream().forEach(reportBuilder ->
+                    reportBuilder.createReport(project));
         }
 
     }
@@ -199,7 +179,6 @@ public class RecipeModule extends RakamModule {
         private final Recipe recipe;
         private Metastore metastore;
         private QueryMetadataStore queryMetadataStore;
-        private Set<SystemEventListener> listeners;
 
         public RecipeLoaderSingle(Recipe recipe) {
             this.recipe = recipe;
@@ -215,14 +194,10 @@ public class RecipeModule extends RakamModule {
             this.queryMetadataStore = queryMetadataStore;
         }
 
-        @Inject
-        public void setListeners(Set<SystemEventListener> listeners) {
-            this.listeners = listeners;
-        }
-
         @Override
         public void call() {
-            new RecipeLoader(recipe, metastore, listeners, queryMetadataStore)
+
+            new RecipeLoader(recipe, metastore, queryMetadataStore)
                     .onCreateProject(recipe.getProject());
         }
     }

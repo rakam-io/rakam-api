@@ -26,17 +26,20 @@ import org.skife.jdbi.v2.util.StringMapper;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -46,6 +49,7 @@ public class JDBCMetastore implements Metastore {
     private final PrestoConfig prestoConfig;
     private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private final LoadingCache<String, Set<String>> collectionCache;
+    private final LoadingCache<String, List<Set<String>>> apiKeyCache;
 
     @Inject
     public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, PrestoConfig prestoConfig) {
@@ -70,11 +74,49 @@ public class JDBCMetastore implements Metastore {
             @Override
             public Set<String> load(String project) throws Exception {
                 try(Handle handle = dbi.open()) {
-                    Query<Map<String, Object>> bind = handle.createQuery("SELECT collection from collection_schema WHERE project = :project")
-                            .bind("project", project);
+                    return StreamSupport.stream(handle.createQuery("SELECT collection from collection_schema WHERE project = :project")
+                            .bind("project", project).map(StringMapper.FIRST).spliterator(), false).collect(Collectors.toSet());
+                }
+            }
+        });
 
-                    return bind.list().stream().map(row ->
-                            (String) row.get("collection")).collect(Collectors.toSet());
+        apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>() {
+            @Override
+            public List<Set<String>> load(String project) throws Exception {
+                try(Handle handle = dbi.open()) {
+
+                    Set<String> masterKeyList = new HashSet<>();
+                    Set<String> readKeyList = new HashSet<>();
+                    Set<String> writeKeyList = new HashSet<>();
+
+                    Set<String>[] keys =
+                            Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
+
+                    PreparedStatement ps = handle.getConnection().prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = :project");
+                    ps.setString(1, project);
+                    ResultSet resultSet = ps.executeQuery();
+                    while(resultSet.next()) {
+                        String apiKey;
+
+                        apiKey = resultSet.getString(1);
+                        if (apiKey != null) {
+                            masterKeyList.add(apiKey);
+                        }
+                        apiKey = resultSet.getString(2);
+                        if (apiKey != null) {
+                            readKeyList.add(apiKey);
+                        }
+                        apiKey = resultSet.getString(3);
+                        if (apiKey != null) {
+                            writeKeyList.add(apiKey);
+                        }
+                    }
+
+                    keys[AccessKeyType.MASTER_KEY.ordinal()] = Collections.unmodifiableSet(masterKeyList);
+                    keys[AccessKeyType.READ_KEY.ordinal()] = Collections.unmodifiableSet(readKeyList);
+                    keys[AccessKeyType.WRITE_KEY.ordinal()] = Collections.unmodifiableSet(writeKeyList);
+
+                    return Collections.unmodifiableList(Arrays.asList(keys));
                 }
             }
         });
@@ -94,11 +136,17 @@ public class JDBCMetastore implements Metastore {
 
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
                     "  name TEXT NOT NULL,\n" +
+                    "  location TEXT NOT NULL, PRIMARY KEY (name))")
+                    .execute();
+
+            handle.createStatement("CREATE TABLE IF NOT EXISTS api_key (" +
+                    "  id SERIAL PRIMARY KEY,\n" +
+                    "  project TEXT NOT NULL,\n" +
                     "  read_key TEXT NOT NULL,\n" +
                     "  write_key TEXT NOT NULL,\n" +
                     "  secret_key TEXT NOT NULL,\n" +
-                    "  location TEXT NOT NULL, PRIMARY KEY (name))")
-                    .execute();
+                    "  created_at TIMESTAMP default current_timestamp NOT NULL\n"+
+                    "  )").execute();
             return null;
         });
     }
@@ -112,15 +160,8 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public Map<String, Collection<String>> getAllCollections() {
-        try(Handle handle = dbi.open()) {
-            Query<Map<String, Object>> bind = handle.createQuery("SELECT project, collection from collection_schema");
-            Map<String, Collection<String>> table = Maps.newHashMap();
-            bind.forEach(row ->
-                    table.computeIfAbsent((String) row.get("project"),
-                            (key) -> Lists.newArrayList()).add((String) row.get("collection")));
-            return table;
-        }
+    public Map<String, Set<String>> getAllCollections() {
+        return Collections.unmodifiableMap(collectionCache.asMap());
     }
 
     @Override
@@ -146,25 +187,34 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public ProjectApiKeyList createProject(String project) {
-        checkProject(project);
-
+    public ProjectApiKeyList createApiKeys(String project) {
         String masterKey = CryptUtil.generateKey(64);
         String readKey = CryptUtil.generateKey(64);
         String writeKey = CryptUtil.generateKey(64);
 
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO project (name, location, master_key, read_key, write_key) VALUES(:name, :location, :master_key, :read_key, :write_key)")
-                    .bind("name", project)
+            handle.createStatement("INSERT INTO api_key (project, master_key, read_key, write_key) VALUES(:project, :location, :master_key, :read_key, :write_key)")
+                    .bind("project", project)
                     .bind("master_key", masterKey)
                     .bind("read_key", readKey)
                     .bind("write_key", writeKey)
-                     // todo: file.separator returns local filesystem property?
-                    .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
                     .execute();
         }
 
         return new ProjectApiKeyList(masterKey, readKey, writeKey);
+    }
+
+    @Override
+    public void createProject(String project) {
+        checkProject(project);
+
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("INSERT INTO project (name, location, master_key, read_key, write_key) VALUES(:name, :location, :master_key, :read_key, :write_key)")
+                    .bind("name", project)
+                     // todo: file.separator returns local filesystem property?
+                    .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
+                    .execute();
+        }
     }
 
     @Override
@@ -195,7 +245,7 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields, Consumer<ProjectCollection> listener) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields) throws ProjectNotExistsException {
         List<SchemaField> schemaFields;
         try {
             schemaFields = dbi.inTransaction((dao, status) -> {
@@ -210,7 +260,7 @@ public class JDBCMetastore implements Metastore {
                             .bind("project", project)
                             .bind("collection", collection)
                             .execute();
-                    listener.accept(new ProjectCollection(project, collection));
+//                    eventBus.post(new ProjectCollection(project, collection));
                     return newFields;
                 } else {
                     List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);
@@ -251,5 +301,19 @@ public class JDBCMetastore implements Metastore {
         schemaCache.refresh(new ProjectCollection(project, collection));
         collectionCache.refresh(project);
         return schemaFields;
+    }
+
+    @Override
+    public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
+        try {
+            boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
+            if(!exists) {
+                apiKeyCache.refresh(project);
+                return apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
+            }
+            return true;
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
     }
 }

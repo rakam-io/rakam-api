@@ -46,9 +46,6 @@ public class ProjectHttpService extends HttpService {
     public JsonResponse createProject(@ApiParam(name="name") String name) {
         checkProject(name);
         metastore.createProject(name);
-        for (SystemEventListener listener : systemEventListeners) {
-            listener.onCreateProject(name);
-        }
         return JsonResponse.success();
     }
 

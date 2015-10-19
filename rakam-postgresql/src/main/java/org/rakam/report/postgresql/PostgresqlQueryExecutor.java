@@ -98,7 +98,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     @Override
     public QueryExecution executeQuery(String project, String sqlQuery) {
-        if (projectExists(project)) {
+        if (!projectExists(project)) {
             throw new IllegalArgumentException("Project is not valid");
         }
         return executeRawQuery(buildQuery(project, sqlQuery, null));

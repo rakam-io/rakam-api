@@ -18,6 +18,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 
@@ -76,14 +77,15 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> execute(@ApiParam(name = "project", required = true) String project,
+    public CompletableFuture<QueryResult> execute(@ApiParam(name = "project") String project,
                                                   @ApiParam(name = "measure", required = false) EventExplorer.Measure measure,
                                                   @ApiParam(name = "grouping", required = false) EventExplorer.Reference grouping,
                                                   @ApiParam(name = "segment", required = false) EventExplorer.Reference segment,
                                                   @ApiParam(name = "filterExpression", required = false) String filterExpression,
-                                                  @ApiParam(name = "startDate", required = true) LocalDate startDate,
-                                                  @ApiParam(name = "endDate", required = true) LocalDate endDate,
-                                                  @ApiParam(name="collections", required = true) List<String> collections) {
+                                                  @ApiParam(name = "startDate") LocalDate startDate,
+                                                  @ApiParam(name = "endDate") LocalDate endDate,
+                                                  @ApiParam(name="collections") List<String> collections,
+                                                  @HeaderParam("read_key") String readKey) {
         checkArgument(collections.size() > 0, "collections array is empty");
         checkArgument(!measure.column.equals("time"), "measure column value cannot be 'time'");
         return eventExplorer.analyze(project,

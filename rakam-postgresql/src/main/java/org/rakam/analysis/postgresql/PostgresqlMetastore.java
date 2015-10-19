@@ -1,9 +1,13 @@
 package org.rakam.analysis.postgresql;
 
 import com.google.common.base.Throwables;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
@@ -20,25 +24,77 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-import java.util.Collection;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlMetastore implements Metastore {
-    JDBCPoolDataSource connectionPool;
+    private final LoadingCache<String, List<Set<String>>> apiKeyCache;
+    private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
+    private final LoadingCache<String, Set<String>> collectionCache;
+    private final JDBCPoolDataSource connectionPool;
+    private final EventBus eventBus;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool) {
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus) {
         this.connectionPool = connectionPool;
+        this.eventBus = eventBus;
 
+        setup();
+
+        apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>() {
+            @Override
+            public List<Set<String>> load(String project) throws Exception {
+                try (Connection conn = connectionPool.openConnection()) {
+                    return getKeys(conn, project);
+                }
+            }
+        });
+
+        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
+            @Override
+            public List<SchemaField> load(ProjectCollection key) throws Exception {
+                try (Connection conn = connectionPool.openConnection()) {
+                    List<SchemaField> schema = getSchema(conn, key.project, key.collection);
+                    if (schema == null) {
+                        return ImmutableList.of();
+                    }
+                    return schema;
+                }
+            }
+        });
+
+        collectionCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
+            @Override
+            public Set<String> load(String project) throws Exception {
+                try (Connection conn = connectionPool.openConnection()) {
+                    HashSet<String> tables = new HashSet<>();
+
+                    ResultSet tableRs = conn.getMetaData().getTables("", project, null, new String[]{"TABLE"});
+                    while(tableRs.next()) {
+                        String tableName = tableRs.getString("table_name");
+
+                        if(!tableName.startsWith("_")) {
+                            tables.add(tableName);
+                        }
+                    }
+
+                    return tables;
+                }
+            }
+        });
+    }
+
+    private void setup() {
         try(Connection connection = connectionPool.openConnection()) {
             Statement statement = connection.createStatement();
             statement.execute("" +
@@ -49,118 +105,86 @@ public class PostgresqlMetastore implements Metastore {
                     "  PRIMARY KEY (project, collection)" +
                     "  )");
 
-            statement.execute("" +
-                    "  CREATE TABLE IF NOT EXISTS public.api_keys (" +
-                    "  project TEXT NOT NULL," +
-                    "  master_key TEXT NOT NULL," +
-                    "  read_key TEXT NOT NULL," +
-                    "  write_key TEXT NOT NULL," +
-                    "  PRIMARY KEY (project, collection)" +
+            statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
+                    "  id SERIAL PRIMARY KEY,\n" +
+                    "  project TEXT NOT NULL,\n" +
+                    "  read_key TEXT NOT NULL,\n" +
+                    "  write_key TEXT NOT NULL,\n" +
+                    "  secret_key TEXT NOT NULL,\n" +
+                    "  created_at TIMESTAMP default current_timestamp NOT NULL\n"+
                     "  )");
-        } catch (SQLException e) {
-           Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public Map<String, Collection<String>> getAllCollections() {
-        Map<String, Collection<String>> map = Maps.newHashMap();
-        try(Connection connection = connectionPool.openConnection()) {
-            ResultSet dbColumns = connection.getMetaData().getTables("", null, null, null);
-            while (dbColumns.next()) {
-                String schemaName = dbColumns.getString("TABLE_SCHEM");
-                if(schemaName.equals("information_schema") || schemaName.startsWith("pg_")) {
-                    continue;
-                }
-                String tableName = dbColumns.getString("TABLE_NAME");
-                Collection<String> table = map.get(schemaName);
-                if(table == null) {
-                    table = Lists.newLinkedList();
-                    map.put(schemaName, table);
-                }
-                table.add(tableName);
-            }
         } catch (SQLException e) {
             Throwables.propagate(e);
         }
-        return map;
+    }
+
+    private List<Set<String>> getKeys(Connection conn, String project) throws SQLException {
+        Set<String> masterKeyList = new HashSet<>();
+        Set<String> readKeyList = new HashSet<>();
+        Set<String> writeKeyList = new HashSet<>();
+
+        Set<String>[] keys =
+                Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
+
+        PreparedStatement ps = conn.prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = :project");
+        ps.setString(1, project);
+        ResultSet resultSet = ps.executeQuery();
+        while (resultSet.next()) {
+            String apiKey;
+
+            apiKey = resultSet.getString(1);
+            if (apiKey != null) {
+                masterKeyList.add(apiKey);
+            }
+            apiKey = resultSet.getString(2);
+            if (apiKey != null) {
+                readKeyList.add(apiKey);
+            }
+            apiKey = resultSet.getString(3);
+            if (apiKey != null) {
+                writeKeyList.add(apiKey);
+            }
+        }
+
+        keys[AccessKeyType.MASTER_KEY.ordinal()] = Collections.unmodifiableSet(masterKeyList);
+        keys[AccessKeyType.READ_KEY.ordinal()] = Collections.unmodifiableSet(readKeyList);
+        keys[AccessKeyType.WRITE_KEY.ordinal()] = Collections.unmodifiableSet(writeKeyList);
+
+        return Collections.unmodifiableList(Arrays.asList(keys));
+    }
+
+    @Override
+    public Map<String, Set<String>> getAllCollections() {
+        return Collections.unmodifiableMap(collectionCache.asMap());
     }
 
     @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
-        checkProject(project);
-        Map<String, List<SchemaField>> table = Maps.newHashMap();
-
-        try(Connection connection = connectionPool.openConnection()) {
-            HashSet<String> tables = new HashSet<>();
-            ResultSet tableRs = connection.getMetaData().getTables("", project, null, new String[]{"TABLE"});
-            while(tableRs.next()) {
-                String tableName = tableRs.getString("table_name");
-
-                if(!tableName.startsWith("_")) {
-                    tables.add(tableName);
-                }
-            }
-            ResultSet resultSet = connection.getMetaData().getColumns("", project, null, null);
-            while (resultSet.next()) {
-                String tableName = resultSet.getString("TABLE_NAME");
-                // TODO: move it to tableNamePattern parameter in DatabaseMetadata.getColumns()
-                if(!tables.contains(tableName)) {
-                    continue;
-                }
-                List<SchemaField> schemaFields = table.get(tableName);
-                if(schemaFields == null) {
-                    schemaFields = new LinkedList<>();
-                    table.put(tableName, schemaFields);
-                }
-                schemaFields.add(new SchemaField(
-                        resultSet.getString("COLUMN_NAME"),
-                        fromSql(resultSet.getInt("DATA_TYPE")),
-                        resultSet.getString("NULLABLE").equals("1")));
-            }
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
+        try {
+            return collectionCache.get(project).stream().collect(Collectors.toMap(c -> c, collection -> getCollection(project, collection)));
+        } catch (ExecutionException e) {
+           throw Throwables.propagate(e);
         }
-        return table;
     }
 
     @Override
     public Set<String> getCollectionNames(String project) {
-
-        checkProject(project);
-
-        HashSet<String> tables = new HashSet<>();
-
-        try(Connection connection = connectionPool.openConnection()) {
-            ResultSet tableRs = connection.getMetaData().getTables("", project, null, new String[]{"TABLE"});
-            while(tableRs.next()) {
-                String tableName = tableRs.getString("table_name");
-
-                if(!tableName.startsWith("_")) {
-                    tables.add(tableName);
-                }
-            }
-        } catch (SQLException e) {
+        try {
+            return collectionCache.get(project);
+        } catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
-
-        return tables;
     }
 
     @Override
-    public ProjectApiKeyList createProject(String project) {
-        checkProject(project);
+    public ProjectApiKeyList createApiKeys(String project) {
 
         String masterKey = CryptUtil.generateKey(64);
         String readKey = CryptUtil.generateKey(64);
         String writeKey = CryptUtil.generateKey(64);
 
-        if(project.equals("information_schema")) {
-            throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
-        }
         try(Connection connection = connectionPool.openConnection()) {
-            connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS " + project);
-            PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_keys (master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)");
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_key (master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)");
             ps.setString(1,  masterKey);
             ps.setString(2,  readKey);
             ps.setString(3,  writeKey);
@@ -171,6 +195,22 @@ public class PostgresqlMetastore implements Metastore {
         }
 
         return new ProjectApiKeyList(masterKey, readKey, writeKey);
+    }
+
+    @Override
+    public void createProject(String project) {
+        checkProject(project);
+
+        if(project.equals("information_schema")) {
+            throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
+        }
+        try(Connection connection = connectionPool.openConnection()) {
+            connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS " + project);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+
+        eventBus.post(project);
     }
 
     @Override
@@ -192,8 +232,15 @@ public class PostgresqlMetastore implements Metastore {
 
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
+        try {
+            return schemaCache.get(new ProjectCollection(project, collection));
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    private List<SchemaField> getSchema(Connection connection, String project, String collection) throws SQLException {
         List<SchemaField> schemaFields = Lists.newArrayList();
-        try(Connection connection = connectionPool.openConnection()) {
             ResultSet dbColumns = connection.getMetaData().getColumns("", project, collection, null);
             while (dbColumns.next()) {
                 String columnName = dbColumns.getString("COLUMN_NAME");
@@ -205,14 +252,11 @@ public class PostgresqlMetastore implements Metastore {
                 }
                 schemaFields.add(new SchemaField(columnName, fieldType, true));
             }
-        } catch (SQLException e) {
-            Throwables.propagate(e);
-        }
         return schemaFields.size() == 0 ? null : schemaFields;
     }
 
     @Override
-    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields, Consumer<ProjectCollection> listener) throws ProjectNotExistsException {
+    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
         if(collection.equals("public")) {
             throw new IllegalArgumentException("Collection name 'public' is not allowed.");
         }
@@ -250,6 +294,7 @@ public class PostgresqlMetastore implements Metastore {
                     return currentFields;
                 }
                 query = format("CREATE TABLE %s.%s (%s)", project, collection, queryEnd);
+                eventBus.post(new ProjectCollection(project, collection));
             }else {
                 String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
                         .map(f -> {
@@ -278,10 +323,24 @@ public class PostgresqlMetastore implements Metastore {
             // column or table already exists
             if(e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42701") || e.getSQLState().equals("42710")) {
                 // TODO: should we try again until this operation is done successfully, what about infinite loops?
-                return createOrGetCollectionField(project, collection, fields, listener);
+                return createOrGetCollectionField(project, collection, fields);
             }else {
                 throw new IllegalStateException();
             }
+        }
+    }
+
+    @Override
+    public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
+        try {
+            boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
+            if(!exists) {
+                apiKeyCache.refresh(project);
+                return apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
+            }
+            return true;
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
         }
     }
 

@@ -40,11 +40,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -202,7 +202,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         Map<String, List<ContinuousQuery>> allContinuousQueries = reportDatabase.getAllContinuousQueries().stream()
                 .collect(Collectors.groupingBy(k -> k.project));
 
-        for (Map.Entry<String, Collection<String>> entry : metastore.getAllCollections().entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : metastore.getAllCollections().entrySet()) {
             String project = entry.getKey();
 
             List<ContinuousQuery> continuousQueries = allContinuousQueries.get(project);

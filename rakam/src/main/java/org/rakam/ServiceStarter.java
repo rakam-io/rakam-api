@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
 import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Binder;
@@ -13,8 +14,12 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
+import com.google.inject.matcher.Matchers;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
+import com.google.inject.spi.InjectionListener;
+import com.google.inject.spi.TypeEncounter;
+import com.google.inject.spi.TypeListener;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
@@ -177,6 +182,19 @@ public class ServiceStarter {
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
+            EventBus eventBus = new EventBus("Default EventBus");
+            binder.bind(EventBus.class).toInstance(eventBus);
+
+            binder.bindListener(Matchers.any(), new TypeListener() {
+                public <I> void hear(TypeLiteral<I> typeLiteral, TypeEncounter<I> typeEncounter) {
+                    typeEncounter.register(new InjectionListener<I>() {
+                        public void afterInjection(I i) {
+                            eventBus.register(i);
+                        }
+                    });
+                }
+            });
+
             Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
             tags.addBinding().toInstance(new Tag().name("admin").description("System related actions").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("event").description("Event Analyzer").externalDocs(MetadataConfig.centralDocs));
@@ -284,4 +302,6 @@ public class ServiceStarter {
             return Iterators.toArray(stream.iterator(), Path.class);
         }
     }
+
+
 }
