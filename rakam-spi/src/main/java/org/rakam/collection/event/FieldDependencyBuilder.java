@@ -43,7 +43,7 @@ public class FieldDependencyBuilder {
         checkState(collisions.length == 0, "Fields already exist in dependency table: ", Arrays.toString(collisions));
     }
 
-    FieldDependency build() {
+    public FieldDependency build() {
         return new FieldDependency(newHashSet(constantFields), dependentFields);
     }
 

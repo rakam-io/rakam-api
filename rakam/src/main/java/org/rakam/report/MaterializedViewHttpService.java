@@ -1,5 +1,6 @@
 package org.rakam.report;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
@@ -46,7 +47,7 @@ public class MaterializedViewHttpService extends HttpService {
     @Path("/list")
     public Object listViews(@ApiParam(name="project", required = true) String project) {
         if (project == null) {
-            return errorMessage("project parameter is required", 400);
+            return errorMessage("project parameter is required", HttpResponseStatus.BAD_REQUEST);
         }
 
         return service.list(project);
@@ -60,7 +61,7 @@ public class MaterializedViewHttpService extends HttpService {
     public List<Schema> schema(@ApiParam(name="project", required = true) String project) {
         Map<String, List<SchemaField>> schemas = service.getSchemas(project);
         if(schemas == null) {
-            throw new RakamException("project does not exist", 404);
+            throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
         }
         return schemas.entrySet().stream()
                     .filter(entry -> !entry.getKey().startsWith("_"))

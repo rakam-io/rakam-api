@@ -8,11 +8,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import org.rakam.analysis.AbstractMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.plugin.EventMapper;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.ProjectCollection;
 
@@ -37,17 +38,16 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PostgresqlMetastore implements Metastore {
+public class PostgresqlMetastore extends AbstractMetastore {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
     private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private final LoadingCache<String, Set<String>> collectionCache;
     private final JDBCPoolDataSource connectionPool;
-    private final EventBus eventBus;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus) {
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, Set<EventMapper> eventMappers) {
+        super(eventMappers, eventBus);
         this.connectionPool = connectionPool;
-        this.eventBus = eventBus;
 
         setup();
 
@@ -92,6 +92,8 @@ public class PostgresqlMetastore implements Metastore {
                 }
             }
         });
+
+        super.checkExistingSchema();
     }
 
     private void setup() {
@@ -210,7 +212,7 @@ public class PostgresqlMetastore implements Metastore {
             throw Throwables.propagate(e);
         }
 
-        eventBus.post(project);
+        super.onCreateProject(project);
     }
 
     @Override
@@ -256,7 +258,7 @@ public class PostgresqlMetastore implements Metastore {
     }
 
     @Override
-    public List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
+    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
         if(collection.equals("public")) {
             throw new IllegalArgumentException("Collection name 'public' is not allowed.");
         }
@@ -294,7 +296,7 @@ public class PostgresqlMetastore implements Metastore {
                     return currentFields;
                 }
                 query = format("CREATE TABLE %s.%s (%s)", project, collection, queryEnd);
-                eventBus.post(new ProjectCollection(project, collection));
+                super.onCreateCollection(project, collection);
             }else {
                 String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
                         .map(f -> {
@@ -323,7 +325,7 @@ public class PostgresqlMetastore implements Metastore {
             // column or table already exists
             if(e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42701") || e.getSQLState().equals("42710")) {
                 // TODO: should we try again until this operation is done successfully, what about infinite loops?
-                return createOrGetCollectionField(project, collection, fields);
+                return getOrCreateCollectionFieldList(project, collection, fields);
             }else {
                 throw new IllegalStateException();
             }
@@ -356,7 +358,7 @@ public class PostgresqlMetastore implements Metastore {
             case TIME:
                 return type.name();
             case DOUBLE:
-                return "double precision";
+                return "DOUBLE PRECISION";
             default:
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }
@@ -365,10 +367,7 @@ public class PostgresqlMetastore implements Metastore {
     public static FieldType fromSql(int sqlType) {
         switch (sqlType) {
             case Types.DECIMAL:
-            case Types.DOUBLE:
-            case Types.FLOAT:
             case Types.BIGINT:
-                return FieldType.LONG;
             case Types.TINYINT:
             case Types.NUMERIC:
             case Types.INTEGER:
@@ -385,6 +384,9 @@ public class PostgresqlMetastore implements Metastore {
             case Types.TIME:
             case Types.TIME_WITH_TIMEZONE:
                 return FieldType.TIME;
+            case Types.DOUBLE:
+            case Types.FLOAT:
+                return FieldType.DOUBLE;
             case Types.LONGVARCHAR:
             case Types.NVARCHAR:
             case Types.VARCHAR:

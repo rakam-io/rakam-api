@@ -1,6 +1,7 @@
 package org.rakam.ui;
 
 import com.google.inject.name.Named;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -67,7 +68,7 @@ public class JDBCReportMetadata {
         } catch (UnableToExecuteStatementException e) {
             if(e.getCause() instanceof SQLException && ((SQLException) e.getCause()).getSQLState().equals("23505")) {
                 // TODO: replace
-                throw new RakamException("Report already exists", 400);
+                throw new RakamException("Report already exists", HttpResponseStatus.BAD_REQUEST);
             }
         }
     }

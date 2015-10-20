@@ -11,12 +11,12 @@ import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
-import io.airlift.log.Logger;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEvents;
 
 import javax.inject.Inject;
 import java.io.FileInputStream;
@@ -119,8 +119,6 @@ public class RecipeModule extends RakamModule {
     }
 
     private static class RecipeLoader {
-        private Logger logger = Logger.get(RecipeLoader.class);
-
         private final Recipe recipe;
         private final Metastore metastore;
         private final QueryMetadataStore queryMetadataStore;
@@ -132,27 +130,28 @@ public class RecipeModule extends RakamModule {
             this.queryMetadataStore = queryMetadataStore;
         }
 
-        @Subscribe public void onCreateProject(String project) {
+        @Subscribe
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
             recipe.getCollections().forEach((collectionName, schema) -> {
                 try {
-                    metastore.createOrGetCollectionField(project, collectionName, schema.getColumns());
+                    metastore.getOrCreateCollectionFieldList(event.project, collectionName, schema.getColumns());
                 } catch (ProjectNotExistsException e) {
                     throw Throwables.propagate(e);
                 }
             });
 
             recipe.getContinuousQueryBuilders().stream()
-                    .map(builder -> builder.createContinuousQuery(project))
+                    .map(builder -> builder.createContinuousQuery(event.project))
                     .forEach(continuousQuery ->
                             queryMetadataStore.createContinuousQuery(continuousQuery));
 
             recipe.getMaterializedViewBuilders().stream()
-                    .map(builder -> builder.createMaterializedView(project))
+                    .map(builder -> builder.createMaterializedView(event.project))
                     .forEach(continuousQuery ->
                             queryMetadataStore.createMaterializedView(continuousQuery));
 
             recipe.getReports().stream().forEach(reportBuilder ->
-                    reportBuilder.createReport(project));
+                    reportBuilder.createReport(event.project));
         }
 
     }
@@ -178,7 +177,6 @@ public class RecipeModule extends RakamModule {
 
         private final Recipe recipe;
         private Metastore metastore;
-        private QueryMetadataStore queryMetadataStore;
 
         public RecipeLoaderSingle(Recipe recipe) {
             this.recipe = recipe;
@@ -189,16 +187,9 @@ public class RecipeModule extends RakamModule {
             this.metastore = metastore;
         }
 
-        @Inject
-        public void setQueryMetadataStore(QueryMetadataStore queryMetadataStore) {
-            this.queryMetadataStore = queryMetadataStore;
-        }
-
         @Override
         public void call() {
-
-            new RecipeLoader(recipe, metastore, queryMetadataStore)
-                    .onCreateProject(recipe.getProject());
+            metastore.createProject(recipe.getProject());
         }
     }
 }

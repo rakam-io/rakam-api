@@ -14,6 +14,7 @@
 package org.rakam.report.postgresql;
 
 import com.google.common.collect.ImmutableMap;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -90,19 +91,19 @@ public class PostgresqlEventExplorer implements EventExplorer {
                 return;
             case HOUR:
                 if (startDate.atStartOfDay().until(endDate.atStartOfDay(), ChronoUnit.HOURS) > 3000)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, 400);
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
                 break;
             case DAY:
                 if (startDate.until(endDate, ChronoUnit.DAYS) > 100)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, 400);
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
                 break;
             case MONTH:
                 if (startDate.until(endDate, ChronoUnit.MONTHS) > 100)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, 400);
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
                 break;
             case YEAR:
                 if (startDate.until(endDate, ChronoUnit.YEARS) > 100)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, 400);
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
                 break;
         }
 

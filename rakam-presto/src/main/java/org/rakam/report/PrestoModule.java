@@ -3,6 +3,7 @@ package org.rakam.report;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -26,7 +27,7 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEventListener;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.UserPluginConfig;
 
@@ -62,8 +63,7 @@ public class PrestoModule extends RakamModule {
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
 
-            Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
-            events.addBinding().to(EventExplorerListener.class).in(Scopes.SINGLETON);
+            binder.bind(EventExplorerListener.class).asEagerSingleton();
         }
 
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
@@ -90,7 +90,7 @@ public class PrestoModule extends RakamModule {
         return "Rakam backend for high-throughput systems.";
     }
 
-    public static class EventExplorerListener implements SystemEventListener {
+    public static class EventExplorerListener {
         private static final String QUERY = "select time/3600 as time, count(*) as total from stream group by 1";
         private final PrestoContinuousQueryService continuousQueryService;
 
@@ -99,12 +99,12 @@ public class PrestoModule extends RakamModule {
             this.continuousQueryService = continuousQueryService;
         }
 
-        @Override
-        public void onCreateCollection(String project, String collection) {
-            ContinuousQuery report = new ContinuousQuery(project, "Total count of "+collection,
-                    "_total_" + collection,
+        @Subscribe
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+            ContinuousQuery report = new ContinuousQuery(event.project, "Total count of "+event.collection,
+                    "_total_" + event.collection,
                     QUERY,
-                    ImmutableList.of(collection),
+                    ImmutableList.of(event.collection),
                     ImmutableList.of(), ImmutableMap.of());
             continuousQueryService.create(report);
         }

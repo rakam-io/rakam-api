@@ -1,12 +1,13 @@
 package org.rakam.ui;
 
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.binder.AnnotatedBindingBuilder;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEventListener;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.server.http.HttpService;
 
 import javax.inject.Inject;
@@ -36,8 +37,7 @@ public class RakamUIModule extends RakamModule {
                 break;
         }
 
-        Multibinder.newSetBinder(binder, SystemEventListener.class)
-                .addBinding().to(DefaultDashboardCreator.class);
+        binder.bind(DefaultDashboardCreator.class).asEagerSingleton();
 
         Multibinder<HttpService> httpServices = Multibinder
                 .newSetBinder(binder, HttpService.class);
@@ -106,7 +106,7 @@ public class RakamUIModule extends RakamModule {
         }
     }
 
-    public static class DefaultDashboardCreator implements SystemEventListener {
+    public static class DefaultDashboardCreator {
 
         private final DashboardService service;
 
@@ -115,9 +115,9 @@ public class RakamUIModule extends RakamModule {
             this.service = service;
         }
 
-        @Override
-        public void onCreateProject(String project) {
-            service.create(project, "Default");
+        @Subscribe
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+            service.create(event.project, "Default");
         }
     }
 }

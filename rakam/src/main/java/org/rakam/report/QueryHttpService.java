@@ -89,7 +89,7 @@ public class QueryHttpService extends HttpService {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
         List<String> data = request.params().get("data");
         if (data == null || data.isEmpty()) {
-            response.send("result", encode(HttpServer.errorMessage("data query parameter is required", 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("data query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
 
@@ -97,7 +97,7 @@ public class QueryHttpService extends HttpService {
         try {
             query = JsonHelper.readSafe(data.get(0), clazz);
         } catch (IOException e) {
-            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: "+e.getMessage(), 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
 
@@ -105,7 +105,7 @@ public class QueryHttpService extends HttpService {
         try {
             execute = executerFunction.apply(query);
         } catch (Exception e) {
-            response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), 400))).end();
+            response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
         handleServerSentQueryExecution(eventLoopGroup, response, execute);

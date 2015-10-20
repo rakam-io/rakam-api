@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
@@ -53,7 +54,7 @@ public class ContinuousQueryHttpService extends HttpService {
             f = service.create(report);
         } catch (IllegalArgumentException e) {
             CompletableFuture<JsonResponse> err = new CompletableFuture<>();
-            err.completeExceptionally(new RakamException(e.getMessage(), 400));
+            err.completeExceptionally(new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST));
             return err;
         }
         return f.thenApply(JsonResponse::map);
@@ -76,7 +77,7 @@ public class ContinuousQueryHttpService extends HttpService {
     public List<Collection> schema(@ApiParam(name="project", required = true) String project) {
         Map<String, List<SchemaField>> schemas = service.getSchemas(project);
         if(schemas == null) {
-            throw new RakamException("project does not exist", 404);
+            throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
         }
         return schemas.entrySet().stream()
                     // ignore system tables

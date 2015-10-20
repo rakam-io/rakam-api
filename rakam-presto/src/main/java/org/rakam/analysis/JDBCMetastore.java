@@ -8,10 +8,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.plugin.EventMapper;
 import org.rakam.report.PrestoConfig;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
@@ -44,7 +45,7 @@ import java.util.stream.StreamSupport;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Singleton
-public class JDBCMetastore implements Metastore {
+public class JDBCMetastore extends AbstractMetastore {
     private final DBI dbi;
     private final PrestoConfig prestoConfig;
     private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
@@ -52,7 +53,8 @@ public class JDBCMetastore implements Metastore {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
 
     @Inject
-    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, PrestoConfig prestoConfig) {
+    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, EventBus eventBus, Set<EventMapper> eventMappers, PrestoConfig prestoConfig) {
+        super(eventMappers, eventBus);
         this.prestoConfig = prestoConfig;
 
         dbi = new DBI(dataSource);
@@ -122,6 +124,7 @@ public class JDBCMetastore implements Metastore {
         });
 
         setup();
+        super.checkExistingSchema();
     }
 
     private void setup() {
@@ -215,6 +218,8 @@ public class JDBCMetastore implements Metastore {
                     .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
                     .execute();
         }
+
+        super.onCreateProject(project);
     }
 
     @Override
@@ -245,7 +250,7 @@ public class JDBCMetastore implements Metastore {
     }
 
     @Override
-    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> newFields) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, List<SchemaField> newFields) throws ProjectNotExistsException {
         List<SchemaField> schemaFields;
         try {
             schemaFields = dbi.inTransaction((dao, status) -> {
@@ -260,7 +265,7 @@ public class JDBCMetastore implements Metastore {
                             .bind("project", project)
                             .bind("collection", collection)
                             .execute();
-//                    eventBus.post(new ProjectCollection(project, collection));
+                    super.onCreateCollection(project, collection);
                     return newFields;
                 } else {
                     List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);

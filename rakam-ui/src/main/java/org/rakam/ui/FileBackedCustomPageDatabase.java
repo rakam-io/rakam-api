@@ -15,9 +15,10 @@ package org.rakam.ui;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import javax.inject.Inject;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.util.RakamException;
 
+import javax.inject.Inject;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -94,7 +95,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
         try {
             return new ByteArrayInputStream(Files.readAllBytes(f.toPath()));
         } catch (NoSuchFileException e) {
-            throw new RakamException("File not found", 404);
+            throw new RakamException("File not found", HttpResponseStatus.NOT_FOUND);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

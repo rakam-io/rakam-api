@@ -2,6 +2,7 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.AbstractUserService.CollectionEvent;
@@ -54,7 +55,7 @@ public class UserHttpService extends HttpService {
         try {
             o = service.create(project, properties);
         } catch (Exception e) {
-            throw new RakamException(e.getMessage(), 400);
+            throw new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }
 
         return new CreateUserResponse(o);
@@ -105,7 +106,7 @@ public class UserHttpService extends HttpService {
                     expression = sqlParser.createExpression(filter);
                 }
             } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filter), 400);
+                throw new RakamException(format("filter expression '%s' couldn't parsed", filter), HttpResponseStatus.BAD_REQUEST);
             }
         } else {
             expression = null;

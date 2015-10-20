@@ -4,10 +4,10 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
-import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import com.impossibl.postgres.jdbc.PGDataSource;
 import org.rakam.analysis.EventExplorer;
@@ -29,7 +29,7 @@ import org.rakam.plugin.EventStreamConfig;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEventListener;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlEventExplorer;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
@@ -91,8 +91,7 @@ public class PostgresqlModule extends RakamModule {
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PostgresqlEventExplorer.class);
 
-            Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
-            events.addBinding().to(EventExplorerListener.class).in(Scopes.SINGLETON);
+            binder.bind(EventExplorerListener.class).asEagerSingleton();
         }
 
 
@@ -108,7 +107,7 @@ public class PostgresqlModule extends RakamModule {
         return "Postgresql deployment type module";
     }
 
-    public static class EventExplorerListener implements SystemEventListener {
+    public static class EventExplorerListener {
         private static final String QUERY = "select time/3600 as time, count(*) as total from stream group by 1";
         private final PostgresqlContinuousQueryService continuousQueryService;
 
@@ -117,12 +116,12 @@ public class PostgresqlModule extends RakamModule {
             this.continuousQueryService = continuousQueryService;
         }
 
-        @Override
-        public void onCreateCollection(String project, String collection) {
-            ContinuousQuery report = new ContinuousQuery(project, "Total count of "+collection,
-                    "_total_" + collection,
+        @Subscribe
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+            ContinuousQuery report = new ContinuousQuery(event.project, "Total count of "+event.collection,
+                    "_total_" + event.collection,
                     QUERY,
-                    ImmutableList.of(collection),
+                    ImmutableList.of(event.collection),
                     ImmutableList.of(), ImmutableMap.of());
             continuousQueryService.create(report);
         }

@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryExecutor;
@@ -121,7 +122,7 @@ public class RealTimeHttpService extends HttpService {
         ContinuousQuery continuousQuery = service.get(project, tableName);
         if (continuousQuery == null) {
             CompletableFuture<Object> f = new CompletableFuture<>();
-            f.completeExceptionally(new RakamException("Couldn't found rule", 400));
+            f.completeExceptionally(new RakamException("Couldn't found rule", HttpResponseStatus.BAD_REQUEST));
             return f;
         }
 
@@ -219,7 +220,7 @@ public class RealTimeHttpService extends HttpService {
     @Path("/list")
     public List<RealTimeReport> listReports(@ApiParam(name = "project", required = true) String project) {
         if (project == null) {
-            throw new RakamException("project parameter is required", 400);
+            throw new RakamException("project parameter is required", HttpResponseStatus.BAD_REQUEST);
         }
         return service.list(project).stream()
                 .filter(report -> report.options != null && Objects.equals(report.options.get("type"), "realtime"))

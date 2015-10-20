@@ -1,9 +1,7 @@
 package org.rakam;
 
-import io.airlift.log.Logger;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.SystemEventListener;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -17,25 +15,22 @@ import org.rakam.util.JsonResponse;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/project")
-@Api(value = "/project", description = "Project operations", tags = "project")
+@Api(value = "/project", description = "Project operations", tags = "admin")
 public class ProjectHttpService extends HttpService {
-    Logger logger = Logger.get(ProjectHttpService.class);
 
-    private final Set<SystemEventListener> systemEventListeners;
     private final Metastore metastore;
 
     @Inject
-    public ProjectHttpService(Metastore metastore, Set<SystemEventListener> systemEventListeners) {
+    public ProjectHttpService(Metastore metastore) {
         this.metastore = metastore;
-        this.systemEventListeners = systemEventListeners;
     }
 
     @ApiOperation(value = "Create project",
@@ -45,7 +40,7 @@ public class ProjectHttpService extends HttpService {
     @Path("/create")
     public JsonResponse createProject(@ApiParam(name="name") String name) {
         checkProject(name);
-        metastore.createProject(name);
+        metastore.createProject(name.toLowerCase(Locale.ENGLISH));
         return JsonResponse.success();
     }
 

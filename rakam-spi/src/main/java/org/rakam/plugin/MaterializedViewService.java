@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 
 
@@ -32,7 +33,7 @@ public abstract class MaterializedViewService {
         QueryResult result = queryExecutor.executeStatement(materializedView.project, format("CREATE TABLE materialized.%s AS (%s LIMIT 0)",
                 materializedView.table_name, materializedView.query)).getResult().join();
         if(result.isFailed()) {
-            throw new RakamException("Couldn't created table: "+result.getError().toString(), 400);
+            throw new RakamException("Couldn't created table: "+result.getError().toString(), UNAUTHORIZED);
         }
         database.createMaterializedView(materializedView);
         return CompletableFuture.completedFuture(null);

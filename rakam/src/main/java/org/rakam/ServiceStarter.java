@@ -40,7 +40,6 @@ import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEventListener;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.MaterializedViewHttpService;
@@ -176,22 +175,17 @@ public class ServiceStarter {
 
             Multibinder.newSetBinder(binder, EventMapper.class);
             Multibinder.newSetBinder(binder, InjectionHook.class);
-            Multibinder.newSetBinder(binder, SystemEventListener.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
             OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class);
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
-            EventBus eventBus = new EventBus("Default EventBus");
+            EventBus eventBus = new EventBus("System Event Listener");
             binder.bind(EventBus.class).toInstance(eventBus);
 
             binder.bindListener(Matchers.any(), new TypeListener() {
-                public <I> void hear(TypeLiteral<I> typeLiteral, TypeEncounter<I> typeEncounter) {
-                    typeEncounter.register(new InjectionListener<I>() {
-                        public void afterInjection(I i) {
-                            eventBus.register(i);
-                        }
-                    });
+                public void hear(TypeLiteral typeLiteral, TypeEncounter typeEncounter) {
+                    typeEncounter.register((InjectionListener) i -> eventBus.register(i));
                 }
             });
 
@@ -302,6 +296,4 @@ public class ServiceStarter {
             return Iterators.toArray(stream.iterator(), Path.class);
         }
     }
-
-
 }

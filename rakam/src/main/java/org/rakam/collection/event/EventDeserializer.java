@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.airlift.log.Logger;
@@ -23,10 +22,7 @@ import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.SystemEventListener;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.ProjectCollection;
 
@@ -37,8 +33,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -50,55 +44,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
     private final Metastore schemaRegistry;
     private final Map<ProjectCollection, Schema> schemaCache;
-    private final FieldDependency moduleFields;
-    private final Set<SystemEventListener> listeners;
 
     @Inject
-    public EventDeserializer(Metastore schemaRegistry, Set<EventMapper> eventMappers, Set<SystemEventListener> listeners) {
+    public EventDeserializer(Metastore schemaRegistry) {
         this.schemaRegistry = schemaRegistry;
         this.schemaCache = Maps.newConcurrentMap();
-
-        // TODO: get all collections of the projects and check there is a collision between existing fields in collections
-        // TODO: and fields that are added by installed modules
-        FieldDependencyBuilder builder = new FieldDependencyBuilder();
-        eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
-
-        this.moduleFields = builder.build();
-        this.listeners = listeners;
-        checkExistingEvents();
-    }
-
-    private void checkExistingEvents() {
-        schemaRegistry.getProjects().forEach(project ->
-                schemaRegistry.getCollections(project).forEach((collection, fields) -> {
-            List<SchemaField> collect = moduleFields.constantFields.stream()
-                    .filter(constant ->
-                            !fields.stream()
-                                    .anyMatch(existing -> check(constant, existing))).collect(Collectors.toList());
-
-            fields.forEach(field -> moduleFields.dependentFields.getOrDefault(field.getName(), ImmutableList.of()).stream()
-                    .filter(dependentField -> !fields.stream()
-                            .anyMatch(existing -> check(dependentField, existing)))
-                    .forEach(collect::add));
-
-            if(!collect.isEmpty()) {
-                try {
-                    schemaRegistry.createOrGetCollectionField(project, collection, collect);
-                } catch (ProjectNotExistsException e) {
-                    throw Throwables.propagate(e);
-                }
-            }
-        }));
-    }
-
-    private boolean check(SchemaField existing, SchemaField moduleField) {
-        if(existing.getName().equals(moduleField.getName())) {
-            if (!existing.getType().equals(moduleField.getType())) {
-                throw new IllegalStateException("Module field '"+existing.getName()+"' type does not match existing field in event");
-            }
-            return true;
-        }
-        return false;
     }
 
     @Override
@@ -172,10 +122,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         if (avroSchema == null) {
             ObjectNode node = jp.readValueAs(ObjectNode.class);
             List<SchemaField> fields = createSchemaFromArbitraryJson(node);
-            moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
-            moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
 
-            schema = schemaRegistry.createOrGetCollectionField(project, collection, fields);
+            schema = schemaRegistry.getOrCreateCollectionFieldList(project, collection, fields);
             avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
 
@@ -222,13 +170,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
 
         if (newFields != null) {
-            final List<SchemaField> finalNewFields = newFields;
-            moduleFields.dependentFields.forEach((fieldName, field) ->
-                    addConditionalModuleField(finalNewFields, fieldName, field));
-            moduleFields.constantFields.forEach(field ->
-                    addModuleField(finalNewFields, field));
-
-            List<SchemaField> newSchema = schemaRegistry.createOrGetCollectionField(project, collection, newFields);
+            List<SchemaField> newSchema = schemaRegistry.getOrCreateCollectionFieldList(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
             schemaCache.put(key, newAvroSchema);
             GenericData.Record newRecord = new GenericData.Record(newAvroSchema);
@@ -241,26 +183,6 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         return record;
     }
 
-    private void addConditionalModuleField(List<SchemaField> fields, String fieldName, List<SchemaField> newFields) {
-        if (fields.stream().anyMatch(f -> f.getName().equals(fieldName))) {
-            newFields.forEach(newField -> addModuleField(fields, newField));
-        }
-    }
-
-    private void addModuleField(List<SchemaField> fields, SchemaField newField) {
-        for (int i = 0; i < fields.size(); i++) {
-            SchemaField field = fields.get(i);
-            if(field.getName().equals(newField.getName())) {
-                if(field.getType().equals(newField.getType())) {
-                    return;
-                }else {
-                    fields.remove(i);
-                    break;
-                }
-            }
-        }
-        fields.add(newField);
-    }
 
     private Object getValue(JsonNode jsonNode, FieldType type) {
 

@@ -13,6 +13,7 @@
  */
 package org.rakam.plugin;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -46,7 +47,7 @@ public class TimestampEventMapper implements EventMapper {
                     try {
                         clientUploadTime = Long.parseLong(next.getValue());
                     } catch (NumberFormatException e) {
-                        throw new RakamException("Time checksum 'Upload-Time' has invalid value", 400);
+                        throw new RakamException("Time checksum 'Upload-Time' has invalid value", HttpResponseStatus.UNAUTHORIZED);
                     }
                     if (time instanceof Number) {
                         // match server time and client time and get an estimate

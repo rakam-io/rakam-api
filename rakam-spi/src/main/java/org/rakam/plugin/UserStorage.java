@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
 import org.rakam.realtime.AggregationType;
@@ -82,7 +83,7 @@ public interface UserStorage {
             try {
                 return filterExpression  != null ? SQL_PARSER.createExpression(filterExpression) : null;
             } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), 400);
+                throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), HttpResponseStatus.UNAUTHORIZED);
             }
         }
 

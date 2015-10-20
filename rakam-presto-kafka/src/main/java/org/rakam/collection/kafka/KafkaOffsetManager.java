@@ -5,6 +5,7 @@ import com.google.common.net.HostAndPort;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
@@ -89,7 +90,7 @@ public class KafkaOffsetManager {
         if (offsetResponse.hasError()) {
             short errorCode = offsetResponse.errorCode(topicName, partitionId);
             LOGGER.warn(format("Offset response has error: %d", errorCode));
-            throw new RakamException("could not fetch data from Kafka, error code is '" + errorCode + "'", 500);
+            throw new RakamException("could not fetch data from Kafka, error code is '" + errorCode + "'", HttpResponseStatus.INTERNAL_SERVER_ERROR);
         }
 
         long[] offsets = offsetResponse.offsets(topicName, partitionId);

@@ -65,7 +65,7 @@ public class EventStreamHttpService extends HttpService {
 
         List<String> data = request.params().get("data");
         if (data == null || data.isEmpty()) {
-            response.send("result", encode(errorMessage("data query parameter is required", 400))).end();
+            response.send("result", encode(errorMessage("data query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
 
@@ -73,7 +73,7 @@ public class EventStreamHttpService extends HttpService {
         try {
             query = JsonHelper.readSafe(data.get(0), StreamQuery.class);
         } catch (IOException e) {
-            response.send("result", encode(errorMessage("json couldn't parsed", 400))).end();
+            response.send("result", encode(errorMessage("json couldn't parsed", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
         List<CollectionStreamQuery> collect;
@@ -83,7 +83,7 @@ public class EventStreamHttpService extends HttpService {
                 try {
                     expression = collection.filter == null ? null : sqlParser.createExpression(collection.filter);
                 } catch (ParsingException e) {
-                    ObjectNode obj = errorMessage(format("Couldn't parse %s: %s", collection.filter, e.getErrorMessage()), 400);
+                    ObjectNode obj = errorMessage(format("Couldn't parse %s: %s", collection.filter, e.getErrorMessage()), HttpResponseStatus.BAD_REQUEST);
                     request.response(encode(obj)).end();
                     throw e;
                 }

@@ -1,8 +1,11 @@
 package org.rakam.aws;
 
+import com.google.common.eventbus.EventBus;
+import com.google.inject.Inject;
+import org.rakam.analysis.AbstractMetastore;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.plugin.EventMapper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,8 +15,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-class InMemoryMetastore implements Metastore {
+class InMemoryMetastore extends AbstractMetastore {
     private final Map<String, Map<String, List<SchemaField>>> collections = new HashMap<>();
+
+    @Inject
+    public InMemoryMetastore(Set<EventMapper> eventMappers, EventBus eventBus) {
+        super(eventMappers, eventBus);
+    }
 
     @Override
     public Map<String, Set<String>> getAllCollections() {
@@ -54,7 +62,7 @@ class InMemoryMetastore implements Metastore {
     }
 
     @Override
-    public synchronized List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
         Map<String, List<SchemaField>> list = collections.get(project);
         if(list == null) {
             throw new ProjectNotExistsException();

@@ -14,6 +14,7 @@
 package org.rakam.ui;
 
 import com.google.inject.name.Named;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -57,7 +58,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
         } catch (Exception e) {
             // TODO move it to transaction
             if (get(project, name) != null) {
-                throw new RakamException("Report already exists", 400);
+                throw new RakamException("Report already exists", HttpResponseStatus.BAD_REQUEST);
             }
             throw e;
         }

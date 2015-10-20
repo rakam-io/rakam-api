@@ -23,7 +23,7 @@ public interface Metastore {
 
     List<SchemaField> getCollection(String project, String collection);
 
-    List<SchemaField> createOrGetCollectionField(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException;
+    List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException;
 
     boolean checkPermission(String project, AccessKeyType type, String apiKey);
 

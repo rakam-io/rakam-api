@@ -2,6 +2,7 @@ package org.rakam.plugin.user;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -9,7 +10,7 @@ import io.swagger.models.Tag;
 import org.rakam.MetadataConfig;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEventListener;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
@@ -30,8 +31,7 @@ public class UserModule extends RakamModule {
         Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
         webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
 
-        Multibinder<SystemEventListener> events = Multibinder.newSetBinder(binder, SystemEventListener.class);
-        events.addBinding().to(UserStorageListener.class).in(Scopes.SINGLETON);
+        binder.bind(UserStorageListener.class).asEagerSingleton();
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
         Multibinder<Tag> tagMultibinder = Multibinder.newSetBinder(binder, Tag.class);
@@ -64,7 +64,7 @@ public class UserModule extends RakamModule {
         return "Analyze your users";
     }
 
-    public static class UserStorageListener implements SystemEventListener {
+    public static class UserStorageListener {
 
         private final Optional<UserStorage> storage;
         private final Optional<UserMailboxStorage> mailboxStorage;
@@ -77,17 +77,17 @@ public class UserModule extends RakamModule {
             this.queryExecutor = queryExecutor;
         }
 
-        @Override
-        public void onCreateProject(String project) {
-            checkProject(project);
+        @Subscribe
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+            checkProject(event.project);
             // if event.store is not postgresql, schema may not exist.
-            queryExecutor.executeRawQuery(format("CREATE SCHEMA IF NOT EXISTS %s", project)).getResult().join();
+            queryExecutor.executeRawQuery(format("CREATE SCHEMA IF NOT EXISTS %s", event.project)).getResult().join();
 
             if(mailboxStorage.isPresent()) {
-                mailboxStorage.get().createProject(project);
+                mailboxStorage.get().createProject(event.project);
             }
             if(storage.isPresent()) {
-                storage.get().createProject(project);
+                storage.get().createProject(event.project);
             }
         }
     }
