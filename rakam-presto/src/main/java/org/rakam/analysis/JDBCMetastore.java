@@ -147,7 +147,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     "  project TEXT NOT NULL,\n" +
                     "  read_key TEXT NOT NULL,\n" +
                     "  write_key TEXT NOT NULL,\n" +
-                    "  secret_key TEXT NOT NULL,\n" +
+                    "  master_key TEXT NOT NULL,\n" +
                     "  created_at TIMESTAMP default current_timestamp NOT NULL\n"+
                     "  )").execute();
             return null;

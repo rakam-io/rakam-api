@@ -112,7 +112,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
                     "  project TEXT NOT NULL,\n" +
                     "  read_key TEXT NOT NULL,\n" +
                     "  write_key TEXT NOT NULL,\n" +
-                    "  secret_key TEXT NOT NULL,\n" +
+                    "  master_key TEXT NOT NULL,\n" +
                     "  created_at TIMESTAMP default current_timestamp NOT NULL\n"+
                     "  )");
         } catch (SQLException e) {
@@ -128,7 +128,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         Set<String>[] keys =
                 Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
 
-        PreparedStatement ps = conn.prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = :project");
+        PreparedStatement ps = conn.prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = ?");
         ps.setString(1, project);
         ResultSet resultSet = ps.executeQuery();
         while (resultSet.next()) {

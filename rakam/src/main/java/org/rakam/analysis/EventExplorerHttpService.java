@@ -51,10 +51,10 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/statistics")
-    public CompletableFuture<QueryResult> getEventStatistics(@ApiParam(name = "project", required = true) String project,
-                                                             @ApiParam(name = "dimension") String dimension,
-                                                             @ApiParam(name = "startDate", required = true) LocalDate startDate,
-                                                             @ApiParam(name = "endDate", required = true) LocalDate endDate,
+    public CompletableFuture<QueryResult> getEventStatistics(@ApiParam(name = "project") String project,
+                                                             @ApiParam(name = "dimension", required = false) String dimension,
+                                                             @ApiParam(name = "startDate") LocalDate startDate,
+                                                             @ApiParam(name = "endDate") LocalDate endDate,
                                                              @HeaderParam(value = "read_key") String readKey) {
         if(!metastore.checkPermission(project, Metastore.AccessKeyType.READ_KEY, readKey)) {
             throw new RakamException(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
