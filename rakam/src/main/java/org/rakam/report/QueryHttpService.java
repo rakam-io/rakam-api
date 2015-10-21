@@ -17,6 +17,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ForHttpServer;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -154,7 +155,7 @@ public class QueryHttpService extends HttpService {
         this.eventLoopGroup = eventLoopGroup;
     }
 
-    public static class ExecuteQuery {
+    public static class ExecuteQuery implements ProjectItem {
         public final String project;
         public final String query;
         public final Integer limit;
@@ -170,6 +171,11 @@ public class QueryHttpService extends HttpService {
             }
             this.limit = limit;
 
+        }
+
+        @Override
+        public String project() {
+            return project;
         }
     }
 

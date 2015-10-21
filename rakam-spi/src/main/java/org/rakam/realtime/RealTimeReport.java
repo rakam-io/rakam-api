@@ -1,6 +1,7 @@
 package org.rakam.realtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
 import javax.validation.constraints.NotNull;
@@ -9,7 +10,7 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 
-public class RealTimeReport {
+public class RealTimeReport implements ProjectItem {
     @NotNull public final String project;
     @NotNull public final String name;
     @NotNull public final String chart;
@@ -41,5 +42,10 @@ public class RealTimeReport {
         this.aggregation = checkNotNull(aggregation, "aggregation is required");
         this.measure = measure;
         this.dimension = dimension;
+    }
+
+    @Override
+    public String project() {
+        return project;
     }
 }

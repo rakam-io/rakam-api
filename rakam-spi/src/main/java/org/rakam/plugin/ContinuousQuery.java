@@ -16,7 +16,7 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 
-public class ContinuousQuery {
+public class ContinuousQuery implements ProjectItem {
     private final static SqlParser SQL_PARSER = new SqlParser();
     public final String project;
     public final String name;
@@ -71,5 +71,10 @@ public class ContinuousQuery {
 
     public String getTableName() {
         return "_continuous_"+tableName;
+    }
+
+    @Override
+    public String project() {
+        return project;
     }
 }

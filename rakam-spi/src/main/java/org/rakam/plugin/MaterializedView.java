@@ -16,7 +16,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 
-public class MaterializedView {
+public class MaterializedView implements ProjectItem {
     private final static SqlParser SQL_PARSER = new SqlParser();
 
     public final String project;
@@ -54,5 +54,10 @@ public class MaterializedView {
                 "The query of materialized view can't contain LIMIT statement");
         checkArgument(this.table_name.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "table_name must only contain alphanumeric characters and _");
+    }
+
+    @Override
+    public String project() {
+        return project;
     }
 }

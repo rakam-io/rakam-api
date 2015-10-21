@@ -40,6 +40,16 @@ public interface Metastore {
     }
 
     enum AccessKeyType {
-        MASTER_KEY, READ_KEY, WRITE_KEY
+        MASTER_KEY("master_key"), READ_KEY("read_key"), WRITE_KEY("write_key");
+
+        private final String key;
+
+        AccessKeyType(String key) {
+            this.key = key;
+        }
+
+        public String getKey() {
+            return key;
+        }
     }
 }
