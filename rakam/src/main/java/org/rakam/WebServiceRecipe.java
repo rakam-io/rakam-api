@@ -5,7 +5,6 @@ import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.swagger.models.Contact;
 import io.swagger.models.Info;
 import io.swagger.models.License;
@@ -13,13 +12,12 @@ import io.swagger.models.Swagger;
 import io.swagger.models.Tag;
 import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
+import org.rakam.collection.event.SecuredForProject;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.config.HttpServerConfig;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.RequestPreprocessor;
 import org.rakam.server.http.WebSocketService;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.util.JsonHelper;
@@ -28,11 +26,8 @@ import javax.inject.Inject;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Set;
-import java.util.function.Predicate;
 
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.MASTER_KEY;
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.READ_KEY;
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.WRITE_KEY;
+import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.*;
 
 @Singleton
 public class WebServiceRecipe extends AbstractModule {
@@ -80,32 +75,15 @@ public class WebServiceRecipe extends AbstractModule {
                 .setSwagger(swagger)
                 .setEventLoopGroup(eventExecutors)
                 .setMapper(JsonHelper.getMapper())
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY.getKey()), method -> ProjectAuthPreprocessor.test(method, READ_KEY.getKey()))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY.getKey()), method -> ProjectAuthPreprocessor.test(method, WRITE_KEY.getKey()))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, MASTER_KEY.getKey()), method -> ProjectAuthPreprocessor.test(method, MASTER_KEY.getKey()))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, MASTER_KEY.getKey()),
-                        method -> ProjectJsonBeanRequestPreprocessor.test(method, MASTER_KEY.getKey()))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, WRITE_KEY.getKey()),
-                        method -> ProjectJsonBeanRequestPreprocessor.test(method, WRITE_KEY.getKey()))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, READ_KEY.getKey()),
-                        method -> ProjectJsonBeanRequestPreprocessor.test(method, READ_KEY.getKey()))
-
-                .addPreprocessor(new RequestPreprocessor<RakamHttpRequest>() {
-                    @Override
-                    public boolean handle(HttpHeaders headers, RakamHttpRequest bodyData) {
-                        return false;
-                    }
-                }, new Predicate<Method>() {
-                    @Override
-                    public boolean test(Method method) {
-                        final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
-                        if(annotation != null) {
-                            return Arrays.stream(annotation.authorizations()).anyMatch(a -> keyName.equals(a.value()));
-                        }
-                        return false;
-                    }
-                })
-
+                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
+                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
+                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
                 .build();
 
         HostAndPort address = config.getAddress();
@@ -117,6 +95,20 @@ public class WebServiceRecipe extends AbstractModule {
         }
 
         binder().bind(HttpServer.class).toInstance(httpServer);
+    }
+
+
+    public static boolean test(Method method, Metastore.AccessKeyType key) {
+        if(!method.isAnnotationPresent(SecuredForProject.class)) {
+            return false;
+        }
+        final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
+        if(annotation != null &&
+                !Arrays.stream(annotation.authorizations()).anyMatch(a -> key.getKey().equals(a.value()))) {
+            throw new IllegalArgumentException("method %s cannot have @SecuredForProject because " +
+                    "it doesn't have appropriate @ApiOperation definition");
+        }
+        return false;
     }
 
 }

@@ -12,6 +12,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.report.PrestoConfig;
 import org.rakam.util.CryptUtil;
@@ -20,8 +21,11 @@ import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
+import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.CallbackFailedException;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.Nullable;
@@ -29,6 +33,7 @@ import javax.inject.Inject;
 import java.io.File;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -190,21 +195,22 @@ public class JDBCMetastore extends AbstractMetastore {
     }
 
     @Override
-    public ProjectApiKeyList createApiKeys(String project) {
+    public ProjectApiKeys createApiKeys(String project) {
         String masterKey = CryptUtil.generateKey(64);
         String readKey = CryptUtil.generateKey(64);
         String writeKey = CryptUtil.generateKey(64);
 
+        int id;
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO api_key (project, master_key, read_key, write_key) VALUES(:project, :location, :master_key, :read_key, :write_key)")
+            id = handle.createStatement("INSERT INTO api_key (project, master_key, read_key, write_key) VALUES (:project, :master_key, :read_key, :write_key)")
                     .bind("project", project)
                     .bind("master_key", masterKey)
                     .bind("read_key", readKey)
                     .bind("write_key", writeKey)
-                    .execute();
+                    .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
         }
 
-        return new ProjectApiKeyList(masterKey, readKey, writeKey);
+        return new ProjectApiKeys(id, project, masterKey, readKey, writeKey);
     }
 
     @Override
@@ -319,6 +325,18 @@ public class JDBCMetastore extends AbstractMetastore {
             return true;
         } catch (ExecutionException e) {
             throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public List<ProjectApiKeys> getApiKeys(int[] ids) {
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("select id, project, master_key, read_key, write_key from api_key where id in :ids").bind("ids", ids).map(new ResultSetMapper<ProjectApiKeys>() {
+                @Override
+                public ProjectApiKeys map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
+                    return new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5));
+                }
+            }).list();
         }
     }
 }

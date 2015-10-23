@@ -179,24 +179,28 @@ public class PostgresqlMetastore extends AbstractMetastore {
     }
 
     @Override
-    public ProjectApiKeyList createApiKeys(String project) {
+    public ProjectApiKeys createApiKeys(String project) {
 
         String masterKey = CryptUtil.generateKey(64);
         String readKey = CryptUtil.generateKey(64);
         String writeKey = CryptUtil.generateKey(64);
 
+        int id;
         try(Connection connection = connectionPool.openConnection()) {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_key (master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)");
             ps.setString(1,  masterKey);
             ps.setString(2,  readKey);
             ps.setString(3,  writeKey);
             ps.setString(4,  project);
-            ps.execute();
+            ps.executeUpdate();
+            final ResultSet generatedKeys = ps.getGeneratedKeys();
+            generatedKeys.next();
+            id = generatedKeys.getInt(1);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
 
-        return new ProjectApiKeyList(masterKey, readKey, writeKey);
+        return new ProjectApiKeys(id, project, masterKey, readKey, writeKey);
     }
 
     @Override
@@ -342,6 +346,23 @@ public class PostgresqlMetastore extends AbstractMetastore {
             }
             return true;
         } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public List<ProjectApiKeys> getApiKeys(int[] ids) {
+        try (Connection conn = connectionPool.openConnection()) {
+            final PreparedStatement ps = conn.prepareStatement("select id, project, master_key, read_key, write_key from api_key where id = any(?)");
+            ps.setArray(1, conn.createArrayOf("integer", Arrays.stream(ids).mapToObj(i -> i).toArray()));
+            ps.execute();
+            final ResultSet resultSet = ps.getResultSet();
+            final List<ProjectApiKeys> list = Lists.newArrayList();
+            while(resultSet.next()) {
+                list.add(new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
+            }
+            return Collections.unmodifiableList(list);
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }

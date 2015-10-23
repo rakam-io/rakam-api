@@ -42,7 +42,7 @@ class InMemoryMetastore extends AbstractMetastore {
     }
 
     @Override
-    public ProjectApiKeyList createApiKeys(String project) {
+    public ProjectApiKeys createApiKeys(String project) {
         return null;
     }
 
@@ -79,4 +79,8 @@ class InMemoryMetastore extends AbstractMetastore {
         return false;
     }
 
+    @Override
+    public List<ProjectApiKeys> getApiKeys(int[] ids) {
+        return null;
+    }
 }

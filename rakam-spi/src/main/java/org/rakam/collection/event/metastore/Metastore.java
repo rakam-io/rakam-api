@@ -15,7 +15,7 @@ public interface Metastore {
 
     Set<String> getCollectionNames(String project);
 
-    ProjectApiKeyList createApiKeys(String project);
+    ProjectApiKeys createApiKeys(String project);
 
     void createProject(String project);
 
@@ -27,12 +27,18 @@ public interface Metastore {
 
     boolean checkPermission(String project, AccessKeyType type, String apiKey);
 
-    class ProjectApiKeyList {
+    List<ProjectApiKeys> getApiKeys(int[] ids);
+
+    class ProjectApiKeys {
+        public final int id;
+        public final String project;
         public final String masterKey;
         public final String readKey;
         public final String writeKey;
 
-        public ProjectApiKeyList(String masterKey, String readKey, String writeKey) {
+        public ProjectApiKeys(int id, String project, String masterKey, String readKey, String writeKey) {
+            this.id = id;
+            this.project = project;
             this.masterKey = masterKey;
             this.readKey = readKey;
             this.writeKey = writeKey;
