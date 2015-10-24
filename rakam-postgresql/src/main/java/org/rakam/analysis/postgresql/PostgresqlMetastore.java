@@ -181,13 +181,15 @@ public class PostgresqlMetastore extends AbstractMetastore {
     @Override
     public ProjectApiKeys createApiKeys(String project) {
 
-        String masterKey = CryptUtil.generateKey(64);
-        String readKey = CryptUtil.generateKey(64);
-        String writeKey = CryptUtil.generateKey(64);
+        String masterKey = CryptUtil.generateRandomKey(64);
+        String readKey = CryptUtil.generateRandomKey(64);
+        String writeKey = CryptUtil.generateRandomKey(64);
 
         int id;
         try(Connection connection = connectionPool.openConnection()) {
-            PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_key (master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)");
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_key " +
+                    "(master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)",
+                    Statement.RETURN_GENERATED_KEYS);
             ps.setString(1,  masterKey);
             ps.setString(2,  readKey);
             ps.setString(3,  writeKey);

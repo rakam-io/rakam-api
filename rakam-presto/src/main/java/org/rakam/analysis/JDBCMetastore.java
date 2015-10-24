@@ -12,7 +12,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.report.PrestoConfig;
 import org.rakam.util.CryptUtil;
@@ -196,9 +195,9 @@ public class JDBCMetastore extends AbstractMetastore {
 
     @Override
     public ProjectApiKeys createApiKeys(String project) {
-        String masterKey = CryptUtil.generateKey(64);
-        String readKey = CryptUtil.generateKey(64);
-        String writeKey = CryptUtil.generateKey(64);
+        String masterKey = CryptUtil.generateRandomKey(64);
+        String readKey = CryptUtil.generateRandomKey(64);
+        String writeKey = CryptUtil.generateRandomKey(64);
 
         int id;
         try(Handle handle = dbi.open()) {

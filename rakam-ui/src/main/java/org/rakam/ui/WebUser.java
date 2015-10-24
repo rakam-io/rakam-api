@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 public class WebUser {
+    public final int id;
     public final String email;
     public final String name;
     public final Map<String, List<UserApiKey>> projects;
 
-    public WebUser(String email, String name, Map<String, List<UserApiKey>> projects) {
+    public WebUser(int id, String email, String name, Map<String, List<UserApiKey>> projects) {
+        this.id = id;
         this.email = email;
         this.name = name;
         this.projects = projects;

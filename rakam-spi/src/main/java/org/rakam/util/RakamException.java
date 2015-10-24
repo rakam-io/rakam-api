@@ -9,4 +9,8 @@ public class RakamException extends HttpRequestException {
     public RakamException(String message, HttpResponseStatus statusCode) {
         super(message, statusCode);
     }
+
+    public RakamException(HttpResponseStatus statusCode) {
+        super(statusCode.reasonPhrase(), statusCode);
+    }
 }

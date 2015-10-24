@@ -1,6 +1,7 @@
 package org.rakam.ui;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
@@ -10,7 +11,6 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.LongMapper;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,7 +43,7 @@ public class WebUserService {
                     "  id SERIAL PRIMARY KEY,\n" +
                     "  user_id INTEGER REFERENCES web_user(id),\n" +
                     "  project TEXT NOT NULL UNIQUE,\n" +
-                    "  scope_expression TEXT NOT NULL,\n" +
+                    "  scope_expression TEXT,\n" +
                     "  has_read_permission BOOLEAN NOT NULL,\n" +
                     "  has_write_permission BOOLEAN NOT NULL,\n" +
                     "  is_admin BOOLEAN DEFAULT false NOT NULL" +
@@ -56,8 +56,7 @@ public class WebUserService {
         final String scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
 
         try(Handle handle = dbi.open()) {
-            final long userId = handle
-                    .createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")
+            handle.createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")
                     .bind("email", email)
                     .bind("name", name)
                     .bind("password", scrypt).executeAndReturnGeneratedKeys(LongMapper.FIRST).first();
@@ -65,10 +64,26 @@ public class WebUserService {
         }
     }
 
+    public WebUser.UserApiKey createProject(int user, String project) {
+        metastore.createProject(project);
+        final Metastore.ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("INSERT INTO web_user_project " +
+                    "(id, user_id, project, has_read_permission, has_write_permission, is_admin) " +
+                    "VALUES (:id, :userId, :project, true, true, true)")
+                    .bind("id", apiKeys.id)
+                    .bind("userId", user)
+                    .bind("project", project).execute();
+        }
 
-    public Optional<WebUser> getUser(String email, String password) {
+        return new WebUser.UserApiKey(apiKeys.readKey, apiKeys.writeKey, apiKeys.masterKey);
+    }
+
+
+    public Optional<WebUser> login(String email, String password) {
         String hashedPassword;
         String name;
+        int id;
 
         Map<String, List<WebUser.UserApiKey>> projects;
 
@@ -81,41 +96,69 @@ public class WebUserService {
             }
             hashedPassword = (String) data.get("password");
             name = (String) data.get("name");
+            id = (int) data.get("id");
 
-            final List<Map<String, Object>> keys = handle.createQuery("SELECT id, project, scope_expression, has_read_permission, is_admin FROM web_user_project WHERE user_id = :userId")
-                    .bind("userId", data.get("id"))
-                    .list();
-
-            projects = new HashMap<>();
-
-            final List<Metastore.ProjectApiKeys> apiKeys = metastore
-                    .getApiKeys(keys.stream().mapToInt(row -> (int) row.get("id")).toArray());
-
-            for(Metastore.ProjectApiKeys apiKey : apiKeys) {
-                final Map<String, Object> id = keys.stream().filter(key -> key.get("id").equals(apiKey.id)).findAny().get();
-                if(id.get("scope_expression") != null) {
-                    //TODO generate scoped key
-                    throw new UnsupportedOperationException();
-                }
-
-                // TODO move this heavy operation outside of the connection scope.
-                if(!SCryptUtil.check(password, hashedPassword)) {
-                    return Optional.empty();
-                }
-
-                String masterKey = Boolean.TRUE.equals(id.get("is_admin")) ? apiKey.masterKey : null;
-                String readKey = Boolean.TRUE.equals(id.get("has_read_permission")) ? apiKey.readKey : null;
-                String writeKey = Boolean.TRUE.equals(id.get("has_write_permission")) ? apiKey.writeKey : null;
-                projects.computeIfAbsent(apiKey.project, (k) -> Lists.newArrayList())
-                        .add(new WebUser.UserApiKey(readKey, writeKey, masterKey));
+            // TODO move this heavy operation outside of the connection scope.
+            if(!SCryptUtil.check(password, hashedPassword)) {
+                return Optional.empty();
             }
+
+            projects = getProjectOfUser(handle, id);
         }
 
-
-
-        return Optional.of(new WebUser(email, name, projects));
+        return Optional.of(new WebUser(id, email, name, projects));
     }
 
+
+    public Optional<WebUser> getUser(int id) {
+        String name;
+        String email;
+
+        Map<String, List<WebUser.UserApiKey>> projects;
+
+        try(Handle handle = dbi.open()) {
+            final Map<String, Object> data = handle
+                    .createQuery("SELECT id, name, email FROM web_user WHERE id = :id")
+                    .bind("id", id).first();
+            if(data == null) {
+                return Optional.empty();
+            }
+            name = (String) data.get("name");
+            email = (String) data.get("email");
+            id = (int) data.get("id");
+
+            projects = getProjectOfUser(handle, id);
+        }
+
+        return Optional.of(new WebUser(id, email, name, projects));
+    }
+
+    private Map<String, List<WebUser.UserApiKey>> getProjectOfUser(Handle handle, int id) {
+
+        final List<Map<String, Object>> keys = handle.createQuery("SELECT id, project, scope_expression, has_read_permission, is_admin FROM web_user_project WHERE user_id = :userId")
+                .bind("userId", id)
+                .list();
+
+        Map<String, List<WebUser.UserApiKey>> projects = Maps.newHashMap();
+
+        final List<Metastore.ProjectApiKeys> apiKeys = metastore
+                .getApiKeys(keys.stream().mapToInt(row -> (int) row.get("id")).toArray());
+
+        for(Metastore.ProjectApiKeys apiKey : apiKeys) {
+            final Map<String, Object> keyProps = keys.stream().filter(key -> key.get("id").equals(apiKey.id)).findAny().get();
+            if(keyProps.get("scope_expression") != null) {
+                //TODO generate scoped key
+                throw new UnsupportedOperationException();
+            }
+
+            String masterKey = Boolean.TRUE.equals(keyProps.get("is_admin")) ? apiKey.masterKey : null;
+            String readKey = Boolean.TRUE.equals(keyProps.get("has_read_permission")) ? apiKey.readKey : null;
+            String writeKey = Boolean.TRUE.equals(keyProps.get("has_write_permission")) ? apiKey.writeKey : null;
+            projects.computeIfAbsent(apiKey.project, (k) -> Lists.newArrayList())
+                    .add(new WebUser.UserApiKey(readKey, writeKey, masterKey));
+        }
+        return projects;
+    }
 
 
 }
