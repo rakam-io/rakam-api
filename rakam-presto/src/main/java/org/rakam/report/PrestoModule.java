@@ -91,7 +91,7 @@ public class PrestoModule extends RakamModule {
     }
 
     public static class EventExplorerListener {
-        private static final String QUERY = "select time/3600 as time, count(*) as total from stream group by 1";
+        private static final String QUERY = "select _time/3600 as time, count(*) as total from stream group by 1";
         private final PrestoContinuousQueryService continuousQueryService;
 
         @Inject

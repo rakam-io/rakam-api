@@ -2,21 +2,21 @@ strategy: default
 continuous_queries:
   - name: Pageviews
     table_name: pageviews
-    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
 
 materialized_queries:
   - name: Pageviews
     table_name: pageviews
-    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
 
 reports:
   - name: Pageviews
     slug: pageviews
-    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
     options:
       chart_type: line
       dimensions:
-        - time
+        - _time
       measures:
         - count
       variables:
@@ -24,7 +24,7 @@ reports:
           type: date-range
           default: last_day
 collections:
-  pageView:
+  page_view:
     columns:
       - url:
           type: string
@@ -33,7 +33,7 @@ collections:
       - _user:
           type: string
       - _time:
-          type: string
+          type: long
       - session_id:
           type: string
       - platform:
@@ -72,7 +72,7 @@ collections:
       - _user:
           type: string
       - _time:
-          type: string
+          type: long
       - quantity:
           type: string
       - price:
@@ -82,4 +82,4 @@ collections:
       - _user:
           type: string
       - _time:
-          type: string
+          type: long

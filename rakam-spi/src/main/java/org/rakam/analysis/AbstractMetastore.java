@@ -62,7 +62,8 @@ public abstract class AbstractMetastore implements Metastore {
     private boolean check(SchemaField existing, SchemaField moduleField) {
         if(existing.getName().equals(moduleField.getName())) {
             if (!existing.getType().equals(moduleField.getType())) {
-                throw new IllegalStateException(String.format("Module field '%s' type does not match existing field in event. Existing type: %s, Module field type: %s",
+                throw new IllegalStateException(String.format("Module field '%s' type does not match existing field in event. Existing type: %s, Module field type: %s. \n" +
+                                "Please change the schema manually of disable the module.",
                         existing.getName(), existing.getType(), moduleField.getType()));
             }
             return true;

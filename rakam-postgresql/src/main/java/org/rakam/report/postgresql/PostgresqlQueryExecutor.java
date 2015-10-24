@@ -193,10 +193,11 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     QueryError error;
                     if (e instanceof SQLException) {
                         SQLException cause = (SQLException) e;
-                        error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode());
+                        error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), query);
                     } else {
-                        error = new QueryError("Internal query execution error", null, 0);
+                        error = new QueryError("Internal query execution error", null, 0, query);
                     }
+                    LOGGER.debug(e, format("Error while executing Postgresql query: \n%s", query));
                     return QueryResult.errorResult(error);
                 }
             }, QUERY_EXECUTOR);

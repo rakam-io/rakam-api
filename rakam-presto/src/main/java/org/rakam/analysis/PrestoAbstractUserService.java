@@ -40,8 +40,8 @@ public class PrestoAbstractUserService extends AbstractUserService {
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
         String sqlQuery = metastore.getCollections(project).entrySet().stream()
-                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("user")))
-                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("time")))
+                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_user")))
+                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
                 .map(entry ->
                         format("select '%s' as collection, '{", entry.getKey()) + entry.getValue().stream()
                                 .filter(field -> !field.getName().equals("user"))
@@ -56,11 +56,11 @@ public class PrestoAbstractUserService extends AbstractUserService {
                                     }
                                 })
                                 .collect(Collectors.joining(", ")) +
-                                format(" }' as json, time from %s where user = %s",
+                                format(" }' as json, _time from %s where user = %s",
                                         prestoConfig.getColdStorageConnector() + "." + project + "." + entry.getKey(),
                                         user))
                 .collect(Collectors.joining(" union all "));
-        return executor.executeRawQuery(format("select json from (%s) order by time desc limit %d", sqlQuery, limit, offset+limit)).getResult()
+        return executor.executeRawQuery(format("select json from (%s) order by _time desc limit %d", sqlQuery, limit, offset+limit)).getResult()
                 .thenApply(result -> (List<CollectionEvent>) IntStream.range(min(checkedCast(offset), result.getResult().size()), min(checkedCast(offset + limit), result.getResult().size()))
                         .mapToObj(i -> result.getResult().get(i))
                         .map(s -> new CollectionEvent((String) s.get(0), JsonHelper.read(s.get(1).toString(), Map.class)))

@@ -61,15 +61,15 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
 
         if(dateUnit == DateUnit.DAY) {
             long seconds = ChronoUnit.DAYS.getDuration().getSeconds();
-            timeColumn = format("time/%d", seconds);
+            timeColumn = format("_time/%d", seconds);
             timeTransformation = format("cast(from_unixtime((data.time)*%d) as date)", seconds);
         } else
         if(dateUnit == DateUnit.WEEK) {
-            timeColumn = format("cast(date_trunc('week', from_unixtime(time)) as date)");
+            timeColumn = format("cast(date_trunc('week', from_unixtime(_time)) as date)");
             timeTransformation ="data.time";
         } else
         if(dateUnit == DateUnit.MONTH) {
-            timeColumn = format("cast(date_trunc('month', from_unixtime(time)) as date)");
+            timeColumn = format("cast(date_trunc('month', from_unixtime(_time)) as date)");
             timeTransformation ="data.time";
         } else {
             throw new UnsupportedOperationException();
@@ -195,7 +195,7 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
 
-        return format("select user, %s as time %s from %s where time between %d and %d %s",
+        return format("select user, %s as time %s from %s where _time between %d and %d %s",
                 timeColumn,
                 dimension.isPresent() ? ", "+dimension.get()+" as dimension" : "",
                 config.getColdStorageConnector() + "." + project +"."+collection,

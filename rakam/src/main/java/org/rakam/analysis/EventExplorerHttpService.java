@@ -85,7 +85,7 @@ public class EventExplorerHttpService extends HttpService {
                                                   @ApiParam(name = "endDate") LocalDate endDate,
                                                   @ApiParam(name="collections") List<String> collections) {
         checkArgument(collections.size() > 0, "collections array is empty");
-        checkArgument(!measure.column.equals("time"), "measure column value cannot be 'time'");
+        checkArgument(!measure.column.equals("_time"), "measure column value cannot be '_time'");
 
         return eventExplorer.analyze(project,
                                             collections,

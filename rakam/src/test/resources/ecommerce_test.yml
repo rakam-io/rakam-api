@@ -2,21 +2,21 @@ strategy: template
 continuous_queries:
   - name: Pageviews
     table_name: pageviews
-    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
 
 materialized_queries:
   - name: Pageviews
     table_name: pageviews
-    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
 
 reports:
   - name: Pageviews
     slug: pageviews
-    query: SELECT time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
     options:
       chart_type: line
       dimensions:
-        - time
+        - _time
       measures:
         - count
       variables:

@@ -68,19 +68,19 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         ZoneId utc = ZoneId.of("UTC");
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
-        String filterExp = funnelStep.filterExpression != null ?
+        String filterExp = funnelStep.filterExpression != null && !funnelStep.filterExpression.isEmpty() ?
                 "AND " + funnelStep.getExpression().accept(new ExpressionFormatter.Formatter(), false) : "";
 
         String dimensionColumn = dimension.isPresent() ? dimension.get()+"," : "";
 
         if(idx == 0) {
-            return String.format("step%s AS (select %s \"user\" from %s where time BETWEEN %s and %s %s\n group by 1 %s)",
+            return String.format("step%s AS (select %s _user from %s where _time BETWEEN %s and %s %s\n group by 1 %s)",
                     idx, dimensionColumn, table, startTs, endTs,
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
-                            "select %7$s %1$s.\"user\" from %2$s %1$s join %3$s on (%1$s.\"user\" = %3$s.\"user\") " +
-                            "where time BETWEEN %5$s and %6$s %4$s group by 1 %8$s)",
+                            "select %7$s %1$s._user from %2$s %1$s join %3$s on (%1$s._user = %3$s._user) " +
+                            "where _time BETWEEN %5$s and %6$s %4$s group by 1 %8$s)",
                     "step"+idx, table, "step"+(idx-1), filterExp, startTs,
                     endTs, dimensionColumn, dimension.isPresent() ? ", 2" : "");
         }

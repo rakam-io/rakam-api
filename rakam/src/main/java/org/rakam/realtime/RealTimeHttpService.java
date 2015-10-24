@@ -83,7 +83,7 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(time / %d) as time, ", slideInterval.getSeconds()))
+                .append(format("(_time / %d) as time, ", slideInterval.getSeconds()))
                 .append(createSelect(report.aggregation, report.measure, report.dimension))
                 .append(" from stream")
                 .append(report.filter == null ? "" : "where " + report.filter)
@@ -132,13 +132,13 @@ public class RealTimeHttpService extends HttpService {
 
         RealTimeReport report = JsonHelper.convert(continuousQuery.options.get("report"), RealTimeReport.class);
 
-        Object timeCol = aggregate ? currentWindow : "time";
+        Object timeCol = aggregate ? currentWindow : "_time";
         String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol,
                 report.dimension != null ? report.dimension + "," : "",
                 aggregate ? getAggregationMethod(report.aggregation) : "",
                 "continuous." + continuousQuery.tableName,
-                format("time >= %d", previousWindow) + (dateEnd == null ? "" : format("AND time <", format("time >= %d AND time <= %d", previousWindow, currentWindow))),
+                format("_time >= %d", previousWindow) + (dateEnd == null ? "" : format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
                 report.dimension != null && aggregate ? "GROUP BY " + report.dimension : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 

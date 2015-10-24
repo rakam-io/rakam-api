@@ -34,10 +34,10 @@ public class TimestampEventMapper implements EventMapper {
     @Override
     public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         GenericRecord properties = event.properties();
-        Object time = properties.get("time");
+        Object time = properties.get("_time");
         long serverTime = Instant.now().getEpochSecond();
         if (time == null) {
-            properties.put("time", serverTime);
+            properties.put("_time", serverTime);
         } else {
             Iterator<Map.Entry<String, String>> it = extraProperties.iterator();
             while (it.hasNext()) {
@@ -52,7 +52,7 @@ public class TimestampEventMapper implements EventMapper {
                     if (time instanceof Number) {
                         // match server time and client time and get an estimate
                         long gap = serverTime - clientUploadTime;
-                        properties.put("time", ((int) time) + gap);
+                        properties.put("_time", ((int) time) + gap);
                     }
                     break;
                 }
@@ -62,6 +62,6 @@ public class TimestampEventMapper implements EventMapper {
 
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
-        builder.addFields(of(new SchemaField("time", FieldType.LONG, false)));
+        builder.addFields(of(new SchemaField("_time", FieldType.LONG, false)));
     }
 }
