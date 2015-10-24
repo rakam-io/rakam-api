@@ -169,7 +169,7 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
                             "  from daily_groups\n" +
                             "),\n" +
                             "result as (\n" +
-                            "   select %s as time, %s, count(distinct _user) as count\n" +
+                            "   select %s as time, %s, count(distinct user) as count\n" +
                             "   from lead_relations data group by 1, %s order by 1\n" +
                             ") \n" +
                             "select %s, null as lead, count(user) as count from daily_groups data group by 1\n" +
