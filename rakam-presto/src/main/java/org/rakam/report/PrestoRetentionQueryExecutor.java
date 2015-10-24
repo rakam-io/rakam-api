@@ -129,15 +129,15 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
             String dimensionColumn = dimension.isPresent() ? "data.dimension" : timeTransformation;
 
             query = format("with first_action as (\n" +
-                    "  %s\n" +
-                    "), \n" +
-                    "returning_action as (\n" +
-                    "  %s\n" +
-                    ") \n" +
-                    "select %s, null as lead, count(distinct user) count from first_action data group by 1,2 union all\n" +
-                    "select %s, %s, count(distinct data.user) \n" +
-                    "from first_action data join returning_action on (data.user = returning_action.user) \n" +
-                    "where data.time < returning_action.time and %s < %d group by 1, 2",
+                            "  %s\n" +
+                            "), \n" +
+                            "returning_action as (\n" +
+                            "  %s\n" +
+                            ") \n" +
+                            "select %s, null as lead, count(distinct user) count from first_action data group by 1,2 union all\n" +
+                            "select %s, %s, count(distinct data.user) \n" +
+                            "from first_action data join returning_action on (data.user = returning_action.user) \n" +
+                            "where data.time < returning_action.time and %s < %d group by 1, 2",
                     firstActionQuery, from.toString(), dimensionColumn,
                     dimensionColumn, timeSubtraction,
                     timeSubtraction, MAXIMUM_LEAD);
@@ -162,19 +162,19 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
 
             query = format("with daily_groups as (\n" +
                             "  select user, time\n" +
-                            "  from (%s) group by 1, 2\n" +
+                            "  from (%s) as data group by 1, 2\n" +
                             "), \n" +
                             "lead_relations as (\n" +
                             "  select user, time, %s\n" +
                             "  from daily_groups\n" +
                             "),\n" +
                             "result as (\n" +
-                            "   select %s as time, %s, count(distinct user) as count\n" +
+                            "   select %s as time, %s, count(distinct _user) as count\n" +
                             "   from lead_relations data group by 1, %s order by 1\n" +
                             ") \n" +
                             "select %s, null as lead, count(user) as count from daily_groups data group by 1\n" +
                             "union all (select * from (select time, lead, count from result \n" +
-                            "CROSS JOIN unnest(array[%s]) t(lead)) where lead < %d)",
+                            "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d)",
                     from.toString(), leads, timeTransformation,
                     leadColumns, groups, timeTransformation,
                     leadColumnNames, MAXIMUM_LEAD);
@@ -195,11 +195,12 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
 
-        return format("select user, %s as time %s from %s where _time between %d and %d %s",
+        return format("select _user, %s as time %s from %s where _time between %d and %d %s",
                 timeColumn,
                 dimension.isPresent() ? ", "+dimension.get()+" as dimension" : "",
-                config.getColdStorageConnector() + "." + project +"."+collection,
+                config.getColdStorageConnector() + "." + project +"." + collection,
                 startTs, endTs,
                 exp.isPresent() ? "and " + exp.get().accept(new ExpressionFormatter.Formatter(), false) : "");
     }
 }
+

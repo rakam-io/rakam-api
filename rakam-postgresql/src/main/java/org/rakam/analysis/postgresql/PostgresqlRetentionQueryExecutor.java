@@ -61,15 +61,15 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
 
         if(dateUnit == DateUnit.DAY) {
             long seconds = ChronoUnit.DAYS.getDuration().getSeconds();
-            timeColumn = format("time/%d", seconds);
-            timeTransformation = format("cast(from_unixtime((data.time)*%d) as date)", seconds);
+            timeColumn = format("_time/%d", seconds);
+            timeTransformation = format("cast(to_timestamp((data.time)*%d) as date)", seconds);
         } else
         if(dateUnit == DateUnit.WEEK) {
-            timeColumn = format("cast(date_trunc('week', from_unixtime(_time)) as date)");
+            timeColumn = format("cast(date_trunc('week', to_timestamp(_time)) as date)");
             timeTransformation ="data.time";
         } else
         if(dateUnit == DateUnit.MONTH) {
-            timeColumn = format("cast(date_trunc('month', from_unixtime(_time)) as date)");
+            timeColumn = format("cast(date_trunc('month', to_timestamp(_time)) as date)");
             timeTransformation ="data.time";
         } else {
             throw new UnsupportedOperationException();
@@ -161,11 +161,11 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
             String leadColumnNames = IntStream.range(0, range).mapToObj(i -> "lead" + i).collect(Collectors.joining(", "));
 
             query = format("with daily_groups as (\n" +
-                            "  select _user, _time\n" +
-                            "  from (%s) group by 1, 2\n" +
+                            "  select user, time\n" +
+                            "  from (%s) as data group by 1, 2\n" +
                             "), \n" +
                             "lead_relations as (\n" +
-                            "  select _user, _time, %s\n" +
+                            "  select user, time, %s\n" +
                             "  from daily_groups\n" +
                             "),\n" +
                             "result as (\n" +
@@ -174,7 +174,7 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
                             ") \n" +
                             "select %s, null as lead, count(user) as count from daily_groups data group by 1\n" +
                             "union all (select * from (select time, lead, count from result \n" +
-                            "CROSS JOIN unnest(array[%s]) t(lead)) where lead < %d)",
+                            "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d)",
                     from.toString(), leads, timeTransformation,
                     leadColumns, groups, timeTransformation,
                     leadColumnNames, MAXIMUM_LEAD);
@@ -195,7 +195,7 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
 
-        return format("select user, %s as time %s from %s where _time between %d and %d %s",
+        return format("select _user, %s as time %s from %s where _time between %d and %d %s",
                 timeColumn,
                 dimension.isPresent() ? ", "+dimension.get()+" as dimension" : "",
                 project +"."+collection,
