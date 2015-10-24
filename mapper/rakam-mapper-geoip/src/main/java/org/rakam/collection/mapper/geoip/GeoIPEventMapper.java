@@ -154,6 +154,14 @@ public class GeoIPEventMapper implements EventMapper {
                 .map(attr -> new SchemaField(attr, getType(attr), true))
                 .collect(Collectors.toList());
 
+        if(ispLookup != null) {
+            fields.add(new SchemaField("isp", FieldType.STRING, true));
+        }
+
+        if(connectionTypeLookup != null) {
+            fields.add(new SchemaField("connection_type", FieldType.STRING, true));
+        }
+
         switch (config.getSource()) {
             case request_ip:
                 builder.addFields(fields);
@@ -173,8 +181,6 @@ public class GeoIPEventMapper implements EventMapper {
             case "region":
             case "city":
             case "timezone":
-            case "connection_type":
-            case "isp":
                 return FieldType.STRING;
             case "latitude":
             case "longitude":
