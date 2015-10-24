@@ -277,6 +277,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
 
         List<SchemaField> currentFields = Lists.newArrayList();
         String query;
+        boolean collectionCreated;
         try(Connection connection = connectionPool.openConnection()) {
             connection.setAutoCommit(false);
             ResultSet columns = connection.getMetaData().getColumns("", project, collection, null);
@@ -302,8 +303,8 @@ public class PostgresqlMetastore extends AbstractMetastore {
                     return currentFields;
                 }
                 query = format("CREATE TABLE %s.%s (%s)", project, collection, queryEnd);
-                super.onCreateCollection(project, collection);
-            }else {
+                collectionCreated = true;
+            } else {
                 String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
                         .map(f -> {
                             currentFields.add(f);
@@ -315,11 +316,15 @@ public class PostgresqlMetastore extends AbstractMetastore {
                     return currentFields;
                 }
                 query = format("ALTER TABLE %s.%s %s", project, collection, queryEnd);
+                collectionCreated = false;
             }
 
             connection.createStatement().execute(query);
             connection.commit();
             connection.setAutoCommit(true);
+            if(collectionCreated) {
+                super.onCreateCollection(project, collection);
+            }
             return currentFields;
         } catch (SQLException e ) {
             // syntax error exception
