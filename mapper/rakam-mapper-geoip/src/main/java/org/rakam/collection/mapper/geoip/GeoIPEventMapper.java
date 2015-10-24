@@ -5,12 +5,12 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
 import com.maxmind.db.Reader;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.model.CityResponse;
-import com.maxmind.geoip2.record.Country;
+import com.maxmind.geoip2.model.ConnectionTypeResponse;
+import com.maxmind.geoip2.model.IspResponse;
 import io.airlift.log.Logger;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
@@ -19,61 +19,96 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.*;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
 
+import static com.google.common.base.Preconditions.checkState;
+import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
 import static org.rakam.collection.mapper.geoip.GeoIPModuleConfig.SourceType.ip_field;
 import static org.rakam.collection.mapper.geoip.GeoIPModuleConfig.SourceType.request_ip;
 
 
 public class GeoIPEventMapper implements EventMapper {
     final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);
+    final static String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
 
-    private final static List<String> ATTRIBUTES = ImmutableList.of("country","country_code","region","city","latitude","longitude","timezone");
-    private final DatabaseReader countryLookup;
+    private final static List<String> CITY_DATABASE_ATTRIBUTES = ImmutableList
+            .of("city", "city_code", "region", "city", "latitude", "longitude", "timezone");
+
     private final String[] attributes;
     private final GeoIPModuleConfig config;
+    private final DatabaseReader connectionTypeLookup;
+    private final DatabaseReader ispLookup;
+    private final DatabaseReader cityLookup;
 
     public GeoIPEventMapper(GeoIPModuleConfig config) throws IOException {
         Preconditions.checkNotNull(config, "config is null");
         this.config = config;
-        InputStream countryDatabase;
-        if(config.getDatabase() != null) {
-            if(!config.getDatabase().exists()) {
-                throw new IllegalArgumentException("Database does not exist.");
-            }
-            countryDatabase = new FileInputStream(config.getDatabase());
-        } else
-        if(config.getDatabaseUrl() != null) {
-            try {
-                countryDatabase = new FileInputStream(downloadOrGetFile(config.getDatabaseUrl()));
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
-            }
-        } else {
-            throw new IllegalStateException();
-        }
 
-        countryLookup = new DatabaseReader.Builder(countryDatabase).fileMode(Reader.FileMode.MEMORY).build();
-        if(config.getAttributes() != null) {
+        DatabaseReader connectionTypeLookup = null, ispLookup = null, cityLookup = null;
+        if (config.getAttributes() != null) {
             for (String attr : config.getAttributes()) {
-                if(!ATTRIBUTES.contains(attr)) {
-                    throw new IllegalArgumentException("Attribute "+attr+" is not exist. Available attributes: " +
-                            Joiner.on(", ").join(ATTRIBUTES));
+                if (CITY_DATABASE_ATTRIBUTES.contains(attr)) {
+                    if (config.getDatabaseUrl() == null) {
+                        throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.database.url", attr));
+                    }
+                    if (cityLookup == null) {
+                        cityLookup = getLookup(attr);
+                    }
+                    continue;
+                } else if ("isp" .equals(attr)) {
+                    if (config.getIspDatabaseUrl() == null) {
+                        throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.isp-database.url", attr));
+                    }
+                    if (ispLookup == null) ispLookup = getLookup(attr);
+                    continue;
+                } else if ("connection_type" .equals(attr)) {
+                    if (config.getConnectionTypeDatabaseUrl() == null) {
+                        throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.connection-type-database.url", attr));
+                    }
+                    if (connectionTypeLookup == null) connectionTypeLookup = getLookup(attr);
+                    continue;
                 }
+                throw new IllegalArgumentException("Attribute " + attr + " is not valid. Available attributes: " +
+                        Joiner.on(", ").join(CITY_DATABASE_ATTRIBUTES));
             }
             attributes = config.getAttributes().stream().toArray(String[]::new);
         } else {
-            attributes = ATTRIBUTES.toArray(new String[ATTRIBUTES.size()]);
+            if (config.getDatabaseUrl() != null) {
+                cityLookup = getLookup(config.getDatabaseUrl());
+                attributes = CITY_DATABASE_ATTRIBUTES.stream().toArray(String[]::new);
+            } else {
+                attributes = null;
+            }
+
+            if (config.getIspDatabaseUrl() != null) {
+                ispLookup = getLookup(config.getIspDatabaseUrl());
+            }
+            if (config.getConnectionTypeDatabaseUrl() != null) {
+                connectionTypeLookup = getLookup(config.getConnectionTypeDatabaseUrl());
+            }
+        }
+
+        this.cityLookup = cityLookup;
+        this.ispLookup = ispLookup;
+        this.connectionTypeLookup = connectionTypeLookup;
+
+        checkState(config.getSource() == ip_field || config.getSource() == request_ip, "source is not supported");
+    }
+
+    private DatabaseReader getLookup(String url) {
+        try {
+            FileInputStream cityDatabase = new FileInputStream(downloadOrGetFile(url));
+            return new DatabaseReader.Builder(cityDatabase).fileMode(Reader.FileMode.MEMORY).build();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -82,63 +117,34 @@ public class GeoIPEventMapper implements EventMapper {
         GenericRecord properties = event.properties();
 
         InetAddress address;
-        if(config.getSource() == ip_field) {
+        if (config.getSource() == ip_field) {
             String ip = (String) properties.get("ip");
-            if(ip == null) {
+            if (ip == null) {
                 return;
             }
             try {
-                // it's slow because java performs reverse hostname lookup.
+                // it may be slow because java performs reverse hostname lookup.
                 address = Inet4Address.getByName(ip);
             } catch (UnknownHostException e) {
                 return;
             }
-        } else
-        if(config.getSource() == request_ip) {
+        } else if (config.getSource() == request_ip) {
             address = sourceAddress;
         } else {
             throw new IllegalStateException("source is not supported");
         }
 
-        CityResponse response;
-        try {
-            response = countryLookup.city(address);
-        } catch (AddressNotFoundException e) {
-            return;
-        }catch (Exception e) {
-            LOGGER.error(e, "Error while search for location information. ");
-            return;
+
+        if (connectionTypeLookup != null) {
+            setConnectionType(address, properties);
         }
 
-//        countryLookup.isp()
-//        countryLookup.connectionType()
+        if (ispLookup != null) {
+            setIsp(address, properties);
+        }
 
-        Country country = response.getCountry();
-
-        for (String attribute : attributes) {
-            switch (attribute) {
-                case "country":
-                    properties.put("country", country.getName());
-                    break;
-                case "country_code":
-                    properties.put("country_code", country.getIsoCode());
-                    break;
-                case "region":
-                    properties.put("region", response.getContinent().getName());
-                    break;
-                case "city":
-                    properties.put("city", response.getCity().getName());
-                    break;
-                case "latitude":
-                    properties.put("latitude", response.getLocation().getLatitude());
-                    break;
-                case "longitude":
-                    properties.put("longitude", response.getLocation().getLongitude());
-                    break;
-                case "timezone":
-                    properties.put("timezone", response.getLocation().getTimeZone());
-                    break;
-            }
+        if (cityLookup != null) {
+            setGeoFields(address, properties);
         }
     }
 
@@ -163,10 +169,12 @@ public class GeoIPEventMapper implements EventMapper {
     private static FieldType getType(String attr) {
         switch (attr) {
             case "country":
-            case "country_code":
+            case "city_code":
             case "region":
             case "city":
             case "timezone":
+            case "connection_type":
+            case "isp":
                 return FieldType.STRING;
             case "latitude":
             case "longitude":
@@ -176,51 +184,70 @@ public class GeoIPEventMapper implements EventMapper {
         }
     }
 
-    private File downloadOrGetFile(String fileUrl) throws Exception {
-        URL url = new URL(fileUrl);
-        String name = url.getFile().substring(url.getFile().lastIndexOf('/') + 1, url.getFile().length());
-        File data = new File("/tmp/rakam/" + name);
-        data.getParentFile().mkdirs();
+    private void setConnectionType(InetAddress address, GenericRecord properties) {
+        ConnectionTypeResponse connectionType;
+        try {
+            connectionType = connectionTypeLookup.connectionType(address);
+        } catch (AddressNotFoundException e) {
+            return;
+        } catch (Exception e) {
+            LOGGER.error(e, "Error while search for location information. ");
+            return;
+        }
 
-        String extension = Files.getFileExtension(data.getAbsolutePath());
-        if(extension.equals("gz")) {
-            File extractedFile = new File("/tmp/rakam/" + Files.getNameWithoutExtension(data.getAbsolutePath()));
-            if(extractedFile.exists()) {
-                return extractedFile;
+        properties.put("connection_type", connectionType.getConnectionType());
+    }
+
+    private void setIsp(InetAddress address, GenericRecord properties) {
+        IspResponse isp;
+        try {
+            isp = ispLookup.isp(address);
+        } catch (AddressNotFoundException e) {
+            return;
+        } catch (Exception e) {
+            LOGGER.error(e, "Error while search for location information. ");
+            return;
+        }
+
+        properties.put("isp", isp.getIsp());
+    }
+
+    private void setGeoFields(InetAddress address, GenericRecord properties) {
+        CityResponse city;
+
+        try {
+            city = cityLookup.city(address);
+        } catch (AddressNotFoundException e) {
+            return;
+        } catch (Exception e) {
+            LOGGER.error(e, "Error while search for location information. ");
+            return;
+        }
+
+        for (String attribute : attributes) {
+            switch (attribute) {
+                case "country":
+                    properties.put("country", city.getCountry().getName());
+                    break;
+                case "country_code":
+                    properties.put("country_code", city.getCountry().getIsoCode());
+                    break;
+                case "region":
+                    properties.put("region", city.getContinent().getName());
+                    break;
+                case "city":
+                    properties.put("city", city.getCity().getName());
+                    break;
+                case "latitude":
+                    properties.put("latitude", city.getLocation().getLatitude());
+                    break;
+                case "longitude":
+                    properties.put("longitude", city.getLocation().getLongitude());
+                    break;
+                case "timezone":
+                    properties.put("timezone", city.getLocation().getTimeZone());
+                    break;
             }
-
-            if (!data.exists()) {
-                try {
-                    new HttpDownloadHelper().download(url, data.toPath(), new HttpDownloadHelper.VerboseProgress(System.out));
-                } catch (Exception e) {
-                    throw Throwables.propagate(e);
-                }
-            }
-
-            GZIPInputStream gzipInputStream =
-                    new GZIPInputStream(new FileInputStream(data));
-
-            FileOutputStream out = new FileOutputStream(extractedFile);
-
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = gzipInputStream.read(buffer)) > 0) {
-                out.write(buffer, 0, len);
-            }
-
-            gzipInputStream.close();
-            out.close();
-            data.delete();
-
-            return extractedFile;
-        } else {
-            if(data.exists()) {
-                return data;
-            }
-
-            new HttpDownloadHelper().download(url, data.toPath(), new HttpDownloadHelper.VerboseProgress(System.out));
-
-            return data;
         }
     }
 }
