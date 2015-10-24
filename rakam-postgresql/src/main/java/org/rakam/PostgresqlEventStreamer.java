@@ -60,13 +60,14 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     @Override
     public void sync() {
         if(!open) {
-            response.send("error", "stream is closed");
-        }else
-        if(queue.size() > 0) {
+            response.send("error", "stream is closed").end();
+        } else {
             StringBuilder builder = new StringBuilder("[");
-            builder.append(queue.poll());
-            for (int i = 1; i < queue.size(); i++) {
-                builder.append(", "+queue.poll());
+            if(queue.size() > 0) {
+                builder.append(queue.poll());
+                for (int i = 1; i < queue.size(); i++) {
+                    builder.append(", " + queue.poll());
+                }
             }
             builder.append("]");
             response.send("data", builder.toString());

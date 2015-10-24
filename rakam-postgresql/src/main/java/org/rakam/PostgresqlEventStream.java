@@ -9,6 +9,7 @@ import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
 
 import javax.inject.Inject;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -18,12 +19,14 @@ public class PostgresqlEventStream implements EventStream {
     @Inject
     public PostgresqlEventStream(@Named("async-postgresql") JDBCPoolDataSource dataSource) {
         this.dataSource = dataSource;
+
     }
 
     @Override
     public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
-        try(PGConnection conn = (PGConnection) dataSource.openConnection()) {
-            return new PostgresqlEventStreamer(conn, project, collections, response);
+        try(Connection conn = dataSource.openConnection()) {
+            final PGConnection unwrap = conn.unwrap(PGConnection.class);
+            return new PostgresqlEventStreamer(unwrap, project, collections, response);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

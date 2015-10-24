@@ -68,6 +68,10 @@
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.google.auto.value</groupId>
@@ -97,10 +101,10 @@
             </exclusions>
         </dependency>
 
-        <!--<dependency>-->
-            <!--<groupId>com.zaxxer</groupId>-->
-            <!--<artifactId>HikariCP</artifactId>-->
-        <!--</dependency>-->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.apache.avro</groupId>

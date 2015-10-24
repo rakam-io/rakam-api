@@ -9,7 +9,6 @@ import com.google.inject.Binder;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
-import com.impossibl.postgres.jdbc.PGDataSource;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.JDBCQueryMetadata;
@@ -57,12 +56,14 @@ public class PostgresqlModule extends RakamModule {
 
         JDBCConfig asyncClientConfig;
         try {
+            final String url = config.getUrl();
+
             asyncClientConfig = new JDBCConfig()
-                    .setDataSource(PGDataSource.class.getName())
                     .setMaxConnection(config.getMaxConnection())
                     .setPassword(config.getPassword())
                     .setTable(config.getTable())
-                    .setUrl(config.getUrl())
+                    .setMaxConnection(5)
+                    .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
                     .setUsername(config.getUsername());
         } catch (URISyntaxException e) {
             throw Throwables.propagate(e);
