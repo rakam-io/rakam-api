@@ -43,6 +43,9 @@ public class GeoIPModule extends RakamModule {
 
     static File downloadOrGetFile(String fileUrl) throws Exception {
         URL url = new URL(fileUrl);
+        if("file".equals(url.getProtocol())) {
+            return new File(fileUrl.substring("file:/".length()));
+        }
         String name = url.getFile().substring(url.getFile().lastIndexOf('/') + 1, url.getFile().length());
         File data = new File("/tmp/rakam/" + name);
         data.getParentFile().mkdirs();
