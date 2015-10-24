@@ -82,6 +82,12 @@
             <artifactId>aws-java-sdk-core</artifactId>
             <groupId>com.amazonaws</groupId>
             <version>1.9.37</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
