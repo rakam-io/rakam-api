@@ -21,6 +21,7 @@ import org.rakam.report.QueryResult;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -28,7 +29,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public interface EventExplorer {
     CompletableFuture<QueryResult> analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate);
-    CompletableFuture<QueryResult> getEventStatistics(String project, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
+    CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
     List<String> getExtraDimensions(String project);
 
     List<String> getEventDimensions(String project);

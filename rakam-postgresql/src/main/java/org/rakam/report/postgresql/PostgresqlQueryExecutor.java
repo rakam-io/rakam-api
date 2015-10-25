@@ -25,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -249,7 +250,12 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             while (resultSet.next()) {
                 List<Object> rowBuilder = Arrays.asList(new Object[columnCount]);
                 for (int i = 1; i < columnCount + 1; i++) {
-                    rowBuilder.set(i - 1, resultSet.getObject(i));
+                    Object object = resultSet.getObject(i);
+                    if(object instanceof Timestamp) {
+                        // we have to remove zone from java.sql.Timestamp but I couldn't figure out how to do this in JDBC level.
+                        object = ((Timestamp) object).toInstant();
+                    }
+                    rowBuilder.set(i - 1, object);
                 }
                 builder.add(rowBuilder);
             }

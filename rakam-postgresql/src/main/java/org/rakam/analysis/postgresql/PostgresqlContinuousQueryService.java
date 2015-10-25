@@ -81,7 +81,13 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
             if (!result.isFailed()) {
                 // we obtained the lock so we're the master node.
                 LOGGER.info("Became the master node. Scheduling periodic table updates for materialized and continuous queries.");
-                updater.scheduleAtFixedRate(this::updateTable, 5, 5, TimeUnit.SECONDS);
+                updater.scheduleAtFixedRate(() -> {
+                    try {
+                        updateTable();
+                    } catch (Exception e) {
+                        LOGGER.error(e, "Error while updating continuous query.");
+                    }
+                }, 5, 5, TimeUnit.SECONDS);
             } else {
                 LOGGER.error("Error while obtaining lock from Postgresql: {}", result.getError());
             }
@@ -99,10 +105,10 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         statement.accept(new RakamSqlFormatter.Formatter(builder, 0) {
             @Override
             protected Void visitTable(Table node, List<String> referencedTables) {
-                if(node.getName().getSuffix().equals("stream")) {
+                if (node.getName().getSuffix().equals("stream")) {
                     builder.append(sampleCollection);
                     return null;
-                }else {
+                } else {
                     return super.visitTable(node, referencedTables);
                 }
             }
@@ -113,7 +119,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
         Map<String, PostgresqlFunction> continuousQueryMetadata = processQuery(report);
-        if(report.collections.isEmpty()) {
+        if (report.collections.isEmpty()) {
             CompletableFuture<QueryResult> f = new CompletableFuture<>();
             f.completeExceptionally(new IllegalArgumentException("Continuous query must have at least one collection"));
             return f;
@@ -122,14 +128,14 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         // just to create the table with the columns.
         String query = format("create table %s.%s as (%s limit 0)", report.project,
                 report.getTableName(),
-                replaceSourceTable(report.query, report.project+"."+report.collections.get(0)));
+                replaceSourceTable(report.query, report.project + "." + report.collections.get(0)));
 
-        if(report.options == null) {
+        if (report.options == null) {
             report = new ContinuousQuery(report.project,
                     report.name, report.tableName,
                     report.query, report.collections, report.partitionKeys, ImmutableMap.of("_metadata", continuousQueryMetadata));
-        }else {
-            if(report.options.containsKey("_metadata")) {
+        } else {
+            if (report.options.containsKey("_metadata")) {
                 throw new IllegalArgumentException("_metadata option is reserved");
             }
 
@@ -147,7 +153,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         }
         final ContinuousQuery finalReport = report;
         return executor.executeRawStatement(query).getResult().thenApply(result -> {
-            if(!result.isFailed()) {
+            if (!result.isFailed()) {
                 reportDatabase.createContinuousQuery(finalReport);
 
                 String groupings = continuousQueryMetadata.entrySet().stream()
@@ -196,7 +202,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
      * TODO: find a better way to process rows in batches.
      * Possible ways:
      * 1. Use LISTEN / NOTIFY queue. (- AFAIK LISTEN fetches rows one by one)
-     * 1. Use logical decoder introduced in 9.4. (- Needs an additional custom output decoder needs to be installed.)
+     * 1. Use logical decoder introduced in 9.4. (- An additional custom output decoder needs to be installed.)
      */
     private void updateTable() {
         Map<String, List<ContinuousQuery>> allContinuousQueries = reportDatabase.getAllContinuousQueries().stream()
@@ -207,26 +213,26 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
             List<ContinuousQuery> continuousQueries = allContinuousQueries.get(project);
 
-            if(continuousQueries == null) {
+            if (continuousQueries == null) {
                 continue;
             }
 
             for (String collection : entry.getValue()) {
                 List<ContinuousQuery> queriesForCollection = continuousQueries.stream()
-                        .filter(p -> p.collections.contains(collection)).collect(Collectors.toList());
+                        .filter(p -> p.collections == null || p.collections.contains(collection)).collect(Collectors.toList());
 
-                if(queriesForCollection.size() == 0) {
+                if (queriesForCollection.size() == 0) {
                     continue;
                 }
 
                 String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
                 executor.executeRawStatement(sqlQuery).getResult().thenAccept(result -> {
-                    if(result.isFailed()) {
+                    if (result.isFailed()) {
                         String query = sqlQuery;
-                        LOGGER.error("Failed to update continuous query states: {}", result.getError());
+                        LOGGER.error(format("Failed to update continuous query states: %s", result.getError()));
                     }
                 }).join();
-//            String s1 = "CREATE INDEX graph_mv_latest ON graph (xaxis, value) WHERE  ts >= '-infinity';";
+                //            String s1 = "CREATE INDEX graph_mv_latest ON graph (xaxis, value) WHERE  ts >= '-infinity';";
             }
         }
     }
@@ -240,29 +246,30 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
         builder.append(format(
                 "BEGIN\n" + // do not include current unix timestamp because
-                            // events might be collection in this unix timestamp after this query is executed
-                "   SELECT CAST (EXTRACT(epoch FROM now()) AS int4)-2 AS TIME into newTime;\n" +
-                "   SELECT last_sync into lastTime FROM collections_last_sync WHERE project = '%1$s' AND collection = '%2$s';\n\n" +
-                "   IF lastTime IS NULL THEN\n" +
-                "       INSERT INTO collections_last_sync VALUES ('%1$s', '%2$s', newTime)\n" +
-                "       RETURNING last_sync into lastTime;\n" +
-                "   END IF;\n\n"+
-                "   CREATE TEMPORARY TABLE stream ON COMMIT DROP AS (\n" +
-                "       SELECT * FROM %1$s.%2$s WHERE \"time\" >= lastTime AND \"time\" < newTime\n" +
-                "   );\n\n", project, collection));
+                        // events might be collection in this unix timestamp after this query is executed
+                        "   SELECT CAST (EXTRACT(epoch FROM now()) AS int4)-2 AS TIME into newTime;\n" +
+                        "   SELECT last_sync into lastTime FROM collections_last_sync WHERE project = '%1$s' AND collection = '%2$s';\n\n" +
+                        "   IF lastTime IS NULL THEN\n" +
+                        "       INSERT INTO collections_last_sync VALUES ('%1$s', '%2$s', newTime)\n" +
+                        "       RETURNING last_sync into lastTime;\n" +
+                        "   END IF;\n\n" +
+                        "   CREATE TEMPORARY TABLE stream ON COMMIT DROP AS (\n" +
+                        "       SELECT * FROM %1$s.%2$s WHERE \"_time\" >= lastTime AND \"_time\" < newTime\n" +
+                        "   );\n\n", project, collection));
 
         for (ContinuousQuery report : queriesForCollection) {
             Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
-                    new TypeReference<Map<String, PostgresqlFunction>>() {});
+                    new TypeReference<Map<String, PostgresqlFunction>>() {
+                    });
 
             String query;
             String notNullKeys = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
                     .map(c -> '"' + c.getKey() + '"' + " IS NOT NULL ")
                     .collect(Collectors.joining(" AND "));
-            if(notNullKeys.isEmpty()) {
+            if (notNullKeys.isEmpty()) {
                 query = report.query;
-            }else {
+            } else {
                 // the grouping keys are primary keys in postgresql so NULL values are now allowed in that part of the query.
                 // TODO: there should be better ways to handle this problem, filtering rows is not that cheap considering the column may not be indexed
                 query = format("(SELECT * FROM (%s) q WHERE %s)", report.query, notNullKeys);
@@ -289,21 +296,21 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                     .filter(c -> c.getValue() == null)
                     .map(c -> format("%1$s.\"%2$s\" = stream_%1$s.\"%2$s\"", tableName, c.getKey()))
                     .collect(Collectors.joining(" AND "));
-            if(!groupedWhere.isEmpty()) {
-                groupedWhere = " WHERE "+groupedWhere;
+            if (!groupedWhere.isEmpty()) {
+                groupedWhere = " WHERE " + groupedWhere;
             }
 
             String returningFields = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
                     .map(c -> tableName + '.' + '"' + c.getKey() + '"')
                     .collect(Collectors.joining(", "));
-            returningFields = returningFields.isEmpty() ? "1": returningFields;
+            returningFields = returningFields.isEmpty() ? "1" : returningFields;
 
             String matchUpdateAndInsert = metadata.entrySet().stream()
                     .filter(c -> c.getValue() == null)
                     .map(c -> '"' + c.getKey() + '"')
                     .collect(Collectors.joining(", "));
-            matchUpdateAndInsert = matchUpdateAndInsert.isEmpty() ? "1": matchUpdateAndInsert;
+            matchUpdateAndInsert = matchUpdateAndInsert.isEmpty() ? "1" : matchUpdateAndInsert;
 
             // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
             // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
@@ -326,17 +333,14 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     public ContinuousQuery get(String project, String name) {
         ContinuousQuery continuousQuery = super.get(project, name);
 
-        try(Connection connection = executor.getConnection()) {
+        try (Connection connection = executor.getConnection()) {
             ResultSet resultSet;
-            if(continuousQuery.collections.isEmpty()) {
+            if (continuousQuery.collections.isEmpty()) {
                 resultSet = connection.createStatement().executeQuery("select min(last_sync) from collections_last_sync");
-            }else {
+            } else {
                 PreparedStatement statement = connection.prepareStatement("select min(last_sync) from collections_last_sync where collection = any(?)");
                 statement.setArray(1, connection.createArrayOf("text", continuousQuery.collections.toArray()));
                 resultSet = statement.executeQuery();
-            }
-            if(resultSet.next()) {
-//                continuousQuery.setLastUpdate(Instant.ofEpochSecond(resultSet.getLong(1)));
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -363,7 +367,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         Query statement = (Query) new SqlParser().createStatement(report.query);
         QuerySpecification querySpecification = (QuerySpecification) (statement.getQueryBody());
 
-        if(querySpecification.getSelect().isDistinct())
+        if (querySpecification.getSelect().isDistinct())
             throw new IllegalArgumentException("Distinct query is not supported");
 
         Map<String, PostgresqlFunction> columns = Maps.newHashMap();
@@ -373,17 +377,17 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         for (int i = 0; i < selectItems.size(); i++) {
             SelectItem selectItem = selectItems.get(i);
 
-            if(selectItem instanceof AllColumns) {
+            if (selectItem instanceof AllColumns) {
                 throw new IllegalArgumentException("Select all (*) is not supported in continuous queries yet. Please specify the columns.");
             }
 
-            if(!(selectItem instanceof SingleColumn)) {
+            if (!(selectItem instanceof SingleColumn)) {
                 throw new IllegalArgumentException(format("Column couldn't identified: %s", selectItem));
             }
 
             SingleColumn selectItem1 = (SingleColumn) selectItem;
             Expression exp = selectItem1.getExpression();
-            if(exp instanceof FunctionCall) {
+            if (exp instanceof FunctionCall) {
                 FunctionCall functionCall = (FunctionCall) exp;
                 if (functionCall.isDistinct()) {
                     throw new IllegalArgumentException("Distinct in functions is not supported");
@@ -402,7 +406,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                             functionCall.getName(), PostgresqlFunction.values()));
                 }
                 Optional<String> alias = selectItem1.getAlias();
-                if(!alias.isPresent()) {
+                if (!alias.isPresent()) {
                     throw new IllegalArgumentException(format("Column '%s' must have an alias", selectItem1));
                 }
                 columns.put(alias.get(), func);
@@ -410,16 +414,16 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         }
 
         for (Expression expression : querySpecification.getGroupBy()) {
-            if(expression instanceof LongLiteral) {
-                SingleColumn selectItem = (SingleColumn) selectItems.get(Ints.checkedCast(((LongLiteral) expression).getValue())-1);
+            if (expression instanceof LongLiteral) {
+                SingleColumn selectItem = (SingleColumn) selectItems.get(Ints.checkedCast(((LongLiteral) expression).getValue()) - 1);
                 Optional<String> alias = selectItem.getAlias();
-                if(!selectItem.getAlias().isPresent()) {
-                    if(selectItem.getExpression() instanceof QualifiedNameReference) {
+                if (!selectItem.getAlias().isPresent()) {
+                    if (selectItem.getExpression() instanceof QualifiedNameReference) {
                         columns.put(((QualifiedNameReference) selectItem.getExpression()).getName().getSuffix(), null);
-                    }else {
+                    } else {
                         throw new IllegalArgumentException(format("Column '%s' must have an alias", selectItem));
                     }
-                }else {
+                } else {
                     columns.put(alias.get(), null);
                 }
             } else {
@@ -427,7 +431,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
             }
         }
 
-        if(selectItems.size() != columns.size()) {
+        if (selectItems.size() != columns.size()) {
             Object[] unknownColumns = selectItems.stream().filter(item -> {
                 Optional<String> alias = ((SingleColumn) item).getAlias();
                 return alias.isPresent() && columns.containsKey(alias.get());
@@ -440,7 +444,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     }
 
 
-    public static enum PostgresqlFunction {
+    public enum PostgresqlFunction {
         // implement approximate_count using hyperloglog algorithm: https://www.periscope.io/blog/hyperloglog-in-pure-sql.html
         count, max, min, sum
     }

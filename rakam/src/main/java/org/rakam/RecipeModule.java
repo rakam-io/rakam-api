@@ -13,8 +13,9 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
+import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 
@@ -121,13 +122,15 @@ public class RecipeModule extends RakamModule {
     private static class RecipeLoader {
         private final Recipe recipe;
         private final Metastore metastore;
-        private final QueryMetadataStore queryMetadataStore;
+        private final ContinuousQueryService continuousQueryService;
+        private final MaterializedViewService materializedViewService;
 
         @Inject
-        public RecipeLoader(Recipe recipe, Metastore metastore, QueryMetadataStore queryMetadataStore) {
+        public RecipeLoader(Recipe recipe, Metastore metastore, ContinuousQueryService continuousQueryService, MaterializedViewService materializedViewService) {
             this.recipe = recipe;
             this.metastore = metastore;
-            this.queryMetadataStore = queryMetadataStore;
+            this.materializedViewService = materializedViewService;
+            this.continuousQueryService = continuousQueryService;
         }
 
         @Subscribe
@@ -143,12 +146,12 @@ public class RecipeModule extends RakamModule {
             recipe.getContinuousQueryBuilders().stream()
                     .map(builder -> builder.createContinuousQuery(event.project))
                     .forEach(continuousQuery ->
-                            queryMetadataStore.createContinuousQuery(continuousQuery));
+                            continuousQueryService.create(continuousQuery));
 
             recipe.getMaterializedViewBuilders().stream()
                     .map(builder -> builder.createMaterializedView(event.project))
                     .forEach(continuousQuery ->
-                            queryMetadataStore.createMaterializedView(continuousQuery));
+                            materializedViewService.create(continuousQuery));
 
             recipe.getReports().stream().forEach(reportBuilder ->
                     reportBuilder.createReport(event.project));

@@ -2,17 +2,19 @@ strategy: default
 continuous_queries:
   - name: Pageviews
     table_name: pageviews
-    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM stream GROUP BY 1
+    collections:
+      - pageview
 
 materialized_queries:
   - name: Pageviews
     table_name: pageviews
-    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM pageview GROUP BY 1
 
 reports:
   - name: Pageviews
     slug: pageviews
-    query: SELECT _time, count(*) count FROM pageView GROUP BY 1
+    query: SELECT _time, count(*) count FROM stream GROUP BY 1
     options:
       chart_type: line
       dimensions:
@@ -26,10 +28,12 @@ reports:
 collections:
   first_visit:
     columns:
-      -
+      - url:
+          type: string
   recurring_session:
       columns:
-        -
+      - url:
+          type: string
   page_view:
     columns:
       - url:

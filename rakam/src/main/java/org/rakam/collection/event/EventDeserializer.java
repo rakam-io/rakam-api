@@ -218,7 +218,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
         switch (type) {
             case STRING:
-                if (t == JsonToken.VALUE_STRING)
+                // TODO: is it a good idea to cast the value automatically?
+//                if (t == JsonToken.VALUE_STRING)
                     record.put(field.pos(), jp.getValueAsString());
                 break;
             case BOOLEAN:

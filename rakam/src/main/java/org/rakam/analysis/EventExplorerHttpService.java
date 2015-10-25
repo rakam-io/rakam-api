@@ -26,6 +26,7 @@ import javax.ws.rs.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -46,10 +47,11 @@ public class EventExplorerHttpService extends HttpService {
     @JsonRequest
     @Path("/statistics")
     public CompletableFuture<QueryResult> getEventStatistics(@ApiParam(name = "project") String project,
+                                                             @ApiParam(name = "collections", required = false) Set<String> collections,
                                                              @ApiParam(name = "dimension", required = false) String dimension,
                                                              @ApiParam(name = "startDate") LocalDate startDate,
                                                              @ApiParam(name = "endDate") LocalDate endDate) {
-        return eventExplorer.getEventStatistics(project, Optional.ofNullable(dimension), startDate, endDate);
+        return eventExplorer.getEventStatistics(project, Optional.ofNullable(collections), Optional.ofNullable(dimension), startDate, endDate);
     }
 
 

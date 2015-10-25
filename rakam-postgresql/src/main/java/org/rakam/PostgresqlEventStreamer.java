@@ -111,12 +111,12 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                                 "  $BODY$" +
                                 "    BEGIN" +
                                 "       IF %s THEN" +
-                                "           PERFORM pg_notify('%s', '{\"_project\":\"%s\",\"_collection\":\"%s\",' || ltrim(row_to_json((NEW))::text, '{'));" +
+                                "           PERFORM pg_notify('%s', '{\"collection\":\"%s\", \"properties\": {' || ltrim(row_to_json((NEW))::text, '{') || '}');" +
                                 "       END IF;" +
                                 "        RETURN NEW;" +
                                 "    END;" +
                                 "  $BODY$ LANGUAGE plpgsql;",
-                        name, createSqlExpression(collection), ticket, project, collection.collection));
+                        name, createSqlExpression(collection), ticket, collection.collection));
 
                 statement.execute(format("CREATE TRIGGER %s" +
                         "  AFTER INSERT" +

@@ -279,12 +279,12 @@
                 <groupId>com.facebook.presto</groupId>
                 <artifactId>presto-parser</artifactId>
                 <version>${presto.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>io.airlift</groupId>
-                        <artifactId>slice</artifactId>
-                    </exclusion>
-                </exclusions>
+                <!--<exclusions>-->
+                    <!--<exclusion>-->
+                        <!--<groupId>io.airlift</groupId>-->
+                        <!--<artifactId>slice</artifactId>-->
+                    <!--</exclusion>-->
+                <!--</exclusions>-->
             </dependency>
 
             <dependency>

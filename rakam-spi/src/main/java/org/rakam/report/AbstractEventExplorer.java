@@ -87,7 +87,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             case COLUMN:
                 return ref.value;
             case REFERENCE:
-                return "_time";
+                return "time";
             default:
                 throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
@@ -119,15 +119,19 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                 .map(this::getColumnValue)
                 .collect(Collectors.joining(", "));
 
-        String groupBy = Stream.of(
-                grouping == null ? null : "1", segment == null ? null : "2")
-                .filter(col -> col != null)
-                .collect(Collectors.joining(", "));
+        String groupBy;
+        if(segment != null && grouping != null) {
+            groupBy = "1,2";
+        } else if(segment != null || grouping != null ) {
+            groupBy = "1";
+        } else {
+            groupBy = "";
+        }
 
         ZoneId utc = ZoneId.of("UTC");
         String where = Stream.of(
                 startDate == null ? null : format(" _time >= %s ", startDate.atStartOfDay().atZone(utc).toEpochSecond()),
-                endDate == null ? null : format(" _time <= %s ", endDate.atStartOfDay().atZone(utc).toEpochSecond()),
+                endDate == null ? null : format(" _time <= %s ", endDate.atStartOfDay().plusDays(1).atZone(utc).toEpochSecond()),
                 filterExpression).filter(condition -> condition != null)
                 .collect(Collectors.joining(" and "));
 
@@ -138,11 +142,9 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         String computeQuery;
         if (collections.size() == 1) {
-            computeQuery = format("select %s %s(%s) as %s from %s where %s group by %s",
+            computeQuery = format("select %s %s agg from %s where %s group by %s",
                     select.isEmpty() ? select : select + ",",
-                    measureAgg,
-                    measureColumn,
-                    measureAgg,
+                    format(measureAgg, measureColumn),
                     collections.get(0),
                     where,
                     groupBy);
@@ -155,11 +157,9 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             String queries = "(" + collections.stream()
                     .map(collection -> format("select %s, %s from %s where %s", select, measureColumn, collection, where))
                     .collect(Collectors.joining(" union ")) + ")";
-            computeQuery = format("select %s %s(%s) as %s from %s group by %s",
+            computeQuery = format("select %s %s(%s) as agg from %s group by %s",
                     select.isEmpty() ? "" : selectPart + ",",
-                    measureAgg,
-                    measureColumn,
-                    measureAgg,
+                    format(measureAgg, measureColumn),
                     queries,
                     groupBy);
         }
@@ -174,19 +174,16 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     query = format(" SELECT " +
                                     " CASE WHEN group_rank > 15 THEN 'Others' ELSE %s END,\n" +
                                     " CASE WHEN segment_rank > 20 THEN 'Others' ELSE %s END,\n" +
-                                    " %s(%s) FROM (\n" +
+                                    " %s FROM (\n" +
                                     "   SELECT *,\n" +
-                                    "          row_number() OVER (ORDER BY %s(%s) DESC) AS group_rank,\n" +
+                                    "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
                                     "          row_number() OVER (PARTITION BY %s ORDER BY %s DESC) AS segment_rank\n" +
-                                    "   FROM (%s) GROUP BY 1, 2, 3) GROUP BY 1, 2 ORDER BY 3 DESC",
+                                    "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
                             getColumnReference(grouping),
                             getColumnReference(segment),
-                            convertSqlFunction(intermediateAggregation.get()),
-                            measureAgg,
-                            convertSqlFunction(intermediateAggregation.get()),
-                            measureAgg,
-                            getColumnReference(grouping),
-                            measureAgg,
+                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
+                            format(getColumnReference(grouping), "agg"),
                             computeQuery);
                 } else {
                     String groupingColumn;
@@ -205,15 +202,13 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     }
 
                     query = format(" SELECT " +
-                                    " %s, %s, %s(%s) FROM (\n" +
-                                    "   SELECT *, row_number() OVER (ORDER BY %s(%s) DESC) AS group_rank\n" +
-                                    "   FROM (%s) GROUP BY 1, 2, 3) GROUP BY 1, 2 ORDER BY 3 DESC",
+                                    " %s, %s, %s FROM (\n" +
+                                    "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
+                                    "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
                             groupingColumn,
                             segmentColumn,
-                            convertSqlFunction(intermediateAggregation.get()),
-                            measureAgg,
-                            convertSqlFunction(intermediateAggregation.get()),
-                            measureAgg,
+                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
                             computeQuery);
                 }
             } else {
@@ -227,14 +222,12 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
                 if (columnValue != null) {
                     query = format(" SELECT " +
-                                    " CASE WHEN group_rank > 50 THEN 'Others' ELSE %s END, %s(%s) FROM (\n" +
-                                    "   SELECT *, row_number() OVER (ORDER BY %s(%s) DESC) AS group_rank\n" +
-                                    "   FROM (%s) GROUP BY 1, 2) GROUP BY 1 ORDER BY 2 DESC",
+                                    " CASE WHEN group_rank > 50 THEN 'Others' ELSE %s END, %s FROM (\n" +
+                                    "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
+                                    "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
                             columnValue,
-                            convertSqlFunction(intermediateAggregation.get()),
-                            measureAgg,
-                            convertSqlFunction(intermediateAggregation.get()),
-                            measureAgg,
+                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
                             computeQuery);
                 } else {
                     query = computeQuery + " ORDER BY 2 DESC LIMIT 100";
@@ -268,9 +261,18 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         }
     }
 
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         checkProject(project);
         Set<String> collectionNames = metastore.getCollectionNames(project);
+
+        if(collections.isPresent()) {
+            for (String name : collections.get()) {
+                if(!collectionNames.contains(name)) {
+                    throw new RakamException(HttpResponseStatus.BAD_REQUEST);
+                }
+            }
+            collectionNames = collections.get();
+        }
         if(collectionNames.isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }
@@ -319,17 +321,19 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private String convertSqlFunction(AggregationType aggType) {
         switch (aggType) {
             case AVERAGE:
-                return "avg";
+                return "avg(%s)";
             case MAXIMUM:
-                return "max";
+                return "max(%s)";
             case MINIMUM:
-                return "min";
+                return "min(%s)";
             case COUNT:
-                return "count";
+                return "count(%s)";
             case SUM:
-                return "sum";
+                return "sum(%s)";
+            case COUNT_UNIQUE:
+                return "count(distinct %s)";
             case APPROXIMATE_UNIQUE:
-                return "approx_distinct";
+                return "approx_distinct(%s)";
             default:
                 throw new IllegalArgumentException("aggregation type is not supported");
         }

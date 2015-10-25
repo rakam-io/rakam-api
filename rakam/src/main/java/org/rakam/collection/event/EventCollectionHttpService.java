@@ -189,7 +189,7 @@ public class EventCollectionHttpService extends HttpService {
 
             try {
                 List<Event> events = jsonMapper.readValue(buff, List.class);
-                
+
                 if(events.size() > 0) {
                     final Event event = events.get(0);
                     String project = event.project();

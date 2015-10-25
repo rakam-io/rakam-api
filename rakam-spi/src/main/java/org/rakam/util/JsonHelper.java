@@ -17,6 +17,7 @@ import com.google.common.base.Throwables;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -34,6 +35,8 @@ public class JsonHelper {
         mapper.registerModule(new Jdk8Module());
 
         SwaggerJacksonAnnotationIntrospector ai = new SwaggerJacksonAnnotationIntrospector();
+
+        mapper.setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX"));
 
         mapper.registerModule(
                 new SimpleModule("swagger", Version.unknownVersion()) {
