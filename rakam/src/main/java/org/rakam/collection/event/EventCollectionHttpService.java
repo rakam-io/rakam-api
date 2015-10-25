@@ -7,7 +7,6 @@ import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.common.base.Joiner;
 import com.google.common.reflect.TypeToken;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -65,7 +64,7 @@ public class EventCollectionHttpService extends HttpService {
         jsonMapper.registerModule(module);
     }
 
-    private boolean processEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
+    private boolean mapEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
         for (EventMapper mapper : mappers) {
             try {
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
@@ -75,9 +74,34 @@ public class EventCollectionHttpService extends HttpService {
                 return false;
             }
         }
+        return true;
+    }
+
+    private boolean processEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
+
+        if(!mapEvent(event, headers, socketAddress)) {
+            return false;
+        }
 
         try {
             eventStore.store(event);
+        } catch (Exception e) {
+            LOGGER.error(e, "error while storing event.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean processEvent(List<Event> events, HttpHeaders headers, InetAddress socketAddress) {
+        for (Event event : events) {
+            if(!mapEvent(event, headers, socketAddress)) {
+                return false;
+            }
+        }
+
+        try {
+            eventStore.storeBatch(events);
         } catch (Exception e) {
             LOGGER.error(e, "error while storing event.");
             return false;
@@ -163,23 +187,24 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             }
 
-            String[] results;
-
             try {
                 List<Event> events = jsonMapper.readValue(buff, List.class);
-
-                results = new String[events.size()];
-
-                for (int i = 0; i < events.size(); i++) {
-                    Event event = events.get(i);
-                    if(!validateProjectPermission(event.project(), write_key)) {
-                        results[i] = "\"api key is invalid\"";
-                        continue;
+                
+                if(events.size() > 0) {
+                    final Event event = events.get(0);
+                    String project = event.project();
+                    if(!validateProjectPermission(project, write_key)) {
+                        request.response("\"api key is invalid\"", UNAUTHORIZED).end();
+                        return;
                     }
-
-                    processEvent(event, headers, socketAddress.getAddress());
-                    results[i] = "1";
+                    for (int i = 1; i < events.size(); i++) {
+                        if(!events.get(i).project().equals(project)) {
+                            request.response("\"all events must belong to same project. try inserting events one by one.\"", UNAUTHORIZED).end();
+                        }
+                    }
                 }
+
+                processEvent(events, headers, socketAddress.getAddress());
             } catch (JsonMappingException e) {
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
@@ -196,7 +221,7 @@ public class EventCollectionHttpService extends HttpService {
             }
 
 
-            request.response("["+ Joiner.on(", ").join(results)+ "]", OK).end();
+            request.response("1", OK).end();
         });
     }
 

@@ -201,7 +201,7 @@ public class GeoIPEventMapper implements EventMapper {
             return;
         }
 
-        properties.put("connection_type", connectionType.getConnectionType());
+        properties.put("connection_type", connectionType.getConnectionType().name());
     }
 
     private void setIsp(InetAddress address, GenericRecord properties) {

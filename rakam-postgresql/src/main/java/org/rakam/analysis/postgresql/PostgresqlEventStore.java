@@ -38,6 +38,25 @@ public class PostgresqlEventStore implements EventStore {
         }
     }
 
+    @Override
+    public void storeBatch(List<Event> events) {
+        try(Connection connection = connectionPool.openConnection()) {
+            connection.setAutoCommit(false);
+            for (Event event : events) {
+                GenericRecord record = event.properties();
+                PreparedStatement ps = connection.prepareStatement(getQuery(event));
+                for (Schema.Field field : event.properties().getSchema().getFields()) {
+                    bindParam(connection, ps, field, record.get(field.pos()));
+                }
+                ps.executeUpdate();
+            }
+            connection.commit();
+            connection.setAutoCommit(true);
+        } catch (SQLException e) {
+            Throwables.propagate(e);
+        }
+    }
+
     private void bindParam(Connection connection, PreparedStatement ps, Schema.Field field, Object value) throws SQLException {
         int pos = field.pos()+1;
 

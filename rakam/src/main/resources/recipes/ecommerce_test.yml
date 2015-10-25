@@ -24,6 +24,12 @@ reports:
           type: date-range
           default: last_day
 collections:
+  first_visit:
+    columns:
+      -
+  recurring_session:
+      columns:
+        -
   page_view:
     columns:
       - url:
