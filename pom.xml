@@ -67,7 +67,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
         <air.version>0.101</air.version>
-        <presto.version>0.114</presto.version>
+        <presto.version>0.123</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.4.5</jackson.version>
         <netty.rest.version>0.22</netty.rest.version>
@@ -279,12 +279,12 @@
                 <groupId>com.facebook.presto</groupId>
                 <artifactId>presto-parser</artifactId>
                 <version>${presto.version}</version>
-                <!--<exclusions>-->
-                    <!--<exclusion>-->
-                        <!--<groupId>io.airlift</groupId>-->
-                        <!--<artifactId>slice</artifactId>-->
-                    <!--</exclusion>-->
-                <!--</exclusions>-->
+            </dependency>
+
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>slice</artifactId>
+                <version>0.15</version>
             </dependency>
 
             <dependency>

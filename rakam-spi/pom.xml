@@ -144,7 +144,6 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-parser</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -159,5 +158,41 @@
             <version>4.12</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>slice</artifactId>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>2.10</version>
+                    <executions>
+                        <execution>
+                            <id>default</id>
+                            <phase>process-test-classes</phase>
+                            <goals>
+                                <goal>analyze-only</goal>
+                                <goal>analyze-duplicate</goal>
+                                <goal>analyze-dep-mgt</goal>
+                            </goals>
+                            <configuration>
+                                <failOnWarning>true</failOnWarning>
+
+                                <ignoredUnusedDeclaredDependencies>
+                                    <!-- The plugin complains that version 0.10 is in classpath but presto-parser needs 0.15
+                                         and dependency:tree has 0.10 version of io.airlift.slice even though presto-parser uses 0.15
+                                         TODO: I couldn't fix this problem and need help from someone. -->
+                                    <ignoredUnusedDeclaredDependency>io.airlift:slice</ignoredUnusedDeclaredDependency>
+                                </ignoredUnusedDeclaredDependencies>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+        </plugins>
+    </build>
 </project>
