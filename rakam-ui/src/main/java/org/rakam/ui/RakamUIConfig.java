@@ -20,7 +20,7 @@ import java.io.File;
 import java.util.Locale;
 
 public class RakamUIConfig {
-    private File uiDirectory = new File("rakam-ui/src/main/resources/rakam-ui-master/app");
+    private File uiDirectory;
     private CustomPageBackend customPageBackend = CustomPageBackend.JDBC;
     private File customPageBackendDirectory;
     private boolean enableUi = true;
