@@ -59,10 +59,9 @@ public class PostgresqlModule extends RakamModule {
             final String url = config.getUrl();
 
             asyncClientConfig = new JDBCConfig()
-                    .setMaxConnection(config.getMaxConnection())
                     .setPassword(config.getPassword())
                     .setTable(config.getTable())
-                    .setMaxConnection(5)
+                    .setMaxConnection(1)
                     .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
                     .setUsername(config.getUsername());
         } catch (URISyntaxException e) {

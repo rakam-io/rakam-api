@@ -15,22 +15,15 @@ import java.util.List;
 
 public class PostgresqlEventStream implements EventStream {
     private final JDBCPoolDataSource dataSource;
-    private final Connection connection;
 
     @Inject
     public PostgresqlEventStream(@Named("async-postgresql") JDBCPoolDataSource dataSource) {
         this.dataSource = dataSource;
-        try {
-            this.connection = dataSource.getConnection();
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-
     }
 
     @Override
     public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
-        try {
+        try(Connection connection = dataSource.getConnection()) {
             final PGConnection unwrap = connection.unwrap(PGConnection.class);
             return new PostgresqlEventStreamer(unwrap, project, collections, response);
         } catch (SQLException e) {

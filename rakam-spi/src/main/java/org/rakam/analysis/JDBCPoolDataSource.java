@@ -1,21 +1,15 @@
 package org.rakam.analysis;
 
-import com.google.common.base.Splitter;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.rakam.plugin.JDBCConfig;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -24,39 +18,15 @@ import static com.google.common.base.Preconditions.checkState;
 
 public class JDBCPoolDataSource implements DataSource {
     private static final Map<JDBCConfig, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
-    private final JDBCConfig config;
     private final HikariDataSource dataSource;
 
     private JDBCPoolDataSource(JDBCConfig config) {
         checkArgument(config.getUrl() != null, "JDBC url is required");
-        this.config = config;
-
-
-        URI dbUri;
-        try {
-            dbUri = new URI(config.getUrl().substring(5));
-        } catch (URISyntaxException e) {
-            throw Throwables.propagate(e);
-        }
-
-        Properties properties = new Properties();
-
-        Map<String, String> map;
-        if(dbUri.getQuery() != null) {
-            map = Splitter.on('&').trimResults()
-                    .withKeyValueSeparator("=")
-                    .split(dbUri.getQuery());
-        } else {
-            map = ImmutableMap.of();
-        }
-
-        properties.putAll(map);
 
         HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setUsername(config.getUsername());
         hikariConfig.setPassword(config.getPassword());
         hikariConfig.setJdbcUrl(config.getUrl());
-        hikariConfig.setDataSourceProperties(properties);
 
         if (config.getMaxConnection() != null) {
             hikariConfig.setMaximumPoolSize(config.getMaxConnection());
@@ -89,33 +59,11 @@ public class JDBCPoolDataSource implements DataSource {
 
     @Override
     public Connection getConnection() throws SQLException {
-//        if(config.getDataSource() == null) {
-//            return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
-//        } else {
-//            try {
-//                DataSource o = (DataSource) Class.forName(config.getDataSource()).newInstance();
-//
-//                return o.getConnection();
-//            } catch (ClassNotFoundException|IllegalAccessException|InstantiationException e) {
-//                throw Throwables.propagate(e);
-//            }
-//        }
           return dataSource.getConnection();
     }
 
     @Override
     public Connection getConnection(String username, String password) throws SQLException {
-//        if(config.getDataSource() == null) {
-//            return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
-//        } else {
-//            try {
-//                DataSource o = (DataSource) Class.forName(config.getDataSource()).newInstance();
-//
-//                return o.getConnection();
-//            } catch (ClassNotFoundException|IllegalAccessException|InstantiationException e) {
-//                throw Throwables.propagate(e);
-//            }
-//        }
           return dataSource.getConnection(username, password);
     }
 
