@@ -111,7 +111,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public MessageListener listen(String projectId, String user, Consumer<Data> consumer) {
-        try(Connection conn = dataSource.openConnection()) {
+        try(Connection conn = dataSource.getConnection()) {
             PGConnection asyncConn = ((PGConnection) conn);
             String name = projectId + "_" + user + USER_NOTIFICATION_SUFFIX;
 
@@ -147,7 +147,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public MessageListener listenAllUsers(String projectId, Consumer<Data> consumer) {
-        try(Connection conn = dataSource.openConnection()) {
+        try(Connection conn = dataSource.getConnection()) {
             PGConnection asyncConn = ((PGConnection) conn);
             PGNotificationListener listener = (processId, channelName, payload) -> {
                 if (lastMessage.get() + 2 > Instant.now().getEpochSecond()) {

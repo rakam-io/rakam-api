@@ -6,20 +6,23 @@ import com.google.common.collect.ImmutableMap;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.rakam.plugin.JDBCConfig;
-import org.skife.jdbi.v2.tweak.ConnectionFactory;
 
+import javax.sql.DataSource;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-public class JDBCPoolDataSource implements ConnectionFactory {
+public class JDBCPoolDataSource implements DataSource {
     private static final Map<JDBCConfig, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
     private final JDBCConfig config;
     private final HikariDataSource dataSource;
@@ -85,7 +88,7 @@ public class JDBCPoolDataSource implements ConnectionFactory {
     }
 
     @Override
-    public Connection openConnection() throws SQLException {
+    public Connection getConnection() throws SQLException {
 //        if(config.getDataSource() == null) {
 //            return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
 //        } else {
@@ -98,5 +101,56 @@ public class JDBCPoolDataSource implements ConnectionFactory {
 //            }
 //        }
           return dataSource.getConnection();
+    }
+
+    @Override
+    public Connection getConnection(String username, String password) throws SQLException {
+//        if(config.getDataSource() == null) {
+//            return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+//        } else {
+//            try {
+//                DataSource o = (DataSource) Class.forName(config.getDataSource()).newInstance();
+//
+//                return o.getConnection();
+//            } catch (ClassNotFoundException|IllegalAccessException|InstantiationException e) {
+//                throw Throwables.propagate(e);
+//            }
+//        }
+          return dataSource.getConnection(username, password);
+    }
+
+    @Override
+    public PrintWriter getLogWriter() throws SQLException {
+        return dataSource.getLogWriter();
+    }
+
+    @Override
+    public void setLogWriter(PrintWriter out) throws SQLException {
+        dataSource.setLogWriter(out);
+    }
+
+    @Override
+    public void setLoginTimeout(int seconds) throws SQLException {
+        dataSource.setLoginTimeout(seconds);
+    }
+
+    @Override
+    public int getLoginTimeout() throws SQLException {
+        return dataSource.getLoginTimeout();
+    }
+
+    @Override
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        return dataSource.getParentLogger();
+    }
+
+    @Override
+    public <T> T unwrap(Class<T> iface) throws SQLException {
+        return dataSource.unwrap(iface);
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        return dataSource.isWrapperFor(iface);
     }
 }

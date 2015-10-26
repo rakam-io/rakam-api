@@ -21,7 +21,7 @@ public class PostgresqlEventStream implements EventStream {
     public PostgresqlEventStream(@Named("async-postgresql") JDBCPoolDataSource dataSource) {
         this.dataSource = dataSource;
         try {
-            this.connection = dataSource.openConnection();
+            this.connection = dataSource.getConnection();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

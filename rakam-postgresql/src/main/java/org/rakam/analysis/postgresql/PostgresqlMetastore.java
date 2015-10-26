@@ -54,7 +54,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>() {
             @Override
             public List<Set<String>> load(String project) throws Exception {
-                try (Connection conn = connectionPool.openConnection()) {
+                try (Connection conn = connectionPool.getConnection()) {
                     return getKeys(conn, project);
                 }
             }
@@ -63,7 +63,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
             @Override
             public List<SchemaField> load(ProjectCollection key) throws Exception {
-                try (Connection conn = connectionPool.openConnection()) {
+                try (Connection conn = connectionPool.getConnection()) {
                     List<SchemaField> schema = getSchema(conn, key.project, key.collection);
                     if (schema == null) {
                         return ImmutableList.of();
@@ -76,7 +76,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         collectionCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
             @Override
             public Set<String> load(String project) throws Exception {
-                try (Connection conn = connectionPool.openConnection()) {
+                try (Connection conn = connectionPool.getConnection()) {
                     HashSet<String> tables = new HashSet<>();
 
                     ResultSet tableRs = conn.getMetaData().getTables("", project, null, new String[]{"TABLE"});
@@ -97,7 +97,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
     }
 
     private void setup() {
-        try(Connection connection = connectionPool.openConnection()) {
+        try(Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
             statement.execute("" +
                     "  CREATE TABLE IF NOT EXISTS public.collections_last_sync (" +
@@ -186,7 +186,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         String writeKey = CryptUtil.generateRandomKey(64);
 
         int id;
-        try(Connection connection = connectionPool.openConnection()) {
+        try(Connection connection = connectionPool.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_key " +
                     "(master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
@@ -212,7 +212,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         if(project.equals("information_schema")) {
             throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
         }
-        try(Connection connection = connectionPool.openConnection()) {
+        try(Connection connection = connectionPool.getConnection()) {
             connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS " + project);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -224,7 +224,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
     @Override
     public Set<String> getProjects() {
         ImmutableSet.Builder<String> builder = ImmutableSet.builder();
-        try(Connection connection = connectionPool.openConnection()) {
+        try(Connection connection = connectionPool.getConnection()) {
             ResultSet schemas = connection.getMetaData().getSchemas();
             while(schemas.next()) {
                 String table_schem = schemas.getString("table_schem");
@@ -278,7 +278,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         List<SchemaField> currentFields = Lists.newArrayList();
         String query;
         boolean collectionCreated;
-        try(Connection connection = connectionPool.openConnection()) {
+        try(Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
             ResultSet columns = connection.getMetaData().getColumns("", project, collection, null);
             HashSet<String> strings = new HashSet<>();
@@ -359,7 +359,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
 
     @Override
     public List<ProjectApiKeys> getApiKeys(int[] ids) {
-        try (Connection conn = connectionPool.openConnection()) {
+        try (Connection conn = connectionPool.getConnection()) {
             final PreparedStatement ps = conn.prepareStatement("select id, project, master_key, read_key, write_key from api_key where id = any(?)");
             ps.setArray(1, conn.createArrayOf("integer", Arrays.stream(ids).mapToObj(i -> i).toArray()));
             ps.execute();

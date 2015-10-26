@@ -7,9 +7,11 @@ import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
+import com.facebook.presto.sql.tree.Relation;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
+import com.facebook.presto.sql.tree.Union;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.primitives.Ints;
 import io.netty.channel.EventLoopGroup;
@@ -28,7 +30,6 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -184,43 +185,52 @@ public class QueryHttpService extends HttpService {
     public Object explain(@ApiParam(name="query", value = "Query", required = true) String query) {
         try {
             Query statement;
-            try {
-                statement = (Query) new SqlParser().createStatement(query);
-            } catch (Exception e) {
-                return new ResponseQuery(null, null, null, null);
-            }
-            QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
+            statement = (Query) new SqlParser().createStatement(query);
 
-            Function<Expression, Integer> mapper = item -> {
-                if (item instanceof QualifiedNameReference) {
-                    return findSelectIndex(queryBody.getSelect().getSelectItems(), item.toString()).orElse(null);
-                } else if (item instanceof LongLiteral) {
-                    return Ints.checkedCast(((LongLiteral) item).getValue());
-                } else {
-                    return null;
+            if(statement.getQueryBody() instanceof QuerySpecification) {
+                return parseQuerySpecification((QuerySpecification) statement.getQueryBody());
+            } else
+            if(statement.getQueryBody() instanceof Union) {
+                final Relation relation = ((Union) statement.getQueryBody()).getRelations().get(0);
+                if(relation instanceof QuerySpecification) {
+                    return parseQuerySpecification((QuerySpecification) relation);
                 }
-            };
-
-            List<GroupBy> groupBy = queryBody.getGroupBy().stream()
-                    .map(item -> new GroupBy(mapper.apply(item), item.toString()))
-                    .collect(Collectors.toList());
-
-            List<Ordering> orderBy = queryBody.getOrderBy().stream().map(item ->
-                    new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
-                    .collect(Collectors.toList());
-
-            String limitStr = queryBody.getLimit().orElse(null);
-            Long limit = null;
-            if(limitStr != null) {
-                try {
-                    limit = Long.parseLong(limitStr);
-                } catch (NumberFormatException e) {}
             }
+            return ResponseQuery.UNKNOWN;
 
-            return new ResponseQuery(groupBy, orderBy, limit, null);
         } catch (ParsingException|ClassCastException e) {
-            return JsonResponse.error(e.getMessage());
+            return ResponseQuery.UNKNOWN;
         }
+    }
+
+    private ResponseQuery parseQuerySpecification(QuerySpecification queryBody) {
+        Function<Expression, Integer> mapper = item -> {
+            if (item instanceof QualifiedNameReference) {
+                return findSelectIndex(queryBody.getSelect().getSelectItems(), item.toString()).orElse(null);
+            } else if (item instanceof LongLiteral) {
+                return Ints.checkedCast(((LongLiteral) item).getValue());
+            } else {
+                return null;
+            }
+        };
+
+        List<GroupBy> groupBy = queryBody.getGroupBy().stream()
+                .map(item -> new GroupBy(mapper.apply(item), item.toString()))
+                .collect(Collectors.toList());
+
+        List<Ordering> orderBy = queryBody.getOrderBy().stream().map(item ->
+                new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
+                .collect(Collectors.toList());
+
+        String limitStr = queryBody.getLimit().orElse(null);
+        Long limit = null;
+        if(limitStr != null) {
+            try {
+                limit = Long.parseLong(limitStr);
+            } catch (NumberFormatException e) {}
+        }
+
+        return new ResponseQuery(groupBy, orderBy, limit, null);
     }
 
     private Optional<Integer> findSelectIndex(List<SelectItem> selectItems, String reference) {
@@ -239,6 +249,8 @@ public class QueryHttpService extends HttpService {
     }
 
     public static class ResponseQuery {
+        public static final ResponseQuery UNKNOWN = new ResponseQuery(null, null, null, null);
+
         public final List<GroupBy> groupBy;
         public final List<Ordering> orderBy;
         public final Long limit;
