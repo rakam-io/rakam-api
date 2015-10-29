@@ -4,6 +4,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
@@ -121,6 +122,8 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         return node -> {
             if (node.getPrefix().isPresent()) {
                 switch (node.getPrefix().get().toString()) {
+                    case "collection":
+                        return project + "." + node.getSuffix();
                     case "continuous":
                         return project + "." + CONTINUOUS_QUERY_PREFIX + node.getSuffix();
                     case "materialized":
@@ -177,6 +180,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         public PostgresqlQueryExecution(JDBCPoolDataSource connectionPool, String sqlQuery, boolean update) {
             this.query = sqlQuery;
 
+            // TODO: unnecessary threads will be spawn
             this.result = CompletableFuture.supplyAsync(() -> {
                 try (Connection connection = connectionPool.getConnection()) {
                     Statement statement = connection.createStatement();
@@ -188,7 +192,11 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                         List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
                         return new QueryResult(cols, data);
                     } else {
-                        return resultSetToQueryResult(statement.executeQuery(sqlQuery));
+                        long beforeExecuted = System.currentTimeMillis();
+                        ResultSet resultSet = statement.executeQuery(sqlQuery);
+                        final QueryResult queryResult = resultSetToQueryResult(resultSet,
+                                System.currentTimeMillis() - beforeExecuted);
+                        return queryResult;
                     }
                 } catch (Exception e) {
                     QueryError error;
@@ -234,7 +242,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
     }
 
-    private static QueryResult resultSetToQueryResult(ResultSet resultSet) {
+    private static QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis) {
         List<SchemaField> columns;
         List<List<Object>> data;
         try {
@@ -260,7 +268,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 builder.add(rowBuilder);
             }
             data = builder.build();
-            return new QueryResult(columns, data);
+            return new QueryResult(columns, data, ImmutableMap.of(QueryResult.EXECUTION_TIME, executionTimeInMillis));
         } catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode());
             return QueryResult.errorResult(error);

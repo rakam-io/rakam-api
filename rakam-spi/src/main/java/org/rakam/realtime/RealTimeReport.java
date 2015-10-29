@@ -36,10 +36,10 @@ public class RealTimeReport implements ProjectItem {
         this.project = checkNotNull(project, "project is required");
         this.chart = checkNotNull(chart, "chart is required");
         this.name = checkNotNull(name, "name is required");
-        this.table_name = checkNotNull(tableName, "project is required");
+        this.table_name = checkNotNull(tableName, "table_name is required");
         this.collections = checkNotNull(collections, "collections is required");
-        this.filter = filter;
         this.aggregation = checkNotNull(aggregation, "aggregation is required");
+        this.filter = filter;
         this.measure = measure;
         this.dimension = dimension;
     }

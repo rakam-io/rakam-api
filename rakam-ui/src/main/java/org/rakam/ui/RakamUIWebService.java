@@ -74,18 +74,18 @@ public class RakamUIWebService extends HttpService {
         final String uri = request.path();
 
         int idx = uri.indexOf("/static/");
-        String path;
+        File file;
         if(idx > -1) {
-            path = sanitizeUri(uri);
+            final String path = sanitizeUri(uri);
             if (path == null) {
                 sendError(request, FORBIDDEN);
                 return;
             }
-        }else {
-            path = directory.getPath() + File.separator + "index.html";
+            file = new File(path);
+        } else {
+            file = new File(directory.getPath(), "index.html");
         }
 
-        File file = new File(path);
         if (file.isHidden() || !file.exists()) {
             sendError(request, NOT_FOUND);
             return;

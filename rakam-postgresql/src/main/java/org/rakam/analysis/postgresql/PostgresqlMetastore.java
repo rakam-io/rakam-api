@@ -163,7 +163,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
     @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
         try {
-            return collectionCache.get(project).stream().collect(Collectors.toMap(c -> c, collection -> getCollection(project, collection)));
+            return collectionCache.get(project).stream()
+                    .collect(Collectors.toMap(c -> c, collection ->
+                            getCollection(project, collection)));
         } catch (ExecutionException e) {
            throw Throwables.propagate(e);
         }
@@ -213,7 +215,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
             throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
         }
         try(Connection connection = connectionPool.getConnection()) {
-            connection.createStatement().execute("CREATE SCHEMA IF NOT EXISTS " + project);
+            final Statement statement = connection.createStatement();
+            statement.execute("CREATE SCHEMA IF NOT EXISTS " + project);
+            statement.execute(String.format("CREATE FUNCTION %s.to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

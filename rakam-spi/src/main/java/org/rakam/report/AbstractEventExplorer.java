@@ -132,7 +132,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         String where = Stream.of(
                 startDate == null ? null : format(" _time >= %s ", startDate.atStartOfDay().atZone(utc).toEpochSecond()),
                 endDate == null ? null : format(" _time <= %s ", endDate.atStartOfDay().plusDays(1).atZone(utc).toEpochSecond()),
-                filterExpression).filter(condition -> condition != null)
+                filterExpression).filter(condition -> condition != null && !condition.isEmpty())
                 .collect(Collectors.joining(" and "));
 
         String measureAgg = convertSqlFunction(measureType != null &&
@@ -181,9 +181,9 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
                             getColumnReference(grouping),
                             getColumnReference(segment),
-                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
-                            format(getColumnReference(grouping), "agg"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                            format(getColumnReference(grouping), "value"),
                             computeQuery);
                 } else {
                     String groupingColumn;
@@ -207,8 +207,8 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
                             groupingColumn,
                             segmentColumn,
-                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             computeQuery);
                 }
             } else {
@@ -226,8 +226,8 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                     "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
                             columnValue,
-                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "agg"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             computeQuery);
                 } else {
                     query = computeQuery + " ORDER BY 2 DESC LIMIT 100";

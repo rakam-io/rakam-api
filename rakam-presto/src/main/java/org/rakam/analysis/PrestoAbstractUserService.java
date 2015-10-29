@@ -56,7 +56,7 @@ public class PrestoAbstractUserService extends AbstractUserService {
                                     }
                                 })
                                 .collect(Collectors.joining(", ")) +
-                                format(" }' as json, _time from %s where user = %s",
+                                format(" }' as json, _time from %s where _user = %s",
                                         prestoConfig.getColdStorageConnector() + "." + project + "." + entry.getKey(),
                                         user))
                 .collect(Collectors.joining(" union all "));

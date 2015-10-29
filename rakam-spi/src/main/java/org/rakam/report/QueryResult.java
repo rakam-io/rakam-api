@@ -5,7 +5,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import org.rakam.collection.SchemaField;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -49,12 +48,7 @@ public class QueryResult {
         return new QueryResult(null, null, error, null);
     }
 
-    public Map<String, Object> setProperty(String key, Object value) {
-        if(properties == null) {
-            properties = new HashMap<>();
-        }
-
-        properties.put(key, value);
+    public Map<String, Object> getProperties() {
         return properties;
     }
 
@@ -102,4 +96,7 @@ public class QueryResult {
         result1 = 31 * result1 + (properties != null ? properties.hashCode() : 0);
         return result1;
     }
+
+    public static final String EXECUTION_TIME = "executionTimeInMillis";
+    public static final String TOTAL_RESULT = "totalResult";
 }

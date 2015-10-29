@@ -141,7 +141,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
 
         CompletableFuture.allOf(data, totalResult).whenComplete((__, ex) -> {
             if(ex==null) {
-                result.complete(new QueryResult(projectColumns, data.join(), ImmutableMap.of("totalResult", totalResult.join())));
+                result.complete(new QueryResult(projectColumns, data.join(), ImmutableMap.of(QueryResult.TOTAL_RESULT, totalResult.join())));
             } else {
                 LOGGER.error(ex, "Error while executing query on user data-set.");
                 result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0)));

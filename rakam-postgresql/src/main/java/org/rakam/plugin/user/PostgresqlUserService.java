@@ -3,6 +3,7 @@ package org.rakam.plugin.user;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;
+import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
 
@@ -34,12 +35,15 @@ public class PostgresqlUserService extends AbstractUserService {
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
         String sqlQuery = metastore.getCollections(project).entrySet().stream()
-                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("user")))
-                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("time")))
+                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_user")))
+                .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
                 .map(entry ->
-                        format("select '%s' as collection, row_to_json(coll) json, _time from %s.%s coll where \"user\" = %s",
+                        format("select '%s' as collection, row_to_json(coll) json, _time from %s.%s coll where \"_user\" = %s",
                                 entry.getKey(), project, entry.getKey(), user))
                 .collect(Collectors.joining(" union all "));
+        if(sqlQuery.isEmpty()) {
+            return CompletableFuture.completedFuture(QueryResult.empty());
+        }
         return executor.executeRawQuery(format("select collection, json from (%s) data order by _time desc limit %d offset %d", sqlQuery, limit, offset)).getResult()
                 .thenApply(result ->
                         result.getResult().stream()

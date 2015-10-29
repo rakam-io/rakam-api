@@ -51,7 +51,7 @@ import static org.rakam.util.JsonHelper.convert;
 public class RealTimeHttpService extends HttpService {
     private final ContinuousQueryService service;
     private final QueryExecutor executor;
-    SqlParser sqlParser = new SqlParser();
+    private final SqlParser sqlParser = new SqlParser();
     private final Duration slideInterval = Duration.ofSeconds(5);
     private final Duration window = Duration.ofSeconds(45);
 
@@ -83,7 +83,7 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(_time / %d) as time, ", slideInterval.getSeconds()))
+                .append(format("(_time / %d) as _time, ", slideInterval.getSeconds()))
                 .append(createSelect(report.aggregation, report.measure, report.dimension))
                 .append(" from stream")
                 .append(report.filter == null ? "" : "where " + report.filter)
@@ -231,12 +231,18 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete report")
     @Path("/delete")
-    public Object delete(@ApiParam(name = "project", required = true) String project,
-                         @ApiParam(name = "name", required = true) String name) {
+    public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project", required = true) String project,
+                         @ApiParam(name = "name", required = true) String tableName) {
 
         // TODO: Check if it's a real-time report.
-        service.delete(project, name);
-        return JsonHelper.jsonObject().put("message", "successfully deleted");
+        return service.delete(project, tableName).thenApply(result -> {
+            if(result) {
+                return JsonResponse.success();
+            } else {
+                return JsonResponse.error("Couldn't delete report. Most probably it doesn't exist");
+            }
+        });
+
     }
 
     public String createSelect(AggregationType aggType, String measure, String dimension) {

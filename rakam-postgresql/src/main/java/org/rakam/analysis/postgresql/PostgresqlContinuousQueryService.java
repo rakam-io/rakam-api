@@ -176,12 +176,16 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     public CompletableFuture<Boolean> delete(String project, String name) {
         ContinuousQuery continuousQuery = reportDatabase.getContinuousQuery(project, name);
 
-        String prestoQuery = format("drop table continuous.%s", continuousQuery.project, continuousQuery.tableName);
-        return executor.executeQuery(project, prestoQuery).getResult().thenApply(result -> {
+        if(continuousQuery == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        String prestoQuery = format("drop table continuous.%s", continuousQuery.tableName);
+        return executor.executeStatement(project, prestoQuery).getResult().thenApply(result -> {
             if (result.getError() == null) {
                 reportDatabase.deleteContinuousQuery(continuousQuery.project, continuousQuery.tableName);
                 return true;
             } else {
+                // TODO: pass the error message to the client
                 return false;
             }
         });

@@ -134,9 +134,9 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
                             "returning_action as (\n" +
                             "  %s\n" +
                             ") \n" +
-                            "select %s, null as lead, count(distinct user) count from first_action data group by 1,2 union all\n" +
-                            "select %s, %s, count(distinct data.user) \n" +
-                            "from first_action data join returning_action on (data.user = returning_action.user) \n" +
+                            "select %s, null as lead, count(distinct _user) count from first_action data group by 1,2 union all\n" +
+                            "select %s, %s, count(distinct data._user) \n" +
+                            "from first_action data join returning_action on (data._user = returning_action._user) \n" +
                             "where data.time < returning_action.time and %s < %d group by 1, 2",
                     firstActionQuery, from.toString(), dimensionColumn,
                     dimensionColumn, timeSubtraction,
@@ -149,7 +149,7 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
                 timeSubtraction = "date_diff('"+dateUnit.name().toLowerCase()+"', time, lead%d)";
             }
 
-            String leadTemplate = "lead(time, %d) over (partition by user order by user, time)";
+            String leadTemplate = "lead(time, %d) over (partition by _user order by _user, time)";
             String leadColumns = IntStream.range(0, range)
                     .mapToObj(i -> "(" + format(timeSubtraction, i) + ") as lead" + i)
                     .collect(Collectors.joining(", "));
@@ -161,18 +161,18 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
             String leadColumnNames = IntStream.range(0, range).mapToObj(i -> "lead" + i).collect(Collectors.joining(", "));
 
             query = format("with daily_groups as (\n" +
-                            "  select user, time\n" +
+                            "  select _user, time\n" +
                             "  from (%s) as data group by 1, 2\n" +
                             "), \n" +
                             "lead_relations as (\n" +
-                            "  select user, time, %s\n" +
+                            "  select _user, time, %s\n" +
                             "  from daily_groups\n" +
                             "),\n" +
                             "result as (\n" +
-                            "   select %s as time, %s, count(distinct user) as count\n" +
+                            "   select %s as time, %s, count(distinct _user) as count\n" +
                             "   from lead_relations data group by 1, %s order by 1\n" +
                             ") \n" +
-                            "select %s, null as lead, count(user) as count from daily_groups data group by 1\n" +
+                            "select %s, null as lead, count(_user) as count from daily_groups data group by 1\n" +
                             "union all (select * from (select time, lead, count from result \n" +
                             "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d)",
                     from.toString(), leads, timeTransformation,

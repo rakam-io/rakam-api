@@ -133,6 +133,7 @@ public class QueryHttpService extends HttpService {
                 response.send("result", encode(jsonObject()
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
+                        .putPOJO("properties", result.getProperties())
                         .putPOJO("result", result.getResult())
                         .putPOJO("metadata", metadata))).end();
             }

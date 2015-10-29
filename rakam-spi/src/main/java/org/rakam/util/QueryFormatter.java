@@ -2,6 +2,7 @@ package org.rakam.util;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.tree.CreateTable;
+import com.facebook.presto.sql.tree.DropTable;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Table;
 import com.google.common.base.Joiner;
@@ -34,6 +35,12 @@ public class QueryFormatter
         return null;
     }
 
+    @Override
+    protected Void visitDropTable(DropTable node, List<String> referencedTables) {
+        builder.append("DROP TABLE ")
+                .append(tableNameMapper.apply(node.getTableName()));
+        return null;
+    }
 
     @Override
     protected Void visitCreateTable(CreateTable node, List<String> referencedTables)

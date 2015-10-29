@@ -7,8 +7,8 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserStorage;
@@ -18,7 +18,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
-
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -32,15 +31,14 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 import static org.rakam.realtime.AggregationType.COUNT;
-import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
+import static org.rakam.util.ValidationUtil.*;
 
 public class PostgresqlUserStorageAdapter implements UserStorage {
     public static final String USER_TABLE = "_users";
@@ -128,7 +126,8 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset) {
         checkProject(project);
         List<SchemaField> projectColumns = getMetadata(project);
-        String columns = Joiner.on(", ").join(projectColumns.stream().map(col -> col.getName()).toArray());
+        String columns = Joiner.on(", ").join(projectColumns.stream().map(col -> col.getName())
+                .toArray());
 
         LinkedList<String> filters = new LinkedList<>();
         if (filterExpression != null) {
@@ -203,7 +202,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 QueryResult totalResultData = totalResult.getResult().join();
                 if (ex == null && !data.isFailed() && !totalResultData.isFailed()) {
                     Object v1 = totalResultData.getResult().get(0).get(0);
-                    result.complete(new QueryResult(projectColumns, data.getResult(), ImmutableMap.of("totalResult", v1)));
+                    result.complete(new QueryResult(projectColumns, data.getResult(), ImmutableMap.of(QueryResult.TOTAL_RESULT, v1)));
                 } else {
                     result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0)));
                 }
@@ -225,7 +224,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
             ResultSet indexInfo = metaData.getIndexInfo(null, null, USER_TABLE, true, false);
             ResultSet dbColumns = metaData.getColumns(null, project, USER_TABLE, null);
 
-            List<String> uniqueColumns = Lists.newLinkedList();
+            Set<String> uniqueColumns = Sets.newHashSet();
             while (indexInfo.next()) {
                 uniqueColumns.add(indexInfo.getString("COLUMN_NAME"));
             }
@@ -238,7 +237,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 } catch (IllegalStateException e) {
                     continue;
                 }
-                columns.add(new SchemaField(columnName, fieldType, uniqueColumns.indexOf(columnName) > -1));
+                columns.add(new SchemaField(columnName, fieldType, null, uniqueColumns.contains(columnName), null, null, null));
             }
             return columns;
 
