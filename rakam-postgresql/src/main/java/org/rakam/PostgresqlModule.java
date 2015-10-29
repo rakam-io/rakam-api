@@ -12,6 +12,7 @@ import com.google.inject.name.Names;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.JDBCQueryMetadata;
+import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.analysis.postgresql.PostgresqlContinuousQueryService;
 import org.rakam.analysis.postgresql.PostgresqlEventStore;
 import org.rakam.analysis.postgresql.PostgresqlMaterializedViewService;
@@ -95,6 +96,9 @@ public class PostgresqlModule extends RakamModule {
         }
 
 
+        if (buildConfigObject(PostgresqlConfig.class).isAutoIndexColumns()) {
+            binder.bind(CollectionFieldIndexerListener.class).asEagerSingleton();
+        }
     }
 
     @Override
@@ -107,7 +111,7 @@ public class PostgresqlModule extends RakamModule {
         return "Postgresql deployment type module";
     }
 
-    public static class EventExplorerListener {
+    private static class EventExplorerListener {
         private static final String QUERY = "select _time/3600 as time, count(*) as total from stream group by 1";
         private final PostgresqlContinuousQueryService continuousQueryService;
 
@@ -137,6 +141,21 @@ public class PostgresqlModule extends RakamModule {
         @Override
         public JDBCPoolDataSource get() {
             return JDBCPoolDataSource.getOrCreateDataSource(asyncClientConfig);
+        }
+    }
+
+    private class CollectionFieldIndexerListener {
+        private final PostgresqlQueryExecutor executor;
+
+        public CollectionFieldIndexerListener(PostgresqlQueryExecutor executor) {
+            this.executor = executor;
+        }
+
+        @Subscribe
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+            executor.executeRawQuery(String.format("CREATE INDEX %s_%s_auto_index ON %s.%s",
+                    event.project, event.collection,
+                    event.project, event.collection));
         }
     }
 }
