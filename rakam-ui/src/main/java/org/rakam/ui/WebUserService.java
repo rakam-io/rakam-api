@@ -7,6 +7,7 @@ import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.LongMapper;
@@ -14,6 +15,9 @@ import org.skife.jdbi.v2.util.LongMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public class WebUserService {
 
@@ -52,8 +56,15 @@ public class WebUserService {
         }
     }
 
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
+            + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$");
+
     public void createUser(String email, String password, String name) {
         final String scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
+
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new RakamException("email is not valid", BAD_REQUEST);
+        }
 
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")

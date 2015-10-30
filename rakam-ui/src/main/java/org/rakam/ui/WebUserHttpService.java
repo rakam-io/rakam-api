@@ -9,6 +9,7 @@ import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.WebUser.UserApiKey;
 import org.rakam.util.CryptUtil;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
@@ -18,6 +19,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
 @Path("/ui/user")
 public class WebUserHttpService extends HttpService {
@@ -56,14 +59,14 @@ public class WebUserHttpService extends HttpService {
         try {
             id = extractUserFromCookie(session);
         } catch (Exception e) {
-            return Response.value("Invalid data", HttpResponseStatus.UNAUTHORIZED)
+            return Response.value(JsonHelper.encode(JsonResponse.error(UNAUTHORIZED.reasonPhrase())), UNAUTHORIZED)
                     .addCookie("session", "", null, true, 0L, null, null);
         }
 
         final Optional<WebUser> user = service.getUser(id);
 
         if(!user.isPresent()) {
-            return Response.value("Invalid data", HttpResponseStatus.UNAUTHORIZED)
+            return Response.value(JsonHelper.encode(JsonResponse.error(UNAUTHORIZED.reasonPhrase())), UNAUTHORIZED)
                     .addCookie("session", "", null, true, 0L, null, null);
         }
 
@@ -94,11 +97,11 @@ public class WebUserHttpService extends HttpService {
 
     private static int extractUserFromCookie(String session) {
         if(session == null) {
-            throw new RakamException(HttpResponseStatus.UNAUTHORIZED);
+            throw new RakamException(UNAUTHORIZED);
         }
         final String[] split = session.split("\\|");
         if(split.length != 3) {
-            throw new RakamException(HttpResponseStatus.UNAUTHORIZED);
+            throw new RakamException(UNAUTHORIZED);
         }
 
         final long expiringTimestamp = Long.parseLong(split[0]);
@@ -109,7 +112,7 @@ public class WebUserHttpService extends HttpService {
                 .append(expiringTimestamp).append("|")
                 .append(id);
         if(!CryptUtil.encryptWithHMacSHA1(cookieData.toString(), "secureKey").equals(hash)) {
-            throw new RakamException(HttpResponseStatus.UNAUTHORIZED);
+            throw new RakamException(UNAUTHORIZED);
         }
 
         return id;
