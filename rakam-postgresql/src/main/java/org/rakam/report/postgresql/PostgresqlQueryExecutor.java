@@ -136,7 +136,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         };
     }
 
-    private String buildQuery(String project, String query, Integer maxLimit) {
+    String buildQuery(String project, String query, Integer maxLimit) {
         StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {

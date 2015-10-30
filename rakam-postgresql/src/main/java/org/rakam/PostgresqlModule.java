@@ -13,7 +13,6 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.JDBCQueryMetadata;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
-import org.rakam.analysis.postgresql.PostgresqlContinuousQueryService;
 import org.rakam.analysis.postgresql.PostgresqlEventStore;
 import org.rakam.analysis.postgresql.PostgresqlMaterializedViewService;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
@@ -32,6 +31,7 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlEventExplorer;
+import org.rakam.report.postgresql.PostgresqlPseudoContinuousQueryService;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
@@ -53,7 +53,7 @@ public class PostgresqlModule extends RakamModule {
         // TODO: implement postgresql specific materialized view service
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
-        binder.bind(ContinuousQueryService.class).to(PostgresqlContinuousQueryService.class).in(Scopes.SINGLETON);
+        binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
 
         JDBCConfig asyncClientConfig;
         try {
@@ -113,10 +113,10 @@ public class PostgresqlModule extends RakamModule {
 
     private static class EventExplorerListener {
         private static final String QUERY = "select _time/3600 as time, count(*) as total from stream group by 1";
-        private final PostgresqlContinuousQueryService continuousQueryService;
+        private final ContinuousQueryService continuousQueryService;
 
         @Inject
-        public EventExplorerListener(PostgresqlContinuousQueryService continuousQueryService) {
+        public EventExplorerListener(ContinuousQueryService continuousQueryService) {
             this.continuousQueryService = continuousQueryService;
         }
 
