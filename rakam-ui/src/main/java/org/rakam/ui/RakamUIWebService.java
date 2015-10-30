@@ -87,7 +87,7 @@ public class RakamUIWebService extends HttpService {
         }
 
         if (file.isHidden() || !file.exists()) {
-            sendError(request, NOT_FOUND);
+            sendError(request, NOT_FOUND, file.getAbsolutePath() + " not found");
             return;
         }
 
