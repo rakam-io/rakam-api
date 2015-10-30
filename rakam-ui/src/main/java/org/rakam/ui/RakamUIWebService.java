@@ -122,7 +122,7 @@ public class RakamUIWebService extends HttpService {
         try {
             raf = new RandomAccessFile(file, "r");
         } catch (FileNotFoundException ignore) {
-            sendError(request, NOT_FOUND);
+            sendError(request, NOT_FOUND, file.getAbsolutePath() + " not found");
             return;
         }
 
@@ -183,6 +183,10 @@ public class RakamUIWebService extends HttpService {
 
     private static void sendError(RakamHttpRequest request, HttpResponseStatus status) {
         request.response(status.reasonPhrase(), status).end();
+    }
+
+    private static void sendError(RakamHttpRequest request, HttpResponseStatus status, String message) {
+        request.response(message, status).end();
     }
 
     private static void sendNotModified(RakamHttpRequest request) {
