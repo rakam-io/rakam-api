@@ -51,7 +51,7 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @GET
     @Path("/me")
-    public Response<WebUser> me(@CookieParam(name="session") String session) {
+    public Response<WebUser> me(@CookieParam(name="session", required = false) String session) {
         final int id;
         try {
             id = extractUserFromCookie(session);
