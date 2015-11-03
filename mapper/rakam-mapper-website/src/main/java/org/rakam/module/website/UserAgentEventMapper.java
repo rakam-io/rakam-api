@@ -26,7 +26,7 @@ public class UserAgentEventMapper implements EventMapper {
     }
 
     @Override
-    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
+    public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         Object user_agent = event.properties().get("user_agent");
         if(user_agent != null) {
             Client parsed = uaParser.parse((String) user_agent);
@@ -38,6 +38,7 @@ public class UserAgentEventMapper implements EventMapper {
 
             event.properties().put("user_agent", null);
         }
+        return null;
     }
 
     @Override

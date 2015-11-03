@@ -46,7 +46,6 @@ import static java.lang.String.format;
 public class ServiceStarter {
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
-
     public static void main(String[] args) throws Throwable {
         if (args.length > 0) {
             System.setProperty("config", args[0]);

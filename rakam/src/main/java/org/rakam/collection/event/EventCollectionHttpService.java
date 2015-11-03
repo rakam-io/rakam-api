@@ -9,7 +9,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.reflect.TypeToken;
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpVersion;
 import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
@@ -33,6 +37,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +53,7 @@ public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
     private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
+    private final ByteBuf OK_MESSAGE = Unpooled.unreleasableBuffer(Unpooled.wrappedBuffer("1".getBytes(UTF8_CHARSET)));
 
     private final EventStore eventStore;
     private final Set<EventMapper> mappers;
@@ -64,42 +70,29 @@ public class EventCollectionHttpService extends HttpService {
         jsonMapper.registerModule(module);
     }
 
-    private boolean mapEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
+    private List<Map.Entry<String, String>> mapEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
+        List<Map.Entry<String, String>> responseAttachment = null;
         for (EventMapper mapper : mappers) {
             try {
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
-                mapper.map(event, headers, socketAddress);
+                final Iterable<Map.Entry<String, String>> map = mapper.map(event, headers, socketAddress);
+                if(map != null) {
+                    if(responseAttachment == null) {
+                        responseAttachment = new ArrayList<>();
+                    }
+
+                    for (Map.Entry<String, String> entry : map) {
+                        responseAttachment.add(entry);
+                    }
+                }
             } catch (Exception e) {
-                LOGGER.error(e, "An error occurred while processing event in " + mapper.getClass().getName());
-                return false;
+                throw new RuntimeException("An error occurred while processing event in " + mapper.getClass().getName(), e);
             }
         }
-        return true;
+        return responseAttachment;
     }
 
-    private boolean processEvent(Event event, HttpHeaders headers, InetAddress socketAddress) {
-
-        if(!mapEvent(event, headers, socketAddress)) {
-            return false;
-        }
-
-        try {
-            eventStore.store(event);
-        } catch (Exception e) {
-            LOGGER.error(e, "error while storing event.");
-            return false;
-        }
-
-        return true;
-    }
-
-    private boolean processEvent(List<Event> events, HttpHeaders headers, InetAddress socketAddress) {
-        for (Event event : events) {
-            if(!mapEvent(event, headers, socketAddress)) {
-                return false;
-            }
-        }
-
+    private boolean storeEvents(List<Event> events) {
         try {
             eventStore.storeBatch(events);
         } catch (Exception e) {
@@ -109,6 +102,7 @@ public class EventCollectionHttpService extends HttpService {
 
         return true;
     }
+
 
     @POST
     @ApiOperation(value = "Collect event", response = Integer.class, request = EventBean.class,
@@ -129,14 +123,29 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             }
 
-            boolean eventProcessed;
+            final List<Map.Entry<String, String>> entries;
 
             try {
                 Event event = jsonMapper.readValue(buff, Event.class);
                 if(validateProjectPermission(event.project(), headers.get("write_key"))) {
                     request.response("\"api key is invalid\"", UNAUTHORIZED).end();
                 }
-                eventProcessed = processEvent(event, headers, socketAddress.getAddress());
+
+                try {
+                    entries = mapEvent(event, headers, socketAddress.getAddress());
+                } catch (Exception e) {
+                    LOGGER.error(e);
+                    request.response("0", BAD_REQUEST).end();
+                    return;
+                }
+
+                try {
+                    eventStore.store(event);
+                } catch (Exception e) {
+                    LOGGER.error(e, "error while storing event.");
+                    request.response("0", BAD_REQUEST).end();
+                    return;
+                }
             } catch (JsonMappingException e) {
                 request.response("\""+e.getMessage()+"\"", BAD_REQUEST).end();
                 return;
@@ -152,7 +161,14 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             }
 
-            request.response(eventProcessed ? "1" : "0", eventProcessed ? OK : BAD_GATEWAY).end();
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, OK, OK_MESSAGE);
+            if(entries != null) {
+                final HttpHeaders responseHeaders = response.headers();
+                for (Map.Entry<String, String> entry : entries) {
+                    responseHeaders.set(entry.getKey(), entry.getValue());
+                }
+            }
+            request.response(response).end();
         });
     }
 
@@ -187,6 +203,8 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             }
 
+            List<Map.Entry<String, String>> entries = null;
+
             try {
                 List<Event> events = jsonMapper.readValue(buff, List.class);
 
@@ -204,7 +222,23 @@ public class EventCollectionHttpService extends HttpService {
                     }
                 }
 
-                processEvent(events, headers, socketAddress.getAddress());
+                for (Event event : events) {
+                    try {
+                        List<Map.Entry<String, String>> mapperEntries = mapEvent(event, headers, socketAddress.getAddress());
+                        if(mapperEntries != null) {
+                            if(entries == null) {
+                                entries = new ArrayList<>();
+                            }
+                            entries.addAll(mapperEntries);
+                        }
+                        eventStore.store(event);
+                    } catch (Exception e) {
+                        LOGGER.error(e);
+                        request.response("0", BAD_REQUEST).end();
+                        return;
+                    }
+                }
+
             } catch (JsonMappingException e) {
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
@@ -220,8 +254,14 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             }
 
-
-            request.response("1", OK).end();
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, OK, OK_MESSAGE);
+            if(entries != null) {
+                final HttpHeaders responseHeaders = response.headers();
+                for (Map.Entry<String, String> entry : entries) {
+                    responseHeaders.set(entry.getKey(), entry.getValue());
+                }
+            }
+            request.response(response).end();
         });
     }
 

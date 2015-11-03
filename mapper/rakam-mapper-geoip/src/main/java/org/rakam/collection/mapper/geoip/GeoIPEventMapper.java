@@ -113,20 +113,20 @@ public class GeoIPEventMapper implements EventMapper {
     }
 
     @Override
-    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
+    public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         GenericRecord properties = event.properties();
 
         InetAddress address;
         if (config.getSource() == ip_field) {
             String ip = (String) properties.get("ip");
             if (ip == null) {
-                return;
+                return null;
             }
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 address = Inet4Address.getByName(ip);
             } catch (UnknownHostException e) {
-                return;
+                return null;
             }
         } else if (config.getSource() == request_ip) {
             address = sourceAddress;
@@ -146,6 +146,8 @@ public class GeoIPEventMapper implements EventMapper {
         if (cityLookup != null) {
             setGeoFields(address, properties);
         }
+
+        return null;
     }
 
     @Override

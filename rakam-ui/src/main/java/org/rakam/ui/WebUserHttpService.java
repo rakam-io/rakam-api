@@ -34,13 +34,13 @@ public class WebUserHttpService extends HttpService {
 
     @JsonRequest
     @Path("/register")
-    public JsonResponse register(@ApiParam(name="email") String email,
-                          @ApiParam(name="name") String name,
-                          @ApiParam(name="password") String password) {
+    public Response register(@ApiParam(name = "email") String email,
+                             @ApiParam(name = "name") String name,
+                             @ApiParam(name = "password") String password) {
         // TODO: implement captcha https://github.com/VividCortex/angular-recaptcha https://developers.google.com/recaptcha/docs/verify
         // keep a counter for ip in local nodes and use stickiness feature of load balancer
-        service.createUser(email, name, password);
-        return JsonResponse.success();
+        final WebUser user = service.createUser(email, name, password);
+        return getLoginResponseForUser(user);
     }
 
     @JsonRequest
@@ -59,7 +59,7 @@ public class WebUserHttpService extends HttpService {
         try {
             id = extractUserFromCookie(session);
         } catch (Exception e) {
-            return Response.value(JsonHelper.encode(JsonResponse.error(UNAUTHORIZED.reasonPhrase())), UNAUTHORIZED)
+            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
                     .addCookie("session", "", null, true, 0L, null, null);
         }
 
@@ -80,19 +80,23 @@ public class WebUserHttpService extends HttpService {
         final Optional<WebUser> user = service.login(email, password);
 
         if(user.isPresent()) {
-            final long expiringTimestamp = Instant.now().plus(7, ChronoUnit.DAYS).getEpochSecond();
-            final StringBuilder cookieData = new StringBuilder()
-                    .append(expiringTimestamp).append("|")
-                    .append(user.get().id);
-
-            final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), "secureKey");
-            cookieData.append("|").append(secureKey);
-
-            return Response.ok(user.get()).addCookie("session", cookieData.toString(),
-                    null, true, Duration.ofDays(30).getSeconds(), "/", null);
+            return getLoginResponseForUser(user.get());
         }
 
         throw new RakamException("Account couldn't found.", HttpResponseStatus.NOT_FOUND);
+    }
+
+    private Response getLoginResponseForUser(WebUser user) {
+        final long expiringTimestamp = Instant.now().plus(7, ChronoUnit.DAYS).getEpochSecond();
+        final StringBuilder cookieData = new StringBuilder()
+                .append(expiringTimestamp).append("|")
+                .append(user.id);
+
+        final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), "secureKey");
+        cookieData.append("|").append(secureKey);
+
+        return Response.ok(user).addCookie("session", cookieData.toString(),
+                null, true, Duration.ofDays(30).getSeconds(), "/", null);
     }
 
     private static int extractUserFromCookie(String session) {

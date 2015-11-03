@@ -60,7 +60,7 @@ public class QueryResult {
         return result;
     }
 
-    public List<? extends SchemaField> getMetadata() {
+    public List<SchemaField> getMetadata() {
         return metadata;
     }
 

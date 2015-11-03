@@ -85,6 +85,7 @@ public class JDBCUserStorageAdapter implements UserStorage {
         if(table == null) {
             throw new IllegalArgumentException("Project is not defined in mapping definition");
         }
+
         if(eventFilter != null && !eventFilter.isEmpty()) {
             // TODO: we may consider querying events that returns ids of users with QueryExecutor and querying users with those ids.
             throw new IllegalArgumentException("Event store adapter is not set");

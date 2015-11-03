@@ -8,6 +8,6 @@ import java.util.Map;
 
 
 public interface EventMapper {
-    void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress);
-    void addFieldDependency(FieldDependencyBuilder builder);
+    Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress);
+    default void addFieldDependency(FieldDependencyBuilder builder) {}
 }

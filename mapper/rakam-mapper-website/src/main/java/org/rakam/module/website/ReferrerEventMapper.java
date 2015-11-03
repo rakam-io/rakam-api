@@ -29,7 +29,7 @@ public class ReferrerEventMapper implements EventMapper {
     }
 
     @Override
-    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
+    public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         Object referrer = event.properties().get("referrer");
         Object url = event.properties().get("url");
         Referer parse;
@@ -37,12 +37,13 @@ public class ReferrerEventMapper implements EventMapper {
             try {
                parse = parser.parse(((String) referrer), ((String) url));
             } catch (URISyntaxException e) {
-                return;
+                return null;
             }
             event.properties().put("referrer_medium", parse.medium.toString());
             event.properties().put("referrer_source", parse.source);
             event.properties().put("referrer_term", parse.term);
         }
+        return null;
     }
 
     @Override

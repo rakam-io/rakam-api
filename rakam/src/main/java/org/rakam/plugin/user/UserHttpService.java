@@ -23,7 +23,6 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -36,11 +35,13 @@ public class UserHttpService extends HttpService {
     private final UserPluginConfig config;
     private final SqlParser sqlParser;
     private final AbstractUserService service;
+    private final EmailClientConfig mailConfig;
 
     @Inject
-    public UserHttpService(UserPluginConfig config, AbstractUserService service) {
+    public UserHttpService(UserPluginConfig config, AbstractUserService service, EmailClientConfig mailConfig) {
         this.service = service;
         this.config = config;
+        this.mailConfig = mailConfig;
         this.sqlParser = new SqlParser();
     }
 
@@ -106,7 +107,8 @@ public class UserHttpService extends HttpService {
                     expression = sqlParser.createExpression(filter);
                 }
             } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filter), HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException(format("filter expression '%s' couldn't parsed", filter),
+                        HttpResponseStatus.BAD_REQUEST);
             }
         } else {
             expression = null;

@@ -32,7 +32,7 @@ public class TimestampEventMapper implements EventMapper {
     private static final String TIME_EXTRA_PROPERTY = "Upload-Time";
 
     @Override
-    public void map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
+    public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
         GenericRecord properties = event.properties();
         Object time = properties.get("_time");
         long serverTime = Instant.now().getEpochSecond();
@@ -58,6 +58,7 @@ public class TimestampEventMapper implements EventMapper {
                 }
             }
         }
+        return null;
     }
 
     @Override

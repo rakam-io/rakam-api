@@ -139,23 +139,23 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
 
                 checkCollection(filter.collection);
                 if (filter.aggregation == null) {
-                    builder.append(format("select \"user\" from %s.%s", project, filter.collection));
+                    builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
                     if (filter.filterExpression != null) {
                         builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
                     }
                     filters.add((format("id in (%s)", builder.toString())));
                 } else {
-                    builder.append(format("select \"user\" from %s.%s", project, filter.collection));
+                    builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
                     if (filter.filterExpression != null) {
                         builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
                     }
                     String field;
                     if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
-                        field = "user";
+                        field = "_user";
                     } else {
                         field = filter.aggregation.field;
                     }
-                    builder.append(" group by \"user\" ");
+                    builder.append(" group by \"_user\" ");
                     if(filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
                         builder.append(" having ");
                     }

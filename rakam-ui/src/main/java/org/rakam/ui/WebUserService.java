@@ -1,5 +1,6 @@
 package org.rakam.ui;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -10,7 +11,7 @@ import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.util.LongMapper;
+import org.skife.jdbi.v2.util.IntegerMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,9 @@ public class WebUserService {
 
     private final DBI dbi;
     private final Metastore metastore;
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
+            + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$");
+    private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$\n");
 
     @Inject
     public WebUserService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, Metastore metastore) {
@@ -37,9 +41,10 @@ public class WebUserService {
             handle.createStatement("CREATE TABLE IF NOT EXISTS web_user (" +
                     "  id SERIAL PRIMARY KEY,\n" +
                     "  email TEXT NOT NULL UNIQUE,\n" +
+                    "  is_activated BOOLEAN DEFAULT false NOT NULL,\n" +
                     "  password TEXT NOT NULL,\n" +
                     "  name TEXT NOT NULL,\n" +
-                    "  created_at TIMESTAMP default current_timestamp NOT NULL\n" +
+                    "  created_at TIMESTAMP DEFAULT current_timestamp NOT NULL\n" +
                     "  )")
                     .execute();
 
@@ -56,22 +61,23 @@ public class WebUserService {
         }
     }
 
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
-            + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$");
-
-    public void createUser(String email, String password, String name) {
+    public WebUser createUser(String email, String password, String name) {
         final String scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
 
         if (!EMAIL_PATTERN.matcher(email).matches()) {
-            throw new RakamException("email is not valid", BAD_REQUEST);
+            throw new RakamException("Email is not valid", BAD_REQUEST);
+        }
+
+        if (!PASSWORD_PATTERN.matcher(password).matches()) {
+            throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
         }
 
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")
+            int id = handle.createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")
                     .bind("email", email)
                     .bind("name", name)
-                    .bind("password", scrypt).executeAndReturnGeneratedKeys(LongMapper.FIRST).first();
-
+                    .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+            return new WebUser(id, email, name, ImmutableMap.of());
         }
     }
 

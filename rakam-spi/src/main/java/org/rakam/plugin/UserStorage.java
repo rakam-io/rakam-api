@@ -63,7 +63,7 @@ public interface UserStorage {
     }
 
     class EventFilter {
-        public static final SqlParser SQL_PARSER = new SqlParser();
+        private static final SqlParser SQL_PARSER = new SqlParser();
 
         public final String collection;
         public final String filterExpression;
@@ -88,4 +88,5 @@ public interface UserStorage {
         }
 
     }
+
 }

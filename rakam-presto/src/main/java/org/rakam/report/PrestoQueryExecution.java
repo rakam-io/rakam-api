@@ -73,8 +73,6 @@ public class PrestoQueryExecution implements QueryExecution {
                 return FieldType.DATE;
             case StandardTypes.DOUBLE:
                 return FieldType.DOUBLE;
-            case StandardTypes.HYPER_LOG_LOG:
-                return FieldType.HYPERLOGLOG;
             case StandardTypes.VARCHAR:
                 return FieldType.STRING;
             case StandardTypes.TIME:

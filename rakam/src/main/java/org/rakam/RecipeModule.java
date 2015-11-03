@@ -8,16 +8,17 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
+import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
-import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.ui.JDBCReportMetadata;
 
 import javax.inject.Inject;
 import java.io.FileInputStream;
@@ -92,15 +93,12 @@ public class RecipeModule extends RakamModule {
                     }
                     binder.bind(Recipe.class).toInstance(recipe);
                     binder.bind(RecipeLoader.class).asEagerSingleton();
+                    binder.bind(RecipeHandler.class).in(Scopes.SINGLETON);
                     set_default = true;
                     break;
                 case SPECIFIC:
                     Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
                     hooks.addBinding().toInstance(new RecipeLoaderSingle(recipe));
-//                    Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
-//                    hooks.addBinding().toInstance(new RecipeLoaderSingle(recipe));
-//                    new RecipeLoader(recipe)
-//                            .onCreateProject(recipe.project());
                     break;
                 default:
                     throw new IllegalStateException();
@@ -121,40 +119,17 @@ public class RecipeModule extends RakamModule {
 
     private static class RecipeLoader {
         private final Recipe recipe;
-        private final Metastore metastore;
-        private final ContinuousQueryService continuousQueryService;
-        private final MaterializedViewService materializedViewService;
+        private final RecipeHandler installer;
 
         @Inject
-        public RecipeLoader(Recipe recipe, Metastore metastore, ContinuousQueryService continuousQueryService, MaterializedViewService materializedViewService) {
+        public RecipeLoader(Recipe recipe, Metastore metastore, ContinuousQueryService continuousQueryService, MaterializedViewService materializedViewService, JDBCReportMetadata reportMetadata) {
             this.recipe = recipe;
-            this.metastore = metastore;
-            this.materializedViewService = materializedViewService;
-            this.continuousQueryService = continuousQueryService;
+            this.installer = new RecipeHandler(metastore, continuousQueryService, materializedViewService, reportMetadata);
         }
 
         @Subscribe
         public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
-            recipe.getCollections().forEach((collectionName, schema) -> {
-                try {
-                    metastore.getOrCreateCollectionFieldList(event.project, collectionName, schema.getColumns());
-                } catch (ProjectNotExistsException e) {
-                    throw Throwables.propagate(e);
-                }
-            });
-
-            recipe.getContinuousQueryBuilders().stream()
-                    .map(builder -> builder.createContinuousQuery(event.project))
-                    .forEach(continuousQuery ->
-                            continuousQueryService.create(continuousQuery));
-
-            recipe.getMaterializedViewBuilders().stream()
-                    .map(builder -> builder.createMaterializedView(event.project))
-                    .forEach(continuousQuery ->
-                            materializedViewService.create(continuousQuery));
-
-            recipe.getReports().stream().forEach(reportBuilder ->
-                    reportBuilder.createReport(event.project));
+            installer.install(recipe, event.project);
         }
 
     }

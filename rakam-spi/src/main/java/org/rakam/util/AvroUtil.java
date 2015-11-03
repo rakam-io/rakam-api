@@ -61,8 +61,6 @@ public class AvroUtil {
                 return Schema.create(Schema.Type.BOOLEAN);
             case DATE:
                 return Schema.create(Schema.Type.INT);
-            case HYPERLOGLOG:
-                return Schema.create(Schema.Type.BYTES);
             case TIME:
                 return Schema.create(Schema.Type.LONG);
             default:
