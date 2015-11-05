@@ -2,6 +2,8 @@ package org.rakam;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
@@ -11,7 +13,6 @@ import org.rakam.ui.Report;
 
 import javax.inject.Inject;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,10 +37,10 @@ public class Recipe {
         }
         this.strategy = strategy;
         this.project = project;
-        this.collections = Collections.unmodifiableMap(collections);
-        this.materializedViews = materializedQueries == null ? null : Collections.unmodifiableList(materializedQueries);
-        this.continuousQueries = continuousQueries == null ? null : Collections.unmodifiableList(continuousQueries);
-        this.reports = Collections.unmodifiableList(reports);
+        this.collections = ImmutableMap.copyOf(collections);
+        this.materializedViews = materializedQueries == null ? null : ImmutableList.copyOf(materializedQueries);
+        this.continuousQueries = continuousQueries == null ? null : ImmutableList.copyOf(continuousQueries);
+        this.reports = ImmutableList.copyOf(reports);
     }
 
     public Strategy getStrategy() {
@@ -105,12 +106,12 @@ public class Recipe {
     }
 
     public static class ContinuousQueryBuilder {
-        private final String name;
-        private final String tableName;
-        private final String query;
-        private final List<String> collections;
-        private final List<String> partitionKeys;
-        private final Map<String, Object> options;
+        public final String name;
+        public final String tableName;
+        public final String query;
+        public final List<String> collections;
+        public final List<String> partitionKeys;
+        public final Map<String, Object> options;
 
         @JsonCreator
         public ContinuousQueryBuilder(@JsonProperty("name") String name,
