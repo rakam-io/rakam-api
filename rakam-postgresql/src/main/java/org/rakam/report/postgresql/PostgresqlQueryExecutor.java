@@ -13,6 +13,8 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -29,7 +31,9 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +41,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
@@ -48,6 +53,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final JDBCPoolDataSource connectionPool;
+    private final QueryMetadataStore queryMetadataStore;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
@@ -56,8 +62,9 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     private volatile Set<String> projectCache;
 
     @Inject
-    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, Metastore metastore) {
+    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, QueryMetadataStore queryMetadataStore, Metastore metastore) {
         this.connectionPool = connectionPool;
+        this.queryMetadataStore = queryMetadataStore;
         this.metastore = metastore;
 
         try (Connection connection = connectionPool.getConnection()) {
@@ -118,14 +125,68 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         return connectionPool.getConnection();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project) {
+    private String replaceStream(ContinuousQuery report) {
+
+//                        if(!node.getPrefix().isPresent() && node.getSuffix().equals("stream")) {
+        if (report.collections != null && report.collections.size() == 1) {
+            return report.project + "." + report.collections.get(0);
+        }
+
+        final List<Map.Entry<String, List<SchemaField>>> collect = metastore.getCollections(report.project)
+                .entrySet().stream()
+                .filter(c -> report.collections == null || report.collections.contains(c.getKey()))
+                .collect(Collectors.toList());
+
+        Iterator<Map.Entry<String, List<SchemaField>>> entries = collect.iterator();
+
+        List<SchemaField> base = null;
+        while (entries.hasNext()) {
+            Map.Entry<String, List<SchemaField>> next = entries.next();
+
+            if (base == null) {
+                base = new ArrayList(next.getValue());
+                continue;
+            }
+
+            Iterator<SchemaField> iterator = base.iterator();
+            while (iterator.hasNext()) {
+                if (!next.getValue().contains(iterator.next())) {
+                    iterator.remove();
+                }
+            }
+        }
+
+        String commonColumns = (base == null ? ImmutableList.<SchemaField>of() : base).stream().map(SchemaField::getName).collect(Collectors.joining(", "));
+
+        return "(" + collect.stream().map(c -> String.format("select %s from %s.%s", commonColumns, report.project, c.getKey()))
+                .collect(Collectors.joining(" union all ")) + ") as stream";
+    }
+
+    Function<QualifiedName, String> tableNameMapper(String project) {
         return node -> {
             if (node.getPrefix().isPresent()) {
                 switch (node.getPrefix().get().toString()) {
                     case "collection":
                         return project + "." + node.getSuffix();
                     case "continuous":
-                        return project + "." + CONTINUOUS_QUERY_PREFIX + node.getSuffix();
+                        final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, node.getSuffix());
+                        StringBuilder builder = new StringBuilder();
+                        Query statement;
+                        synchronized (parser) {
+                            statement = (Query) parser.createStatement(report.query);
+                        }
+
+                        new QueryFormatter(builder, new Function<QualifiedName, String>() {
+                            @Override
+                            public String apply(QualifiedName qualifiedName) {
+                                if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
+                                    return replaceStream(report);
+                                }
+                                throw new IllegalStateException();
+                            }
+                        }).process(statement, Lists.newArrayList());
+
+                        return "("+builder.toString()+") as "+node.getSuffix();
                     case "materialized":
                         return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
                     default:
@@ -259,7 +320,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 List<Object> rowBuilder = Arrays.asList(new Object[columnCount]);
                 for (int i = 1; i < columnCount + 1; i++) {
                     Object object = resultSet.getObject(i);
-                    if(object instanceof Timestamp) {
+                    if (object instanceof Timestamp) {
                         // we have to remove zone from java.sql.Timestamp but I couldn't figure out how to do this in JDBC level.
                         object = ((Timestamp) object).toInstant();
                     }

@@ -1,5 +1,6 @@
 package org.rakam.report.postgresql;
 
+import com.facebook.presto.sql.parser.SqlParser;
 import com.google.inject.Inject;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.SchemaField;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryService {
     private final PostgresqlQueryExecutor executor;
     private final PostgresqlMetastore metastore;
+    private final SqlParser parser = new SqlParser();
 
     @Inject
     public PostgresqlPseudoContinuousQueryService(QueryMetadataStore database, PostgresqlQueryExecutor executor, PostgresqlMetastore metastore) {
@@ -26,9 +28,12 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
-        return executor.executeRawQuery(
-                String.format("CREATE VIEW %s.%s AS %s", report.project, report.tableName, executor.buildQuery(report.query, report.project, null)))
-                .getResult();
+
+//        return executor.executeRawQuery(
+//                String.format("CREATE VIEW %s.%s AS %s", report.project, PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX + report.tableName, s))
+//                .getResult();
+        database.createContinuousQuery(report);
+        return CompletableFuture.completedFuture(QueryResult.empty());
     }
 
     @Override

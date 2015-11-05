@@ -1,28 +1,22 @@
 package org.rakam.automation;
 
-import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.inject.name.Named;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.collection.Event;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import static java.lang.String.format;
+import java.util.function.Predicate;
 
 public class UserAutomationService {
 
@@ -36,12 +30,11 @@ public class UserAutomationService {
             @Override
             public List<AutomationRule> load(String project) throws Exception {
                 try(Handle handle = dbi.open()) {
-                    return handle.createQuery("SELECT user_filter, event_filter, actions FROM automation_rules")
+                    return handle.createQuery("SELECT id, user_filter, event_filter, actions FROM automation_rules WHERE project = :project")
                             .bind(":project", project).map((i, resultSet, statementContext) ->
-                                new AutomationRule(project,
-//                                        resultSet.getString(1),
-                                        JsonHelper.read(resultSet.getString(2),EventFilter.class),
-                                        JsonHelper.read(resultSet.getString(2), List.class))).list();
+                                    new AutomationRule(resultSet.getInt(1), project,
+                                            JsonHelper.read(resultSet.getString(2), List.class),
+                                            JsonHelper.read(resultSet.getString(2), List.class))).list();
                 }
             }
         });
@@ -54,8 +47,7 @@ public class UserAutomationService {
             handle.createStatement("CREATE TABLE IF NOT EXISTS automation_rules (" +
                     "  id SERIAL," +
                     "  project TEXT NOT NULL," +
-                    "  user_filter TEXT NOT NULL," +
-                    "  event_filter TEXT NOT NULL," +
+                    "  event_filters TEXT NOT NULL," +
                     "  actions TEXT NOT NULL," +
                     "  PRIMARY KEY (id)" +
                     "  )")
@@ -65,41 +57,25 @@ public class UserAutomationService {
     }
 
     public static class AutomationRule {
-        private static final SqlParser SQL_PARSER = new SqlParser();
-
+        public final int id;
         public final String project;
-//        public final Expression userFilter;
-        public final EventFilter eventFilter;
+        public final List<ScenarioStep> scenarioSteps;
         public final List<Action> actions;
 
-        public AutomationRule(@ApiParam("project") String project,
-//                              @ApiParam("user_filter") String userFilter,
-                              @ApiParam("event_filter") EventFilter eventFilter,
-                              @ApiParam("actions") List<Action> actions) {
+        public AutomationRule(int id, String project, List<ScenarioStep> scenarioSteps, List<Action> actions) {
+            this.id = id;
             this.project = project;
-//            this.userFilter = getUserFilter(userFilter);
-            this.eventFilter = eventFilter;
+            this.scenarioSteps = scenarioSteps;
             this.actions = actions;
-        }
-
-        @JsonIgnore
-        private static synchronized Expression getUserFilter(String userFilter) {
-            try {
-                return userFilter != null ? SQL_PARSER.createExpression(userFilter) : null;
-            } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", userFilter), HttpResponseStatus.UNAUTHORIZED);
-            }
         }
     }
 
 
     public void add(AutomationRule rule) {
         try(Handle handle = dbi.open()) {
-//            handle.createStatement("INSERT INTO automation_rules (project, user_filter, event_filter, actions) VALUES (:project, :user_filter, :event_filter, :actions)")
             handle.createStatement("INSERT INTO automation_rules (project, event_filter, actions) VALUES (:project, :event_filter, :actions)")
                     .bind(":project", rule)
-//                    .bind(":user_filter", rule.userFilter.toString())
-                    .bind(":event_filter", JsonHelper.encode(rule.eventFilter))
+                    .bind(":event_filter", JsonHelper.encode(rule.scenarioSteps))
                     .bind(":actions", JsonHelper.encode(rule.actions)).execute();
         }
     }
@@ -113,28 +89,22 @@ public class UserAutomationService {
         }
     }
 
-    static class EventFilter {
-        private static final SqlParser SQL_PARSER = new SqlParser();
-
+    static class ScenarioStep {
         public final String collection;
-        public final String filterExpression;
         public final Threshold threshold;
+        public final Predicate<Event> filterPredicate;
 
         @JsonCreator
-        public EventFilter(@JsonProperty("collection") String collection,
-                           @JsonProperty("filter") String filterExpression,
-                           @JsonProperty("threshold") Threshold threshold) {
+        public ScenarioStep(@JsonProperty("collection") String collection,
+                            @JsonProperty("filter") String filterExpression,
+                            @JsonProperty("threshold") Threshold threshold) {
             this.collection = collection;
-            this.filterExpression = filterExpression;
             this.threshold = threshold;
-        }
 
-        @JsonIgnore
-        public synchronized Expression getExpression() {
-            try {
-                return filterExpression  != null ? SQL_PARSER.createExpression(filterExpression) : null;
-            } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), HttpResponseStatus.UNAUTHORIZED);
+            if(filterExpression == null) {
+                filterPredicate = (event) -> true;
+            } else {
+                filterPredicate = ExpressionCompiler.compile(filterExpression);
             }
         }
     }
