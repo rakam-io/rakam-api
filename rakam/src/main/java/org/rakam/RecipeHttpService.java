@@ -3,10 +3,12 @@ package org.rakam;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.inject.Inject;
+import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
 
@@ -14,7 +16,7 @@ import javax.ws.rs.Path;
 
 @Path("/recipe")
 @Api(value = "/recipe", description = "Recipe operations", tags = "recipe")
-public class RecipeHttpService {
+public class RecipeHttpService extends HttpService {
     private ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
 
     private final RecipeHandler installer;
@@ -27,6 +29,7 @@ public class RecipeHttpService {
     @ApiOperation(value = "Install recipe",
             authorizations = @Authorization(value = "master_key")
     )
+    @JsonRequest
     @Path("/install")
     public JsonResponse install(@ParamBody Recipe recipe) {
         try {
@@ -40,8 +43,9 @@ public class RecipeHttpService {
     @ApiOperation(value = "Export recipe",
             authorizations = @Authorization(value = "master_key")
     )
-    @Path("/install")
-    public Recipe export(@ApiParam("project") String project) {
+    @JsonRequest
+    @Path("/export")
+    public Recipe export(@ApiParam(name="project") String project) {
         return installer.export(project);
     }
 }

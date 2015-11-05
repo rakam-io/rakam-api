@@ -5,7 +5,6 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
@@ -15,6 +14,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -29,6 +29,9 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -176,18 +179,20 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                             statement = (Query) parser.createStatement(report.query);
                         }
 
-                        new QueryFormatter(builder, new Function<QualifiedName, String>() {
-                            @Override
-                            public String apply(QualifiedName qualifiedName) {
-                                if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
-                                    return replaceStream(report);
-                                }
-                                throw new IllegalStateException();
+                        new QueryFormatter(builder, qualifiedName -> {
+                            if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
+                                return replaceStream(report);
                             }
-                        }).process(statement, Lists.newArrayList());
+                            throw new IllegalStateException();
+                        }).process(statement, 1);
 
                         return "("+builder.toString()+") as "+node.getSuffix();
                     case "materialized":
+                        MaterializedView materializedView = queryMetadataStore.getMaterializedView(project, node.getSuffix());
+                        Duration updateInterval = materializedView.updateInterval;
+                        if (updateInterval == null || materializedView.lastUpdate.until(Instant.now(), ChronoUnit.MILLIS) > updateInterval.toMillis()) {
+//                            queryMetadataStore.updateMaterializedView(materializedView.project, materializedView.table_name, );
+                        }
                         return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
                     default:
                         throw new IllegalArgumentException("Schema does not exist: " + node.getPrefix().get().toString());
@@ -197,14 +202,14 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         };
     }
 
-    String buildQuery(String project, String query, Integer maxLimit) {
+    public String buildQuery(String project, String query, Integer maxLimit) {
         StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {
             statement = (Query) parser.createStatement(query);
         }
 
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, Lists.newArrayList());
+        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 1);
 
         if (maxLimit != null) {
             if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
@@ -223,7 +228,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         synchronized (parser) {
             statement = parser.createStatement(query);
         }
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, Lists.newArrayList());
+        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 1);
 
         return builder.toString();
     }
@@ -246,7 +251,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 try (Connection connection = connectionPool.getConnection()) {
                     Statement statement = connection.createStatement();
                     if (update) {
-                        statement.execute(sqlQuery);
+                        statement.executeUpdate(sqlQuery);
                         // CREATE TABLE queries doesn't return any value and
                         // fail when using executeQuery so we face the result data
                         List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN, true));

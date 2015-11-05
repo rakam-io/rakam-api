@@ -319,7 +319,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     @Override
     public void createProject(String project) {
         checkProject(project);
-        queryExecutor.executeRawQuery(format("CREATE TABLE IF NOT EXISTS %s.%s (" +
+        queryExecutor.executeRawStatement(format("CREATE TABLE IF NOT EXISTS %s.%s (" +
                 "  %s SERIAL NOT NULL,\n" +
                 "  created timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +

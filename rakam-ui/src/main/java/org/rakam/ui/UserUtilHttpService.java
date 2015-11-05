@@ -148,8 +148,8 @@ public class UserUtilHttpService extends HttpService {
         public final ExportFormat exportFormat;
 
         @JsonCreator
-        public ExportQuery(@ApiParam("filter") FilterQuery filterQuery,
-                           @ApiParam("export_format") ExportFormat exportFormat) {
+        public ExportQuery(@ApiParam(name="filter") FilterQuery filterQuery,
+                           @ApiParam(name="export_format") ExportFormat exportFormat) {
             this.filterQuery = filterQuery;
             this.exportFormat = exportFormat;
         }

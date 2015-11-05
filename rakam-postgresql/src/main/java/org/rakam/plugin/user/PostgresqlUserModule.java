@@ -59,7 +59,8 @@ public class PostgresqlUserModule extends RakamModule {
             binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
         }
 
-        if ("postgresql".equals(getConfig("plugin.user.mailbox.adapter"))) {
+        String config1 = getConfig("plugin.user.mailbox.adapter");
+        if (config1 == null || "postgresql".equals(config1)) {
             binder.bind(UserMailboxStorage.class).to(PostgresqlUserMailboxStorage.class);
         }
     }

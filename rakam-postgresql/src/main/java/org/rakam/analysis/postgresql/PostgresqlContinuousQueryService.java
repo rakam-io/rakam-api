@@ -16,7 +16,6 @@ import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -102,17 +101,17 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     private String replaceSourceTable(String query, String sampleCollection) {
         Statement statement = new SqlParser().createStatement(query);
         StringBuilder builder = new StringBuilder();
-        statement.accept(new RakamSqlFormatter.Formatter(builder, 0) {
+        statement.accept(new RakamSqlFormatter.Formatter(builder) {
             @Override
-            protected Void visitTable(Table node, List<String> referencedTables) {
+            protected Void visitTable(Table node, Integer indent) {
                 if (node.getName().getSuffix().equals("stream")) {
                     builder.append(sampleCollection);
                     return null;
                 } else {
-                    return super.visitTable(node, referencedTables);
+                    return super.visitTable(node, indent);
                 }
             }
-        }, Lists.newArrayList());
+        }, 1);
         return builder.toString();
     }
 

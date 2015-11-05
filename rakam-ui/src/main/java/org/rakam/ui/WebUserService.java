@@ -82,6 +82,9 @@ public class WebUserService {
     }
 
     public WebUser.UserApiKey createProject(int user, String project) {
+        if (metastore.getProjects().contains(project)) {
+            throw new RakamException("Project already exists", BAD_REQUEST);
+        }
         metastore.createProject(project);
         final Metastore.ProjectApiKeys apiKeys = metastore.createApiKeys(project);
         try(Handle handle = dbi.open()) {

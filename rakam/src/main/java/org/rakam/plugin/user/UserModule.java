@@ -81,7 +81,7 @@ public class UserModule extends RakamModule {
         public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
             checkProject(event.project);
             // if event.store is not postgresql, schema may not exist.
-            queryExecutor.executeRawQuery(format("CREATE SCHEMA IF NOT EXISTS %s", event.project)).getResult().join();
+            queryExecutor.executeRawStatement(format("CREATE SCHEMA IF NOT EXISTS %s", event.project)).getResult().join();
 
             if(mailboxStorage.isPresent()) {
                 mailboxStorage.get().createProject(event.project);

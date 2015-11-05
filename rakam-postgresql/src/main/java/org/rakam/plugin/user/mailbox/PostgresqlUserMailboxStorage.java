@@ -112,7 +112,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     @Override
     public MessageListener listen(String projectId, String user, Consumer<Data> consumer) {
         try(Connection conn = dataSource.getConnection()) {
-            PGConnection asyncConn = ((PGConnection) conn);
+            final PGConnection unwrap = conn.unwrap(PGConnection.class);
             String name = projectId + "_" + user + USER_NOTIFICATION_SUFFIX;
 
             PGNotificationListener listener = (processId, channelName, payload) -> {
@@ -120,21 +120,21 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
                 Operation op = Operation.valueOf(payload.substring(0, idx));
                 consumer.accept(new Data(op, payload.substring(idx + 1)));
             };
-            asyncConn.addNotificationListener(name, listener);
+            unwrap.addNotificationListener(name, listener);
 
-            try (Statement statement = asyncConn.createStatement()) {
+            try (Statement statement = unwrap.createStatement()) {
                 statement.execute("LISTEN " + name);
             } catch (SQLException e) {
                 throw Throwables.propagate(e);
             }
 
             return () -> {
-                try (Statement statement = asyncConn.createStatement()) {
+                try (Statement statement = unwrap.createStatement()) {
                     statement.execute(format("UNLISTEN %s_%s" + USER_NOTIFICATION_SUFFIX, projectId, user));
                 } catch (SQLException e) {
                     throw Throwables.propagate(e);
                 }
-                asyncConn.removeNotificationListener(listener);
+                unwrap.removeNotificationListener(listener);
             };
 
         } catch (SQLException e) {
@@ -148,7 +148,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     @Override
     public MessageListener listenAllUsers(String projectId, Consumer<Data> consumer) {
         try(Connection conn = dataSource.getConnection()) {
-            PGConnection asyncConn = ((PGConnection) conn);
+            PGConnection asyncConn = conn.unwrap(PGConnection.class);
             PGNotificationListener listener = (processId, channelName, payload) -> {
                 if (lastMessage.get() + 2 > Instant.now().getEpochSecond()) {
                     return;

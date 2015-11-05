@@ -13,10 +13,14 @@
  */
 package com.facebook.presto.sql;
 
+import com.facebook.presto.sql.tree.AddColumn;
 import com.facebook.presto.sql.tree.AliasedRelation;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.AstVisitor;
+import com.facebook.presto.sql.tree.CreateTable;
+import com.facebook.presto.sql.tree.CreateTableAsSelect;
 import com.facebook.presto.sql.tree.CreateView;
+import com.facebook.presto.sql.tree.Delete;
 import com.facebook.presto.sql.tree.DropTable;
 import com.facebook.presto.sql.tree.DropView;
 import com.facebook.presto.sql.tree.Except;
@@ -36,6 +40,7 @@ import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Relation;
+import com.facebook.presto.sql.tree.RenameColumn;
 import com.facebook.presto.sql.tree.RenameTable;
 import com.facebook.presto.sql.tree.ResetSession;
 import com.facebook.presto.sql.tree.SampledRelation;
@@ -80,29 +85,28 @@ public final class RakamSqlFormatter
     public static String formatSql(Node root)
     {
         StringBuilder builder = new StringBuilder();
-        new Formatter(builder, 0).process(root, new ArrayList<>());
+        new Formatter(builder).process(root, 0);
         return builder.toString();
     }
 
     public static class Formatter
-            extends AstVisitor<Void, List<String>>
+            extends AstVisitor<Void, Integer>
     {
         private final StringBuilder builder;
-        private final int indent;
-        public Formatter(StringBuilder builder, int indent)
+
+        public Formatter(StringBuilder builder)
         {
             this.builder = builder;
-            this.indent = indent;
         }
 
         @Override
-        protected Void visitNode(Node node,List<String> referencedTables)
+        protected Void visitNode(Node node, Integer indent)
         {
             throw new UnsupportedOperationException("not yet implemented: " + node);
         }
 
         @Override
-        protected Void visitExpression(Expression node,List<String> referencedTables)
+        protected Void visitExpression(Expression node, Integer indent)
         {
             checkArgument(indent == 0, "visitExpression should only be called at root");
             builder.append(formatExpression(node));
@@ -110,14 +114,14 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitUnnest(Unnest node,List<String> referencedTables)
+        protected Void visitUnnest(Unnest node, Integer indent)
         {
             builder.append(node.toString());
             return null;
         }
 
         @Override
-        protected Void visitQuery(Query node,List<String> referencedTables)
+        protected Void visitQuery(Query node, Integer indent)
         {
             if (node.getWith().isPresent()) {
                 With with = node.getWith().get();
@@ -132,8 +136,7 @@ public final class RakamSqlFormatter
                     append(indent, query.getName());
                     appendAliasColumns(builder, query.getColumnNames());
                     builder.append(" AS ");
-                    process(new TableSubquery(query.getQuery()), referencedTables);
-                    referencedTables.add(query.getName());
+                    process(new TableSubquery(query.getQuery()), indent);
                     builder.append('\n');
                     if (queries.hasNext()) {
                         builder.append(", ");
@@ -141,7 +144,7 @@ public final class RakamSqlFormatter
                 }
             }
 
-            processRelation(node.getQueryBody(), referencedTables);
+            processRelation(node.getQueryBody(), indent);
 
             if (!node.getOrderBy().isEmpty()) {
                 append(indent, "ORDER BY " + formatSortItems(node.getOrderBy()))
@@ -163,15 +166,15 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitQuerySpecification(QuerySpecification node,List<String> referencedTables)
+        protected Void visitQuerySpecification(QuerySpecification node, Integer indent)
         {
-            process(node.getSelect(), referencedTables);
+            process(node.getSelect(), indent);
 
             if (node.getFrom().isPresent()) {
                 append(indent, "FROM");
                 builder.append('\n');
                 append(indent, "  ");
-                process(node.getFrom().get(), referencedTables);
+                process(node.getFrom().get(), indent);
             }
 
             builder.append('\n');
@@ -204,7 +207,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitSelect(Select node,List<String> referencedTables)
+        protected Void visitSelect(Select node, Integer indent)
         {
             append(indent, "SELECT");
             if (node.isDistinct()) {
@@ -218,13 +221,13 @@ public final class RakamSqlFormatter
                             .append(indentString(indent))
                             .append(first ? "  " : ", ");
 
-                    process(item, referencedTables);
+                    process(item, indent);
                     first = false;
                 }
             }
             else {
                 builder.append(' ');
-                process(getOnlyElement(node.getSelectItems()), referencedTables);
+                process(getOnlyElement(node.getSelectItems()), indent);
             }
 
             builder.append('\n');
@@ -233,7 +236,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitSingleColumn(SingleColumn node,List<String> referencedTables)
+        protected Void visitSingleColumn(SingleColumn node, Integer indent)
         {
             builder.append(formatExpression(node.getExpression()));
             if (node.getAlias().isPresent()) {
@@ -247,7 +250,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitAllColumns(AllColumns node, List<String> referencedTables)
+        protected Void visitAllColumns(AllColumns node, Integer context)
         {
             builder.append(node.toString());
 
@@ -255,14 +258,14 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitTable(Table node,List<String> referencedTables)
+        protected Void visitTable(Table node, Integer indent)
         {
             builder.append(node.getName().toString());
             return null;
         }
 
         @Override
-        protected Void visitJoin(Join node,List<String> referencedTables)
+        protected Void visitJoin(Join node, Integer indent)
         {
             JoinCriteria criteria = node.getCriteria().orElse(null);
             String type = node.getType().toString();
@@ -273,7 +276,7 @@ public final class RakamSqlFormatter
             if (node.getType() != Join.Type.IMPLICIT) {
                 builder.append('(');
             }
-            process(node.getLeft(), referencedTables);
+            process(node.getLeft(), indent);
 
             builder.append('\n');
             if (node.getType() == Join.Type.IMPLICIT) {
@@ -283,7 +286,7 @@ public final class RakamSqlFormatter
                 append(indent, type).append(" JOIN ");
             }
 
-            process(node.getRight(), referencedTables);
+            process(node.getRight(), indent);
 
             if (node.getType() != Join.Type.CROSS && node.getType() != Join.Type.IMPLICIT) {
                 if (criteria instanceof JoinUsing) {
@@ -311,9 +314,9 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitAliasedRelation(AliasedRelation node,List<String> referencedTables)
+        protected Void visitAliasedRelation(AliasedRelation node, Integer indent)
         {
-            process(node.getRelation(), referencedTables);
+            process(node.getRelation(), indent);
 
             builder.append(' ')
                     .append(node.getAlias());
@@ -324,9 +327,9 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitSampledRelation(SampledRelation node,List<String> referencedTables)
+        protected Void visitSampledRelation(SampledRelation node, Integer indent)
         {
-            process(node.getRelation(), referencedTables);
+            process(node.getRelation(), indent);
 
             builder.append(" TABLESAMPLE ")
                     .append(node.getType())
@@ -345,7 +348,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitValues(Values node,List<String> referencedTables)
+        protected Void visitValues(Values node, Integer indent)
         {
             builder.append(" VALUES ");
 
@@ -358,17 +361,18 @@ public final class RakamSqlFormatter
                 builder.append(formatExpression(row));
                 first = false;
             }
+            builder.append('\n');
 
             return null;
         }
 
         @Override
-        protected Void visitTableSubquery(TableSubquery node,List<String> referencedTables)
+        protected Void visitTableSubquery(TableSubquery node, Integer indent)
         {
             builder.append('(')
                     .append('\n');
 
-            process(node.getQuery(), referencedTables);
+            process(node.getQuery(), indent + 1);
 
             append(indent, ") ");
 
@@ -376,12 +380,12 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitUnion(Union node,List<String> referencedTables)
+        protected Void visitUnion(Union node, Integer indent)
         {
             Iterator<Relation> relations = node.getRelations().iterator();
 
             while (relations.hasNext()) {
-                processRelation(relations.next(), referencedTables);
+                processRelation(relations.next(), indent);
 
                 if (relations.hasNext()) {
                     builder.append("UNION ");
@@ -395,27 +399,27 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitExcept(Except node,List<String> referencedTables)
+        protected Void visitExcept(Except node, Integer indent)
         {
-            processRelation(node.getLeft(), referencedTables);
+            processRelation(node.getLeft(), indent);
 
             builder.append("EXCEPT ");
             if (!node.isDistinct()) {
                 builder.append("ALL ");
             }
 
-            processRelation(node.getRight(), referencedTables);
+            processRelation(node.getRight(), indent);
 
             return null;
         }
 
         @Override
-        protected Void visitIntersect(Intersect node,List<String> referencedTables)
+        protected Void visitIntersect(Intersect node, Integer indent)
         {
             Iterator<Relation> relations = node.getRelations().iterator();
 
             while (relations.hasNext()) {
-                processRelation(relations.next(), referencedTables);
+                processRelation(relations.next(), indent);
 
                 if (relations.hasNext()) {
                     builder.append("INTERSECT ");
@@ -429,7 +433,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitCreateView(CreateView node,List<String> referencedTables)
+        protected Void visitCreateView(CreateView node, Integer indent)
         {
             builder.append("CREATE ");
             if (node.isReplace()) {
@@ -439,22 +443,25 @@ public final class RakamSqlFormatter
                     .append(node.getName())
                     .append(" AS\n");
 
-            process(node.getQuery(), referencedTables);
+            process(node.getQuery(), indent);
 
             return null;
         }
 
         @Override
-        protected Void visitDropView(DropView node, List<String> referencedTables)
+        protected Void visitDropView(DropView node, Integer context)
         {
-            builder.append("DROP VIEW ")
-                    .append(node.getName());
+            builder.append("DROP VIEW ");
+            if (node.isExists()) {
+                builder.append("IF EXISTS ");
+            }
+            builder.append(node.getName());
 
             return null;
         }
 
         @Override
-        protected Void visitExplain(Explain node,List<String> referencedTables)
+        protected Void visitExplain(Explain node, Integer indent)
         {
             builder.append("EXPLAIN ");
 
@@ -480,13 +487,13 @@ public final class RakamSqlFormatter
 
             builder.append("\n");
 
-            process(node.getStatement(), referencedTables);
+            process(node.getStatement(), indent);
 
             return null;
         }
 
         @Override
-        protected Void visitShowCatalogs(ShowCatalogs node, List<String> referencedTables)
+        protected Void visitShowCatalogs(ShowCatalogs node, Integer context)
         {
             builder.append("SHOW CATALOGS");
 
@@ -494,7 +501,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitShowSchemas(ShowSchemas node, List<String> referencedTables)
+        protected Void visitShowSchemas(ShowSchemas node, Integer context)
         {
             builder.append("SHOW SCHEMAS");
 
@@ -507,7 +514,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitShowTables(ShowTables node, List<String> referencedTables)
+        protected Void visitShowTables(ShowTables node, Integer context)
         {
             builder.append("SHOW TABLES");
 
@@ -523,7 +530,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitShowColumns(ShowColumns node, List<String> referencedTables)
+        protected Void visitShowColumns(ShowColumns node, Integer context)
         {
             builder.append("SHOW COLUMNS FROM ")
                     .append(node.getTable());
@@ -532,7 +539,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitShowPartitions(ShowPartitions node, List<String> referencedTables)
+        protected Void visitShowPartitions(ShowPartitions node, Integer context)
         {
             builder.append("SHOW PARTITIONS FROM ")
                     .append(node.getTable());
@@ -556,7 +563,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitShowFunctions(ShowFunctions node, List<String> referencedTables)
+        protected Void visitShowFunctions(ShowFunctions node, Integer context)
         {
             builder.append("SHOW FUNCTIONS");
 
@@ -564,7 +571,7 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitShowSession(ShowSession node, List<String> referencedTables)
+        protected Void visitShowSession(ShowSession node, Integer context)
         {
             builder.append("SHOW SESSION");
 
@@ -572,16 +579,77 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitDropTable(DropTable node, List<String> referencedTables)
+        protected Void visitDelete(Delete node, Integer context)
         {
-            builder.append("DROP TABLE ")
-                    .append(node.getTableName());
+            builder.append("DELETE FROM ")
+                    .append(node.getTable().getName());
+
+            if (node.getWhere().isPresent()) {
+                builder.append(" WHERE ")
+                        .append(formatExpression(node.getWhere().get()));
+            }
 
             return null;
         }
 
         @Override
-        protected Void visitRenameTable(RenameTable node, List<String> referencedTables)
+        protected Void visitCreateTableAsSelect(CreateTableAsSelect node, Integer indent)
+        {
+            builder.append("CREATE TABLE ")
+                    .append(node.getName());
+
+            if (!node.getProperties().isEmpty()) {
+                builder.append(" WITH (");
+                Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue())));
+                builder.append(")");
+            }
+
+            builder.append(" AS ");
+            process(node.getQuery(), indent);
+
+            return null;
+        }
+
+        @Override
+        protected Void visitCreateTable(CreateTable node, Integer indent)
+        {
+            builder.append("CREATE TABLE ");
+            if (node.isNotExists()) {
+                builder.append("IF NOT EXISTS ");
+            }
+            builder.append(node.getName())
+                    .append(" (");
+
+            Joiner.on(", ").appendTo(builder, transform(node.getElements(),
+                    element -> element.getName() + " " + element.getType()));
+
+            builder.append(")");
+
+            if (!node.getProperties().isEmpty()) {
+                builder.append(" WITH (");
+                Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue())));
+                builder.append(")");
+            }
+
+            return null;
+        }
+
+        @Override
+        protected Void visitDropTable(DropTable node, Integer context)
+        {
+            builder.append("DROP TABLE ");
+            if (node.isExists()) {
+                builder.append("IF EXISTS ");
+            }
+            builder.append(node.getTableName());
+
+            return null;
+        }
+
+        @Override
+        protected Void visitRenameTable(RenameTable node, Integer context)
         {
             builder.append("ALTER TABLE ")
                     .append(node.getSource())
@@ -592,25 +660,56 @@ public final class RakamSqlFormatter
         }
 
         @Override
-        protected Void visitInsert(Insert node,List<String> referencedTables)
+        protected Void visitRenameColumn(RenameColumn node, Integer context)
         {
-            builder.append("INSERT INTO ")
-                    .append(node.getTarget())
-                    .append(" ");
-
-            process(node.getQuery(), referencedTables);
+            builder.append("ALTER TABLE ")
+                    .append(node.getTable())
+                    .append(" RENAME COLUMN ")
+                    .append(node.getSource())
+                    .append(" TO ")
+                    .append(node.getTarget());
 
             return null;
         }
 
         @Override
-        public Void visitSetSession(SetSession node, List<String> referencedTables)
+        protected Void visitAddColumn(AddColumn node, Integer indent)
         {
-            throw new UnsupportedOperationException();
+            builder.append("ALTER TABLE ")
+                    .append(node.getName())
+                    .append(" ADD COLUMN ")
+                    .append(node.getColumn().getName())
+                    .append(" ")
+                    .append(node.getColumn().getType());
+
+            return null;
         }
 
         @Override
-        public Void visitResetSession(ResetSession node, List<String> referencedTables)
+        protected Void visitInsert(Insert node, Integer indent)
+        {
+            builder.append("INSERT INTO ")
+                    .append(node.getTarget())
+                    .append(" ");
+
+            process(node.getQuery(), indent);
+
+            return null;
+        }
+
+        @Override
+        public Void visitSetSession(SetSession node, Integer context)
+        {
+            builder.append("SET SESSION ")
+                    .append(node.getName())
+                    .append(" = ")
+                    .append(formatExpression(node.getValue()));
+
+            return null;
+        }
+
+        @Override
+        public Void visitResetSession(ResetSession node, Integer context)
         {
             builder.append("RESET SESSION ")
                     .append(node.getName());
@@ -618,7 +717,7 @@ public final class RakamSqlFormatter
             return null;
         }
 
-        private void processRelation(Relation relation,List<String> referencedTables)
+        private void processRelation(Relation relation, Integer indent)
         {
             // TODO: handle this properly
             if (relation instanceof Table) {
@@ -627,7 +726,7 @@ public final class RakamSqlFormatter
                         .append('\n');
             }
             else {
-                process(relation, referencedTables);
+                process(relation, indent);
             }
         }
 

@@ -1,6 +1,7 @@
 package org.rakam;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Splitter;
@@ -12,12 +13,13 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
+import io.swagger.jackson.SwaggerAnnotationIntrospector;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.server.http.HttpService;
 import org.rakam.ui.JDBCReportMetadata;
 
 import javax.inject.Inject;
@@ -30,12 +32,18 @@ import java.net.URISyntaxException;
 import java.util.List;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config = "recipes")
 public class RecipeModule extends RakamModule {
 
     @Override
     protected void setup(Binder binder) {
         RecipeConfig recipes = buildConfigObject(RecipeConfig.class);
+
+        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+        httpServices.addBinding().to(RecipeHttpService.class).in(Scopes.SINGLETON);
+
+        if(recipes.getRecipes() == null) {
+            return;
+        }
 
         boolean set_default = false;
         for (String recipeConfig : recipes.getRecipes()) {
@@ -77,6 +85,12 @@ public class RecipeModule extends RakamModule {
             }
 
             ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+            mapper.registerModule(new SimpleModule() {
+                @Override
+                public void setupModule(SetupContext context) {
+                    context.insertAnnotationIntrospector(new SwaggerAnnotationIntrospector());
+                }
+            });
             Recipe recipe;
             try {
                 recipe = mapper.readValue(stream, Recipe.class);

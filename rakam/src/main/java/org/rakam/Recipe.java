@@ -6,6 +6,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.ui.Report;
 
 import javax.inject.Inject;
@@ -16,20 +17,20 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class Recipe {
-    private final Strategy strategy;
-    private final String project;
-    private final Map<String, Collection> collections;
-    private final List<MaterializedViewBuilder> materializedViews;
-    private final List<ContinuousQueryBuilder> continuousQueries;
-    private final List<ReportBuilder> reports;
+    public final Strategy strategy;
+    public final String project;
+    public final Map<String, Collection> collections;
+    public final List<MaterializedViewBuilder> materializedViews;
+    public final List<ContinuousQueryBuilder> continuousQueries;
+    public final List<ReportBuilder> reports;
 
     @JsonCreator
-    public Recipe(@JsonProperty("strategy") Strategy strategy,
-                  @JsonProperty("project") String project,
-                  @JsonProperty("collections") Map<String, Collection> collections,
-                  @JsonProperty("materialized_queries") List<MaterializedViewBuilder> materializedQueries,
-                  @JsonProperty("continuous_queries") List<ContinuousQueryBuilder> continuousQueries,
-                  @JsonProperty("reports") List<ReportBuilder> reports) {
+    public Recipe(@ApiParam(name="strategy") Strategy strategy,
+                  @ApiParam(name="project") String project,
+                  @ApiParam(name="collections") Map<String, Collection> collections,
+                  @ApiParam(name="materialized_queries") List<MaterializedViewBuilder> materializedQueries,
+                  @ApiParam(name="continuous_queries") List<ContinuousQueryBuilder> continuousQueries,
+                  @ApiParam(name="reports") List<ReportBuilder> reports) {
         if(strategy != Strategy.SPECIFIC && project != null) {
             throw new IllegalArgumentException("'project' parameter can be used when 'strategy' is 'specific'");
         }
@@ -132,10 +133,10 @@ public class Recipe {
     }
 
     public static class ReportBuilder {
-        private final String slug;
-        private final String name;
-        private final String query;
-        private final Map<String, Object> options;
+        public final String slug;
+        public final String name;
+        public final String query;
+        public final Map<String, Object> options;
 
         @JsonCreator
         public ReportBuilder(@JsonProperty("slug") String slug,

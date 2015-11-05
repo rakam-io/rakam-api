@@ -8,7 +8,6 @@ import com.facebook.presto.sql.tree.Table;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 
-import java.util.List;
 import java.util.function.Function;
 
 public class QueryFormatter
@@ -19,31 +18,27 @@ public class QueryFormatter
 
     public QueryFormatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper)
     {
-        super(builder, 0);
+        super(builder);
         this.builder = builder;
         this.tableNameMapper = tableNameMapper;
     }
 
     @Override
-    protected Void visitTable(Table node, List<String> referencedTables)
+    protected Void visitTable(Table node, Integer indent)
     {
-        if(!referencedTables.contains(node.getName().toString())) {
-            builder.append(tableNameMapper.apply(node.getName()));
-        }else {
-            builder.append(node.getName());
-        }
+        builder.append(tableNameMapper.apply(node.getName()));
         return null;
     }
 
     @Override
-    protected Void visitDropTable(DropTable node, List<String> referencedTables) {
+    protected Void visitDropTable(DropTable node, Integer indent) {
         builder.append("DROP TABLE ")
                 .append(tableNameMapper.apply(node.getTableName()));
         return null;
     }
 
     @Override
-    protected Void visitCreateTable(CreateTable node, List<String> referencedTables)
+    protected Void visitCreateTable(CreateTable node, Integer indent)
     {
         this.builder.append("CREATE TABLE ");
         if(node.isNotExists()) {

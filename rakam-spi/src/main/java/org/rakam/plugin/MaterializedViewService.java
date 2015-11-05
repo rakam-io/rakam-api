@@ -18,9 +18,9 @@ import static java.lang.String.format;
 
 
 public abstract class MaterializedViewService {
-    private final QueryMetadataStore database;
-    private final QueryExecutor queryExecutor;
-    private final Clock clock;
+    protected final QueryMetadataStore database;
+    protected final QueryExecutor queryExecutor;
+    protected final Clock clock;
 
     public MaterializedViewService(QueryExecutor queryExecutor, QueryMetadataStore database, Clock clock) {
         this.database = database;

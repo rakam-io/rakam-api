@@ -19,7 +19,6 @@ import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Statement;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
@@ -127,7 +126,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
             }
         }
         new QueryFormatter(builder, tableNameMapper(project))
-                .process(statement, Lists.newArrayList());
+                .process(statement, 1);
 
         if(maxLimit != null) {
             if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
@@ -146,7 +145,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
         synchronized (parser) {
             statement = parser.createStatement(query);
         }
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, Lists.newArrayList());
+        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 1);
 
         return builder.toString();
     }

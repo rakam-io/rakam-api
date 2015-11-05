@@ -18,7 +18,7 @@ public interface QueryMetadataStore {
 
     List<MaterializedView> getAllMaterializedViews();
 
-    void updateMaterializedView(String project, String name, Instant last_update);
+    void updateMaterializedView(String project, String tableName, Instant last_update);
 
     void createContinuousQuery(ContinuousQuery report);
 
