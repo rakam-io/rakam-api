@@ -8,7 +8,7 @@ import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
-import com.google.api.client.repackaged.com.google.common.base.Throwables;
+import com.google.common.base.Throwables;
 import net.openhft.compiler.CompilerUtils;
 import org.rakam.collection.Event;
 

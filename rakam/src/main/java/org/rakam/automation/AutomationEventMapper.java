@@ -1,6 +1,5 @@
 package org.rakam.automation;
 
-import com.google.api.client.util.Lists;
 import com.google.common.collect.ImmutableList;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventMapper;
@@ -9,6 +8,7 @@ import org.rakam.util.JsonHelper;
 
 import java.net.InetAddress;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -122,7 +122,7 @@ public class AutomationEventMapper implements EventMapper {
                     state.threshold = 0;
                     // state is already changed
                     if(actions == null) {
-                        actions = Lists.newArrayList();
+                        actions = new ArrayList<>();
                     }
                     for (UserAutomationService.Action action : automationRule.actions) {
                         switch (action.type) {
