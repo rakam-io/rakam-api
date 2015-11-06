@@ -1,8 +1,6 @@
 package org.rakam.report.postgresql;
 
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -14,7 +12,6 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
@@ -29,21 +26,17 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -51,18 +44,16 @@ import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
-    final SqlParser parser = new SqlParser();
     public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final JDBCPoolDataSource connectionPool;
-    private final QueryMetadataStore queryMetadataStore;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
     private final Metastore metastore;
-    private volatile Set<String> projectCache;
+    private final QueryMetadataStore queryMetadataStore;
 
     @Inject
     public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, QueryMetadataStore queryMetadataStore, Metastore metastore) {
@@ -81,47 +72,41 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
     }
 
-    private synchronized void updateProjectCache() {
-        projectCache = metastore.getProjects();
-    }
-
-    @Override
-    public QueryExecution executeQuery(String project, String sqlQuery, int maxLimit) {
-        if (!projectExists(project)) {
-            throw new IllegalArgumentException("Project is not valid");
-        }
-        return executeRawQuery(buildQuery(project, sqlQuery, maxLimit));
-    }
-
-    private boolean projectExists(String project) {
-        if (projectCache == null) {
-            updateProjectCache();
-        }
-
-        if (!projectCache.contains(project)) {
-            updateProjectCache();
-            if (!projectCache.contains(project)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    @Override
-    public QueryExecution executeQuery(String project, String sqlQuery) {
-        if (!projectExists(project)) {
-            throw new IllegalArgumentException("Project is not valid");
-        }
-        return executeRawQuery(buildQuery(project, sqlQuery, null));
-    }
 
     public QueryExecution executeRawQuery(String query) {
         return new PostgresqlQueryExecution(connectionPool, query, false);
     }
 
+    @Override
     public QueryExecution executeRawStatement(String query) {
         return new PostgresqlQueryExecution(connectionPool, query, true);
+    }
+
+    @Override
+    public String formatTableReference(String project, QualifiedName name) {
+        if (name.getPrefix().isPresent()) {
+            switch (name.getPrefix().get().toString()) {
+                case "collection":
+                    return project + "." + name.getSuffix();
+                case "continuous":
+                    final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, name.getSuffix());
+                    StringBuilder builder = new StringBuilder();
+
+                    new QueryFormatter(builder, qualifiedName -> {
+                        if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
+                            return replaceStream(report);
+                        }
+                        throw new IllegalStateException();
+                    }).process(report.query, 1);
+
+                    return "("+builder.toString()+") as "+name.getSuffix();
+                case "materialized":
+                    return project + "." + MATERIALIZED_VIEW_PREFIX + name.getSuffix();
+                default:
+                    throw new IllegalArgumentException("Schema does not exist: " + name.getPrefix().get().toString());
+            }
+        }
+        return project + "." + name.getSuffix();
     }
 
     public Connection getConnection() throws SQLException {
@@ -130,7 +115,6 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     private String replaceStream(ContinuousQuery report) {
 
-//                        if(!node.getPrefix().isPresent() && node.getSuffix().equals("stream")) {
         if (report.collections != null && report.collections.size() == 1) {
             return report.project + "." + report.collections.get(0);
         }
@@ -165,79 +149,6 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 .collect(Collectors.joining(" union all ")) + ") as stream";
     }
 
-    Function<QualifiedName, String> tableNameMapper(String project) {
-        return node -> {
-            if (node.getPrefix().isPresent()) {
-                switch (node.getPrefix().get().toString()) {
-                    case "collection":
-                        return project + "." + node.getSuffix();
-                    case "continuous":
-                        final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, node.getSuffix());
-                        StringBuilder builder = new StringBuilder();
-                        Query statement;
-                        synchronized (parser) {
-                            statement = (Query) parser.createStatement(report.query);
-                        }
-
-                        new QueryFormatter(builder, qualifiedName -> {
-                            if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
-                                return replaceStream(report);
-                            }
-                            throw new IllegalStateException();
-                        }).process(statement, 1);
-
-                        return "("+builder.toString()+") as "+node.getSuffix();
-                    case "materialized":
-                        MaterializedView materializedView = queryMetadataStore.getMaterializedView(project, node.getSuffix());
-                        Duration updateInterval = materializedView.updateInterval;
-                        if (updateInterval == null || materializedView.lastUpdate.until(Instant.now(), ChronoUnit.MILLIS) > updateInterval.toMillis()) {
-//                            queryMetadataStore.updateMaterializedView(materializedView.project, materializedView.table_name, );
-                        }
-                        return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
-                    default:
-                        throw new IllegalArgumentException("Schema does not exist: " + node.getPrefix().get().toString());
-                }
-            }
-            return project + "." + node.getSuffix();
-        };
-    }
-
-    public String buildQuery(String project, String query, Integer maxLimit) {
-        StringBuilder builder = new StringBuilder();
-        Query statement;
-        synchronized (parser) {
-            statement = (Query) parser.createStatement(query);
-        }
-
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 1);
-
-        if (maxLimit != null) {
-            if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
-                throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
-            } else {
-                builder.append(" LIMIT ").append(maxLimit);
-            }
-        }
-
-        return builder.toString();
-    }
-
-    private String buildStatement(String project, String query) {
-        StringBuilder builder = new StringBuilder();
-        com.facebook.presto.sql.tree.Statement statement;
-        synchronized (parser) {
-            statement = parser.createStatement(query);
-        }
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 1);
-
-        return builder.toString();
-    }
-
-    @Override
-    public QueryExecution executeStatement(String project, String sqlQuery) {
-        return executeRawStatement(buildStatement(project, sqlQuery));
-    }
-
     public static class PostgresqlQueryExecution implements QueryExecution {
 
         private final CompletableFuture<QueryResult> result;
@@ -247,7 +158,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             this.query = sqlQuery;
 
             // TODO: unnecessary threads will be spawn
-            this.result = CompletableFuture.supplyAsync(() -> {
+            Supplier<QueryResult> task = () -> {
                 try (Connection connection = connectionPool.getConnection()) {
                     Statement statement = connection.createStatement();
                     if (update) {
@@ -275,15 +186,18 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     LOGGER.debug(e, format("Error while executing Postgresql query: \n%s", query));
                     return QueryResult.errorResult(error);
                 }
-            }, QUERY_EXECUTOR);
+            };
+
+                this.result = CompletableFuture.supplyAsync(task, QUERY_EXECUTOR);
+
         }
 
         @Override
         public QueryStats currentStats() {
             if (result.isDone()) {
-                return new QueryStats(100, "FINISHED", null, null, null, null, null, null);
+                return new QueryStats(100, QueryStats.State.FINISHED, null, null, null, null, null, null);
             } else {
-                return new QueryStats(0, "PROCESSING", null, null, null, null, null, null);
+                return new QueryStats(0, QueryStats.State.PROCESSING, null, null, null, null, null, null);
             }
         }
 

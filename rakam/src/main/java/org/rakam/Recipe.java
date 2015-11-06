@@ -182,7 +182,7 @@ public class Recipe {
         }
     }
 
-    public static enum Strategy {
+    public enum Strategy {
         DEFAULT, SPECIFIC;
 
         @JsonCreator

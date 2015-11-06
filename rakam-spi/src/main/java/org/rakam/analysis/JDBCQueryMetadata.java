@@ -1,11 +1,15 @@
 package org.rakam.analysis;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -15,20 +19,27 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 
 @Singleton
 public class JDBCQueryMetadata implements QueryMetadataStore {
     private final DBI dbi;
+    private final LoadingCache<ProjectCollection, MaterializedView> materializedViewCache;
 
     ResultSetMapper<MaterializedView> reportMapper = (index, r, ctx) -> {
         Long update_interval = r.getLong("update_interval");
-        return new MaterializedView(
+        MaterializedView materializedView = new MaterializedView(
                 r.getString("project"),
                 r.getString("name"), r.getString("table_name"), r.getString("query"),
-                update_interval!= null ? Duration.ofMillis(update_interval) : null,
+                update_interval != null ? Duration.ofMillis(update_interval) : null,
                 // we can't use nice postgresql features since we also want to support mysql
                 JsonHelper.read(r.getString("options"), Map.class));
+        long last_updated = r.getLong("last_updated");
+        if(last_updated != 0) {
+            materializedView.lastUpdate = Instant.ofEpochMilli(last_updated);
+        }
+        return materializedView;
     };
 
     ResultSetMapper<ContinuousQuery> continuousQueryMapper = (index, r, ctx) ->
@@ -40,6 +51,17 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Inject
     public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
+
+        materializedViewCache = CacheBuilder.newBuilder().build(new CacheLoader<ProjectCollection, MaterializedView>() {
+            @Override
+            public MaterializedView load(ProjectCollection key) throws Exception {
+                try(Handle handle = dbi.open()) {
+                    return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, options from materialized_views WHERE project = :project AND table_name = :name")
+                            .bind("project", key.project)
+                            .bind("name", key.collection).map(reportMapper).first();
+                }
+            }
+        });
         setup();
     }
 
@@ -51,7 +73,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     "  table_name VARCHAR(255) NOT NULL," +
                     "  query TEXT NOT NULL," +
                     "  update_interval BIGINT," +
-                    "  last_updated TIMESTAMP," +
+                    "  last_updated BIGINT," +
                     "  options TEXT," +
                     "  PRIMARY KEY (project, name)" +
                     "  )")
@@ -77,23 +99,39 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             handle.createStatement("INSERT INTO materialized_views (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
                     .bind("project", materializedView.project)
                     .bind("name", materializedView.name)
-                    .bind("table_name", materializedView.table_name)
+                    .bind("table_name", materializedView.tableName)
                     .bind("query", materializedView.query)
                     .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
                     .bind("options", JsonHelper.encode(materializedView.options, false))
                     .execute();
+            materializedViewCache.refresh(new ProjectCollection(materializedView.project, materializedView.tableName));
         }
     }
 
     @Override
-    public void updateMaterializedView(String project, String tableName, Instant last_update) {
+    public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Boolean> releaseLock) {
+        int rows;
         try(Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE materialized_views SET last_update = :last_update WHERE project = :project AND table_name = :name")
-                    .bind("project", project)
-                    .bind("name", tableName)
-                    .bind("last_update", last_update.toEpochMilli())
+            rows = handle.createStatement("UPDATE materialized_views SET last_updated = -1 WHERE project = :project AND table_name = :table_name AND last_updated != -1")
+                    .bind("project", view.project)
+                    .bind("table_name", view.tableName)
                     .execute();
         }
+
+        releaseLock.thenAccept((success) -> {
+            if(success) {
+                view.lastUpdate = Instant.now();
+            }
+            try(Handle handle = dbi.open()) {
+                handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated WHERE project = :project AND table_name = :table_name")
+                        .bind("project", view.project)
+                        .bind("table_name", view.tableName)
+                        .bind("last_updated", view.lastUpdate.toEpochMilli())
+                        .execute();
+            }
+        });
+
+        return rows == 1;
     }
 
     @Override
@@ -107,7 +145,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     .bind("collections", JsonHelper.encode(report.collections))
                     .bind("partitionKeys", JsonHelper.encode(report.partitionKeys))
                     .bind("options", JsonHelper.encode(report.options))
-//                .bind("last_update", new java.sql.Time(Instant.now().toEpochMilli()))
                     .execute();
         }
     }
@@ -143,32 +180,20 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             handle.createStatement("DELETE FROM materialized_views WHERE project = :project AND table_name = :name")
                     .bind("project", project)
                     .bind("name", tableName).execute();
+            materializedViewCache.refresh(new ProjectCollection(project, tableName));
         }
     }
 
     @Override
     public MaterializedView getMaterializedView(String project, String tableName) {
-        try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, query, strategy, options from materialized_views WHERE project = :project AND table_name = :name")
-                    .bind("project", project)
-                    .bind("name", tableName).map(reportMapper).first();
-        }
+        return materializedViewCache.getUnchecked(new ProjectCollection(project, tableName));
     }
 
     @Override
     public List<MaterializedView> getMaterializedViews(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, table_name, query, options, update_interval from materialized_views WHERE project = :project")
-                    .bind("project", project)
-                    .map(reportMapper).list();
-        }
-    }
-
-    @Override
-    public List<MaterializedView> getAllMaterializedViews() {
-        try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, table_name, query, options, update_interval from materialized_views")
-                    .map(reportMapper).list();
+            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, options from materialized_views WHERE project = :project")
+                    .bind("project", project).map(reportMapper).list();
         }
     }
 

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class QueryStats {
     public final int percentage;
-    public final String state;
+    public final State state;
     public final Integer node;
     public final Long processedRows;
     public final Long processedBytes;
@@ -15,7 +15,7 @@ public class QueryStats {
 
     @JsonCreator
     public QueryStats(@JsonProperty("percentage") int percentage,
-                      @JsonProperty("state") String state,
+                      @JsonProperty("state") State state,
                       @JsonProperty("node") Integer node,
                       @JsonProperty("processedRows") Long processedRows,
                       @JsonProperty("processedBytes") Long processedBytes,
@@ -30,5 +30,9 @@ public class QueryStats {
         this.cpuTime = cpuTime;
         this.wallTime = wallTime;
         this.processedBytes = processedBytes;
+    }
+
+    public enum  State {
+        PROCESSING, FINISHED;
     }
 }

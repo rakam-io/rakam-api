@@ -117,8 +117,11 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
             String timeSubtraction;
             if (dateUnit == DateUnit.DAY) {
                 timeSubtraction = "returning_action.time - data.time";
+            } else
+            if (dateUnit == DateUnit.WEEK) {
+                timeSubtraction = "(returning_action.time - data.time)/7";
             } else {
-                timeSubtraction = "date_diff('"+dateUnit.name().toLowerCase()+"', data.time, returning_action.time)";
+                timeSubtraction = "date_part('"+dateUnit.name().toLowerCase()+"', age(data.time - returning_action.time))";
             }
 
             String firstActionQuery = format("%s group by 1, 2 %s",
@@ -145,8 +148,11 @@ public class PostgresqlRetentionQueryExecutor implements RetentionQueryExecutor 
             String timeSubtraction;
             if (dateUnit == DateUnit.DAY) {
                 timeSubtraction = "lead%d-time";
+            }else
+            if (dateUnit == DateUnit.WEEK) {
+                timeSubtraction = "(lead%d-time) / 7";
             } else {
-                timeSubtraction = "date_diff('"+dateUnit.name().toLowerCase()+"', time, lead%d)";
+                timeSubtraction = "date_part('"+dateUnit.name().toLowerCase()+"', age(time, lead%d))";
             }
 
             String leadTemplate = "lead(time, %d) over (partition by _user order by _user, time)";

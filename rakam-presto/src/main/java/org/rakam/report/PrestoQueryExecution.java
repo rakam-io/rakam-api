@@ -9,6 +9,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -92,7 +93,7 @@ public class PrestoQueryExecution implements QueryExecution {
         int totalSplits = stats.getTotalSplits();
         int percentage = totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits;
         return new QueryStats(percentage,
-                stats.getState(),
+                QueryStats.State.valueOf(stats.getState().toUpperCase(Locale.ENGLISH)),
                 stats.getNodes(),
                 stats.getProcessedRows(),
                 stats.getProcessedBytes(),

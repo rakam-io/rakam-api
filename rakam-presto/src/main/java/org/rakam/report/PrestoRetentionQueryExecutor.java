@@ -117,7 +117,10 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
             String timeSubtraction;
             if (dateUnit == DateUnit.DAY) {
                 timeSubtraction = "returning_action.time - data.time";
-            } else {
+            } else
+            if (dateUnit == DateUnit.WEEK) {
+                timeSubtraction = "(returning_action.time - data.time) / 7";
+            } else{
                 timeSubtraction = "date_diff('"+dateUnit.name().toLowerCase()+"', data.time, returning_action.time)";
             }
 
@@ -145,6 +148,9 @@ public class PrestoRetentionQueryExecutor implements RetentionQueryExecutor {
             String timeSubtraction;
             if (dateUnit == DateUnit.DAY) {
                 timeSubtraction = "lead%d-time";
+            } else
+            if (dateUnit == DateUnit.WEEK) {
+                timeSubtraction = "(lead%d-time)/7";
             } else {
                 timeSubtraction = "date_diff('"+dateUnit.name().toLowerCase()+"', time, lead%d)";
             }

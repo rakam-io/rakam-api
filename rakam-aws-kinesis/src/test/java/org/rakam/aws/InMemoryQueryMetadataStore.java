@@ -4,10 +4,10 @@ import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 class InMemoryQueryMetadataStore implements QueryMetadataStore {
@@ -39,12 +39,7 @@ class InMemoryQueryMetadataStore implements QueryMetadataStore {
     }
 
     @Override
-    public List<MaterializedView> getAllMaterializedViews() {
-        return Collections.unmodifiableList(materializedViews);
-    }
-
-    @Override
-    public void updateMaterializedView(String project, String name, Instant last_update) {
+    public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Boolean> releaseLock) {
         throw new UnsupportedOperationException();
     }
 

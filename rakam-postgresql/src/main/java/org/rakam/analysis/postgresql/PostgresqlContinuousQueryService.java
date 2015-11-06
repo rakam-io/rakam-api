@@ -1,7 +1,6 @@
 package org.rakam.analysis.postgresql;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.FunctionCall;
@@ -11,9 +10,7 @@ import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
-import com.facebook.presto.sql.tree.Statement;
 import com.facebook.presto.sql.tree.Table;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -27,7 +24,6 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
-import org.rakam.util.JsonHelper;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -98,10 +94,9 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
         updater.shutdown();
     }
 
-    private String replaceSourceTable(String query, String sampleCollection) {
-        Statement statement = new SqlParser().createStatement(query);
+    private String replaceSourceTable(Query query, String sampleCollection) {
         StringBuilder builder = new StringBuilder();
-        statement.accept(new RakamSqlFormatter.Formatter(builder) {
+        query.accept(new RakamSqlFormatter.Formatter(builder) {
             @Override
             protected Void visitTable(Table node, Integer indent) {
                 if (node.getName().getSuffix().equals("stream")) {
@@ -179,15 +174,16 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
             return CompletableFuture.completedFuture(false);
         }
         String prestoQuery = format("drop table continuous.%s", continuousQuery.tableName);
-        return executor.executeStatement(project, prestoQuery).getResult().thenApply(result -> {
-            if (result.getError() == null) {
-                reportDatabase.deleteContinuousQuery(continuousQuery.project, continuousQuery.tableName);
-                return true;
-            } else {
-                // TODO: pass the error message to the client
-                return false;
-            }
-        });
+//        return executor.executeStatement(project, prestoQuery).getResult().thenApply(result -> {
+//            if (result.getError() == null) {
+//                reportDatabase.deleteContinuousQuery(continuousQuery.project, continuousQuery.tableName);
+//                return true;
+//            } else {
+//                 TODO: pass the error message to the client
+//                return false;
+//            }
+//        });
+        return null;
     }
 
     @Override
@@ -228,109 +224,109 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                     continue;
                 }
 
-                String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
-                executor.executeRawStatement(sqlQuery).getResult().thenAccept(result -> {
-                    if (result.isFailed()) {
-                        String query = sqlQuery;
-                        LOGGER.error(format("Failed to update continuous query states: %s", result.getError()));
-                    }
-                }).join();
+//                String sqlQuery = buildQueryForCollection(project, collection, queriesForCollection);
+//                executor.executeRawStatement(sqlQuery).getResult().thenAccept(result -> {
+//                    if (result.isFailed()) {
+//                        String query = sqlQuery;
+//                        LOGGER.error(format("Failed to update continuous query states: %s", result.getError()));
+//                    }
+//                }).join();
                 //            String s1 = "CREATE INDEX graph_mv_latest ON graph (xaxis, value) WHERE  ts >= '-infinity';";
             }
         }
     }
 
-    private String buildQueryForCollection(String project, String collection, List<ContinuousQuery> queriesForCollection) {
-        StringBuilder builder = new StringBuilder("DO $$\n" +
-                "DECLARE newTime int;\n" +
-                "DECLARE lastTime int;\n" +
-                "DECLARE tableHash bigint;\n" +
-                "DECLARE updatedRows record;\n");
-
-        builder.append(format(
-                "BEGIN\n" + // do not include current unix timestamp because
-                        // events might be collection in this unix timestamp after this query is executed
-                        "   SELECT CAST (EXTRACT(epoch FROM now()) AS int4)-2 AS TIME into newTime;\n" +
-                        "   SELECT last_sync into lastTime FROM collections_last_sync WHERE project = '%1$s' AND collection = '%2$s';\n\n" +
-                        "   IF lastTime IS NULL THEN\n" +
-                        "       INSERT INTO collections_last_sync VALUES ('%1$s', '%2$s', newTime)\n" +
-                        "       RETURNING last_sync into lastTime;\n" +
-                        "   END IF;\n\n" +
-                        "   CREATE TEMPORARY TABLE stream ON COMMIT DROP AS (\n" +
-                        "       SELECT * FROM %1$s.%2$s WHERE \"_time\" >= lastTime AND \"_time\" < newTime\n" +
-                        "   );\n\n", project, collection));
-
-        for (ContinuousQuery report : queriesForCollection) {
-            Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
-                    new TypeReference<Map<String, PostgresqlFunction>>() {
-                    });
-
-            String query;
-            String notNullKeys = metadata.entrySet().stream()
-                    .filter(c -> c.getValue() == null)
-                    .map(c -> '"' + c.getKey() + '"' + " IS NOT NULL ")
-                    .collect(Collectors.joining(" AND "));
-            if (notNullKeys.isEmpty()) {
-                query = report.query;
-            } else {
-                // the grouping keys are primary keys in postgresql so NULL values are now allowed in that part of the query.
-                // TODO: there should be better ways to handle this problem, filtering rows is not that cheap considering the column may not be indexed
-                query = format("(SELECT * FROM (%s) q WHERE %s)", report.query, notNullKeys);
-            }
-
-            builder.append(format(
-                    "   CREATE TEMPORARY TABLE stream_%s ON COMMIT DROP AS (%s);\n",
-                    report.getTableName(), query));
-
-            builder.append(format(
-                    "   tableHash := ('x'||substr(md5('%s.%s'),1,16))::bit(64)::bigint;\n",
-                    report.project, report.getTableName()));
-
-            builder.append(
-                    "   PERFORM pg_advisory_lock(tableHash);\n");
-
-            String tableName = report.getTableName();
-            String aggFields = metadata.entrySet().stream()
-                    .filter(c -> c.getValue() != null)
-                    .map(c -> buildUpdateState(tableName, c.getKey(), c.getValue()))
-                    .collect(Collectors.joining(", "));
-
-            String groupedWhere = metadata.entrySet().stream()
-                    .filter(c -> c.getValue() == null)
-                    .map(c -> format("%1$s.\"%2$s\" = stream_%1$s.\"%2$s\"", tableName, c.getKey()))
-                    .collect(Collectors.joining(" AND "));
-            if (!groupedWhere.isEmpty()) {
-                groupedWhere = " WHERE " + groupedWhere;
-            }
-
-            String returningFields = metadata.entrySet().stream()
-                    .filter(c -> c.getValue() == null)
-                    .map(c -> tableName + '.' + '"' + c.getKey() + '"')
-                    .collect(Collectors.joining(", "));
-            returningFields = returningFields.isEmpty() ? "1" : returningFields;
-
-            String matchUpdateAndInsert = metadata.entrySet().stream()
-                    .filter(c -> c.getValue() == null)
-                    .map(c -> '"' + c.getKey() + '"')
-                    .collect(Collectors.joining(", "));
-            matchUpdateAndInsert = matchUpdateAndInsert.isEmpty() ? "1" : matchUpdateAndInsert;
-
-            // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
-            // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
-            builder.append(format("   WITH updated AS (UPDATE %s.%s SET %s FROM stream_%s %s RETURNING %s)\n",
-                    project, tableName, aggFields, tableName, groupedWhere, returningFields));
-            builder.append(format("   INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE ROW(%s) NOT IN (SELECT %s FROM updated) );\n",
-                    project, tableName, tableName, matchUpdateAndInsert, matchUpdateAndInsert));
-            builder.append(
-                    "   PERFORM pg_advisory_unlock(tableHash);\n\n");
-        }
-
-        builder.append(format("   UPDATE collections_last_sync " +
-                "SET last_sync = newTime WHERE project = '%s' AND collection = '%s';", project, collection));
-
-        builder.append("\n END$$;");
-        return builder.toString();
-    }
+//    private String buildQueryForCollection(String project, String collection, List<ContinuousQuery> queriesForCollection) {
+//        StringBuilder builder = new StringBuilder("DO $$\n" +
+//                "DECLARE newTime int;\n" +
+//                "DECLARE lastTime int;\n" +
+//                "DECLARE tableHash bigint;\n" +
+//                "DECLARE updatedRows record;\n");
+//
+//        builder.append(format(
+//                "BEGIN\n" + // do not include current unix timestamp because
+//                        // events might be collection in this unix timestamp after this query is executed
+//                        "   SELECT CAST (EXTRACT(epoch FROM now()) AS int4)-2 AS TIME into newTime;\n" +
+//                        "   SELECT last_sync into lastTime FROM collections_last_sync WHERE project = '%1$s' AND collection = '%2$s';\n\n" +
+//                        "   IF lastTime IS NULL THEN\n" +
+//                        "       INSERT INTO collections_last_sync VALUES ('%1$s', '%2$s', newTime)\n" +
+//                        "       RETURNING last_sync into lastTime;\n" +
+//                        "   END IF;\n\n" +
+//                        "   CREATE TEMPORARY TABLE stream ON COMMIT DROP AS (\n" +
+//                        "       SELECT * FROM %1$s.%2$s WHERE \"_time\" >= lastTime AND \"_time\" < newTime\n" +
+//                        "   );\n\n", project, collection));
+//
+//        for (ContinuousQuery report : queriesForCollection) {
+//            Map<String, PostgresqlFunction> metadata = JsonHelper.convert(report.options.get("_metadata"),
+//                    new TypeReference<Map<String, PostgresqlFunction>>() {
+//                    });
+//
+//            String query;
+//            String notNullKeys = metadata.entrySet().stream()
+//                    .filter(c -> c.getValue() == null)
+//                    .map(c -> '"' + c.getKey() + '"' + " IS NOT NULL ")
+//                    .collect(Collectors.joining(" AND "));
+//            if (notNullKeys.isEmpty()) {
+//                query = new QueryFormatter(builder, report.query.toString();
+//            } else {
+//                // the grouping keys are primary keys in postgresql so NULL values are now allowed in that part of the query.
+//                // TODO: there should be better ways to handle this problem, filtering rows is not that cheap considering the column may not be indexed
+//                query = format("(SELECT * FROM (%s) q WHERE %s)", report.query, notNullKeys);
+//            }
+//
+//            builder.append(format(
+//                    "   CREATE TEMPORARY TABLE stream_%s ON COMMIT DROP AS (%s);\n",
+//                    report.getTableName(), query));
+//
+//            builder.append(format(
+//                    "   tableHash := ('x'||substr(md5('%s.%s'),1,16))::bit(64)::bigint;\n",
+//                    report.project, report.getTableName()));
+//
+//            builder.append(
+//                    "   PERFORM pg_advisory_lock(tableHash);\n");
+//
+//            String tableName = report.getTableName();
+//            String aggFields = metadata.entrySet().stream()
+//                    .filter(c -> c.getValue() != null)
+//                    .map(c -> buildUpdateState(tableName, c.getKey(), c.getValue()))
+//                    .collect(Collectors.joining(", "));
+//
+//            String groupedWhere = metadata.entrySet().stream()
+//                    .filter(c -> c.getValue() == null)
+//                    .map(c -> format("%1$s.\"%2$s\" = stream_%1$s.\"%2$s\"", tableName, c.getKey()))
+//                    .collect(Collectors.joining(" AND "));
+//            if (!groupedWhere.isEmpty()) {
+//                groupedWhere = " WHERE " + groupedWhere;
+//            }
+//
+//            String returningFields = metadata.entrySet().stream()
+//                    .filter(c -> c.getValue() == null)
+//                    .map(c -> tableName + '.' + '"' + c.getKey() + '"')
+//                    .collect(Collectors.joining(", "));
+//            returningFields = returningFields.isEmpty() ? "1" : returningFields;
+//
+//            String matchUpdateAndInsert = metadata.entrySet().stream()
+//                    .filter(c -> c.getValue() == null)
+//                    .map(c -> '"' + c.getKey() + '"')
+//                    .collect(Collectors.joining(", "));
+//            matchUpdateAndInsert = matchUpdateAndInsert.isEmpty() ? "1" : matchUpdateAndInsert;
+//
+//            // It's unfortunate that postgresql doesn't support UPSERT yet. (9.4)
+//            // Eventually UPDATE rate will be higher then INSERT rate so I think we should optimize UPDATE rather than INSERT
+//            builder.append(format("   WITH updated AS (UPDATE %s.%s SET %s FROM stream_%s %s RETURNING %s)\n",
+//                    project, tableName, aggFields, tableName, groupedWhere, returningFields));
+//            builder.append(format("   INSERT INTO %s.%s (SELECT * FROM stream_%s WHERE ROW(%s) NOT IN (SELECT %s FROM updated) );\n",
+//                    project, tableName, tableName, matchUpdateAndInsert, matchUpdateAndInsert));
+//            builder.append(
+//                    "   PERFORM pg_advisory_unlock(tableHash);\n\n");
+//        }
+//
+//        builder.append(format("   UPDATE collections_last_sync " +
+//                "SET last_sync = newTime WHERE project = '%s' AND collection = '%s';", project, collection));
+//
+//        builder.append("\n END$$;");
+//        return builder.toString();
+//    }
 
     @Override
     public ContinuousQuery get(String project, String name) {
@@ -367,8 +363,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     }
 
     private Map<String, PostgresqlFunction> processQuery(ContinuousQuery report) {
-        Query statement = (Query) new SqlParser().createStatement(report.query);
-        QuerySpecification querySpecification = (QuerySpecification) (statement.getQueryBody());
+        QuerySpecification querySpecification = (QuerySpecification) (report.query.getQueryBody());
 
         if (querySpecification.getSelect().isDistinct())
             throw new IllegalArgumentException("Distinct query is not supported");

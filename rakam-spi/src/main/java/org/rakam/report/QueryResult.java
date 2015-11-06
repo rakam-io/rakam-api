@@ -7,6 +7,7 @@ import org.rakam.collection.SchemaField;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class QueryResult {
@@ -50,6 +51,12 @@ public class QueryResult {
 
     public Map<String, Object> getProperties() {
         return properties;
+    }
+
+    public synchronized void setProperty(String key, Object value) {
+        ConcurrentHashMap<String, Object> map = new ConcurrentHashMap<>(properties);
+        map.put(key, value);
+        properties = map;
     }
 
     public boolean isFailed() {

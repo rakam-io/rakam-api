@@ -3,6 +3,7 @@ package org.rakam.realtime;
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -137,12 +138,12 @@ public class RealTimeHttpService extends HttpService {
                 timeCol,
                 report.dimension != null ? report.dimension + "," : "",
                 aggregate ? getAggregationMethod(report.aggregation) : "",
-                "continuous." + continuousQuery.tableName,
+                executor.formatTableReference(continuousQuery.project, QualifiedName.of("continuous", continuousQuery.tableName)),
                 format("_time >= %d", previousWindow) + (dateEnd == null ? "" : format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
                 report.dimension != null && aggregate ? "GROUP BY " + report.dimension : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
-        return executor.executeQuery(continuousQuery.project, sqlQuery).getResult().thenApply(result -> {
+        return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {
             if (!result.isFailed()) {
 
                 long previousTimestamp = previousWindow * 5;

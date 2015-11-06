@@ -45,20 +45,20 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         if(dimension.isPresent()) {
             if(groupOthers) {
                 query =  IntStream.range(0, steps.size())
-                        .mapToObj(i -> String.format("SELECT step, CASE WHEN rank > 15 THEN 'Others' ELSE %s END, sum(count) FROM (select 'Step %d' as step, %s, count(*) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s GROUP BY 2 ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC",
+                        .mapToObj(i -> String.format("(SELECT step, CASE WHEN rank > 15 THEN 'Others' ELSE %s END, sum(count) FROM (select 'Step %d' as step, %s, count(*) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s GROUP BY 2 ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
                                 dimension.get(), i+1, dimension.get(), i))
-                        .collect(Collectors.joining(" union all "));
+                        .collect(Collectors.joining(" UNION ALL "));
             } else {
                 query = IntStream.range(0, steps.size())
-                        .mapToObj(i -> String.format("select 'Step %d' as step, %s, count(*) count from step%d GROUP BY 2 ORDER BY 3 DESC",
+                        .mapToObj(i -> String.format("(SELECT 'Step %d' as step, %s, count(*) count from step%d GROUP BY 2 ORDER BY 3 DESC)",
                                 i + 1, dimension.get(), i))
-                        .collect(Collectors.joining(" union all "));
+                        .collect(Collectors.joining(" UNION ALL "));
             }
         } else {
             query = IntStream.range(0, steps.size())
-                    .mapToObj(i -> String.format("select 'Step %d' as step, count(*) count from step%s",
+                    .mapToObj(i -> String.format("(SELECT 'Step %d' as step, count(*) count FROM step%s)",
                             i+1, i))
-                    .collect(Collectors.joining(" union all "));
+                    .collect(Collectors.joining(" UNION ALL "));
         }
         return executor.executeRawQuery("WITH \n"+ ctes + " " + query);
     }
@@ -82,7 +82,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
                             "select %7$s %1$s._user from %2$s %1$s join %3$s on (%1$s._user = %3$s._user) " +
                             "where _time BETWEEN %5$s and %6$s %4$s group by 1 %8$s)",
                     "step"+idx, table, "step"+(idx-1), filterExp, startTs,
-                    endTs, dimensionColumn, dimension.isPresent() ? ", 2" : "");
+                    endTs, dimensionColumn.isEmpty() ? "" : "step"+idx+"."+dimensionColumn, dimension.isPresent() ? ", 2" : "");
         }
     }
 }

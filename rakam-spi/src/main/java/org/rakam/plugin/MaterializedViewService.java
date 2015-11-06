@@ -1,5 +1,6 @@
 package org.rakam.plugin;
 
+import com.facebook.presto.sql.tree.QualifiedName;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryExecution;
@@ -20,7 +21,7 @@ import static java.lang.String.format;
 public abstract class MaterializedViewService {
     protected final QueryMetadataStore database;
     protected final QueryExecutor queryExecutor;
-    protected final Clock clock;
+    private final Clock clock;
 
     public MaterializedViewService(QueryExecutor queryExecutor, QueryMetadataStore database, Clock clock) {
         this.database = database;
@@ -30,8 +31,9 @@ public abstract class MaterializedViewService {
 
     public CompletableFuture<Void> create(MaterializedView materializedView) {
         materializedView.validateQuery();
-        QueryResult result = queryExecutor.executeStatement(materializedView.project, format("CREATE TABLE materialized.%s AS (%s LIMIT 0)",
-                materializedView.table_name, materializedView.query)).getResult().join();
+        QueryResult result = queryExecutor.executeRawStatement(format("CREATE TABLE %s AS (%s LIMIT 0)",
+                queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName)),
+                materializedView.query)).getResult().join();
         if(result.isFailed()) {
             throw new RakamException("Couldn't created table: "+result.getError().toString(), UNAUTHORIZED);
         }
@@ -42,7 +44,9 @@ public abstract class MaterializedViewService {
     public CompletableFuture<QueryResult> delete(String project, String name) {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
-        return queryExecutor.executeStatement(project, format("DELETE TABLE materialized.%s", materializedView.table_name)).getResult();
+        String reference = queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName));
+        return queryExecutor.executeRawQuery(format("DELETE TABLE %s",
+                reference)).getResult();
     }
     public List<MaterializedView> list(String project) {
         return database.getMaterializedViews(project);
@@ -54,47 +58,51 @@ public abstract class MaterializedViewService {
 
     public abstract Map<String, List<SchemaField>> getSchemas(String project);
 
-    public QueryExecution update(MaterializedView materializedView) {
-        if(materializedView.lastUpdate!=null) {
-            QueryResult result = queryExecutor.executeStatement(materializedView.project,
-                    format("DROP TABLE materialized.%s", materializedView.table_name)).getResult().join();
-            if(result.isFailed()) {
-                return new QueryExecution() {
-                    @Override
-                    public QueryStats currentStats() {
-                        return null;
-                    }
+    public QueryExecution lockAndUpdateView(MaterializedView materializedView) {
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        boolean alreadyUpdating = database.updateMaterializedView(materializedView, f);
+        if(!alreadyUpdating) {
+            String reference = queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName));
 
-                    @Override
-                    public boolean isFinished() {
-                        return true;
-                    }
+            if (materializedView.lastUpdate != null) {
+                QueryResult result = queryExecutor.executeRawStatement(format("DROP TABLE materialized.%s", reference)).getResult().join();
+                if (result.isFailed()) {
+                    return new QueryExecution() {
+                        @Override
+                        public QueryStats currentStats() {
+                            return null;
+                        }
 
-                    @Override
-                    public CompletableFuture<QueryResult> getResult() {
-                        return CompletableFuture.completedFuture(result);
-                    }
+                        @Override
+                        public boolean isFinished() {
+                            return true;
+                        }
 
-                    @Override
-                    public String getQuery() {
-                        return null;
-                    }
+                        @Override
+                        public CompletableFuture<QueryResult> getResult() {
+                            return CompletableFuture.completedFuture(result);
+                        }
 
-                    @Override
-                    public void kill() {
-                        throw new UnsupportedOperationException();
-                    }
-                };
+                        @Override
+                        public String getQuery() {
+                            return null;
+                        }
+
+                        @Override
+                        public void kill() {
+                            throw new UnsupportedOperationException();
+                        }
+                    };
+                }
             }
+
+            QueryExecution queryExecution = queryExecutor.executeRawQuery(format("CREATE TABLE %s AS (%s)",
+                    reference, materializedView.query));
+
+            queryExecution.getResult().thenAccept(result -> f.complete(null));
+
+            return queryExecution;
         }
-        QueryExecution queryExecution = queryExecutor.executeStatement(materializedView.project, format("CREATE TABLE materialized.%s AS (%s)",
-                materializedView.table_name, materializedView.query));
 
-        queryExecution.getResult().thenAccept(result -> {
-            if(!result.isFailed()) {
-                database.updateMaterializedView(materializedView.project, materializedView.name, clock.instant());
-            }
-        });
-
-        return queryExecution;
+        return null;
     }}

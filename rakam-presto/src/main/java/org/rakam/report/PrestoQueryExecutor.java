@@ -15,14 +15,10 @@ import com.facebook.presto.jdbc.internal.guava.net.HostAndPort;
 import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.facebook.presto.sql.tree.Query;
-import com.facebook.presto.sql.tree.Statement;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
 import java.net.InetSocketAddress;
@@ -34,7 +30,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
@@ -67,92 +62,46 @@ public class PrestoQueryExecutor implements QueryExecutor {
     }
 
     @Override
-    public QueryExecution executeQuery(String project, String sqlQuery, int limit) {
-        return executeRawQuery(buildQuery(project, sqlQuery, limit));
+    public QueryExecution executeRawStatement(String sqlQuery) {
+        return null;
     }
 
     @Override
-    public PrestoQueryExecution executeQuery(String project, String query) {
-        return executeRawQuery(buildQuery(project, query, null));
-    }
-
-    private Function<QualifiedName, String> tableNameMapper(String project) {
-        return  node -> {
-            if (node.getPrefix().isPresent()) {
-                switch (node.getPrefix().get().toString()) {
-                    case "continuous":
-                        return PRESTO_STREAMING_CATALOG_NAME + "." + project + "." + node.getSuffix();
-                    case "materialized":
-                        return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
-                    default:
-                        throw new IllegalArgumentException("Schema does not exist: " + node.getPrefix().get().toString());
-                }
-            }
-
-            // special prefix for all columns
-            if (node.getSuffix().equals("_all")) {
-                Map<String, List<SchemaField>> collections = metastore.getCollections(project);
-                String columns = collections.values().stream()
-                        .flatMap(item -> item.stream()).distinct()
-                        .map(field -> field.getName()).collect(Collectors.joining(", "));
-
-                return "(" +collections.keySet().stream()
-                        .map(collection -> format("select %s from %s", columns.isEmpty() ? "1" : columns, collection))
-                        .collect(Collectors.joining(" union all ")) + ")";
-            }else {
-                QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
-                String hotStorageConnector = prestoConfig.getHotStorageConnector();
-                String table = project + "." + node.getSuffix();
-
-                if (hotStorageConnector != null) {
-                    return "(select * from " + prefix.getSuffix() + "." + table + " union all " +
-                            "select * from " + hotStorageConnector + "." + table + ")" +
-                            " as " + node.getSuffix();
-                } else {
-                    return prefix.getSuffix() + "." + table;
-                }
-            }
-        };
-    }
-
-    private String buildQuery(String project, String query, Integer maxLimit) {
-        StringBuilder builder = new StringBuilder();
-        Query statement;
-        synchronized (parser) {
-            try {
-                statement = (Query) parser.createStatement(query);
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
+    public String formatTableReference(String project, QualifiedName node) {
+        if (node.getPrefix().isPresent()) {
+            switch (node.getPrefix().get().toString()) {
+                case "continuous":
+                    return PRESTO_STREAMING_CATALOG_NAME + "." + project + "." + node.getSuffix();
+                case "materialized":
+                    return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
+                default:
+                    throw new IllegalArgumentException("Schema does not exist: " + node.getPrefix().get().toString());
             }
         }
-        new QueryFormatter(builder, tableNameMapper(project))
-                .process(statement, 1);
 
-        if(maxLimit != null) {
-            if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
-                throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
+        // special prefix for all columns
+        if (node.getSuffix().equals("_all")) {
+            Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+            String columns = collections.values().stream()
+                    .flatMap(item -> item.stream()).distinct()
+                    .map(field -> field.getName()).collect(Collectors.joining(", "));
+
+            return "(" +collections.keySet().stream()
+                    .map(collection -> format("select %s from %s", columns.isEmpty() ? "1" : columns, collection))
+                    .collect(Collectors.joining(" union all ")) + ")";
+        } else {
+            QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
+            String hotStorageConnector = prestoConfig.getHotStorageConnector();
+            String table = project + "." + node.getSuffix();
+
+            if (hotStorageConnector != null) {
+                return "(select * from " + prefix.getSuffix() + "." + table + " union all " +
+                        "select * from " + hotStorageConnector + "." + table + ")" +
+                        " as " + node.getSuffix();
             } else {
-                builder.append(" LIMIT ").append(maxLimit);
+                return prefix.getSuffix() + "." + table;
             }
         }
-
-        return builder.toString();
-    }
-
-    private String buildStatement(String project, String query) {
-        StringBuilder builder = new StringBuilder();
-        Statement statement;
-        synchronized (parser) {
-            statement = parser.createStatement(query);
-        }
-        new QueryFormatter(builder, tableNameMapper(project)).process(statement, 1);
-
-        return builder.toString();
-    }
-
-    @Override
-    public QueryExecution executeStatement(String project, String sqlQuery) {
-        return executeRawQuery(buildStatement(project, sqlQuery));
     }
 
     private StatementClient startQuery(String query) {

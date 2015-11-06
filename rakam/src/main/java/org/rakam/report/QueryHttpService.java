@@ -53,12 +53,12 @@ import static org.rakam.util.JsonHelper.jsonObject;
 @Api(value = "/query", description = "Query module", tags = {"event"})
 @Produces({"application/json"})
 public class QueryHttpService extends HttpService {
-    private final QueryExecutor executor;
+    private final QueryExecutorService executorService;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public QueryHttpService(QueryExecutor executor) {
-        this.executor = executor;
+    public QueryHttpService(QueryExecutorService executorService) {
+        this.executorService = executorService;
     }
 
 
@@ -68,7 +68,7 @@ public class QueryHttpService extends HttpService {
     )
     @JsonRequest
     public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
-        return executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult();
+        return executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult();
     }
 
     @GET
@@ -79,7 +79,7 @@ public class QueryHttpService extends HttpService {
     @Path("/execute")
     public void execute(RakamHttpRequest request) {
         handleServerSentQueryExecution(request, ExecuteQuery.class, query ->
-                executor.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit));
+                executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit));
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executerFunction) {
@@ -114,6 +114,14 @@ public class QueryHttpService extends HttpService {
     }
 
     private void handleServerSentQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
+        if(query == null) {
+            // TODO: custom message
+            response.send("result", encode(jsonObject()
+                    .put("success", false)
+                    .put("query", query.getQuery())
+                    .put("error", "Not running"))).end();
+            return;
+        }
         query.getResult().whenComplete((result, ex) -> {
             if(response.isClosed()) {
               query.kill();
@@ -145,7 +153,8 @@ public class QueryHttpService extends HttpService {
                 if(response.isClosed()) {
                     query.kill();
                 } else if(!query.isFinished()) {
-                    response.send("stats", encode(query.currentStats()));
+                    String encode = encode(query.currentStats());
+                    response.send("stats", encode);
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
                 }
             }

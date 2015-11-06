@@ -1,10 +1,8 @@
 package org.rakam.report;
 
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.Join;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
-import com.facebook.presto.sql.tree.Query;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
@@ -13,7 +11,6 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 
 import javax.inject.Inject;
-
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
@@ -37,8 +34,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
-        Query statement = (Query) new SqlParser().createStatement(report.query);
-        statement.accept(new AstVisitor<Void, Void>() {
+        report.query.accept(new AstVisitor<Void, Void>() {
             @Override
             protected Void visitQualifiedNameReference(QualifiedNameReference node, Void context)
             {

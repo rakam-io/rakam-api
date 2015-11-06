@@ -22,4 +22,23 @@ public class ProjectCollection {
         this.project = project;
         this.collection = collection;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ProjectCollection)) return false;
+
+        ProjectCollection that = (ProjectCollection) o;
+
+        if (!project.equals(that.project)) return false;
+        return collection.equals(that.collection);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = project.hashCode();
+        result = 31 * result + collection.hashCode();
+        return result;
+    }
 }

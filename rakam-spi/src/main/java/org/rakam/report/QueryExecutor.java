@@ -1,9 +1,10 @@
 package org.rakam.report;
 
 
+import com.facebook.presto.sql.tree.QualifiedName;
+
 public interface QueryExecutor {
-    QueryExecution executeQuery(String project, String sqlQuery, int limit);
-    QueryExecution executeQuery(String project, String sqlQuery);
     QueryExecution executeRawQuery(String sqlQuery);
-    QueryExecution executeStatement(String project, String sqlQuery);
+    QueryExecution executeRawStatement(String sqlQuery);
+    String formatTableReference(String project, QualifiedName name);
 }

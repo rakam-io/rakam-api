@@ -1,5 +1,6 @@
 package org.rakam.report;
 
+import com.facebook.presto.sql.tree.QualifiedName;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.collection.FieldType;
@@ -31,11 +32,12 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big.";
 
     private final QueryExecutor executor;
+
     private final Metastore metastore;
     private final Map<EventExplorer.TimestampTransformation, String> timestampMapping;
     private final String epochTimestampFunctionName;
 
-    public AbstractEventExplorer(QueryExecutor executor, Metastore metastore, Map<TimestampTransformation, String> timestampMapping, String epochTimestampFunctionName) {
+    public AbstractEventExplorer(QueryExecutor executor,  Metastore metastore, Map<TimestampTransformation, String> timestampMapping, String epochTimestampFunctionName) {
         this.executor = executor;
         this.metastore = metastore;
         this.timestampMapping = timestampMapping;
@@ -145,7 +147,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             computeQuery = format("select %s %s agg from %s where %s group by %s",
                     select.isEmpty() ? select : select + ",",
                     format(measureAgg, measureColumn),
-                    collections.get(0),
+                    executor.formatTableReference(project, QualifiedName.of(collections.get(0))),
                     where,
                     groupBy);
         } else {
@@ -155,7 +157,8 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     .collect(Collectors.joining(", "));
 
             String queries = "(" + collections.stream()
-                    .map(collection -> format("select %s, %s from %s where %s", select, measureColumn, collection, where))
+                    .map(collection -> format("select %s, %s from %s where %s", select, measureColumn,
+                            executor.formatTableReference(project, QualifiedName.of(collection)), where))
                     .collect(Collectors.joining(" union ")) + ")";
             computeQuery = format("select %s %s(%s) as agg from %s group by %s",
                     select.isEmpty() ? "" : selectPart + ",",
@@ -239,7 +242,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             query = computeQuery + format(" ORDER BY %s DESC LIMIT 100", segment != null && grouping != null ? 3 : 2);
         }
 
-        return executor.executeQuery(project, query).getResult();
+        return executor.executeRawQuery(query).getResult();
     }
 
 

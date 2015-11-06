@@ -3,8 +3,8 @@ package org.rakam.collection.event.metastore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 
 public interface QueryMetadataStore {
@@ -16,9 +16,7 @@ public interface QueryMetadataStore {
 
     List<MaterializedView> getMaterializedViews(String project);
 
-    List<MaterializedView> getAllMaterializedViews();
-
-    void updateMaterializedView(String project, String tableName, Instant last_update);
+    boolean updateMaterializedView(MaterializedView view, CompletableFuture<Boolean> releaseLock);
 
     void createContinuousQuery(ContinuousQuery report);
 

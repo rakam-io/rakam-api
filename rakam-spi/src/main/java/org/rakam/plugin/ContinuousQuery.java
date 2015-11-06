@@ -7,8 +7,10 @@ import com.facebook.presto.sql.tree.QueryBody;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.util.QueryFormatter;
 
 import java.util.List;
 import java.util.Map;
@@ -20,7 +22,7 @@ public class ContinuousQuery implements ProjectItem {
     private final static SqlParser SQL_PARSER = new SqlParser();
     public final String project;
     public final String name;
-    public final String query;
+    public final Query query;
     public final String tableName;
     public final List<String> collections;
     public final List<String> partitionKeys;
@@ -37,21 +39,46 @@ public class ContinuousQuery implements ProjectItem {
             throws ParsingException, IllegalArgumentException {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
-        this.query = checkNotNull(query, "query is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.collections = collections;
         this.options = options;
         this.partitionKeys = partitionKeys == null ? ImmutableList.of() : partitionKeys;
-        validateQuery(query);
-    }
 
-    public void validateQuery(String query) throws ParsingException, IllegalArgumentException {
-        Query statement;
         synchronized (this) {
-            statement = (Query) SQL_PARSER.createStatement(query);
+            this.query = (Query) SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
         }
 
-        QueryBody queryBody = statement.getQueryBody();
+        validateQuery();
+    }
+
+    @JsonIgnore
+    public String getRawQuery() {
+        StringBuilder builder = new StringBuilder();
+        new QueryFormatter(builder, Object::toString).process(query, 1);
+        return builder.toString();
+    }
+
+    public ContinuousQuery(String project,
+                           String name,
+                           String tableName,
+                           Query query,
+                           List<String> collections,
+                           List<String> partitionKeys,
+                           Map<String, Object> options)
+            throws ParsingException, IllegalArgumentException {
+        this.project = checkNotNull(project, "project is required");
+        this.name = checkNotNull(name, "name is required");
+        this.tableName = checkNotNull(tableName, "table_name is required");
+        this.query = checkNotNull(query, "query is required");
+        this.collections = collections;
+        this.options = options;
+        this.partitionKeys = partitionKeys == null ? ImmutableList.of() : partitionKeys;
+
+        validateQuery();
+    }
+
+    public void validateQuery() throws ParsingException, IllegalArgumentException {
+        QueryBody queryBody = query.getQueryBody();
         // it's ugly and seems complex but actually can be expressed simply by naming variables and
         // checking the conditions and throwing the exception it they're not satisfied.
         // but since i can use the throw statement only once (otherwise, i would have to make the sting final static etc.),
@@ -64,7 +91,7 @@ public class ContinuousQuery implements ProjectItem {
 //                    "Example: 'SELECT count(1) FROM stream GROUP BY country''");
         }
 
-        if (statement.getLimit().isPresent()) {
+        if (query.getLimit().isPresent()) {
             throw new IllegalArgumentException("Continuous queries must not have LIMIT statement");
         }
     }

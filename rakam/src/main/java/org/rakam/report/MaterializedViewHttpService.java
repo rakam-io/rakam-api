@@ -126,7 +126,7 @@ public class MaterializedViewHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     public void update(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
-                query -> service.update(service.get(query.project, query.name)));
+                query -> service.lockAndUpdateView(service.get(query.project, query.name)));
     }
 
     public static class MaterializedViewRequest {
