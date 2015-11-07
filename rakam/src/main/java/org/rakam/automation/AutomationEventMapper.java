@@ -37,7 +37,7 @@ public class AutomationEventMapper implements EventMapper {
 
     @Override
     public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
-        final List<UserAutomationService.AutomationRule> automationRules = service.get(event.project());
+        final List<UserAutomationService.AutomationRule> automationRules = service.list(event.project());
         if (automationRules == null) {
             return null;
         }

@@ -2,19 +2,18 @@ package org.rakam.automation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.Event;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
@@ -56,6 +55,10 @@ public class UserAutomationService {
         });
     }
 
+    public void remove(String project, int id) {
+
+    }
+
     public static class AutomationRule {
         public final int id;
         public final String project;
@@ -64,6 +67,16 @@ public class UserAutomationService {
 
         public AutomationRule(int id, String project, List<ScenarioStep> scenarioSteps, List<Action> actions) {
             this.id = id;
+            this.project = project;
+            this.scenarioSteps = scenarioSteps;
+            this.actions = actions;
+        }
+
+        @JsonCreator
+        public AutomationRule(@ApiParam(name="project") String project,
+                              @ApiParam(name="scenarioSteps") List<ScenarioStep> scenarioSteps,
+                              @ApiParam(name="actions") List<Action> actions) {
+            this.id = -1;
             this.project = project;
             this.scenarioSteps = scenarioSteps;
             this.actions = actions;
@@ -81,12 +94,8 @@ public class UserAutomationService {
     }
 
 
-    public List<AutomationRule> get(String project) {
-        try {
-            return rules.get(project);
-        } catch (ExecutionException e) {
-            throw Throwables.propagate(e);
-        }
+    public List<AutomationRule> list(String project) {
+        return rules.getUnchecked(project);
     }
 
     static class ScenarioStep {

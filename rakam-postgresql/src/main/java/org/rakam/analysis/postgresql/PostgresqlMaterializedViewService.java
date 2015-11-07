@@ -69,8 +69,8 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
     @Override
     public QueryExecution lockAndUpdateView(MaterializedView materializedView) {
         CompletableFuture<Boolean> f = new CompletableFuture<>();
-        boolean alreadyUpdating = database.updateMaterializedView(materializedView, f);
-        if(!alreadyUpdating) {
+        boolean availableForUpdating = database.updateMaterializedView(materializedView, f);
+        if(availableForUpdating) {
             QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW %s.%s%s", materializedView.project,
                     PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName));
             return new DelegateQueryExecution(execution, result -> {

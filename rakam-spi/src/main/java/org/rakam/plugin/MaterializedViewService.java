@@ -60,8 +60,8 @@ public abstract class MaterializedViewService {
 
     public QueryExecution lockAndUpdateView(MaterializedView materializedView) {
         CompletableFuture<Boolean> f = new CompletableFuture<>();
-        boolean alreadyUpdating = database.updateMaterializedView(materializedView, f);
-        if(!alreadyUpdating) {
+        boolean availableForUpdating = database.updateMaterializedView(materializedView, f);
+        if(availableForUpdating) {
             String reference = queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName));
 
             if (materializedView.lastUpdate != null) {

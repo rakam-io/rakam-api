@@ -27,6 +27,12 @@ public class JDBCPoolDataSource implements DataSource {
         hikariConfig.setUsername(config.getUsername());
         hikariConfig.setPassword(config.getPassword());
         hikariConfig.setJdbcUrl(config.getUrl());
+        if(config.getConnectionMaxLifeTime() != null) {
+            hikariConfig.setMaxLifetime(config.getConnectionMaxLifeTime());
+        }
+        if(config.getConnectionIdleTimeout() != null) {
+            hikariConfig.setIdleTimeout(config.getConnectionIdleTimeout());
+        }
 
         if (config.getMaxConnection() != null) {
             hikariConfig.setMaximumPoolSize(config.getMaxConnection());

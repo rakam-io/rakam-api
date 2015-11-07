@@ -13,6 +13,8 @@ public class JDBCConfig {
     private String password = "";
     private Integer maxConnection;
     private String dataSource;
+    private Long connectionMaxLifeTime;
+    private Long connectionIdleTimeout;
 
     @Config("url")
     public JDBCConfig setUrl(String url) throws URISyntaxException {
@@ -84,6 +86,27 @@ public class JDBCConfig {
 
     public String getTable() {
         return table;
+    }
+
+
+    @Config("connection.max-life-time")
+    public JDBCConfig setConnectionMaxLifeTime(Long connectionMaxLifeTime) {
+        this.connectionMaxLifeTime = connectionMaxLifeTime;
+        return this;
+    }
+
+    public Long getConnectionMaxLifeTime() {
+        return connectionMaxLifeTime;
+    }
+
+    @Config("connection.max-idle-timeout")
+    public JDBCConfig setConnectionIdleTimeout(Long connectionIdleTimeout) {
+        this.connectionIdleTimeout = connectionIdleTimeout;
+        return this;
+    }
+
+    public Long getConnectionIdleTimeout() {
+        return connectionIdleTimeout;
     }
 
     public String convertScheme(String scheme) {

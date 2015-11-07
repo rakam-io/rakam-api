@@ -48,6 +48,7 @@ public class DashboardService extends HttpService {
                     "  id SERIAL," +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
+                    "  UNIQUE (project, name)," +
                     "  PRIMARY KEY (id)" +
                     "  )")
                     .execute();
@@ -91,11 +92,13 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/get")
-    public List<DashboardItem> get(@ApiParam(name="project", required = true) String project,
-                                   @ApiParam(name="id", required = true) int id) {
+    public List<DashboardItem> get(@ApiParam(name="project") String project,
+                                   @ApiParam(name="name") String name) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, directive, data FROM dashboard_items WHERE dashboard = :id")
-                    .bind("id", id).map((i, r, statementContext) -> {
+            return handle.createQuery("SELECT id, name, directive, data FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project = :project AND name = :name)")
+                    .bind("project", project)
+                    .bind("name", name)
+                    .map((i, r, statementContext) -> {
                         return new DashboardItem(r.getInt(1), r.getString(2), r.getString(3), JsonHelper.read(r.getString(4), JsonNode.class));
                     }).list();
         }

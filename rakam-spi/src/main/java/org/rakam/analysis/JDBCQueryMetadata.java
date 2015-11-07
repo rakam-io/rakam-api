@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 
 @Singleton
@@ -52,10 +53,10 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
 
-        materializedViewCache = CacheBuilder.newBuilder().build(new CacheLoader<ProjectCollection, MaterializedView>() {
+        materializedViewCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, MaterializedView>() {
             @Override
             public MaterializedView load(ProjectCollection key) throws Exception {
-                try(Handle handle = dbi.open()) {
+                try (Handle handle = dbi.open()) {
                     return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, options from materialized_views WHERE project = :project AND table_name = :name")
                             .bind("project", key.project)
                             .bind("name", key.collection).map(reportMapper).first();
@@ -112,7 +113,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Boolean> releaseLock) {
         int rows;
         try(Handle handle = dbi.open()) {
-            rows = handle.createStatement("UPDATE materialized_views SET last_updated = -1 WHERE project = :project AND table_name = :table_name AND last_updated != -1")
+            rows = handle.createStatement("UPDATE materialized_views SET last_updated = -1 WHERE project = :project AND table_name = :table_name AND (last_updated IS NULL OR last_updated != -1)")
                     .bind("project", view.project)
                     .bind("table_name", view.tableName)
                     .execute();
@@ -186,6 +187,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public MaterializedView getMaterializedView(String project, String tableName) {
+        materializedViewCache.refresh(new ProjectCollection(project, tableName));
         return materializedViewCache.getUnchecked(new ProjectCollection(project, tableName));
     }
 
