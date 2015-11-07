@@ -13,6 +13,7 @@ import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
+import javax.inject.Inject;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -22,6 +23,7 @@ public class UserAutomationService {
     private final DBI dbi;
     private final LoadingCache<String, List<AutomationRule>> rules;
 
+    @Inject
     public UserAutomationService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
 
@@ -29,11 +31,13 @@ public class UserAutomationService {
             @Override
             public List<AutomationRule> load(String project) throws Exception {
                 try(Handle handle = dbi.open()) {
-                    return handle.createQuery("SELECT id, user_filter, event_filter, actions FROM automation_rules WHERE project = :project")
-                            .bind(":project", project).map((i, resultSet, statementContext) ->
+                    return handle.createQuery("SELECT id, event_filters, actions FROM automation_rules WHERE project = :project")
+                            .bind("project", project)
+                            .map((i, resultSet, statementContext) ->
                                     new AutomationRule(resultSet.getInt(1), project,
                                             JsonHelper.read(resultSet.getString(2), List.class),
-                                            JsonHelper.read(resultSet.getString(2), List.class))).list();
+                                            JsonHelper.read(resultSet.getString(3), List.class)))
+                            .list();
                 }
             }
         });
@@ -62,23 +66,23 @@ public class UserAutomationService {
     public static class AutomationRule {
         public final int id;
         public final String project;
-        public final List<ScenarioStep> scenarioSteps;
+        public final List<ScenarioStep> scenarios;
         public final List<Action> actions;
 
-        public AutomationRule(int id, String project, List<ScenarioStep> scenarioSteps, List<Action> actions) {
+        public AutomationRule(int id, String project, List<ScenarioStep> scenarios, List<Action> actions) {
             this.id = id;
             this.project = project;
-            this.scenarioSteps = scenarioSteps;
+            this.scenarios = scenarios;
             this.actions = actions;
         }
 
         @JsonCreator
         public AutomationRule(@ApiParam(name="project") String project,
-                              @ApiParam(name="scenarioSteps") List<ScenarioStep> scenarioSteps,
+                              @ApiParam(name="scenarios") List<ScenarioStep> scenarios,
                               @ApiParam(name="actions") List<Action> actions) {
             this.id = -1;
             this.project = project;
-            this.scenarioSteps = scenarioSteps;
+            this.scenarios = scenarios;
             this.actions = actions;
         }
     }
@@ -88,7 +92,7 @@ public class UserAutomationService {
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO automation_rules (project, event_filter, actions) VALUES (:project, :event_filter, :actions)")
                     .bind(":project", rule)
-                    .bind(":event_filter", JsonHelper.encode(rule.scenarioSteps))
+                    .bind(":event_filter", JsonHelper.encode(rule.scenarios))
                     .bind(":actions", JsonHelper.encode(rule.actions)).execute();
         }
     }
@@ -123,7 +127,10 @@ public class UserAutomationService {
         public final String fieldName;
         public final long value;
 
-        public Threshold(ThresholdAggregation aggregation, String fieldName, long value) {
+        @JsonCreator
+        public Threshold(@JsonProperty("aggregation") ThresholdAggregation aggregation,
+                         @JsonProperty("fieldName") String fieldName,
+                         @JsonProperty("value") long value) {
             this.aggregation = aggregation;
             this.fieldName = fieldName;
             this.value = value;

@@ -6,6 +6,8 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.Path;
@@ -27,8 +29,9 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/add")
-    public void add(UserAutomationService.AutomationRule rule) {
+    public JsonResponse add(@ParamBody UserAutomationService.AutomationRule rule) {
         service.add(rule);
+        return JsonResponse.success();
     }
 
     @ApiOperation(value = "Remove scenario",
@@ -36,8 +39,9 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/remove")
-    public void remove(String project, int id) {
+    public JsonResponse remove(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
         service.remove(project, id);
+        return JsonResponse.success();
     }
 
     @ApiOperation(value = "List scenarios",

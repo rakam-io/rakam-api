@@ -6,6 +6,7 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 
+import javax.inject.Inject;
 import java.net.InetAddress;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -16,9 +17,11 @@ public class AutomationEventMapper implements EventMapper {
 
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";
+
     private final UserAutomationService service;
     private final List clearData = ImmutableList.of(new AbstractMap.SimpleImmutableEntry<>(PROPERTY_KEY, null));
 
+    @Inject
     public AutomationEventMapper(UserAutomationService service) {
         this.service = service;
     }
@@ -71,7 +74,7 @@ public class AutomationEventMapper implements EventMapper {
         List<String> actions = null;
 
         for (UserAutomationService.AutomationRule automationRule : automationRules) {
-            final List<UserAutomationService.ScenarioStep> scenarioSteps = automationRule.scenarioSteps;
+            final List<UserAutomationService.ScenarioStep> scenarioSteps = automationRule.scenarios;
 
             int ruleId = automationRule.id;
             ScenarioState state = null;
