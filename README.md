@@ -14,14 +14,14 @@ Features / Goals
 Rakam is a super-fast modular analytics platform that gives you a set of features to create your own analytics service.
 
 Typical workflow of using Rakam:
-* Collect data from your clients using **[client libraries](https://getrakam/doc/Client_Libraries)**
-* Make your event data richer and cleaner with **[event mappers](https://getrakam/doc/Event-Mappers)**
-* Process data in real-time and pre-aggregate using **[continuous queries](https://getrakam/doc)** (Stream processing with SQL!),
+* Collect data from your clients using **[client libraries](//getrakam.com/doc/Client_Libraries)**
+* Make your event data richer and cleaner with **[event mappers](//getrakam.com/doc/Event-Mappers)**
+* Process data in real-time and pre-aggregate using **[continuous queries](//getrakam.com/doc)** (Stream processing with SQL!),
 * Store data in a data warehouse to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
-* Analyze your event data in your data warehouse with your custom SQL queries and integrated rich analytics features **([funnel queries](https://getrakam.com)**, **[retention queries](https://getrakam.com)**, **[real-time reports](https://getrakam.com)**, **[event streams](https://getrakam.com)**)
-* Analyze your users with **[integrated CRM tool]()**
-* Visualize your data using **[web application]()** of Rakam similar to BI tools.
-* **[Add your own modules]()** to Rakam to customize Rakam for your special needs.
+* Analyze your event data in your data warehouse with your custom SQL queries and integrated rich analytics features **([funnel queries](https://getrakam.com)**, **retention queries**, **[real-time reports](//getrakam.com/doc/Modules#realtimeanalyticsmodulesubapidocgetrakamcomapitagsrealtimesub)**, **[event streams](//getrakam.com/doc/Modules#eventstreammodulesubapidocgetrakamcomapitagsstreamsub)**)
+* Analyze your users with **[integrated CRM tool](//getrakam.com/doc/Modules#crmmodulecustomermailboxsubapidocgetrakamcomapitagsusermailboxsub)**
+* Visualize your data using **[web application](#Webapplication)** of Rakam similar to BI tools.
+* **[Add your own modules](//getrakam.com/doc/Developing-Modules)** to Rakam to customize Rakam for your special needs.
 
 All these features come with a single box, you just need to specify which modules you want to use using a configuration file (config.properties) and Rakam will do the rest for you.
 You can also start multiple instances and put them behind a load balancer if you need high availability or/and want to collect tens of thousands events per second.
