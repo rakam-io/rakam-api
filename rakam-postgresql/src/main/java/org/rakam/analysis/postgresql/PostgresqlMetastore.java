@@ -13,7 +13,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
+import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.ProjectCollection;
 
@@ -25,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -45,8 +46,8 @@ public class PostgresqlMetastore extends AbstractMetastore {
     private final JDBCPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, Set<EventMapper> eventMappers) {
-        super(eventMappers, eventBus);
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency) {
+        super(fieldDependency, eventBus);
         this.connectionPool = connectionPool;
 
         setup();
@@ -268,7 +269,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
     }
 
     @Override
-    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
+    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
         if (collection.equals("public")) {
             throw new IllegalArgumentException("Collection name 'public' is not allowed.");
         }
@@ -279,7 +280,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
         }
 
-        List<SchemaField> currentFields = Lists.newArrayList();
+        List<SchemaField> currentFields = new ArrayList<>();
         String query;
         boolean collectionCreated;
         try (Connection connection = connectionPool.getConnection()) {
@@ -292,11 +293,13 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE")), true));
             }
 
+            List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
+            Runnable task;
             if (currentFields.size() == 0) {
                 if (!getProjects().contains(project)) {
                     throw new ProjectNotExistsException();
                 }
-                String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
+                String queryEnd = schemaFields.stream()
                         .map(f -> {
                             currentFields.add(f);
                             return f;
@@ -307,9 +310,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
                     return currentFields;
                 }
                 query = format("CREATE TABLE %s.%s (%s)", project, collection, queryEnd);
-                collectionCreated = true;
+                task = () -> super.onCreateCollection(project, collection, schemaFields);
             } else {
-                String queryEnd = fields.stream().filter(f -> !strings.contains(f.getName()))
+                String queryEnd = schemaFields.stream()
                         .map(f -> {
                             currentFields.add(f);
                             return f;
@@ -320,15 +323,13 @@ public class PostgresqlMetastore extends AbstractMetastore {
                     return currentFields;
                 }
                 query = format("ALTER TABLE %s.%s %s", project, collection, queryEnd);
-                collectionCreated = false;
+                task = () -> super.onCreateCollectionField(project, collection, schemaFields);
             }
 
             connection.createStatement().execute(query);
             connection.commit();
             connection.setAutoCommit(true);
-            if (collectionCreated) {
-                super.onCreateCollection(project, collection);
-            }
+            task.run();
             return currentFields;
         } catch (SQLException e) {
             // syntax error exception
@@ -338,11 +339,11 @@ public class PostgresqlMetastore extends AbstractMetastore {
                         "See http://www.postgresql.org/docs/devel/static/sql-keywords-appendix.html");
             } else
                 // column or table already exists
-                if (e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42701") || e.getSQLState().equals("42710")) {
+                if (e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42710")) {
                     // TODO: should we try again until this operation is done successfully, what about infinite loops?
                     return getOrCreateCollectionFieldList(project, collection, fields);
                 } else {
-                    throw new IllegalStateException();
+                    throw new IllegalStateException(e.getMessage());
                 }
         }
     }
@@ -405,12 +406,15 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 return "TEXT";
             case BOOLEAN:
             case DATE:
-            case ARRAY:
             case TIME:
+            case TIMESTAMP:
                 return type.name();
             case DOUBLE:
                 return "DOUBLE PRECISION";
             default:
+                if(type.isArray()) {
+                    return  toSql(type.getArrayType()) + "[]";
+                }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }
     }
@@ -423,6 +427,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             case Types.NUMERIC:
             case Types.INTEGER:
             case Types.SMALLINT:
+            case Types.REAL:
                 return FieldType.LONG;
             case Types.BOOLEAN:
             case Types.BIT:

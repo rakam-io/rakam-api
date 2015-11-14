@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -138,11 +139,13 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public void createContinuousQuery(ContinuousQuery report) {
         try(Handle handle = dbi.open()) {
+            StringBuilder builder = new StringBuilder();
+            new RakamSqlFormatter.Formatter(builder).process(report.query, 1);
             handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, options) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
                     .bind("project", report.project)
                     .bind("name", report.name)
                     .bind("tableName", report.tableName)
-                    .bind("query", report.query)
+                    .bind("query", builder.toString())
                     .bind("collections", JsonHelper.encode(report.collections))
                     .bind("partitionKeys", JsonHelper.encode(report.partitionKeys))
                     .bind("options", JsonHelper.encode(report.options))

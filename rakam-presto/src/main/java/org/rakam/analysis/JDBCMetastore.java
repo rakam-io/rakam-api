@@ -12,7 +12,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
+import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.report.PrestoConfig;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
@@ -33,6 +33,7 @@ import java.io.File;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -57,8 +58,8 @@ public class JDBCMetastore extends AbstractMetastore {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
 
     @Inject
-    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, EventBus eventBus, Set<EventMapper> eventMappers, PrestoConfig prestoConfig) {
-        super(eventMappers, eventBus);
+    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency, PrestoConfig prestoConfig) {
+        super(fieldDependency, eventBus);
         this.prestoConfig = prestoConfig;
 
         dbi = new DBI(dataSource);
@@ -255,7 +256,7 @@ public class JDBCMetastore extends AbstractMetastore {
     }
 
     @Override
-    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, List<SchemaField> newFields) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> newFields) throws ProjectNotExistsException {
         List<SchemaField> schemaFields;
         try {
             schemaFields = dbi.inTransaction((dao, status) -> {
@@ -265,17 +266,19 @@ public class JDBCMetastore extends AbstractMetastore {
                     if(!getProjects().contains(project)) {
                         throw new ProjectNotExistsException();
                     }
+                    // FIXME concurrency bug
                     dao.createStatement("INSERT INTO collection_schema (project, collection, schema) VALUES (:project, :collection, :schema)")
                             .bind("schema", JsonHelper.encode(newFields))
                             .bind("project", project)
                             .bind("collection", collection)
                             .execute();
-                    super.onCreateCollection(project, collection);
-                    return newFields;
+                    ImmutableList<SchemaField> fields = ImmutableList.copyOf(newFields);
+                    super.onCreateCollection(project, collection, fields);
+                    return fields;
                 } else {
                     List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);
 
-                    List<SchemaField> _newFields = Lists.newArrayList();
+                    List<SchemaField> _newFields = new ArrayList<>();
 
                     for (SchemaField field : newFields) {
                         Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();

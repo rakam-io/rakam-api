@@ -4,28 +4,48 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.tree.CreateTable;
 import com.facebook.presto.sql.tree.DropTable;
 import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Table;
+import com.facebook.presto.sql.tree.WithQuery;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class QueryFormatter
         extends RakamSqlFormatter.Formatter
 {
     private final StringBuilder builder;
     private final Function<QualifiedName, String> tableNameMapper;
+    private final List<String> queryWithTables;
 
     public QueryFormatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper)
     {
         super(builder);
         this.builder = builder;
+        this.queryWithTables = new ArrayList<>();
         this.tableNameMapper = tableNameMapper;
+    }
+
+    @Override
+    protected Void visitQuery(Query node, Integer indent) {
+        if (node.getWith().isPresent()) {
+            queryWithTables.addAll(node.getWith().get().getQueries().stream()
+                    .map(WithQuery::getName).collect(Collectors.toList()));
+        }
+        return super.visitQuery(node, indent);
     }
 
     @Override
     protected Void visitTable(Table node, Integer indent)
     {
+        if(!node.getName().getPrefix().isPresent() && queryWithTables.contains(node.getName().getSuffix())) {
+            builder.append(node.getName().toString());
+            return null;
+        }
         builder.append(tableNameMapper.apply(node.getName()));
         return null;
     }

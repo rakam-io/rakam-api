@@ -20,6 +20,7 @@ import org.rakam.report.QueryResult;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -50,8 +51,8 @@ public interface EventExplorer {
         @JsonCreator
         public Measure(@JsonProperty("column") String column,
                        @JsonProperty("aggregation") AggregationType aggregation) {
-            this.column = column;
-            this.aggregation = aggregation;
+            this.column = Objects.requireNonNull(column, "column is null");
+            this.aggregation = Objects.requireNonNull(aggregation, "aggregation is null");
         }
     }
 

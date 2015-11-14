@@ -9,6 +9,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserStorage;
@@ -47,8 +48,11 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     private final Cache<String, Map<String, FieldType>> propertyCache = CacheBuilder.newBuilder().build();
 
     @Inject
-    public PostgresqlUserStorageAdapter(PostgresqlQueryExecutor queryExecutor) {
+    public PostgresqlUserStorageAdapter(PostgresqlQueryExecutor queryExecutor, PostgresqlMetastore metastore) {
         this.queryExecutor = queryExecutor;
+        for (String project : metastore.getProjects()) {
+            createProject(project);
+        }
     }
 
     @Override
@@ -143,7 +147,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                     if (filter.filterExpression != null) {
                         builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
                     }
-                    filters.add((format("id in (%s)", builder.toString())));
+                    filters.add((format("id::varchar(255) in (%s)", builder.toString())));
                 } else {
                     builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
                     if (filter.filterExpression != null) {

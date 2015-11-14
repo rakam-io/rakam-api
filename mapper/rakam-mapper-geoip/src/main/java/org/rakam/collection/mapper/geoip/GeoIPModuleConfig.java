@@ -10,26 +10,9 @@ import java.util.List;
 public class GeoIPModuleConfig {
     private List<String> attributes;
     private String databaseUrl = "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz";
-    private SourceType source = SourceType.ip_field;
     private String ispDatabaseUrl;
     private String connectionTypeDatabaseUrl;
     private boolean useExistingFields;
-
-    public enum SourceType {
-        request_ip,
-        ip_field
-    }
-
-    @Config("plugin.geoip.check-ip-field")
-    public GeoIPModuleConfig setSource(SourceType source)
-    {
-        this.source = source;
-        return this;
-    }
-
-    public SourceType getSource() {
-        return source;
-    }
 
     @Config("plugin.geoip.database.url")
     public GeoIPModuleConfig setDatabaseUrl(String type)

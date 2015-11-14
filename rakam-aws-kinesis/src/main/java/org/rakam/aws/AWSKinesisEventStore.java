@@ -2,21 +2,25 @@ package org.rakam.aws;
 
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.RecordGenericRecordWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.Event;
+import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
+import java.util.Set;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
 public class AWSKinesisEventStore implements EventStore {
     private final AmazonKinesisClient kinesis;
     private final AWSConfig config;
+    private final Set<String> sourceFields;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
@@ -26,14 +30,15 @@ public class AWSKinesisEventStore implements EventStore {
     };
 
     @Inject
-    public AWSKinesisEventStore(AWSConfig config) {
+    public AWSKinesisEventStore(AWSConfig config, FieldDependencyBuilder.FieldDependency dependency) {
         this.kinesis = new AmazonKinesisClient(config.getCredentials());
+        this.sourceFields = dependency.dependentFields.keySet();
         this.config = config;
     }
 
     @Override
     public void store(Event event) {
-        DatumWriter writer = new GenericDatumWriter(event.properties().getSchema());
+        DatumWriter writer = new RecordGenericRecordWriter(event.properties().getSchema(), GenericData.get(), sourceFields);
         KByteArrayOutputStream out = buffer.get();
 
         int startPosition = out.position();

@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -18,6 +19,7 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.QueryFormatter;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.sql.Connection;
@@ -44,7 +46,6 @@ import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
-    public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final JDBCPoolDataSource connectionPool;
@@ -90,6 +91,9 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     return project + "." + name.getSuffix();
                 case "continuous":
                     final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, name.getSuffix());
+                    if(report == null) {
+                        throw new RakamException(String.format("Continuous query table %s is not found", name.getSuffix()), HttpResponseStatus.BAD_REQUEST);
+                    }
                     StringBuilder builder = new StringBuilder();
 
                     new QueryFormatter(builder, qualifiedName -> {
@@ -240,7 +244,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 for (int i = 1; i < columnCount + 1; i++) {
                     Object object = resultSet.getObject(i);
                     if (object instanceof Timestamp) {
-                        // we have to remove zone from java.sql.Timestamp but I couldn't figure out how to do this in JDBC level.
+                        // we remove timezone
                         object = ((Timestamp) object).toInstant();
                     }
                     rowBuilder.set(i - 1, object);

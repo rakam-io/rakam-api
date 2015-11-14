@@ -32,6 +32,7 @@ public class AvroUtil {
 
         Schema schema = Schema.createRecord("collection", null, null, false);
         schema.setFields(avroFields);
+
         return schema;
     }
 
@@ -51,8 +52,16 @@ public class AvroUtil {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);
-            case ARRAY:
-                return Schema.create(Schema.Type.ARRAY);
+            case ARRAY_STRING:
+                return Schema.createArray(Schema.create(Schema.Type.STRING));
+            case ARRAY_LONG:
+            case ARRAY_TIMESTAMP:
+            case ARRAY_TIME:
+                return Schema.createArray(Schema.create(Schema.Type.LONG));
+            case ARRAY_DOUBLE:
+                return Schema.createArray(Schema.create(Schema.Type.DOUBLE));
+            case ARRAY_BOOLEAN:
+                return Schema.createArray(Schema.create(Schema.Type.BOOLEAN));
             case LONG:
                 return Schema.create(Schema.Type.LONG);
             case DOUBLE:

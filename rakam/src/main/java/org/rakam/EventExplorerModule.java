@@ -20,7 +20,7 @@ public class EventExplorerModule extends RakamModule {
         httpServices.addBinding().to(EventExplorerHttpService.class);
 
         Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
-        timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
+        timeMapper.permitDuplicates().addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
     }
 
     @Override

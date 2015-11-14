@@ -16,6 +16,7 @@ package org.rakam.report.postgresql;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.AbstractEventExplorer;
+import org.rakam.report.QueryExecutorService;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -38,15 +39,7 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
             .build();
 
     @Inject
-    public PostgresqlEventExplorer(PostgresqlQueryExecutor executor, Metastore metastore) {
-        super(executor, metastore, timestampMapping, "to_timestamp");
-    }
-
-
-    @Override
-    public String getContinuousTableName(String project, String collection) {
-        return String.format("%s.%s%s", project,
-                PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX,
-                collection);
+    public PostgresqlEventExplorer(QueryExecutorService service, PostgresqlQueryExecutor executor, Metastore metastore) {
+        super(executor, service, metastore, timestampMapping, "to_timestamp");
     }
 }

@@ -5,7 +5,7 @@ import com.google.inject.Inject;
 import org.rakam.analysis.AbstractMetastore;
 import org.rakam.analysis.ProjectNotExistsException;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventMapper;
+import org.rakam.collection.event.FieldDependencyBuilder;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,8 +19,8 @@ class InMemoryMetastore extends AbstractMetastore {
     private final Map<String, Map<String, List<SchemaField>>> collections = new HashMap<>();
 
     @Inject
-    public InMemoryMetastore(Set<EventMapper> eventMappers, EventBus eventBus) {
-        super(eventMappers, eventBus);
+    public InMemoryMetastore(FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus) {
+        super(fieldDependency, eventBus);
     }
 
     @Override
@@ -62,12 +62,12 @@ class InMemoryMetastore extends AbstractMetastore {
     }
 
     @Override
-    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
         Map<String, List<SchemaField>> list = collections.get(project);
         if(list == null) {
             throw new ProjectNotExistsException();
         }
-        List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<>());
+        List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<SchemaField>());
         fields.stream()
                 .filter(field -> !schemaFields.contains(field))
                 .forEach(schemaFields::add);

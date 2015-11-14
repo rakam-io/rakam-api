@@ -4,7 +4,7 @@ import io.airlift.configuration.Config;
 
 public class PostgresqlConfig {
 
-    private boolean autoIndexColumns;
+    private boolean autoIndexColumns = true;
 
     @Config("postgresql.auto-index-columns")
     public PostgresqlConfig setAutoIndexColumns(boolean indexColumns)

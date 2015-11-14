@@ -7,6 +7,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.Event;
+import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 
 import javax.inject.Inject;
@@ -14,14 +15,17 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Set;
 
 @Singleton
 public class PostgresqlEventStore implements EventStore {
-    JDBCPoolDataSource connectionPool;
+    private final Set<String> sourceFields;
+    private final JDBCPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool) {
+    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.connectionPool = connectionPool;
+        this.sourceFields = fieldDependency.dependentFields.keySet();
     }
 
     @Override
@@ -29,9 +33,7 @@ public class PostgresqlEventStore implements EventStore {
         GenericRecord record = event.properties();
         try(Connection connection = connectionPool.getConnection()) {
             PreparedStatement ps = connection.prepareStatement(getQuery(event));
-            for (Schema.Field field : event.properties().getSchema().getFields()) {
-                bindParam(connection, ps, field, record.get(field.pos()));
-            }
+            bindParam(connection, ps, event.properties().getSchema().getFields(), record);
             ps.executeUpdate();
         } catch (SQLException e) {
             Throwables.propagate(e);
@@ -39,15 +41,14 @@ public class PostgresqlEventStore implements EventStore {
     }
 
     @Override
-    public void storeBatch(List<Event> events) {
+    public void storeBatch(Event[] events) {
         try(Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
             for (Event event : events) {
                 GenericRecord record = event.properties();
                 PreparedStatement ps = connection.prepareStatement(getQuery(event));
-                for (Schema.Field field : event.properties().getSchema().getFields()) {
-                    bindParam(connection, ps, field, record.get(field.pos()));
-                }
+                bindParam(connection, ps, event.properties().getSchema().getFields(), record);
+
                 ps.executeUpdate();
             }
             connection.commit();
@@ -57,41 +58,53 @@ public class PostgresqlEventStore implements EventStore {
         }
     }
 
-    private void bindParam(Connection connection, PreparedStatement ps, Schema.Field field, Object value) throws SQLException {
-        int pos = field.pos()+1;
-
+    private Schema.Type getActualType(Schema.Field field) {
         Schema.Type type = field.schema().getType();
         if(type == Schema.Type.UNION) {
-            type = field.schema().getTypes().get(1).getType();
+            return field.schema().getTypes().get(1).getType();
+        } else {
+            return type;
         }
+    }
 
-        if(value == null) {
-            ps.setNull(pos, 0);
-            return;
-        }
+    private void bindParam(Connection connection, PreparedStatement ps, List<Schema.Field> fields, GenericRecord record) throws SQLException {
+        Object value;
+        int pos = 1;
+        for (Schema.Field field : fields) {
+            value = record.get(field.pos());
 
-        switch (type) {
-            case ARRAY:
-                ps.setArray(pos, connection.createArrayOf("varchar", ((List) value).toArray()));
-                break;
-            case STRING:
-                ps.setString(pos, (String) value);
-                break;
-            case INT:
-                ps.setInt(pos, ((Number) value).intValue());
-                break;
-            case LONG:
-                ps.setLong(pos, ((Number) value).longValue());
-                break;
-            case FLOAT:
-                ps.setFloat(pos, ((Number) value).floatValue());
-                break;
-            case DOUBLE:
-                ps.setDouble(pos, ((Number) value).doubleValue());
-                break;
-            case BOOLEAN:
-                ps.setBoolean(pos, (Boolean) value);
-                break;
+            if(sourceFields.contains(field.name())) {
+                continue;
+            }
+
+            if(value == null) {
+                ps.setNull(pos++, 0);
+                continue;
+            }
+
+            switch (getActualType(field)) {
+                case ARRAY:
+                    ps.setArray(pos++, connection.createArrayOf("varchar", ((List) value).toArray()));
+                    break;
+                case STRING:
+                    ps.setString(pos++, (String) value);
+                    break;
+                case INT:
+                    ps.setInt(pos++, ((Number) value).intValue());
+                    break;
+                case LONG:
+                    ps.setLong(pos++, ((Number) value).longValue());
+                    break;
+                case FLOAT:
+                    ps.setFloat(pos++, ((Number) value).floatValue());
+                    break;
+                case DOUBLE:
+                    ps.setDouble(pos++, ((Number) value).doubleValue());
+                    break;
+                case BOOLEAN:
+                    ps.setBoolean(pos++, (Boolean) value);
+                    break;
+            }
         }
     }
 
@@ -107,13 +120,19 @@ public class PostgresqlEventStore implements EventStore {
         Schema schema = event.properties().getSchema();
         List<Schema.Field> fields = schema.getFields();
 
-        query.append(" (\"").append(fields.get(0).name());
-        params.append("?");
+        Schema.Field f = fields.get(0);
+        if(!sourceFields.contains(f.name())) {
+            query.append(" (\"").append(f.name());
+            params.append("?");
+        }
 
         for (int i = 1; i < fields.size(); i++) {
             Schema.Field field = fields.get(i);
-            query.append("\", \"").append(field.name());
-            params.append(", ?");
+
+            if(!sourceFields.contains(field.name())) {
+                query.append("\", \"").append(field.name());
+                params.append(", ?");
+            }
         }
 
         return query.append("\") VALUES (").append(params.toString()).append(")").toString();

@@ -12,6 +12,8 @@ import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.model.ConnectionTypeResponse;
 import com.maxmind.geoip2.model.IspResponse;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -29,10 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
-import static org.rakam.collection.mapper.geoip.GeoIPModuleConfig.SourceType.ip_field;
-import static org.rakam.collection.mapper.geoip.GeoIPModuleConfig.SourceType.request_ip;
 
 
 public class GeoIPEventMapper implements EventMapper {
@@ -99,8 +98,6 @@ public class GeoIPEventMapper implements EventMapper {
         this.cityLookup = cityLookup;
         this.ispLookup = ispLookup;
         this.connectionTypeLookup = connectionTypeLookup;
-
-        checkState(config.getSource() == ip_field || config.getSource() == request_ip, "source is not supported");
     }
 
     private DatabaseReader getLookup(String url) {
@@ -113,38 +110,28 @@ public class GeoIPEventMapper implements EventMapper {
     }
 
     @Override
-    public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
-        GenericRecord properties = event.properties();
+    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+        Object ip = event.properties().get("_ip");
 
-        InetAddress address;
-        if (config.getSource() == ip_field) {
-            String ip = (String) properties.get("ip");
-            if (ip == null) {
-                return null;
-            }
+        if((ip instanceof String)) {
             try {
                 // it may be slow because java performs reverse hostname lookup.
-                address = Inet4Address.getByName(ip);
+                sourceAddress = Inet4Address.getByName((String) ip);
             } catch (UnknownHostException e) {
                 return null;
             }
-        } else if (config.getSource() == request_ip) {
-            address = sourceAddress;
-        } else {
-            throw new IllegalStateException("source is not supported");
         }
 
-
         if (connectionTypeLookup != null) {
-            setConnectionType(address, properties);
+            setConnectionType(sourceAddress, event.properties());
         }
 
         if (ispLookup != null) {
-            setIsp(address, properties);
+            setIsp(sourceAddress, event.properties());
         }
 
         if (cityLookup != null) {
-            setGeoFields(address, properties);
+            setGeoFields(sourceAddress, event.properties());
         }
 
         return null;
@@ -164,16 +151,7 @@ public class GeoIPEventMapper implements EventMapper {
             fields.add(new SchemaField("connection_type", FieldType.STRING, true));
         }
 
-        switch (config.getSource()) {
-            case request_ip:
-                builder.addFields(fields);
-                break;
-            case ip_field:
-                builder.addFields("ip", fields);
-                break;
-            default:
-                throw new IllegalStateException();
-        }
+        builder.addFields("_ip", fields);
     }
 
     private static FieldType getType(String attr) {
@@ -183,6 +161,7 @@ public class GeoIPEventMapper implements EventMapper {
             case "region":
             case "city":
             case "timezone":
+            case "isp":
                 return FieldType.STRING;
             case "latitude":
             case "longitude":

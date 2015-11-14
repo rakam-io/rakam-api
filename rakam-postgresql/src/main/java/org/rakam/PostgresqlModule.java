@@ -16,6 +16,7 @@ import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.analysis.postgresql.PostgresqlEventStore;
 import org.rakam.analysis.postgresql.PostgresqlMaterializedViewService;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
@@ -36,6 +37,7 @@ import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
 import java.net.URISyntaxException;
+import java.util.List;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="postgresql")
@@ -146,18 +148,30 @@ public class PostgresqlModule extends RakamModule {
         }
     }
 
-    private class CollectionFieldIndexerListener {
+    private static class CollectionFieldIndexerListener {
         private final PostgresqlQueryExecutor executor;
 
+        @Inject
         public CollectionFieldIndexerListener(PostgresqlQueryExecutor executor) {
             this.executor = executor;
         }
 
         @Subscribe
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            executor.executeRawQuery(String.format("CREATE INDEX %s_%s_auto_index ON %s.%s",
-                    event.project, event.collection,
-                    event.project, event.collection));
+            onCreateCollectionFields(event.project, event.collection, event.fields);
+        }
+
+        @Subscribe
+        public void onCreateCollectionFields(SystemEvents.CollectionFieldCreatedEvent event) {
+            onCreateCollectionFields(event.project, event.collection, event.fields);
+        }
+
+        public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
+            for (SchemaField field : fields) {
+                executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.%s(%s)",
+                        project, collection, field.getName(),
+                        project, collection, field.getName()));
+            }
         }
     }
 }

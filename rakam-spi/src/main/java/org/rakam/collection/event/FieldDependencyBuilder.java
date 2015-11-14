@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.rakam.collection.SchemaField;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +17,7 @@ import static com.google.common.collect.Sets.newHashSet;
 
 public class FieldDependencyBuilder {
     private final List<SchemaField> constantFields = Lists.newArrayList();
+    private final List<String> ignoredFields = new ArrayList<>();
     private final Map<String, List<SchemaField>> dependentFields = Maps.newHashMap();
 
     public void addFields(List<SchemaField> fields) {
@@ -23,9 +25,9 @@ public class FieldDependencyBuilder {
         constantFields.addAll(fields);
     }
 
-    public void addFields(String dependentFieldName, List<SchemaField> fields) {
+    public void addFields(String dependentField, List<SchemaField> fields) {
         checkFields(fields);
-        dependentFields.put(dependentFieldName, fields);
+        dependentFields.put(dependentField, fields);
     }
 
     private void checkFields(List<SchemaField> fields) {

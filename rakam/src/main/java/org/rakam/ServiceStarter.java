@@ -6,6 +6,7 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.matcher.Matchers;
@@ -22,6 +23,7 @@ import io.swagger.models.Tag;
 import org.rakam.analysis.ContinuousQueryHttpService;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.event.EventCollectionHttpService;
+import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
 import org.rakam.plugin.AbstractUserService;
@@ -35,6 +37,7 @@ import org.rakam.report.QueryHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 
+import javax.inject.Inject;
 import java.time.Clock;
 import java.util.ServiceLoader;
 import java.util.Set;
@@ -85,10 +88,29 @@ public class ServiceStarter {
         return builder.build();
     }
 
+    public static class FieldDependencyProvider implements Provider<FieldDependencyBuilder.FieldDependency> {
+
+        private final Set<EventMapper> eventMappers;
+
+        @Inject
+        public FieldDependencyProvider(Set<EventMapper> eventMappers) {
+            this.eventMappers = eventMappers;
+        }
+
+        @Override
+        public FieldDependencyBuilder.FieldDependency get() {
+            FieldDependencyBuilder builder = new FieldDependencyBuilder();
+            eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
+            return builder.build();
+        }
+    }
+
     public static class ServiceRecipe extends AbstractConfigurationAwareModule {
         @Override
         protected void setup(Binder binder) {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
+
+            binder.bind(FieldDependencyBuilder.FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
             Multibinder.newSetBinder(binder, EventMapper.class);
             Multibinder.newSetBinder(binder, InjectionHook.class);
@@ -119,6 +141,7 @@ public class ServiceStarter {
             httpServices.addBinding().to(EventCollectionHttpService.class);
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
+
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
 

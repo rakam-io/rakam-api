@@ -20,7 +20,6 @@ import javax.inject.Inject;
 import java.util.Map;
 
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
-import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CATALOG_NAME;
 
 public class PrestoEventExplorer extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
@@ -38,14 +37,7 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
             .build();
 
     @Inject
-    public PrestoEventExplorer(PrestoQueryExecutor executor, Metastore metastore) {
-        super(executor, metastore, timestampMapping, "from_unixtime");
-    }
-
-
-    @Override
-    public String getContinuousTableName(String project, String collection) {
-        return String.format("%s.%.%s",
-                PRESTO_STREAMING_CATALOG_NAME, project, collection);
+    public PrestoEventExplorer(QueryExecutorService service, PrestoQueryExecutor executor, Metastore metastore) {
+        super(executor, service, metastore, timestampMapping, "from_unixtime");
     }
 }

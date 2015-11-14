@@ -2,6 +2,8 @@ package org.rakam.module.website;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -12,6 +14,7 @@ import ua_parser.Parser;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.List;
 import java.util.Map;
 
 public class UserAgentEventMapper implements EventMapper {
@@ -26,28 +29,57 @@ public class UserAgentEventMapper implements EventMapper {
     }
 
     @Override
-    public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
-        Object user_agent = event.properties().get("user_agent");
-        if(user_agent != null) {
-            Client parsed = uaParser.parse((String) user_agent);
-            event.properties().put("user_agent_family", parsed.userAgent.family);
-            event.properties().put("user_agent_version", parsed.userAgent.minor + " / " + parsed.userAgent.major);
-            event.properties().put("os", parsed.os.family);
-            event.properties().put("os_version", parsed.os.minor + " / " + parsed.os.major);
-            event.properties().put("device_family", parsed.device.family);
+    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+        Object agent = event.properties().get("_user_agent");
 
-            event.properties().put("user_agent", null);
+        String userAgent = null;
+        if(agent instanceof Boolean) {
+            Boolean user_agent = (Boolean) event.properties().get("_user_agent");
+
+            if (user_agent == null || !user_agent.booleanValue()) {
+                return null;
+            }
+
+            for (Map.Entry<String, String> extraProperty : extraProperties) {
+                if (extraProperty.getKey().equals("User-Agent")) {
+                    userAgent = extraProperty.getValue();
+                    break;
+                }
+            }
+        } else {
+            userAgent = (String) agent;
+        }
+
+        if(userAgent != null) {
+            Client parsed = uaParser.parse(userAgent);
+            event.properties().put("user_agent_family", parsed.userAgent.family);
+            Long major1;
+            try {
+                major1 = Long.parseLong(parsed.userAgent.major);
+            } catch (Exception e) {
+                major1 = null;
+            }
+            event.properties().put("user_agent_version", major1);
+            event.properties().put("os", parsed.os.family);
+            Long major;
+            try {
+                major = Long.parseLong(parsed.os.major);
+            } catch (Exception e) {
+                major = null;
+            }
+            event.properties().put("os_version", major);
+            event.properties().put("device_family", parsed.device.family);
         }
         return null;
     }
 
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
-        builder.addFields("user_agent", ImmutableList.of(
+        builder.addFields("_user_agent", ImmutableList.of(
                 new SchemaField("user_agent_family", FieldType.STRING, true),
-                new SchemaField("user_agent_version", FieldType.STRING, true),
+                new SchemaField("user_agent_version", FieldType.LONG, true),
                 new SchemaField("os", FieldType.STRING, true),
-                new SchemaField("os_version", FieldType.STRING, true),
+                new SchemaField("os_version", FieldType.LONG, true),
                 new SchemaField("device_family", FieldType.STRING, true)
         ));
     }

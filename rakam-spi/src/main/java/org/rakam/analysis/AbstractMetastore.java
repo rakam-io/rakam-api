@@ -6,11 +6,12 @@ import com.google.common.eventbus.EventBus;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.SystemEvents;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -18,13 +19,8 @@ public abstract class AbstractMetastore implements Metastore {
     private final FieldDependencyBuilder.FieldDependency moduleFields;
     private final EventBus eventBus;
 
-    public AbstractMetastore(Set<EventMapper> eventMappers, EventBus eventBus) {
-        // TODO: get all collections of the projects and check there is a collision between existing fields in collections
-        // TODO: and fields that are added by installed modules
-        FieldDependencyBuilder builder = new FieldDependencyBuilder();
-        eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
-
-        this.moduleFields = builder.build();
+    public AbstractMetastore(FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus) {
+        this.moduleFields = fieldDependency;
         this.eventBus = eventBus;
     }
 
@@ -32,21 +28,31 @@ public abstract class AbstractMetastore implements Metastore {
         eventBus.post(new SystemEvents.ProjectCreatedEvent(project));
     }
 
-    protected void onCreateCollection(String project, String collection) {
-        eventBus.post(new SystemEvents.CollectionCreatedEvent(project, collection));
+    protected void onCreateCollection(String project, String collection, List<SchemaField> fields) {
+        eventBus.post(new SystemEvents.CollectionCreatedEvent(project, collection, fields));
+    }
+
+    protected void onCreateCollectionField(String project, String collection, List<SchemaField> fields) {
+        eventBus.post(new SystemEvents.CollectionFieldCreatedEvent(project, collection, fields));
     }
 
     protected void checkExistingSchema() {
         getProjects().forEach(project ->
                 getCollections(project).forEach((collection, fields) -> {
-                    List<SchemaField> collect = moduleFields.constantFields.stream()
+                    Set<SchemaField> collect = moduleFields.constantFields.stream()
                             .filter(constant ->
                                     !fields.stream()
-                                            .anyMatch(existing -> check(constant, existing))).collect(Collectors.toList());
+                                            .anyMatch(existing -> check(project, constant, existing)))
+                            .collect(Collectors.toSet());
+
+                    moduleFields.dependentFields.entrySet().stream().map(Map.Entry::getValue)
+                            .forEach(values ->
+                                    values.stream().forEach(value ->
+                                            fields.stream().forEach(field -> check(project, field, value))));
 
                     fields.forEach(field -> moduleFields.dependentFields.getOrDefault(field.getName(), ImmutableList.of()).stream()
                             .filter(dependentField -> !fields.stream()
-                                    .anyMatch(existing -> check(existing, dependentField)))
+                                    .anyMatch(existing -> check(project, existing, dependentField)))
                             .forEach(collect::add));
 
                     if(!collect.isEmpty()) {
@@ -59,12 +65,12 @@ public abstract class AbstractMetastore implements Metastore {
                 }));
     }
 
-    private boolean check(SchemaField existing, SchemaField moduleField) {
+    private boolean check(String project, SchemaField existing, SchemaField moduleField) {
         if(existing.getName().equals(moduleField.getName())) {
             if (!existing.getType().equals(moduleField.getType())) {
-                throw new IllegalStateException(String.format("Module field '%s' type does not match existing field in event. Existing type: %s, Module field type: %s. \n" +
+                throw new IllegalStateException(String.format("Module field '%s' type does not match existing field in event of project %s. Existing type: %s, Module field type: %s. \n" +
                                 "Please change the schema manually of disable the module.",
-                        existing.getName(), existing.getType(), moduleField.getType()));
+                        existing.getName(), project, existing.getType(), moduleField.getType()));
             }
             return true;
         }
@@ -72,28 +78,29 @@ public abstract class AbstractMetastore implements Metastore {
     }
 
     @Override
-    public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, List<SchemaField> fields) throws ProjectNotExistsException {
+    public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
         moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
         moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
         return getOrCreateCollectionFields(project, collection.toLowerCase(Locale.ENGLISH), fields);
     }
 
-    public abstract List<SchemaField> getOrCreateCollectionFields(String project, String collection, List<SchemaField> fields);
+    public abstract List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields);
 
-    private void addConditionalModuleField(List<SchemaField> fields, String fieldName, List<SchemaField> newFields) {
-        if (fields.stream().anyMatch(f -> f.getName().equals(fieldName))) {
+    private void addConditionalModuleField(Set<SchemaField> fields, String field, List<SchemaField> newFields) {
+        if (fields.stream().anyMatch(f -> f.getName().equals(field))) {
             newFields.forEach(newField -> addModuleField(fields, newField));
         }
     }
 
-    private void addModuleField(List<SchemaField> fields, SchemaField newField) {
-        for (int i = 0; i < fields.size(); i++) {
-            SchemaField field = fields.get(i);
+    private void addModuleField(Set<SchemaField> fields, SchemaField newField) {
+        Iterator<SchemaField> iterator = fields.iterator();
+        while(iterator.hasNext()) {
+            SchemaField field = iterator.next();
             if(field.getName().equals(newField.getName())) {
                 if(field.getType().equals(newField.getType())) {
                     return;
                 }else {
-                    fields.remove(i);
+                    iterator.remove();
                     break;
                 }
             }

@@ -9,9 +9,10 @@ import kafka.common.FailedToSendMessageException;
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.RecordGenericRecordWriter;
 import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -20,11 +21,13 @@ import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.rakam.collection.Event;
+import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -41,6 +44,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
     private final Producer<byte[], byte[]> producer;
     private final long updateInterval;
+    private final Set<String> sourceFields;
     ScheduledExecutorService executorService;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
@@ -51,8 +55,9 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     };
 
     @Inject
-    public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config) {
+    public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config, FieldDependencyBuilder.FieldDependency dependency) {
         config = checkNotNull(config, "config is null");
+        this.sourceFields = dependency.dependentFields.keySet();
 
         Properties props = new Properties();
         props.put("metadata.broker.list", config.getNodes().stream().map(HostAndPort::toString).collect(Collectors.joining(",")));
@@ -79,7 +84,7 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
     @Override
     public void store(Event event) {
-        DatumWriter writer = new GenericDatumWriter(event.properties().getSchema());
+        GenericDatumWriter writer = new RecordGenericRecordWriter(event.properties().getSchema(), GenericData.get(), sourceFields);
         KByteArrayOutputStream out = buffer.get();
 
         int startPosition = out.position();

@@ -9,6 +9,7 @@ import org.rakam.plugin.MaterializedViewService;
 import org.rakam.ui.JDBCReportMetadata;
 
 import javax.inject.Inject;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -65,7 +66,7 @@ public class RecipeHandler {
 
         recipe.getCollections().forEach((collectionName, schema) -> {
             try {
-                metastore.getOrCreateCollectionFieldList(project, collectionName, schema.getColumns());
+                metastore.getOrCreateCollectionFieldList(project, collectionName, new HashSet<>(schema.getColumns()));
             } catch (ProjectNotExistsException e) {
                 throw Throwables.propagate(e);
             }

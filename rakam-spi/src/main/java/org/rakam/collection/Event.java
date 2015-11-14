@@ -2,22 +2,35 @@ package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.auto.value.AutoValue;
 import org.apache.avro.generic.GenericRecord;
 
 
-@AutoValue
-public abstract class Event {
-    @JsonProperty
-    public abstract String project();
-    @JsonProperty
-    public abstract String collection();
-    @JsonProperty
-    public abstract GenericRecord properties();
+public class Event {
+
+    private final String project;
+    private final String collection;
+    private final GenericRecord properties;
 
     @JsonCreator
-    public static Event create(@JsonProperty("project") String project, @JsonProperty("collection") String collection, @JsonProperty("properties") GenericRecord properties) {
-        return new AutoValue_Event(project, collection.toLowerCase(), properties);
+    public Event(@JsonProperty("project") String project, @JsonProperty("collection") String collection, @JsonProperty("properties") GenericRecord properties) {
+        this.project = project;
+        this.collection = collection;
+        this.properties = properties;
+    }
+
+    @JsonProperty
+    public String project() {
+        return project;
+    }
+
+    @JsonProperty
+    public String collection() {
+        return collection;
+    }
+
+    @JsonProperty
+    public GenericRecord properties() {
+        return properties;
     }
 
     public <T> T getAttribute(String attr) {

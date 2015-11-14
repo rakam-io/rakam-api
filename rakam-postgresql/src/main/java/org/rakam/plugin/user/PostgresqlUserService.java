@@ -38,7 +38,7 @@ public class PostgresqlUserService extends AbstractUserService {
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_user")))
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
                 .map(entry ->
-                        format("select '%s' as collection, row_to_json(coll) json, _time from %s.%s coll where \"_user\" = %s",
+                        format("select '%s' as collection, row_to_json(coll) json, _time from %s.%s coll where \"_user\" = '%s'",
                                 entry.getKey(), project, entry.getKey(), user))
                 .collect(Collectors.joining(" union all "));
         if(sqlQuery.isEmpty()) {

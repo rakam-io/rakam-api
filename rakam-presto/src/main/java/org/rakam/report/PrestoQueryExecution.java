@@ -67,7 +67,7 @@ public class PrestoQueryExecution implements QueryExecution {
             case StandardTypes.BIGINT:
                 return FieldType.LONG;
             case StandardTypes.ARRAY:
-                return FieldType.ARRAY;
+                return FieldType.ARRAY_STRING;
             case StandardTypes.BOOLEAN:
                 return FieldType.BOOLEAN;
             case StandardTypes.DATE:

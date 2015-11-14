@@ -1,7 +1,5 @@
 package org.rakam.collection.kafka;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.CollectionStreamQuery;
@@ -11,7 +9,6 @@ import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
 
 import javax.inject.Inject;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -132,26 +129,28 @@ public class KafkaStream implements EventStream {
 
     }
 
-    private Object convertPrestoValue(FieldType type, Object o) {
-        switch (type) {
-            case DATE:
-                return format("date '%s'", o);
-            case TIME:
-                return format("time '%s'", o);
-            case STRING:
-                return format("'%s'", o);
-            case LONG:
-                return format("%d", o);
-            case DOUBLE:
-                return format("%f", o);
-            case BOOLEAN:
-                return format("%b", o);
-            case ARRAY:
-                return format("ARRAY [%s]", com.google.common.base.Joiner.on(", ").join(((ArrayNode) o)));
-            default:
-                throw new IllegalStateException();
-
-        }
-    }
+//    private Object convertPrestoValue(FieldType type, Object o) {
+//        switch (type) {
+//            case DATE:
+//                return format("date '%s'", o);
+//            case TIME:
+//                return format("time '%s'", o);
+//            case TIMESTAMP:
+//                return format("time '%s'", o);
+//            case STRING:
+//                return format("'%s'", o);
+//            case LONG:
+//                return format("%d", o);
+//            case DOUBLE:
+//                return format("%f", o);
+//            case BOOLEAN:
+//                return format("%b", o);
+//            case ARRAY_STRING:
+//                return format("ARRAY [%s]", com.google.common.base.Joiner.on(", ").join(((ArrayNode) o)));
+//            default:
+//                throw new IllegalStateException();
+//
+//        }
+//    }
 
 }

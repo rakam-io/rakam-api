@@ -26,7 +26,7 @@ public class RealTimeModule extends RakamModule {
         multiBinder.addBinding().to(RealTimeHttpService.class);
 
         Multibinder<EventMapper> mappers = Multibinder.newSetBinder(binder, EventMapper.class);
-        mappers.addBinding().to(TimestampEventMapper.class);
+        mappers.permitDuplicates().addBinding().to(TimestampEventMapper.class);
 
         Multibinder.newSetBinder(binder, Tag.class).addBinding()
                 .toInstance( new Tag().name("realtime").description("")

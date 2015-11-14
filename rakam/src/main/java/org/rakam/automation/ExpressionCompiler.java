@@ -4,10 +4,12 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.LikePredicate;
 import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
+import com.facebook.presto.sql.tree.StringLiteral;
 import com.google.common.base.Throwables;
 import net.openhft.compiler.CompilerUtils;
 import org.rakam.collection.Event;
@@ -17,7 +19,7 @@ import java.util.function.Predicate;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class ExpressionCompiler {
-    public static Predicate<Event> compile(String expressionStr) {
+    public static Predicate<Event> compile(String expressionStr) throws UnsupportedOperationException {
         final Expression expression = new SqlParser().createExpression(expressionStr);
         final String javaExp = new JavaSourceAstVisitor().process(expression, false);
         String className = "org.rakam.automation.compiled.Predicate1";
@@ -54,6 +56,48 @@ public class ExpressionCompiler {
         private String formatBinaryExpression(String operator, Expression left, Expression right, boolean unmangleNames)
         {
             return '(' + process(left, unmangleNames) + ' ' + operator + ' ' + process(right, unmangleNames) + ')';
+        }
+
+        @Override
+        protected String visitLikePredicate(LikePredicate node, Boolean context) {
+            StringBuilder builder = new StringBuilder();
+            // TODO: handle this in a proper way.
+            if(!(node.getPattern() instanceof StringLiteral)) {
+                throw new UnsupportedOperationException();
+            }
+
+            String value = ((StringLiteral) node.getPattern()).getValue();
+
+            String process = process(node.getValue(), context);
+            builder.append('(')
+                    .append(process).append(" instanceof String && ((String) ").append(process).append(").");
+
+            boolean starts = false;
+            boolean ends = false;
+            int length = value.length();
+            for (int i = -1; (i = value.indexOf('%', i + 1)) != -1; ) {
+                if(i == 0) starts = true;
+                else if(i + 1 == length) ends = true;
+                else throw new UnsupportedOperationException();
+            }
+
+            if(starts && ends) {
+                builder.append("contains(\"").append(value.substring(1, length - 1)).append("\")");
+            } else
+            if(ends) {
+                builder.append("endsWith(\"").append(value.substring(0, length - 1)).append("\")");
+            } else
+            if(starts) {
+                builder.append("startsWith(\"").append(value.substring(1, length - 2)).append("\")");
+            }
+
+            if (node.getEscape() != null) {
+                throw new UnsupportedOperationException();
+            }
+
+            builder.append(')');
+
+            return builder.toString();
         }
 
         @Override

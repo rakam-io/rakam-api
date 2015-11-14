@@ -13,7 +13,9 @@
  */
 package org.rakam.plugin;
 
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -24,6 +26,7 @@ import org.rakam.util.RakamException;
 import java.net.InetAddress;
 import java.time.Instant;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.of;
@@ -32,11 +35,12 @@ public class TimestampEventMapper implements EventMapper {
     private static final String TIME_EXTRA_PROPERTY = "Upload-Time";
 
     @Override
-    public Iterable<Map.Entry<String, String>> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress) {
+    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
         GenericRecord properties = event.properties();
         Object time = properties.get("_time");
-        long serverTime = Instant.now().getEpochSecond();
         if (time == null) {
+            long serverTime = Instant.now().getEpochSecond();
+
             properties.put("_time", serverTime);
         } else {
             Iterator<Map.Entry<String, String>> it = extraProperties.iterator();
@@ -50,9 +54,11 @@ public class TimestampEventMapper implements EventMapper {
                         throw new RakamException("Time checksum 'Upload-Time' has invalid value", HttpResponseStatus.UNAUTHORIZED);
                     }
                     if (time instanceof Number) {
+                        long serverTime = Instant.now().getEpochSecond();
+
                         // match server time and client time and get an estimate
                         long gap = serverTime - clientUploadTime;
-                        properties.put("_time", ((int) time) + gap);
+                        properties.put("_time", ((Number) time).longValue() + gap);
                     }
                     break;
                 }
@@ -64,5 +70,17 @@ public class TimestampEventMapper implements EventMapper {
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
         builder.addFields(of(new SchemaField("_time", FieldType.LONG, false)));
+    }
+
+    @Override
+    public int hashCode() {
+        return HASHCODE;
+    }
+
+    private static final int HASHCODE = TimestampEventMapper.class.getName().hashCode();
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof TimestampEventMapper;
     }
 }

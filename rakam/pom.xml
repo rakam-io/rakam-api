@@ -65,6 +65,11 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
+            <artifactId>rakam-mapper-website</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.rakam</groupId>
             <artifactId>rakam-spi</artifactId>
             <version>${project.version}</version>
         </dependency>

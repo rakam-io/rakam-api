@@ -36,9 +36,11 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private final Metastore metastore;
     private final Map<EventExplorer.TimestampTransformation, String> timestampMapping;
     private final String epochTimestampFunctionName;
+    private final QueryExecutorService service;
 
-    public AbstractEventExplorer(QueryExecutor executor,  Metastore metastore, Map<TimestampTransformation, String> timestampMapping, String epochTimestampFunctionName) {
+    public AbstractEventExplorer(QueryExecutor executor, QueryExecutorService service, Metastore metastore, Map<TimestampTransformation, String> timestampMapping, String epochTimestampFunctionName) {
         this.executor = executor;
+        this.service = service;
         this.metastore = metastore;
         this.timestampMapping = timestampMapping;
         this.epochTimestampFunctionName = epochTimestampFunctionName;
@@ -144,7 +146,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         String computeQuery;
         if (collections.size() == 1) {
-            computeQuery = format("select %s %s agg from %s where %s group by %s",
+            computeQuery = format("select %s %s as value from %s where %s group by %s",
                     select.isEmpty() ? select : select + ",",
                     format(measureAgg, measureColumn),
                     executor.formatTableReference(project, QualifiedName.of(collections.get(0))),
@@ -160,7 +162,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     .map(collection -> format("select %s, %s from %s where %s", select, measureColumn,
                             executor.formatTableReference(project, QualifiedName.of(collection)), where))
                     .collect(Collectors.joining(" union ")) + ")";
-            computeQuery = format("select %s %s(%s) as agg from %s group by %s",
+            computeQuery = format("select %s %s(%s) as value from %s group by %s",
                     select.isEmpty() ? "" : selectPart + ",",
                     format(measureAgg, measureColumn),
                     queries,
@@ -286,26 +288,24 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             query = format("select collection, %s, total from (", format(timestampMapping.get(aggregationMethod), "time")) +
                     collectionNames.stream()
                             .map(collection ->
-                                    format("select '%s' as collection, %s(time*3600) as time, total from %s ",
+                                    format("select '%s' as collection, %s(time*3600) as time, total from continuous.\"%s\" ",
                                             collection,
                                             epochTimestampFunctionName,
-                                            getContinuousTableName(project, "_total_"+collection)))
+                                            "_total_"+collection))
                             .collect(Collectors.joining(" union "))+
                     format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
                     .map(collection ->
-                            format("select '%s' as collection, sum(total) from %s where time between to_unixtime(date '%s')/3600 and to_unixtime(date '%s' + interval '1' day)/3600",
+                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between to_unixtime(date '%s')/3600 and to_unixtime(date '%s' + interval '1' day)/3600",
                                     collection,
-                                    getContinuousTableName(project, "_total_"+collection),
+                                    "_total_"+collection,
                                     startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
                     .collect(Collectors.joining(" union "));
         }
 
-        return executor.executeRawQuery(query).getResult();
+        return service.executeQuery(project, query, 5000).getResult();
     }
-
-    public abstract String getContinuousTableName(String project, String collection);
 
     @Override
     public List<String> getExtraDimensions(String project) {
