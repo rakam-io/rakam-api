@@ -29,12 +29,12 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/add")
-    public JsonResponse add(@ParamBody UserAutomationService.AutomationRule rule) {
+    public JsonResponse add(@ParamBody AutomationRule rule) {
         service.add(rule);
         return JsonResponse.success();
     }
 
-    @ApiOperation(value = "Remove scenario",
+    @ApiOperation(value = "Remove rule",
             authorizations = @Authorization(value = "master_key")
     )
     @JsonRequest
@@ -44,12 +44,32 @@ public class AutomationHttpService extends HttpService {
         return JsonResponse.success();
     }
 
+    @ApiOperation(value = "Deactivate rule",
+            authorizations = @Authorization(value = "master_key")
+    )
+    @JsonRequest
+    @Path("/deactivate")
+    public JsonResponse deactivate(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+        service.deactivate(project, id);
+        return JsonResponse.success();
+    }
+
+    @ApiOperation(value = "Activate rule",
+            authorizations = @Authorization(value = "master_key")
+    )
+    @JsonRequest
+    @Path("/activate")
+    public JsonResponse activate(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+        service.activate(project, id);
+        return JsonResponse.success();
+    }
+
     @ApiOperation(value = "List scenarios",
             authorizations = @Authorization(value = "master_key")
     )
     @JsonRequest
     @Path("/list")
-    public List<UserAutomationService.AutomationRule> list(@ApiParam(name="project") String project) {
+    public List<AutomationRule> list(@ApiParam(name="project") String project) {
         return service.list(project);
     }
 }

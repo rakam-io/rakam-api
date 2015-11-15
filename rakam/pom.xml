@@ -280,6 +280,7 @@
 
                             <ignoredUnusedDeclaredDependencies>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip</ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-website</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto-kafka</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql</ignoredUnusedDeclaredDependency>

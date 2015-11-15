@@ -13,6 +13,7 @@ import com.maxmind.geoip2.model.ConnectionTypeResponse;
 import com.maxmind.geoip2.model.IspResponse;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
@@ -28,7 +29,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
@@ -110,7 +110,7 @@ public class GeoIPEventMapper implements EventMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
         Object ip = event.properties().get("_ip");
 
         if((ip instanceof String)) {

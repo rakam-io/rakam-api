@@ -3,6 +3,7 @@ package org.rakam.automation;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
@@ -39,8 +40,8 @@ public class AutomationEventMapper implements EventMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
-        final List<UserAutomationService.AutomationRule> automationRules = service.list(event.project());
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+        final List<AutomationRule> automationRules = service.list(event.project());
         if (automationRules == null) {
             return null;
         }
@@ -57,7 +58,10 @@ public class AutomationEventMapper implements EventMapper {
 
         ScenarioState[] newStates = null;
         int newIdx = 0;
-        for (UserAutomationService.AutomationRule automationRule : automationRules) {
+        for (AutomationRule automationRule : automationRules) {
+            if (!automationRule.isActive) {
+                continue;
+            }
             int ruleId = automationRule.id;
             ScenarioState state = null;
             if(value != null) {
@@ -82,7 +86,7 @@ public class AutomationEventMapper implements EventMapper {
                 newStates[newIdx++] = state;
             }
 
-            UserAutomationService.ScenarioStep scenarioStep = automationRule.scenarios.get(state.state);
+            AutomationRule.ScenarioStep scenarioStep = automationRule.scenarios.get(state.state);
             if (event.collection().equals(scenarioStep.collection) && scenarioStep.filterPredicate.test(event)) {
 
                 stateChanged |= updateState(scenarioStep, state, event);
@@ -95,7 +99,7 @@ public class AutomationEventMapper implements EventMapper {
                         actions = new ArrayList<>();
                     }
 
-                    for (UserAutomationService.Action action : automationRule.actions) {
+                    for (AutomationRule.Action action : automationRule.actions) {
                         switch (action.type) {
                             case client:
                                 actions.add(action.value);
@@ -147,7 +151,7 @@ public class AutomationEventMapper implements EventMapper {
         return builder.toString();
     }
 
-    private boolean updateState(UserAutomationService.ScenarioStep scenarioStep, ScenarioState state, Event event) {
+    private boolean updateState(AutomationRule.ScenarioStep scenarioStep, ScenarioState state, Event event) {
         switch (scenarioStep.threshold.aggregation) {
             case count:
                 String fieldName = scenarioStep.threshold.fieldName;

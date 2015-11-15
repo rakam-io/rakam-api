@@ -31,8 +31,8 @@ public class ContinuousQuery implements ProjectItem {
     @JsonCreator
     public ContinuousQuery(@ApiParam(name = "project", required = true) String project,
                            @ApiParam(name = "name", value="The name of the continuous query", required = true) String name,
-                           @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true) String tableName,
-                           @ApiParam(name = "table_name", value="The table name of the continuous query that can be used when querying", required = true) String query,
+                           @ApiParam(name = "table_name", value="The table name of the continuous query that can be used when querying", required = true) String tableName,
+                           @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true) String query,
                            @ApiParam(name = "collections", value="The source collections that will be streamed", required = true) List<String> collections,
                            @ApiParam(name = "partition_keys", value="Partition columns of the table", required = false) List<String> partitionKeys,
                            @ApiParam(name = "options", value="Additional information about the continuous query", required = false) Map<String, Object> options)

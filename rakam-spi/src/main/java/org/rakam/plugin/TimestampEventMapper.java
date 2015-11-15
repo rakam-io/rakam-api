@@ -14,6 +14,7 @@
 package org.rakam.plugin;
 
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
@@ -25,9 +26,7 @@ import org.rakam.util.RakamException;
 
 import java.net.InetAddress;
 import java.time.Instant;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.of;
 
@@ -35,7 +34,7 @@ public class TimestampEventMapper implements EventMapper {
     private static final String TIME_EXTRA_PROPERTY = "Upload-Time";
 
     @Override
-    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
         GenericRecord properties = event.properties();
         Object time = properties.get("_time");
         if (time == null) {
@@ -43,25 +42,19 @@ public class TimestampEventMapper implements EventMapper {
 
             properties.put("_time", serverTime);
         } else {
-            Iterator<Map.Entry<String, String>> it = extraProperties.iterator();
-            while (it.hasNext()) {
-                Map.Entry<String, String> next = it.next();
-                if (next.getKey().equals(TIME_EXTRA_PROPERTY)) {
-                    long clientUploadTime;
-                    try {
-                        clientUploadTime = Long.parseLong(next.getValue());
-                    } catch (NumberFormatException e) {
-                        throw new RakamException("Time checksum 'Upload-Time' has invalid value", HttpResponseStatus.UNAUTHORIZED);
-                    }
-                    if (time instanceof Number) {
-                        long serverTime = Instant.now().getEpochSecond();
+            String stringValue = extraProperties.get(TIME_EXTRA_PROPERTY);
+            long clientUploadTime;
+            try {
+                clientUploadTime = Long.parseLong(stringValue);
+            } catch (NumberFormatException e) {
+                throw new RakamException("Time checksum 'Upload-Time' has invalid value", HttpResponseStatus.UNAUTHORIZED);
+            }
+            if (time instanceof Number) {
+                long serverTime = Instant.now().getEpochSecond();
 
-                        // match server time and client time and get an estimate
-                        long gap = serverTime - clientUploadTime;
-                        properties.put("_time", ((Number) time).longValue() + gap);
-                    }
-                    break;
-                }
+                // match server time and client time and get an estimate
+                long gap = serverTime - clientUploadTime;
+                properties.put("_time", ((Number) time).longValue() + gap);
             }
         }
         return null;

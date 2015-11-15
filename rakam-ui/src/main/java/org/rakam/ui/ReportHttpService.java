@@ -48,4 +48,10 @@ public class ReportHttpService extends HttpService {
                       @ApiParam(name="slug", value = "Report name", required = true) String slug) {
         return metadata.get(project, slug);
     }
+
+    @JsonRequest
+    @Path("/update")
+    public Report update(@ParamBody Report report) {
+        return metadata.update(report);
+    }
 }

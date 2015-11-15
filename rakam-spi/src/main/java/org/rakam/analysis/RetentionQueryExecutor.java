@@ -29,6 +29,7 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 
 public interface RetentionQueryExecutor {
     QueryExecution query(String project,
+                         String connectorField,
                          Optional<RetentionAction> firstAction,
                          Optional<RetentionAction> returningAction,
                          DateUnit dateUnit,

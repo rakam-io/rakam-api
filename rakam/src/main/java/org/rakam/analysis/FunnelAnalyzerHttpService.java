@@ -31,6 +31,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Path("/funnel")
 @Api(value = "/funnel", tags = "funnel")
@@ -53,6 +54,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
     public void analyze(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (query) ->
                 funnelQueryExecutor.query(query.project,
+                        query.connectorField,
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
@@ -60,21 +62,24 @@ public class FunnelAnalyzerHttpService extends HttpService {
     }
 
     private static class FunnelQuery {
-        public final @ApiParam(name = "project", required = true) String project;
-        public final @ApiParam(name = "steps", required = true) List<FunnelQueryExecutor.FunnelStep> steps;
-        public final @ApiParam(name = "dimension", required = false) String dimension;
-        public final @ApiParam(name = "startDate", required = true) LocalDate startDate;
-        public final @ApiParam(name = "endDate", required = true) LocalDate endDate;
-        public final @ApiParam(name = "enableOtherGrouping", required = false) boolean enableOtherGrouping;
+        public final String project;
+        public final String connectorField;
+        public final List<FunnelQueryExecutor.FunnelStep> steps;
+        public final String dimension;
+        public final LocalDate startDate;
+        public final LocalDate endDate;
+        public final boolean enableOtherGrouping;
 
         @JsonCreator
         public FunnelQuery(@ApiParam(name="project") String project,
-                            @ApiParam(name="steps") List<FunnelQueryExecutor.FunnelStep> steps,
-                            @ApiParam(name="dimension") String dimension,
-                            @ApiParam(name="startDate") LocalDate startDate,
-                            @ApiParam(name="endDate") LocalDate endDate,
-                            @ApiParam(name="enableOtherGrouping") Boolean enableOtherGrouping) {
+                           @ApiParam(name = "connector_field") String connectorField,
+                           @ApiParam(name="steps") List<FunnelQueryExecutor.FunnelStep> steps,
+                           @ApiParam(name="dimension") String dimension,
+                           @ApiParam(name="startDate") LocalDate startDate,
+                           @ApiParam(name="endDate") LocalDate endDate,
+                           @ApiParam(name="enableOtherGrouping") Boolean enableOtherGrouping) {
             this.project = project;
+            this.connectorField = checkTableColumn(connectorField, "connector field");
             this.enableOtherGrouping = enableOtherGrouping == null ? false : enableOtherGrouping.booleanValue();
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;

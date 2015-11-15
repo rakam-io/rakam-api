@@ -36,7 +36,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
+    public QueryExecution query(String project, String connectorField, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(project, i, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));

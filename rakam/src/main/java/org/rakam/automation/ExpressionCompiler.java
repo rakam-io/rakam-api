@@ -4,6 +4,8 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.IsNotNullPredicate;
+import com.facebook.presto.sql.tree.IsNullPredicate;
 import com.facebook.presto.sql.tree.LikePredicate;
 import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LogicalBinaryExpression;
@@ -145,6 +147,15 @@ public class ExpressionCompiler {
             }
         }
 
+        @Override
+        protected String visitIsNotNullPredicate(IsNotNullPredicate node, Boolean context) {
+            return process(node.getValue(), context) + " != null";
+        }
+
+        @Override
+        protected String visitIsNullPredicate(IsNullPredicate node, Boolean context) {
+            return process(node.getValue(), context) + " == null";
+        }
 
         @Override
         protected String visitNode(Node node, Boolean context) {

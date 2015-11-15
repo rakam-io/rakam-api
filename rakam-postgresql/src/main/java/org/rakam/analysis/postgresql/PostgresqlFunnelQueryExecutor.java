@@ -36,9 +36,9 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
+    public QueryExecution query(String project, String connectorField, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
         String ctes = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(project, i, steps.get(i), dimension, startDate, endDate))
+                .mapToObj(i -> convertFunnel(project, connectorField, i, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
 
         String query;
@@ -63,7 +63,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         return executor.executeRawQuery("WITH \n"+ ctes + " " + query);
     }
 
-    private String convertFunnel(String project, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    private String convertFunnel(String project, String connectorField, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         String table = project + "." + funnelStep.collection;
         ZoneId utc = ZoneId.of("UTC");
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
@@ -75,7 +75,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
 
         if(idx == 0) {
             return String.format("step%s AS (select %s %s from %s where _time BETWEEN %s and %s %s\n group by 1 %s)",
-                    idx, dimensionColumn, column, table, startTs, endTs,
+                    idx, dimensionColumn, connectorField, table, startTs, endTs,
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
@@ -84,10 +84,8 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
                     "step"+idx, table, "step"+(idx-1), filterExp, startTs,
                     endTs, dimensionColumn.isEmpty() ? "" : "step"+idx+"."+dimensionColumn,
                     dimension.isPresent() ? ", 2" : "",
-                    column);
+                    connectorField);
         }
     }
-
-    private final String column = "session_id";
 }
 

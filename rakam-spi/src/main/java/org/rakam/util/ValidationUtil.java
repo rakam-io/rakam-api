@@ -17,10 +17,11 @@ public class ValidationUtil {
         }
     }
 
-    public static void checkTableColumn(String column, String type) {
+    public static String checkTableColumn(String column, String type) {
         checkNotNull(type, type+" is null");
         if(!column.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
             throw new IllegalArgumentException(type+" is not valid.");
         }
+        return column;
     }
 }

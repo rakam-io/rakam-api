@@ -8,8 +8,6 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
 
-import javax.validation.constraints.Size;
-
 import java.util.Set;
 
 import static com.google.common.collect.Iterables.transform;
@@ -25,7 +23,7 @@ public class KafkaConfig
     private Duration commitInterval = Duration.valueOf("5s");
     private HostAndPort zookeeperNode;
 
-    @Size(min = 1)
+//    @Size(min = 1)
     public Set<HostAndPort> getNodes()
     {
         return nodes;

@@ -27,7 +27,7 @@ public class Recipe {
 
     @JsonCreator
     public Recipe(@ApiParam(name="strategy") Strategy strategy,
-                  @ApiParam(name="project") String project,
+                  @ApiParam(name="project", required = false) String project,
                   @ApiParam(name="collections") Map<String, Collection> collections,
                   @ApiParam(name="materialized_queries") List<MaterializedViewBuilder> materializedQueries,
                   @ApiParam(name="continuous_queries") List<ContinuousQueryBuilder> continuousQueries,

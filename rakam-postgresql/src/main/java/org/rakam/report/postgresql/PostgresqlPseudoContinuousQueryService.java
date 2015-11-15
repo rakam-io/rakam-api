@@ -1,6 +1,7 @@
 package org.rakam.report.postgresql;
 
 import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.inject.Inject;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.SchemaField;
@@ -9,6 +10,7 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryResult;
 
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -28,9 +30,8 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
-
 //        return executor.executeRawQuery(
-//                String.format("CREATE VIEW %s.%s AS %s", report.project, PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX + report.tableName, s))
+//                String.format("CREATE VIEW %s.%s AS %s", report.project, PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX + report.tableName, report.collections))
 //                .getResult();
         database.createContinuousQuery(report);
         return CompletableFuture.completedFuture(QueryResult.empty());
@@ -43,8 +44,8 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
-        return metastore.getViews(project).stream()
-                .collect(Collectors.toMap(c -> c, collection ->
-                        metastore.getCollection(project, collection)));
+        return database.getContinuousQueries(project).stream()
+                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("select * from "+executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")))
+                .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> entry.getValue().getResult().join().getMetadata()));
     }
 }

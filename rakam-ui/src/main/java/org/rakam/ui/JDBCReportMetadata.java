@@ -80,4 +80,20 @@ public class JDBCReportMetadata {
                     .bind("slug", slug).map(mapper).first();
         }
     }
+
+    public Report update(Report report) {
+        try(Handle handle = dbi.open()) {
+            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, options = :options WHERE project = :project AND slug = :slug")
+                    .bind("project", report.project)
+                    .bind("name", report.name)
+                    .bind("query", report.query)
+                    .bind("slug", report.slug)
+                    .bind("options", JsonHelper.encode(report.options, false))
+                    .execute();
+            if(execute == 0) {
+                throw new RakamException("Report does not exist", HttpResponseStatus.BAD_REQUEST);
+            }
+        }
+        return report;
+    }
 }

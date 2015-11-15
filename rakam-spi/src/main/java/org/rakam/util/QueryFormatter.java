@@ -30,6 +30,12 @@ public class QueryFormatter
         this.tableNameMapper = tableNameMapper;
     }
 
+    public static String format(Query query, Function<QualifiedName, String> tableNameMapper) {
+        StringBuilder builder = new StringBuilder();
+        new QueryFormatter(builder, tableNameMapper).process(query, 1);
+        return builder.toString();
+    }
+
     @Override
     protected Void visitQuery(Query node, Integer indent) {
         if (node.getWith().isPresent()) {

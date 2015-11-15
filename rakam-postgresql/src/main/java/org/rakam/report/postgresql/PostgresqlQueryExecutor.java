@@ -47,6 +47,7 @@ import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
+    public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
 
     private final JDBCPoolDataSource connectionPool;
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
@@ -100,7 +101,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                         if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
                             return replaceStream(report);
                         }
-                        throw new IllegalStateException();
+                        return project + "." + name.getSuffix();
                     }).process(report.query, 1);
 
                     return "("+builder.toString()+") as "+name.getSuffix();
@@ -181,7 +182,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     }
                 } catch (Exception e) {
                     QueryError error;
-                    if (e instanceof SQLException) {
+                        if (e instanceof SQLException) {
                         SQLException cause = (SQLException) e;
                         error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), query);
                     } else {

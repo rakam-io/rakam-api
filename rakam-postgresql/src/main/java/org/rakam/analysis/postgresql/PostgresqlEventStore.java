@@ -41,7 +41,7 @@ public class PostgresqlEventStore implements EventStore {
     }
 
     @Override
-    public void storeBatch(Event[] events) {
+    public void storeBatch(List<Event> events) {
         try(Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
             for (Event event : events) {

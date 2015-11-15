@@ -42,7 +42,7 @@ public class SystemRegistryGenerator {
 
                 if (moduleDescriptor.condition.isPresent()) {
                     Condition condition = moduleDescriptor.condition.get();
-                    printWriter.println("#Condition for this plugin to be active:");
+                    printWriter.println("#Condition for this plugin to be is_active:");
 
                     if (condition.expectedValue.isEmpty()) {
                         printWriter.println("#" + condition.property + " property must be set");

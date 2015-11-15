@@ -56,8 +56,14 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
     @Override
     public Event deserialize(JsonParser jp, DeserializationContext ctx) throws IOException {
-        String project = null, collection = null;
+        return deserializeWithProject(jp, null);
+    }
+
+    public Event deserializeWithProject(JsonParser jp, String project) throws IOException {
         GenericData.Record properties = null;
+
+        String collection = null;
+        Event.EventContext context = null;
 
         JsonToken t = jp.getCurrentToken();
         if (t == JsonToken.START_OBJECT) {
@@ -70,10 +76,16 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             switch (fieldName) {
                 case "project":
+                    if(project == null) {
+                        throw new IllegalArgumentException("project is already set");
+                    }
                     project = jp.getValueAsString();
                     break;
                 case "collection":
                     collection = jp.getValueAsString().toLowerCase();
+                    break;
+                case "api":
+                    context = jp.readValueAs(Event.EventContext.class);
                     break;
                 case "properties":
                     if (project == null || collection == null) {
@@ -109,7 +121,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 throw new JsonMappingException("properties is null");
             }
         }
-        return new Event(project, collection, properties);
+        return new Event(project, collection, properties, context);
     }
 
     public Schema convertAvroSchema(List<SchemaField> fields) {
@@ -187,6 +199,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 }
             } else {
                 if(field.schema().getType() == Schema.Type.NULL) {
+                    // TODO: get rid of this loop.
                     for (SchemaField schemaField : sourceFields.get(fieldName)) {
                         if(avroSchema.getField(schemaField.getName()) == null) {
                             if(newFields == null) {

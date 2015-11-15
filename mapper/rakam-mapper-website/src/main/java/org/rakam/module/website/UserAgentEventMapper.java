@@ -3,6 +3,7 @@ package org.rakam.module.website;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -15,7 +16,6 @@ import ua_parser.Parser;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
-import java.util.Map;
 
 public class UserAgentEventMapper implements EventMapper {
     private final Parser uaParser;
@@ -29,10 +29,10 @@ public class UserAgentEventMapper implements EventMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
         Object agent = event.properties().get("_user_agent");
 
-        String userAgent = null;
+        String userAgent;
         if(agent instanceof Boolean) {
             Boolean user_agent = (Boolean) event.properties().get("_user_agent");
 
@@ -40,12 +40,7 @@ public class UserAgentEventMapper implements EventMapper {
                 return null;
             }
 
-            for (Map.Entry<String, String> extraProperty : extraProperties) {
-                if (extraProperty.getKey().equals("User-Agent")) {
-                    userAgent = extraProperty.getValue();
-                    break;
-                }
-            }
+            userAgent = extraProperties.get("User-Agent");
         } else {
             userAgent = (String) agent;
         }

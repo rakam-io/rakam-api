@@ -40,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -85,10 +86,13 @@ public class RealTimeHttpService extends HttpService {
 
         String sqlQuery = new StringBuilder().append("select ")
                 .append(format("(_time / %d) as _time, ", slideInterval.getSeconds()))
-                .append(createSelect(report.aggregation, report.measure, report.dimension))
-                .append(" from stream")
-                .append(report.filter == null ? "" : "where " + report.filter)
-                .append(report.dimension != null ? " group by 1, 2" : " group by 1").toString();
+                .append(createSelect(report.aggregation, report.measure, report.dimensions))
+                .append(" from stream ")
+                .append(report.filter == null ? "" : " where " + report.filter)
+                .append(" group by 1 ")
+                .append(report.dimensions != null ?
+                        IntStream.range(0, report.dimensions.size()).mapToObj(i -> ", "+(i+2)).collect(Collectors.joining("")) : "")
+                .toString();
 
         ContinuousQuery query = new ContinuousQuery(report.project,
                 report.name,
@@ -110,6 +114,7 @@ public class RealTimeHttpService extends HttpService {
     public CompletableFuture<Object> get(@ApiParam(name = "project", required = true) String project,
                                          @ApiParam(name = "table_name", required = true) String tableName,
                                          @ApiParam(name = "filter", required = false) String filter,
+                                         @ApiParam(name = "dimensions", required = false) List<String> dimensions,
                                          @ApiParam(name = "aggregate", required = false) boolean aggregate,
                                          @ApiParam(name = "date_start", required = false) Instant dateStart,
                                          @ApiParam(name = "date_end", required = false) Instant dateEnd) {
@@ -136,11 +141,13 @@ public class RealTimeHttpService extends HttpService {
         Object timeCol = aggregate ? currentWindow : "_time";
         String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol,
-                report.dimension != null ? report.dimension + "," : "",
+                dimensions != null ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
                 aggregate ? getAggregationMethod(report.aggregation) : "",
                 executor.formatTableReference(continuousQuery.project, QualifiedName.of("continuous", continuousQuery.tableName)),
-                format("_time >= %d", previousWindow) + (dateEnd == null ? "" : format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
-                report.dimension != null && aggregate ? "GROUP BY " + report.dimension : "",
+                format("_time >= %d", previousWindow) +
+                        (dateEnd == null ? "" :
+                                format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
+                dimensions != null && aggregate ? "GROUP BY " + dimensions.stream().collect(Collectors.joining(", ")) : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {
@@ -152,7 +159,7 @@ public class RealTimeHttpService extends HttpService {
                 List<List<Object>> data = result.getResult();
 
                 if (!aggregate) {
-                    if (report.dimension == null) {
+                    if (dimensions == null) {
                         List<List<Object>> newData = Lists.newLinkedList();
                         int currentDataIdx = 0;
                         for (long current = previousWindow; current < currentWindow; current++) {
@@ -174,7 +181,7 @@ public class RealTimeHttpService extends HttpService {
                         return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                     }
                 } else {
-                    if (report.dimension == null) {
+                    if (dimensions == null) {
                         return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
                     } else {
                         List<ImmutableList<Object>> newData = data.stream()
@@ -246,7 +253,7 @@ public class RealTimeHttpService extends HttpService {
 
     }
 
-    public String createSelect(AggregationType aggType, String measure, String dimension) {
+    public String createSelect(AggregationType aggType, String measure, List<String> dimensions) {
 
         if (measure == null) {
             if (aggType != AggregationType.COUNT)
@@ -254,8 +261,8 @@ public class RealTimeHttpService extends HttpService {
         }
 
         StringBuilder builder = new StringBuilder();
-        if (dimension != null)
-            builder.append(" " + dimension + ", ");
+        if (dimensions != null)
+            builder.append(" " + dimensions.stream().collect(Collectors.joining(", ")) + ", ");
 
         switch (aggType) {
             case AVERAGE:

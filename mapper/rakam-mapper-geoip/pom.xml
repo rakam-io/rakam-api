@@ -59,6 +59,10 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>netty-rest</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>log</artifactId>
         </dependency>

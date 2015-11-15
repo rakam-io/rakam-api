@@ -14,7 +14,6 @@
 package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
 import org.rakam.report.QueryHttpService;
@@ -28,7 +27,6 @@ import org.rakam.server.http.annotations.Authorization;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -52,6 +50,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
     public void execute(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (query) ->
                 retentionQueryExecutor.query(query.project,
+                        query.connectorField,
                         Optional.ofNullable(query.firstAction),
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
@@ -61,23 +60,30 @@ public class RetentionAnalyzerHttpService extends HttpService {
     }
 
     private static class RetentionQuery {
-        public final @ApiParam(name = "project", required = true) String project;
-        public final @ApiParam(name = "first_action", required = true) RetentionAction firstAction;
-        public final @ApiParam(name = "returning_action", required = true) RetentionAction returningAction;
-        public final @ApiParam(name = "dimension", required = false) String dimension;
-        public final @ApiParam(name = "date_unit", required = false) DateUnit dateUnit;
-        public final @ApiParam(name = "startDate", required = true) LocalDate startDate;
-        public final @ApiParam(name = "endDate", required = true) LocalDate endDate;
+        private final String project;
+        private final String connectorField;
+        private final RetentionAction firstAction;
+        private final RetentionAction returningAction;
+        private final DateUnit dateUnit;
+        private final String dimension;
+        private final LocalDate startDate;
+        private final LocalDate endDate;
 
         @JsonCreator
-        private RetentionQuery(@JsonProperty("project") String project,
-                            @JsonProperty("first_action") RetentionAction firstAction,
-                            @JsonProperty("returning_action") RetentionAction returningAction,
-                            @JsonProperty("date_unit") DateUnit dateUnit,
-                            @JsonProperty("dimension") String dimension,
-                            @JsonProperty("startDate") LocalDate startDate,
-                            @JsonProperty("endDate") LocalDate endDate) {
+        private RetentionQuery(@ApiParam(name = "project") String project,
+
+                               @ApiParam(name = "connector_field") String connectorField,
+
+                               @ApiParam(name = "first_action") RetentionAction firstAction,
+
+                               @ApiParam(name = "returning_action") RetentionAction returningAction,
+
+                               @ApiParam(name = "dimension") String dimension,
+                               @ApiParam(name = "date_unit") DateUnit dateUnit,
+                               @ApiParam(name = "startDate") LocalDate startDate,
+                               @ApiParam(name = "endDate") LocalDate endDate) {
             this.project = project;
+            this.connectorField = connectorField;
             this.firstAction = firstAction;
             this.returningAction = returningAction;
             this.dateUnit = dateUnit;

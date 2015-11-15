@@ -77,19 +77,19 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     "  update_interval BIGINT," +
                     "  last_updated BIGINT," +
                     "  options TEXT," +
-                    "  PRIMARY KEY (project, name)" +
+                    "  PRIMARY KEY (project, table_name)" +
                     "  )")
                     .execute();
             handle.createStatement("CREATE TABLE IF NOT EXISTS continuous_queries (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
+                    "  table_name TEXT," +
                     "  query TEXT NOT NULL," +
                     // in order to support mysql, we use json string instead of array type.
                     "  collections TEXT," +
                     "  partition_keys TEXT," +
-                    "  table_name TEXT," +
                     "  options TEXT," +
-                    "  PRIMARY KEY (project, name)" +
+                    "  PRIMARY KEY (project, table_name)" +
                     "  )")
                     .execute();
         }

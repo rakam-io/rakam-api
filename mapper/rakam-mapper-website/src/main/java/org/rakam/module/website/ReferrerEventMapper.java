@@ -6,6 +6,7 @@ import com.snowplowanalytics.refererparser.CorruptYamlException;
 import com.snowplowanalytics.refererparser.Parser;
 import com.snowplowanalytics.refererparser.Referer;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -17,7 +18,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Map;
 
 public class ReferrerEventMapper implements EventMapper {
 
@@ -32,23 +32,14 @@ public class ReferrerEventMapper implements EventMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, Iterable<Map.Entry<String, String>> extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
         Object referrer = event.properties().get("_referrer");
         Object host = event.properties().get("_host");
 
         String hostUrl, referrerUrl;
         if(referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
-            hostUrl = null;
-            referrerUrl = null;
-            for (Map.Entry<String, String> extraProperty : extraProperties) {
-                if (extraProperty.getKey().equals("Origin")) {
-                    hostUrl = extraProperty.getValue();
-                    continue;
-                }
-                if (extraProperty.getKey().equals("Referer")) {
-                    referrerUrl = extraProperty.getValue();
-                }
-            }
+            hostUrl = extraProperties.get("Origin");
+            referrerUrl = extraProperties.get("Referer");
         } else
         if(referrer instanceof String) {
             referrerUrl = (String) referrer;

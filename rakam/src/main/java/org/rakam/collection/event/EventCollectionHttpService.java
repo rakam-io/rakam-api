@@ -3,6 +3,7 @@ package org.rakam.collection.event;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
@@ -45,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableMap.of;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -64,14 +67,22 @@ public class EventCollectionHttpService extends HttpService {
     private final Metastore metastore;
 
     @Inject
-    public EventCollectionHttpService(EventStore eventStore, EventDeserializer deserializer, Set<EventMapper> mappers, Metastore metastore) {
+    public EventCollectionHttpService(EventStore eventStore, EventDeserializer deserializer, EventListDeserializer eventListDeserializer,  Set<EventMapper> mappers, Metastore metastore) {
         this.eventStore = eventStore;
         this.mappers = mappers;
         this.metastore = metastore;
 
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Event.class, deserializer);
+        module.addDeserializer(EventList.class, eventListDeserializer);
         jsonMapper.registerModule(module);
+
+        jsonMapper.registerModule(new SimpleModule("swagger", Version.unknownVersion()) {
+            @Override
+            public void setupModule(SetupContext context) {
+                context.insertAnnotationIntrospector(new SwaggerJacksonAnnotationIntrospector());
+            }
+        });
     }
 
     private List<Cookie> mapEvent(Event event, HttpHeaders headers, InetAddress socketAddress, DefaultFullHttpResponse response) {
@@ -95,7 +106,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(value = "Collect event", response = Integer.class, request = EventBean.class,
+    @ApiOperation(value = "Collect event", response = Integer.class, request = Event.class,
             authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
@@ -106,22 +117,32 @@ public class EventCollectionHttpService extends HttpService {
         InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
                 .remoteAddress();
         HttpHeaders headers = request.headers();
-        String checksum = headers.get("Content-MD5");
+//        String checksum = headers.get("Content-MD5");
+
 
         request.bodyHandler(buff -> {
-            if (checksum != null && !validateChecksum(request, checksum, buff)) {
-                return;
-            }
-
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
 
             final List<Cookie> cookies;
 
             try {
                 Event event = jsonMapper.readValue(buff, Event.class);
-//                if(validateProjectPermission(event.project(), headers.get("write_key"))) {
-//                    request.response("\"api key is invalid\"", UNAUTHORIZED).end();
-//                }
+
+                Event.EventContext context = event.context();
+
+                if(context == null) {
+                    request.response("\"api key is missing\"", UNAUTHORIZED).end();
+                    return;
+                }
+
+                if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
+                    return;
+                }
+
+                if(validateProjectPermission(event.project(), context.writeKey)) {
+                    request.response("\"api key is invalid\"", UNAUTHORIZED).end();
+                    return;
+                }
 
                 try {
                     cookies = mapEvent(event, headers, socketAddress.getAddress(), response);
@@ -174,7 +195,7 @@ public class EventCollectionHttpService extends HttpService {
         return metastore.checkPermission(project, WRITE_KEY, writeKey);
     }
 
-    static final class ListRequestEventBean extends TypeToken<List<EventBean>> {}
+    static final class ListRequestEventBean extends TypeToken<List<Event>> {}
     static final class ListResponseEventBean extends TypeToken<List<Integer>> {}
 
     @POST
@@ -189,39 +210,39 @@ public class EventCollectionHttpService extends HttpService {
         InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
                 .remoteAddress();
         HttpHeaders headers = request.headers();
-        String checksum = headers.get("Content-MD5");
-        String apiVersion = headers.get("Api-Version");
-        String uploadTime = headers.get("Upload-Time");
-        String writeKey = headers.get("write_key");
+//        String checksum = headers.get("Content-MD5");
+//        String apiVersion = headers.get("Api-Version");
+//        String uploadTime = headers.get("Upload-Time");
+//        String writeKey = headers.get("write_key");
 
         request.bodyHandler(buff -> {
-            if (checksum != null && !validateChecksum(request, checksum, apiVersion+buff+uploadTime)) {
-                return;
-            }
-
             List<Cookie> entries = null;
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
 
             try {
-                Event[] events = jsonMapper.readValue(buff, Event[].class);
+                EventList events = jsonMapper.readValue(buff, EventList.class);
 
-                if(events.length > 0) {
-                    final Event event = events[0];
-                    String project = event.project();
-//                    if(!validateProjectPermission(project, writeKey)) {
-//                        request.response("\"api key is invalid\"", UNAUTHORIZED).end();
-//                        return;
-//                    }
-                    for (int i = 1; i < events.length; i++) {
-                        if(!events[i].project().equals(project)) {
+                Event.EventContext context = events.context;
+                if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
+                    return;
+                }
+
+                if(!validateProjectPermission(events.project, context.writeKey)) {
+                    request.response("\"api key is invalid\"", UNAUTHORIZED).end();
+                    return;
+                }
+
+                if(events.events.size() > 0) {
+                    for (int i = 1; i < events.events.size(); i++) {
+                        if(!events.events.get(i).project().equals(events.project)) {
                             request.response("\"all events must belong to same project. try inserting events one by one.\"", UNAUTHORIZED).end();
                         }
                     }
                 }
 
 
-                for (Event event : events) {
+                for (Event event : events.events) {
                     try {
                         List<Cookie> mapperEntries = mapEvent(event, headers, socketAddress.getAddress(), response);
                         if(mapperEntries != null) {
@@ -238,7 +259,7 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 try {
-                    eventStore.storeBatch(events);
+                    eventStore.storeBatch(events.events);
                 } catch (Exception e) {
                     LOGGER.error(e, "error while storing event.");
                     request.response("0", BAD_REQUEST).end();
@@ -324,20 +345,20 @@ public class EventCollectionHttpService extends HttpService {
         }
     }
 
-    // we use this class only to create model in swagger definition.
-    private static class EventBean {
+    public static class EventList {
         public final String project;
-        public final String collection;
-        public final Map<String, Object> properties;
+        public final List<Event> events;
+        public final Event.EventContext context;
 
         @JsonCreator
-        public EventBean(@ApiParam(name = "project") String project,
-                          @ApiParam(name = "collection") String collection,
-                          @ApiParam(name= "properties") Map<String, Object> properties) {
+        public EventList(@ApiParam(name = "project") String project,
+                         @ApiParam(name = "events") List<Event> events,
+                         @ApiParam(name = "api") Event.EventContext context) {
             this.project = project;
-            this.collection = collection;
-            this.properties = properties;
+            this.events = events;
+            this.context = checkNotNull(context, "api is null");
         }
     }
+
 
 }
