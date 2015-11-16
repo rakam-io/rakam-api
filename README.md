@@ -1,6 +1,5 @@
 [![Stories in Ready](https://badge.waffle.io/buremba/rakam.png?label=ready&title=Ready)](https://waffle.io/buremba/rakam)
 [![Build Status](https://travis-ci.org/buremba/rakam.svg?branch=master)](https://travis-ci.org/buremba/rakam)
-[![Licence](https://img.shields.io/hexpm/l/plug.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Rakam
 =======
