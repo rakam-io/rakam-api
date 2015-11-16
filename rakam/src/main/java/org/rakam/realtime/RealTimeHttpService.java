@@ -21,7 +21,6 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.NotImplementedException;
 import org.rakam.util.RakamException;
@@ -73,6 +72,7 @@ public class RealTimeHttpService extends HttpService {
      * real-time module executes queries on continuous query table similar to 'select count from stream_count where time &gt; now() - interval 5 second'
      *
      * curl 'http://localhost:9999/realtime/create' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection", "aggregation": "COUNT"}'
+     *
      * @param report real-time report
      * @return a future that contains the operation status
      */
@@ -91,7 +91,7 @@ public class RealTimeHttpService extends HttpService {
                 .append(report.filter == null ? "" : " where " + report.filter)
                 .append(" group by 1 ")
                 .append(report.dimensions != null ?
-                        IntStream.range(0, report.dimensions.size()).mapToObj(i -> ", "+(i+2)).collect(Collectors.joining("")) : "")
+                        IntStream.range(0, report.dimensions.size()).mapToObj(i -> ", " + (i + 2)).collect(Collectors.joining("")) : "")
                 .toString();
 
         ContinuousQuery query = new ContinuousQuery(report.project,
@@ -114,6 +114,8 @@ public class RealTimeHttpService extends HttpService {
     public CompletableFuture<Object> get(@ApiParam(name = "project", required = true) String project,
                                          @ApiParam(name = "table_name", required = true) String tableName,
                                          @ApiParam(name = "filter", required = false) String filter,
+                                         @ApiParam(name = "aggregation") AggregationType aggregation,
+                                         @ApiParam(name = "measure", required = false) String measure,
                                          @ApiParam(name = "dimensions", required = false) List<String> dimensions,
                                          @ApiParam(name = "aggregate", required = false) boolean aggregate,
                                          @ApiParam(name = "date_start", required = false) Instant dateStart,
@@ -124,6 +126,8 @@ public class RealTimeHttpService extends HttpService {
         } else {
             expression = null;
         }
+
+        boolean noDimension = dimensions == null || dimensions.size() == 0;
 
         ContinuousQuery continuousQuery = service.get(project, tableName);
         if (continuousQuery == null) {
@@ -136,79 +140,62 @@ public class RealTimeHttpService extends HttpService {
         long previousWindow = (dateStart == null ? (last_update - window.getSeconds()) : dateStart.getEpochSecond()) / 5;
         long currentWindow = (dateEnd == null ? last_update : dateEnd.getEpochSecond()) / 5;
 
-        RealTimeReport report = JsonHelper.convert(continuousQuery.options.get("report"), RealTimeReport.class);
-
         Object timeCol = aggregate ? currentWindow : "_time";
-        String sqlQuery = format("select %s, %s %s(value) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
+        String sqlQuery = format("select %s, %s %s(%s) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol,
-                dimensions != null ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
-                aggregate ? getAggregationMethod(report.aggregation) : "",
+                !noDimension ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
+                aggregation != null ? mapFunction(aggregation) : "",
+                measure == null ? "*" : measure,
                 executor.formatTableReference(continuousQuery.project, QualifiedName.of("continuous", continuousQuery.tableName)),
                 format("_time >= %d", previousWindow) +
                         (dateEnd == null ? "" :
                                 format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
-                dimensions != null && aggregate ? "GROUP BY " + dimensions.stream().collect(Collectors.joining(", ")) : "",
+                !noDimension || !aggregate ? String.format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().collect(Collectors.joining(", "))) : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {
-            if (!result.isFailed()) {
+            if (result.isFailed()) {
+                return JsonResponse.error("Error running query: " + sqlQuery);
+            }
 
-                long previousTimestamp = previousWindow * 5;
-                long currentTimestamp = currentWindow * 5;
+            long previousTimestamp = previousWindow * 5;
+            long currentTimestamp = currentWindow * 5;
 
-                List<List<Object>> data = result.getResult();
+            List<List<Object>> data = result.getResult();
 
-                if (!aggregate) {
-                    if (dimensions == null) {
-                        List<List<Object>> newData = Lists.newLinkedList();
-                        int currentDataIdx = 0;
-                        for (long current = previousWindow; current < currentWindow; current++) {
-                            if (data.size() > currentDataIdx) {
-                                List<Object> objects = data.get(currentDataIdx++);
-                                Long time = ((Number) objects.get(0)).longValue();
-                                if (time == current) {
-                                    newData.add(ImmutableList.of(current * 5, objects.get(1)));
-                                    continue;
-                                }
+            if (!aggregate) {
+                if (noDimension) {
+                    List<List<Object>> newData = Lists.newLinkedList();
+                    int currentDataIdx = 0;
+                    for (long current = previousWindow; current < currentWindow; current++) {
+                        if (data.size() > currentDataIdx) {
+                            List<Object> objects = data.get(currentDataIdx++);
+                            Long time = ((Number) objects.get(0)).longValue();
+                            if (time == current) {
+                                newData.add(ImmutableList.of(current * 5, objects.get(1)));
+                                continue;
                             }
-                            newData.add(ImmutableList.of(current * 5, 0));
                         }
-                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
-                    } else {
-                        Map<Object, List<Object>> newData = data.stream()
-                                .collect(Collectors.groupingBy(entry -> (Function<List<Object>, Object>) list -> list.get(0),
-                                        Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
-                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
+                        newData.add(ImmutableList.of(current * 5, 0));
                     }
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                 } else {
-                    if (dimensions == null) {
-                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
-                    } else {
-                        List<ImmutableList<Object>> newData = data.stream()
-                                .map(m -> ImmutableList.of(m.get(1), m.get(2)))
-                                .collect(Collectors.toList());
-                        return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
-                    }
+                    Map<Object, List<Object>> newData = data.stream()
+                            .collect(Collectors.groupingBy(entry -> (Function<List<Object>, Object>) list -> list.get(0),
+                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
+                }
+            } else {
+                if (noDimension) {
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
+                } else {
+                    List<ImmutableList<Object>> newData = data.stream()
+                            .map(m -> ImmutableList.of(m.get(1), m.get(2)))
+                            .collect(Collectors.toList());
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                 }
             }
-            return result;
         });
-    }
-
-    private String getAggregationMethod(AggregationType aggregation) {
-        switch (aggregation) {
-            case COUNT:
-            case SUM:
-                return "sum";
-            case MINIMUM:
-                return "min";
-            case MAXIMUM:
-                return "max";
-            case AVERAGE:
-                throw new UnsupportedOperationException();
-            default:
-                throw new NotImplementedException();
-        }
     }
 
     public static class RealTimeQueryResult {
@@ -240,11 +227,11 @@ public class RealTimeHttpService extends HttpService {
     @ApiOperation(value = "Delete report")
     @Path("/delete")
     public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project", required = true) String project,
-                         @ApiParam(name = "name", required = true) String tableName) {
+                                                  @ApiParam(name = "name", required = true) String tableName) {
 
         // TODO: Check if it's a real-time report.
         return service.delete(project, tableName).thenApply(result -> {
-            if(result) {
+            if (result) {
                 return JsonResponse.success();
             } else {
                 return JsonResponse.error("Couldn't delete report. Most probably it doesn't exist");
@@ -277,14 +264,34 @@ public class RealTimeHttpService extends HttpService {
                 return builder.append("sum(1) as value").toString();
             case APPROXIMATE_UNIQUE:
                 return builder.append("approx_distinct(1) as value").toString();
-            case VARIANCE:
-                return builder.append("variance(1) as value").toString();
             case POPULATION_VARIANCE:
                 return builder.append("variance(1) as value").toString();
             case STANDARD_DEVIATION:
                 return builder.append("stddev(1) as value").toString();
             default:
                 throw new IllegalArgumentException("aggregation type couldn't found.");
+        }
+    }
+
+    public String mapFunction(AggregationType aggregationType) {
+        switch (aggregationType) {
+            case COUNT:
+            case SUM:
+                return aggregationType.value();
+            case MINIMUM:
+                return "min";
+            case MAXIMUM:
+                return "max";
+            case AVERAGE:
+                return "avg";
+            case STANDARD_DEVIATION:
+                return "stddev";
+            case POPULATION_VARIANCE:
+                return "variance";
+            case APPROXIMATE_UNIQUE:
+                return "approx_distinct";
+            default:
+                throw new NotImplementedException();
         }
     }
 

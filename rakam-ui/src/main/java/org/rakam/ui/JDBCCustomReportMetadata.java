@@ -107,4 +107,18 @@ public class JDBCCustomReportMetadata {
                     .bind("name", name).execute();
         }
     }
+
+    public void update(CustomReport report) {
+        int execute;
+        try(Handle handle = dbi.open()) {
+            execute = handle.createStatement("UPDATE custom_reports SET data = :data WHERE report_type = :reportType AND name = :name AND project = :project")
+                    .bind("reportType", report.reportType)
+                    .bind("project", report.project)
+                    .bind("name", report.name)
+                    .bind("data", JsonHelper.encode(report.data)).execute();
+        }
+        if(execute == 0) {
+            throw new RakamException("Report does not exist.", HttpResponseStatus.BAD_REQUEST);
+        }
+    }
 }

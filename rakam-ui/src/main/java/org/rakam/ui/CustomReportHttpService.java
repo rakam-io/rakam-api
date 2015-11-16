@@ -49,6 +49,13 @@ public class CustomReportHttpService extends HttpService {
     }
 
     @JsonRequest
+    @Path("/update")
+    public JsonResponse update(@ParamBody CustomReport report) {
+        metadata.update(report);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
     @Path("/delete")
     public JsonResponse delete(@ApiParam(name="report_type", required = true) String reportType,
                                @ApiParam(name="project", value = "Project id", required = true) String project,
