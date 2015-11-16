@@ -72,12 +72,12 @@ public class FunnelAnalyzerHttpService extends HttpService {
 
         @JsonCreator
         public FunnelQuery(@ApiParam(name="project") String project,
-                           @ApiParam(name = "connector_field") String connectorField,
+                           @ApiParam(name="connector_field") String connectorField,
                            @ApiParam(name="steps") List<FunnelQueryExecutor.FunnelStep> steps,
-                           @ApiParam(name="dimension") String dimension,
+                           @ApiParam(name="dimension", required = false) String dimension,
                            @ApiParam(name="startDate") LocalDate startDate,
                            @ApiParam(name="endDate") LocalDate endDate,
-                           @ApiParam(name="enableOtherGrouping") Boolean enableOtherGrouping) {
+                           @ApiParam(name="enableOtherGrouping", required = false) Boolean enableOtherGrouping) {
             this.project = project;
             this.connectorField = checkTableColumn(connectorField, "connector field");
             this.enableOtherGrouping = enableOtherGrouping == null ? false : enableOtherGrouping.booleanValue();
