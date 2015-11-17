@@ -120,7 +120,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "returning_action as (\n" +
                             "  %s\n" +
                             ") \n" +
-                            "select %s, null as lead, count(distinct %s) count from first_action data group by 1,2 union all\n" +
+                            "select %s, cast(null as bigint) as lead, count(distinct %s) count from first_action data group by 1,2 union all\n" +
                             "select %s, %s, count(distinct data.%s) \n" +
                             "from first_action data join returning_action on (data.%s = returning_action.%s) \n" +
                             "where data.time < returning_action.time and %s < %d group by 1, 2",
@@ -161,7 +161,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "   select %s as time, %s, count(distinct %s) as count\n" +
                             "   from lead_relations data group by 1, %s order by 1\n" +
                             ") \n" +
-                            "select %s, null as lead, count(%s) as count from daily_groups data group by 1\n" +
+                            "select %s, cast(null as bigint) as lead, count(%s) as count from daily_groups data group by 1\n" +
                             "union all (select * from (select time, lead, count from result \n" +
                             "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d)",
                     connectorField, from.toString(), connectorField, leads, timeTransformation,

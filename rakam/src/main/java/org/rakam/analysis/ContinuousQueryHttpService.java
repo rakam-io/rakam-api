@@ -65,7 +65,7 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
-    public Object listQueries(@ApiParam(name="project", required = true) String project) {
+    public List<ContinuousQuery> listQueries(@ApiParam(name="project", required = true) String project) {
         return service.list(project);
     }
 
@@ -74,7 +74,7 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public List<Collection> schema(@ApiParam(name="project", required = true) String project) {
+    public List<Collection> schema(@ApiParam(name="project") String project) {
         Map<String, List<SchemaField>> schemas = service.getSchemas(project);
         if(schemas == null) {
             throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
@@ -101,8 +101,8 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/delete")
-    public Object delete(@ApiParam(name="project", required = true) String project,
-                         @ApiParam(name="name", required = true) String name) {
+    public CompletableFuture<JsonResponse> delete(@ApiParam(name="project") String project,
+                         @ApiParam(name="name") String name) {
         return service.delete(project, name).thenApply(result -> {
             if(result) {
                 return JsonResponse.error("Error while deleting.");
@@ -110,5 +110,14 @@ public class ContinuousQueryHttpService extends HttpService {
                 return JsonResponse.success();
             }
         });
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Test continuous query")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
+    @Path("/test")
+    public List<SchemaField> test(@ApiParam(name="project") String project, @ApiParam(name="query") String query) {
+        return service.test(project, query);
     }
 }

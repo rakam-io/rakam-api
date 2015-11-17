@@ -6,11 +6,13 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.ProjectCollection;
+import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -141,15 +143,19 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
         try(Handle handle = dbi.open()) {
             StringBuilder builder = new StringBuilder();
             new RakamSqlFormatter.Formatter(builder).process(report.query, 1);
-            handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, options) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
-                    .bind("project", report.project)
-                    .bind("name", report.name)
-                    .bind("tableName", report.tableName)
-                    .bind("query", builder.toString())
-                    .bind("collections", JsonHelper.encode(report.collections))
-                    .bind("partitionKeys", JsonHelper.encode(report.partitionKeys))
-                    .bind("options", JsonHelper.encode(report.options))
-                    .execute();
+            try {
+                handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, options) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
+                        .bind("project", report.project)
+                        .bind("name", report.name)
+                        .bind("tableName", report.tableName)
+                        .bind("query", builder.toString())
+                        .bind("collections", JsonHelper.encode(report.collections))
+                        .bind("partitionKeys", JsonHelper.encode(report.partitionKeys))
+                        .bind("options", JsonHelper.encode(report.options))
+                        .execute();
+            } catch (Exception e) {
+                throw new RakamException(e.getCause().getMessage(), HttpResponseStatus.BAD_REQUEST);
+            }
         }
     }
 

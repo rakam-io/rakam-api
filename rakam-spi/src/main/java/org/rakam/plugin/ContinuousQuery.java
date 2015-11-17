@@ -87,17 +87,13 @@ public class ContinuousQuery implements ProjectItem {
                 !((QuerySpecification) queryBody).getFrom().isPresent() ||
                 !(((QuerySpecification) queryBody).getFrom().get() instanceof Table) ||
                 !((Table) ((QuerySpecification) queryBody).getFrom().get()).getName().getParts().equals(ImmutableList.of("stream"))) {
-//            throw new IllegalArgumentException("The FROM part of the query must be 'stream' for continuous queries. " +
-//                    "Example: 'SELECT count(1) FROM stream GROUP BY country''");
+            throw new IllegalArgumentException("The FROM part of the query must be 'stream' for continuous queries. " +
+                    "Example: 'SELECT count(1) FROM stream GROUP BY country''");
         }
 
         if (query.getLimit().isPresent()) {
             throw new IllegalArgumentException("Continuous queries must not have LIMIT statement");
         }
-    }
-
-    public String getTableName() {
-        return "_continuous_"+tableName;
     }
 
     @Override

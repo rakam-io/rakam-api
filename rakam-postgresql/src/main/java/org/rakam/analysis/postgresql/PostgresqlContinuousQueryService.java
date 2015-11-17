@@ -121,7 +121,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
 
         // just to create the table with the columns.
         String query = format("create table %s.%s as (%s limit 0)", report.project,
-                report.getTableName(),
+                PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX+report.tableName,
                 replaceSourceTable(report.query, report.project + "." + report.collections.get(0)));
 
         if (report.options == null) {
@@ -155,7 +155,7 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
                         .map(e -> e.getKey())
                         .collect(Collectors.joining(", "));
                 executor.executeRawStatement(format("ALTER TABLE %s.%s ADD PRIMARY KEY (%s)",
-                        finalReport.project, finalReport.getTableName(), groupings)).getResult().thenAccept(indexResult -> {
+                        finalReport.project, PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX+finalReport.tableName, groupings)).getResult().thenAccept(indexResult -> {
                     if (indexResult.isFailed()) {
                         LOGGER.error("Failed to create unique index on continuous column: {0}", result.getError());
                     }
@@ -189,8 +189,13 @@ public class PostgresqlContinuousQueryService extends ContinuousQueryService {
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return list(project).stream()
-                .map(view -> new AbstractMap.SimpleImmutableEntry<>(view.tableName, metastore.getCollection(project, view.getTableName())))
+                .map(view -> new AbstractMap.SimpleImmutableEntry<>(view.tableName, metastore.getCollection(project, PostgresqlQueryExecutor.CONTINUOUS_QUERY_PREFIX + view.tableName)))
                 .collect(Collectors.toMap(t -> t.getKey(), t -> t.getValue()));
+    }
+
+    @Override
+    public List<SchemaField> test(String project, String query) {
+        return null;
     }
 
     /*
