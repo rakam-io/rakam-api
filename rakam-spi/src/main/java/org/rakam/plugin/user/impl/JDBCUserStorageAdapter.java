@@ -66,7 +66,12 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public Object create(String project, Map<String, Object> properties) {
+    public String create(String project, Map<String, Object> properties) {
+        throw new NotImplementedException();
+    }
+
+    @Override
+    public List<String> batchCreate(String project, List<User> users) {
         throw new NotImplementedException();
     }
 

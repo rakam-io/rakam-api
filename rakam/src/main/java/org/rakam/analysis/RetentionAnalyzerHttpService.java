@@ -17,18 +17,24 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
 import org.rakam.report.QueryHttpService;
+import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.ParamBody;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Path("/retention")
 @Api(value = "/retention", tags = "retention")
@@ -43,9 +49,12 @@ public class RetentionAnalyzerHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Execute query",
-            authorizations = @Authorization(value = "read_key")
+            authorizations = @Authorization(value = "read_key"),
+            consumes = "text/event-stream",
+            produces = "text/event-stream"
     )
     @GET
+    @IgnoreApi
     @Path("/analyze")
     public void execute(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (query) ->
@@ -59,6 +68,23 @@ public class RetentionAnalyzerHttpService extends HttpService {
                         query.endDate));
     }
 
+    @ApiOperation(value = "Execute query",
+            authorizations = @Authorization(value = "read_key")
+    )
+    @POST
+    @JsonRequest
+    @Path("/analyze")
+    public CompletableFuture<QueryResult> execute(@ParamBody RetentionQuery query) {
+          return retentionQueryExecutor.query(query.project,
+                        query.connectorField,
+                        Optional.ofNullable(query.firstAction),
+                        Optional.ofNullable(query.returningAction),
+                        query.dateUnit,
+                        Optional.ofNullable(query.dimension),
+                        query.startDate,
+                        query.endDate).getResult();
+    }
+
     private static class RetentionQuery {
         private final String project;
         private final String connectorField;
@@ -70,7 +96,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
         private final LocalDate endDate;
 
         @JsonCreator
-        private RetentionQuery(@ApiParam(name = "project") String project,
+        public RetentionQuery(@ApiParam(name = "project") String project,
 
                                @ApiParam(name = "connector_field") String connectorField,
 

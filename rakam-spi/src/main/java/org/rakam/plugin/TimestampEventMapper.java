@@ -15,14 +15,12 @@ package org.rakam.plugin;
 
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.util.RakamException;
 
 import java.net.InetAddress;
 import java.time.Instant;
@@ -42,19 +40,12 @@ public class TimestampEventMapper implements EventMapper {
 
             properties.put("_time", serverTime);
         } else {
-            String stringValue = extraProperties.get(TIME_EXTRA_PROPERTY);
-            long clientUploadTime;
-            try {
-                clientUploadTime = Long.parseLong(stringValue);
-            } catch (NumberFormatException e) {
-                throw new RakamException("Time checksum 'Upload-Time' has invalid value", HttpResponseStatus.UNAUTHORIZED);
-            }
             if (time instanceof Number) {
-                long serverTime = Instant.now().getEpochSecond();
-
                 // match server time and client time and get an estimate
-                long gap = serverTime - clientUploadTime;
-                properties.put("_time", ((Number) time).longValue() + gap);
+                if(event.context() != null && event.context().uploadTime != null) {
+                    time = ((Number) time).longValue() + Instant.now().getEpochSecond() - event.context().uploadTime;
+                }
+                properties.put("_time", time);
             }
         }
         return null;

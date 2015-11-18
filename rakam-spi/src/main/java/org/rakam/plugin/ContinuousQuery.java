@@ -8,6 +8,7 @@ import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Table;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.QueryFormatter;
@@ -22,6 +23,7 @@ public class ContinuousQuery implements ProjectItem {
     private final static SqlParser SQL_PARSER = new SqlParser();
     public final String project;
     public final String name;
+    @JsonIgnore
     public final Query query;
     public final String tableName;
     public final List<String> collections;
@@ -51,7 +53,7 @@ public class ContinuousQuery implements ProjectItem {
         validateQuery();
     }
 
-    @JsonIgnore
+    @JsonProperty
     public String getRawQuery() {
         StringBuilder builder = new StringBuilder();
         new QueryFormatter(builder, Object::toString).process(query, 1);

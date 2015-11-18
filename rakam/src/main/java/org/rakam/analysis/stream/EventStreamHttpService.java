@@ -19,13 +19,12 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -50,11 +49,14 @@ public class EventStreamHttpService extends HttpService {
     }
 
     @GET
-    @ApiOperation(value = "Subscribe Event Stream", notes = "Subscribes the event stream periodically to the client.")
+    @ApiOperation(value = "Subscribe Event Stream",
+            consumes = "text/event-stream",
+            produces = "text/event-stream",
+            notes = "Subscribes the event stream periodically to the client.")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
-    @Consumes("text/event-stream")
     @Path("/subscribe")
+    @IgnoreApi
     public void subscribe(RakamHttpRequest request) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
             request.response("the response should accept text/event-stream", HttpResponseStatus.NOT_ACCEPTABLE).end();

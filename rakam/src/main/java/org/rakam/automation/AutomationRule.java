@@ -35,13 +35,14 @@ public class AutomationRule {
     }
 
     @JsonCreator
-    public AutomationRule(@ApiParam(name = "project") String project,
+    public AutomationRule(@ApiParam(name = "id") int id,
+                          @ApiParam(name = "project") String project,
                           @ApiParam(name = "is_active") Boolean isActive,
                           @ApiParam(name = "scenarios") List<ScenarioStep> scenarios,
                           @ApiParam(name = "actions") List<Action> actions,
-                          @ApiParam(name = "customData") String customData) {
+                          @ApiParam(name = "custom_data") String customData) {
+        this.id = id;
         this.customData = customData;
-        this.id = -1;
         this.project = project;
         this.isActive = isActive == null ? true : isActive.booleanValue();
         this.scenarios = scenarios;

@@ -17,6 +17,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
@@ -24,7 +25,6 @@ import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
@@ -50,23 +50,24 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
-    public CreateUserResponse create(@ApiParam(name = "project", required = true) String project,
-                                     @ApiParam(name = "properties", required = true) Map<String, Object> properties) {
-        Object o;
+    public String create(@ParamBody User user) {
         try {
-            o = service.create(project, properties);
+            return service.create(user.project, user.properties);
         } catch (Exception e) {
             throw new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }
-
-        return new CreateUserResponse(o);
     }
 
-    public static class CreateUserResponse {
-        public final Object identifier;
-
-        public CreateUserResponse(Object identifier) {
-            this.identifier = identifier;
+    @JsonRequest
+    @ApiOperation(value = "Create new user")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/batch/create")
+    public List<String> batchCreate(@ApiParam(name = "project") String project, @ApiParam(name = "users") List<User> users) {
+        try {
+            return service.batchCreate(project, users);
+        } catch (Exception e) {
+            throw new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }
     }
 

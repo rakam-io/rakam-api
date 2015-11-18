@@ -19,6 +19,7 @@ import org.codehaus.jackson.node.NullNode;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,7 +27,7 @@ import static org.apache.avro.Schema.Type.NULL;
 
 
 public class AvroUtil {
-    public static Schema convertAvroSchema(List<SchemaField> fields) {
+    public static Schema convertAvroSchema(Collection<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()
                 .map(AvroUtil::generateAvroSchema).collect(Collectors.toList());
 
@@ -46,7 +47,6 @@ public class AvroUtil {
             return new Schema.Field(field.getName(), es, null, null);
         }
     }
-
 
     public static Schema getAvroSchema(FieldType type) {
         switch (type) {

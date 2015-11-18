@@ -102,7 +102,26 @@ public class JsonHelper {
         return (T) mapper.readTree(json);
     }
 
+    public static <T extends JsonNode> T readSafe(byte[] json) throws IOException {
+        return (T) mapper.readTree(json);
+    }
+
     public static <T extends JsonNode> T read(String json){
+        try {
+            return (T) mapper.readTree(json);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+    public static <T> T read(String json, TypeReference<T> typeReference){
+        try {
+            return (T) mapper.readValue(json, typeReference);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public static <T extends JsonNode> T read(byte[] json){
         try {
             return (T) mapper.readTree(json);
         } catch (IOException e) {

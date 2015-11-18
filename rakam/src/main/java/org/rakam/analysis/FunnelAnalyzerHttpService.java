@@ -15,19 +15,24 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.report.QueryHttpService;
+import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.ParamBody;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -47,6 +52,8 @@ public class FunnelAnalyzerHttpService extends HttpService {
 
     @ApiOperation(value = "Execute query",
             request = FunnelQuery.class,
+            consumes = "text/event-stream",
+            produces = "text/event-stream",
             authorizations = @Authorization(value = "read_key")
     )
     @GET
@@ -59,6 +66,22 @@ public class FunnelAnalyzerHttpService extends HttpService {
                         Optional.ofNullable(query.dimension),
                         query.startDate,
                         query.endDate, query.enableOtherGrouping));
+    }
+
+    @ApiOperation(value = "Execute query",
+            request = FunnelQuery.class,
+            authorizations = @Authorization(value = "read_key")
+    )
+    @POST
+    @JsonRequest
+    @Path("/analyze")
+    public CompletableFuture<QueryResult> analyze(@ParamBody FunnelQuery query) {
+         return funnelQueryExecutor.query(query.project,
+                        query.connectorField,
+                        query.steps,
+                        Optional.ofNullable(query.dimension),
+                        query.startDate,
+                        query.endDate, query.enableOtherGrouping).getResult();
     }
 
     private static class FunnelQuery {

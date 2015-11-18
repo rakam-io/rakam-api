@@ -20,7 +20,8 @@ import static java.lang.String.format;
 
 
 public interface UserStorage {
-    Object create(String project, Map<String, Object> properties);
+    String create(String project, Map<String, Object> properties);
+    List<String> batchCreate(String project, List<User> users);
     CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
     List<SchemaField> getMetadata(String project);
     CompletableFuture<User> getUser(String project, String userId);

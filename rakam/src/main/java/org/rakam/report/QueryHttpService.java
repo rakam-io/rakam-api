@@ -27,6 +27,7 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
@@ -73,6 +74,7 @@ public class QueryHttpService extends HttpService {
 
     @GET
     @Consumes("text/event-stream")
+    @IgnoreApi
     @ApiOperation(value = "Analyze events asynchronously", request = ExecuteQuery.class,
             authorizations = @Authorization(value = "read_key")
     )

@@ -8,7 +8,6 @@ import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.common.reflect.TypeToken;
 import io.airlift.log.Logger;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -44,6 +43,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -195,11 +195,8 @@ public class EventCollectionHttpService extends HttpService {
         return metastore.checkPermission(project, WRITE_KEY, writeKey);
     }
 
-    static final class ListRequestEventBean extends TypeToken<List<Event>> {}
-    static final class ListResponseEventBean extends TypeToken<List<Integer>> {}
-
     @POST
-    @ApiOperation(value = "Collect multiple events", request = ListRequestEventBean.class, response = ListResponseEventBean.class,
+    @ApiOperation(value = "Collect multiple events", request = EventList.class, response = Integer.class,
             authorizations = @Authorization(value = "write_key")
     )
     @ApiResponses(value = {
@@ -210,10 +207,6 @@ public class EventCollectionHttpService extends HttpService {
         InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
                 .remoteAddress();
         HttpHeaders headers = request.headers();
-//        String checksum = headers.get("Content-MD5");
-//        String apiVersion = headers.get("Api-Version");
-//        String uploadTime = headers.get("Upload-Time");
-//        String writeKey = headers.get("write_key");
 
         request.bodyHandler(buff -> {
             List<Cookie> entries = null;
@@ -326,7 +319,7 @@ public class EventCollectionHttpService extends HttpService {
             return false;
         }
 
-        if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF8_CHARSET))).equals(checksum)) {
+        if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF8_CHARSET))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
             request.response(encode(of("error", "checksum is invalid")), BAD_REQUEST).end();
             return false;
         }

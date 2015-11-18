@@ -85,7 +85,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             handle.createStatement("CREATE TABLE IF NOT EXISTS continuous_queries (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
-                    "  table_name TEXT," +
+                    "  table_name VARCHAR(255)  NOT NULL," +
                     "  query TEXT NOT NULL," +
                     // in order to support mysql, we use json string instead of array type.
                     "  collections TEXT," +

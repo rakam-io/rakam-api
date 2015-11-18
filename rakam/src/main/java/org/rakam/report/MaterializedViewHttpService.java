@@ -58,21 +58,21 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public List<Schema> schema(@ApiParam(name="project", required = true) String project) {
+    public List<MaterializedViewSchema> schema(@ApiParam(name="project", required = true) String project) {
         Map<String, List<SchemaField>> schemas = service.getSchemas(project);
         if(schemas == null) {
             throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
         }
         return schemas.entrySet().stream()
                     .filter(entry -> !entry.getKey().startsWith("_"))
-                    .map(entry -> new Schema(entry.getKey(), entry.getValue()))
+                    .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toList());
     }
 
-    public static class Schema {
+    public static class MaterializedViewSchema {
         public final String name;
 
-        public Schema(String name, List<SchemaField> fields) {
+        public MaterializedViewSchema(String name, List<SchemaField> fields) {
             this.name = name;
             this.fields = fields;
         }

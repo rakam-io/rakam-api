@@ -19,8 +19,12 @@ public abstract class AbstractUserService {
         this.storage = storage;
     }
 
-    public Object create(String project, Map<String, Object> properties) {
+    public String create(String project, Map<String, Object> properties) {
         return storage.create(project, properties);
+    }
+
+    public List<String> batchCreate(String project, List<User> users) {
+        return storage.batchCreate(project, users);
     }
 
     public void createProject(String project) {

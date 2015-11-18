@@ -69,7 +69,7 @@ public class SchemaField {
     @JsonProperty
     public String getDescriptiveName() {
         if(descriptiveName == null) {
-            String replace = name.replace("_", " ");
+            String replace = name.replace("_", " ").trim();
             return Character.toUpperCase(replace.charAt(0)) + replace.substring(1);
         }
         return descriptiveName;

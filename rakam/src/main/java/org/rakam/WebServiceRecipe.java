@@ -1,6 +1,7 @@
 package org.rakam;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
@@ -12,6 +13,8 @@ import io.swagger.models.Swagger;
 import io.swagger.models.Tag;
 import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
+import io.swagger.util.PrimitiveType;
+import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.event.SecuredForProject;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.config.HttpServerConfig;
@@ -75,6 +78,7 @@ public class WebServiceRecipe extends AbstractModule {
                 .setSwagger(swagger)
                 .setEventLoopGroup(eventExecutors)
                 .setMapper(JsonHelper.getMapper())
+                .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))

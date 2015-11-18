@@ -55,6 +55,7 @@
         <module>mapper/rakam-mapper-geoip</module>
         <module>mapper/rakam-mapper-website</module>
         <module>rakam</module>
+        <module>rakam-data-import-export</module>
     </modules>
 
     <properties>

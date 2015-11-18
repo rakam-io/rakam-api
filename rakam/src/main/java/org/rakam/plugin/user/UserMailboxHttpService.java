@@ -18,12 +18,12 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -75,14 +75,16 @@ public class UserMailboxHttpService extends HttpService {
     }
 
     @Path("/listen")
-    @Consumes("text/event-stream")
     @GET
     @ApiImplicitParams({
             @ApiImplicitParam(name = "project", required = true, dataType = "string", paramType = "query"),
     })
     @ApiOperation(value = "Listen all mailboxes",
+            consumes = "text/event-stream",
+            produces = "text/event-stream",
             authorizations = @Authorization(value = "read_key")
     )
+    @IgnoreApi
     public void listen(RakamHttpRequest request) {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 

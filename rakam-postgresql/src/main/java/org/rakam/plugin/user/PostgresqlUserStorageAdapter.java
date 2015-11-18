@@ -25,6 +25,8 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,6 +35,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -50,18 +53,16 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     @Inject
     public PostgresqlUserStorageAdapter(PostgresqlQueryExecutor queryExecutor, PostgresqlMetastore metastore) {
         this.queryExecutor = queryExecutor;
-        for (String project : metastore.getProjects()) {
-            createProject(project);
-        }
+        metastore.getProjects().forEach(this::createProject);
     }
 
     @Override
-    public Object create(String project, Map<String, Object> properties) {
-        checkProject(project);
-        Object created = properties.get("created");
-        if(created != null && !(created instanceof Instant)) {
-            properties.remove("created");
-        }
+    public String create(String project, Map<String, Object> properties) {
+        createMissingColumns(project, properties);
+        return createInternal(project, properties);
+    }
+
+    private void createMissingColumns(String project, Map<String, Object> properties) {
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
             columns = getProjectProperties(project);
@@ -70,50 +71,181 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         for (Map.Entry<String, Object> entry : properties.entrySet()) {
             FieldType fieldType = columns.get(entry.getKey());
             if (fieldType == null && entry.getValue() != null) {
+                checkTableColumn(entry.getKey(), String.format("user property '%s' is invalid.", entry.getKey()));
                 createColumn(project, entry.getKey(), entry.getValue());
                 columns = getProjectProperties(project);
             }
         }
+    }
 
+    public String createInternal(String project, Map<String, Object> properties) {
         try (Connection conn = queryExecutor.getConnection()) {
+            checkProject(project);
+            Object created = properties.remove("created_at");
+            Object id = properties.remove("id");
+            Instant createdAt;
+            String userId;
+
+            if (id != null) {
+                userId = id.toString();
+            } else {
+                userId = UUID.randomUUID().toString();
+            }
+
+            if (created instanceof String) {
+                try {
+                    createdAt = Instant.parse((String) created);
+                } catch (Exception e) {
+                    createdAt = Instant.now();
+                }
+            } else {
+                createdAt = Instant.now();
+            }
+
+            Map<String, FieldType> columns = propertyCache.getIfPresent(project);
+
             StringBuilder cols = new StringBuilder();
             StringBuilder parametrizedValues = new StringBuilder();
             Iterator<String> stringIterator = properties.keySet().iterator();
 
             if (stringIterator.hasNext()) {
                 String next = stringIterator.next();
-                checkTableColumn(next, "unknown column");
                 parametrizedValues.append("?");
                 cols.append(next);
                 while (stringIterator.hasNext()) {
                     next = stringIterator.next();
-                    checkTableColumn(next, "unknown column");
                     cols.append(", ").append(next);
                     parametrizedValues.append(", ").append("?");
                 }
             }
 
             parametrizedValues.append(", ").append("?");
-            cols.append(", ").append("created");
+            cols.append(", ").append("created_at");
 
-            PreparedStatement statement = conn.prepareStatement("insert into  " + project + "." + USER_TABLE + " (" + cols +
+            parametrizedValues.append(", ").append("?");
+            cols.append(", ").append("id");
+
+            PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + project + "." + USER_TABLE + " (" + cols +
                     ") values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
             int i = 1;
-            for (Object o : properties.values()) {
-                statement.setObject(i++, o);
-            }
-            statement.setTimestamp(i++, java.sql.Timestamp.from(Instant.now()));
+            for (Map.Entry<String, Object> o : properties.entrySet()) {
+                FieldType fieldType = columns.get(o.getKey());
+                if (fieldType.isArray()) {
+                    throw new UnsupportedOperationException("array type is not supported yet");
+                }
 
-            ResultSet resultSet = statement.executeQuery();
+                Object jdbcValue = getJDBCValue(fieldType, o.getValue(), conn);
+                statement.setObject(i++, jdbcValue);
+            }
+            statement.setTimestamp(i++, java.sql.Timestamp.from(createdAt));
+            statement.setString(i++, userId);
+
+            ResultSet resultSet;
+            try {
+                resultSet = statement.executeQuery();
+            } catch (SQLException e) {
+                if(e.getMessage().contains("duplicate key value")) {
+                    return userId;
+                } else {
+                    throw e;
+                }
+            }
             resultSet.next();
-            return resultSet.getObject(1);
+            return resultSet.getString(1);
         } catch (SQLException e) {
-            // TODO: check error type
             throw Throwables.propagate(e);
         }
     }
 
+    private String sqlArrayTypeName(FieldType fieldType) {
+        if(fieldType.isArray()) {
+            throw new UnsupportedOperationException();
+        }
+        switch (fieldType) {
+            case BOOLEAN: return "boolean";
+            case STRING: return "varchar";
+            case DOUBLE: return "double precision";
+            case LONG: return "bigint";
+            case TIMESTAMP: return "timestamp";
+            case TIME: return "time";
+            case DATE: return "date";
+            default: throw new UnsupportedOperationException();
+        }
+    }
+
+    public Object getJDBCValue(FieldType fieldType, Object value, Connection conn) throws SQLException {
+        if(fieldType.isArray()) {
+            if(value instanceof List) {
+                FieldType arrayType = fieldType.getArrayType();
+                List value1 = (List) value;
+
+                Object[] objects = new Object[value1.size()];
+                for (int i = 0; i < value1.size(); i++) {
+                    objects[i] = getJDBCValue(arrayType, value1.get(i), conn);
+                }
+                return conn.createArrayOf(sqlArrayTypeName(arrayType), objects);
+            } else {
+                return null;
+            }
+        }
+        switch (fieldType) {
+            case TIMESTAMP:
+            case DATE:
+               return parseTimestamp(value);
+            case LONG:
+            case DOUBLE:
+                return value instanceof Number ? value : null;
+            case STRING:
+                return value instanceof String ? value : null;
+            case TIME:
+                return parseTime(value);
+            case BOOLEAN:
+                return value instanceof Boolean ? value : null;
+            default:
+                throw new UnsupportedOperationException();
+
+        }
+    }
+
+    private Time parseTime(Object value) {
+        if(value instanceof String) {
+            try {
+                return Time.valueOf((String) value);
+            } catch (Exception e) {
+                return null;
+            }
+        } else {
+            return null;
+        }
+    }
+    private Timestamp parseTimestamp(Object value) {
+        if(value instanceof String) {
+            try {
+                return Timestamp.from(Instant.parse((CharSequence) value));
+            } catch (Exception e) {
+                return null;
+            }
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public List<String> batchCreate(String project, List<org.rakam.plugin.user.User> users) {
+        Map<String, Object> props = new HashMap<>();
+        for (User user : users) {
+            props.putAll(user.properties);
+        }
+        createMissingColumns(project, props);
+
+        // may use transaction when we start to use Postgresql 9.5. Since we use insert or merge, it doesn't work right now.
+        return users.stream()
+                .map(user -> create(project, user.properties))
+                .collect(Collectors.toList());
+    }
+
     private void createColumn(String project, String column, Object value) {
+        checkTableColumn(column, "user property name is not valid");
         try (Connection conn = queryExecutor.getConnection()) {
             try {
                 conn.createStatement().execute(format("alter table %s.%s add column %s %s",
@@ -160,14 +292,14 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                         field = filter.aggregation.field;
                     }
                     builder.append(" group by \"_user\" ");
-                    if(filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
+                    if (filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
                         builder.append(" having ");
                     }
                     if (filter.aggregation.minimum != null) {
                         builder.append(format(" %s(\"%s\") >= %d ", filter.aggregation.type, field, filter.aggregation.minimum));
                     }
                     if (filter.aggregation.maximum != null) {
-                        if(filter.aggregation.minimum != null) {
+                        if (filter.aggregation.minimum != null) {
                             builder.append(" and ");
                         }
                         builder.append(format(" %s(\"%s\") < %d ", filter.aggregation.type, field, filter.aggregation.maximum));
@@ -298,7 +430,10 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                     " = ? where " + PRIMARY_KEY + " = ?");
             statement.setObject(1, value);
             statement.setLong(2, Long.parseLong(userId));
-            statement.executeUpdate();
+            int i = statement.executeUpdate();
+            if(i == 0) {
+                create(project, ImmutableMap.of(PRIMARY_KEY, userId, project, value));
+            }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
@@ -324,8 +459,8 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     public void createProject(String project) {
         checkProject(project);
         queryExecutor.executeRawStatement(format("CREATE TABLE IF NOT EXISTS %s.%s (" +
-                "  %s SERIAL NOT NULL,\n" +
-                "  created timestamp NOT NULL,\n" +
+                "  %s TEXT NOT NULL,\n" +
+                "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
                 ")", project, USER_TABLE, PRIMARY_KEY, PRIMARY_KEY));
     }

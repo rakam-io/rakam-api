@@ -76,7 +76,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             switch (fieldName) {
                 case "project":
-                    if(project == null) {
+                    if(project != null) {
                         throw new IllegalArgumentException("project is already set");
                     }
                     project = jp.getValueAsString();

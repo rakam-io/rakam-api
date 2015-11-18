@@ -296,6 +296,7 @@ public class JDBCMetastore extends AbstractMetastore {
                             .bind("project", project)
                             .bind("collection", collection)
                             .execute();
+                    schemaCache.put(new ProjectCollection(project, collection), fields);
                     return fields;
                 }
 
