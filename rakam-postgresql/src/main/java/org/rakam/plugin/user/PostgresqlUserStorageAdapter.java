@@ -279,7 +279,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                     if (filter.filterExpression != null) {
                         builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
                     }
-                    filters.add((format("id::varchar(255) in (%s)", builder.toString())));
+                    filters.add((format("id in (%s)", builder.toString())));
                 } else {
                     builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
                     if (filter.filterExpression != null) {
@@ -413,26 +413,61 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public void setUserProperty(String project, String userId, String property, Object value) {
+    public void setUserProperty(String project, String userId, Map<String, Object> properties) {
+        setUserProperty(project, userId, properties, false);
+    }
+
+    @Override
+    public void setUserPropertyOnce(String project, String userId, Map<String, Object> properties) {
+        setUserProperty(project, userId, properties, true);
+    }
+
+    public void setUserProperty(String project, String userId, Map<String, Object> properties, boolean onlyOnce) {
         checkProject(project);
-        checkTableColumn(property, "user property");
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
             columns = getProjectProperties(project);
         }
 
-        if (!columns.containsKey(property)) {
-            createColumn(project, property, value);
+        StringBuilder builder = new StringBuilder("update " + project + "." + USER_TABLE + " set ");
+        Iterator<Map.Entry<String, Object>> entries = properties.entrySet().iterator();
+        if (entries.hasNext()) {
+            Map.Entry<String, Object> entry = entries.next();
+            FieldType fieldType = columns.get(entry);
+            if (fieldType == null) {
+                createColumn(project, entry.getKey(), entry.getValue());
+            }
+            builder.append("\"").append(entry.getKey())
+                    .append(onlyOnce ? "\"=coalesce(\""+entry.getKey()+"\", ?)" : "\"=?");
+
+            while (entries.hasNext()) {
+                entry = entries.next();
+                fieldType = columns.get(entry);
+                if (fieldType == null) {
+                    createColumn(project, entry.getKey(), entry.getValue());
+                }
+                builder.append(" and ").append("\"").append(entry.getKey())
+                        .append(onlyOnce ? "\"=coalesce(\""+entry.getKey()+"\", ?)" : "\"=?");
+            }
         }
 
+        builder.append(" where " + PRIMARY_KEY + " = ?");
+
         try (Connection conn = queryExecutor.getConnection()) {
-            PreparedStatement statement = conn.prepareStatement("update " + project + "." + USER_TABLE + " set " + property +
-                    " = ? where " + PRIMARY_KEY + " = ?");
-            statement.setObject(1, value);
-            statement.setLong(2, Long.parseLong(userId));
-            int i = statement.executeUpdate();
+            PreparedStatement statement = conn.prepareStatement(builder.toString());
+            int i = 1;
+            for (Map.Entry<String, Object> entry : properties.entrySet()) {
+                FieldType fieldType = columns.get(entry);
+                statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
+            }
+            statement.setLong(i++, Long.parseLong(userId));
+
+            i = statement.executeUpdate();
             if(i == 0) {
-                create(project, ImmutableMap.of(PRIMARY_KEY, userId, project, value));
+                Map<String, Object> map = new HashMap<>(properties.size()+1);
+                map.putAll(properties);
+                map.put(PRIMARY_KEY, userId);
+                create(project, map);
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -463,10 +498,5 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
                 ")", project, USER_TABLE, PRIMARY_KEY, PRIMARY_KEY));
-    }
-
-    @Override
-    public boolean isEventFilterSupported() {
-        return true;
     }
 }

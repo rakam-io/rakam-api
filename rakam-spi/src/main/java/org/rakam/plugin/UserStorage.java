@@ -25,9 +25,9 @@ public interface UserStorage {
     CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
     List<SchemaField> getMetadata(String project);
     CompletableFuture<User> getUser(String project, String userId);
-    void setUserProperty(String project, String user, String property, Object value);
+    void setUserProperty(String project, String user, Map<String, Object> properties);
+    void setUserPropertyOnce(String project, String user, Map<String, Object> properties);
     void createProject(String project);
-    boolean isEventFilterSupported();
 
     class Sorting {
         public final String column;

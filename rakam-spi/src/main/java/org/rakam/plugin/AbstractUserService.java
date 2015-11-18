@@ -43,8 +43,12 @@ public abstract class AbstractUserService {
         return storage.getUser(project, user);
     }
 
-    public void setUserProperty(String project, String user, String property, Object value) {
-        storage.setUserProperty(project, user, property, value);
+    public void setUserProperty(String project, String user, Map<String, Object> properties) {
+        storage.setUserProperty(project, user, properties);
+    }
+
+    public void setUserPropertyOnce(String project, String user, Map<String, Object> properties) {
+        storage.setUserPropertyOnce(project, user, properties);
     }
 
     public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, long offset);

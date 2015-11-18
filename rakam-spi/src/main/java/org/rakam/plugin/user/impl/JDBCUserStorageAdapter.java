@@ -230,6 +230,16 @@ public class JDBCUserStorageAdapter implements UserStorage {
     }
 
     @Override
+    public void setUserProperty(String project, String user, Map<String, Object> properties) {
+
+    }
+
+    @Override
+    public void setUserPropertyOnce(String project, String user, Map<String, Object> properties) {
+
+    }
+
+    @Override
     public void setUserProperty(String project, String user, String property, Object value) {
         Optional<SchemaField> any = getMetadata(project).stream().filter(column -> column.getName().equals(property)).findAny();
         if(!any.isPresent()) {

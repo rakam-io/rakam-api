@@ -25,6 +25,7 @@ import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
@@ -149,11 +150,24 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/set_property")
-    public JsonResponse setUserProperty(@ApiParam(name = "project", required = true) String project,
+    public JsonResponse setUserProperties(@ApiParam(name = "project") String project,
+                                        @ApiParam(name = "user") String user,
+                                        @ApiParam(name = "properties") Map<String, Object> properties) {
+        service.setUserProperty(project, user, properties);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Set user property")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist."),
+            @ApiResponse(code = 400, message = "User does not exist.")})
+    @Path("/set_once")
+    public JsonResponse setUserPropertyOnce(@ApiParam(name = "project", required = true) String project,
                                         @ApiParam(name = "user", required = true) String user,
-                                        @ApiParam(name = "property", required = true) String property,
-                                        @ApiParam(name = "value", required = true) String value) {
-        service.setUserProperty(project, user, property, value);
+                                        @ApiParam(name = "properties") Map<String, Object> properties) {
+        // TODO: we may cache these values and reduce the db hit.
+        service.setUserPropertyOnce(project, user, properties);
         return JsonResponse.success();
     }
 }
