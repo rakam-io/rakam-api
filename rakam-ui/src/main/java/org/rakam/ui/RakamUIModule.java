@@ -66,7 +66,7 @@ public class RakamUIModule extends RakamModule {
 
         @Subscribe
         public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
-            service.create(event.project, "Default");
+            service.create(event.project, "Default", null);
         }
     }
 }

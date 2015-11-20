@@ -2,6 +2,8 @@ package org.rakam;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.SubscriberExceptionContext;
+import com.google.common.eventbus.SubscriberExceptionHandler;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -47,6 +49,8 @@ import static java.lang.String.format;
 
 
 public class ServiceStarter {
+    public static final String RAKAM_VERSION = "0.2";
+
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
     public static void main(String[] args) throws Throwable {
@@ -119,7 +123,15 @@ public class ServiceStarter {
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
-            EventBus eventBus = new EventBus("System Event Listener");
+            EventBus eventBus = new EventBus(new SubscriberExceptionHandler() {
+                Logger logger = Logger.get("System Event Listener");
+
+                @Override
+                public void handleException(Throwable exception, SubscriberExceptionContext context) {
+                    logger.error(exception, "Could not dispatch event: " +
+                            context.getSubscriber() + " to " + context.getSubscriberMethod(),  exception.getCause());
+                }
+            });
             binder.bind(EventBus.class).toInstance(eventBus);
 
             binder.bindListener(Matchers.any(), new TypeListener() {

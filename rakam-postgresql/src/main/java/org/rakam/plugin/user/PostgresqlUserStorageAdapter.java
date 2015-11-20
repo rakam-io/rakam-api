@@ -9,6 +9,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -17,6 +18,7 @@ import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.lang.reflect.ParameterizedType;
@@ -28,6 +30,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -245,6 +248,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     }
 
     private void createColumn(String project, String column, Object value) {
+        // it must be called from a separated transaction, otherwise it may lock table and the other insert may cause deadlock.
         checkTableColumn(column, "user property name is not valid");
         try (Connection conn = queryExecutor.getConnection()) {
             try {
@@ -258,6 +262,50 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         }
     }
 
+    public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter) {
+        List<String> filters = new ArrayList<>(2);
+
+        for (EventFilter filter : eventFilter) {
+            StringBuilder builder = new StringBuilder();
+
+            checkCollection(filter.collection);
+            if (filter.aggregation == null) {
+                builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
+                if (filter.filterExpression != null) {
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
+                }
+                filters.add((format("id in (%s)", builder.toString())));
+            } else {
+                builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
+                if (filter.filterExpression != null) {
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
+                }
+                String field;
+                if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
+                    field = "_user";
+                } else {
+                    field = filter.aggregation.field;
+                }
+                builder.append(" group by \"_user\" ");
+                if (filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
+                    builder.append(" having ");
+                }
+                if (filter.aggregation.minimum != null) {
+                    builder.append(format(" %s(\"%s\") >= %d ", filter.aggregation.type, field, filter.aggregation.minimum));
+                }
+                if (filter.aggregation.maximum != null) {
+                    if (filter.aggregation.minimum != null) {
+                        builder.append(" and ");
+                    }
+                    builder.append(format(" %s(\"%s\") < %d ", filter.aggregation.type, field, filter.aggregation.maximum));
+                }
+                filters.add((format("id in (%s)", builder.toString())));
+            }
+        }
+
+        return filters;
+    }
+
     @Override
     public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset) {
         checkProject(project);
@@ -269,45 +317,9 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         if (filterExpression != null) {
             filters.add(new ExpressionFormatter.Formatter().process(filterExpression, null));
         }
+
         if (eventFilter != null && !eventFilter.isEmpty()) {
-            for (EventFilter filter : eventFilter) {
-                StringBuilder builder = new StringBuilder();
-
-                checkCollection(filter.collection);
-                if (filter.aggregation == null) {
-                    builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
-                    if (filter.filterExpression != null) {
-                        builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
-                    }
-                    filters.add((format("id in (%s)", builder.toString())));
-                } else {
-                    builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
-                    if (filter.filterExpression != null) {
-                        builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
-                    }
-                    String field;
-                    if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
-                        field = "_user";
-                    } else {
-                        field = filter.aggregation.field;
-                    }
-                    builder.append(" group by \"_user\" ");
-                    if (filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
-                        builder.append(" having ");
-                    }
-                    if (filter.aggregation.minimum != null) {
-                        builder.append(format(" %s(\"%s\") >= %d ", filter.aggregation.type, field, filter.aggregation.minimum));
-                    }
-                    if (filter.aggregation.maximum != null) {
-                        if (filter.aggregation.minimum != null) {
-                            builder.append(" and ");
-                        }
-                        builder.append(format(" %s(\"%s\") < %d ", filter.aggregation.type, field, filter.aggregation.maximum));
-                    }
-                    filters.add((format("id in (%s)", builder.toString())));
-
-                }
-            }
+            filters.addAll(getEventFilterPredicate(project, eventFilter));
         }
 
         if (sortColumn != null) {
@@ -423,7 +435,6 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     }
 
     public void setUserProperty(String project, String userId, Map<String, Object> properties, boolean onlyOnce) {
-        checkProject(project);
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
             columns = getProjectProperties(project);
@@ -478,7 +489,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         if (clazz.equals(String.class)) {
             return "text";
         } else if (clazz.equals(Float.class) || clazz.equals(Double.class)) {
-            return "bool";
+            return "double precision";
         } else if (Number.class.isAssignableFrom(clazz)) {
             return "bigint";
         } else if (clazz.equals(Boolean.class)) {
@@ -498,5 +509,30 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
                 ")", project, USER_TABLE, PRIMARY_KEY, PRIMARY_KEY));
+    }
+
+    @Override
+    public void incrementProperty(String project, String user, String property, long value) {
+        Map<String, FieldType> columns = propertyCache.getIfPresent(project);
+        if (columns == null) {
+            columns = getProjectProperties(project);
+        }
+
+        FieldType fieldType = columns.get(property);
+        if(fieldType == null) {
+            createColumn(project, property, 0);
+        }
+
+        if(fieldType != FieldType.LONG || fieldType != FieldType.DOUBLE) {
+            throw new RakamException(String.format("The property the is %s and it can't be incremented.", fieldType.name()),
+                    HttpResponseStatus.BAD_REQUEST);
+        }
+
+        try (Connection conn = queryExecutor.getConnection()) {
+            conn.createStatement().execute("update " + project + "." + USER_TABLE + " set " + property + " += "+value);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+
     }
 }

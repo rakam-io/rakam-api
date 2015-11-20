@@ -28,6 +28,7 @@ public interface UserStorage {
     void setUserProperty(String project, String user, Map<String, Object> properties);
     void setUserPropertyOnce(String project, String user, Map<String, Object> properties);
     void createProject(String project);
+    void incrementProperty(String project, String user, String property, long value);
 
     class Sorting {
         public final String column;

@@ -77,7 +77,7 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
-    public MetadataResponse metadata(@ApiParam(name = "project", required = true) String project) {
+    public MetadataResponse getMetadata(@ApiParam(name = "project", required = true) String project) {
         return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
     }
 
@@ -96,7 +96,7 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/search")
-    public CompletableFuture<QueryResult> search(@ApiParam(name = "project") String project,
+    public CompletableFuture<QueryResult> searchUsers(@ApiParam(name = "project") String project,
                                                  @ApiParam(name = "filter", required = false) String filter,
                                                  @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                                  @ApiParam(name = "sorting", required = false) Sorting sorting,
@@ -168,6 +168,19 @@ public class UserHttpService extends HttpService {
                                         @ApiParam(name = "properties") Map<String, Object> properties) {
         // TODO: we may cache these values and reduce the db hit.
         service.setUserPropertyOnce(project, user, properties);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Set user property")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist."),
+            @ApiResponse(code = 400, message = "User does not exist.")})
+    @Path("/increment")
+    public JsonResponse incrementUserProperty(@ApiParam(name = "project", required = true) String project,
+                                        @ApiParam(name = "user", required = true) String user,
+                                        String property, long value) {
+        service.incrementProperty(project, user, property, value);
         return JsonResponse.success();
     }
 }

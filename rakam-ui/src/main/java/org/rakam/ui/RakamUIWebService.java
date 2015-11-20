@@ -52,40 +52,19 @@ public class RakamUIWebService extends HttpService {
         directory = config.getUIDirectory();
     }
 
+    @Path("/favicon.ico")
+    @javax.ws.rs.GET
+    public void favicon(RakamHttpRequest request) {
+        sendFile(request, new File(directory.getPath(), "favicon.ico"));
+    }
+
     @Path("/ui/active-modules")
     @javax.ws.rs.GET
     public ActiveModuleList modules() {
         return activeModules;
     }
 
-    @Path("/*")
-    @javax.ws.rs.GET
-    public void main(RakamHttpRequest request) {
-        if (!request.getDecoderResult().isSuccess()) {
-            sendError(request, BAD_REQUEST);
-            return;
-        }
-
-        if (request.getMethod() != GET) {
-            sendError(request, METHOD_NOT_ALLOWED);
-            return;
-        }
-
-        final String uri = request.path();
-
-        int idx = uri.indexOf("/static/");
-        File file;
-        if(idx > -1) {
-            final String path = sanitizeUri(uri);
-            if (path == null) {
-                sendError(request, FORBIDDEN);
-                return;
-            }
-            file = new File(path);
-        } else {
-            file = new File(directory.getPath(), "index.html");
-        }
-
+    private void sendFile(RakamHttpRequest request, File file) {
         if (file.isHidden() || !file.exists()) {
             sendError(request, NOT_FOUND);
             return;
@@ -151,6 +130,37 @@ public class RakamUIWebService extends HttpService {
         if (!HttpHeaders.isKeepAlive(request)) {
             lastContentFuture.addListener(ChannelFutureListener.CLOSE);
         }
+    }
+
+    @Path("/*")
+    @javax.ws.rs.GET
+    public void main(RakamHttpRequest request) {
+        if (!request.getDecoderResult().isSuccess()) {
+            sendError(request, BAD_REQUEST);
+            return;
+        }
+
+        if (request.getMethod() != GET) {
+            sendError(request, METHOD_NOT_ALLOWED);
+            return;
+        }
+
+        final String uri = request.path();
+
+        int idx = uri.indexOf("/static/");
+        File file;
+        if(idx > -1) {
+            final String path = sanitizeUri(uri);
+            if (path == null) {
+                sendError(request, FORBIDDEN);
+                return;
+            }
+            file = new File(path);
+        } else {
+            file = new File(directory.getPath(), "index.html");
+        }
+
+        sendFile(request, file);
     }
 
 

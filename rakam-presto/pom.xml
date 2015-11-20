@@ -63,6 +63,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-postgresql</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-parser</artifactId>
         </dependency>

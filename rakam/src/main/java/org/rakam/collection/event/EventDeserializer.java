@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ProjectNotExistsException;
@@ -24,6 +25,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.ProjectCollection;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -32,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -77,9 +80,12 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             switch (fieldName) {
                 case "project":
                     if(project != null) {
-                        throw new IllegalArgumentException("project is already set");
+                        if(jp.getValueAsString() != null) {
+                            throw new IllegalArgumentException("project is already set");
+                        }
+                    } else {
+                        project = jp.getValueAsString();
                     }
-                    project = jp.getValueAsString();
                     break;
                 case "collection":
                     collection = jp.getValueAsString().toLowerCase();
@@ -89,39 +95,30 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     break;
                 case "properties":
                     if (project == null || collection == null) {
-                        // workaround for reading a skipped json node after processing whose json document.
-                        ((SaveableReaderBasedJsonParser) jp).save();
-                        jp.skipChildren();
+                        throw new JsonMappingException("'project' and 'collection' fields must be located before 'properties' field.");
                     } else {
                         try {
                             properties = parseProperties(project, collection, jp);
                         } catch (ProjectNotExistsException e) {
                             throw Throwables.propagate(e);
                         }
+                        t = jp.getCurrentToken();
+
+                        if(t != JsonToken.END_OBJECT) {
+                            if(t == JsonToken.START_OBJECT) {
+                                throw new RakamException("Nested properties are not supported", HttpResponseStatus.BAD_REQUEST);
+                            } else {
+                                System.out.println(1);
+                            }
+                        }
                     }
                     break;
             }
         }
-        if (project == null)
-            throw new JsonMappingException("project is null");
-
-        if (collection == null)
-            throw new JsonMappingException("collection is null");
-
         if (properties == null) {
-            SaveableReaderBasedJsonParser customJp = (SaveableReaderBasedJsonParser) jp;
-            if (customJp.isSaved()) {
-                customJp.load();
-                try {
-                    properties = parseProperties(project, collection, jp);
-                } catch (ProjectNotExistsException e) {
-                    throw Throwables.propagate(e);
-                }
-            } else {
-                throw new JsonMappingException("properties is null");
-            }
+            throw new JsonMappingException("properties is null");
         }
-        return new Event(project, collection, properties, context);
+        return new Event(project, collection, context, properties);
     }
 
     public Schema convertAvroSchema(List<SchemaField> fields) {
@@ -159,7 +156,6 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             schema = schemaRegistry.getOrCreateCollectionFieldList(project, collection, fields);
             avroSchema = convertAvroSchema(schema);
-
             schemaCache.put(key, avroSchema);
 
             GenericData.Record record = new GenericData.Record(avroSchema);
@@ -179,23 +175,28 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             t = jp.nextToken();
 
             if (field == null) {
-                FieldType type = getType(t, jp);
-                if (type != null) {
-                    if (newFields == null)
-                        newFields = new HashSet<>();
-                    SchemaField newField = new SchemaField(fieldName, type, true);
+                fieldName = fieldName.toLowerCase(Locale.ENGLISH);
+                field = avroSchema.getField(fieldName);
+                if(field == null) {
+                    FieldType type = getType(t, jp);
+                    if (type != null) {
+                        if (newFields == null)
+                            newFields = new HashSet<>();
 
-                    newFields.add(newField);
-                    avroSchema = createNewSchema(avroSchema, newField);
-                    field = avroSchema.getFields().stream().filter(f -> f.name().equals(fieldName)).findAny().get();
+                        SchemaField newField = new SchemaField(fieldName, type, true);
+                        newFields.add(newField);
 
-                    GenericData.Record newRecord = new GenericData.Record(avroSchema);
-                    for (Schema.Field f : record.getSchema().getFields()) {
-                        newRecord.put(f.name(), record.get(f.name()));
+                        avroSchema = createNewSchema(avroSchema, newField);
+                        field = avroSchema.getField(newField.getName());
+
+                        GenericData.Record newRecord = new GenericData.Record(avroSchema);
+                        for (Schema.Field f : record.getSchema().getFields()) {
+                            newRecord.put(f.name(), record.get(f.name()));
+                        }
+                        record = newRecord;
+                    } else {
+                        continue;
                     }
-                    record = newRecord;
-                } else {
-                    continue;
                 }
             } else {
                 if(field.schema().getType() == Schema.Type.NULL) {
@@ -211,7 +212,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 }
             }
 
-            putValue(t, jp, record, field, field.pos());
+            try {
+                record.put(field.pos(), getValue(jp, field));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         if (newFields != null) {
@@ -230,14 +235,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     }
 
     private Schema createNewSchema(Schema currentSchema, SchemaField newField) {
-        ArrayList<SchemaField> newFields = new ArrayList<>();
-        newFields.add(newField);
-
         List<Schema.Field> avroFields = copyFields(currentSchema.getFields());
-
-        newFields.stream()
-                .filter(f -> !avroFields.stream().anyMatch(af -> af.name().equals(f.getName())))
-                .map(AvroUtil::generateAvroSchema).forEach(x -> avroFields.add(x));
+        avroFields.add(AvroUtil.generateAvroSchema(newField));
 
         sourceFields.keySet().stream()
                 .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
@@ -293,72 +292,52 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private void putValue(JsonToken t, JsonParser jp, GenericData.Record record, Schema.Field field, int pos) throws IOException {
+    private Object getValueOfMagicField(JsonParser jp, Schema.Field field) throws IOException {
+        switch (jp.getCurrentToken()) {
+            case VALUE_TRUE:
+                return Boolean.TRUE;
+            case VALUE_FALSE:
+                return Boolean.FALSE;
+            case VALUE_NUMBER_FLOAT:
+                return jp.getValueAsDouble();
+            case VALUE_NUMBER_INT:
+                return jp.getValueAsLong();
+            case VALUE_STRING:
+                return jp.getValueAsString();
+            case VALUE_NULL:
+                return null;
+            default:
+                throw new RakamException("The value of "+field.name()+" is unknown", HttpResponseStatus.BAD_REQUEST);
+        }
+    }
+
+    private Object getValue(JsonParser jp, Schema.Field field) throws IOException {
         switch (getActualType(field)) {
             case NULL:
-                switch (t) {
-                    case VALUE_TRUE:
-                        record.put(pos, true);
-                        break;
-                    case VALUE_FALSE:
-                        record.put(pos, false);
-                        break;
-                    case VALUE_NUMBER_FLOAT:
-                        record.put(pos, jp.getValueAsDouble());
-                        break;
-                    case VALUE_NUMBER_INT:
-                        record.put(pos, jp.getValueAsLong());
-                        break;
-                    case VALUE_STRING:
-                        record.put(pos, jp.getValueAsString());
-                        break;
-                    case VALUE_NULL:
-                        record.put(pos, null);
-                        break;
-                    default:
-                        throw new IllegalArgumentException("unknown value for magic field "+field.name());
-                }
-                break;
+                return getValueOfMagicField(jp, field);
             case STRING:
                 // TODO: is it a good idea to cast the value automatically?
 //                if (t == JsonToken.VALUE_STRING)
-                    record.put(pos, jp.getValueAsString());
-                break;
+                    return jp.getValueAsString();
             case BOOLEAN:
-                if (t == JsonToken.VALUE_STRING)
-                    record.put(pos, jp.getValueAsBoolean());
-                break;
+                return jp.getValueAsBoolean();
             case LONG:
-                if (t == JsonToken.VALUE_NUMBER_INT)
-                    record.put(pos, jp.getValueAsLong());
-                break;
+                return jp.getValueAsLong();
             case INT:
-                if (t == JsonToken.VALUE_NUMBER_INT)
-                    record.put(pos, jp.getValueAsInt());
-                break;
+                return jp.getValueAsInt();
             case DOUBLE:
-                if (t == JsonToken.VALUE_NUMBER_FLOAT || t == JsonToken.VALUE_NUMBER_INT)
-                    record.put(pos, jp.getValueAsDouble());
-                break;
-            case FLOAT:
-                if (t == JsonToken.VALUE_NUMBER_FLOAT) {
-                    Number numberValue = jp.getNumberValue();
-                    if (numberValue != null)
-                        record.put(pos, numberValue.floatValue());
-                }
-                break;
-            case UNION:
-                break;
+                return jp.getValueAsDouble();
             case ARRAY:
-                throw new UnsupportedOperationException("array type is not supported yet");
-//                if(jp.isExpectedStartArrayToken()) {
-//                    ArrayList<Object> objects = new ArrayList<>();
-//                    for (t = jp.nextToken(); t != JsonToken.END_ARRAY; t = jp.nextToken()) {
-//                        objects.add(jp.getValueAsString());
-//                    }
-//                    record.put(pos, new GenericData.Array(schema, objects));
-//                }
-//                break;
+                JsonToken t = jp.getCurrentToken();
+                if(t == JsonToken.START_ARRAY) {
+                    List<Object> objects = new ArrayList<>();
+                    for (t = jp.nextToken(); t != JsonToken.END_ARRAY; t = jp.nextToken()) {
+                        objects.add(getValue(jp, field));
+                    }
+                    return new GenericData.Array(field.schema().getElementType(), objects);
+                } else {
+                    return null;
+                }
             default:
                 throw new JsonMappingException(format("nested properties is not supported."));
         }
@@ -448,6 +427,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
         public SaveableReaderBasedJsonParser(IOContext ctxt, int features, Reader r, ObjectCodec codec, CharsToNameCanonicalizer st, char[] inputBuffer, int start, int end, boolean bufferRecyclable) {
             super(ctxt, features, r, codec, st, inputBuffer, start, end, bufferRecyclable);
+        }
+
+        public SaveableReaderBasedJsonParser(IOContext ctxt, int features, Reader r, ObjectCodec codec, CharsToNameCanonicalizer st) {
+            super(ctxt, features, r, codec, st);
         }
 
         public void save() {

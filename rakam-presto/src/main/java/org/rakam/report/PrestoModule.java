@@ -30,6 +30,8 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.UserPluginConfig;
+import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.user.PrestoExternalUserStorageAdapter;
 
 import javax.inject.Inject;
 
@@ -62,9 +64,10 @@ public class PrestoModule extends RakamModule {
 
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
-
             binder.bind(EventExplorerListener.class).asEagerSingleton();
         }
+
+        binder.bind(UserStorage.class).to(PrestoExternalUserStorageAdapter.class).in(Scopes.SINGLETON);
 
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 

@@ -3,21 +3,24 @@ package org.rakam.collection;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.server.http.annotations.ApiParam;
 
-
+@JsonPropertyOrder({ "project", "collection", "context", "properties" })
 public class Event {
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final String project;
     private final String collection;
-    private final GenericRecord properties;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private EventContext context;
+    private final GenericRecord properties;
 
     @JsonCreator
     public Event(@ApiParam("project") String project,
                  @ApiParam("collection") String collection,
-                 @ApiParam("properties") GenericRecord properties,
-                 @ApiParam("api") EventContext context) {
+                 @ApiParam("api") EventContext context,
+                 @ApiParam("properties") GenericRecord properties) {
         this.project = project;
         this.collection = collection;
         this.properties = properties;

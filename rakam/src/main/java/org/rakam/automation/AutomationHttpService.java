@@ -29,7 +29,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/add")
-    public JsonResponse add(@ParamBody AutomationRule rule) {
+    public JsonResponse addRule(@ParamBody AutomationRule rule) {
         service.add(rule);
         return JsonResponse.success();
     }
@@ -39,7 +39,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/remove")
-    public JsonResponse remove(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+    public JsonResponse removeRule(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
         service.remove(project, id);
         return JsonResponse.success();
     }
@@ -49,7 +49,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/deactivate")
-    public JsonResponse deactivate(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+    public JsonResponse deactivateRule(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
         service.deactivate(project, id);
         return JsonResponse.success();
     }
@@ -59,7 +59,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/activate")
-    public JsonResponse activate(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+    public JsonResponse activateRule(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
         service.activate(project, id);
         return JsonResponse.success();
     }
@@ -69,7 +69,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/list")
-    public List<AutomationRule> list(@ApiParam(name="project") String project) {
+    public List<AutomationRule> listRules(@ApiParam(name="project") String project) {
         return service.list(project);
     }
 }

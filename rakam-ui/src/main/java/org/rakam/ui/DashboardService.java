@@ -30,6 +30,7 @@ import org.skife.jdbi.v2.util.IntegerMapper;
 import javax.inject.Inject;
 import javax.ws.rs.Path;
 import java.util.List;
+import java.util.Map;
 
 
 @Path("/ui/dashboard")
@@ -48,6 +49,7 @@ public class DashboardService extends HttpService {
                     "  id SERIAL," +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
+                    "  options TEXT," +
                     "  UNIQUE (project, name)," +
                     "  PRIMARY KEY (id)" +
                     "  )")
@@ -67,14 +69,15 @@ public class DashboardService extends HttpService {
 
     @JsonRequest
     @Path("/create")
-    public Dashboard create(@ApiParam(name="project", required = true) String project,
-                            @ApiParam(name="name", required = true) String name) {
-
+    public Dashboard create(@ApiParam(name="project") String project,
+                            @ApiParam(name="name") String name,
+                            @ApiParam(name="options") Map<String, Object> options) {
         try(Handle handle = dbi.open()) {
-            int id = handle.createQuery("INSERT INTO dashboard (project, name) VALUES (:project, :name) RETURNING id")
+            int id = handle.createQuery("INSERT INTO dashboard (project, name, options) VALUES (:project, :name, :options) RETURNING id")
                     .bind("project", project)
+                    .bind("options", JsonHelper.encode(options))
                     .bind("name", name).map(IntegerMapper.FIRST).first();
-            return new Dashboard(id, name);
+            return new Dashboard(id, name, options);
         }
     }
 
@@ -108,9 +111,10 @@ public class DashboardService extends HttpService {
     @Path("/list")
     public List<Dashboard> list(@ApiParam(name="project", required = true) String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name FROM dashboard WHERE project = :project")
+            return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project = :project")
                     .bind("project", project).map((i, resultSet, statementContext) -> {
-                        return new Dashboard(resultSet.getInt(1), resultSet.getString(2));
+                        return new Dashboard(resultSet.getInt(1), resultSet.getString(2),
+                                JsonHelper.read(resultSet.getString(3), Map.class));
                     }).list();
         }
     }
@@ -118,10 +122,12 @@ public class DashboardService extends HttpService {
     public static class Dashboard {
         public final int id;
         public final String name;
+        public final Map<String, Object> options;
 
-        public Dashboard(int id, String name) {
+        public Dashboard(int id, String name, Map<String, Object> options) {
             this.id = id;
             this.name = name;
+            this.options = options;
         }
     }
 

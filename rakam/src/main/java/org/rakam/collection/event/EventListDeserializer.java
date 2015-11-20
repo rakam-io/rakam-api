@@ -28,32 +28,42 @@ public class EventListDeserializer extends JsonDeserializer<EventCollectionHttpS
         JsonToken t = jp.getCurrentToken();
 
         if(t != JsonToken.START_OBJECT) {
-            throw new IllegalArgumentException("Must be an object");
+            throw new IllegalArgumentException("body must be an object");
         }
 
-        jp.nextToken();
+        Event.EventContext context = null;
+        String project = null;
 
+        jp.nextToken();
         String fieldName = jp.getCurrentName();
-        if(!fieldName.equals("api")) {
-            throw new RakamException("The first field must be api", HttpResponseStatus.BAD_REQUEST);
+        jp.nextToken();
+
+        if(fieldName.equals("api")) {
+            context = jp.readValueAs(Event.EventContext.class);
+        } else
+        if(fieldName.equals("project")) {
+            project = jp.getValueAsString();
+        }
+
+
+        jp.nextToken();
+        fieldName = jp.getCurrentName();
+        jp.nextToken();
+
+        if(fieldName.equals("api")) {
+            context = jp.readValueAs(Event.EventContext.class);
+        } else
+        if(fieldName.equals("project")) {
+            project = jp.getValueAsString();
+        }
+
+        if(project == null || context == null) {
+            throw new RakamException("First two fields must be api and project", HttpResponseStatus.BAD_REQUEST);
         }
 
         jp.nextToken();
-        Event.EventContext context = jp.readValueAs(Event.EventContext.class);
-        jp.nextToken();
-
-        fieldName = jp.getCurrentName();
-        if(!fieldName.equals("project")) {
-            throw new RakamException("The second field must be project", HttpResponseStatus.BAD_GATEWAY);
-        }
-
-        jp.nextToken();
-        String project = jp.getValueAsString();
-        jp.nextToken();
-
-        fieldName = jp.getCurrentName();
-        if(!fieldName.equals("events")) {
-            throw new RakamException("The second field must be project", HttpResponseStatus.BAD_REQUEST);
+        if (!jp.getValueAsString().equals("events")) {
+            throw new RakamException("Third field must be events.", HttpResponseStatus.BAD_REQUEST);
         }
 
         t = jp.nextToken();
@@ -66,10 +76,10 @@ public class EventListDeserializer extends JsonDeserializer<EventCollectionHttpS
             throw new RakamException("events field must be array", HttpResponseStatus.BAD_REQUEST);
         }
 
-        for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
+        for (; t == JsonToken.START_OBJECT; t = jp.nextToken()) {
             list.add(eventDeserializer.deserializeWithProject(jp, project));
         }
 
-        return new EventCollectionHttpService.EventList(project, list, context);
+        return new EventCollectionHttpService.EventList(context, project, list);
     }
 }

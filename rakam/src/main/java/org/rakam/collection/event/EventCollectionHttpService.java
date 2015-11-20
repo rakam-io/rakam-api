@@ -328,10 +328,8 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     public static class EventParserJsonFactory extends JsonFactory {
-
         @Override
-        protected JsonParser _createParser(char[] data, int offset, int len, IOContext ctxt,
-                                           boolean recyclable) throws IOException {
+        protected JsonParser _createParser(char[] data, int offset, int len, IOContext ctxt, boolean recyclable) throws IOException {
             return new EventDeserializer.SaveableReaderBasedJsonParser(ctxt, _parserFeatures, null, _objectCodec,
                     _rootCharSymbols.makeChild(_factoryFeatures),
                     data, offset, offset + len, recyclable);
@@ -339,19 +337,17 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     public static class EventList {
+        public final Event.EventContext context;
         public final String project;
         public final List<Event> events;
-        public final Event.EventContext context;
 
         @JsonCreator
-        public EventList(@ApiParam(name = "project") String project,
-                         @ApiParam(name = "events") List<Event> events,
-                         @ApiParam(name = "api") Event.EventContext context) {
-            this.project = project;
-            this.events = events;
+        public EventList(@ApiParam(name = "api") Event.EventContext context,
+                         @ApiParam(name = "project") String project,
+                         @ApiParam(name = "events") List<Event> events) {
+            this.project = checkNotNull(project, "project parameter is null");
+            this.events = checkNotNull(events, "events parameter is null");
             this.context = checkNotNull(context, "api is null");
         }
     }
-
-
 }

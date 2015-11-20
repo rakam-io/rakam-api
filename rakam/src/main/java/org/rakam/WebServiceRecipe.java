@@ -55,7 +55,7 @@ public class WebServiceRecipe extends AbstractModule {
 
         Info info = new Info()
                 .title("Rakam API Documentation")
-                .version("1.0")
+                .version(ServiceStarter.RAKAM_VERSION)
                 .description("An analytics platform API that lets you create your own analytics services.")
                 .contact(new Contact().email("contact@rakam.com"))
                 .license(new License()
@@ -78,6 +78,7 @@ public class WebServiceRecipe extends AbstractModule {
                 .setSwagger(swagger)
                 .setEventLoopGroup(eventExecutors)
                 .setMapper(JsonHelper.getMapper())
+                .setDebugMode(true)
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))

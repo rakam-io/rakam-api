@@ -16,6 +16,7 @@ package org.rakam.analysis;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import org.rakam.report.QueryExecution;
@@ -43,7 +44,7 @@ public interface RetentionQueryExecutor {
 
         @JsonProperty
         public abstract String collection();
-        @JsonProperty
+        @JsonIgnore
         public abstract Optional<Expression> filter();
 
         @JsonCreator
@@ -52,6 +53,11 @@ public interface RetentionQueryExecutor {
             checkCollection(collection);
             return new AutoValue_RetentionQueryExecutor_RetentionAction(collection,
                     filterExpression.map(RetentionAction::parseExpression));
+        }
+
+        @JsonProperty
+        public static String getFilter() {
+            return getFilter().toString();
         }
 
         private static synchronized Expression parseExpression(String filterExpression) {

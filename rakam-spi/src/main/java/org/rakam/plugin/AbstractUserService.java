@@ -53,6 +53,10 @@ public abstract class AbstractUserService {
 
     public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, long offset);
 
+    public void incrementProperty(String project, String user, String property, long value) {
+        storage.incrementProperty(project, user, property, value);
+    }
+
     public static class CollectionEvent {
         public final String collection;
         public final Map<String, Object> properties;

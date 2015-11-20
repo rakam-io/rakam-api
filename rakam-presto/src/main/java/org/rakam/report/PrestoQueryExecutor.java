@@ -46,8 +46,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
     private final JettyHttpClient httpClient = new JettyHttpClient(
             new HttpClientConfig()
                     .setConnectTimeout(new Duration(10, TimeUnit.SECONDS))
-                    .setSocksProxy(getSystemSocksProxy()),
-            new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
+                    .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
             ImmutableSet.of(new UserAgentRequestFilter("rakam")));
     private final Metastore metastore;
 
