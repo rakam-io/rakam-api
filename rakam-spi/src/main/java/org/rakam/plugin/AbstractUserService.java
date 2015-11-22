@@ -43,11 +43,11 @@ public abstract class AbstractUserService {
         return storage.getUser(project, user);
     }
 
-    public void setUserProperty(String project, String user, Map<String, Object> properties) {
+    public void setUserProperties(String project, String user, Map<String, Object> properties) {
         storage.setUserProperty(project, user, properties);
     }
 
-    public void setUserPropertyOnce(String project, String user, Map<String, Object> properties) {
+    public void setUserPropertiesOnce(String project, String user, Map<String, Object> properties) {
         storage.setUserPropertyOnce(project, user, properties);
     }
 

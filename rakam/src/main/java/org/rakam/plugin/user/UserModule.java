@@ -2,6 +2,7 @@ package org.rakam.plugin.user;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
@@ -19,6 +20,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 
 import javax.inject.Inject;
+import java.util.Map;
 
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -26,6 +28,11 @@ import static org.rakam.util.ValidationUtil.checkProject;
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.enabled", value = "true")
 public class UserModule extends RakamModule {
+
+    Map<String, Class<? extends UserActionService>> actionList = ImmutableMap.<String, Class<? extends UserActionService>>builder()
+                    .put("email", UserEmailActionService.class)
+                    .build();
+
     @Override
     protected void setup(Binder binder) {
         Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
@@ -38,6 +45,14 @@ public class UserModule extends RakamModule {
         tagMultibinder.addBinding()
                 .toInstance(new Tag().name("user").description("User module for Rakam")
                         .externalDocs(MetadataConfig.centralDocs));
+
+        Multibinder<UserActionService> userAction = Multibinder.newSetBinder(binder, UserActionService.class);
+        Iterable<String> actionList = userPluginConfig.getActionList();
+        if(actionList != null) {
+            for (String actionName : actionList) {
+                userAction.addBinding().to(this.actionList.get(actionName)).in(Scopes.SINGLETON);
+            }
+        }
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
 

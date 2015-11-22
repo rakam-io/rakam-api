@@ -71,7 +71,7 @@ public class DashboardService extends HttpService {
     @Path("/create")
     public Dashboard create(@ApiParam(name="project") String project,
                             @ApiParam(name="name") String name,
-                            @ApiParam(name="options") Map<String, Object> options) {
+                            @ApiParam(name="options", required = false) Map<String, Object> options) {
         try(Handle handle = dbi.open()) {
             int id = handle.createQuery("INSERT INTO dashboard (project, name, options) VALUES (:project, :name, :options) RETURNING id")
                     .bind("project", project)
@@ -111,10 +111,11 @@ public class DashboardService extends HttpService {
     @Path("/list")
     public List<Dashboard> list(@ApiParam(name="project", required = true) String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project = :project")
+            return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project = :project ORDER BY id")
                     .bind("project", project).map((i, resultSet, statementContext) -> {
+                        String options = resultSet.getString(3);
                         return new Dashboard(resultSet.getInt(1), resultSet.getString(2),
-                                JsonHelper.read(resultSet.getString(3), Map.class));
+                                options == null ? null : JsonHelper.read(options, Map.class));
                     }).list();
         }
     }
@@ -168,13 +169,15 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
-    @Path("/update_dashboard")
+    @Path("/update_dashboard_items")
     public JsonResponse updateDashboard(@ApiParam(name="project") String project,
                                @ApiParam(name="dashboard") int dashboard,
                                @ApiParam(name="items") List<DashboardItem> items) {
 
         dbi.inTransaction((handle, transactionStatus) -> {
             for (DashboardItem item : items) {
+
+                // TODO: verify dashboard is in project
                 handle.createStatement("UPDATE dashboard_items SET name = :name, directive = :directive, data = :data WHERE id = :id")
                         .bind("id", item.id)
                         .bind("name", item.name)
@@ -187,11 +190,28 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @Path("/update_dashboard_options")
+    public JsonResponse updateDashboardOptions(@ApiParam(name="project") String project,
+                               @ApiParam(name="dashboard") int dashboard,
+                               @ApiParam(name="options") Map<String, Object> options) {
+
+        dbi.inTransaction((handle, transactionStatus) -> {
+            handle.createStatement("UPDATE dashboard SET options = :options WHERE id = :id AND project = :project")
+                    .bind("id", dashboard)
+                    .bind("options", JsonHelper.encode(options))
+                    .bind("project", project)
+                    .execute();
+            return null;
+        });
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
     @Path("/rename_item")
     public JsonResponse renameDashboardItem(@ApiParam(name="project") String project,
                                @ApiParam(name="dashboard") int dashboard,
                                @ApiParam(name="id") int id,
-                               @ApiParam(name="name") int name) {
+                               @ApiParam(name="name") String name) {
         try(Handle handle = dbi.open()) {
             handle.createStatement("UPDATE dashboard_items SET name = :name WHERE id = :id")
                     .bind("id", id)

@@ -18,6 +18,7 @@ import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -63,13 +64,15 @@ public class EventCollectionHttpService extends HttpService {
     private final byte[] OK_MESSAGE = "1".getBytes(UTF8_CHARSET);
 
     private final EventStore eventStore;
-    private final Set<EventMapper> mappers;
+    private final Set<EventMapper> eventMappers;
     private final Metastore metastore;
+    private final Set<EventProcessor> eventProcessors;
 
     @Inject
-    public EventCollectionHttpService(EventStore eventStore, EventDeserializer deserializer, EventListDeserializer eventListDeserializer,  Set<EventMapper> mappers, Metastore metastore) {
+    public EventCollectionHttpService(EventStore eventStore, EventDeserializer deserializer, EventListDeserializer eventListDeserializer,  Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Metastore metastore) {
         this.eventStore = eventStore;
-        this.mappers = mappers;
+        this.eventMappers = mappers;
+        this.eventProcessors = eventProcessors;
         this.metastore = metastore;
 
         SimpleModule module = new SimpleModule();
@@ -87,7 +90,7 @@ public class EventCollectionHttpService extends HttpService {
 
     private List<Cookie> mapEvent(Event event, HttpHeaders headers, InetAddress socketAddress, DefaultFullHttpResponse response) {
         List<Cookie> responseAttachment = null;
-        for (EventMapper mapper : mappers) {
+        for (EventMapper mapper : eventMappers) {
             try {
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
                 final List<Cookie> map = mapper.map(event, headers, socketAddress, response);
@@ -100,6 +103,21 @@ public class EventCollectionHttpService extends HttpService {
                 }
             } catch (Exception e) {
                 throw new RuntimeException("An error occurred while processing event in " + mapper.getClass().getName(), e);
+            }
+        }
+
+        for (EventProcessor eventProcessor : eventProcessors) {
+            try {
+                final List<Cookie> map = eventProcessor.map(event, headers, socketAddress, response);
+                if(map != null) {
+                    if(responseAttachment == null) {
+                        responseAttachment = new ArrayList<>();
+                    }
+
+                    responseAttachment.addAll(map);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("An error occurred while processing event in " + eventProcessor.getClass().getName(), e);
             }
         }
         return responseAttachment;
@@ -117,8 +135,6 @@ public class EventCollectionHttpService extends HttpService {
         InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
                 .remoteAddress();
         HttpHeaders headers = request.headers();
-//        String checksum = headers.get("Content-MD5");
-
 
         request.bodyHandler(buff -> {
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));

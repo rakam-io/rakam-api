@@ -17,11 +17,11 @@ public class AutomationRule {
     @JsonProperty("is_active")
     public boolean isActive;
     public final List<ScenarioStep> scenarios;
-    public final List<Action> actions;
+    public final List<SerializableAction> actions;
     @JsonProperty("custom_data")
     public final String customData;
 
-    public AutomationRule(int id, String project, boolean isActive, List<ScenarioStep> scenarios, List<Action> actions, String customData) {
+    public AutomationRule(int id, String project, boolean isActive, List<ScenarioStep> scenarios, List<SerializableAction> actions, String customData) {
         this.id = id;
         this.project = project;
         this.isActive = isActive;
@@ -35,13 +35,12 @@ public class AutomationRule {
     }
 
     @JsonCreator
-    public AutomationRule(@ApiParam(name = "id") int id,
-                          @ApiParam(name = "project") String project,
-                          @ApiParam(name = "is_active") Boolean isActive,
+    public AutomationRule(@ApiParam(name = "project") String project,
+                          @ApiParam(name = "is_active", required = false) Boolean isActive,
                           @ApiParam(name = "scenarios") List<ScenarioStep> scenarios,
-                          @ApiParam(name = "actions") List<Action> actions,
-                          @ApiParam(name = "custom_data") String customData) {
-        this.id = id;
+                          @ApiParam(name = "actions") List<SerializableAction> actions,
+                          @ApiParam(name = "custom_data", required = false) String customData) {
+        this.id = -1;
         this.customData = customData;
         this.project = project;
         this.isActive = isActive == null ? true : isActive.booleanValue();
@@ -63,20 +62,27 @@ public class AutomationRule {
         }
     }
 
-    public static class Action {
-        public final ActionType type;
-        public final String value;
+    public static class SerializableAction<T> {
+        public final AutomationActionType type;
+        public final T value;
+        @JsonIgnore
+        public AutomationAction action;
 
         @JsonCreator
-        public Action(@JsonProperty("type") ActionType type,
-                      @JsonProperty("value") String value) {
+        public SerializableAction(@JsonProperty("type") AutomationActionType type,
+                                  @JsonProperty("value") T value) {
             this.type = type;
             this.value = value;
         }
-    }
 
-    public enum ActionType {
-        email, client
+        public synchronized void setAction(AutomationAction action) {
+            this.action = action;
+        }
+
+        @JsonIgnore
+        public AutomationAction getAction() {
+            return action;
+        }
     }
 
     public static class Threshold {

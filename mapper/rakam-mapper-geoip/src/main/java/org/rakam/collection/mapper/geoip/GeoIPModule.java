@@ -7,6 +7,7 @@ import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.UserPropertyMapper;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -27,8 +28,8 @@ public class GeoIPModule extends RakamModule {
             binder.addError(e);
             return;
         }
-        Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
-        eventMappers.addBinding().toInstance(geoIPEventMapper);
+        Multibinder.newSetBinder(binder, UserPropertyMapper.class).addBinding().toInstance(geoIPEventMapper);
+        Multibinder.newSetBinder(binder, EventMapper.class).addBinding().toInstance(geoIPEventMapper);
     }
 
     @Override

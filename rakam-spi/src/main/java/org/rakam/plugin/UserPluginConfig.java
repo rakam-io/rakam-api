@@ -13,10 +13,10 @@ public class UserPluginConfig {
     private boolean mailboxEnabled;
     private String mailBoxStorageModule;
     private String sessionColumn;
-    private String lastSeenColumn;
     private String identifierColumn;
     private boolean funnelAnalysisEnabled = true;
     private boolean retentionAnalysisEnabled = true;
+    private Iterable<String> actions;
 
     @Config("plugin.user.storage.identifier_column")
     public UserPluginConfig setIdentifierColumn(String colName) {
@@ -26,6 +26,16 @@ public class UserPluginConfig {
 
     public String getIdentifierColumn() {
         return identifierColumn;
+    }
+
+    @Config("plugin.user.actions")
+    public UserPluginConfig setActionList(String actions) {
+        this.actions = Splitter.on(",").trimResults().split(actions);
+        return this;
+    }
+
+    public Iterable<String> getActionList() {
+        return actions;
     }
 
     @Config("user.storage.session_column")

@@ -8,7 +8,10 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.rakam.collection.Event;
-import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.EventProcessor;
+import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.user.User;
+import org.rakam.plugin.user.UserActionService;
 import org.rakam.util.CryptUtil;
 
 import javax.inject.Inject;
@@ -19,14 +22,19 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
-public class AutomationEventMapper implements EventMapper {
+public class AutomationEventProcessor implements EventProcessor {
 
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";
 
     private final UserAutomationService service;
+    private final UserStorage userStorage;
+
     private static final List<Cookie> clearData;
+    private final Map<String, UserActionService> userActionServiceMap;
 
     static {
         DefaultCookie defaultCookie = new DefaultCookie(PROPERTY_KEY, "");
@@ -34,9 +42,17 @@ public class AutomationEventMapper implements EventMapper {
         clearData = ImmutableList.of(defaultCookie);
     }
 
+    private final Set<AutomationAction> automationActions;
+
     @Inject
-    public AutomationEventMapper(UserAutomationService service) {
+    public AutomationEventProcessor(UserAutomationService service, UserStorage userStorage,
+                                    Set<AutomationAction> automationActions,
+                                    Set<UserActionService> userActionServices) {
         this.service = service;
+        userActionServiceMap = userActionServices.stream()
+                .collect(Collectors.toMap(UserActionService::getActionName, a -> a));
+        this.userStorage = userStorage;
+        this.automationActions = automationActions;
     }
 
     @Override
@@ -99,14 +115,23 @@ public class AutomationEventMapper implements EventMapper {
                         actions = new ArrayList<>();
                     }
 
-                    for (AutomationRule.Action action : automationRule.actions) {
-                        switch (action.type) {
-                            case client:
-                                actions.add(action.value);
-                            case email:
-                                // push action to a query to send emails on worker threads
-                                break;
-                        }
+                    for (AutomationRule.SerializableAction action : automationRule.actions) {
+                        Supplier<User> supplier = new Supplier<User>() {
+                            User user;
+
+                            @Override
+                            public User get() {
+                                if (user == null) {
+                                    String userAttr = event.getAttribute("_user");
+                                    if (userAttr != null) {
+                                        user = userStorage.getUser(event.project(), userAttr).join();
+                                    }
+                                }
+                                return user;
+                            }
+                        };
+
+                        action.getAction().process(supplier, action.value);
                     }
                 }
             }

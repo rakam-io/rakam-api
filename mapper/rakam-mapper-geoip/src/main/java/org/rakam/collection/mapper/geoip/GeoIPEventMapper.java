@@ -15,12 +15,14 @@ import io.airlift.log.Logger;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.UserPropertyMapper;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -29,12 +31,13 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
 
 
-public class GeoIPEventMapper implements EventMapper {
+public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);
     final static String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
 
@@ -42,14 +45,12 @@ public class GeoIPEventMapper implements EventMapper {
             .of("city", "city_code", "region", "city", "latitude", "longitude", "timezone");
 
     private final String[] attributes;
-    private final GeoIPModuleConfig config;
     private final DatabaseReader connectionTypeLookup;
     private final DatabaseReader ispLookup;
     private final DatabaseReader cityLookup;
 
     public GeoIPEventMapper(GeoIPModuleConfig config) throws IOException {
         Preconditions.checkNotNull(config, "config is null");
-        this.config = config;
 
         DatabaseReader connectionTypeLookup = null, ispLookup = null, cityLookup = null;
         if (config.getAttributes() != null) {
@@ -135,6 +136,34 @@ public class GeoIPEventMapper implements EventMapper {
         }
 
         return null;
+    }
+
+    @Override
+    public void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress) {
+        Object ip = properties.get("_ip");
+
+        if((ip instanceof String)) {
+            try {
+                // it may be slow because java performs reverse hostname lookup.
+                sourceAddress = Inet4Address.getByName((String) ip);
+            } catch (UnknownHostException e) {
+                return;
+            }
+        }
+
+        GenericRecord record = new MapProxyGenericRecord(properties);
+
+        if (connectionTypeLookup != null) {
+            setConnectionType(sourceAddress, record);
+        }
+
+        if (ispLookup != null) {
+            setIsp(sourceAddress, record);
+        }
+
+        if (cityLookup != null) {
+            setGeoFields(sourceAddress, record);
+        }
     }
 
     @Override
@@ -235,6 +264,40 @@ public class GeoIPEventMapper implements EventMapper {
                     properties.put("timezone", city.getLocation().getTimeZone());
                     break;
             }
+        }
+    }
+
+    private static class MapProxyGenericRecord implements GenericRecord {
+
+        private final Map<String, Object> properties;
+
+        public MapProxyGenericRecord(Map<String, Object> properties) {
+            this.properties = properties;
+        }
+
+        @Override
+        public Schema getSchema() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void put(int i, Object v) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Object get(int i) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void put(String key, Object v) {
+            properties.put(key, v);
+        }
+
+        @Override
+        public Object get(String key) {
+            return properties.get(key);
         }
     }
 }

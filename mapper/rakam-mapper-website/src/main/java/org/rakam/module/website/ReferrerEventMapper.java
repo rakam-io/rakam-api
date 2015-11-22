@@ -8,18 +8,22 @@ import com.snowplowanalytics.refererparser.Referer;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.UserPropertyMapper;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Map;
 
-public class ReferrerEventMapper implements EventMapper {
+public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
 
     private final Parser parser;
 
@@ -31,11 +35,7 @@ public class ReferrerEventMapper implements EventMapper {
         }
     }
 
-    @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
-        Object referrer = event.properties().get("_referrer");
-        Object host = event.properties().get("_host");
-
+    private void mapInternal(HttpHeaders extraProperties, Object referrer, Object host, GenericRecord record) {
         String hostUrl, referrerUrl;
         if(referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
             hostUrl = extraProperties.get("Origin");
@@ -49,24 +49,36 @@ public class ReferrerEventMapper implements EventMapper {
                 hostUrl = null;
             }
         } else {
-            return null;
+            return;
         }
 
         Referer parse;
         if(referrerUrl != null) {
             try {
-               parse = parser.parse(referrerUrl, hostUrl);
+                parse = parser.parse(referrerUrl, hostUrl);
             } catch (URISyntaxException e) {
-                return null;
+                return;
             }
             if(parse == null) {
-                return null;
+                return;
             }
-            event.properties().put("referrer_medium", parse.medium !=null ? parse.medium.toString() : null);
-            event.properties().put("referrer_source", parse.source);
-            event.properties().put("referrer_term", parse.term);
+            record.put("referrer_medium", parse.medium != null ? parse.medium.toString() : null);
+            record.put("referrer_source", parse.source);
+            record.put("referrer_term", parse.term);
         }
+    }
+
+    @Override
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+        Object referrer = event.properties().get("_referrer");
+        Object host = event.properties().get("_host");
+        mapInternal(extraProperties, referrer, host, event.properties());
         return null;
+    }
+
+    @Override
+    public void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress) {
+        mapInternal(extraProperties, properties.get("_referrer"), properties.get("_host"), new MapProxyGenericRecord(properties));
     }
 
     @Override
@@ -76,5 +88,39 @@ public class ReferrerEventMapper implements EventMapper {
                 new SchemaField("referrer_source", FieldType.STRING, true),
                 new SchemaField("referrer_term", FieldType.STRING, true)
         ));
+    }
+
+    private static class MapProxyGenericRecord implements GenericRecord {
+
+        private final Map<String, Object> properties;
+
+        public MapProxyGenericRecord(Map<String, Object> properties) {
+            this.properties = properties;
+        }
+
+        @Override
+        public Schema getSchema() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void put(int i, Object v) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Object get(int i) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void put(String key, Object v) {
+            properties.put(key, v);
+        }
+
+        @Override
+        public Object get(String key) {
+            return properties.get(key);
+        }
     }
 }

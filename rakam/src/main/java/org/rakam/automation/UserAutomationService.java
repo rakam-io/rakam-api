@@ -13,16 +13,19 @@ import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class UserAutomationService {
 
     private final DBI dbi;
     private final LoadingCache<String, List<AutomationRule>> rules;
+    private final Set<AutomationAction> automationActions;
 
     @Inject
-    public UserAutomationService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public UserAutomationService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, Set<AutomationAction> automationActions) {
         dbi = new DBI(dataSource);
+        this.automationActions = automationActions;
 
         rules = CacheBuilder.newBuilder().refreshAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, List<AutomationRule>>() {
             @Override
@@ -30,11 +33,20 @@ public class UserAutomationService {
                 try(Handle handle = dbi.open()) {
                     return handle.createQuery("SELECT id, is_active, event_filters, actions, custom_data FROM automation_rules WHERE project = :project")
                             .bind("project", project)
-                            .map((i, resultSet, statementContext) ->
-                                    new AutomationRule(resultSet.getInt(1), project,
-                                            resultSet.getBoolean(2), Arrays.asList(JsonHelper.read(resultSet.getString(3), AutomationRule.ScenarioStep[].class)),
-                                            Arrays.asList(JsonHelper.read(resultSet.getString(4), AutomationRule.Action[].class)),
-                                            resultSet.getString(5)))
+                            .map((i, resultSet, statementContext) -> {
+                                List<AutomationRule.SerializableAction> actions = Arrays.asList(JsonHelper.read(resultSet.getString(4), AutomationRule.SerializableAction[].class));
+
+                                for (AutomationRule.SerializableAction action : actions) {
+                                    AutomationAction<?> automationAction = automationActions.stream()
+                                            .filter(a -> a.getClass().equals(action.type.getActionClass()))
+                                            .findFirst().get();
+                                    action.setAction(automationAction);
+                                }
+                                return new AutomationRule(resultSet.getInt(1), project,
+                                        resultSet.getBoolean(2), Arrays.asList(JsonHelper.read(resultSet.getString(3), AutomationRule.ScenarioStep[].class)),
+                                        actions,
+                                        resultSet.getString(5));
+                            })
                             .list();
                 }
             }
@@ -97,6 +109,12 @@ public class UserAutomationService {
     }
 
     public void add(AutomationRule rule) {
+        for (AutomationRule.SerializableAction action : rule.actions) {
+            AutomationAction<?> automationAction = automationActions.stream()
+                    .filter(a -> a.getClass().equals(action.type.getActionClass()))
+                    .findFirst().get();
+            automationAction.getClass().toGenericString();
+        }
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO automation_rules (project, is_active, event_filters, actions, custom_data) VALUES (:project, true, :event_filters, :actions, :custom_data)")
                     .bind("project", rule.project)

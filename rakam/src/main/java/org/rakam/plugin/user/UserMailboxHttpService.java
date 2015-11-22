@@ -1,6 +1,5 @@
 package org.rakam.plugin.user;
 
-import com.facebook.presto.sql.parser.SqlParser;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.plugin.UserPluginConfig;
@@ -44,7 +43,6 @@ public class UserMailboxHttpService extends HttpService {
     private final MailBoxWebSocketService webSocketService;
     private final UserStorage userStorage;
     private final UserPluginConfig config;
-    private final SqlParser sqlParser;
 
     @Inject
     public UserMailboxHttpService(UserStorage userStorage, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
@@ -52,7 +50,6 @@ public class UserMailboxHttpService extends HttpService {
         this.storage = storage;
         this.config = config;
         this.webSocketService = webSocketService;
-        this.sqlParser = new SqlParser();
     }
 
     @Path("/get")
