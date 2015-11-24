@@ -22,6 +22,7 @@ import org.rakam.server.http.WebSocketService;
 import javax.inject.Inject;
 import java.util.Map;
 
+import static io.airlift.configuration.ConfigurationModule.bindConfig;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -40,21 +41,24 @@ public class UserModule extends RakamModule {
 
         binder.bind(UserStorageListener.class).asEagerSingleton();
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
+        bindConfig(binder).to(EmailClientConfig.class);
 
         Multibinder<Tag> tagMultibinder = Multibinder.newSetBinder(binder, Tag.class);
         tagMultibinder.addBinding()
                 .toInstance(new Tag().name("user").description("User module for Rakam")
                         .externalDocs(MetadataConfig.centralDocs));
 
+        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+
         Multibinder<UserActionService> userAction = Multibinder.newSetBinder(binder, UserActionService.class);
         Iterable<String> actionList = userPluginConfig.getActionList();
         if(actionList != null) {
             for (String actionName : actionList) {
-                userAction.addBinding().to(this.actionList.get(actionName)).in(Scopes.SINGLETON);
+                Class<? extends UserActionService> implementation = this.actionList.get(actionName);
+                userAction.addBinding().to(implementation).in(Scopes.SINGLETON);
+                httpServices.addBinding().to(implementation);
             }
         }
-
-        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
 
         if (userPluginConfig.getStorageModule() != null) {
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);

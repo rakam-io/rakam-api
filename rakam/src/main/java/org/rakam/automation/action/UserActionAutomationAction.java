@@ -18,7 +18,7 @@ public class UserActionAutomationAction implements AutomationAction<UserActionAu
     @Inject
     public UserActionAutomationAction(Set<UserActionService> userActionServices) {
         userActionServiceMap = userActionServices.stream()
-                .collect(Collectors.toMap(UserActionService::getActionName, a -> a));
+                .collect(Collectors.toMap(UserActionService::getName, a -> a));
     }
 
     public String process(Supplier<User> user, UserAction actionData) {

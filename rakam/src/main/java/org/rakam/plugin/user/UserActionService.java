@@ -1,12 +1,13 @@
 package org.rakam.plugin.user;
 
 import org.rakam.report.QueryResult;
+import org.rakam.server.http.HttpService;
 
 import java.util.concurrent.CompletableFuture;
 
-public interface UserActionService<T> {
-    CompletableFuture<Long> batch(CompletableFuture<QueryResult> queryResult, T config);
-    CompletableFuture<Boolean> send(User user, T config);
-    String getActionName();
-    // equals and hashcode must be based on action name
+public abstract class UserActionService<T> extends HttpService {
+
+    public abstract CompletableFuture<Long> batch(CompletableFuture<QueryResult> queryResult, T config);
+    public abstract String getName();
+    public abstract CompletableFuture<Boolean> send(User user, T config);
 }

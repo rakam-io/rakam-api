@@ -12,5 +12,6 @@ import java.util.List;
 
 public interface EventMapper {
     List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response);
+
     default void addFieldDependency(FieldDependencyBuilder builder) {}
 }

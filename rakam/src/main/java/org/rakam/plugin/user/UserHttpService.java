@@ -2,6 +2,7 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
@@ -111,6 +112,7 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/search")
     public CompletableFuture<QueryResult> searchUsers(@ApiParam(name = "project") String project,
+                                                 @ApiParam(name = "columns", required = false) List<String> columns,
                                                  @ApiParam(name = "filter", required = false) String filter,
                                                  @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                                  @ApiParam(name = "sorting", required = false) Sorting sorting,
@@ -130,7 +132,7 @@ public class UserHttpService extends HttpService {
             expression = null;
         }
 
-        return service.filter(project, expression, event_filter, sorting, limit, offset);
+        return service.filter(project, columns, expression, event_filter, sorting, limit, offset);
     }
 
     @POST
@@ -156,20 +158,6 @@ public class UserHttpService extends HttpService {
     public CompletableFuture<org.rakam.plugin.user.User> getUser(@ApiParam(name = "project", required = true) String project,
                                                                  @ApiParam(name = "user", required = true) String user) {
         return service.getUser(project, user);
-    }
-
-    public static class SetUserProperties {
-        public final String project;
-        public final String user;
-        public final Map<String, Object> properties;
-
-        public SetUserProperties(@ApiParam(name = "project") String project,
-                                 @ApiParam(name = "user") String user,
-                                 @ApiParam(name = "properties") Map<String, Object> properties) {
-            this.project = project;
-            this.user = user;
-            this.properties = properties;
-        }
     }
 
     @ApiOperation(value = "Set user properties", request = SetUserProperties.class, response = Integer.class)
@@ -251,5 +239,20 @@ public class UserHttpService extends HttpService {
                                         String property, long value) {
         service.incrementProperty(project, user, property, value);
         return JsonResponse.success();
+    }
+
+    public static class SetUserProperties {
+        public final String project;
+        public final String user;
+        public final Map<String, Object> properties;
+
+        @JsonCreator
+        public SetUserProperties(@ApiParam(name = "project") String project,
+                                 @ApiParam(name = "user") String user,
+                                 @ApiParam(name = "properties") Map<String, Object> properties) {
+            this.project = project;
+            this.user = user;
+            this.properties = properties;
+        }
     }
 }

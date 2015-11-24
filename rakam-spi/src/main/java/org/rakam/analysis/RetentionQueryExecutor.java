@@ -44,12 +44,13 @@ public interface RetentionQueryExecutor {
 
         @JsonProperty
         public abstract String collection();
+
         @JsonIgnore
         public abstract Optional<Expression> filter();
 
         @JsonCreator
         public static RetentionAction create(@JsonProperty("collection") String collection,
-                                        @JsonProperty("filterExpression") Optional<String> filterExpression) {
+                                        @JsonProperty("filter") Optional<String> filterExpression) {
             checkCollection(collection);
             return new AutoValue_RetentionQueryExecutor_RetentionAction(collection,
                     filterExpression.map(RetentionAction::parseExpression));

@@ -10,6 +10,8 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
 import javax.inject.Inject;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -113,7 +115,19 @@ public class UserAutomationService {
             AutomationAction<?> automationAction = automationActions.stream()
                     .filter(a -> a.getClass().equals(action.type.getActionClass()))
                     .findFirst().get();
-            automationAction.getClass().toGenericString();
+            Type[] genericInterfaces = automationAction.getClass().getGenericInterfaces();
+            Class optionsClass = null;
+            for (Type genericInterface : genericInterfaces) {
+                if(genericInterface instanceof ParameterizedType &&
+                        ((ParameterizedType) genericInterface).getRawType().equals(AutomationAction.class)) {
+                    optionsClass = (Class) ((ParameterizedType) genericInterface).getActualTypeArguments()[0];
+                }
+            }
+            if(optionsClass == null) {
+                throw new IllegalStateException();
+            }
+
+            Object convert = JsonHelper.convert(action.value, optionsClass);
         }
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO automation_rules (project, is_active, event_filters, actions, custom_data) VALUES (:project, true, :event_filters, :actions, :custom_data)")

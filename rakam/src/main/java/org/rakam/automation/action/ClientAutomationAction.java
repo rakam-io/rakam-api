@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.rakam.automation.AutomationAction;
 import org.rakam.plugin.user.User;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -30,20 +32,13 @@ public class ClientAutomationAction implements AutomationAction<ClientAutomation
         private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{([^/?}]+)\\}");
 
         private final Matcher matcher;
-        private final boolean requiresUser;
         private final String template;
 
         @JsonCreator
         public StringTemplate(@JsonProperty("template") String template) {
             matcher = VARIABLE_PATTERN.matcher(template);
             this.template = template;
-            while (matcher.find()) {
-                if(matcher.group(1).startsWith("user.")) {
-                    this.requiresUser = true;
-                    return;
-                }
-            }
-            this.requiresUser = false;
+
         }
 
         public String getTemplate() {
@@ -54,8 +49,12 @@ public class ClientAutomationAction implements AutomationAction<ClientAutomation
             return format(parameters::get);
         }
 
-        public boolean requiresUser() {
-            return requiresUser;
+        public List<String> getVariables() {
+            List<String> vars = new ArrayList<>();
+            while (matcher.find()) {
+                vars.add(matcher.group(1));
+            }
+            return vars;
         }
 
         public String format(Function<String, String> replacement) {

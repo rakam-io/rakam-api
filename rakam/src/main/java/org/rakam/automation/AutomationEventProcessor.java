@@ -50,7 +50,7 @@ public class AutomationEventProcessor implements EventProcessor {
                                     Set<UserActionService> userActionServices) {
         this.service = service;
         userActionServiceMap = userActionServices.stream()
-                .collect(Collectors.toMap(UserActionService::getActionName, a -> a));
+                .collect(Collectors.toMap(a -> a.getName(), a -> a));
         this.userStorage = userStorage;
         this.automationActions = automationActions;
     }

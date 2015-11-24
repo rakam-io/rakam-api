@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
@@ -307,15 +308,19 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     }
 
     @Override
-    public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset) {
+    public CompletableFuture<QueryResult> filter(String project, List<String> selectColumns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset) {
         checkProject(project);
-        List<SchemaField> projectColumns = getMetadata(project);
-        String columns = Joiner.on(", ").join(projectColumns.stream().map(col -> col.getName())
+        List<SchemaField> metadata = getMetadata(project);
+        Stream<SchemaField> projectColumns = metadata.stream();
+        if(selectColumns != null) {
+            projectColumns = projectColumns.filter(column -> selectColumns.contains(column.getName()));
+        }
+        String columns = Joiner.on(", ").join(projectColumns.map(col -> col.getName())
                 .toArray());
 
         LinkedList<String> filters = new LinkedList<>();
         if (filterExpression != null) {
-            filters.add(new ExpressionFormatter.Formatter().process(filterExpression, null));
+            filters.add(new ExpressionFormatter.Formatter().process(filterExpression, true));
         }
 
         if (eventFilter != null && !eventFilter.isEmpty()) {
@@ -323,7 +328,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         }
 
         if (sortColumn != null) {
-            if (!projectColumns.stream().anyMatch(col -> col.getName().equals(sortColumn.column))) {
+            if (!metadata.stream().anyMatch(col -> col.getName().equals(sortColumn.column))) {
                 throw new IllegalArgumentException(format("sorting column does not exist: %s", sortColumn.column));
             }
         }
@@ -339,7 +344,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
             StringBuilder builder = new StringBuilder();
             builder.append(format("SELECT count(*) FROM %s.%s", project, USER_TABLE));
             if (filterExpression != null) {
-                builder.append(" where ").append(filters.get(0));
+                builder.append(" WHERE ").append(filters.get(0));
             }
 
             QueryExecution totalResult = queryExecutor.executeRawQuery(builder.toString());
@@ -350,7 +355,8 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 QueryResult totalResultData = totalResult.getResult().join();
                 if (ex == null && !data.isFailed() && !totalResultData.isFailed()) {
                     Object v1 = totalResultData.getResult().get(0).get(0);
-                    result.complete(new QueryResult(projectColumns, data.getResult(), ImmutableMap.of(QueryResult.TOTAL_RESULT, v1)));
+                    result.complete(new QueryResult(data.getMetadata(), data.getResult(),
+                            ImmutableMap.of(QueryResult.TOTAL_RESULT, v1)));
                 } else {
                     result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0)));
                 }

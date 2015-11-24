@@ -35,8 +35,8 @@ public abstract class AbstractUserService {
         return storage.getMetadata(project);
     }
 
-    public CompletableFuture<QueryResult> filter(String project, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, int offset) {
-        return storage.filter(project, filterExpression, eventFilter, sorting, limit, offset);
+    public CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, int offset) {
+        return storage.filter(project, columns, filterExpression, eventFilter, sorting, limit, offset);
     }
 
     public CompletableFuture<User> getUser(String project, String user) {
