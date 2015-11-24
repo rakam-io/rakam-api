@@ -66,6 +66,8 @@ public class UserModule extends RakamModule {
 
         if(userPluginConfig.isMailboxEnabled()) {
             httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);
+            httpServices.addBinding().to(UserMailboxActionService.class).in(Scopes.SINGLETON);
+            userAction.addBinding().to(UserMailboxActionService.class);
 
             tagMultibinder.addBinding()
                     .toInstance(new Tag().name("user-mailbox").description("")

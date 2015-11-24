@@ -20,6 +20,8 @@ import static java.lang.String.format;
 
 
 public interface UserStorage {
+    String PRIMARY_KEY = "id";
+
     String create(String project, Map<String, Object> properties);
     List<String> batchCreate(String project, List<User> users);
     CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);

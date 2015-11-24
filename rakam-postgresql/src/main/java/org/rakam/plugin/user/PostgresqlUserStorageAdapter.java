@@ -50,7 +50,6 @@ import static org.rakam.util.ValidationUtil.*;
 
 public class PostgresqlUserStorageAdapter implements UserStorage {
     public static final String USER_TABLE = "_users";
-    public static final String PRIMARY_KEY = "id";
     private final PostgresqlQueryExecutor queryExecutor;
     private final Cache<String, Map<String, FieldType>> propertyCache = CacheBuilder.newBuilder().build();
 
@@ -315,6 +314,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         if(selectColumns != null) {
             projectColumns = projectColumns.filter(column -> selectColumns.contains(column.getName()));
         }
+        // TODO: fail id column is not exist.
         String columns = Joiner.on(", ").join(projectColumns.map(col -> col.getName())
                 .toArray());
 

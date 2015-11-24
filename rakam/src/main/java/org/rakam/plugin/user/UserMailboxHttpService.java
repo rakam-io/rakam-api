@@ -20,13 +20,11 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
-import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -41,12 +39,10 @@ import static org.rakam.util.JsonHelper.encode;
 public class UserMailboxHttpService extends HttpService {
     private final UserMailboxStorage storage;
     private final MailBoxWebSocketService webSocketService;
-    private final UserStorage userStorage;
     private final UserPluginConfig config;
 
     @Inject
     public UserMailboxHttpService(UserStorage userStorage, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
-        this.userStorage = userStorage;
         this.storage = storage;
         this.config = config;
         this.webSocketService = webSocketService;
@@ -115,30 +111,7 @@ public class UserMailboxHttpService extends HttpService {
         return JsonResponse.success();
     }
 
-    @Path("/send")
-    @POST
-    @JsonRequest
-    @ApiOperation(value = "Send mail to user",
-            notes = "Sends a mail to users mailbox",
-            authorizations = @Authorization(value = "write_key")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 404, message = "User does not exist.")})
-    public Message send(@ApiParam(name = "project", value = "Project id", required = true) String project,
-                        @ApiParam(name = "from_user", required = true) String fromUser,
-                        @ApiParam(name = "to_user", required = true) String toUser,
-                        @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
-                        @ApiParam(name = "message", value = "The content of the message", required = false) String message,
-                        @ApiParam(name = "timestamp", value = "The timestamp of the message", required = true) long datetime) {
-        try {
-            return storage.send(project, fromUser, toUser==null ? 0 : toUser, parent, message, Instant.ofEpochMilli(datetime));
-        } catch (Exception e) {
-            throw new RakamException("Error while sending message: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST);
-        }
-    }
-
-    @Path("/getOnlineUsers")
+    @Path("/get_online_users")
     @POST
     @JsonRequest
     @ApiOperation(value = "Get connected users",
@@ -151,34 +124,8 @@ public class UserMailboxHttpService extends HttpService {
         return CompletableFuture.completedFuture(connectedUsers.stream()
                 .map(id -> ImmutableMap.of(config.getIdentifierColumn(), id))
                 .collect(Collectors.toList()));
-
-        // implement filter by user properties
-//        if(connectedUsers.isEmpty()) {
-//            return CompletableFuture.completedFuture(ImmutableList.of());
-//        }
-//
-//        String expressionStr = config.getIdentifierColumn() + " in (" + connectedUsers.stream()
-//                .map(id -> (id instanceof Number) ? id.toString() : "'" + id + "'")
-//                .collect(Collectors.joining(", ")) + ")";
-//
-//        Expression expression;
-//        try {
-//            synchronized (sqlParser) {
-//                expression = sqlParser.createExpression(expressionStr);
-//            }
-//        } catch (Exception e) {
-//            throw new IllegalStateException();
-//        }
-//
-//        return userStorage.filter(project, expression, null, null, 1000, 0).thenApply(queryResult -> {
-//            List<? extends SchemaField> metadata = queryResult.getMetadata();
-//            return queryResult.getResult().stream().map(row -> {
-//                Map<String, Object> map = new HashMap();
-//                for (int i = 0; i < metadata.size(); i++) {
-//                    map.put(metadata.get(i).getName(), row.get(i));
-//                }
-//                return map;
-//            }).collect(Collectors.toList());
-//        });
     }
+
+
+
 }

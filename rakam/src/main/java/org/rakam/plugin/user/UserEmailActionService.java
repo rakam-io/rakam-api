@@ -79,16 +79,12 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     public CompletableFuture<Long> batchSendEmails(@ApiParam(name="project") String project,
                                          @ApiParam(name = "filter", required = false) String filter,
                                          @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                                         @ApiParam(name = "sorting", required = false) UserStorage.Sorting sorting,
-                                         @ApiParam(name = "offset", required = false) Integer offset,
-                                         @ApiParam(name = "limit", required = false) Integer limit,
                                          @ApiParam(name = "config") EmailActionConfig config) {
         List<String> variables = new ClientAutomationAction.StringTemplate(config.content).getVariables();
         variables.add(config.columnName);
 
-        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, sorting,
-                offset == null ? 0 : offset, limit == null ? Integer.MAX_VALUE : limit);
-        return batch(future, config);
+        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, null, 0, 100000);
+        return batch(project, future, config);
     }
 
     public static class EmailActionConfig {
@@ -113,7 +109,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     }
 
     @Override
-    public CompletableFuture<Long> batch(CompletableFuture<QueryResult> queryResult, EmailActionConfig config) {
+    public CompletableFuture<Long> batch(String project, CompletableFuture<QueryResult> queryResult, EmailActionConfig config) {
         ClientAutomationAction.StringTemplate template = new ClientAutomationAction.StringTemplate(config.content);
 
         return queryResult.thenApply(result -> {
@@ -128,26 +124,25 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
             final int idx = result.getMetadata().indexOf(any.get());
 
-            List<String> vars = template.getVariables();
-            HashMap<String, Integer> colMap = new HashMap<>(vars.size());
-            for (int i = 0; i < vars.size(); i++) {
-                colMap.put(vars.get(i), i);
-            }
+            Map<String, Integer> colMap = generateColumnMap(template.getVariables(), result.getMetadata());
 
             long sentEmails = 0;
             for (List<Object> objects : result.getResult()) {
                 final String toEmail = (String) objects.get(idx);
-                template.format(name -> {
-                    Object o = objects.get(colMap.get(name));
-                    if(o != null && o instanceof String) {
-                        return o.toString();
-                    } else {
-                        return config.defaultValues.get(name);
+                String format = template.format(name -> {
+                    Integer index = colMap.get(name);
+                    if(index != null) {
+                        Object o = objects.get(index);
+                        if (o != null && o instanceof String) {
+                            return o.toString();
+                        }
                     }
+
+                    return config.defaultValues.get(name);
                 });
 
                 if(toEmail != null) {
-                    if(sendInternal(toEmail, config)) {
+                    if(sendInternal(toEmail, config, format)) {
                         sentEmails++;
                     }
                 }
@@ -157,13 +152,27 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
         });
     }
 
+    private Map<String, Integer> generateColumnMap(List<String> variables, List<SchemaField> metadata) {
+        HashMap<String, Integer> colMap = new HashMap<>(variables.size());
+
+        for (String var : variables) {
+            for (int i = 0; i < metadata.size(); i++) {
+                if(metadata.get(i).getName().equals(var)) {
+                    colMap.put(variables.get(i), i);
+                    break;
+                }
+            }
+        }
+
+        return colMap;
+    }
+
     @Override
     public String getName() {
         return "email";
     }
 
     @Override
-
     @JsonRequest
     @ApiOperation(value = "Perform action for single user")
     @ApiResponses(value = {
@@ -171,22 +180,35 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @Path("/single")
     public CompletableFuture<Boolean> send(@ApiParam("user") User user,
                                            @ApiParam("config") EmailActionConfig config) {
-
         Object email = user.properties.get(config.columnName);
+
         if(email != null && email instanceof String) {
-            return CompletableFuture.supplyAsync(() -> sendInternal((String) email, config));
+            return httpService.getUser(user.project, user.id).thenApply(u -> {
+                ClientAutomationAction.StringTemplate template = new ClientAutomationAction.StringTemplate(config.content);
+
+                String format = template.format(name -> {
+                    Object o = u.properties.get(name);
+                    if (o != null && o instanceof String) {
+                        return o.toString();
+                    } else {
+                        return config.defaultValues.get(name);
+                    }
+                });
+
+                return sendInternal((String) email, config, format);
+            });
         } else {
             return CompletableFuture.completedFuture(false);
         }
     }
 
-    private boolean sendInternal(String toEmail, EmailActionConfig config) {
+    private boolean sendInternal(String toEmail, EmailActionConfig config, String content) {
         try {
             Message msg = new MimeMessage(session);
             msg.setFrom(new InternetAddress(mailConfig.getFromAddress(), mailConfig.getFromName()));
             msg.addRecipient(Message.RecipientType.TO, new InternetAddress(toEmail));
             msg.setSubject(config.title);
-            msg.setText(config.title);
+            msg.setText(content);
             if(config.richText) {
                 Multipart mp = new MimeMultipart();
                 MimeBodyPart htmlPart = new MimeBodyPart();

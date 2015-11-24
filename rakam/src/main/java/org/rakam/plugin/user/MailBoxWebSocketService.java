@@ -124,12 +124,12 @@ public class MailBoxWebSocketService extends WebSocketService {
     public static class UserMessage {
         public final Integer parent;
         public final String content;
-        public final Object toUser;
+        public final String toUser;
 
         @JsonCreator
         public UserMessage(@JsonProperty("parent") Integer parent,
                            @JsonProperty("message") String content,
-                           @JsonProperty("to_user") Object toUser) {
+                           @JsonProperty("to_user") String toUser) {
             this.parent = parent;
             this.content = content;
             this.toUser = toUser;

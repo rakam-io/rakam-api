@@ -31,14 +31,11 @@ public class ClientAutomationAction implements AutomationAction<ClientAutomation
     public static class StringTemplate {
         private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{([^/?}]+)\\}");
 
-        private final Matcher matcher;
         private final String template;
 
         @JsonCreator
         public StringTemplate(@JsonProperty("template") String template) {
-            matcher = VARIABLE_PATTERN.matcher(template);
             this.template = template;
-
         }
 
         public String getTemplate() {
@@ -51,6 +48,8 @@ public class ClientAutomationAction implements AutomationAction<ClientAutomation
 
         public List<String> getVariables() {
             List<String> vars = new ArrayList<>();
+            Matcher matcher = VARIABLE_PATTERN.matcher(template);
+
             while (matcher.find()) {
                 vars.add(matcher.group(1));
             }
@@ -59,8 +58,11 @@ public class ClientAutomationAction implements AutomationAction<ClientAutomation
 
         public String format(Function<String, String> replacement) {
             StringBuffer sb = new StringBuffer();
+            Matcher matcher = VARIABLE_PATTERN.matcher(template);
+
             while (matcher.find()) {
-                matcher.appendReplacement(sb, replacement.apply(matcher.group(1)));
+                String apply = replacement.apply(matcher.group(1));
+                matcher.appendReplacement(sb, apply == null ? "" : apply);
             }
             matcher.appendTail(sb);
             return sb.toString();

@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
 public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
@@ -41,20 +40,12 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     }
 
     @Override
-    public Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date) {
-        checkNotNull(fromUser, "fromUser is null");
-        checkNotNull(toUser, "toUser is null");
-        checkNotNull(message, "message is null");
-        checkNotNull(date, "date is null");
-
-        long from = castUserId(fromUser);
-        long to = castUserId(toUser);
-
+    public Message send(String project, String fromUser, String toUser, Integer parentId, String message, Instant date) {
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO " + project + "._user_mailbox (from_user, to_user, parentId, content, time) VALUES (?, ?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
-            ps.setLong(1, from);
-            ps.setLong(2, to);
+            ps.setString(1, fromUser);
+            ps.setString(2, toUser);
             ps.setObject(3, parentId);
             String escapedMessage = HtmlEscapers.htmlEscaper().escape(message);
             ps.setString(4, escapedMessage);
@@ -68,6 +59,32 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
             throw Throwables.propagate(e);
         }
     }
+
+//    @Override
+//    public void sendBatch(String project, String fromUser, List<String> toUser, Integer parentId, String message, Instant date) {
+//        try (Connection connection = queryExecutor.getConnection()) {
+//            PreparedStatement ps = connection.prepareStatement("INSERT INTO " + project + "._user_mailbox (from_user, to_user, parentId, content, time) VALUES (?, ?, ?, ?, ?)",
+//                    Statement.RETURN_GENERATED_KEYS);
+//            connection.setAutoCommit(false);
+//
+//            for (String user : toUser) {
+//                ps.setString(1, fromUser);
+//                ps.setString(2, user);
+//                ps.setObject(3, parentId);
+//                String escapedMessage = HtmlEscapers.htmlEscaper().escape(message);
+//                ps.setString(4, escapedMessage);
+//                ps.setTimestamp(5, Timestamp.from(date));
+//                ps.executeUpdate();
+//            }
+//
+//            connection.setAutoCommit(true);
+//            connection.commit();
+//
+//        } catch (SQLException e) {
+//            LOGGER.error(e, "Error while saving user message");
+//            throw Throwables.propagate(e);
+//        }
+//    }
 
     @Override
     public void createProject(String projectId) {
@@ -197,7 +214,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     }
 
     @Override
-    public List<Message> getConversation(String project, Object userId, Integer parentId, int limit, long offset) {
+    public List<Message> getConversation(String project, String userId, Integer parentId, int limit, long offset) {
         long user = castUserId(userId);
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps;
@@ -232,7 +249,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     }
 
     @Override
-    public void markMessagesAsRead(String project, Object userId, int[] messageIds) {
+    public void markMessagesAsRead(String project, String userId, int[] messageIds) {
         long user = castUserId(userId);
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("UPDATE " + project +

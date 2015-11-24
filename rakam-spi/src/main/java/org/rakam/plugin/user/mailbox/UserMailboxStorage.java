@@ -6,12 +6,12 @@ import java.util.function.Consumer;
 
 
 public interface UserMailboxStorage {
-    Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date);
+    Message send(String project, String fromUser, String toUser, Integer parentId, String message, Instant date);
     void createProject(String projectId);
     MessageListener listen(String projectId, String user, Consumer<Data> messageConsumer);
     MessageListener listenAllUsers(String projectId, Consumer<Data> messageConsumer);
-    List<Message> getConversation(String project, Object userId, Integer parentId, int limit, long offset);
-    void markMessagesAsRead(String project, Object userId, int[] messageIds);
+    List<Message> getConversation(String project, String userId, Integer parentId, int limit, long offset);
+    void markMessagesAsRead(String project, String userId, int[] messageIds);
 
     interface MessageListener {
         void shutdown();
