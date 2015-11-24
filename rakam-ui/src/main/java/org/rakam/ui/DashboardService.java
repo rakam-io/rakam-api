@@ -19,7 +19,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
@@ -34,6 +38,8 @@ import java.util.Map;
 
 
 @Path("/ui/dashboard")
+@Api(value = "/retention", tags = "retention", authorizations = @Authorization(value = "read_key"))
+@IgnoreApi
 public class DashboardService extends HttpService {
     private final DBI dbi;
 
@@ -68,6 +74,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Create dashboard", authorizations = @Authorization(value = "read_key"))
     @Path("/create")
     public Dashboard create(@ApiParam(name="project") String project,
                             @ApiParam(name="name") String name,
@@ -82,6 +89,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Create dashboard", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
     public JsonResponse delete(@ApiParam(name = "project", required = true) String project,
                                @ApiParam(name = "name", required = true) String name) {

@@ -4,7 +4,6 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.automation.action.ClientAutomationAction;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;
@@ -19,7 +18,9 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.RakamException;
+import org.rakam.util.StringTemplate;
 
+import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.Instant;
@@ -37,6 +38,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     private final AbstractUserService userService;
     private final UserMailboxStorage mailboxStorage;
 
+    @Inject
     public UserMailboxActionService(AbstractUserService userService, UserMailboxStorage mailboxStorage) {
         this.userService = userService;
         this.mailboxStorage = mailboxStorage;
@@ -46,12 +48,12 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     @ApiOperation(value = "Apply batch operation")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
-    @Path("/action/mailbox/batch")
+    @Path("/batch")
     public CompletableFuture<Long> batchSendMessages(@ApiParam(name="project") String project,
                                                      @ApiParam(name = "filter", required = false) String filter,
                                                      @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                                      @ApiParam(name = "config") MailAction config) {
-        List<String> variables = new ClientAutomationAction.StringTemplate(config.message).getVariables();
+        List<String> variables = new StringTemplate(config.message).getVariables();
         variables.add(UserStorage.PRIMARY_KEY);
 
         Expression expression;
@@ -68,7 +70,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
             expression = null;
         }
 
-        CompletableFuture<QueryResult> future = userService.filter(project, variables, expression, event_filter, null, 0, 100000);
+        CompletableFuture<QueryResult> future = userService.filter(project, variables, expression, event_filter, null, 100000, 0);
         return batch(project, future, config);
     }
 
@@ -79,9 +81,9 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     }
 
     @Override
-    public CompletableFuture<Boolean> send(User user, MailAction config) {
+    public boolean send(User user, MailAction config) {
         mailboxStorage.send(user.project, config.fromUser, user.id, null, config.message, Instant.now());
-        return CompletableFuture.completedFuture(true);
+        return true;
     }
 
     public static class MailAction {
@@ -90,9 +92,9 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
         public final Map<String, String> variables;
 
         @JsonCreator
-        public MailAction(@ApiParam("from_user") String fromUser,
-                          @ApiParam("message") String message,
-                          @ApiParam("variables") Map<String, String> variables) {
+        public MailAction(@ApiParam(name="from_user") String fromUser,
+                          @ApiParam(name="message") String message,
+                          @ApiParam(name="variables") Map<String, String> variables) {
             this.fromUser = fromUser;
             this.message = message;
             this.variables = variables;
@@ -101,14 +103,14 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
 
     @Override
     public CompletableFuture<Long> batch(String project, CompletableFuture<QueryResult> queryResult, MailAction action) {
-        ClientAutomationAction.StringTemplate template = new ClientAutomationAction.StringTemplate(action.message);
+        StringTemplate template = new StringTemplate(action.message);
         return queryResult.thenApply(result -> {
             List<SchemaField> metadata = result.getMetadata();
             int key = metadata.indexOf(metadata.stream().filter(a -> a.getName().equals(UserStorage.PRIMARY_KEY)).findAny().get());
             Map<String, Integer> map = generateColumnMap(template.getVariables(), metadata);
 
             for (List<Object> objects : result.getResult()) {
-                final String userId = (String) objects.get(key);
+                final String userId = objects.get(key).toString();
                 String format = template.format(name -> {
                     Integer index = map.get(name);
                     if(index != null) {

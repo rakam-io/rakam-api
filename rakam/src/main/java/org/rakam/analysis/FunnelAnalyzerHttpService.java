@@ -14,6 +14,8 @@
 package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryHttpService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
@@ -57,6 +59,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @GET
+    @IgnorePermissionCheck
     @Path("/analyze")
     public void analyze(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (query) ->
@@ -84,7 +87,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
                         query.endDate, query.enableOtherGrouping).getResult();
     }
 
-    private static class FunnelQuery {
+    private static class FunnelQuery implements ProjectItem {
         public final String project;
         public final String connectorField;
         public final List<FunnelQueryExecutor.FunnelStep> steps;
@@ -109,6 +112,11 @@ public class FunnelAnalyzerHttpService extends HttpService {
             this.startDate = startDate;
             this.endDate = endDate;
             checkState(steps.size() > 0, "steps field cannot be empty.");
+        }
+
+        @Override
+        public String project() {
+            return project;
         }
     }
 }

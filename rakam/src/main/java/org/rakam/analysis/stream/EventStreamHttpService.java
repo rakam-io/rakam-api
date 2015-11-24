@@ -10,6 +10,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.StreamResponseAdapter;
+import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.CollectionStreamQuery;
 import org.rakam.plugin.EventStream;
@@ -19,6 +21,7 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.JsonHelper;
 
@@ -40,11 +43,13 @@ import static org.rakam.util.JsonHelper.encode;
 public class EventStreamHttpService extends HttpService {
     private final EventStream stream;
     private final SqlParser sqlParser;
+    private final Metastore metastore;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public EventStreamHttpService(EventStream stream) {
+    public EventStreamHttpService(EventStream stream, Metastore metastore) {
         this.stream = stream;
+        this.metastore = metastore;
         this.sqlParser = new SqlParser();
     }
 
@@ -52,10 +57,12 @@ public class EventStreamHttpService extends HttpService {
     @ApiOperation(value = "Subscribe Event Stream",
             consumes = "text/event-stream",
             produces = "text/event-stream",
-            notes = "Subscribes the event stream periodically to the client.")
+            authorizations = @Authorization(value = "read_key"),
+            notes = "Subscribes the event stream.")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/subscribe")
+    @IgnorePermissionCheck
     @IgnoreApi
     public void subscribe(RakamHttpRequest request) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
@@ -78,6 +85,13 @@ public class EventStreamHttpService extends HttpService {
             response.send("result", encode(errorMessage("json couldn't parsed", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
+        List<String> api_key = request.params().get("api_key");
+        if (api_key == null || api_key.isEmpty() ||
+                !metastore.checkPermission(query.project, Metastore.AccessKeyType.READ_KEY, api_key.get(0))) {
+            response.send("result", HttpResponseStatus.UNAUTHORIZED.reasonPhrase()).end();
+            return;
+        }
+
         List<CollectionStreamQuery> collect;
         try {
             collect = query.collections.stream().map(collection -> {

@@ -18,6 +18,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.config.ForHttpServer;
 import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.HttpServer;
@@ -55,11 +56,13 @@ import static org.rakam.util.JsonHelper.jsonObject;
 @Produces({"application/json"})
 public class QueryHttpService extends HttpService {
     private final QueryExecutorService executorService;
+    private final Metastore metastore;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public QueryHttpService(QueryExecutorService executorService) {
+    public QueryHttpService(Metastore metastore, QueryExecutorService executorService) {
         this.executorService = executorService;
+        this.metastore = metastore;
     }
 
 
@@ -84,7 +87,7 @@ public class QueryHttpService extends HttpService {
                 executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit));
     }
 
-    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executerFunction) {
+    public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executerFunction) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
@@ -105,6 +108,18 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
+        List<String> apiKey = request.params().get("api_key");
+        if (apiKey == null || data.isEmpty()) {
+            response.send("result", encode(HttpServer.errorMessage("api key query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
+            return;
+        }
+
+        if(!metastore.checkPermission(query.project(), Metastore.AccessKeyType.READ_KEY, apiKey.get(0))) {
+            response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.UNAUTHORIZED.reasonPhrase(),
+                    HttpResponseStatus.UNAUTHORIZED))).end();
+            return;
+        }
+
         QueryExecution execute;
         try {
             execute = executerFunction.apply(query);
@@ -112,6 +127,7 @@ public class QueryHttpService extends HttpService {
             response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
+
         handleServerSentQueryExecution(eventLoopGroup, response, execute);
     }
 
@@ -178,7 +194,7 @@ public class QueryHttpService extends HttpService {
                             @ApiParam(name = "query") String query,
                             @ApiParam(name = "limit", required = false) Integer limit) {
             this.project = requireNonNull(project, "project is empty");
-            this.query = requireNonNull(query, "query is empty");;
+            this.query = requireNonNull(query, "query is empty");
             if(limit !=null && limit > 5000) {
                 throw new IllegalArgumentException("maximum value of limit is 5000");
             }

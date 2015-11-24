@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -129,13 +130,18 @@ public class MaterializedViewHttpService extends HttpService {
                 query -> service.lockAndUpdateView(service.get(query.project, query.name)));
     }
 
-    public static class MaterializedViewRequest {
+    public static class MaterializedViewRequest implements ProjectItem {
         public final String project;
         public final String name;
 
         public MaterializedViewRequest(String project, String name) {
             this.project = project;
             this.name = name;
+        }
+
+        @Override
+        public String project() {
+            return project;
         }
     }
 

@@ -10,8 +10,11 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
 
 import javax.activation.MimetypesFileTypeMap;
@@ -54,12 +57,16 @@ public class RakamUIWebService extends HttpService {
 
     @Path("/favicon.ico")
     @javax.ws.rs.GET
+    @IgnorePermissionCheck
     public void favicon(RakamHttpRequest request) {
         sendFile(request, new File(directory.getPath(), "favicon.ico"));
     }
 
     @Path("/ui/active-modules")
     @javax.ws.rs.GET
+    @ApiOperation(value = "List installed modules for ui",
+            authorizations = @Authorization(value = "master_key")
+    )
     public ActiveModuleList modules() {
         return activeModules;
     }
@@ -134,6 +141,7 @@ public class RakamUIWebService extends HttpService {
 
     @Path("/*")
     @javax.ws.rs.GET
+    @IgnorePermissionCheck
     public void main(RakamHttpRequest request) {
         if (!request.getDecoderResult().isSuccess()) {
             sendError(request, BAD_REQUEST);

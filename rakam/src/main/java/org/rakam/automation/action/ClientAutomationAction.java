@@ -2,70 +2,34 @@ package org.rakam.automation.action;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.rakam.automation.AutomationAction;
 import org.rakam.plugin.user.User;
+import org.rakam.util.StringTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-@JsonTypeName("client")
-public class ClientAutomationAction implements AutomationAction<ClientAutomationAction.StringTemplate> {
+public class ClientAutomationAction implements AutomationAction<ClientAutomationAction.Template> {
 
-    public String process(Supplier<User> user, StringTemplate data) {
-        return data.format((query) -> {
-            if(query.startsWith("_user.")) {
-                Object val = user.get().properties.get(query.substring(6));
-                return val == null ? null : val.toString();
-            } else {
-                return null;
+    public String process(Supplier<User> user, Template data) {
+        StringTemplate template = new StringTemplate(data.template);
+        return template.format((query) -> {
+            Object val = user.get().properties.get(query);
+            if(val == null || !(val instanceof String)) {
+                return data.variables.get(query);
             }
+            return val.toString();
         });
     }
 
-    public static class StringTemplate {
-        private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{([^/?}]+)\\}");
-
-        private final String template;
+    public static class Template {
+        public final String template;
+        public final Map<String, String> variables;
 
         @JsonCreator
-        public StringTemplate(@JsonProperty("template") String template) {
+        public Template(@JsonProperty("template") String template, @JsonProperty("variables") Map<String, String> variables) {
             this.template = template;
-        }
-
-        public String getTemplate() {
-            return template;
-        }
-
-        public String format(Map<String, String> parameters) {
-            return format(parameters::get);
-        }
-
-        public List<String> getVariables() {
-            List<String> vars = new ArrayList<>();
-            Matcher matcher = VARIABLE_PATTERN.matcher(template);
-
-            while (matcher.find()) {
-                vars.add(matcher.group(1));
-            }
-            return vars;
-        }
-
-        public String format(Function<String, String> replacement) {
-            StringBuffer sb = new StringBuffer();
-            Matcher matcher = VARIABLE_PATTERN.matcher(template);
-
-            while (matcher.find()) {
-                String apply = replacement.apply(matcher.group(1));
-                matcher.appendReplacement(sb, apply == null ? "" : apply);
-            }
-            matcher.appendTail(sb);
-            return sb.toString();
+            this.variables = variables;
         }
     }
 }

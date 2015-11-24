@@ -2,6 +2,7 @@ package org.rakam.ui;
 
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.Response;
 import org.rakam.server.http.annotations.ApiParam;
@@ -33,6 +34,7 @@ public class WebUserHttpService extends HttpService {
     }
 
     @JsonRequest
+    @IgnorePermissionCheck
     @Path("/register")
     public Response register(@ApiParam(name = "email") String email,
                              @ApiParam(name = "name") String name,
@@ -44,15 +46,17 @@ public class WebUserHttpService extends HttpService {
     }
 
     @JsonRequest
+    @IgnorePermissionCheck
     @Path("/create-project")
     public UserApiKey createProject(@ApiParam(name = "name") String name,
-                                            @CookieParam(name = "session") String session) {
+                                    @CookieParam(name = "session") String session) {
         final UserApiKey newApiKey = service.createProject(extractUserFromCookie(session), name);
         return newApiKey;
     }
 
     @JsonRequest
     @GET
+    @IgnorePermissionCheck
     @Path("/me")
     public Response<WebUser> me(@CookieParam(name="session", required = false) String session) {
         final int id;
@@ -74,6 +78,7 @@ public class WebUserHttpService extends HttpService {
     }
 
     @JsonRequest
+    @IgnorePermissionCheck
     @Path("/login")
     public Response<WebUser> login(@ApiParam(name="email") String email,
                                @ApiParam(name="password") String password) {

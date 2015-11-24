@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.automation.action.ClientAutomationAction;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserStorage;
@@ -16,6 +15,7 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.RakamException;
+import org.rakam.util.StringTemplate;
 
 import javax.inject.Inject;
 import javax.mail.Message;
@@ -80,7 +80,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
                                          @ApiParam(name = "filter", required = false) String filter,
                                          @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                          @ApiParam(name = "config") EmailActionConfig config) {
-        List<String> variables = new ClientAutomationAction.StringTemplate(config.content).getVariables();
+        List<String> variables = new StringTemplate(config.content).getVariables();
         variables.add(config.columnName);
 
         CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, null, 0, 100000);
@@ -110,7 +110,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
     @Override
     public CompletableFuture<Long> batch(String project, CompletableFuture<QueryResult> queryResult, EmailActionConfig config) {
-        ClientAutomationAction.StringTemplate template = new ClientAutomationAction.StringTemplate(config.content);
+        StringTemplate template = new StringTemplate(config.content);
 
         return queryResult.thenApply(result -> {
             Optional<SchemaField> any = result.getMetadata().stream().filter(f -> f.getName().equals(config.columnName)).findAny();
@@ -172,22 +172,27 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
         return "email";
     }
 
-    @Override
+
     @JsonRequest
     @ApiOperation(value = "Perform action for single user")
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/single")
-    public CompletableFuture<Boolean> send(@ApiParam("user") User user,
-                                           @ApiParam("config") EmailActionConfig config) {
+    public CompletableFuture<Boolean> send(@ApiParam(name="project") String project,
+                                           @ApiParam(name="user") String userId,
+                                           @ApiParam(name="config") EmailActionConfig config) {
+        return httpService.getUser(project, userId).thenApply(user -> send(user, config));
+    }
+
+    @Override
+    public boolean send(User user, EmailActionConfig config) {
         Object email = user.properties.get(config.columnName);
 
         if(email != null && email instanceof String) {
-            return httpService.getUser(user.project, user.id).thenApply(u -> {
-                ClientAutomationAction.StringTemplate template = new ClientAutomationAction.StringTemplate(config.content);
+                StringTemplate template = new StringTemplate(config.content);
 
                 String format = template.format(name -> {
-                    Object o = u.properties.get(name);
+                    Object o = user.properties.get(name);
                     if (o != null && o instanceof String) {
                         return o.toString();
                     } else {
@@ -196,9 +201,8 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
                 });
 
                 return sendInternal((String) email, config, format);
-            });
         } else {
-            return CompletableFuture.completedFuture(false);
+            return false;
         }
     }
 

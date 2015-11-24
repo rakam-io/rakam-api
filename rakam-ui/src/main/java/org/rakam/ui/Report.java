@@ -2,6 +2,7 @@ package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.Map;
@@ -10,7 +11,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 
-public class Report {
+public class Report implements ProjectItem {
     public final String project;
     public final String slug;
     public final String name;
@@ -32,6 +33,11 @@ public class Report {
 
         checkArgument(this.slug.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "slug must only contain alphanumeric characters and _");
+    }
+
+    @Override
+    public String project() {
+        return project;
     }
 }
 

@@ -8,6 +8,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.ui.Report;
 
@@ -17,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class Recipe {
+public class Recipe implements ProjectItem {
     public final Strategy strategy;
     public final String project;
     public final Map<String, Collection> collections;
@@ -65,6 +66,11 @@ public class Recipe {
 
     public List<ReportBuilder> getReports() {
         return reports;
+    }
+
+    @Override
+    public String project() {
+        return project;
     }
 
     public static class Collection {

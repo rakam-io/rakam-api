@@ -4,11 +4,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.RequestPreprocessor;
-import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.util.RakamException;
-
-import java.lang.reflect.Method;
-import java.util.Arrays;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
@@ -23,18 +19,10 @@ class ProjectRawAuthPreprocessor implements RequestPreprocessor<RakamHttpRequest
     }
 
     @Override
-    public boolean handle(HttpHeaders headers, RakamHttpRequest bodyData) {
-        if(!metastore.checkPermission(headers.get("project"), key, headers.get("api_key"))) {
+    public void handle(HttpHeaders headers, RakamHttpRequest request) {
+        String project = headers.get("project");
+        String api_key = headers.get("api_key");
+        if(project == null || api_key == null || !metastore.checkPermission(project, key, api_key))
             throw new RakamException(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
-        }
-        return true;
-    }
-
-    public static boolean test(Method method, String keyName) {
-        final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
-        if(annotation != null) {
-            return Arrays.stream(annotation.authorizations()).anyMatch(a -> keyName.equals(a.value()));
-        }
-        return false;
     }
 }

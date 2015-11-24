@@ -19,10 +19,9 @@ class ProjectAuthPreprocessor implements RequestPreprocessor<ObjectNode> {
     }
 
     @Override
-    public boolean handle(HttpHeaders headers, ObjectNode bodyData) {
+    public void handle(HttpHeaders headers, ObjectNode bodyData) {
         if(!metastore.checkPermission(bodyData.get("project").asText(), key, headers.get("api_key"))) {
             throw new RakamException(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
         }
-        return true;
     }
 }

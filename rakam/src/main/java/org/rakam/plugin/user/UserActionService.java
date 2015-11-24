@@ -9,5 +9,5 @@ public abstract class UserActionService<T> extends HttpService {
 
     public abstract CompletableFuture<Long> batch(String project, CompletableFuture<QueryResult> queryResult, T config);
     public abstract String getName();
-    public abstract CompletableFuture<Boolean> send(User user, T config);
+    public abstract boolean send(User user, T config);
 }

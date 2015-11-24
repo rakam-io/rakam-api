@@ -2,8 +2,9 @@ package org.rakam.plugin.user;
 
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.UserPluginConfig;
-import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.Message;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.server.http.HttpServer;
@@ -40,11 +41,13 @@ public class UserMailboxHttpService extends HttpService {
     private final UserMailboxStorage storage;
     private final MailBoxWebSocketService webSocketService;
     private final UserPluginConfig config;
+    private final Metastore metastore;
 
     @Inject
-    public UserMailboxHttpService(UserStorage userStorage, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
+    public UserMailboxHttpService(Metastore metastore, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
         this.storage = storage;
         this.config = config;
+        this.metastore = metastore;
         this.webSocketService = webSocketService;
     }
 
@@ -78,12 +81,20 @@ public class UserMailboxHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @IgnoreApi
+    @IgnorePermissionCheck
     public void listen(RakamHttpRequest request) {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
         List<String> project = request.params().get("project");
         if(project == null || project.isEmpty()) {
             response.send("result", encode(HttpServer.errorMessage("project query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
+            return;
+        }
+
+        List<String> api_key = request.params().get("api_key");
+        if(api_key == null || api_key.isEmpty() || !metastore.checkPermission(project.get(0), Metastore.AccessKeyType.READ_KEY, api_key.get(0))) {
+            response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.UNAUTHORIZED.reasonPhrase(),
+                    HttpResponseStatus.UNAUTHORIZED))).end();
             return;
         }
 

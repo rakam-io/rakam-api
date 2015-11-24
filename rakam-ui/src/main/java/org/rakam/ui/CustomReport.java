@@ -14,10 +14,11 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
 
-public class CustomReport {
+public class CustomReport implements ProjectItem {
     public final String reportType;
     public final String project;
     public final String name;
@@ -32,5 +33,10 @@ public class CustomReport {
         this.project = project;
         this.name = name;
         this.data = data;
+    }
+
+    @Override
+    public String project() {
+        return project;
     }
 }

@@ -14,7 +14,10 @@
 package org.rakam.ui;
 
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
@@ -25,6 +28,8 @@ import java.util.List;
 
 
 @Path("/custom-report")
+@IgnoreApi
+@Api(value = "/custom-report", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 public class CustomReportHttpService extends HttpService {
 
     private final JDBCCustomReportMetadata metadata;

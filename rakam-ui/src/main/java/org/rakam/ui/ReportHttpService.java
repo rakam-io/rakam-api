@@ -1,7 +1,10 @@
 package org.rakam.ui;
 
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
@@ -11,6 +14,8 @@ import javax.ws.rs.Path;
 
 
 @Path("/report")
+@Api(value = "/report", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
+@IgnoreApi
 public class ReportHttpService extends HttpService {
 
     private final JDBCReportMetadata metadata;

@@ -1,5 +1,7 @@
 package org.rakam.automation.action;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.rakam.automation.AutomationAction;
 import org.rakam.plugin.user.User;
@@ -30,7 +32,8 @@ public class UserActionAutomationAction implements AutomationAction<UserActionAu
         public final String actionName;
         public final Object actionData;
 
-        public UserAction(String actionName, Object actionData) {
+        @JsonCreator
+        public UserAction(@JsonProperty("action_name") String actionName, @JsonProperty("data") Object actionData) {
             this.actionName = actionName;
             this.actionData = actionData;
         }

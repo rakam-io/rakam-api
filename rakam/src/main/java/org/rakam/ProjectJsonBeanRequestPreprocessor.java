@@ -6,6 +6,8 @@ import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.RequestPreprocessor;
 import org.rakam.util.RakamException;
 
+import java.lang.reflect.Method;
+
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
 class ProjectJsonBeanRequestPreprocessor implements RequestPreprocessor<Object> {
@@ -18,10 +20,17 @@ class ProjectJsonBeanRequestPreprocessor implements RequestPreprocessor<Object> 
     }
 
     @Override
-    public boolean handle(HttpHeaders headers, Object bodyData) {
-        if(!metastore.checkPermission(((ProjectItem) bodyData).project(), key, headers.get("api_key"))) {
+    public void handle(HttpHeaders headers, Object bodyData) {
+        String api_key = headers.get("api_key");
+        if(api_key == null || !metastore.checkPermission(((ProjectItem) bodyData).project(), key, api_key)) {
             throw new RakamException(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
         }
-        return true;
+    }
+
+    public static boolean test(Method method, Metastore.AccessKeyType key) {
+        if(!ProjectItem.class.isAssignableFrom((Class) method.getParameters()[0].getParameterizedType())) {
+            throw new IllegalStateException("Beans used by @BodyParam must implement org.rakam.ProjectItem interface: "+method.toString());
+        }
+        return WebServiceRecipe.test(method, key);
     }
 }

@@ -93,8 +93,8 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
             Statement statement = connection.createStatement();
             statement.execute(format("CREATE TABLE IF NOT EXISTS %s(" +
                     "  id SERIAL," +
-                    "  to_user int NOT NULL," +
-                    "  from_user int NOT NULL," +
+                    "  to_user TEXT NOT NULL," +
+                    "  from_user TEXT NOT NULL," +
                     "  content TEXT NOT NULL," +
                     "  parentId INT," +
                     "  seen BOOL DEFAULT FALSE NOT NULL," +
@@ -196,40 +196,22 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
         }
     }
 
-    private long castUserId(Object userId) {
-        long user;
-        if(userId instanceof Number) {
-            user = ((Number) userId).longValue();
-        }else
-        if(userId instanceof String) {
-            try {
-                user = Long.parseLong((String) userId);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException();
-            }
-        }else {
-            throw new IllegalArgumentException();
-        }
-        return user;
-    }
-
     @Override
     public List<Message> getConversation(String project, String userId, Integer parentId, int limit, long offset) {
-        long user = castUserId(userId);
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps;
             if (parentId == null) {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
                         "._user_mailbox WHERE (to_user = ? OR from_user = ?) AND parentId IS NULL ORDER BY time DESC LIMIT ? OFFSET ?");
-                ps.setObject(1, user);
-                ps.setObject(2, user);
+                ps.setObject(1, userId);
+                ps.setObject(2, userId);
                 ps.setInt(3, limit);
                 ps.setLong(4, offset);
             } else {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
                         "._user_mailbox WHERE (to_user = ? OR from_user = ?) AND (parentId = ? OR id = ?) ORDER BY time DESC LIMIT ? OFFSET ?");
-                ps.setObject(1, user);
-                ps.setObject(2, user);
+                ps.setString(1, userId);
+                ps.setString(2, userId);
                 ps.setInt(3, parentId);
                 ps.setInt(4, parentId);
                 ps.setInt(5, limit);
@@ -250,11 +232,10 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public void markMessagesAsRead(String project, String userId, int[] messageIds) {
-        long user = castUserId(userId);
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("UPDATE " + project +
                     "._user_mailbox SET seen = true WHERE to_user = ? and id in ?");
-            ps.setLong(1, user);
+            ps.setString(1, userId);
             ps.setArray(2, connection.createArrayOf("int", Arrays.stream(messageIds).mapToObj(Integer::new).toArray()));
             ps.executeUpdate();
         } catch (SQLException e) {

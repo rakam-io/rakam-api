@@ -1,6 +1,7 @@
 package org.rakam.automation.action;
 
-import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.automation.AutomationAction;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventMapper;
@@ -12,7 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-@JsonTypeName("event")
 public class SendEventAutomationAction implements AutomationAction<SendEventAutomationAction.SendEventAction> {
 
     private final Set<EventMapper> eventMappers;
@@ -25,17 +25,19 @@ public class SendEventAutomationAction implements AutomationAction<SendEventAuto
     }
 
     public String process(Supplier<User> user, SendEventAction sendEventAction) {
-        new Event(user.get().project, sendEventAction.collectionName, null, null);
+        new Event(user.get().project, sendEventAction.collection, null, null);
         return null;
     }
 
     public static class SendEventAction {
-        public final String collectionName;
-        public final Map<String, Object> eventProperties;
+        public final String collection;
+        public final Map<String, Object> properties;
 
-        public SendEventAction(String eventName, Map<String, Object> eventProperties) {
-            this.collectionName = eventName;
-            this.eventProperties = eventProperties;
+        @JsonCreator
+        public SendEventAction(@JsonProperty("collection") String collection,
+                               @JsonProperty("properties") Map<String, Object> properties) {
+            this.collection = collection;
+            this.properties = properties;
         }
     }
 }

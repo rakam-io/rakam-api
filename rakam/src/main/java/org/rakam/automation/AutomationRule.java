@@ -5,13 +5,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.Event;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 
 import java.util.List;
 import java.util.function.Predicate;
 
-public class AutomationRule {
+public class AutomationRule implements ProjectItem {
     public final int id;
     public final String project;
     @JsonProperty("is_active")
@@ -46,6 +47,11 @@ public class AutomationRule {
         this.isActive = isActive == null ? true : isActive.booleanValue();
         this.scenarios = scenarios;
         this.actions = actions;
+    }
+
+    @Override
+    public String project() {
+        return project;
     }
 
     public enum ThresholdAggregation {

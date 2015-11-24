@@ -20,6 +20,7 @@ import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
@@ -124,6 +125,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
+    @IgnorePermissionCheck
     @ApiOperation(value = "Collect event", response = Integer.class, request = Event.class,
             authorizations = @Authorization(value = "write_key")
     )
@@ -215,6 +217,7 @@ public class EventCollectionHttpService extends HttpService {
     @ApiOperation(value = "Collect multiple events", request = EventList.class, response = Integer.class,
             authorizations = @Authorization(value = "write_key")
     )
+    @IgnorePermissionCheck
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch")

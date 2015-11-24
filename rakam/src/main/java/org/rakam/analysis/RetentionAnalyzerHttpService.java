@@ -16,6 +16,8 @@ package org.rakam.analysis;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
+import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryHttpService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
@@ -55,6 +57,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
     )
     @GET
     @IgnoreApi
+    @IgnorePermissionCheck
     @Path("/analyze")
     public void execute(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (query) ->
@@ -85,7 +88,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                         query.endDate).getResult();
     }
 
-    private static class RetentionQuery {
+    private static class RetentionQuery implements ProjectItem {
         private final String project;
         private final String connectorField;
         private final RetentionAction firstAction;
@@ -116,6 +119,11 @@ public class RetentionAnalyzerHttpService extends HttpService {
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;
+        }
+
+        @Override
+        public String project() {
+            return project;
         }
     }
 }

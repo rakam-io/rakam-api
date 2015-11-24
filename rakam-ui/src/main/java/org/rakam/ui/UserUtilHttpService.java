@@ -24,13 +24,16 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -46,33 +49,38 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.lang.String.format;
 
 @Path("/ui/user")
+@IgnoreApi
 public class UserUtilHttpService extends HttpService {
     private final SqlParser sqlParser = new SqlParser();
     private final AbstractUserService service;
+    private final Metastore metastore;
 
     @Inject
-    public UserUtilHttpService(AbstractUserService service) {
+    public UserUtilHttpService(Metastore metastore, AbstractUserService service) {
         this.service = service;
+        this.metastore = metastore;
     }
 
     public static class FilterQuery {
-        public String project;
-        public String filter;
-        public List<UserStorage.EventFilter> event_filter;
-        public UserStorage.Sorting sorting;
+        public final String project;
+        public final String apiKey;
+        public final String filter;
+        public final List<UserStorage.EventFilter> event_filter;
+        public final UserStorage.Sorting sorting;
 
         @JsonCreator
         public FilterQuery(@ApiParam(name = "project") String project,
+                           @ApiParam(name = "api_key") String apiKey,
                            @ApiParam(name = "filter", required = false) String filter,
                            @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                            @ApiParam(name = "sorting", required = false) UserStorage.Sorting sorting) {
             this.project = project;
+            this.apiKey = apiKey;
             this.filter = filter;
             this.event_filter = event_filter;
             this.sorting = sorting;
@@ -81,6 +89,7 @@ public class UserUtilHttpService extends HttpService {
 
     @GET
     @Path("/export")
+    @IgnorePermissionCheck
     public void export(RakamHttpRequest request) {
         final Map<String, List<String>> params = request.params();
         final List<String> query = params.get("query");
@@ -88,6 +97,7 @@ public class UserUtilHttpService extends HttpService {
             HttpServer.returnError(request, BAD_REQUEST.reasonPhrase(), BAD_REQUEST);
             return;
         }
+
         String body = query.get(0);
         final ExportQuery read;
         try {
@@ -95,6 +105,10 @@ public class UserUtilHttpService extends HttpService {
         } catch (IOException e) {
             HttpServer.returnError(request, "Couldn't parse body: " + e.getMessage(), BAD_REQUEST);
             return;
+        }
+
+        if(!metastore.checkPermission(read.filterQuery.project, Metastore.AccessKeyType.READ_KEY, read.filterQuery.apiKey)) {
+            HttpServer.returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
         }
 
         Expression expression;

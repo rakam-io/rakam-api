@@ -127,7 +127,7 @@ public class UserAutomationService {
                 throw new IllegalStateException();
             }
 
-            Object convert = JsonHelper.convert(action.value, optionsClass);
+            JsonHelper.convert(action.value, optionsClass);
         }
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO automation_rules (project, is_active, event_filters, actions, custom_data) VALUES (:project, true, :event_filters, :actions, :custom_data)")

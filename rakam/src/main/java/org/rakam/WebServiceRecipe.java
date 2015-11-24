@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
+import io.airlift.log.Logger;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Contact;
 import io.swagger.models.Info;
@@ -15,14 +16,16 @@ import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
 import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
-import org.rakam.collection.event.SecuredForProject;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.config.HttpServerConfig;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
+import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
@@ -34,6 +37,7 @@ import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.*;
 
 @Singleton
 public class WebServiceRecipe extends AbstractModule {
+    private final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
     private final Set<WebSocketService> webSocketServices;
     private final Set<HttpService> httpServices;
@@ -83,12 +87,12 @@ public class WebServiceRecipe extends AbstractModule {
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, MASTER_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, MASTER_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, WRITE_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, WRITE_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, READ_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, READ_KEY))
                 .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))
                 .build();
 
         HostAndPort address = config.getAddress();
@@ -104,16 +108,24 @@ public class WebServiceRecipe extends AbstractModule {
 
 
     public static boolean test(Method method, Metastore.AccessKeyType key) {
-        if(!method.isAnnotationPresent(SecuredForProject.class)) {
+        if(method.isAnnotationPresent(IgnorePermissionCheck.class)) {
             return false;
         }
         final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
-        if(annotation != null &&
-                !Arrays.stream(annotation.authorizations()).anyMatch(a -> key.getKey().equals(a.value()))) {
-            throw new IllegalArgumentException("method %s cannot have @SecuredForProject because " +
-                    "it doesn't have appropriate @ApiOperation definition");
+        Authorization[] authorizations = annotation == null ? new Authorization[0] : annotation.authorizations();
+
+        if(annotation != null && !annotation.consumes().isEmpty() && !annotation.consumes().equals("application/json")) {
+            throw new IllegalStateException("The permission check component requires endpoint to consume application/json. " +
+                    "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
         }
-        return false;
+        Api clazzOperation = method.getDeclaringClass().getAnnotation(Api.class);
+        if(authorizations.length == 0 && (clazzOperation == null || clazzOperation.authorizations().length == 0)) {
+            throw new IllegalArgumentException(String.format("Authorization for method %s is not defined. " +
+                    "You must use @IgnorePermissionCheck if the endpoint doesn't need permission check", method.toString()));
+        }
+
+        return Arrays.stream(authorizations).anyMatch(a -> key.getKey().equals(a.value())) ||
+                (clazzOperation != null && Arrays.stream(clazzOperation.authorizations()).anyMatch(a -> key.getKey().equals(a.value())));
     }
 
 }
