@@ -2,8 +2,6 @@ package org.rakam;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Provider;
@@ -20,7 +18,6 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ConditionalModule;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventExplorerConfig;
 import org.rakam.plugin.EventStore;
@@ -95,10 +92,7 @@ public class PostgresqlModule extends RakamModule {
 
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PostgresqlEventExplorer.class);
-
-            binder.bind(EventExplorerListener.class).asEagerSingleton();
         }
-
 
         if (buildConfigObject(PostgresqlConfig.class).isAutoIndexColumns()) {
             binder.bind(CollectionFieldIndexerListener.class).asEagerSingleton();
@@ -115,25 +109,7 @@ public class PostgresqlModule extends RakamModule {
         return "Postgresql deployment type module";
     }
 
-    private static class EventExplorerListener {
-        private static final String QUERY = "select _time/3600 as time, count(*) as total from stream group by 1";
-        private final ContinuousQueryService continuousQueryService;
 
-        @Inject
-        public EventExplorerListener(ContinuousQueryService continuousQueryService) {
-            this.continuousQueryService = continuousQueryService;
-        }
-
-        @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            ContinuousQuery report = new ContinuousQuery(event.project, "Total count of "+event.collection,
-                    "_total_" + event.collection,
-                    QUERY,
-                    ImmutableList.of(event.collection),
-                    ImmutableList.of(), ImmutableMap.of());
-            continuousQueryService.create(report);
-        }
-    }
 
     private static class JDBCPoolDataSourceProvider implements Provider<JDBCPoolDataSource> {
         private final JDBCConfig asyncClientConfig;

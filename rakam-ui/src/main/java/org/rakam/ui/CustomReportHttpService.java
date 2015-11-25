@@ -14,7 +14,7 @@
 package org.rakam.ui;
 
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
@@ -29,7 +29,6 @@ import java.util.List;
 
 @Path("/custom-report")
 @IgnoreApi
-@Api(value = "/custom-report", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 public class CustomReportHttpService extends HttpService {
 
     private final JDBCCustomReportMetadata metadata;
@@ -41,12 +40,14 @@ public class CustomReportHttpService extends HttpService {
 
     @JsonRequest
     @Path("/list")
+    @ApiOperation(value = "List reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public List<CustomReport> list(@ApiParam(name="report_type", required = true) String reportType,
                                    @ApiParam(name="project", required = true) String project) {
         return metadata.list(reportType, project);
     }
 
     @JsonRequest
+    @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
     public JsonResponse create(@ParamBody CustomReport report) {
         metadata.add(report);
@@ -55,6 +56,7 @@ public class CustomReportHttpService extends HttpService {
 
     @JsonRequest
     @Path("/update")
+    @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
     public JsonResponse update(@ParamBody CustomReport report) {
         metadata.update(report);
         return JsonResponse.success();
@@ -62,6 +64,7 @@ public class CustomReportHttpService extends HttpService {
 
     @JsonRequest
     @Path("/delete")
+    @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
     public JsonResponse delete(@ApiParam(name="report_type", required = true) String reportType,
                                @ApiParam(name="project", value = "Project id", required = true) String project,
                                @ApiParam(name="name", value = "Project name", required = true) String name) {
@@ -72,6 +75,7 @@ public class CustomReportHttpService extends HttpService {
 
     @JsonRequest
     @Path("/get")
+    @ApiOperation(value = "Get reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public Object get(@ApiParam(name="report_type", required = true) String reportType,
                       @ApiParam(name="project", value = "Project id", required = true) String project,
                       @ApiParam(name="name", value = "Report name", required = true) String name) {

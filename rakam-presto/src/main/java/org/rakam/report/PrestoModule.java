@@ -1,9 +1,6 @@
 package org.rakam.report;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -20,20 +17,16 @@ import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventExplorerConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.PrestoExternalUserStorageAdapter;
-
-import javax.inject.Inject;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
@@ -64,7 +57,6 @@ public class PrestoModule extends RakamModule {
 
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
-            binder.bind(EventExplorerListener.class).asEagerSingleton();
         }
 
         binder.bind(UserStorage.class).to(PrestoExternalUserStorageAdapter.class).in(Scopes.SINGLETON);
@@ -91,25 +83,5 @@ public class PrestoModule extends RakamModule {
     @Override
     public String description() {
         return "Rakam backend for high-throughput systems.";
-    }
-
-    public static class EventExplorerListener {
-        private static final String QUERY = "select _time/3600 as time, count(*) as total from stream group by 1";
-        private final PrestoContinuousQueryService continuousQueryService;
-
-        @Inject
-        public EventExplorerListener(PrestoContinuousQueryService continuousQueryService) {
-            this.continuousQueryService = continuousQueryService;
-        }
-
-        @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            ContinuousQuery report = new ContinuousQuery(event.project, "Total count of "+event.collection,
-                    "_total_" + event.collection,
-                    QUERY,
-                    ImmutableList.of(event.collection),
-                    ImmutableList.of(), ImmutableMap.of());
-            continuousQueryService.create(report);
-        }
     }
 }

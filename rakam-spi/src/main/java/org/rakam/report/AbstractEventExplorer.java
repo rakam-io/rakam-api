@@ -80,7 +80,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             case COLUMN:
                 return ref.value;
             case REFERENCE:
-                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), epochTimestampFunctionName+"(_time)");
+                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), epochTimestampFunctionName + "(_time)");
             default:
                 throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
@@ -112,10 +112,10 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     }
 
     public CompletableFuture<QueryResult> analyze(String project, List<String> collections, EventExplorer.Measure measureType, EventExplorer.Reference grouping, EventExplorer.Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate) {
-        if (grouping !=null && grouping.type == EventExplorer.ReferenceType.REFERENCE) {
+        if (grouping != null && grouping.type == EventExplorer.ReferenceType.REFERENCE) {
             checkReference(grouping.value, startDate, endDate);
         }
-        if (segment !=null && segment.type == EventExplorer.ReferenceType.REFERENCE) {
+        if (segment != null && segment.type == EventExplorer.ReferenceType.REFERENCE) {
             checkReference(segment.value, startDate, endDate);
         }
         String select = Stream.of(grouping, segment)
@@ -124,9 +124,9 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                 .collect(Collectors.joining(", "));
 
         String groupBy;
-        if(segment != null && grouping != null) {
+        if (segment != null && grouping != null) {
             groupBy = "1,2";
-        } else if(segment != null || grouping != null ) {
+        } else if (segment != null || grouping != null) {
             groupBy = "1";
         } else {
             groupBy = "";
@@ -174,62 +174,45 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         if (intermediateAggregation.isPresent()) {
             if (grouping != null && segment != null) {
-                if(isGroupingSupported(project, collections, grouping) &&
-                        isGroupingSupported(project, collections, segment)) {
-                    query = format(" SELECT " +
-                                    " CASE WHEN group_rank > 15 THEN 'Others' ELSE %s END,\n" +
-                                    " CASE WHEN segment_rank > 20 THEN 'Others' ELSE %s END,\n" +
-                                    " %s FROM (\n" +
-                                    "   SELECT *,\n" +
-                                    "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
-                                    "          row_number() OVER (PARTITION BY %s ORDER BY %s DESC) AS segment_rank\n" +
-                                    "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
-                            getColumnReference(grouping),
-                            getColumnReference(segment),
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                            format(getColumnReference(grouping), "value"),
-                            computeQuery);
-                } else {
-                    String groupingColumn;
-                    String segmentColumn;
+                boolean groupingSupported = isGroupingSupported(project, collections, grouping);
+                boolean segmentSupported = isGroupingSupported(project, collections, segment);
 
-                    if (isGroupingSupported(project, collections, segment)) {
-                        segmentColumn = format("CASE WHEN group_rank > 15 THEN 'Others' ELSE %s END", getColumnValue(segment));
-                    } else {
-                        segmentColumn = getColumnValue(segment);
-                    }
-
-                    if (isGroupingSupported(project, collections, grouping)) {
-                        groupingColumn = format("CASE WHEN group_rank > 15 THEN 'Others' ELSE %s END", getColumnValue(grouping));
-                    } else {
-                        groupingColumn = getColumnReference(grouping);
-                    }
-
-                    query = format(" SELECT " +
-                                    " %s, %s, %s FROM (\n" +
-                                    "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
-                                    "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
-                            groupingColumn,
-                            segmentColumn,
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                            computeQuery);
-                }
+                query = format(" SELECT " +
+                                " CASE WHEN group_rank > 15 THEN %s ELSE %s END,\n" +
+                                " CASE WHEN segment_rank > 20 THEN %s ELSE %s END,\n" +
+                                " %s FROM (\n" +
+                                "   SELECT *,\n" +
+                                "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
+                                "          row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank\n" +
+                                "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
+                        groupingSupported ? "'Others'" : "null",
+                        getColumnReference(grouping),
+                        segmentSupported ? "'Others'" : "null",
+                        getColumnReference(segment),
+                        format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                        format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                        format(getColumnReference(grouping), "value"),
+                        computeQuery);
             } else {
                 String columnValue = null;
+                boolean group;
 
-                if (segment != null && isGroupingSupported(project, collections, segment)) {
+                if (segment != null) {
                     columnValue = getColumnValue(segment);
-                } else if (grouping != null && isGroupingSupported(project, collections, grouping)) {
+                    group = isGroupingSupported(project, collections, segment);
+                } else if (grouping != null) {
                     columnValue = getColumnValue(grouping);
+                    group = isGroupingSupported(project, collections, grouping);
+                } else {
+                    group = false;
                 }
 
                 if (columnValue != null) {
                     query = format(" SELECT " +
-                                    " CASE WHEN group_rank > 50 THEN 'Others' ELSE %s END, %s FROM (\n" +
+                                    " CASE WHEN group_rank > 50 THEN %s ELSE %s END, %s FROM (\n" +
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                     "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
+                            group ? "'Others'" : "null",
                             columnValue,
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
@@ -270,15 +253,15 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         checkProject(project);
         Set<String> collectionNames = metastore.getCollectionNames(project);
 
-        if(collections.isPresent()) {
+        if (collections.isPresent()) {
             for (String name : collections.get()) {
-                if(!collectionNames.contains(name)) {
+                if (!collectionNames.contains(name)) {
                     throw new RakamException(HttpResponseStatus.BAD_REQUEST);
                 }
             }
             collectionNames = collections.get();
         }
-        if(collectionNames.isEmpty()) {
+        if (collectionNames.isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }
 
@@ -291,15 +274,15 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     format("select '%s' as collection, %s(time*3600) as time, total from continuous.\"%s\" ",
                                             collection,
                                             epochTimestampFunctionName,
-                                            "_total_"+collection))
-                            .collect(Collectors.joining(" union "))+
+                                            "_total_" + collection))
+                            .collect(Collectors.joining(" union ")) +
                     format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
                     .map(collection ->
                             format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between to_unixtime(date '%s')/3600 and to_unixtime(date '%s' + interval '1' day)/3600",
                                     collection,
-                                    "_total_"+collection,
+                                    "_total_" + collection,
                                     startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
                     .collect(Collectors.joining(" union "));
         }
