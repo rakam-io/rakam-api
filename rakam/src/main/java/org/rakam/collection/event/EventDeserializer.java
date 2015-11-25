@@ -183,6 +183,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         if (newFields == null)
                             newFields = new HashSet<>();
 
+                        if(fieldName.equals("_user")) {
+                            type = FieldType.STRING;
+                        }
                         SchemaField newField = new SchemaField(fieldName, type, true);
                         newFields.add(newField);
 
@@ -413,7 +416,12 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         while (elements.hasNext()) {
             Map.Entry<String, JsonNode> next = elements.next();
             String key = next.getKey();
-            FieldType fieldType = getTypeFromJsonNode(next.getValue());
+            FieldType fieldType;
+            if(key.equals("_user")) {
+                fieldType = FieldType.STRING;
+            } else {
+                fieldType = getTypeFromJsonNode(next.getValue());
+            }
             if (fieldType != null) {
                 fields.add(new SchemaField(key, fieldType, true));
             }
