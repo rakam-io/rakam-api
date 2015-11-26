@@ -7,7 +7,6 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
@@ -26,6 +25,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -403,24 +403,33 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     @Override
     public CompletableFuture<org.rakam.plugin.user.User> getUser(String project, String userId) {
         checkProject(project);
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = queryExecutor.getConnection()) {
+                PreparedStatement ps = conn.prepareStatement(format("select * from %s.%s where %s = ?", project, USER_TABLE, PRIMARY_KEY));
+                ps.setString(1, userId);
+                ResultSet resultSet = ps.executeQuery();
 
-        return queryExecutor.executeRawQuery(format("select * from %s.%s where %s = %d", project, USER_TABLE, PRIMARY_KEY, Long.parseLong(userId)))
-                .getResult().thenApply(result -> {
-                    HashMap<String, Object> properties = Maps.newHashMap();
-                    if (result.getResult().isEmpty()) {
-                        return null;
+                Map<String, Object> properties = new HashMap<>();
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount() + 1;
+
+                String id = null;
+                while (resultSet.next()) {
+                    for (int i = 1; i < columnCount; i++) {
+                        String key = metaData.getColumnName(i);
+                        if(key.equals(PRIMARY_KEY)) {
+                            id = resultSet.getString(i);
+                        } else {
+                            Object value = resultSet.getObject(i);
+                            properties.put(key, value);
+                        }
                     }
-                    List<Object> objects = result.getResult().get(0);
-                    List<? extends SchemaField> metadata = result.getMetadata();
-
-                    for (int i = 0; i < metadata.size(); i++) {
-                        String name = metadata.get(i).getName();
-                        if (!name.equals(PRIMARY_KEY))
-                            properties.put(name, objects.get(i));
-                    }
-
-                    return new org.rakam.plugin.user.User(project, userId, properties);
-                });
+                }
+                return new User(project, id, properties);
+            } catch (SQLException e) {
+                throw Throwables.propagate(e);
+            }
+        });
     }
 
     private Map<String, FieldType> getProjectProperties(String project) {

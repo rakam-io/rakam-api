@@ -195,19 +195,21 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                         computeQuery);
             } else {
                 String columnValue = null;
-                boolean group;
+                boolean group, reference;
 
                 if (segment != null) {
                     columnValue = getColumnValue(segment);
                     group = isGroupingSupported(project, collections, segment);
+                    reference = segment.type == ReferenceType.REFERENCE;
                 } else if (grouping != null) {
                     columnValue = getColumnValue(grouping);
                     group = isGroupingSupported(project, collections, grouping);
+                    reference = grouping.type == ReferenceType.REFERENCE;
                 } else {
-                    group = false;
+                    group = reference = false;
                 }
 
-                if (columnValue != null) {
+                if (columnValue != null && !reference) {
                     query = format(" SELECT " +
                                     " CASE WHEN group_rank > 50 THEN %s ELSE %s END, %s FROM (\n" +
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +

@@ -229,7 +229,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
-    @Path("/remove_item")
+    @Path("/delete_item")
     public JsonResponse removeFromDashboard(@ApiParam(name = "project") String project,
                                             @ApiParam(name = "dashboard") int dashboard,
                                             @ApiParam(name = "id") int id) {
