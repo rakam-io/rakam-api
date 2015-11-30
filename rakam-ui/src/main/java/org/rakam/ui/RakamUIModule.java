@@ -37,6 +37,7 @@ public class RakamUIModule extends RakamModule {
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(DashboardService.class);
         httpServices.addBinding().to(WebUserHttpService.class);
+        httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(RakamUIWebService.class);
         httpServices.addBinding().to(UserUtilHttpService.class);
     }

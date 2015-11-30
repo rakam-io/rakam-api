@@ -57,6 +57,10 @@
             <artifactId>guice</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
         </dependency>
@@ -65,8 +69,8 @@
             <artifactId>avro</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
+            <groupId>org.rakam</groupId>
+            <artifactId>netty-rest</artifactId>
         </dependency>
         <!-- ua_parser doesn't publish the library in maven central so currently we're using jitpack. -->
         <dependency>
