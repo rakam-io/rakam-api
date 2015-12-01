@@ -13,6 +13,7 @@ import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.UserPluginConfig;
+import org.rakam.plugin.UserPropertyMapper;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
@@ -36,6 +37,8 @@ public class UserModule extends RakamModule {
 
     @Override
     protected void setup(Binder binder) {
+        Multibinder.newSetBinder(binder, UserPropertyMapper.class);
+
         Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
         webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
 

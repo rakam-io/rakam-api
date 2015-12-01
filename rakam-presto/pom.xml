@@ -72,6 +72,10 @@
             <artifactId>presto-parser</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>netty-rest</artifactId>
+        </dependency>
+        <dependency>
             <groupId>javax.inject</groupId>
             <artifactId>javax.inject</artifactId>
             <scope>provided</scope>

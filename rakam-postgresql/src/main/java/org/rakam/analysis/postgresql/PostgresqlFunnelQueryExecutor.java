@@ -14,9 +14,11 @@
 package org.rakam.analysis.postgresql;
 
 import com.facebook.presto.sql.ExpressionFormatter;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -37,6 +39,9 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
 
     @Override
     public QueryExecution query(String project, String connectorField, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
+        if(dimension.isPresent() && connectorField.equals(dimension.get())) {
+            throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
+        }
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(project, connectorField, i, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));

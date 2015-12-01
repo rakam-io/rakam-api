@@ -67,7 +67,7 @@ public class ProxyWebService extends HttpService {
                         String url = rakamHttpRequest.params().get("u").get(0);
                         parse.head().prepend(String.format("<base href='%s'>", url));
                         parse.head().prepend("<link href=\"/static/components/codemirror/lib/codemirror.css\" media=\"screen\" rel=\"stylesheet\" />");
-                        parse.head().prepend("<link href=\"/static/components/jquery-ui/themes/flick/jquery-ui.min.css\" media=\"screen\" rel=\"stylesheet\" />");
+                        parse.head().prepend("<link href=\"/static/embed/jquery-ui-theme.css\" media=\"screen\" rel=\"stylesheet\" />");
                         parse.head().prepend("<link href=\"/static/components/bootstrap-colorpicker/css/colorpicker.css\" media=\"screen\" rel=\"stylesheet\" />");
                         parse.head().prepend("<link href=\"/static/embed/rakam-inline-editor.css\" media=\"screen\" rel=\"stylesheet\" />");
 
