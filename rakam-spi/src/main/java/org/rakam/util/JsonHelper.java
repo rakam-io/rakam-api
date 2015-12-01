@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.base.Throwables;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
@@ -28,10 +28,7 @@ public class JsonHelper {
 
     static {
         prettyMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
-//        SimpleModule simpleModule = new SimpleModule();
-//        simpleModule.addSerializer(new SchemaSerializer());
-//        mapper.registerModule(simpleModule);
-        mapper.registerModule(new JSR310Module());
+        mapper.registerModule(new JavaTimeModule());
         mapper.registerModule(new Jdk8Module());
 
         SwaggerJacksonAnnotationIntrospector ai = new SwaggerJacksonAnnotationIntrospector();
