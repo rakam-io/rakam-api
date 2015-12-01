@@ -31,6 +31,7 @@ import org.rakam.config.HttpServerConfig;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
@@ -145,6 +146,10 @@ public class ServiceStarter {
             tags.addBinding().toInstance(new Tag().name("event").description("Event Analyzer").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("materialized-view").description("Materialized view").externalDocs(MetadataConfig.centralDocs));
             tags.addBinding().toInstance(new Tag().name("continuous-query").description("Continuous query").externalDocs(MetadataConfig.centralDocs));
+
+            // Register these interfaces to MultiBinder
+            Multibinder.newSetBinder(binder, EventProcessor.class);
+            Multibinder.newSetBinder(binder, EventMapper.class);
 
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(AdminHttpService.class);

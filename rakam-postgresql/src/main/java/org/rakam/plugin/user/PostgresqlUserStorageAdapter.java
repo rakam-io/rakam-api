@@ -65,7 +65,7 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
         return createInternal(project, properties);
     }
 
-    private void createMissingColumns(String project, Map<String, Object> properties) {
+    private Map<String, FieldType> createMissingColumns(String project, Map<String, Object> properties) {
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
             columns = getProjectProperties(project);
@@ -79,6 +79,8 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
                 columns = getProjectProperties(project);
             }
         }
+
+        return columns;
     }
 
     public String createInternal(String project, Map<String, Object> properties) {
@@ -452,26 +454,18 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
     public void setUserProperty(String project, String userId, Map<String, Object> properties, boolean onlyOnce) {
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
-            columns = getProjectProperties(project);
+            columns = createMissingColumns(project, properties);
         }
 
         StringBuilder builder = new StringBuilder("update " + project + "." + USER_TABLE + " set ");
         Iterator<Map.Entry<String, Object>> entries = properties.entrySet().iterator();
         if (entries.hasNext()) {
             Map.Entry<String, Object> entry = entries.next();
-            FieldType fieldType = columns.get(entry);
-            if (fieldType == null) {
-                createColumn(project, entry.getKey(), entry.getValue());
-            }
             builder.append("\"").append(entry.getKey())
                     .append(onlyOnce ? "\"=coalesce(\""+entry.getKey()+"\", ?)" : "\"=?");
 
             while (entries.hasNext()) {
                 entry = entries.next();
-                fieldType = columns.get(entry);
-                if (fieldType == null) {
-                    createColumn(project, entry.getKey(), entry.getValue());
-                }
                 builder.append(" and ").append("\"").append(entry.getKey())
                         .append(onlyOnce ? "\"=coalesce(\""+entry.getKey()+"\", ?)" : "\"=?");
             }
@@ -484,6 +478,9 @@ public class PostgresqlUserStorageAdapter implements UserStorage {
             int i = 1;
             for (Map.Entry<String, Object> entry : properties.entrySet()) {
                 FieldType fieldType = columns.get(entry);
+                if(fieldType == null) {
+                    createColumn(project, entry.getKey(), entry.getValue());
+                }
                 statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
             }
             statement.setLong(i++, Long.parseLong(userId));
