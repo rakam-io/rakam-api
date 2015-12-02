@@ -64,14 +64,14 @@ public class ABTestingMetastore {
     }
 
     public void save(ABTestingReport report) {
-        if(report.id !=1) {
+        if(report.id != -1) {
             throw new RakamException("Report already has an id.", HttpResponseStatus.BAD_REQUEST);
         }
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO ab_testing (project, name, variants, goals, options) VALUES (:project, :name, :variants, :goals, :options)")
                     .bind("project", report.project)
                     .bind("name", report.name)
-                    .bind("variants", report.variants)
+                    .bind("variants", JsonHelper.encode(report.variants))
                     .bind("goals", JsonHelper.encode(ImmutableList.of(report.goal)))
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();

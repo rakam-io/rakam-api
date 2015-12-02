@@ -1,6 +1,7 @@
 package org.rakam.report.abtesting;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
@@ -41,7 +42,9 @@ public class ABTestingReport implements ProjectItem {
         public final String collection;
         public final String filter;
 
-        public Goal(String collection, String filter) {
+        @JsonCreator
+        public Goal(@JsonProperty("collection") String collection,
+                    @JsonProperty("filter") String filter) {
             this.collection = collection;
             this.filter = filter;
         }
@@ -50,7 +53,9 @@ public class ABTestingReport implements ProjectItem {
         public final String name;
         public final Object data;
 
-        public Variant(String name, Object data) {
+        @JsonCreator
+        public Variant(@JsonProperty("name") String name,
+                       @JsonProperty("data") Object data) {
             this.name = name;
             this.data = data;
         }
