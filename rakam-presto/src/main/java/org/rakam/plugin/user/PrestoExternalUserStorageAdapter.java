@@ -35,7 +35,7 @@ public class PrestoExternalUserStorageAdapter extends PostgresqlUserStorageAdapt
             if (filter.aggregation == null) {
                 builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
                 if (filter.filterExpression != null) {
-                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
                 }
                 builder.append(" limit 10000");
                 String ids = executor.executeRawQuery(builder.toString()).getResult().join().getResult().stream()
@@ -45,7 +45,7 @@ public class PrestoExternalUserStorageAdapter extends PostgresqlUserStorageAdapt
             } else {
                 builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
                 if (filter.filterExpression != null) {
-                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), null));
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
                 }
                 String field;
                 if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {

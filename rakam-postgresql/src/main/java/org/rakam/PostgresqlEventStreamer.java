@@ -150,7 +150,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                             .collect(Collectors.toList()));
                     return Joiner.on('.').join(parts);
                 }
-            }, null);
+            }, true);
         }else {
             // to small hack to simplify the code.
             return "TRUE";
