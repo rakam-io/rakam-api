@@ -48,7 +48,13 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return database.getContinuousQueries(project).stream()
                 .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("select * from "+executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")))
-                .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> entry.getValue().getResult().join().getMetadata()));
+                .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
+                    QueryResult join = entry.getValue().getResult().join();
+                    if(join.isFailed()) {
+                        return ImmutableList.of();
+                    }
+                    return join.getMetadata();
+                }));
     }
 
     @Override
@@ -71,6 +77,10 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
         QueryExecution execution = executor
                 .executeRawQuery(builder.toString() + " limit 0");
-        return execution.getResult().join().getMetadata();
+        QueryResult result = execution.getResult().join();
+        if(result.isFailed()) {
+            throw new RakamException("Query error: "+result.getError().message, HttpResponseStatus.BAD_REQUEST);
+        }
+        return result.getMetadata();
     }
 }

@@ -91,8 +91,11 @@ public class ProxyWebService extends HttpService {
 
                         String location = resp.headers().get(HttpHeaders.Names.LOCATION);
 
-                        if(location != null && location.startsWith("/")) {
-                            copy.headers().set(HttpHeaders.Names.LOCATION, CharMatcher.is('/').trimTrailingFrom("/ui/proxy?u="+ url.trim() + location)+'/');
+                        if(location != null && (location.startsWith("/") || resp.getStatus().code() == 301)) {
+                            if(location.startsWith("/")) {
+                                location = url.trim()+location;
+                            }
+                            copy.headers().set(HttpHeaders.Names.LOCATION, CharMatcher.is('/').trimTrailingFrom("/ui/proxy?u="+location)+'/');
                         }
 
                         channel.writeAndFlush(copy).addListener(ChannelFutureListener.CLOSE);
