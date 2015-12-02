@@ -102,6 +102,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
     public List<DashboardItem> get(@ApiParam(name="project") String project,
                                    @ApiParam(name="name") String name) {
@@ -116,6 +117,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "List Report", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
     public List<Dashboard> list(@ApiParam(name="project", required = true) String project) {
         try(Handle handle = dbi.open()) {
@@ -159,6 +161,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Add item to dashboard", authorizations = @Authorization(value = "read_key"))
     @Path("/add_item")
     public JsonResponse addToDashboard(@ApiParam(name="project") String project,
                                @ApiParam(name="dashboard") int dashboard,
@@ -177,6 +180,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Update dashboard items", authorizations = @Authorization(value = "read_key"))
     @Path("/update_dashboard_items")
     public JsonResponse updateDashboard(@ApiParam(name="project") String project,
                                @ApiParam(name="dashboard") int dashboard,
@@ -198,6 +202,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Update dashboard options", authorizations = @Authorization(value = "read_key"))
     @Path("/update_dashboard_options")
     public JsonResponse updateDashboardOptions(@ApiParam(name="project") String project,
                                @ApiParam(name="dashboard") int dashboard,
@@ -215,6 +220,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Rename dashboard item", authorizations = @Authorization(value = "read_key"))
     @Path("/rename_item")
     public JsonResponse renameDashboardItem(@ApiParam(name="project") String project,
                                @ApiParam(name="dashboard") int dashboard,
@@ -229,6 +235,7 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Delete dashboard item", authorizations = @Authorization(value = "read_key"))
     @Path("/delete_item")
     public JsonResponse removeFromDashboard(@ApiParam(name = "project") String project,
                                             @ApiParam(name = "dashboard") int dashboard,

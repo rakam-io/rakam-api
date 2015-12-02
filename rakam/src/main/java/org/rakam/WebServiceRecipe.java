@@ -114,6 +114,11 @@ public class WebServiceRecipe extends AbstractModule {
         final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
         Authorization[] authorizations = annotation == null ? new Authorization[0] : annotation.authorizations();
 
+        if(authorizations.length == 0) {
+            throw new IllegalStateException(method.toGenericString()+": The permission check component requires endpoints to have authorizations definition in @ApiOperation. " +
+                    "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
+        }
+
         if(annotation != null && !annotation.consumes().isEmpty() && !annotation.consumes().equals("application/json")) {
             throw new IllegalStateException("The permission check component requires endpoint to consume application/json. " +
                     "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());

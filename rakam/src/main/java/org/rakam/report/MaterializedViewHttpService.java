@@ -12,6 +12,7 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
@@ -93,7 +94,7 @@ public class MaterializedViewHttpService extends HttpService {
      * @return the status
      */
     @JsonRequest
-    @ApiOperation(value = "Create view")
+    @ApiOperation(value = "Create view", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
@@ -103,7 +104,7 @@ public class MaterializedViewHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Delete materialized view")
+    @ApiOperation(value = "Delete materialized view", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/delete")
@@ -122,7 +123,7 @@ public class MaterializedViewHttpService extends HttpService {
      */
     @GET
     @Path("/update")
-    @ApiOperation(value = "Update view")
+    @ApiOperation(value = "Update view", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     public void update(RakamHttpRequest request) {

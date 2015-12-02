@@ -22,9 +22,11 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
@@ -55,7 +57,9 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/frame")
+
     @GET
+    @IgnorePermissionCheck
     public void frame(RakamHttpRequest request) {
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
         String data = "<!DOCTYPE html> \n" +
@@ -64,7 +68,7 @@ public class CustomPageHttpService extends HttpService {
                 "  \t  <script>\n" +
                 "        var frame;\n" +
                 "        window.onerror = function(message, url, lineNumber) {\n" +
-                "            console.log(121);window.parent.postMessage({\n" +
+                "            window.parent.postMessage({\n" +
                 "                type: 'error',\n" +
                 "                message: message,\n" +
                 "                url: url,\n" +
@@ -101,6 +105,7 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/save")
+    @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public JsonResponse save(@ApiParam(name = "project") String project,
                              @ApiParam(name = "name") String name,
@@ -110,6 +115,7 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/delete")
+    @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public JsonResponse delete(String project, String name) {
         database.delete(project, name);
@@ -117,6 +123,7 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/get")
+    @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public Map<String, String> get(@ApiParam(name = "project") String project,
                                    @ApiParam(name = "name") String name) {
@@ -124,6 +131,7 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/display/*")
+    @IgnorePermissionCheck
     @GET
     public void display(RakamHttpRequest request) {
         String path = request.path().substring(21);
@@ -148,6 +156,7 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/list")
+    @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public List<String> list(@ApiParam(name = "project") String project) {
         return database.list(project);

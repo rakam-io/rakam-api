@@ -1,14 +1,17 @@
 package org.rakam.report.abtesting;
 
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
@@ -17,56 +20,75 @@ import javax.ws.rs.Path;
 import java.util.List;
 import java.util.Map;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.READ_KEY;
+
 @Path("/ab-testing")
 @Api(value = "/ab-testing", description = "A/B Testing module", tags = {"ab-testing"})
 public class ABTestingHttpService extends HttpService {
 
     private final ABTestingMetastore metadata;
+    private final Metastore metastore;
 
     @Inject
-    public ABTestingHttpService(ABTestingMetastore metadata) {
+    public ABTestingHttpService(Metastore metastore, ABTestingMetastore metadata) {
         this.metadata = metadata;
+        this.metastore = metastore;
     }
 
     @JsonRequest
-    @ApiOperation(value = "List reports")
+    @ApiOperation(value = "List reports", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
-    public Object list(@ApiParam(name="project", value = "Project id", required = true) String project) {
+    public List<ABTestingReport> list(@ApiParam(name="project", value = "Project id", required = true) String project) {
         return metadata.getReports(project);
     }
 
     @JsonRequest
-    @ApiOperation(value = "Create test")
+    @ApiOperation(value = "Create test", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
     public JsonResponse create(@ParamBody ABTestingReport report) {
         metadata.save(report);
         return JsonResponse.success();
     }
 
-    @Path("/data")
+    @Path("/list")
     @GET
     @IgnoreApi
     @IgnorePermissionCheck
     public void data(RakamHttpRequest request) {
         Map<String, List<String>> params = request.params();
-        params.get("project");
-        params.get("api_key");
-        params.get("options");
-        request.end();
+        List<String> project = params.get("project");
+        List<String> api_key = params.get("api_key");
+        if(project == null || project.size() == 0) {
+            request.response("\"project is missing\"", BAD_REQUEST).end();
+            return;
+        }
+        if(api_key == null || api_key.size() == 0) {
+            request.response("\"api_key is missing\"", BAD_REQUEST).end();
+            return;
+        }
+
+        if(!metastore.checkPermission(project.get(0), READ_KEY, api_key.get(0))) {
+            request.response("\"unauthorized\"", UNAUTHORIZED).end();
+            return;
+        }
+
+        request.response(JsonHelper.encodeAsBytes(metadata.getReports(project.get(0))))
+                .end();
     }
 
     @JsonRequest
-    @ApiOperation(value = "Delete report")
+    @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
     public JsonResponse delete(@ApiParam(name="project") String project,
                                @ApiParam(name="id") int id) {
         metadata.delete(project, id);
-
         return JsonResponse.success();
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get report")
+    @ApiOperation(value = "Get report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
     public ABTestingReport get(@ApiParam(name="project") String project,
                       @ApiParam(name="id") int id) {
@@ -74,7 +96,7 @@ public class ABTestingHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Update report")
+    @ApiOperation(value = "Update report", authorizations = @Authorization(value = "master_key"))
     @Path("/update")
     public ABTestingReport update(@ParamBody ABTestingReport report) {
         return metadata.update(report);

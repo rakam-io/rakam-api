@@ -2,6 +2,7 @@ package org.rakam.ui;
 
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
@@ -26,12 +27,14 @@ public class ReportHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "List Reports", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
     public Object list(@ApiParam(name="project", value = "Project id", required = true) String project) {
         return metadata.getReports(project);
     }
 
     @JsonRequest
+    @ApiOperation(value = "Create Report", authorizations = @Authorization(value = "read_key"))
     @Path("/create")
     public JsonResponse create(@ParamBody Report report) {
         metadata.save(report);
@@ -39,6 +42,7 @@ public class ReportHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
     public JsonResponse delete(@ApiParam(name="project", value = "Project id", required = true) String project,
                                @ApiParam(name="name", value = "Project name", required = true) String name) {
@@ -48,6 +52,7 @@ public class ReportHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
     public Report get(@ApiParam(name="project", value = "Project id", required = true) String project,
                       @ApiParam(name="slug", value = "Report name", required = true) String slug) {
@@ -55,6 +60,7 @@ public class ReportHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Update report", authorizations = @Authorization(value = "read_key"))
     @Path("/update")
     public Report update(@ParamBody Report report) {
         return metadata.update(report);

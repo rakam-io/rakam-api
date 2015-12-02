@@ -209,6 +209,7 @@ public class QueryHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Explain query", authorizations = @Authorization(value = "read_key"))
     @Path("/explain")
     public Object explain(@ApiParam(name="query", value = "Query", required = true) String query) {
         try {

@@ -11,6 +11,7 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
@@ -44,7 +45,7 @@ public class ContinuousQueryHttpService extends HttpService {
      * @return a future that contains the operation status
      */
     @JsonRequest
-    @ApiOperation(value = "Create stream")
+    @ApiOperation(value = "Create stream", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
@@ -65,7 +66,7 @@ public class ContinuousQueryHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "List queries")
+    @ApiOperation(value = "List queries", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
@@ -74,7 +75,7 @@ public class ContinuousQueryHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get query schema")
+    @ApiOperation(value = "Get query schema", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
@@ -101,7 +102,7 @@ public class ContinuousQueryHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Delete stream")
+    @ApiOperation(value = "Delete stream", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/delete")
@@ -117,7 +118,7 @@ public class ContinuousQueryHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Test continuous query")
+    @ApiOperation(value = "Test continuous query", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/test")
