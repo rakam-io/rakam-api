@@ -14,26 +14,34 @@ public class ABTestingReport implements ProjectItem {
     public final List<Variant> variants;
     public final Goal goal;
     public final Object options;
+    public final String collectionName;
+    public final String connectorField;
 
-    public ABTestingReport(int id, String project, String name, List<Variant> variants, Goal goal, Object options) {
+    public ABTestingReport(int id, String project, String name, List<Variant> variants, String collectionName, String connectorField, Goal goal, Object options) {
         this.id = id;
         this.project = project;
         this.name = name;
         this.variants = variants;
         this.goal = goal;
+        this.collectionName = collectionName;
         this.options = options;
+        this.connectorField = connectorField;
     }
 
     @JsonCreator
     public ABTestingReport(@ApiParam("project") String project,
                            @ApiParam("name") String name,
                            @ApiParam("variants") List<Variant> variants,
+                           @ApiParam("collection_name") String collectionName,
+                           @ApiParam("connector_field") String connectorField,
                            @ApiParam("goal") Goal goal,
                            @ApiParam(value = "options", required = false) Object options) {
         this.options = options;
         this.id = -1;
         this.project = project;
+        this.collectionName = collectionName;
         this.name = name;
+        this.connectorField = connectorField;
         this.variants = variants;
         this.goal = goal;
     }
@@ -49,14 +57,18 @@ public class ABTestingReport implements ProjectItem {
             this.filter = filter;
         }
     }
+
     public static class Variant {
         public final String name;
+        public final int weight;
         public final Object data;
 
         @JsonCreator
         public Variant(@JsonProperty("name") String name,
+                       @JsonProperty("weight") int weight,
                        @JsonProperty("data") Object data) {
             this.name = name;
+            this.weight = weight;
             this.data = data;
         }
     }

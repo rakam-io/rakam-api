@@ -17,19 +17,11 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
-import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.RetentionQueryExecutor;
-import org.rakam.analysis.postgresql.PostgresqlFunnelQueryExecutor;
-import org.rakam.analysis.postgresql.PostgresqlRetentionQueryExecutor;
-import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserStorage;
-import org.rakam.plugin.user.mailbox.PostgresqlUserMailboxStorage;
-import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 @AutoService(RakamModule.class)
@@ -44,25 +36,8 @@ public class PostgresqlUserModule extends RakamModule {
                 .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
         binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
-        binder.bind(UserStorage.class).to(PostgresqlUserStorageAdapter.class)
+        binder.bind(UserStorage.class).to(AbstractPostgresqlUserStorage.class)
                 .in(Scopes.SINGLETON);
-
-        binder.bind(AbstractUserService.class).to(PostgresqlUserService.class).in(Scopes.SINGLETON);
-
-        UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
-
-        if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
-        }
-
-        if (userPluginConfig.isRetentionAnalysisEnabled()) {
-            binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
-        }
-
-        String config1 = getConfig("plugin.user.mailbox.adapter");
-        if (config1 == null || "postgresql".equals(config1)) {
-            binder.bind(UserMailboxStorage.class).to(PostgresqlUserMailboxStorage.class);
-        }
     }
 
     @Override

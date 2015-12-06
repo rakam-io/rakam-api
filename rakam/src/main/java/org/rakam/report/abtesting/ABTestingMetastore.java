@@ -23,9 +23,9 @@ public class ABTestingMetastore {
 
     ResultSetMapper<ABTestingReport> mapper = (index, r, ctx) -> {
         List<Variant> variants = Arrays.asList(JsonHelper.read(r.getString(4), Variant[].class));
-        Goal goals = Arrays.asList(JsonHelper.read(r.getString(5), Goal[].class)).get(0);
+        Goal goals = Arrays.asList(JsonHelper.read(r.getString(7), Goal[].class)).get(0);
         return new ABTestingReport(r.getInt(1), r.getString(2), r.getString(3),
-                variants, goals, JsonHelper.read(r.getString(6)));
+                variants, r.getString(5), r.getString(6), goals, JsonHelper.read(r.getString(8)));
     };
 
     @Inject
@@ -40,6 +40,8 @@ public class ABTestingMetastore {
                     "  id SERIAL NOT NULL," +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
+                    "  collection_name VARCHAR(255) NOT NULL," +
+                    "  connector_field VARCHAR(255) NOT NULL," +
                     "  variants TEXT NOT NULL," +
                     "  goals TEXT NOT NULL," +
                     "  options TEXT," +
@@ -51,7 +53,7 @@ public class ABTestingMetastore {
 
     public List<ABTestingReport> getReports(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, project, name, variants, goals, options FROM ab_testing WHERE project = :project")
+            return handle.createQuery("SELECT id, project, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project")
                     .bind("project", project).map(mapper).list();
         }
     }
@@ -68,9 +70,10 @@ public class ABTestingMetastore {
             throw new RakamException("Report already has an id.", HttpResponseStatus.BAD_REQUEST);
         }
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO ab_testing (project, name, variants, goals, options) VALUES (:project, :name, :variants, :goals, :options)")
+            handle.createStatement("INSERT INTO ab_testing (project, name, variants, collection_name, connector_field, goals, options) VALUES (:project, :name, :variants, :collection_name, :goals, :options)")
                     .bind("project", report.project)
                     .bind("name", report.name)
+                    .bind("collection_name", report.collectionName)
                     .bind("variants", JsonHelper.encode(report.variants))
                     .bind("goals", JsonHelper.encode(ImmutableList.of(report.goal)))
                     .bind("options", JsonHelper.encode(report.options, false))
@@ -85,7 +88,7 @@ public class ABTestingMetastore {
 
     public ABTestingReport get(String project, int id) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, variants, goals, options FROM ab_testing WHERE project = :project AND id = :id")
+            return handle.createQuery("SELECT project, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", id).map(mapper).first();
         }
@@ -96,10 +99,12 @@ public class ABTestingMetastore {
             throw new RakamException("Report doesn't have an id.", HttpResponseStatus.BAD_REQUEST);
         }
         try(Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE reports SET name = :name, variants = :variants, goals = :goals, options = :options WHERE project = :project AND id = :id")
+            int execute = handle.createStatement("UPDATE reports SET name = :name, variants = :variants, collection_name = :collection_name, connector_field = :connector_field, goals = :goals, options = :options WHERE project = :project AND id = :id")
                     .bind("project", report.project)
                     .bind("id", report.id)
                     .bind("variants", report.variants)
+                    .bind("connector_field", report.connectorField)
+                    .bind("collection_name", report.collectionName)
                     .bind("goals",  JsonHelper.encode(ImmutableList.of(report.goal)))
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();

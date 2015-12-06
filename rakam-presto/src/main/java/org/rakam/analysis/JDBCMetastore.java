@@ -20,16 +20,14 @@ import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.Query;
-import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.CallbackFailedException;
-import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
-import java.io.File;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -99,7 +97,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     Set<String>[] keys =
                             Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
 
-                    PreparedStatement ps = handle.getConnection().prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = :project");
+                    PreparedStatement ps = handle.getConnection().prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = ?");
                     ps.setString(1, project);
                     ResultSet resultSet = ps.executeQuery();
                     while(resultSet.next()) {
@@ -218,10 +216,9 @@ public class JDBCMetastore extends AbstractMetastore {
         checkProject(project);
 
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO project (name, location, master_key, read_key, write_key) VALUES(:name, :location, :master_key, :read_key, :write_key)")
+            handle.createStatement("INSERT INTO project (name, location) VALUES(:name, null)")
                     .bind("name", project)
-                     // todo: file.separator returns local filesystem property?
-                    .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
+//                    .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
                     .execute();
         }
 
@@ -333,13 +330,21 @@ public class JDBCMetastore extends AbstractMetastore {
 
     @Override
     public List<ProjectApiKeys> getApiKeys(int[] ids) {
+        if(ids.length == 0) {
+            return ImmutableList.of();
+        }
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("select id, project, master_key, read_key, write_key from api_key where id in :ids").bind("ids", ids).map(new ResultSetMapper<ProjectApiKeys>() {
-                @Override
-                public ProjectApiKeys map(int i, ResultSet resultSet, StatementContext statementContext) throws SQLException {
-                    return new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5));
-                }
-            }).list();
+            Connection conn = handle.getConnection();
+            PreparedStatement ps = conn.prepareStatement("select id, project, master_key, read_key, write_key from api_key where id = any(?)");
+            ps.setArray(1, conn.createArrayOf("int4", Arrays.stream(ids).boxed().toArray()));
+            ResultSet resultSet = ps.executeQuery();
+            ArrayList<ProjectApiKeys> list = new ArrayList<>();
+            while(resultSet.next()) {
+                list.add(new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
+            }
+            return list;
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
         }
     }
 }

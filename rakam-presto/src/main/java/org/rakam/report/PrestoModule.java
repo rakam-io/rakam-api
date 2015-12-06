@@ -4,7 +4,6 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
 import org.rakam.MetadataConfig;
 import org.rakam.analysis.EventExplorer;
@@ -25,7 +24,7 @@ import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.UserPluginConfig;
-import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.plugin.user.PrestoExternalUserStorageAdapter;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
@@ -50,17 +49,16 @@ public class PrestoModule extends RakamModule {
                 .toInstance(dataSource);
 
         binder.bind(Metastore.class).to(JDBCMetastore.class);
-        if (getConfig("plugin.user.storage") != null) {
-            OptionalBinder.newOptionalBinder(binder, AbstractUserService.class)
-                    .setBinding().to(PrestoAbstractUserService.class);
+        if ("postgresql".equals(getConfig("plugin.user.storage"))) {
+            binder.bind(AbstractPostgresqlUserStorage.class).to(PrestoExternalUserStorageAdapter.class)
+                    .in(Scopes.SINGLETON);
+            binder.bind(AbstractUserService.class).to(PrestoAbstractUserService.class)
+                    .in(Scopes.SINGLETON);
         }
 
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
         }
-
-        binder.bind(UserStorage.class).to(PrestoExternalUserStorageAdapter.class).in(Scopes.SINGLETON);
-
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {

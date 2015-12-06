@@ -8,15 +8,20 @@ import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 import org.rakam.analysis.EventExplorer;
+import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.JDBCQueryMetadata;
+import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.analysis.postgresql.PostgresqlEventStore;
+import org.rakam.analysis.postgresql.PostgresqlFunnelQueryExecutor;
 import org.rakam.analysis.postgresql.PostgresqlMaterializedViewService;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
+import org.rakam.analysis.postgresql.PostgresqlRetentionQueryExecutor;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventExplorerConfig;
@@ -27,6 +32,10 @@ import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.UserPluginConfig;
+import org.rakam.plugin.user.AbstractPostgresqlUserStorage;
+import org.rakam.plugin.user.PostgresqlUserService;
+import org.rakam.plugin.user.PostgresqlUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlEventExplorer;
 import org.rakam.report.postgresql.PostgresqlPseudoContinuousQueryService;
@@ -54,6 +63,59 @@ public class PostgresqlModule extends RakamModule {
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
 
+        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
+            binder.bind(EventStream.class).to(PostgresqlEventStream.class);
+        }
+
+        binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
+        bindAsyncClient(config, binder);
+
+        // use same jdbc pool if report.metadata.store is not set explicitly.
+        if(getConfig("report.metadata.store") == null) {
+            binder.bind(JDBCPoolDataSource.class)
+                    .annotatedWith(Names.named("report.metadata.store.jdbc"))
+                    .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
+
+            binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class).in(Scopes.SINGLETON);
+        }
+
+        if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
+            binder.bind(EventExplorer.class).to(PostgresqlEventExplorer.class);
+        }
+
+        if (buildConfigObject(PostgresqlConfig.class).isAutoIndexColumns()) {
+            binder.bind(CollectionFieldIndexerListener.class).asEagerSingleton();
+        }
+
+        if ("postgresql".equals(getConfig("plugin.user.storage"))) {
+            binder.bind(AbstractUserService.class).to(PostgresqlUserService.class)
+                    .in(Scopes.SINGLETON);
+            binder.bind(AbstractPostgresqlUserStorage.class).to(PostgresqlUserStorageAdapter.class)
+                    .in(Scopes.SINGLETON);
+        }
+
+        UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
+
+        if (userPluginConfig.isFunnelAnalysisEnabled()) {
+            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
+        }
+
+        if (userPluginConfig.isRetentionAnalysisEnabled()) {
+            binder.bind(RetentionQueryExecutor.class).to(PostgresqlRetentionQueryExecutor.class);
+        }
+    }
+
+    @Override
+    public String name() {
+        return "Postgresql Module";
+    }
+
+    @Override
+    public String description() {
+        return "Postgresql deployment type module";
+    }
+
+    public static void bindAsyncClient(JDBCConfig config, Binder binder) {
         JDBCConfig asyncClientConfig;
         try {
             final String url = config.getUrl();
@@ -74,41 +136,7 @@ public class PostgresqlModule extends RakamModule {
                 .annotatedWith(Names.named("async-postgresql"))
                 .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
                 .in(Scopes.SINGLETON);
-
-        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
-            binder.bind(EventStream.class).to(PostgresqlEventStream.class);
-        }
-
-        binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
-
-        // use same jdbc pool if report.metadata.store is not set explicitly.
-        if(getConfig("report.metadata.store") == null) {
-            binder.bind(JDBCPoolDataSource.class)
-                    .annotatedWith(Names.named("report.metadata.store.jdbc"))
-                    .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
-
-            binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class).in(Scopes.SINGLETON);
-        }
-
-        if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
-            binder.bind(EventExplorer.class).to(PostgresqlEventExplorer.class);
-        }
-
-        if (buildConfigObject(PostgresqlConfig.class).isAutoIndexColumns()) {
-            binder.bind(CollectionFieldIndexerListener.class).asEagerSingleton();
-        }
     }
-
-    @Override
-    public String name() {
-        return "Postgresql Module";
-    }
-
-    @Override
-    public String description() {
-        return "Postgresql deployment type module";
-    }
-
 
 
     private static class JDBCPoolDataSourceProvider implements Provider<JDBCPoolDataSource> {

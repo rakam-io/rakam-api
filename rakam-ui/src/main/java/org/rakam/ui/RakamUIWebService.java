@@ -67,6 +67,7 @@ public class RakamUIWebService extends HttpService {
     @ApiOperation(value = "List installed modules for ui",
             authorizations = @Authorization(value = "master_key")
     )
+    @IgnorePermissionCheck
     public ActiveModuleList modules() {
         return activeModules;
     }

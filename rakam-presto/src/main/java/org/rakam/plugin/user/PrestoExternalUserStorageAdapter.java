@@ -1,7 +1,7 @@
 package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.ExpressionFormatter;
-import org.rakam.analysis.postgresql.PostgresqlMetastore;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.PrestoQueryExecutor;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
@@ -14,12 +14,12 @@ import static java.lang.String.format;
 import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
-public class PrestoExternalUserStorageAdapter extends PostgresqlUserStorageAdapter {
+public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStorage {
 
     private final PrestoQueryExecutor executor;
 
     @Inject
-    public PrestoExternalUserStorageAdapter(PrestoQueryExecutor executor, PostgresqlQueryExecutor queryExecutor, PostgresqlMetastore metastore) {
+    public PrestoExternalUserStorageAdapter(PrestoQueryExecutor executor, PostgresqlQueryExecutor queryExecutor, Metastore metastore) {
         super(queryExecutor, metastore);
         this.executor = executor;
     }

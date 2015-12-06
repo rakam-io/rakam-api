@@ -22,7 +22,7 @@ import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.READ_KEY;
+import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.WRITE_KEY;
 
 @Path("/ab-testing")
 @Api(value = "/ab-testing", description = "A/B Testing module", tags = {"ab-testing"})
@@ -69,7 +69,9 @@ public class ABTestingHttpService extends HttpService {
             return;
         }
 
-        if(!metastore.checkPermission(project.get(0), READ_KEY, api_key.get(0))) {
+        // since this endpoint is created for clients to read the ab-testing rule,
+        // the permission is WRITE_KEY
+        if(!metastore.checkPermission(project.get(0), WRITE_KEY, api_key.get(0))) {
             request.response("\"unauthorized\"", UNAUTHORIZED).end();
             return;
         }

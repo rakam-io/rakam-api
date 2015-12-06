@@ -5,12 +5,13 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.Response;
+import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.WebUser.UserApiKey;
 import org.rakam.util.CryptUtil;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
@@ -70,7 +71,32 @@ public class WebUserHttpService extends HttpService {
         final Optional<WebUser> user = service.getUser(id);
 
         if(!user.isPresent()) {
-            return Response.value(JsonHelper.encode(JsonResponse.error(UNAUTHORIZED.reasonPhrase())), UNAUTHORIZED)
+            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
+                    .addCookie("session", "", null, true, 0L, null, null);
+        }
+
+        return Response.ok(user.get());
+    }
+
+    @Path("active-modules")
+    @javax.ws.rs.GET
+    @IgnorePermissionCheck
+    @ApiOperation(value = "List installed modules for ui",
+            authorizations = @Authorization(value = "master_key")
+    )
+    public Response modules(@CookieParam(name = "session", required = false) String session) {
+        final int id;
+        try {
+            id = extractUserFromCookie(session);
+        } catch (Exception e) {
+            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
+                    .addCookie("session", "", null, true, 0L, null, null);
+        }
+
+        final Optional<WebUser> user = service.getUser(id);
+
+        if(!user.isPresent()) {
+            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
                     .addCookie("session", "", null, true, 0L, null, null);
         }
 
