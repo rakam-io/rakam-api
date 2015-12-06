@@ -4,7 +4,7 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>0.2</version>
+        <version>0.3-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -21,7 +21,7 @@
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-spi</artifactId>
-            <version>0.2</version>
+            <version>0.3-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
 
