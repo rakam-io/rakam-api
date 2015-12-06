@@ -206,7 +206,7 @@
                                 <argument>-classpath</argument>
                                 <!-- automatically creates the classpath using all project dependencies,
                                      also adding the project build directory -->
-                                <classpath/>
+                                <classpath />
                                 <argument>org.rakam.SystemRegistryGenerator</argument>
                                 <argument>json</argument>
                             </arguments>
@@ -225,7 +225,7 @@
                                 <argument>-classpath</argument>
                                 <!-- automatically creates the classpath using all project dependencies,
                                      also adding the project build directory -->
-                                <classpath/>
+                                <classpath />
                                 <argument>org.rakam.SystemRegistryGenerator</argument>
                                 <argument>properties</argument>
                             </arguments>

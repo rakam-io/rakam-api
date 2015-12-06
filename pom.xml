@@ -70,8 +70,8 @@
         <presto.version>0.123</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.6.3</jackson.version>
-        <netty.rest.version>0.28</netty.rest.version>
-        <kume.version>0.4-SNAPSHOT</kume.version>
+        <netty.rest.version>0.29</netty.rest.version>
+        <kume.version>0.4</kume.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
