@@ -157,7 +157,7 @@ public class EventCollectionHttpService extends HttpService {
                     return;
                 }
 
-                if(validateProjectPermission(event.project(), context.writeKey)) {
+                if(!validateProjectPermission(event.project(), context.writeKey)) {
                     request.response("\"api key is invalid\"", UNAUTHORIZED).end();
                     return;
                 }

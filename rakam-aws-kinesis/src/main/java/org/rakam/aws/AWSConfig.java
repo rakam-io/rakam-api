@@ -42,6 +42,7 @@ public class AWSConfig {
     }
 
     public AWSCredentialsProvider getCredentials() {
+        // TODO: add an extra option the allow these values to be NULL.
         if(accessKey == null || secretAccessKey == null) {
             return new DefaultAWSCredentialsProviderChain();
         }

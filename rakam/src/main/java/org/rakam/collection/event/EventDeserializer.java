@@ -172,18 +172,19 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             Schema.Field field = avroSchema.getField(fieldName);
 
-            t = jp.nextToken();
+            jp.nextToken();
 
             if (field == null) {
                 fieldName = fieldName.toLowerCase(Locale.ENGLISH);
                 field = avroSchema.getField(fieldName);
                 if(field == null) {
-                    FieldType type = getType(t, jp);
+                    FieldType type = getType(jp);
                     if (type != null) {
                         if (newFields == null)
                             newFields = new HashSet<>();
 
                         if(fieldName.equals("_user")) {
+                            // the type of magic _user field must always be a string for consistency.
                             type = FieldType.STRING;
                         }
                         SchemaField newField = new SchemaField(fieldName, type, true);
@@ -197,7 +198,15 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                             newRecord.put(f.name(), record.get(f.name()));
                         }
                         record = newRecord;
+
+                        if(type.isArray()) {
+                            // if the type of new field is ARRAY, we already switched to next token
+                            // so the initial token is not START_ARRAY.
+                            record.put(field.pos(), getValue(jp, field.schema(), true));
+                            continue;
+                        }
                     } else {
+                        // the type is null or an empty array
                         continue;
                     }
                 }
@@ -215,11 +224,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 }
             }
 
-            try {
-                record.put(field.pos(), getValue(jp, field));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            record.put(field.pos(), getValue(jp, field.schema(), false));
         }
 
         if (newFields != null) {
@@ -283,19 +288,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private Schema.Type getActualType(Schema.Field field) {
-        Schema schema = field.schema();
-        Schema.Type schemaType = schema.getType();
-
-        if (schemaType == Schema.Type.UNION) {
-            schema = schema.getTypes().get(1);
-            return schema.getType();
-        } else {
-            return schemaType;
-        }
-    }
-
-    private Object getValueOfMagicField(JsonParser jp, Schema.Field field) throws IOException {
+    private Object getValueOfMagicField(JsonParser jp) throws IOException {
         switch (jp.getCurrentToken()) {
             case VALUE_TRUE:
                 return Boolean.TRUE;
@@ -310,14 +303,18 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case VALUE_NULL:
                 return null;
             default:
-                throw new RakamException("The value of "+field.name()+" is unknown", HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException("The value of magic field is unknown", HttpResponseStatus.BAD_REQUEST);
         }
     }
 
-    private Object getValue(JsonParser jp, Schema.Field field) throws IOException {
-        switch (getActualType(field)) {
+    private Object getValue(JsonParser jp, Schema schema, boolean passStartArrayToken) throws IOException {
+        if (schema.getType() == Schema.Type.UNION) {
+            schema = schema.getTypes().get(1);
+        }
+
+        switch (schema.getType()) {
             case NULL:
-                return getValueOfMagicField(jp, field);
+                return getValueOfMagicField(jp);
             case STRING:
                 // TODO: is it a good idea to cast the value automatically?
 //                if (t == JsonToken.VALUE_STRING)
@@ -332,22 +329,28 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 return jp.getValueAsDouble();
             case ARRAY:
                 JsonToken t = jp.getCurrentToken();
-                if(t == JsonToken.START_ARRAY) {
-                    List<Object> objects = new ArrayList<>();
-                    for (t = jp.nextToken(); t != JsonToken.END_ARRAY; t = jp.nextToken()) {
-                        objects.add(getValue(jp, field));
+                // if the passStartArrayToken is true, we already performed jp.nextToken so there is no need to check if the current token is
+                if(!passStartArrayToken) {
+                    if(t != JsonToken.START_ARRAY) {
+                        return null;
+                    } else {
+                        t = jp.nextToken();
                     }
-                    return new GenericData.Array(field.schema().getElementType(), objects);
-                } else {
-                    return null;
+
                 }
+
+                List<Object> objects = new ArrayList<>();
+                for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
+                    objects.add(getValue(jp, schema.getElementType(), false));
+                }
+                return new GenericData.Array(schema, objects);
             default:
                 throw new JsonMappingException(format("nested properties is not supported."));
         }
     }
 
-    private FieldType getType(JsonToken t, JsonParser jp) throws IOException {
-        switch (t) {
+    private FieldType getType(JsonParser jp) throws IOException {
+        switch (jp.getCurrentToken()) {
             case VALUE_NULL:
                 return null;
             case VALUE_STRING:
@@ -361,14 +364,14 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case VALUE_NUMBER_INT:
                 return FieldType.LONG;
             case START_ARRAY:
-                t = jp.nextToken();
+                JsonToken t = jp.nextToken();
                 if(t == JsonToken.END_ARRAY) {
                     // if the array is null, return null as value.
                     // TODO: if the key already has a type, return that type instead of null.
                     return null;
                 }
                 try {
-                    return getType(t, jp).convertToArrayType();
+                    return getType(jp).convertToArrayType();
                 } catch (IOException e) {
                     // fallback to JsonMappingException for nested properties.
                 }
