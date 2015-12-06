@@ -362,6 +362,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 return FieldType.LONG;
             case START_ARRAY:
                 t = jp.nextToken();
+                if(t == JsonToken.END_ARRAY) {
+                    // if the array is null, return null as value.
+                    // TODO: if the key already has a type, return that type instead of null.
+                    return null;
+                }
                 try {
                     return getType(t, jp).convertToArrayType();
                 } catch (IOException e) {

@@ -175,9 +175,9 @@ public class CustomPageHttpService extends HttpService {
 //            response.headers().set(CONTENT_TYPE, "text/html");
 //            response.headers().set("Content-Security-Policy", "default-src *");
 //            HttpHeaders.setContentLength(response, data.length());
-//            request.context().write(response);
-//            request.context().write(Unpooled.wrappedBuffer(data.getBytes()));
-//            ChannelFuture lastContentFuture = request.context().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+//            request.api().write(response);
+//            request.api().write(Unpooled.wrappedBuffer(data.getBytes()));
+//            ChannelFuture lastContentFuture = request.api().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 //
 //            if (!HttpHeaders.isKeepAlive(request)) {
 //                lastContentFuture.addListener(ChannelFutureListener.CLOSE);

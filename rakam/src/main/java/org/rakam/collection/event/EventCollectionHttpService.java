@@ -146,7 +146,7 @@ public class EventCollectionHttpService extends HttpService {
             try {
                 Event event = jsonMapper.readValue(buff, Event.class);
 
-                Event.EventContext context = event.context();
+                Event.EventContext context = event.api();
 
                 if(context == null) {
                     request.response("\"api key is missing\"", UNAUTHORIZED).end();

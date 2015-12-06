@@ -29,13 +29,13 @@ public class ABTestingReport implements ProjectItem {
     }
 
     @JsonCreator
-    public ABTestingReport(@ApiParam("project") String project,
-                           @ApiParam("name") String name,
-                           @ApiParam("variants") List<Variant> variants,
-                           @ApiParam("collection_name") String collectionName,
-                           @ApiParam("connector_field") String connectorField,
-                           @ApiParam("goal") Goal goal,
-                           @ApiParam(value = "options", required = false) Object options) {
+    public ABTestingReport(@ApiParam(name="project") String project,
+                           @ApiParam(name="name") String name,
+                           @ApiParam(name="variants") List<Variant> variants,
+                           @ApiParam(name="collection_name") String collectionName,
+                           @ApiParam(name="connector_field") String connectorField,
+                           @ApiParam(name="goal") Goal goal,
+                           @ApiParam(name="options", required = false) Object options) {
         this.options = options;
         this.id = -1;
         this.project = project;

@@ -42,8 +42,8 @@ public class TimestampEventMapper implements EventMapper {
         } else {
             if (time instanceof Number) {
                 // match server time and client time and get an estimate
-                if(event.context() != null && event.context().uploadTime != null) {
-                    time = ((Number) time).longValue() + Instant.now().getEpochSecond() - event.context().uploadTime;
+                if(event.api() != null && event.api().uploadTime != null) {
+                    time = ((Number) time).longValue() + Instant.now().getEpochSecond() - event.api().uploadTime;
                 }
                 properties.put("_time", time);
             }
