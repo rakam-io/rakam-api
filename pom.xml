@@ -5,7 +5,7 @@
     <groupId>org.rakam</groupId>
     <artifactId>rakam-root</artifactId>
     <packaging>pom</packaging>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.2</version>
 
     <parent>
         <groupId>io.airlift</groupId>
@@ -409,7 +409,7 @@
         <connection>scm:git:https://github.com/buremba/rakam.git</connection>
         <developerConnection>scm:git:git@github.com:buremba/rakam.git</developerConnection>
         <url>https://github.com/buremba/rakam</url>
-        <tag>HEAD</tag>
+        <tag>0.2</tag>
     </scm>
 
     <distributionManagement>
