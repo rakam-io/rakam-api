@@ -41,7 +41,6 @@ class KumeClusterInstanceProvider implements Provider<Cluster> {
         return new ClusterBuilder()
                 .services(services)
                 .joinStrategy(new AWSKinesisModule.KumeJoinerService(prestoConfig, config))
-                .serverAddress("0.0.0.0", 0)
                 .client(true)
                 .start();
     }

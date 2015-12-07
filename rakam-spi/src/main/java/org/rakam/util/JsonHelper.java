@@ -5,14 +5,13 @@ import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import com.google.common.base.Throwables;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
@@ -28,7 +27,7 @@ public class JsonHelper {
 
     static {
         prettyMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
-        mapper.registerModule(new JavaTimeModule());
+        mapper.registerModule(new JSR310Module());
         mapper.registerModule(new Jdk8Module());
 
         SwaggerJacksonAnnotationIntrospector ai = new SwaggerJacksonAnnotationIntrospector();
@@ -47,7 +46,6 @@ public class JsonHelper {
     private JsonHelper() {
     }
 
-    private static final ObjectWriter jsonWriter = mapper.writer();
     private static final JsonNodeFactory jsonNodeFactory = new JsonNodeFactory(false);
 
     public static String encode(Object obj, boolean prettyPrint) {
@@ -56,14 +54,6 @@ public class JsonHelper {
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Object is not json serializable", e);
         }
-    }
-
-    public static String encodeSafe(Object obj) throws JsonProcessingException {
-        return mapper.writeValueAsString(obj);
-    }
-
-    public static String encodeSafe(Object obj, boolean prettyPrint) throws JsonProcessingException {
-        return (prettyPrint ? prettyMapper: mapper).writeValueAsString(obj);
     }
 
     public static String encode(Object obj) {
@@ -160,22 +150,6 @@ public class JsonHelper {
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    public static String getOrDefault(JsonNode json, String fieldKey, String defaultValue) {
-        JsonNode node = json.get(fieldKey);
-        if(node != null)
-            return node.asText();
-        else
-            return defaultValue;
-    }
-
-    public static boolean getOrDefault(JsonNode json, String fieldKey, boolean defaultValue) {
-        JsonNode node = json.get(fieldKey);
-        if(node != null)
-            return node.asBoolean();
-        else
-            return defaultValue;
     }
 
     public static ObjectMapper getMapper() {

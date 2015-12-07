@@ -118,10 +118,17 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         if (segment != null && segment.type == EventExplorer.ReferenceType.REFERENCE) {
             checkReference(segment.value, startDate, endDate);
         }
-        String select = Stream.of(grouping, segment)
-                .filter(col -> col != null)
-                .map(this::getColumnValue)
-                .collect(Collectors.joining(", "));
+        StringBuilder selectBuilder = new StringBuilder();
+        if(grouping != null) {
+            selectBuilder.append(getColumnValue(grouping)+" as "+getColumnReference(grouping)+"_group");
+            if(segment != null) {
+                selectBuilder.append(", ");
+            }
+        }
+        if(segment != null) {
+            selectBuilder.append(getColumnValue(segment)+" as "+getColumnReference(segment)+"_segment");
+        }
+        String select = selectBuilder.toString();
 
         String groupBy;
         if (segment != null && grouping != null) {
@@ -178,8 +185,8 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                 boolean segmentSupported = isGroupingSupported(project, collections, segment);
 
                 query = format(" SELECT " +
-                                " CASE WHEN group_rank > 15 THEN %s ELSE %s END,\n" +
-                                " CASE WHEN segment_rank > 20 THEN %s ELSE %s END,\n" +
+                                " CASE WHEN group_rank > 15 THEN %s ELSE %s_group END,\n" +
+                                " CASE WHEN segment_rank > 20 THEN %s ELSE %s_segment END,\n" +
                                 " %s FROM (\n" +
                                 "   SELECT *,\n" +
                                 "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
@@ -191,7 +198,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                         getColumnReference(segment),
                         format(convertSqlFunction(intermediateAggregation.get()), "value"),
                         format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                        format(getColumnReference(grouping), "value"),
+                        format(getColumnReference(grouping), "value")+"_group",
                         computeQuery);
             } else {
                 String columnValue = null;

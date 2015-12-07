@@ -24,16 +24,16 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 public class PrestoEventExplorer extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
-            .put(HOUR_OF_DAY, "hour(%s) as time")
-            .put(DAY_OF_MONTH, "day(%s) as time")
-            .put(WEEK_OF_YEAR, "week(%s) as time")
-            .put(MONTH_OF_YEAR, "month(%s) as time")
-            .put(QUARTER_OF_YEAR, "quarter(%s) as time")
-            .put(DAY_OF_WEEK, "day_of_week(%s) as time")
-            .put(HOUR, "date_trunc('hour', %s) as time")
-            .put(DAY, "cast(%s as date) as time")
-            .put(MONTH, "date_trunc('month', %s) as time")
-            .put(YEAR, "date_trunc('year', %s) as time")
+            .put(HOUR_OF_DAY, "hour(%s)")
+            .put(DAY_OF_MONTH, "day(%s)")
+            .put(WEEK_OF_YEAR, "week(%s)")
+            .put(MONTH_OF_YEAR, "month(%s)")
+            .put(QUARTER_OF_YEAR, "quarter(%s)")
+            .put(DAY_OF_WEEK, "day_of_week(%s)")
+            .put(HOUR, "date_trunc('hour', %s)")
+            .put(DAY, "cast(%s as date)")
+            .put(MONTH, "date_trunc('month', %s)")
+            .put(YEAR, "date_trunc('year', %s)")
             .build();
 
     @Inject

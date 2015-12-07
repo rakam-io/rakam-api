@@ -35,10 +35,5 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
     public String diffTimestamps() {
         return "date_diff(%s, %s, %s)";
     }
-
-    @Override
-    public String getTableReference(String project, String collection) {
-        return config.getColdStorageConnector() + "." + project +"." + collection;
-    }
 }
 

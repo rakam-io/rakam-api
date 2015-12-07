@@ -2,6 +2,7 @@ package org.rakam.report;
 
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
@@ -32,7 +33,6 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
     public abstract String convertTimestampFunction();
     public abstract String diffTimestamps();
-    public abstract String getTableReference(String project, String collection);
 
     @Override
     public QueryExecution query(String project, String connectorField, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
@@ -188,8 +188,8 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         return format("select %s, %s as time %s from %s where _time between %d and %d %s",
                 connectorField,
                 timeColumn,
-                dimension.isPresent() ? ", "+dimension.get()+" as dimension" : "",
-                getTableReference(project, collection),
+                dimension.isPresent() ? ", " + dimension.get() + " as dimension" : "",
+                executor.formatTableReference(project, QualifiedName.of(collection)),
                 startTs, endTs,
                 exp.isPresent() ? "and " + exp.get().accept(new ExpressionFormatter.Formatter(), false) : "");
     }

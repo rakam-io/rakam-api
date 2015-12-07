@@ -13,10 +13,12 @@ import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage {
+    public static final String USER_TABLE = "_users";
 
     @Inject
     public PostgresqlUserStorageAdapter(PostgresqlQueryExecutor queryExecutor, PostgresqlMetastore metastore) {
         super(queryExecutor, metastore);
+        metastore.getProjects().forEach(this::createProject);
     }
 
     @Override
@@ -62,5 +64,10 @@ public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage 
         }
 
         return filters;
+    }
+
+    @Override
+    public String getUserTable(String project) {
+        return project+"."+USER_TABLE;
     }
 }

@@ -1,5 +1,6 @@
 package org.rakam.report;
 
+import com.facebook.presto.jdbc.internal.client.ClientTypeSignature;
 import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.client.StatementStats;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
@@ -53,7 +54,7 @@ public class PrestoQueryExecution implements QueryExecution {
                     List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
                     for (int i = 0; i < internalColumns.size(); i++) {
                         com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
-                        columns.add(new SchemaField(c.getName(), fromPrestoType(c.getType()), true));
+                        columns.add(new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature()), true));
                     }
                     result.complete(new QueryResult(columns, data));
                 }
@@ -61,9 +62,9 @@ public class PrestoQueryExecution implements QueryExecution {
         });
     }
 
-    public static FieldType fromPrestoType(String prestoType) {
+    public static FieldType fromPrestoType(ClientTypeSignature prestoType) {
 
-        switch (prestoType) {
+        switch (prestoType.getRawType()) {
             case StandardTypes.BIGINT:
                 return FieldType.LONG;
             case StandardTypes.ARRAY:
@@ -83,6 +84,9 @@ public class PrestoQueryExecution implements QueryExecution {
             case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
                 return FieldType.TIMESTAMP;
             default:
+                if(prestoType.getRawType().equals(StandardTypes.ARRAY)) {
+                    return fromPrestoType(prestoType.getTypeArguments().get(0)).getArrayType();
+                }
                 throw new NoSuchElementException();
         }
     }

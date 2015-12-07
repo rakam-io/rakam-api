@@ -53,7 +53,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
                 }
             } catch (Exception e) {
                 QueryError error;
-                    if (e instanceof SQLException) {
+                if (e instanceof SQLException) {
                     SQLException cause = (SQLException) e;
                     error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), query);
                 } else {
@@ -64,8 +64,8 @@ public class PostgresqlQueryExecution implements QueryExecution {
             }
         };
 
-            this.result = CompletableFuture.supplyAsync(task, PostgresqlQueryExecutor.QUERY_EXECUTOR);
-
+        CompletableFuture<QueryResult> future = CompletableFuture.supplyAsync(task, PostgresqlQueryExecutor.QUERY_EXECUTOR);
+        this.result = future;
     }
 
     @Override

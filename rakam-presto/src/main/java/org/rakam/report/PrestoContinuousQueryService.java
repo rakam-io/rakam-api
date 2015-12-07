@@ -22,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.rakam.report.PrestoQueryExecution.fromPrestoType;
 
 public class PrestoContinuousQueryService extends ContinuousQueryService {
     public final static String PRESTO_STREAMING_CATALOG_NAME = "streaming";
@@ -79,7 +78,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     public Map<String, List<SchemaField>> getSchemas(String project) {
         List<SimpleImmutableEntry<String, CompletableFuture<QueryResult>>> collect = database.getContinuousQueries(project).stream()
                 .map(query -> {
-                    PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("describe %s.%s.%s",
+                    PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("select * from %s.%s.%s limit 0",
                             PRESTO_STREAMING_CATALOG_NAME, project, query.tableName));
                     return new SimpleImmutableEntry<>(query.tableName, prestoQueryExecution
                             .getResult());
@@ -89,10 +88,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
         ImmutableMap.Builder<String, List<SchemaField>> builder = ImmutableMap.builder();
         for (SimpleImmutableEntry<String, CompletableFuture<QueryResult>> entry : collect) {
-            builder.put(entry.getKey(), entry.getValue().join().getResult()
-                    .stream()
-                    .map(row -> new SchemaField((String) row.get(0), fromPrestoType((String) row.get(1)), (Boolean) row.get(2)))
-                    .collect(Collectors.toList()));
+            builder.put(entry.getKey(), entry.getValue().join().getMetadata());
         }
         return builder.build();
     }

@@ -68,13 +68,15 @@ public class PrestoQueryExecutor implements QueryExecutor {
     @Override
     public String formatTableReference(String project, QualifiedName node) {
         if (node.getPrefix().isPresent()) {
-            switch (node.getPrefix().get().toString()) {
-                case "continuous":
-                    return PRESTO_STREAMING_CATALOG_NAME + "." + project + "." + node.getSuffix();
-                case "materialized":
-                    return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
-                default:
-                    throw new IllegalArgumentException("Schema does not exist: " + node.getPrefix().get().toString());
+            String prefix = node.getPrefix().get().toString();
+            if(prefix.equals("continuous")) {
+                return PRESTO_STREAMING_CATALOG_NAME + "." + project + "." + node.getSuffix();
+            } else
+            if(prefix.equals("materialized")) {
+                return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
+            } else
+            if(!prefix.equals("collection")) {
+                throw new IllegalArgumentException("Schema does not exist: " + prefix);
             }
         }
 
@@ -94,9 +96,9 @@ public class PrestoQueryExecutor implements QueryExecutor {
             String table = project + "." + node.getSuffix();
 
             if (hotStorageConnector != null) {
-                return "(select * from " + prefix.getSuffix() + "." + table + " union all " +
+                return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
                         "select * from " + hotStorageConnector + "." + table + ")" +
-                        " as " + node.getSuffix();
+                        " as " + node.getSuffix()+")";
             } else {
                 return prefix.getSuffix() + "." + table;
             }

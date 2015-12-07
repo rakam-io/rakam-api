@@ -36,10 +36,5 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
     public String diffTimestamps() {
         return "date_part('%s', age(%s, %s))";
     }
-
-    @Override
-    public String getTableReference(String project, String collection) {
-        return project +"."+collection;
-    }
 }
 

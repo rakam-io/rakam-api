@@ -15,13 +15,14 @@ import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStorage {
-
     private final PrestoQueryExecutor executor;
 
     @Inject
     public PrestoExternalUserStorageAdapter(PrestoQueryExecutor executor, PostgresqlQueryExecutor queryExecutor, Metastore metastore) {
         super(queryExecutor, metastore);
         this.executor = executor;
+        queryExecutor.executeRawStatement("CREATE SCHEMA IF NOT EXISTS users").getResult().join();
+        metastore.getProjects().forEach(this::createProject);
     }
 
     @Override
@@ -76,5 +77,10 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }
 
         return filters;
+    }
+
+    @Override
+    public String getUserTable(String project) {
+        return "users."+project;
     }
 }

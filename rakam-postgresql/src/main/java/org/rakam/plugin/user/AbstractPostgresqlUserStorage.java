@@ -47,13 +47,11 @@ import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractPostgresqlUserStorage implements UserStorage {
-    public static final String USER_TABLE = "_users";
     private final PostgresqlQueryExecutor queryExecutor;
     private final Cache<String, Map<String, FieldType>> propertyCache = CacheBuilder.newBuilder().build();
 
     public AbstractPostgresqlUserStorage(PostgresqlQueryExecutor queryExecutor, Metastore metastore) {
         this.queryExecutor = queryExecutor;
-        metastore.getProjects().forEach(this::createProject);
     }
 
     @Override
@@ -127,7 +125,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             parametrizedValues.append(", ").append("?");
             cols.append(", ").append("id");
 
-            PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + project + "." + USER_TABLE + " (" + cols +
+            PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + getUserTable(project) + " (" + cols +
                     ") values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
             int i = 1;
             for (Map.Entry<String, Object> o : properties.entrySet()) {
@@ -251,8 +249,8 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         checkTableColumn(column, "user property name is not valid");
         try (Connection conn = queryExecutor.getConnection()) {
             try {
-                conn.createStatement().execute(format("alter table %s.%s add column %s %s",
-                        project, USER_TABLE, column, getPostgresqlType(value.getClass())));
+                conn.createStatement().execute(format("alter table %s add column %s %s",
+                        getUserTable(project), column, getPostgresqlType(value.getClass())));
             } catch (SQLException e) {
                 // TODO: check the column is already exists or this is a different exception
             }
@@ -292,14 +290,14 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         String orderBy = sortColumn == null ? "" : format(" ORDER BY %s %s", sortColumn.column, sortColumn.order);
 
-        QueryExecution query = queryExecutor.executeRawQuery(format("SELECT %s FROM %s._users %s %s LIMIT %s OFFSET %s",
-                columns, project, filters.isEmpty() ? "" : " WHERE " + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
+        QueryExecution query = queryExecutor.executeRawQuery(format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s",
+                columns, getUserTable(project), filters.isEmpty() ? "" : " WHERE " + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
 
         CompletableFuture<QueryResult> dataResult = query.getResult();
 
         if (eventFilter == null || eventFilter.isEmpty()) {
             StringBuilder builder = new StringBuilder();
-            builder.append(format("SELECT count(*) FROM %s.%s", project, USER_TABLE));
+            builder.append("SELECT count(*) FROM "+getUserTable(project));
             if (filterExpression != null) {
                 builder.append(" WHERE ").append(filters.get(0));
             }
@@ -314,8 +312,11 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                     Object v1 = totalResultData.getResult().get(0).get(0);
                     result.complete(new QueryResult(data.getMetadata(), data.getResult(),
                             ImmutableMap.of(QueryResult.TOTAL_RESULT, v1)));
-                } else {
+                } else
+                if(ex != null) {
                     result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0)));
+                } else {
+                    result.complete(data);
                 }
             });
 
@@ -332,8 +333,8 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         try (Connection conn = queryExecutor.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            ResultSet indexInfo = metaData.getIndexInfo(null, null, USER_TABLE, true, false);
-            ResultSet dbColumns = metaData.getColumns(null, project, USER_TABLE, null);
+            ResultSet indexInfo = metaData.getIndexInfo(null, null, getUserTable(project), true, false);
+            ResultSet dbColumns = metaData.getColumns(null, null, getUserTable(project), null);
 
             Set<String> uniqueColumns = Sets.newHashSet();
             while (indexInfo.next()) {
@@ -357,12 +358,14 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         }
     }
 
+    public abstract String getUserTable(String project);
+
     @Override
     public CompletableFuture<org.rakam.plugin.user.User> getUser(String project, String userId) {
         checkProject(project);
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = queryExecutor.getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(format("select * from %s.%s where %s = ?", project, USER_TABLE, PRIMARY_KEY));
+                PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", getUserTable(project), PRIMARY_KEY));
                 ps.setString(1, userId);
                 ResultSet resultSet = ps.executeQuery();
 
@@ -412,7 +415,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             columns = createMissingColumns(project, properties);
         }
 
-        StringBuilder builder = new StringBuilder("update " + project + "." + USER_TABLE + " set ");
+        StringBuilder builder = new StringBuilder("update " + getUserTable(project) + " set ");
         Iterator<Map.Entry<String, Object>> entries = properties.entrySet().iterator();
         if (entries.hasNext()) {
             Map.Entry<String, Object> entry = entries.next();
@@ -471,11 +474,11 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     @Override
     public void createProject(String project) {
         checkProject(project);
-        queryExecutor.executeRawStatement(format("CREATE TABLE IF NOT EXISTS %s.%s (" +
+        queryExecutor.executeRawStatement(format("CREATE TABLE IF NOT EXISTS %s (" +
                 "  %s TEXT NOT NULL,\n" +
                 "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
-                ")", project, USER_TABLE, PRIMARY_KEY, PRIMARY_KEY));
+                ")", getUserTable(project), PRIMARY_KEY, PRIMARY_KEY));
     }
 
     @Override
@@ -496,7 +499,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         }
 
         try (Connection conn = queryExecutor.getConnection()) {
-            conn.createStatement().execute("update " + project + "." + USER_TABLE + " set " + property + " += "+value);
+            conn.createStatement().execute("update " + getUserTable(project) + " set " + property + " += "+value);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

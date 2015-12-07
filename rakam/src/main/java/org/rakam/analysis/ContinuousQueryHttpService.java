@@ -86,7 +86,7 @@ public class ContinuousQueryHttpService extends HttpService {
         }
         return schemas.entrySet().stream()
                     // ignore system tables
-                    .filter(entry -> !entry.getKey().startsWith("_"))
+//                    .filter(entry -> !entry.getKey().startsWith("_"))
                     .map(entry -> new Collection(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toList());
     }
