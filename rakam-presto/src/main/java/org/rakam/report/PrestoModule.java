@@ -14,6 +14,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.PrestoAbstractUserService;
 import org.rakam.analysis.PrestoMaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
@@ -32,6 +33,7 @@ import org.rakam.plugin.user.PrestoExternalUserStorageAdapter;
 import javax.inject.Inject;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
+import static org.rakam.report.PrestoQueryExecution.toPrestoType;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="presto")
@@ -100,11 +102,14 @@ public class PrestoModule extends RakamModule {
 
         @Subscribe
         public void onCreateField(SystemEvents.CollectionFieldCreatedEvent event) {
-            prestoQueryExecutor
-                    .executeRawQuery(String.format("ALTER TABLE %s.%s.%s ADD COLUMN zip varchar",
-                                    config.getColdStorageConnector(), event.project, event.collection,
-                                    config.getHotStorageConnector(), event.project, event.collection)
-                    ).getResult().join();
+            for(SchemaField field : event.fields) {
+                prestoQueryExecutor
+                        .executeRawQuery(String.format("ALTER TABLE %s.%s.%s ADD COLUMN \"%s\" %s",
+                                config.getColdStorageConnector(), event.project, event.collection,
+                                field.getName(), toPrestoType(field.getType()))
+                        ).getResult().join();
+            }
+
         }
 
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {

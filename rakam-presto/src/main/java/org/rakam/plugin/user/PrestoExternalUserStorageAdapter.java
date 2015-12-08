@@ -1,9 +1,13 @@
 package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.ExpressionFormatter;
+import com.facebook.presto.sql.tree.QualifiedName;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.report.PrestoQueryExecutor;
+import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
@@ -34,17 +38,23 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
             checkCollection(filter.collection);
             if (filter.aggregation == null) {
-                builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
+                builder.append(format("select \"_user\" from %s",
+                        executor.formatTableReference(project, QualifiedName.of(filter.collection))));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
                 }
                 builder.append(" limit 10000");
-                String ids = executor.executeRawQuery(builder.toString()).getResult().join().getResult().stream()
+                QueryResult result = executor.executeRawQuery(builder.toString()).getResult().join();
+                if(result.isFailed()) {
+                    throw new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                }
+                String ids = result.getResult().stream()
                         .map(e -> "'" + e.get(0).toString() + "'")
                         .collect(Collectors.joining(", "));
                 filters.add((format("id in (%s)", ids)));
             } else {
-                builder.append(format("select \"_user\" from %s.%s", project, filter.collection));
+                builder.append(format("select \"_user\" from %s.%s",
+                        executor.formatTableReference(project, QualifiedName.of(filter.collection))));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
                 }

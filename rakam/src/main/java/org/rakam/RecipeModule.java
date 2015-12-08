@@ -13,7 +13,7 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
-import io.swagger.jackson.SwaggerAnnotationIntrospector;
+import io.swagger.jackson.SwaggerAnnotationIntrospector_;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.MaterializedViewService;
@@ -88,7 +88,7 @@ public class RecipeModule extends RakamModule {
             mapper.registerModule(new SimpleModule() {
                 @Override
                 public void setupModule(SetupContext context) {
-                    context.insertAnnotationIntrospector(new SwaggerAnnotationIntrospector());
+                    context.insertAnnotationIntrospector(new SwaggerAnnotationIntrospector_());
                 }
             });
             Recipe recipe;

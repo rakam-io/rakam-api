@@ -1,6 +1,7 @@
 package org.rakam.plugin;
 
 import com.google.inject.Binder;
+import io.airlift.configuration.ConfigDefaults;
 import io.airlift.configuration.ConfigurationAwareModule;
 import io.airlift.configuration.ConfigurationFactory;
 
@@ -55,9 +56,9 @@ public abstract class RakamModule implements ConfigurationAwareModule {
         bindConfig(binder).prefixedWith(prefix).to(configClass);
         try {
             Method method = configurationFactory.getClass()
-                    .getDeclaredMethod("build", Class.class, String.class);
+                    .getDeclaredMethod("build", Class.class, String.class, ConfigDefaults.class);
             method.setAccessible(true);
-            Object invoke = method.invoke(configurationFactory, configClass, prefix);
+            Object invoke = method.invoke(configurationFactory, configClass, prefix, ConfigDefaults.noDefaults());
             Field instance = invoke.getClass().getDeclaredField("instance");
             instance.setAccessible(true);
             return (T) instance.get(invoke);

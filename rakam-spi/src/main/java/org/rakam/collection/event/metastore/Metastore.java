@@ -17,6 +17,8 @@ public interface Metastore {
 
     ProjectApiKeys createApiKeys(String project);
 
+    void revokeApiKeys(String project, int id);
+
     void createProject(String project);
 
     Set<String> getProjects();

@@ -13,7 +13,6 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.report.PrestoConfig;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.ProjectCollection;
@@ -50,15 +49,13 @@ import static org.rakam.util.ValidationUtil.checkProject;
 @Singleton
 public class JDBCMetastore extends AbstractMetastore {
     private final DBI dbi;
-    private final PrestoConfig prestoConfig;
     private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private final LoadingCache<String, Set<String>> collectionCache;
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
 
     @Inject
-    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency, PrestoConfig prestoConfig) {
+    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency) {
         super(fieldDependency, eventBus);
-        this.prestoConfig = prestoConfig;
 
         dbi = new DBI(dataSource);
 
@@ -209,6 +206,16 @@ public class JDBCMetastore extends AbstractMetastore {
         }
 
         return new ProjectApiKeys(id, project, masterKey, readKey, writeKey);
+    }
+
+    @Override
+    public void revokeApiKeys(String project, int id) {
+        try(Handle handle = dbi.open()) {
+            handle.createStatement("DELETE FROM api_key WHERE project = :project AND id = :id")
+                    .bind("project", project)
+                    .bind("id", id)
+                    .execute();
+        }
     }
 
     @Override

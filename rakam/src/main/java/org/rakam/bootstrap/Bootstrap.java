@@ -19,7 +19,6 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationInspector;
 import io.airlift.configuration.ConfigurationLoader;
 import io.airlift.configuration.ConfigurationModule;
-import io.airlift.configuration.ConfigurationValidator;
 import io.airlift.configuration.ValidationErrorModule;
 import io.airlift.configuration.WarningsMonitor;
 import io.airlift.log.Logger;
@@ -199,11 +198,11 @@ public class Bootstrap
         Set<Module> installedModules = installedModulesBuilder.build();
 
         // Validate configuration
-        ConfigurationValidator configurationValidator = new ConfigurationValidator(configurationFactory, warningsMonitor);
         List<Message> messages;
 
         try {
-            messages = configurationValidator.validate(installedModules);
+            messages = SystemRegistry.validate(configurationFactory, installedModules, warningsMonitor);
+            ;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }

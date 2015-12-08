@@ -209,6 +209,18 @@ public class PostgresqlMetastore extends AbstractMetastore {
     }
 
     @Override
+    public void revokeApiKeys(String project, int id) {
+        try(Connection conn = connectionPool.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM public.api_key WHERE project = ? AND id = ?");
+            ps.setString(1, project);
+            ps.setInt(2, id);
+            ps.execute();
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public void createProject(String project) {
         checkProject(project);
 
@@ -413,7 +425,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 return "DOUBLE PRECISION";
             default:
                 if(type.isArray()) {
-                    return  toSql(type.getArrayType()) + "[]";
+                    return  toSql(type.getArrayElementType()) + "[]";
                 }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }

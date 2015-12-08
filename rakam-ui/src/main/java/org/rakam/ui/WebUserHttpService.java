@@ -2,12 +2,11 @@ package org.rakam.ui;
 
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.Response;
-import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.WebUser.UserApiKey;
@@ -56,35 +55,25 @@ public class WebUserHttpService extends HttpService {
     }
 
     @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/create-api-keys")
+    public Metastore.ProjectApiKeys createApiKeys(@ApiParam(name = "project") String project, @CookieParam(name = "session") String session) {
+        return service.createApiKeys(extractUserFromCookie(session), project);
+    }
+
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/revoke-api-keys")
+    public JsonResponse revokeApiKeys(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id, @CookieParam(name = "session") String session) {
+        service.revokeApiKeys(extractUserFromCookie(session), project, id);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
     @GET
     @IgnorePermissionCheck
     @Path("/me")
     public Response<WebUser> me(@CookieParam(name="session", required = false) String session) {
-        final int id;
-        try {
-            id = extractUserFromCookie(session);
-        } catch (Exception e) {
-            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
-                    .addCookie("session", "", null, true, 0L, null, null);
-        }
-
-        final Optional<WebUser> user = service.getUser(id);
-
-        if(!user.isPresent()) {
-            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
-                    .addCookie("session", "", null, true, 0L, null, null);
-        }
-
-        return Response.ok(user.get());
-    }
-
-    @Path("active-modules")
-    @javax.ws.rs.GET
-    @IgnorePermissionCheck
-    @ApiOperation(value = "List installed modules for ui",
-            authorizations = @Authorization(value = "master_key")
-    )
-    public Response modules(@CookieParam(name = "session", required = false) String session) {
         final int id;
         try {
             id = extractUserFromCookie(session);

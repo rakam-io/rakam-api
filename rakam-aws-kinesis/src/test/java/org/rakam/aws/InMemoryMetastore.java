@@ -47,6 +47,11 @@ class InMemoryMetastore extends AbstractMetastore {
     }
 
     @Override
+    public void revokeApiKeys(String project, int keys) {
+
+    }
+
+    @Override
     public void createProject(String project) {
         collections.put(project, new HashMap<>());
     }

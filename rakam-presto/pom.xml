@@ -71,9 +71,13 @@
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-parser</artifactId>
         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.rakam</groupId>-->
+            <!--<artifactId>netty-rest</artifactId>-->
+        <!--</dependency>-->
         <dependency>
-            <groupId>org.rakam</groupId>
-            <artifactId>netty-rest</artifactId>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
         </dependency>
         <dependency>
             <groupId>javax.inject</groupId>

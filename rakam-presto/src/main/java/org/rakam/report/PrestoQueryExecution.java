@@ -19,6 +19,8 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static org.rakam.collection.FieldType.*;
+
 public class PrestoQueryExecution implements QueryExecution {
     // doesn't seem to be a good way but presto client uses a synchronous http client
     // so it blocks the thread when executing queries
@@ -66,26 +68,49 @@ public class PrestoQueryExecution implements QueryExecution {
 
         switch (prestoType.getRawType()) {
             case StandardTypes.BIGINT:
-                return FieldType.LONG;
-            case StandardTypes.ARRAY:
-                return FieldType.ARRAY_STRING;
+                return LONG;
             case StandardTypes.BOOLEAN:
-                return FieldType.BOOLEAN;
+                return BOOLEAN;
             case StandardTypes.DATE:
-                return FieldType.DATE;
+                return DATE;
             case StandardTypes.DOUBLE:
-                return FieldType.DOUBLE;
+                return DOUBLE;
             case StandardTypes.VARCHAR:
-                return FieldType.STRING;
+                return STRING;
             case StandardTypes.TIME:
             case StandardTypes.TIME_WITH_TIME_ZONE:
-                return FieldType.TIME;
+                return TIME;
             case StandardTypes.TIMESTAMP:
             case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
-                return FieldType.TIMESTAMP;
+                return TIMESTAMP;
             default:
                 if(prestoType.getRawType().equals(StandardTypes.ARRAY)) {
-                    return fromPrestoType(prestoType.getTypeArguments().get(0)).getArrayType();
+                    return fromPrestoType(prestoType.getTypeArguments().get(0)).getArrayElementType();
+                }
+                throw new NoSuchElementException();
+        }
+    }
+
+    public static String toPrestoType(FieldType type) {
+
+        switch (type) {
+            case LONG:
+                return StandardTypes.BIGINT;
+            case BOOLEAN:
+                return StandardTypes.BOOLEAN;
+            case DATE:
+                return StandardTypes.DATE;
+            case DOUBLE:
+                return StandardTypes.DOUBLE;
+            case STRING:
+                return StandardTypes.VARCHAR;
+            case TIME:
+                return StandardTypes.TIME;
+            case TIMESTAMP:
+                return StandardTypes.TIMESTAMP;
+            default:
+                if(type.isArray()) {
+                    return StandardTypes.ARRAY+"<"+toPrestoType(type.getArrayElementType())+">";
                 }
                 throw new NoSuchElementException();
         }

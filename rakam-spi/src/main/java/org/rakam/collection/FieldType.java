@@ -18,7 +18,7 @@ public enum FieldType {
         return ordinal() > 6;
     }
 
-    public FieldType getArrayType() {
+    public FieldType getArrayElementType() {
         if(ordinal() < 7) {
             throw new IllegalStateException("type is not array");
         }

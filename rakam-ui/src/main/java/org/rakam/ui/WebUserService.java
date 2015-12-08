@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
 public class WebUserService {
 
@@ -51,11 +52,11 @@ public class WebUserService {
             handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (" +
                     "  id SERIAL PRIMARY KEY,\n" +
                     "  user_id INTEGER REFERENCES web_user(id),\n" +
-                    "  project TEXT NOT NULL UNIQUE,\n" +
+                    "  project TEXT NOT NULL,\n" +
                     "  scope_expression TEXT,\n" +
                     "  has_read_permission BOOLEAN NOT NULL,\n" +
                     "  has_write_permission BOOLEAN NOT NULL,\n" +
-                    "  is_admin BOOLEAN DEFAULT false NOT NULL" +
+                    "  is_admin BOOLEAN DEFAULT false NOT NULL\n" +
                     "  )")
                     .execute();
         }
@@ -99,13 +100,37 @@ public class WebUserService {
         return new WebUser.UserApiKey(apiKeys.readKey, apiKeys.writeKey, apiKeys.masterKey);
     }
 
+    public Metastore.ProjectApiKeys createApiKeys(int user, String project) {
+        if (!metastore.getProjects().contains(project)) {
+            throw new RakamException("Project does not exists", BAD_REQUEST);
+        }
+
+        try(Handle handle = dbi.open()) {
+            if (!getUserApiKeys(handle, user).containsKey(project)) {
+                // TODO: check scope permission keys
+                throw new RakamException(UNAUTHORIZED);
+            }
+
+            final Metastore.ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+
+            handle.createStatement("INSERT INTO web_user_project " +
+                    "(id, user_id, project, has_read_permission, has_write_permission, is_admin) " +
+                    "VALUES (:id, :userId, :project, true, true, true)")
+                    .bind("id", apiKeys.id)
+                    .bind("userId", user)
+                    .bind("project", project).execute();
+
+            return apiKeys;
+        }
+    }
+
 
     public Optional<WebUser> login(String email, String password) {
         String hashedPassword;
         String name;
         int id;
 
-        Map<String, List<WebUser.UserApiKey>> projects;
+        Map<String, List<Metastore.ProjectApiKeys>> projects;
 
         try(Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
@@ -123,7 +148,7 @@ public class WebUserService {
                 return Optional.empty();
             }
 
-            projects = getProjectOfUser(handle, id);
+            projects = getUserApiKeys(handle, id);
         }
 
         return Optional.of(new WebUser(id, email, name, projects));
@@ -134,7 +159,7 @@ public class WebUserService {
         String name;
         String email;
 
-        Map<String, List<WebUser.UserApiKey>> projects;
+        Map<String, List<Metastore.ProjectApiKeys>> projects;
 
         try(Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
@@ -147,19 +172,19 @@ public class WebUserService {
             email = (String) data.get("email");
             id = (int) data.get("id");
 
-            projects = getProjectOfUser(handle, id);
+            projects = getUserApiKeys(handle, id);
         }
 
         return Optional.of(new WebUser(id, email, name, projects));
     }
 
-    private Map<String, List<WebUser.UserApiKey>> getProjectOfUser(Handle handle, int id) {
+    private Map<String, List<Metastore.ProjectApiKeys>> getUserApiKeys(Handle handle, int userId) {
 
-        final List<Map<String, Object>> keys = handle.createQuery("SELECT id, project, scope_expression, has_read_permission, is_admin FROM web_user_project WHERE user_id = :userId")
-                .bind("userId", id)
+        final List<Map<String, Object>> keys = handle.createQuery("SELECT id, project, scope_expression, has_read_permission, has_write_permission, is_admin FROM web_user_project WHERE user_id = :userId")
+                .bind("userId", userId)
                 .list();
 
-        Map<String, List<WebUser.UserApiKey>> projects = Maps.newHashMap();
+        Map<String, List<Metastore.ProjectApiKeys>> projects = Maps.newHashMap();
 
         final List<Metastore.ProjectApiKeys> apiKeys = metastore
                 .getApiKeys(keys.stream().mapToInt(row -> (int) row.get("id")).toArray());
@@ -175,10 +200,30 @@ public class WebUserService {
             String readKey = Boolean.TRUE.equals(keyProps.get("has_read_permission")) ? apiKey.readKey : null;
             String writeKey = Boolean.TRUE.equals(keyProps.get("has_write_permission")) ? apiKey.writeKey : null;
             projects.computeIfAbsent(apiKey.project, (k) -> Lists.newArrayList())
-                    .add(new WebUser.UserApiKey(readKey, writeKey, masterKey));
+                    .add(new Metastore.ProjectApiKeys(apiKey.id, apiKey.project, masterKey, readKey, writeKey));
         }
         return projects;
     }
 
 
+    public void revokeApiKeys(int user, String project, int id) {
+        if (!metastore.getProjects().contains(project)) {
+            throw new RakamException("Project does not exists", BAD_REQUEST);
+        }
+
+        try(Handle handle = dbi.open()) {
+            if (!getUserApiKeys(handle, user).containsKey(project)) {
+                // TODO: check scope permission keys
+                throw new RakamException(UNAUTHORIZED);
+            }
+
+            metastore.revokeApiKeys(project, id);
+
+            handle.createStatement("DELETE FROM web_user_project " +
+                    "WHERE id = :id AND project = :project AND user_id = :user_id")
+                    .bind("id", id)
+                    .bind("user_id", user)
+                    .bind("project", project).execute();
+        }
+    }
 }

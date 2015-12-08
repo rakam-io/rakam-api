@@ -176,7 +176,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     public Object getJDBCValue(FieldType fieldType, Object value, Connection conn) throws SQLException {
         if(fieldType.isArray()) {
             if(value instanceof List) {
-                FieldType arrayType = fieldType.getArrayType();
+                FieldType arrayType = fieldType.getArrayElementType();
                 List value1 = (List) value;
 
                 Object[] objects = new Object[value1.size()];

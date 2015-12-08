@@ -22,7 +22,7 @@ public class PostgresqlUserMailboxModule extends RakamModule {
                 .annotatedWith(Names.named("store.adapter.postgresql"))
                 .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
 
-        PostgresqlModule.bindAsyncClient(config, binder);
+        binder.install(PostgresqlModule.getAsyncClientModule(config));
         binder.bind(UserMailboxStorage.class).to(PostgresqlUserMailboxStorage.class);
     }
 

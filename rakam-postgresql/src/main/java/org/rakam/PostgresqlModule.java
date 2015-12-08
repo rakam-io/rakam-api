@@ -4,9 +4,11 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
+import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -68,7 +70,7 @@ public class PostgresqlModule extends RakamModule {
         }
 
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
-        bindAsyncClient(config, binder);
+        binder.install(getAsyncClientModule(config));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if(getConfig("report.metadata.store") == null) {
@@ -115,7 +117,12 @@ public class PostgresqlModule extends RakamModule {
         return "Postgresql deployment type module";
     }
 
-    public static void bindAsyncClient(JDBCConfig config, Binder binder) {
+    private static Module asyncClientModule;
+
+    /*
+        This module may be installed more than once, Guice will handle deduplication.
+     */
+    public synchronized static Module getAsyncClientModule(JDBCConfig config) {
         JDBCConfig asyncClientConfig;
         try {
             final String url = config.getUrl();
@@ -132,10 +139,18 @@ public class PostgresqlModule extends RakamModule {
             throw Throwables.propagate(e);
         }
 
-        binder.bind(JDBCPoolDataSource.class)
-                .annotatedWith(Names.named("async-postgresql"))
-                .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
-                .in(Scopes.SINGLETON);
+        if(asyncClientModule == null) {
+            asyncClientModule = new AbstractConfigurationAwareModule() {
+                @Override
+                protected void setup(Binder binder) {
+                    binder.bind(JDBCPoolDataSource.class)
+                            .annotatedWith(Names.named("async-postgresql"))
+                            .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
+                            .in(Scopes.SINGLETON);
+                }
+            };
+        }
+        return asyncClientModule;
     }
 
 
