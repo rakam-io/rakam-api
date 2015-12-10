@@ -26,16 +26,16 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 public class PostgresqlEventExplorer extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
-            .put(HOUR_OF_DAY, "extract(hour from %s) as time")
-            .put(DAY_OF_MONTH, "extract(day FROM %s) as time")
-            .put(WEEK_OF_YEAR, "extract(doy FROM %s) as time")
-            .put(MONTH_OF_YEAR, "extract(month FROM %s) as time")
-            .put(QUARTER_OF_YEAR, "extract(quarter FROM %s) as time")
-            .put(DAY_OF_WEEK, "extract(dow FROM %s) as time")
-            .put(HOUR, "date_trunc('hour', %s) as time")
-            .put(DAY, "cast(%s as date) as time")
-            .put(MONTH, "date_trunc('month', %s) as time")
-            .put(YEAR, "date_trunc('year', %s) as time")
+            .put(HOUR_OF_DAY, "extract(hour from %s)")
+            .put(DAY_OF_MONTH, "extract(day FROM %s)")
+            .put(WEEK_OF_YEAR, "extract(doy FROM %s)")
+            .put(MONTH_OF_YEAR, "extract(month FROM %s)")
+            .put(QUARTER_OF_YEAR, "extract(quarter FROM %s)")
+            .put(DAY_OF_WEEK, "extract(dow FROM %s)")
+            .put(HOUR, "date_trunc('hour', %s)")
+            .put(DAY, "cast(%s as date)")
+            .put(MONTH, "date_trunc('month', %s)")
+            .put(YEAR, "date_trunc('year', %s)")
             .build();
 
     @Inject

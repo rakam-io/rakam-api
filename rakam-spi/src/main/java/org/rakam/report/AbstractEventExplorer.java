@@ -160,16 +160,17 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     where,
                     groupBy);
         } else {
-            String selectPart = Stream.of(grouping, segment)
-                    .filter(col -> col != null)
-                    .map(this::getColumnReference)
-                    .collect(Collectors.joining(", "));
+            String selectPart = (grouping == null ? "": getColumnReference(grouping)+"_group") +
+            (segment == null ? "":
+                    (grouping == null ? "" : ", ")+getColumnReference(segment)+"_segment");
 
             String queries = "(" + collections.stream()
-                    .map(collection -> format("select %s, %s from %s where %s", select, measureColumn,
+                    .map(collection -> format("select %s %s from %s where %s",
+                            select.isEmpty() ? select : select + ",",
+                            measureColumn,
                             executor.formatTableReference(project, QualifiedName.of(collection)), where))
                     .collect(Collectors.joining(" union ")) + ")";
-            computeQuery = format("select %s %s(%s) as value from %s group by %s",
+            computeQuery = format("select %s %s as value from (%s) as data group by %s",
                     select.isEmpty() ? "" : selectPart + ",",
                     format(measureAgg, measureColumn),
                     queries,
@@ -222,7 +223,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                     "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
                             group ? "'Others'" : "null",
-                            columnValue,
+                            columnValue+"_group",
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             computeQuery);

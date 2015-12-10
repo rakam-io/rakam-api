@@ -333,8 +333,9 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         try (Connection conn = queryExecutor.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            ResultSet indexInfo = metaData.getIndexInfo(null, null, getUserTable(project), true, false);
-            ResultSet dbColumns = metaData.getColumns(null, null, getUserTable(project), null);
+            String[] userTable = getUserTable(project).split("\\.", 2);
+            ResultSet indexInfo = metaData.getIndexInfo(null, userTable[0], userTable[1], true, false);
+            ResultSet dbColumns = metaData.getColumns(null, userTable[0], userTable[1], null);
 
             Set<String> uniqueColumns = Sets.newHashSet();
             while (indexInfo.next()) {

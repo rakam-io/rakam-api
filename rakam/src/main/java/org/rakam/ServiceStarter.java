@@ -50,7 +50,8 @@ import static java.lang.String.format;
 
 
 public class ServiceStarter {
-    public static final String RAKAM_VERSION = "0.2";
+    // TODO: find a way to move this from here
+    public static final String RAKAM_VERSION = "0.3";
 
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
