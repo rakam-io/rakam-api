@@ -46,13 +46,7 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
 
     private void mapInternal(HttpHeaders extraProperties, GenericRecord properties, Object agent) {
         String userAgent;
-        if(agent instanceof Boolean) {
-            Boolean user_agent = (Boolean) properties.get("_user_agent");
-
-            if (user_agent == null || !user_agent.booleanValue()) {
-                return;
-            }
-
+        if(agent instanceof Boolean && ((Boolean) agent).booleanValue()) {
             userAgent = extraProperties.get("User-Agent");
         } else {
             userAgent = (String) agent;
@@ -61,21 +55,14 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
         if(userAgent != null) {
             Client parsed = uaParser.parse(userAgent);
             properties.put("user_agent_family", parsed.userAgent.family);
-            Long major1;
             try {
-                major1 = Long.parseLong(parsed.userAgent.major);
-            } catch (Exception e) {
-                major1 = null;
-            }
-            properties.put("user_agent_version", major1);
+                properties.put("user_agent_version", Long.parseLong(parsed.userAgent.major));
+            } catch (NumberFormatException e) {}
+
             properties.put("os", parsed.os.family);
-            Long major;
             try {
-                major = Long.parseLong(parsed.os.major);
-            } catch (Exception e) {
-                major = null;
-            }
-            properties.put("os_version", major);
+                properties.put("os_version", Long.parseLong(parsed.os.major));
+            } catch (Exception e) {}
             properties.put("device_family", parsed.device.family);
         }
     }

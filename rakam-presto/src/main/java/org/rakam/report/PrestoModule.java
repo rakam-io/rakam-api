@@ -104,7 +104,7 @@ public class PrestoModule extends RakamModule {
         public void onCreateField(SystemEvents.CollectionFieldCreatedEvent event) {
             for(SchemaField field : event.fields) {
                 prestoQueryExecutor
-                        .executeRawQuery(String.format("ALTER TABLE %s.%s.%s ADD COLUMN \"%s\" %s",
+                        .executeRawQuery(String.format("ALTER TABLE %s.\"%s\".\"%s\" ADD COLUMN \"%s\" %s",
                                 config.getColdStorageConnector(), event.project, event.collection,
                                 field.getName(), toPrestoType(field.getType()))
                         ).getResult().join();
@@ -114,7 +114,7 @@ public class PrestoModule extends RakamModule {
 
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
             prestoQueryExecutor
-                    .executeRawQuery(String.format("CREATE TABLE %s.%s.%s AS SELECT * FROM %s.%s.%s LIMIT 0",
+                    .executeRawQuery(String.format("CREATE TABLE %s.\"%s\".\"%s\" AS SELECT * FROM %s.\"%s\".\"%s\" LIMIT 0",
                             config.getColdStorageConnector(), event.project, event.collection,
                             config.getHotStorageConnector(), event.project, event.collection)
                     ).getResult().join();

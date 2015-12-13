@@ -7,43 +7,42 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.report.PrestoConfig;
 import org.rakam.util.CryptUtil;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.Query;
 import org.skife.jdbi.v2.TransactionStatus;
-import org.skife.jdbi.v2.exceptions.CallbackFailedException;
+import org.skife.jdbi.v2.tweak.ConnectionFactory;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
+import static java.lang.String.format;
+import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Singleton
@@ -52,18 +51,29 @@ public class JDBCMetastore extends AbstractMetastore {
     private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private final LoadingCache<String, Set<String>> collectionCache;
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
+    private final ConnectionFactory prestoConnectionFactory;
+    private final PrestoConfig config;
 
     @Inject
-    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency) {
+    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency) {
         super(fieldDependency, eventBus);
+        this.config = config;
 
+        this.prestoConnectionFactory = new ConnectionFactory() {
+            @Override
+            public Connection openConnection() throws SQLException {
+                Properties properties = new Properties();
+                properties.put("user", "presto-rakam");
+                return DriverManager.getConnection("jdbc:presto://127.0.0.1:8080", properties);
+            }
+        };
         dbi = new DBI(dataSource);
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
             @Override
             public List<SchemaField> load(ProjectCollection key) throws Exception {
-                try(Handle handle = dbi.open()) {
-                    List<SchemaField> schema = getSchema(handle, key.project, key.collection);
+                try (Connection conn = prestoConnectionFactory.openConnection()) {
+                    List<SchemaField> schema = getSchema(conn, key.project, key.collection);
                     if (schema == null) {
                         return ImmutableList.of();
                     }
@@ -75,9 +85,19 @@ public class JDBCMetastore extends AbstractMetastore {
         collectionCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
             @Override
             public Set<String> load(String project) throws Exception {
-                try(Handle handle = dbi.open()) {
-                    return StreamSupport.stream(handle.createQuery("SELECT collection from collection_schema WHERE project = :project")
-                            .bind("project", project).map(StringMapper.FIRST).spliterator(), false).collect(Collectors.toSet());
+                try (Connection conn = prestoConnectionFactory.openConnection()) {
+                    HashSet<String> tables = new HashSet<>();
+
+                    ResultSet tableRs = conn.getMetaData().getTables(config.getColdStorageConnector(), project, null, new String[]{"TABLE"});
+                    while (tableRs.next()) {
+                        String tableName = tableRs.getString("table_name");
+
+                        if (!tableName.startsWith("_")) {
+                            tables.add(tableName);
+                        }
+                    }
+
+                    return tables;
                 }
             }
         });
@@ -129,19 +149,6 @@ public class JDBCMetastore extends AbstractMetastore {
 
     private void setup() {
         dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS collection_schema (" +
-                    "  project VARCHAR(255) NOT NULL,\n" +
-                    "  collection VARCHAR(255) NOT NULL,\n" +
-                    "  schema TEXT NOT NULL,\n" +
-                    "  PRIMARY KEY (project, collection)"+
-                    ")")
-                    .execute();
-
-            handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
-                    "  name TEXT NOT NULL,\n" +
-                    "  location TEXT NOT NULL, PRIMARY KEY (name))")
-                    .execute();
-
             handle.createStatement("CREATE TABLE IF NOT EXISTS api_key (" +
                     "  id SERIAL PRIMARY KEY,\n" +
                     "  project TEXT NOT NULL,\n" +
@@ -154,14 +161,6 @@ public class JDBCMetastore extends AbstractMetastore {
         });
     }
 
-    public String getDatabaseLocation(String project) {
-        try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT location from project WHERE name = :name")
-                    .bind("name", project).map(StringMapper.FIRST)
-                    .first();
-        }
-    }
-
     @Override
     public Map<String, Set<String>> getAllCollections() {
         return Collections.unmodifiableMap(collectionCache.asMap());
@@ -169,14 +168,12 @@ public class JDBCMetastore extends AbstractMetastore {
 
     @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
-        try(Handle handle = dbi.open()) {
-            Query<Map<String, Object>> bind = handle.createQuery("SELECT collection, schema from collection_schema WHERE project = :project")
-                    .bind("project", project);
-
-            HashMap<String, List<SchemaField>> table = Maps.newHashMap();
-            bind.forEach(row ->
-                    table.put((String) row.get("collection"), Arrays.asList(JsonHelper.read((String) row.get("schema"), SchemaField[].class))));
-            return table;
+        try {
+            return collectionCache.get(project).stream()
+                    .collect(Collectors.toMap(c -> c, collection ->
+                            getCollection(project, collection)));
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -250,75 +247,102 @@ public class JDBCMetastore extends AbstractMetastore {
         }
     }
 
-    @Nullable
-    private List<SchemaField> getSchema(Handle dao, String project, String collection) {
-        Query<Map<String, Object>> bind = dao.createQuery("SELECT schema from collection_schema WHERE project = :project AND collection = :collection")
-                .bind("project", project)
-                .bind("collection", collection);
-        Map<String, Object> o = bind.first();
-        return o != null ? Arrays.asList(JsonHelper.read((String) o.get("schema"), SchemaField[].class)) : null;
+    public static List<SchemaField> convertToSchema(ResultSet dbColumns) throws SQLException {
+        List<SchemaField> schemaFields = Lists.newArrayList();
+
+        while (dbColumns.next()) {
+            String columnName = dbColumns.getString("COLUMN_NAME");
+            FieldType fieldType;
+            fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCMetastore::getType);
+            schemaFields.add(new SchemaField(columnName, fieldType, true));
+        }
+        return schemaFields.size() == 0 ? null : schemaFields;
+    }
+
+    public static FieldType getType(String name) {
+        return FieldType.STRING;
+    }
+
+    private List<SchemaField> getSchema(Connection connection, String project, String collection) throws SQLException {
+        ResultSet dbColumns = connection.getMetaData().getColumns(config.getColdStorageConnector(), project, collection, null);
+        return convertToSchema(dbColumns);
     }
 
     @Override
-    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> newFields) throws ProjectNotExistsException {
-        List<SchemaField> schemaFields;
-        try {
-            schemaFields = dbi.inTransaction((dao, status) -> {
-                List<SchemaField> schema = getSchema(dao, project, collection);
-
-                if (schema == null) {
-                    if(!getProjects().contains(project)) {
-                        throw new ProjectNotExistsException();
-                    }
-                    // FIXME concurrency bug
-                    dao.createStatement("INSERT INTO collection_schema (project, collection, schema) VALUES (:project, :collection, :schema)")
-                            .bind("schema", JsonHelper.encode(newFields))
-                            .bind("project", project)
-                            .bind("collection", collection)
-                            .execute();
-                    ImmutableList<SchemaField> fields = ImmutableList.copyOf(newFields);
-                    super.onCreateCollection(project, collection, fields);
-                    return fields;
-                } else {
-                    List<SchemaField> fields = Lists.newCopyOnWriteArrayList(schema);
-
-                    List<SchemaField> _newFields = new ArrayList<>();
-
-                    for (SchemaField field : newFields) {
-                        Optional<SchemaField> first = fields.stream().filter(x -> x.getName().equals(field.getName())).findFirst();
-                        if (!first.isPresent()) {
-                            _newFields.add(field);
-                        } else {
-                            if (first.get().getType() != field.getType())
-                                throw new IllegalArgumentException();
-                        }
-                    }
-
-                    fields.addAll(_newFields);
-                    dao.createStatement("UPDATE collection_schema SET schema = :schema WHERE project = :project AND collection = :collection")
-                            .bind("schema", JsonHelper.encode(fields))
-                            .bind("project", project)
-                            .bind("collection", collection)
-                            .execute();
-                    schemaCache.put(new ProjectCollection(project, collection), fields);
-                    return fields;
-                }
-
-            });
-        } catch (CallbackFailedException e) {
-            // TODO: find a better way to handle this.
-            if(e.getCause() instanceof ProjectNotExistsException) {
-                throw (ProjectNotExistsException) e.getCause();
-            }
-            if(e.getCause() instanceof IllegalArgumentException) {
-                throw (IllegalArgumentException) e.getCause();
-            } else {
-                throw e;
-            }
+    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
+        if (!collection.matches("^[a-zA-Z0-9_]*$")) {
+            throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
         }
-        schemaCache.refresh(new ProjectCollection(project, collection));
-        collectionCache.refresh(project);
-        return schemaFields;
+
+        List<SchemaField> currentFields = new ArrayList<>();
+        String query;
+        try (Connection connection = prestoConnectionFactory.openConnection()) {
+            ResultSet columns = connection.getMetaData().getColumns(config.getColdStorageConnector(), project, collection, null);
+            HashSet<String> strings = new HashSet<>();
+            while (columns.next()) {
+                String colName = columns.getString("COLUMN_NAME");
+                strings.add(colName);
+                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME"), JDBCMetastore::getType), true));
+            }
+
+            List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
+            Runnable task;
+            if (currentFields.size() == 0) {
+                if (!getProjects().contains(project)) {
+                    throw new ProjectNotExistsException();
+                }
+                String queryEnd = schemaFields.stream()
+                        .map(f -> {
+                            currentFields.add(f);
+                            return f;
+                        })
+                        .map(f -> format("\"%s\" %s", f.getName(), toSql(f.getType())))
+                        .collect(Collectors.joining(", "));
+                if (queryEnd.isEmpty()) {
+                    return currentFields;
+                }
+                query = format("CREATE TABLE %s.\"%s\".\"%s\" (%s)", config.getColdStorageConnector(), project, collection, queryEnd);
+                connection.createStatement().execute(query);
+
+                task = () -> super.onCreateCollection(project, collection, schemaFields);
+            } else {
+                schemaFields.stream()
+                        .map(f -> {
+                            currentFields.add(f);
+                            return f;
+                        })
+                        .map(f -> format("ALTER TABLE %s.\"%s\".\"%s\" ADD COLUMN \"%s\" %s",
+                                config.getColdStorageConnector(), project, collection,
+                                f.getName(), toSql(f.getType())))
+                        .forEach(q -> {
+                            try {
+                                connection.createStatement().execute(q);
+                            } catch (SQLException e) {
+                                throw Throwables.propagate(e);
+                            }
+                        });
+
+                task = () -> super.onCreateCollectionField(project, collection, schemaFields);
+            }
+
+            task.run();
+            schemaCache.put(new ProjectCollection(project, collection), currentFields);
+            return currentFields;
+        } catch (SQLException e) {
+            // syntax error exception
+//            if (e.getSQLState().equals("42601") || e.getSQLState().equals("42939")) {
+//                throw new IllegalStateException("One of the column names is not valid because it collides with reserved keywords in Postgresql. : " +
+//                        (currentFields.stream().map(SchemaField::getName).collect(Collectors.joining(", "))) +
+//                        "See http://www.postgresql.org/docs/devel/static/sql-keywords-appendix.html");
+//            } else
+                // column or table already exists
+//                if (e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42710")) {
+                    // TODO: should we try again until this operation is done successfully, what about infinite loops?
+//                    return getOrCreateCollectionFieldList(project, collection, fields);
+//                } else {
+                    throw new IllegalStateException(e.getMessage());
+//                }
+        }
     }
 
     @Override
@@ -352,6 +376,27 @@ public class JDBCMetastore extends AbstractMetastore {
             return list;
         } catch (SQLException e) {
             throw Throwables.propagate(e);
+        }
+    }
+
+    public static String toSql(FieldType type) {
+        switch (type) {
+            case LONG:
+                return "BIGINT";
+            case STRING:
+                return "VARCHAR";
+            case BOOLEAN:
+            case DATE:
+            case TIME:
+            case TIMESTAMP:
+                return type.name();
+            case DOUBLE:
+                return "DOUBLE";
+            default:
+                if(type.isArray()) {
+                    return "ARRAY<"+toSql(type.getArrayElementType()) + ">";
+                }
+                throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }
     }
 }

@@ -114,25 +114,31 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
         Object ip = event.properties().get("_ip");
 
+        InetAddress addr;
         if((ip instanceof String)) {
             try {
                 // it may be slow because java performs reverse hostname lookup.
-                sourceAddress = Inet4Address.getByName((String) ip);
+                addr = Inet4Address.getByName((String) ip);
             } catch (UnknownHostException e) {
                 return null;
             }
+        } else
+        if(Boolean.TRUE == ip) {
+            addr = sourceAddress;
+        } else {
+            return null;
         }
 
         if (connectionTypeLookup != null) {
-            setConnectionType(sourceAddress, event.properties());
+            setConnectionType(addr, event.properties());
         }
 
         if (ispLookup != null) {
-            setIsp(sourceAddress, event.properties());
+            setIsp(addr, event.properties());
         }
 
         if (cityLookup != null) {
-            setGeoFields(sourceAddress, event.properties());
+            setGeoFields(addr, event.properties());
         }
 
         return null;
@@ -141,6 +147,9 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     @Override
     public void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress) {
         Object ip = properties.get("_ip");
+
+        if(ip == null)
+            return;
 
         if((ip instanceof String)) {
             try {

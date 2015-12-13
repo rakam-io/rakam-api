@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -271,7 +272,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             String columnName = dbColumns.getString("COLUMN_NAME");
             FieldType fieldType;
             try {
-                fieldType = fromSql(dbColumns.getInt("DATA_TYPE"));
+                fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
             } catch (IllegalStateException e) {
                 continue;
             }
@@ -301,7 +302,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             while (columns.next()) {
                 String colName = columns.getString("COLUMN_NAME");
                 strings.add(colName);
-                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE")), true));
+                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME")), true));
             }
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
@@ -431,7 +432,22 @@ public class PostgresqlMetastore extends AbstractMetastore {
         }
     }
 
-    public static FieldType fromSql(int sqlType) {
+    public static FieldType fromSql(int sqlType, String typeName) {
+        return fromSql(sqlType, typeName, new Function<String, FieldType>() {
+            @Override
+            public FieldType apply(String name) {
+                String substring = name.substring("ARRAY[]".length());
+                return FieldType.STRING;
+//                switch (substring) {
+//                    JDBCType jdbcType = JDBCType.valueOf(substring);
+//                    case fromSql(jdbcType.getVendorTypeNumber(), jdbcType.getName(), null);
+//                }
+//                return substring;
+            }
+        });
+    }
+
+    public static FieldType fromSql(int sqlType, String typeName, Function<String, FieldType> arrayTypeNameMapper) {
         switch (sqlType) {
             case Types.DECIMAL:
             case Types.BIGINT:
@@ -457,9 +473,12 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 return FieldType.DOUBLE;
             case Types.LONGVARCHAR:
             case Types.NVARCHAR:
+            case Types.LONGNVARCHAR:
             case Types.VARCHAR:
             case Types.OTHER:
                 return FieldType.STRING;
+            case Types.ARRAY:
+                return arrayTypeNameMapper.apply(typeName).convertToArrayType();
             default:
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }

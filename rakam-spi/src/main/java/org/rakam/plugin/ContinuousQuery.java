@@ -50,7 +50,7 @@ public class ContinuousQuery implements ProjectItem {
             this.query = (Query) SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
         }
 
-        validateQuery();
+//        validateQuery();
     }
 
     @JsonProperty

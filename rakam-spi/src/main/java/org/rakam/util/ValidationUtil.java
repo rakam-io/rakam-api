@@ -6,7 +6,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class ValidationUtil {
     public static void checkProject(String project) {
         checkNotNull(project, "project is null");
-        if(!project.matches("^[0-9A-Za-z]+$")) {
+        if(!project.matches("^[0-9A-Za-z_]+$")) {
             throw new IllegalArgumentException("Project id is not valid.");
         }
     }

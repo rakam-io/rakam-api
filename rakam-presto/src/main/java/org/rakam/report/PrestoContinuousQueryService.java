@@ -88,7 +88,11 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
         ImmutableMap.Builder<String, List<SchemaField>> builder = ImmutableMap.builder();
         for (SimpleImmutableEntry<String, CompletableFuture<QueryResult>> entry : collect) {
-            builder.put(entry.getKey(), entry.getValue().join().getMetadata());
+            QueryResult join = entry.getValue().join();
+            if(join.isFailed()) {
+                continue;
+            }
+            builder.put(entry.getKey(), join.getMetadata());
         }
         return builder.build();
     }

@@ -106,7 +106,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
 
             columns = new ArrayList<>(columnCount);
             for (int i = 1; i < columnCount + 1; i++) {
-                columns.add(new SchemaField(metaData.getColumnName(i), fromSql(metaData.getColumnType(i)), true));
+                columns.add(new SchemaField(metaData.getColumnName(i), fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i)), true));
             }
 
             ImmutableList.Builder<List<Object>> builder = ImmutableList.builder();

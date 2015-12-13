@@ -4,12 +4,15 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.internal.StaticCredentialsProvider;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 import io.airlift.configuration.Config;
 
 public class AWSConfig {
     private String accessKey;
     private String secretAccessKey;
     private String eventStoreStreamName;
+    private String region;
 
 
     public String getEventStoreStreamName() {
@@ -35,6 +38,20 @@ public class AWSConfig {
     public AWSConfig setSecretAccessKey(String secretAccessKey) {
         this.secretAccessKey = secretAccessKey;
         return this;
+    }
+
+    @Config("aws.region")
+    public AWSConfig setRegion(String region) {
+        this.region = region;
+        return this;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public Region getAWSRegion() {
+        return Region.getRegion(region == null ? Regions.DEFAULT_REGION : Regions.fromName(region));
     }
 
     public String getSecretAccessKey() {

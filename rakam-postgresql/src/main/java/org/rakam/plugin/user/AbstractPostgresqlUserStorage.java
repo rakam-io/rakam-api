@@ -346,7 +346,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 String columnName = dbColumns.getString("COLUMN_NAME");
                 FieldType fieldType;
                 try {
-                    fieldType = fromSql(dbColumns.getInt("DATA_TYPE"));
+                    fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
                 } catch (IllegalStateException e) {
                     continue;
                 }
