@@ -91,11 +91,11 @@ public class PrestoQueryExecutor implements QueryExecutor {
         } else {
             QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
             String hotStorageConnector = prestoConfig.getHotStorageConnector();
-            String table = project + "." + node.getSuffix();
+            String table = '"'+project + "\".\"" + node.getSuffix() + '\"';
 
             if (hotStorageConnector != null) {
-                return "((select * from " + prefix.getSuffix() + ".\"" + table + "\" union all " +
-                        "select * from " + hotStorageConnector + ".\"" + table + "\")" +
+                return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
+                        "select * from " + hotStorageConnector + "." + table + ")" +
                         " as " + node.getSuffix()+")";
             } else {
                 return prefix.getSuffix() + "." + table;

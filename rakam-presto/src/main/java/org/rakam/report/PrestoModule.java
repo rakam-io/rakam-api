@@ -42,7 +42,6 @@ public class PrestoModule extends RakamModule {
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
 
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "presto.metastore.jdbc");
-
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(config);
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("presto.metastore.jdbc"))

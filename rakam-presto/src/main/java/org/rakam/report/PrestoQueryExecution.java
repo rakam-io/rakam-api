@@ -85,7 +85,7 @@ public class PrestoQueryExecution implements QueryExecution {
                 return TIMESTAMP;
             default:
                 if(prestoType.getRawType().equals(StandardTypes.ARRAY)) {
-                    return fromPrestoType(prestoType.getTypeArguments().get(0)).getArrayElementType();
+                    return fromPrestoType(prestoType.getTypeArguments().get(0)).convertToArrayType();
                 }
                 throw new NoSuchElementException();
         }
