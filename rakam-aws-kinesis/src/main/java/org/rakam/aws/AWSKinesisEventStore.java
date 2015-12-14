@@ -61,7 +61,7 @@ public class AWSKinesisEventStore implements EventStore {
                     .withStreamName(config.getEventStoreStreamName()));
             if (putRecordsResult.getFailedRecordCount() > 0) {
                 for (PutRecordsResultEntry resultEntry : putRecordsResult.getRecords()) {
-                    resultEntry.getErrorMessage();
+                    System.out.println(resultEntry.getErrorMessage());
                 }
             }
         } catch (ResourceNotFoundException e) {
@@ -87,6 +87,7 @@ public class AWSKinesisEventStore implements EventStore {
         } else {
             storeBatchInline(events, 0, events.size());
         }
+        System.out.println(events.size()+" committed");
     }
 
     @Override

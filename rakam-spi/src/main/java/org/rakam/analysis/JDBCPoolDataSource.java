@@ -38,6 +38,8 @@ public class JDBCPoolDataSource implements DataSource {
             hikariConfig.setMaximumPoolSize(config.getMaxConnection());
         }
 
+        hikariConfig.setConnectionTimeout(60000);
+
         hikariConfig.setAutoCommit(true);
         hikariConfig.setPoolName("generic-jdbc-query-executor");
         dataSource = new HikariDataSource(hikariConfig);

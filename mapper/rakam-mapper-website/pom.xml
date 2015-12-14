@@ -70,15 +70,11 @@
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
         </dependency>
-        <!--<dependency>-->
-            <!--<groupId>org.rakam</groupId>-->
-            <!--<artifactId>netty-rest</artifactId>-->
-        <!--</dependency>-->
         <!-- ua_parser doesn't publish the library in maven central so currently we're using jitpack. -->
         <dependency>
             <groupId>com.github.ua-parser</groupId>
             <artifactId>uap-java</artifactId>
-            <version>5b71dfdebe</version>
+            <version>8f138347c0</version>
         </dependency>
         <dependency>
             <groupId>com.google.inject.extensions</groupId>

@@ -245,15 +245,6 @@ public class EventCollectionHttpService extends HttpService {
                     return;
                 }
 
-                if(events.events.size() > 0) {
-                    for (int i = 1; i < events.events.size(); i++) {
-                        if(!events.events.get(i).project().equals(events.project)) {
-                            request.response("\"all events must belong to same project. try inserting events one by one.\"", UNAUTHORIZED).end();
-                        }
-                    }
-                }
-
-
                 for (Event event : events.events) {
                     try {
                         List<Cookie> mapperEntries = mapEvent(event, headers, socketAddress.getAddress(), response);

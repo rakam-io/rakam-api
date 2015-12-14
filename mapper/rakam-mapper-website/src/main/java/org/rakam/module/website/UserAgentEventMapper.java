@@ -13,6 +13,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.UserPropertyMapper;
+import ua_parser.CachingParser;
 import ua_parser.Client;
 import ua_parser.Parser;
 
@@ -26,7 +27,7 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
 
     public UserAgentEventMapper() {
         try {
-            uaParser = new Parser();
+            uaParser = new CachingParser();
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
@@ -59,16 +60,24 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
             } catch (Exception e) {
                 return;
             }
-            properties.put("user_agent_family", parsed.userAgent.family);
-            try {
-                properties.put("user_agent_version", Long.parseLong(parsed.userAgent.major));
-            } catch (NumberFormatException e) {}
 
-            properties.put("os", parsed.os.family);
-            try {
-                properties.put("os_version", Long.parseLong(parsed.os.major));
-            } catch (Exception e) {}
-            properties.put("device_family", parsed.device.family);
+            properties.put("user_agent_family", parsed.userAgent.family);
+
+            if(parsed.userAgent != null) {
+                try {
+                    properties.put("user_agent_version", Long.parseLong(parsed.userAgent.major));
+                } catch (NumberFormatException e) {}
+            }
+
+            if(parsed.os != null) {
+                properties.put("os", parsed.os.family);
+                if(parsed.os.major != null) {
+                    try {
+                        properties.put("os_version", Long.parseLong(parsed.os.major));
+                    } catch (Exception e) {
+                    }
+                }
+            }
         }
     }
 
