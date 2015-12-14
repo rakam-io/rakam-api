@@ -20,6 +20,8 @@ import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
@@ -168,11 +170,66 @@ public class AWSKinesisEventStore implements EventStore {
 
             for (Map.Entry<String, DynamicSliceOutput> entry : map.entrySet()) {
                 int length = entry.getValue().slice().length();
-                BasicSliceInput input = new BasicSliceInput(entry.getValue().slice());
+                BasicSliceInput sliceInput = new BasicSliceInput(entry.getValue().slice());
+                InputStream input = new SafeSliceInputStream(sliceInput);
+
                 ObjectMetadata objectMetadata = new ObjectMetadata();
                 objectMetadata.setContentLength(length);
                 String key = events.get(0).project() + "/" + entry.getKey() + "/" + batchId;
                 s3Client.putObject(config.getEventStoreBulkS3Bucket(), key, input, objectMetadata);
+            }
+        }
+
+        private class SafeSliceInputStream extends InputStream {
+            private final BasicSliceInput sliceInput;
+
+            public SafeSliceInputStream(BasicSliceInput sliceInput) {
+                this.sliceInput = sliceInput;
+            }
+
+            @Override
+            public int read() throws IOException {
+                return sliceInput.read();
+            }
+
+            @Override
+            public int read(byte[] b) throws IOException {
+                return sliceInput.read(b);
+            }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                return sliceInput.read(b, off, len);
+            }
+
+            @Override
+            public long skip(long n) throws IOException {
+                return sliceInput.skip(n);
+            }
+
+            @Override
+            public int available() throws IOException {
+                return sliceInput.available();
+            }
+
+            @Override
+            public void close() throws IOException {
+                sliceInput.close();
+            }
+
+            @Override
+            public synchronized void mark(int readlimit) {
+                throw new RuntimeException("mark/reset not supported");
+            }
+
+            @Override
+            public synchronized void reset() throws IOException {
+                throw new IOException("mark/reset not supported");
+            }
+
+            @Override
+            public boolean markSupported() {
+                return false;
             }
         }
     }
