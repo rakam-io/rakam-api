@@ -59,13 +59,11 @@ public class JDBCMetastore extends AbstractMetastore {
         super(fieldDependency, eventBus);
         this.config = config;
 
-        this.prestoConnectionFactory = new ConnectionFactory() {
-            @Override
-            public Connection openConnection() throws SQLException {
-                Properties properties = new Properties();
-                properties.put("user", "presto-rakam");
-                return DriverManager.getConnection("jdbc:presto://127.0.0.1:8080", properties);
-            }
+        this.prestoConnectionFactory = () -> {
+            Properties properties = new Properties();
+            properties.put("user", "presto-rakam");
+            return DriverManager.getConnection(String.format("jdbc:presto://%s:%d",
+                    config.getAddress().getHost(), config.getAddress().getPort()), properties);
         };
         dbi = new DBI(dataSource);
 
@@ -159,7 +157,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     "  )").execute();
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
                     "  name TEXT NOT NULL,\n" +
-                    "  location TEXT NOT NULL, PRIMARY KEY (name))")
+                    "  PRIMARY KEY (name))")
                     .execute();
             return null;
         });
@@ -224,9 +222,8 @@ public class JDBCMetastore extends AbstractMetastore {
         checkProject(project);
 
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO project (name, location) VALUES(:name, null)")
+            handle.createStatement("INSERT INTO project (name, location) VALUES(:name)")
                     .bind("name", project)
-//                    .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
                     .execute();
         }
 
