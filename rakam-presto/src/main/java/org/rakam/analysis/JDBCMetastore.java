@@ -157,6 +157,10 @@ public class JDBCMetastore extends AbstractMetastore {
                     "  master_key TEXT NOT NULL,\n" +
                     "  created_at TIMESTAMP default current_timestamp NOT NULL\n" +
                     "  )").execute();
+            handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
+                    "  name TEXT NOT NULL,\n" +
+                    "  location TEXT NOT NULL, PRIMARY KEY (name))")
+                    .execute();
             return null;
         });
     }
