@@ -53,7 +53,12 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
         }
 
         if(userAgent != null) {
-            Client parsed = uaParser.parse(userAgent);
+            Client parsed;
+            try {
+                parsed = uaParser.parse(userAgent);
+            } catch (Exception e) {
+                return;
+            }
             properties.put("user_agent_family", parsed.userAgent.family);
             try {
                 properties.put("user_agent_version", Long.parseLong(parsed.userAgent.major));
