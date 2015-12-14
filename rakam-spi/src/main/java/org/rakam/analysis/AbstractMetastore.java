@@ -18,10 +18,12 @@ import java.util.stream.Collectors;
 public abstract class AbstractMetastore implements Metastore {
     private final FieldDependencyBuilder.FieldDependency moduleFields;
     private final EventBus eventBus;
+    private final Set<String> sourceFields;
 
     public AbstractMetastore(FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus) {
         this.moduleFields = fieldDependency;
         this.eventBus = eventBus;
+        this.sourceFields = fieldDependency.dependentFields.keySet();
     }
 
     protected void onCreateProject(String project) {
@@ -79,6 +81,12 @@ public abstract class AbstractMetastore implements Metastore {
 
     @Override
     public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
+        Iterator<SchemaField> it = fields.iterator();
+        while(it.hasNext()) {
+            if(sourceFields.contains(it.next())){
+                it.remove();
+            }
+        }
         moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
         moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
         return getOrCreateCollectionFields(project, collection.toLowerCase(Locale.ENGLISH), fields);

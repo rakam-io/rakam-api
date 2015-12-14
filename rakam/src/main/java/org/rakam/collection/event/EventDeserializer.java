@@ -44,17 +44,19 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 
 public class EventDeserializer extends JsonDeserializer<Event> {
-    private final Map<String, List<SchemaField>> sourceFields;
+    private final Map<String, List<SchemaField>> conditionalMagicFields;
+    private final Set<SchemaField> constantMagicFields;
     private Logger logger = Logger.get(EventDeserializer.class);
 
-    private final Metastore schemaRegistry;
+    private final Metastore metastore;
     private final Map<ProjectCollection, Schema> schemaCache;
 
     @Inject
-    public EventDeserializer(Metastore schemaRegistry, FieldDependencyBuilder.FieldDependency fieldDependency) {
-        this.schemaRegistry = schemaRegistry;
+    public EventDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
+        this.metastore = metastore;
         this.schemaCache = Maps.newConcurrentMap();
-        this.sourceFields = fieldDependency.dependentFields;
+        this.conditionalMagicFields = fieldDependency.dependentFields;
+        this.constantMagicFields = fieldDependency.constantFields;
     }
 
     @Override
@@ -127,13 +129,12 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
         Schema schema = Schema.createRecord("collection", null, null, false);
 
-        sourceFields.keySet().stream()
+        conditionalMagicFields.keySet().stream()
                 .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
                 .map(n -> new Schema.Field(n, Schema.create(Schema.Type.NULL), "", null))
                 .forEach(x -> avroFields.add(x));
 
         schema.setFields(avroFields);
-
         return schema;
     }
 
@@ -142,7 +143,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         Schema avroSchema = schemaCache.get(key);
         List<SchemaField> schema;
         if (avroSchema == null) {
-            schema = schemaRegistry.getCollection(project, collection);
+            schema = metastore.getCollection(project, collection);
             if (schema != null) {
                 avroSchema = convertAvroSchema(schema);
 
@@ -154,7 +155,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             ObjectNode node = jp.readValueAs(ObjectNode.class);
             Set<SchemaField> fields = createSchemaFromArbitraryJson(node);
 
-            schema = schemaRegistry.getOrCreateCollectionFieldList(project, collection, fields);
+            schema = metastore.getOrCreateCollectionFieldList(project, collection, fields);
             avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
 
@@ -213,7 +214,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             } else {
                 if(field.schema().getType() == Schema.Type.NULL) {
                     // TODO: get rid of this loop.
-                    for (SchemaField schemaField : sourceFields.get(fieldName)) {
+                    for (SchemaField schemaField : conditionalMagicFields.get(fieldName)) {
                         if(avroSchema.getField(schemaField.getName()) == null) {
                             if(newFields == null) {
                                 newFields = new HashSet<>();
@@ -228,7 +229,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
 
         if (newFields != null) {
-            List<SchemaField> newSchema = schemaRegistry.getOrCreateCollectionFieldList(project, collection, newFields);
+            List<SchemaField> newSchema = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
 
             schemaCache.put(key, newAvroSchema);
@@ -246,7 +247,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         List<Schema.Field> avroFields = copyFields(currentSchema.getFields());
         avroFields.add(AvroUtil.generateAvroSchema(newField));
 
-        sourceFields.keySet().stream()
+        conditionalMagicFields.keySet().stream()
                 .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
                 .map(n -> new Schema.Field(n, Schema.create(Schema.Type.NULL), "", null))
                 .forEach(x -> avroFields.add(x));

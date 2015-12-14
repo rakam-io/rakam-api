@@ -37,10 +37,10 @@ public class AWSKinesisEventStore implements EventStore {
     };
 
     @Inject
-    public AWSKinesisEventStore(AWSConfig config, FieldDependencyBuilder.FieldDependency dependency) {
+    public AWSKinesisEventStore(AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
-        this.sourceFields = dependency.dependentFields.keySet();
+        this.sourceFields = fieldDependency.dependentFields.keySet();
         this.config = config;
     }
 

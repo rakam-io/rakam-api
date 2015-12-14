@@ -1,5 +1,6 @@
 package org.rakam.collection.kafka;
 
+import com.google.common.collect.Sets;
 import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Singleton;
@@ -21,6 +22,7 @@ import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.rakam.collection.Event;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
@@ -55,9 +57,11 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     };
 
     @Inject
-    public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config, FieldDependencyBuilder.FieldDependency dependency) {
+    public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         config = checkNotNull(config, "config is null");
-        this.sourceFields = dependency.dependentFields.keySet();
+        this.sourceFields = Sets.union(fieldDependency.dependentFields.keySet(),
+                fieldDependency.constantFields.stream().map(SchemaField::getName)
+                        .collect(Collectors.toSet()));
 
         Properties props = new Properties();
         props.put("metadata.broker.list", config.getNodes().stream().map(HostAndPort::toString).collect(Collectors.joining(",")));
