@@ -99,6 +99,17 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <groupId>com.amazonaws</groupId>
+            <version>1.9.37</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- Maven dependency plugin complains that there are two versions (2.8.2 and 2.9.1) of joda-time in classpath.
         The problem is related with AWS library. -->
         <dependency>

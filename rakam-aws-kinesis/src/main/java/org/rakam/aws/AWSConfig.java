@@ -13,6 +13,7 @@ public class AWSConfig {
     private String secretAccessKey;
     private String eventStoreStreamName;
     private String region;
+    private String eventStoreBulkS3Bucket;
 
 
     public String getEventStoreStreamName() {
@@ -22,6 +23,15 @@ public class AWSConfig {
     @Config("event.store.kinesis.stream")
     public void setEventStoreStreamName(String eventStoreStreamName) {
         this.eventStoreStreamName = eventStoreStreamName;
+    }
+
+    @Config("event.store.bulk.s3-bucket")
+    public void setEventStoreBulkS3Bucket(String eventStoreBulkS3Bucket) {
+        this.eventStoreBulkS3Bucket = eventStoreBulkS3Bucket;
+    }
+
+    public String getEventStoreBulkS3Bucket() {
+        return eventStoreBulkS3Bucket;
     }
 
     @Config("aws.access_key")
