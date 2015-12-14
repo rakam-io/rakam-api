@@ -1,7 +1,6 @@
 package org.rakam.report;
 
 import com.google.auto.service.AutoService;
-import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -14,7 +13,6 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.PrestoAbstractUserService;
 import org.rakam.analysis.PrestoMaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
@@ -24,16 +22,12 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.plugin.user.PrestoExternalUserStorageAdapter;
 
-import javax.inject.Inject;
-
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
-import static org.rakam.report.PrestoQueryExecution.toPrestoType;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="presto")
@@ -77,7 +71,6 @@ public class PrestoModule extends RakamModule {
 
         Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
         timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
-        binder.bind(ColdStorageCollectionCreator.class).asEagerSingleton();
     }
 
     @Override
@@ -88,36 +81,5 @@ public class PrestoModule extends RakamModule {
     @Override
     public String description() {
         return "Rakam backend for high-throughput systems.";
-    }
-
-    private static class ColdStorageCollectionCreator {
-        private final PrestoQueryExecutor prestoQueryExecutor;
-        private final PrestoConfig config;
-
-        @Inject
-        public ColdStorageCollectionCreator(PrestoQueryExecutor prestoQueryExecutor, PrestoConfig config) {
-            this.prestoQueryExecutor = prestoQueryExecutor;
-            this.config = config;
-        }
-
-        @Subscribe
-        public void onCreateField(SystemEvents.CollectionFieldCreatedEvent event) {
-            for(SchemaField field : event.fields) {
-                prestoQueryExecutor
-                        .executeRawQuery(String.format("ALTER TABLE %s.\"%s\".\"%s\" ADD COLUMN \"%s\" %s",
-                                config.getColdStorageConnector(), event.project, event.collection,
-                                field.getName(), toPrestoType(field.getType()))
-                        ).getResult().join();
-            }
-
-        }
-
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            prestoQueryExecutor
-                    .executeRawQuery(String.format("CREATE TABLE %s.\"%s\".\"%s\" AS SELECT * FROM %s.\"%s\".\"%s\" LIMIT 0",
-                            config.getColdStorageConnector(), event.project, event.collection,
-                            config.getHotStorageConnector(), event.project, event.collection)
-                    ).getResult().join();
-        }
     }
 }

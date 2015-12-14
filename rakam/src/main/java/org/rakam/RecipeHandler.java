@@ -39,7 +39,7 @@ public class RecipeHandler {
                 .map(m -> new Recipe.MaterializedViewBuilder(m.name, m.tableName, m.query, m.updateInterval, m.options))
                 .collect(Collectors.toList());
         final List<Recipe.ContinuousQueryBuilder> continuousQueryBuilders = continuousQueryService.list(project).stream()
-                .map(m -> new Recipe.ContinuousQueryBuilder(m.name, m.tableName, m.getRawQuery(), m.collections, m.partitionKeys, m.options))
+                .map(m -> new Recipe.ContinuousQueryBuilder(m.name, m.tableName, m.query, m.partitionKeys, m.options))
                 .collect(Collectors.toList());
 
         final List<Recipe.ReportBuilder> reports = reportMetadata

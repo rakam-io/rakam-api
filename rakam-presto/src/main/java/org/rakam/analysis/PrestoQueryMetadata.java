@@ -43,8 +43,8 @@ public class PrestoQueryMetadata extends JDBCQueryMetadata {
 
     @Override
     public void createContinuousQuery(ContinuousQuery report) {
-        QueryResult join = executor.executeRawStatement(String.format("CREATE VIEW %s.%s.%s AS %s",
-                "streaming", report.project(), report.tableName, report.query))
+        QueryResult join = executor.executeRawStatement(String.format("CREATE VIEW streaming.\"%s\".\"%s\" AS %s",
+                report.project(), report.tableName, report.query))
                 .getResult().join();
         if (join.isFailed()) {
             throw new RakamException(join.getError().message, HttpResponseStatus.BAD_REQUEST);
@@ -53,8 +53,8 @@ public class PrestoQueryMetadata extends JDBCQueryMetadata {
 
     @Override
     public void deleteContinuousQuery(String project, String tableName) {
-        QueryResult join = executor.executeRawStatement(String.format("DROP VIEW %s.%s.%s",
-                "streaming", project, tableName))
+        QueryResult join = executor.executeRawStatement(String.format("DROP VIEW streaming.\"%s\".\"%s\"",
+                project, tableName))
                 .getResult().join();
         if (join.isFailed()) {
             throw new RakamException(join.getError().message, HttpResponseStatus.BAD_REQUEST);

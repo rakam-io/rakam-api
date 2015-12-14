@@ -115,7 +115,6 @@ public class Recipe implements ProjectItem {
         public final String name;
         public final String tableName;
         public final String query;
-        public final List<String> collections;
         public final List<String> partitionKeys;
         public final Map<String, Object> options;
 
@@ -123,19 +122,17 @@ public class Recipe implements ProjectItem {
         public ContinuousQueryBuilder(@JsonProperty("name") String name,
                                       @JsonProperty("table_name") String tableName,
                                       @JsonProperty("query") String query,
-                                      @JsonProperty("collections") List<String> collections,
                                       @JsonProperty("partition_keys") List<String> partitionKeys,
                                       @JsonProperty("options") Map<String, Object> options) {
             this.name = name;
             this.tableName = tableName;
             this.query = query;
-            this.collections = collections;
             this.partitionKeys = partitionKeys;
             this.options = options;
         }
 
         public ContinuousQuery createContinuousQuery(String project) {
-            return new ContinuousQuery(project, name, tableName, query, collections, partitionKeys, options);
+            return new ContinuousQuery(project, name, tableName, query, partitionKeys, options);
         }
     }
 

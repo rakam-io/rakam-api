@@ -13,7 +13,6 @@ import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.guava.collect.ImmutableSet;
 import com.facebook.presto.jdbc.internal.guava.net.HostAndPort;
 import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
@@ -41,7 +40,6 @@ import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CAT
 
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
-    private final SqlParser parser = new SqlParser();
     private final PrestoConfig prestoConfig;
     private final JettyHttpClient httpClient = new JettyHttpClient(
             new HttpClientConfig()
@@ -70,10 +68,10 @@ public class PrestoQueryExecutor implements QueryExecutor {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();
             if(prefix.equals("continuous")) {
-                return PRESTO_STREAMING_CATALOG_NAME + "." + project + "." + node.getSuffix();
+                return PRESTO_STREAMING_CATALOG_NAME + ".\"" + project + "\".\"" +node.getSuffix() + '"';
             } else
             if(prefix.equals("materialized")) {
-                return project + "." + MATERIALIZED_VIEW_PREFIX + node.getSuffix();
+                return MATERIALIZED_VIEW_PREFIX + ".\"" + project + "\".\"" +node.getSuffix() + '"';
             } else
             if(!prefix.equals("collection")) {
                 throw new IllegalArgumentException("Schema does not exist: " + prefix);
@@ -96,8 +94,8 @@ public class PrestoQueryExecutor implements QueryExecutor {
             String table = project + "." + node.getSuffix();
 
             if (hotStorageConnector != null) {
-                return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
-                        "select * from " + hotStorageConnector + "." + table + ")" +
+                return "((select * from " + prefix.getSuffix() + ".\"" + table + "\" union all " +
+                        "select * from " + hotStorageConnector + ".\"" + table + "\")" +
                         " as " + node.getSuffix()+")";
             } else {
                 return prefix.getSuffix() + "." + table;

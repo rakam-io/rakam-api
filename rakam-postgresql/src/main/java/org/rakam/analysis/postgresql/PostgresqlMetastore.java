@@ -321,7 +321,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 if (queryEnd.isEmpty()) {
                     return currentFields;
                 }
-                query = format("CREATE TABLE %s.%s (%s)", project, collection, queryEnd);
+                query = format("CREATE TABLE \"%s\".\"%s\" (%s)", project, collection, queryEnd);
                 task = () -> super.onCreateCollection(project, collection, schemaFields);
             } else {
                 String queryEnd = schemaFields.stream()
@@ -334,7 +334,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 if (queryEnd.isEmpty()) {
                     return currentFields;
                 }
-                query = format("ALTER TABLE %s.%s %s", project, collection, queryEnd);
+                query = format("ALTER TABLE \"%s\".\"%s\" %s", project, collection, queryEnd);
                 task = () -> super.onCreateCollectionField(project, collection, schemaFields);
             }
 

@@ -41,7 +41,7 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
     @Override
     public CompletableFuture<Boolean> delete(String project, String name) {
-        return executor.executeRawQuery(String.format("DROP VIEW %s.%s", project, name)).getResult().thenApply(result -> !result.isFailed());
+        return executor.executeRawQuery(String.format("DROP VIEW \"%s\".\"%s\"", project, name)).getResult().thenApply(result -> !result.isFailed());
     }
 
     @Override
@@ -62,18 +62,15 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
         ContinuousQuery continuousQuery;
         try {
             continuousQuery = new ContinuousQuery(project, "test", "test",
-                    query, ImmutableList.of(), ImmutableList.of(), ImmutableMap.of());
+                    query, ImmutableList.of(), ImmutableMap.of());
         } catch (ParsingException|IllegalArgumentException e) {
             throw new RakamException("Query is not valid: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }
 
         StringBuilder builder = new StringBuilder();
-        new QueryFormatter(builder, qualifiedName -> {
-            if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
-                return PostgresqlQueryExecutor.replaceStream(continuousQuery, metastore);
-            }
-            return executor.formatTableReference(project, qualifiedName);
-        }).process(continuousQuery.query, 1);
+        new QueryFormatter(builder, qualifiedName ->
+                executor.formatTableReference(project, qualifiedName))
+                .process(continuousQuery.getQuery(), 1);
 
         QueryExecution execution = executor
                 .executeRawQuery(builder.toString() + " limit 0");

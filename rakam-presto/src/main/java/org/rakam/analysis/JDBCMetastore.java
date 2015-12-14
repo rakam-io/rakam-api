@@ -105,7 +105,7 @@ public class JDBCMetastore extends AbstractMetastore {
         apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>() {
             @Override
             public List<Set<String>> load(String project) throws Exception {
-                try(Handle handle = dbi.open()) {
+                try (Handle handle = dbi.open()) {
 
                     Set<String> masterKeyList = new HashSet<>();
                     Set<String> readKeyList = new HashSet<>();
@@ -117,7 +117,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     PreparedStatement ps = handle.getConnection().prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = ?");
                     ps.setString(1, project);
                     ResultSet resultSet = ps.executeQuery();
-                    while(resultSet.next()) {
+                    while (resultSet.next()) {
                         String apiKey;
 
                         apiKey = resultSet.getString(1);
@@ -155,7 +155,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     "  read_key TEXT NOT NULL,\n" +
                     "  write_key TEXT NOT NULL,\n" +
                     "  master_key TEXT NOT NULL,\n" +
-                    "  created_at TIMESTAMP default current_timestamp NOT NULL\n"+
+                    "  created_at TIMESTAMP default current_timestamp NOT NULL\n" +
                     "  )").execute();
             return null;
         });
@@ -193,7 +193,7 @@ public class JDBCMetastore extends AbstractMetastore {
         String writeKey = CryptUtil.generateRandomKey(64);
 
         int id;
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             id = handle.createStatement("INSERT INTO api_key (project, master_key, read_key, write_key) VALUES (:project, :master_key, :read_key, :write_key)")
                     .bind("project", project)
                     .bind("master_key", masterKey)
@@ -207,7 +207,7 @@ public class JDBCMetastore extends AbstractMetastore {
 
     @Override
     public void revokeApiKeys(String project, int id) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM api_key WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", id)
@@ -219,7 +219,7 @@ public class JDBCMetastore extends AbstractMetastore {
     public void createProject(String project) {
         checkProject(project);
 
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO project (name, location) VALUES(:name, null)")
                     .bind("name", project)
 //                    .bind("location", prestoConfig.getStorage().replaceFirst("/+$", "") + File.separator + project + File.separator)
@@ -231,7 +231,7 @@ public class JDBCMetastore extends AbstractMetastore {
 
     @Override
     public Set<String> getProjects() {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             return ImmutableSet.copyOf(
                     handle.createQuery("select name from project")
                             .map(StringMapper.FIRST).iterator());
@@ -329,19 +329,13 @@ public class JDBCMetastore extends AbstractMetastore {
             schemaCache.put(new ProjectCollection(project, collection), currentFields);
             return currentFields;
         } catch (SQLException e) {
-            // syntax error exception
-//            if (e.getSQLState().equals("42601") || e.getSQLState().equals("42939")) {
-//                throw new IllegalStateException("One of the column names is not valid because it collides with reserved keywords in Postgresql. : " +
-//                        (currentFields.stream().map(SchemaField::getName).collect(Collectors.joining(", "))) +
-//                        "See http://www.postgresql.org/docs/devel/static/sql-keywords-appendix.html");
-//            } else
-                // column or table already exists
-//                if (e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42710")) {
-                    // TODO: should we try again until this operation is done successfully, what about infinite loops?
-//                    return getOrCreateCollectionFieldList(project, collection, fields);
-//                } else {
-                    throw new IllegalStateException(e.getMessage());
-//                }
+            // column or table already exists
+            if (e.getMessage().contains("exists")) {
+                // TODO: should we try again until this operation is done successfully, what about infinite loops?
+                return getOrCreateCollectionFieldList(project, collection, fields);
+            } else {
+                throw new IllegalStateException(e.getMessage());
+            }
         }
     }
 
@@ -349,7 +343,7 @@ public class JDBCMetastore extends AbstractMetastore {
     public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
         try {
             boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
-            if(!exists) {
+            if (!exists) {
                 apiKeyCache.refresh(project);
                 return apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
             }
@@ -361,16 +355,16 @@ public class JDBCMetastore extends AbstractMetastore {
 
     @Override
     public List<ProjectApiKeys> getApiKeys(int[] ids) {
-        if(ids.length == 0) {
+        if (ids.length == 0) {
             return ImmutableList.of();
         }
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             Connection conn = handle.getConnection();
             PreparedStatement ps = conn.prepareStatement("select id, project, master_key, read_key, write_key from api_key where id = any(?)");
             ps.setArray(1, conn.createArrayOf("int4", Arrays.stream(ids).boxed().toArray()));
             ResultSet resultSet = ps.executeQuery();
             ArrayList<ProjectApiKeys> list = new ArrayList<>();
-            while(resultSet.next()) {
+            while (resultSet.next()) {
                 list.add(new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
             }
             return list;
@@ -393,8 +387,8 @@ public class JDBCMetastore extends AbstractMetastore {
             case DOUBLE:
                 return "DOUBLE";
             default:
-                if(type.isArray()) {
-                    return "ARRAY<"+toSql(type.getArrayElementType()) + ">";
+                if (type.isArray()) {
+                    return "ARRAY<" + toSql(type.getArrayElementType()) + ">";
                 }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }

@@ -120,7 +120,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
                 statement.execute(format("CREATE TRIGGER %s" +
                         "  AFTER INSERT" +
-                        "  ON %s.%s" +
+                        "  ON \"%s\".\"%s\"" +
                         "  FOR EACH ROW" +
                         "  EXECUTE PROCEDURE %s();", name, project, collection.collection, name));
 

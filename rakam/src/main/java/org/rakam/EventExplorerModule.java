@@ -44,7 +44,7 @@ public class EventExplorerModule extends RakamModule {
     }
 
     private static class EventExplorerListener {
-        private static final String QUERY = "select _time/3600 as time, count(*) as total from stream group by 1";
+        private static final String QUERY = "select _time/3600 as time, count(*) as total from %s group by 1";
         private final ContinuousQueryService continuousQueryService;
 
         @Inject
@@ -56,8 +56,7 @@ public class EventExplorerModule extends RakamModule {
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
             ContinuousQuery report = new ContinuousQuery(event.project, "Total count of "+event.collection,
                     "_total_" + event.collection,
-                    QUERY,
-                    ImmutableList.of(event.collection),
+                    String.format(QUERY, event.collection),
                     ImmutableList.of(), ImmutableMap.of());
             continuousQueryService.create(report);
         }

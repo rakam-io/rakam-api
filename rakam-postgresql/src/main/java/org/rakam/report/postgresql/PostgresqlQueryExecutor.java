@@ -1,13 +1,11 @@
 package org.rakam.report.postgresql;
 
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
@@ -19,15 +17,10 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
@@ -82,12 +75,9 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     }
                     StringBuilder builder = new StringBuilder();
 
-                    new QueryFormatter(builder, qualifiedName -> {
-                        if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
-                            return replaceStream(report, metastore);
-                        }
-                        return project + "." + name.getSuffix();
-                    }).process(report.query, 1);
+                    new QueryFormatter(builder,
+                            qualifiedName -> this.formatTableReference(project, qualifiedName))
+                            .process(report.getQuery(), 1);
 
                     return "("+builder.toString()+") as "+name.getSuffix();
                 case "materialized":
@@ -101,41 +91,5 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
     public Connection getConnection() throws SQLException {
         return connectionPool.getConnection();
-    }
-
-    public static String replaceStream(ContinuousQuery report, Metastore metastore) {
-
-        if (report.collections != null && report.collections.size() == 1) {
-            return report.project + "." + report.collections.get(0);
-        }
-
-        final List<Map.Entry<String, List<SchemaField>>> collect = metastore.getCollections(report.project)
-                .entrySet().stream()
-                .filter(c -> report.collections == null || report.collections.size() == 0 || report.collections.contains(c.getKey()))
-                .collect(Collectors.toList());
-
-        Iterator<Map.Entry<String, List<SchemaField>>> entries = collect.iterator();
-
-        List<SchemaField> base = null;
-        while (entries.hasNext()) {
-            Map.Entry<String, List<SchemaField>> next = entries.next();
-
-            if (base == null) {
-                base = new ArrayList(next.getValue());
-                continue;
-            }
-
-            Iterator<SchemaField> iterator = base.iterator();
-            while (iterator.hasNext()) {
-                if (!next.getValue().contains(iterator.next())) {
-                    iterator.remove();
-                }
-            }
-        }
-
-        String commonColumns = (base == null ? ImmutableList.<SchemaField>of() : base).stream().map(SchemaField::getName).collect(Collectors.joining(", "));
-
-        return "(" + collect.stream().map(c -> String.format("select %s from %s.%s", commonColumns, report.project, c.getKey()))
-                .collect(Collectors.joining(" union all ")) + ") as stream";
     }
 }

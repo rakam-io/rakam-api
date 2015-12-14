@@ -77,9 +77,10 @@ public class AWSKinesisEventStore implements EventStore {
     public void storeBatch(List<Event> events) {
         if(events.size() > BATCH_SIZE) {
             int cursor = 0;
-            int loopSize = Math.min(cursor + BATCH_SIZE, events.size());
 
             while(cursor < events.size()) {
+                int loopSize = Math.min(BATCH_SIZE, events.size() - cursor);
+
                 storeBatchInline(events, cursor, loopSize);
                 cursor += loopSize;
             }

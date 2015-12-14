@@ -53,7 +53,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                         .collect(Collectors.joining(", "));
                 filters.add((format("id in (%s)", ids)));
             } else {
-                builder.append(format("select \"_user\" from %s.%s",
+                builder.append(format("select \"_user\" from \"%s\".\"%s\"",
                         executor.formatTableReference(project, QualifiedName.of(filter.collection))));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));

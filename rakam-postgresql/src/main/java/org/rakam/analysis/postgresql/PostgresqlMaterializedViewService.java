@@ -49,7 +49,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
         new QueryFormatter(builder, name -> queryExecutor.formatTableReference(materializedView.project, name)).process(statement, 1);
 
-        QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW %s.%s%s AS %s WITH NO DATA",
+        QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
                 materializedView.project, PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
         if(result.isFailed()) {
             throw new RakamException("Couldn't created table: "+result.getError().toString(), UNAUTHORIZED);
@@ -62,7 +62,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
     public CompletableFuture<QueryResult> delete(String project, String name) {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
-        return queryExecutor.executeRawStatement(format("DROP MATERIALIZED VIEW %s.%s%s",
+        return queryExecutor.executeRawStatement(format("DROP MATERIALIZED VIEW \"%s\".\"%s%s\"",
                 materializedView.project, PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName)).getResult();
     }
 
@@ -71,7 +71,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         CompletableFuture<Boolean> f = new CompletableFuture<>();
         boolean availableForUpdating = database.updateMaterializedView(materializedView, f);
         if(availableForUpdating) {
-            QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW %s.%s%s", materializedView.project,
+            QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW \"%s\".\"%s%s\"", materializedView.project,
                     PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName));
             return new DelegateQueryExecution(execution, result -> {
                 f.complete(!result.isFailed());

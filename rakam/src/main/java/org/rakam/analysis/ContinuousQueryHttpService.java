@@ -51,7 +51,7 @@ public class ContinuousQueryHttpService extends HttpService {
     @Path("/create")
     public CompletableFuture<JsonResponse> create(@ParamBody ContinuousQuery report) {
         CompletableFuture<QueryResult> f;
-        List<SchemaField> test = service.test(report.project, report.getRawQuery());
+        List<SchemaField> test = service.test(report.project, report.query);
         if (report.partitionKeys.stream().filter(key -> !test.stream().anyMatch(a -> a.getName().equals(key))).findAny().isPresent()) {
             throw new RakamException("Partition keys are not valid.", HttpResponseStatus.BAD_REQUEST);
         }

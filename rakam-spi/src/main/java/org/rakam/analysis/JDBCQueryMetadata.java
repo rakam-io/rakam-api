@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -48,7 +47,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     ResultSetMapper<ContinuousQuery> continuousQueryMapper = (index, r, ctx) ->
             new ContinuousQuery(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
-            JsonHelper.read(r.getString(5), List.class),
             JsonHelper.read(r.getString(6), List.class),
             JsonHelper.read(r.getString(7), Map.class));
 
@@ -141,15 +139,12 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public void createContinuousQuery(ContinuousQuery report) {
         try(Handle handle = dbi.open()) {
-            StringBuilder builder = new StringBuilder();
-            new RakamSqlFormatter.Formatter(builder).process(report.query, 1);
             try {
                 handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, options) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
                         .bind("project", report.project)
                         .bind("name", report.name)
                         .bind("tableName", report.tableName)
-                        .bind("query", builder.toString())
-                        .bind("collections", JsonHelper.encode(report.collections))
+                        .bind("query", report.query)
                         .bind("partitionKeys", JsonHelper.encode(report.partitionKeys))
                         .bind("options", JsonHelper.encode(report.options))
                         .execute();
@@ -216,7 +211,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                         return new ContinuousQuery(
                                 r.getString("project"),
                                 r.getString("name"), r.getString("table_name"), r.getString("query"),
-                                JsonHelper.read(r.getString("collections"), List.class),
                                 JsonHelper.read(r.getString("partition_keys"), List.class),
                                 JsonHelper.read(r.getString("options"), Map.class));
                     }).list();

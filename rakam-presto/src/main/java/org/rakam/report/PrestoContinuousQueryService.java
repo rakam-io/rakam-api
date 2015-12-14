@@ -1,12 +1,8 @@
 package org.rakam.report;
 
-import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.Join;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
@@ -14,8 +10,6 @@ import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -27,43 +21,43 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     public final static String PRESTO_STREAMING_CATALOG_NAME = "streaming";
     private final QueryMetadataStore database;
     private final PrestoQueryExecutor executor;
-    private final Metastore metastore;
+    private final PrestoConfig config;
 
     @Inject
-    public PrestoContinuousQueryService(QueryMetadataStore database, PrestoQueryExecutor executor, Metastore metastore) {
+    public PrestoContinuousQueryService(QueryMetadataStore database, PrestoQueryExecutor executor, PrestoConfig config) {
         super(database);
         this.database = database;
         this.executor = executor;
-        this.metastore = metastore;
+        this.config = config;
     }
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
-        report.query.accept(new AstVisitor<Void, Void>() {
-            @Override
-            protected Void visitQualifiedNameReference(QualifiedNameReference node, Void context)
-            {
-                if(!node.getName().equals("stream")) {
-                    throw new IllegalArgumentException("Continuous queries must only reference 'stream' table.");
-                }
-                return null;
-            }
+        StringBuilder builder = new StringBuilder();
 
-            @Override
-            protected Void visitJoin(Join node, Void context)
-            {
-                throw new IllegalArgumentException("Currently, continuous tables don't support JOINs.");
+        new QueryFormatter(builder, name -> {
+            if(name.getParts().size() == 1) {
+                return "_source.\""+report.project+"\".\""+name.toString()+"\"";
             }
-        }, null);
-        database.createContinuousQuery(report);
-        return CompletableFuture.completedFuture(QueryResult.empty());
+            return executor.formatTableReference(report.project, name);
+        }).process(report.getQuery(), 1);
+
+        String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", PRESTO_STREAMING_CATALOG_NAME,
+                report.project, report.tableName, builder.toString());
+        return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
+            if(result.getError() == null) {
+                database.createContinuousQuery(report);
+                return QueryResult.empty();
+            }
+            return QueryResult.empty();
+        });
     }
 
     @Override
     public CompletableFuture<Boolean> delete(String project, String name) {
         ContinuousQuery continuousQuery = database.getContinuousQuery(project, name);
 
-        String prestoQuery = format("drop view %s.%s.%s", PRESTO_STREAMING_CATALOG_NAME,
+        String prestoQuery = format("drop view %s.\"%s\".\"%s\"", PRESTO_STREAMING_CATALOG_NAME,
                 continuousQuery.project, continuousQuery.tableName);
         return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
             if(result.getError() == null) {
@@ -78,7 +72,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     public Map<String, List<SchemaField>> getSchemas(String project) {
         List<SimpleImmutableEntry<String, CompletableFuture<QueryResult>>> collect = database.getContinuousQueries(project).stream()
                 .map(query -> {
-                    PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("select * from %s.%s.%s limit 0",
+                    PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("select * from %s.\"%s\".\"%s\" limit 0",
                             PRESTO_STREAMING_CATALOG_NAME, project, query.tableName));
                     return new SimpleImmutableEntry<>(query.tableName, prestoQueryExecution
                             .getResult());
@@ -99,54 +93,19 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
     @Override
     public List<SchemaField> test(String project, String query) {
-        ContinuousQuery continuousQuery = new ContinuousQuery(project, "test", "test", query, ImmutableList.of(), ImmutableList.of(), ImmutableMap.of());
-
         StringBuilder builder = new StringBuilder();
+        ContinuousQuery continuousQuery = new ContinuousQuery(project, "", "", query, ImmutableList.of(), ImmutableMap.of());
+
         new QueryFormatter(builder, qualifiedName -> {
-            if(!qualifiedName.getPrefix().isPresent() && qualifiedName.getSuffix().equals("stream")) {
-                return replaceStream(continuousQuery);
+            if(qualifiedName.getParts().size() == 2) {
+                return config.getColdStorageConnector()+"."+qualifiedName.getPrefix().get()+"."+qualifiedName.getSuffix();
             }
             return executor.formatTableReference(project, qualifiedName);
-        }).process(continuousQuery.query, 1);
+        }).process(continuousQuery.getQuery(), 1);
 
         QueryExecution execution = executor
                 .executeRawQuery(builder.toString() + " limit 0");
         return execution.getResult().join().getMetadata();
     }
 
-    private String replaceStream(ContinuousQuery report) {
-
-        if (report.collections != null && report.collections.size() == 1) {
-            return report.project + "." + report.collections.get(0);
-        }
-
-        final List<Map.Entry<String, List<SchemaField>>> collect = metastore.getCollections(report.project)
-                .entrySet().stream()
-                .filter(c -> report.collections == null || report.collections.contains(c.getKey()))
-                .collect(Collectors.toList());
-
-        Iterator<Map.Entry<String, List<SchemaField>>> entries = collect.iterator();
-
-        List<SchemaField> base = null;
-        while (entries.hasNext()) {
-            Map.Entry<String, List<SchemaField>> next = entries.next();
-
-            if (base == null) {
-                base = new ArrayList(next.getValue());
-                continue;
-            }
-
-            Iterator<SchemaField> iterator = base.iterator();
-            while (iterator.hasNext()) {
-                if (!next.getValue().contains(iterator.next())) {
-                    iterator.remove();
-                }
-            }
-        }
-
-        String commonColumns = (base == null ? ImmutableList.<SchemaField>of() : base).stream().map(SchemaField::getName).collect(Collectors.joining(", "));
-
-        return "(" + collect.stream().map(c -> String.format("select %s from %s.%s", commonColumns, report.project, c.getKey()))
-                .collect(Collectors.joining(" union all ")) + ") as stream";
-    }
 }
