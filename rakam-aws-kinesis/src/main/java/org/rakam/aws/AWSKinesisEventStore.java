@@ -4,7 +4,6 @@ import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
-import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.RecordGenericRecordWriter;
@@ -60,9 +59,7 @@ public class AWSKinesisEventStore implements EventStore {
                     .withRecords(records)
                     .withStreamName(config.getEventStoreStreamName()));
             if (putRecordsResult.getFailedRecordCount() > 0) {
-                for (PutRecordsResultEntry resultEntry : putRecordsResult.getRecords()) {
-                    System.out.println(resultEntry.getErrorMessage());
-                }
+                System.out.println("error "+putRecordsResult.getFailedRecordCount()+": "+putRecordsResult.getRecords().get(0).getErrorMessage());
             }
         } catch (ResourceNotFoundException e) {
             try {
