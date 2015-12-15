@@ -73,7 +73,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
         if (result.isDone()) {
             return new QueryStats(100, QueryStats.State.FINISHED, null, null, null, null, null, null);
         } else {
-            return new QueryStats(0, QueryStats.State.PROCESSING, null, null, null, null, null, null);
+            return new QueryStats(0, QueryStats.State.RUNNING, null, null, null, null, null, null);
         }
     }
 

@@ -33,6 +33,6 @@ public class QueryStats {
     }
 
     public enum  State {
-        PROCESSING, FINISHED;
+        FINISHED, RUNNING
     }
 }

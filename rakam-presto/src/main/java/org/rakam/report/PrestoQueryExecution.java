@@ -6,6 +6,7 @@ import com.facebook.presto.jdbc.internal.client.StatementStats;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
 import com.facebook.presto.jdbc.internal.guava.util.concurrent.ThreadFactoryBuilder;
 import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
@@ -58,7 +59,7 @@ public class PrestoQueryExecution implements QueryExecution {
                         com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
                         columns.add(new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature()), true));
                     }
-                    result.complete(new QueryResult(columns, data));
+                    result.complete(new QueryResult(columns, data, ImmutableMap.of(QueryResult.EXECUTION_TIME, client.finalResults().getStats().getUserTimeMillis())));
                 }
             }
         });

@@ -99,7 +99,7 @@ public class QueryExecutorService {
 
                 private QueryStats merge(QueryStats currentStats, QueryStats stats) {
                     return new QueryStats(currentStats.percentage+stats.percentage,
-                            currentStats.state.equals(stats.state) ? currentStats.state : QueryStats.State.PROCESSING,
+                            currentStats.state.equals(stats.state) ? currentStats.state : QueryStats.State.RUNNING,
                             Math.max(currentStats.node, stats.node),
                             stats.processedRows+currentStats.processedRows,
                             stats.processedBytes+currentStats.processedBytes,
