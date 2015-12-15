@@ -150,33 +150,66 @@ public class AWSKinesisEventStore implements EventStore {
         }
 
         public void upload(List<Event> events) {
-            Map<String, DynamicSliceOutput> map = new HashMap<>();
+            Map<String, Entry> map = new HashMap<>();
+            GenericData data = GenericData.get();
+            BinaryEncoder encoder = null;
+
+            DynamicSliceOutput buffer = new DynamicSliceOutput(1000);
             for (Event event : events) {
-                DynamicSliceOutput buffer = map.get(event.collection());
-                if (buffer == null) {
-                    buffer = new DynamicSliceOutput(events.size() * 100);
-                    map.put(event.collection(), buffer);
+                Entry entry = map.get(event.collection());
+
+                if (entry == null) {
+                    DynamicSliceOutput output = new DynamicSliceOutput(1000);
+                    output.writeInt(0);
+
+                    entry = new Entry(output, 1);
+                    map.put(event.collection(), entry);
+                } else {
+                    entry.counts++;
                 }
-                DatumWriter writer = new RecordGenericRecordWriter(event.properties().getSchema(), GenericData.get(), sourceFields);
-                BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(buffer, null);
+
+                DynamicSliceOutput output = entry.output;
+
+                DatumWriter writer = new RecordGenericRecordWriter(event.properties().getSchema(), data, sourceFields);
+                encoder = EncoderFactory.get().directBinaryEncoder(buffer, encoder);
+
                 try {
                     writer.write(event.properties(), encoder);
                 } catch (Exception e) {
                     throw new RuntimeException("Couldn't serialize event", e);
                 }
+
+                output.writeInt(buffer.size());
+                output.appendBytes(buffer.slice());
+                buffer.reset();
+            }
+
+            for (Map.Entry<String, Entry> entry : map.entrySet()) {
+                Entry value = entry.getValue();
+                value.output.slice().setInt(0, value.counts);
             }
 
             String batchId = UUID.randomUUID().toString();
 
-            for (Map.Entry<String, DynamicSliceOutput> entry : map.entrySet()) {
-                int length = entry.getValue().slice().length();
-                BasicSliceInput sliceInput = new BasicSliceInput(entry.getValue().slice());
+            for (Map.Entry<String, Entry> entry : map.entrySet()) {
+                int length = entry.getValue().output.slice().length();
+                BasicSliceInput sliceInput = new BasicSliceInput(entry.getValue().output.slice());
                 InputStream input = new SafeSliceInputStream(sliceInput);
 
                 ObjectMetadata objectMetadata = new ObjectMetadata();
                 objectMetadata.setContentLength(length);
                 String key = events.get(0).project() + "/" + entry.getKey() + "/" + batchId;
                 s3Client.putObject(config.getEventStoreBulkS3Bucket(), key, input, objectMetadata);
+            }
+        }
+
+        public class Entry {
+            private final DynamicSliceOutput output;
+            private int counts;
+
+            public Entry(DynamicSliceOutput output, int counts) {
+                this.output = output;
+                this.counts = counts;
             }
         }
 
