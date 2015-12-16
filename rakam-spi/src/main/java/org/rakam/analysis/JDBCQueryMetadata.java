@@ -38,8 +38,8 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
                 // we can't use nice postgresql features since we also want to support mysql
                 JsonHelper.read(r.getString("options"), Map.class));
-        long last_updated = r.getLong("last_updated");
-        if(last_updated != 0) {
+        Long last_updated = r.getLong("last_updated");
+        if(last_updated != null && last_updated > 0) {
             materializedView.lastUpdate = Instant.ofEpochMilli(last_updated);
         }
         return materializedView;

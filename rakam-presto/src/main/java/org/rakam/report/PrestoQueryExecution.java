@@ -10,6 +10,8 @@ import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
@@ -33,9 +35,11 @@ public class PrestoQueryExecution implements QueryExecution {
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
 
     private final StatementClient client;
+    private final Instant startTime;
 
     public PrestoQueryExecution(StatementClient client) {
         this.client = client;
+        this.startTime = Instant.now();
 
         QUERY_EXECUTOR.execute(new Runnable() {
             @Override
@@ -59,7 +63,10 @@ public class PrestoQueryExecution implements QueryExecution {
                         com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
                         columns.add(new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature()), true));
                     }
-                    result.complete(new QueryResult(columns, data, ImmutableMap.of(QueryResult.EXECUTION_TIME, client.finalResults().getStats().getUserTimeMillis())));
+                    ImmutableMap<String, Object> stats = ImmutableMap.of(
+                            QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS));
+
+                    result.complete(new QueryResult(columns, data, stats));
                 }
             }
         });

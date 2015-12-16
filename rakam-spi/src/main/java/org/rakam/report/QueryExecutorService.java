@@ -49,6 +49,7 @@ public class QueryExecutorService {
         List<Map.Entry<MaterializedView, QueryExecution>> queryExecutions = materializedViews.stream()
                 .filter(m -> m.lastUpdate == null || m.lastUpdate.until(Instant.now(), ChronoUnit.MILLIS) > m.updateInterval.toMillis())
                 .map(m -> new AbstractMap.SimpleImmutableEntry<>(m, materializedViewService.lockAndUpdateView(m)))
+                .filter(m -> m.getValue() != null)
                 .collect(Collectors.toList());
 
         if(queryExecutions.size() == 0) {

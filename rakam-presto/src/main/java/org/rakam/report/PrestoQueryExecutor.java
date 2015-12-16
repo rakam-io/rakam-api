@@ -60,7 +60,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
 
     @Override
     public QueryExecution executeRawStatement(String sqlQuery) {
-        return null;
+        return executeRawQuery(sqlQuery);
     }
 
     @Override
@@ -71,7 +71,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 return PRESTO_STREAMING_CATALOG_NAME + ".\"" + project + "\".\"" +node.getSuffix() + '"';
             } else
             if(prefix.equals("materialized")) {
-                return MATERIALIZED_VIEW_PREFIX + ".\"" + project + "\".\"" +node.getSuffix() + '"';
+                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\""+ MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
             } else
             if(!prefix.equals("collection")) {
                 throw new IllegalArgumentException("Schema does not exist: " + prefix);

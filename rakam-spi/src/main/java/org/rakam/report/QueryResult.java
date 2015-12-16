@@ -54,8 +54,11 @@ public class QueryResult {
     }
 
     public synchronized void setProperty(String key, Object value) {
-        ConcurrentHashMap<String, Object> map = new ConcurrentHashMap<>(properties);
+        ConcurrentHashMap<String, Object> map = new ConcurrentHashMap<>();
         map.put(key, value);
+        if(properties != null) {
+            map.putAll(properties);
+        }
         properties = map;
     }
 

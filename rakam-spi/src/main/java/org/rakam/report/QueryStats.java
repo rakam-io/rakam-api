@@ -33,6 +33,39 @@ public class QueryStats {
     }
 
     public enum  State {
-        FINISHED, RUNNING
+        /**
+         * Query has been accepted and is awaiting execution.
+         */
+        QUEUED(false),
+        /**
+         * Query is being planned.
+         */
+        PLANNING(false),
+        /**
+         * Query execution is being started.
+         */
+        STARTING(false),
+        /**
+         * Query has at least one running task.
+         */
+        RUNNING(false),
+        /**
+         * Query has finished executing and all output has been consumed.
+         */
+        FINISHED(true),
+        /**
+         * Query execution failed.
+         */
+        FAILED(true);
+
+        private final boolean isDone;
+
+        State(boolean isDone) {
+            this.isDone = isDone;
+        }
+
+        public boolean isDone() {
+            return isDone;
+        }
     }
 }

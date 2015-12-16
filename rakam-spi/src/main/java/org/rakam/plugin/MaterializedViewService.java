@@ -1,24 +1,27 @@
 package org.rakam.plugin;
 
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.Query;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
-import org.rakam.util.RakamException;
+import org.rakam.util.QueryFormatter;
 
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 
 
 public abstract class MaterializedViewService {
+    private final SqlParser parser = new SqlParser();
+
     protected final QueryMetadataStore database;
     protected final QueryExecutor queryExecutor;
     private final Clock clock;
@@ -31,14 +34,23 @@ public abstract class MaterializedViewService {
 
     public CompletableFuture<Void> create(MaterializedView materializedView) {
         materializedView.validateQuery();
-        QueryResult result = queryExecutor.executeRawStatement(format("CREATE TABLE %s AS (%s LIMIT 0)",
-                queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName)),
-                materializedView.query)).getResult().join();
-        if(result.isFailed()) {
-            throw new RakamException("Couldn't created table: "+result.getError().toString(), UNAUTHORIZED);
-        }
+
         database.createMaterializedView(materializedView);
         return CompletableFuture.completedFuture(null);
+    }
+
+    private QueryExecution createTable(MaterializedView materializedView) {
+        StringBuilder builder = new StringBuilder();
+        Query statement;
+        synchronized (parser) {
+            statement = (Query) parser.createStatement(materializedView.query);
+        }
+
+        new QueryFormatter(builder, a -> queryExecutor.formatTableReference(materializedView.project, a)).process(statement, 1);
+
+        return queryExecutor.executeRawStatement(format("CREATE TABLE %s AS (%s)",
+                queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName)),
+                builder.toString()));
     }
 
     public CompletableFuture<QueryResult> delete(String project, String name) {
@@ -65,7 +77,7 @@ public abstract class MaterializedViewService {
             String reference = queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName));
 
             if (materializedView.lastUpdate != null) {
-                QueryResult result = queryExecutor.executeRawStatement(format("DROP TABLE materialized.%s", reference)).getResult().join();
+                QueryResult result = queryExecutor.executeRawStatement(format("DROP TABLE %s", reference)).getResult().join();
                 if (result.isFailed()) {
                     return new QueryExecution() {
                         @Override
@@ -96,10 +108,11 @@ public abstract class MaterializedViewService {
                 }
             }
 
-            QueryExecution queryExecution = queryExecutor.executeRawQuery(format("CREATE TABLE %s AS (%s)",
-                    reference, materializedView.query));
+            QueryExecution queryExecution = createTable(materializedView);
 
-            queryExecution.getResult().thenAccept(result -> f.complete(null));
+            queryExecution.getResult().thenAccept(result -> {
+                f.complete(!result.isFailed());
+            });
 
             return queryExecution;
         }
