@@ -125,9 +125,9 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             Long lastUpdate;
             if(Boolean.TRUE.equals(success)) {
                 view.lastUpdate = Instant.now();
-                lastUpdate = view.lastUpdate.toEpochMilli();
+                lastUpdate = view.lastUpdate.getEpochSecond();
             } else {
-                lastUpdate = view.lastUpdate != null ? view.lastUpdate.toEpochMilli() : null;
+                lastUpdate = view.lastUpdate != null ? view.lastUpdate.getEpochSecond() : null;
             }
             try(Handle handle = dbi.open()) {
                 handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated WHERE project = :project AND table_name = :table_name")
