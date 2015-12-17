@@ -2,7 +2,6 @@ package org.rakam.analysis.postgresql;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
@@ -15,11 +14,7 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.time.Clock;
-import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
@@ -79,11 +74,5 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             });
         }
         return null;
-    }
-
-    public Map<String, List<SchemaField>> getSchemas(String project) {
-        return list(project).stream()
-                .map(view -> new SimpleImmutableEntry<>(view.tableName, metastore.getCollection(project, queryExecutor.MATERIALIZED_VIEW_PREFIX + view.tableName)))
-                .collect(Collectors.toMap(t -> t.getKey(), t -> t.getValue()));
     }
 }

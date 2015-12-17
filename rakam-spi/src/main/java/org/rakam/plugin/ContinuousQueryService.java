@@ -31,5 +31,5 @@ public abstract class ContinuousQueryService {
 
     public abstract Map<String, List<SchemaField>> getSchemas(String project);
 
-    public abstract List<SchemaField> test(String project, String query);
+    public abstract boolean test(String project, String query);
 }

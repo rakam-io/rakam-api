@@ -30,16 +30,15 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     private final DBI dbi;
     private final LoadingCache<ProjectCollection, MaterializedView> materializedViewCache;
 
-    ResultSetMapper<MaterializedView> reportMapper = (index, r, ctx) -> {
+    ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
         Long update_interval = r.getLong("update_interval");
         MaterializedView materializedView = new MaterializedView(
                 r.getString("project"),
                 r.getString("name"), r.getString("table_name"), r.getString("query"),
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
-                // we can't use nice postgresql features since we also want to support mysql
-                JsonHelper.read(r.getString("options"), Map.class));
+                r.getString("incremental_field"));
         Long last_updated = r.getLong("last_updated");
-        if(last_updated != null && last_updated > 0) {
+        if(last_updated != null && last_updated != 0) {
             materializedView.lastUpdate = Instant.ofEpochMilli(last_updated);
         }
         return materializedView;
@@ -58,9 +57,10 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             @Override
             public MaterializedView load(ProjectCollection key) throws Exception {
                 try (Handle handle = dbi.open()) {
-                    return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, options from materialized_views WHERE project = :project AND table_name = :name")
+                    return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field from materialized_views WHERE project = :project AND table_name = :name")
                             .bind("project", key.project)
-                            .bind("name", key.collection).map(reportMapper).first();
+                            .bind("name", key.collection)
+                            .map(materializedViewMapper).first();
                 }
             }
         });
@@ -76,7 +76,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     "  query TEXT NOT NULL," +
                     "  update_interval BIGINT," +
                     "  last_updated BIGINT," +
-                    "  options TEXT," +
+                    "  incremental_field TEXT," +
                     "  PRIMARY KEY (project, table_name)" +
                     "  )")
                     .execute();
@@ -98,13 +98,13 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public void createMaterializedView(MaterializedView materializedView) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO materialized_views (project, name, query, options, table_name, update_interval) VALUES (:project, :name, :query, :options, :table_name, :update_interval)")
+            handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental_field) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental_field)")
                     .bind("project", materializedView.project)
                     .bind("name", materializedView.name)
                     .bind("table_name", materializedView.tableName)
                     .bind("query", materializedView.query)
                     .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
-                    .bind("options", JsonHelper.encode(materializedView.options, false))
+                    .bind("incremental_field", materializedView.incrementalField)
                     .execute();
             materializedViewCache.refresh(new ProjectCollection(materializedView.project, materializedView.tableName));
         }
@@ -120,15 +120,20 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     .execute();
         }
 
-        releaseLock.thenAccept((success) -> {
-            if(success) {
+        releaseLock.whenComplete((success, ex) -> {
+
+            Long lastUpdate;
+            if(Boolean.TRUE.equals(success)) {
                 view.lastUpdate = Instant.now();
+                lastUpdate = view.lastUpdate.toEpochMilli();
+            } else {
+                lastUpdate = view.lastUpdate != null ? view.lastUpdate.toEpochMilli() : null;
             }
             try(Handle handle = dbi.open()) {
                 handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated WHERE project = :project AND table_name = :table_name")
                         .bind("project", view.project)
                         .bind("table_name", view.tableName)
-                        .bind("last_updated", view.lastUpdate.toEpochMilli())
+                        .bind("last_updated", lastUpdate)
                         .execute();
             }
         });
@@ -140,7 +145,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public void createContinuousQuery(ContinuousQuery report) {
         try(Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, options) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
+                handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, incremental_field) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
                         .bind("project", report.project)
                         .bind("name", report.name)
                         .bind("tableName", report.tableName)
@@ -198,8 +203,8 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public List<MaterializedView> getMaterializedViews(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, options from materialized_views WHERE project = :project")
-                    .bind("project", project).map(reportMapper).list();
+            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field from materialized_views WHERE project = :project")
+                    .bind("project", project).map(materializedViewMapper).list();
         }
     }
 

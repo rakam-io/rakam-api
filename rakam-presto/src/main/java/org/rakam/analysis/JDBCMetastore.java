@@ -222,7 +222,7 @@ public class JDBCMetastore extends AbstractMetastore {
         checkProject(project);
 
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO project (name, location) VALUES(:name)")
+            handle.createStatement("INSERT INTO project (name) VALUES(:name)")
                     .bind("name", project)
                     .execute();
         }

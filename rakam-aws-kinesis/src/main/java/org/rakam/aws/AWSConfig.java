@@ -61,7 +61,7 @@ public class AWSConfig {
     }
 
     public Region getAWSRegion() {
-        return Region.getRegion(region == null ? Regions.DEFAULT_REGION : Regions.fromName(region));
+        return Region.getRegion(region == null || region.isEmpty() ? Regions.DEFAULT_REGION : Regions.fromName(region));
     }
 
     public String getSecretAccessKey() {

@@ -16,12 +16,10 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
-import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -60,15 +58,12 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public List<MaterializedViewSchema> schema(@ApiParam(name="project", required = true) String project) {
-        Map<String, List<SchemaField>> schemas = service.getSchemas(project);
-        if(schemas == null) {
-            throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
-        }
-        return schemas.entrySet().stream()
-                    .filter(entry -> !entry.getKey().startsWith("_"))
-                    .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
-                    .collect(Collectors.toList());
+    public CompletableFuture<List<MaterializedViewSchema>> schema(@ApiParam(name="project", required = true) String project) {
+        CompletableFuture<Map<String, List<SchemaField>>> schemas = service.getSchemas(project);
+
+        return schemas.thenApply(schema -> schema.entrySet().stream()
+                .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList()));
     }
 
     public static class MaterializedViewSchema {
@@ -128,7 +123,14 @@ public class MaterializedViewHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     public void update(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
-                query -> service.lockAndUpdateView(service.get(query.project, query.name)));
+                query -> {
+                    QueryExecution execution = service.lockAndUpdateView(service.get(query.project, query.name));
+                    if(execution == null) {
+                        QueryResult result = QueryResult.errorResult(new QueryError("There is another process that updates materialized view", null, 0, null));
+                        return QueryExecution.completedQueryExecution(result);
+                    }
+                    return execution;
+                });
     }
 
     public static class MaterializedViewRequest implements ProjectItem {

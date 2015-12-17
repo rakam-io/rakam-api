@@ -58,7 +58,7 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     }
 
     @Override
-    public List<SchemaField> test(String project, String query) {
+    public boolean test(String project, String query) {
         ContinuousQuery continuousQuery;
         try {
             continuousQuery = new ContinuousQuery(project, "test", "test",
@@ -78,6 +78,6 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
         if(result.isFailed()) {
             throw new RakamException("Query error: "+result.getError().message, HttpResponseStatus.BAD_REQUEST);
         }
-        return result.getMetadata();
+        return !result.isFailed();
     }
 }

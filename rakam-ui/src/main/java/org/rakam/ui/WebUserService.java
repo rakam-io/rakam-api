@@ -82,6 +82,29 @@ public class WebUserService {
         }
     }
 
+    public WebUser updateUser(WebUser user, String oldPassword, String newPassword) {
+        final String scrypt = SCryptUtil.scrypt(newPassword, 2 << 14, 8, 1);
+        final String oldScrypt = SCryptUtil.scrypt(oldPassword, 2 << 14, 8, 1);
+
+        if (!EMAIL_PATTERN.matcher(user.email).matches()) {
+            throw new RakamException("Email is not valid", BAD_REQUEST);
+        }
+
+        if (!PASSWORD_PATTERN.matcher(newPassword).matches()) {
+            throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
+        }
+
+        try(Handle handle = dbi.open()) {
+            int id = handle.createStatement("UPDATE web_user SET email = :email, password = :password, name = :name WHERE id = :id AND password = :password")
+                    .bind("id", user.id)
+                    .bind("email", user.email)
+                    .bind("name", user.name)
+                    .bind("password", oldPassword)
+                    .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+            return new WebUser(id, user.email, user.name, ImmutableMap.of());
+        }
+    }
+
     public WebUser.UserApiKey createProject(int user, String project) {
         if (metastore.getProjects().contains(project)) {
             throw new RakamException("Project already exists", BAD_REQUEST);

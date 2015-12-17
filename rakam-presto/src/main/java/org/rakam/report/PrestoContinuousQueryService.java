@@ -1,6 +1,5 @@
 package org.rakam.report;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
@@ -18,6 +17,7 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 
 public class PrestoContinuousQueryService extends ContinuousQueryService {
+
     public final static String PRESTO_STREAMING_CATALOG_NAME = "streaming";
     private final QueryMetadataStore database;
     private final PrestoQueryExecutor executor;
@@ -92,20 +92,8 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     }
 
     @Override
-    public List<SchemaField> test(String project, String query) {
-        StringBuilder builder = new StringBuilder();
-        ContinuousQuery continuousQuery = new ContinuousQuery(project, "", "", query, ImmutableList.of(), ImmutableMap.of());
-
-        new QueryFormatter(builder, qualifiedName -> {
-            if(qualifiedName.getParts().size() == 2) {
-                return config.getColdStorageConnector()+"."+qualifiedName.getPrefix().get()+"."+qualifiedName.getSuffix();
-            }
-            return executor.formatTableReference(project, qualifiedName);
-        }).process(continuousQuery.getQuery(), 1);
-
-        QueryExecution execution = executor
-                .executeRawQuery(builder.toString() + " limit 0");
-        return execution.getResult().join().getMetadata();
+    public boolean test(String project, String query) {
+        return true;
     }
 
 }

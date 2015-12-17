@@ -4,11 +4,14 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.google.inject.Inject;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.util.QueryFormatter;
+import org.rakam.util.RakamException;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -21,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
 public class QueryExecutorService {
@@ -49,6 +53,7 @@ public class QueryExecutorService {
         List<Map.Entry<MaterializedView, QueryExecution>> queryExecutions = materializedViews.stream()
                 .filter(m -> m.lastUpdate == null || m.lastUpdate.until(Instant.now(), ChronoUnit.MILLIS) > m.updateInterval.toMillis())
                 .map(m -> new AbstractMap.SimpleImmutableEntry<>(m, materializedViewService.lockAndUpdateView(m)))
+                // there may be
                 .filter(m -> m.getValue() != null)
                 .collect(Collectors.toList());
 
@@ -64,14 +69,20 @@ public class QueryExecutorService {
                 });
             }
         } else {
-            CompletableFuture<QueryExecution> userQuery = CompletableFuture.allOf(queryExecutions.stream()
+            CompletableFuture<QueryExecution> mergedQueries = CompletableFuture.allOf(queryExecutions.stream()
                     .filter(e -> e.getValue() != null)
                     .map(e -> e.getValue().getResult())
                     .toArray(CompletableFuture[]::new)).thenApply((r) -> {
 
                 for (Map.Entry<MaterializedView, QueryExecution> queryExecution : queryExecutions) {
-                    if (queryExecution.getValue().getResult().join().isFailed()) {
-                        return null;
+                    QueryResult result = queryExecution.getValue().getResult().join();
+                    if (result.isFailed()) {
+                        return new DelegateQueryExecution(queryExecution.getValue(),
+                                materializedQueryUpdateResult -> {
+                                    QueryError error = materializedQueryUpdateResult.getError();
+                                    String message = String.format("Error while updating materialized table '%s': %s", queryExecution.getKey().tableName, error.message);
+                                    return QueryResult.errorResult(new QueryError(message, error.sqlState, error.errorCode));
+                                });
                     }
                 }
 
@@ -91,8 +102,8 @@ public class QueryExecutorService {
                         }
                     }
 
-                    if(userQuery.isDone()) {
-                        currentStats = merge(currentStats, userQuery.join().currentStats());
+                    if(mergedQueries.isDone()) {
+                        currentStats = merge(currentStats, mergedQueries.join().currentStats());
                     }
 
                     return currentStats;
@@ -112,8 +123,8 @@ public class QueryExecutorService {
 
                 @Override
                 public boolean isFinished() {
-                    if(userQuery.isDone()) {
-                        QueryExecution join = userQuery.join();
+                    if(mergedQueries.isDone()) {
+                        QueryExecution join = mergedQueries.join();
                         return join == null || join.isFinished();
                     } else {
                         return false;
@@ -123,13 +134,15 @@ public class QueryExecutorService {
                 @Override
                 public CompletableFuture<QueryResult> getResult() {
                     CompletableFuture<QueryResult> future = new CompletableFuture<>();
-                    userQuery.thenAccept(r -> {
-                        if(r == null) {
+                    mergedQueries.thenAccept(r -> {
+                        if (r == null) {
                             future.complete(null);
                         } else {
                             r.getResult().thenAccept(result -> {
-                                Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate.toEpochMilli()));
-                                result.setProperty("materializedViews", collect);
+                                if (!result.isFailed()) {
+                                    Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate.toEpochMilli()));
+                                    result.setProperty("materializedViews", collect);
+                                }
 
                                 future.complete(result);
                             });
@@ -148,7 +161,7 @@ public class QueryExecutorService {
                     for (Map.Entry<MaterializedView, QueryExecution> queryExecution : queryExecutions) {
                         queryExecution.getValue().kill();
                     }
-                    userQuery.thenAccept(q -> q.kill());
+                    mergedQueries.thenAccept(q -> q.kill());
                 }
             };
         }
@@ -230,5 +243,25 @@ public class QueryExecutorService {
         new QueryFormatter(builder, tableNameMapper(project, views)).process(statement, 1);
 
         return builder.toString();
+    }
+
+    public CompletableFuture<List<SchemaField>> metadata(String project, String query) {
+        StringBuilder builder = new StringBuilder();
+        Query queryStatement = (Query) parser.createStatement(checkNotNull(query, "query is required"));
+
+        new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName))
+                .process(queryStatement, 1);
+
+        QueryExecution execution = executor
+                .executeRawQuery(builder.toString() + " limit 0");
+        CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
+        execution.getResult().thenAccept(result -> {
+            if (result.isFailed()) {
+                f.completeExceptionally(new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR));
+            } else {
+                f.complete(result.getMetadata());
+            }
+        });
+        return f;
     }
 }

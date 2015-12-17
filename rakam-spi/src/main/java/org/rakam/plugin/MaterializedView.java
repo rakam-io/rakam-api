@@ -9,11 +9,9 @@ import org.rakam.server.http.annotations.ApiParam;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.*;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 
 public class MaterializedView implements ProjectItem {
@@ -23,8 +21,8 @@ public class MaterializedView implements ProjectItem {
     public final String name;
     public final String tableName;
     public final String query;
-    public final Map<String, Object> options;
     public final Duration updateInterval;
+    public final String incrementalField;
     public Instant lastUpdate;
 
     @JsonCreator
@@ -33,13 +31,14 @@ public class MaterializedView implements ProjectItem {
                             @ApiParam(name = "table_name", value="The table name of the materialized view that can be used when querying", required = true) String tableName,
                             @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true) String query,
                             @ApiParam(name = "update_interval", value="", required = false) Duration updateInterval,
-                            @ApiParam(name = "options", value="Additional information about the materialized view", required = false) Map<String, Object> options) {
+                            @ApiParam(name = "incremental_field", value="", required = false) String incrementalField) {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.query = checkNotNull(query, "query is required");
-        this.options = options;
+        this.incrementalField = incrementalField;
         this.updateInterval = updateInterval;
+        validateQuery();
     }
 
     public void validateQuery() {
@@ -54,6 +53,8 @@ public class MaterializedView implements ProjectItem {
                 "The query of materialized view can't contain LIMIT statement");
         checkArgument(this.tableName.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "table_name must only contain alphanumeric characters and _");
+        if(this.incrementalField != null)
+            checkTableColumn(this.incrementalField, "incremental field is invalid");
     }
 
     @Override
@@ -72,8 +73,9 @@ public class MaterializedView implements ProjectItem {
         if (!name.equals(that.name)) return false;
         if (!tableName.equals(that.tableName)) return false;
         if (!query.equals(that.query)) return false;
-        if (!options.equals(that.options)) return false;
-        return !(updateInterval != null ? !updateInterval.equals(that.updateInterval) : that.updateInterval != null);
+        if (updateInterval != null ? !updateInterval.equals(that.updateInterval) : that.updateInterval != null)
+            return false;
+        return !(incrementalField != null ? !incrementalField.equals(that.incrementalField) : that.incrementalField != null);
 
     }
 
@@ -83,7 +85,8 @@ public class MaterializedView implements ProjectItem {
         result = 31 * result + name.hashCode();
         result = 31 * result + tableName.hashCode();
         result = 31 * result + query.hashCode();
-        result = 31 * result + options.hashCode();
+        result = 31 * result + (updateInterval != null ? updateInterval.hashCode() : 0);
+        result = 31 * result + (incrementalField != null ? incrementalField.hashCode() : 0);
         return result;
     }
 }

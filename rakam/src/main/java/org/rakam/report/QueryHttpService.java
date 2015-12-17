@@ -27,6 +27,8 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
@@ -230,6 +232,15 @@ public class QueryHttpService extends HttpService {
         } catch (ParsingException|ClassCastException e) {
             return ResponseQuery.UNKNOWN;
         }
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Test query", authorizations = @Authorization(value = "read_key"))
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
+    @Path("/metadata")
+    public CompletableFuture<List<SchemaField>> metadata(@ApiParam(name="project") String project, @ApiParam(name="query") String query) {
+        return executorService.metadata(project, query);
     }
 
     private ResponseQuery parseQuerySpecification(QuerySpecification queryBody) {

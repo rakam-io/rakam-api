@@ -94,20 +94,20 @@ public class Recipe implements ProjectItem {
         public final String name;
         public final String table_name;
         public final String query;
-        public final Map<String, Object> options;
+        public final String incremental_field;
         public final Duration updateInterval;
 
         @Inject
-        public MaterializedViewBuilder(@JsonProperty("name") String name, @JsonProperty("table_name") String table_name, @JsonProperty("query") String query, @JsonProperty("update_interval") Duration updateInterval, @JsonProperty("options") Map<String, Object> options) {
+        public MaterializedViewBuilder(@JsonProperty("name") String name, @JsonProperty("table_name") String table_name, @JsonProperty("query") String query, @JsonProperty("update_interval") Duration updateInterval, @JsonProperty("incremental_field") String incremental_field) {
             this.name = name;
             this.table_name = table_name;
             this.query = query;
-            this.options = options;
+            this.incremental_field = incremental_field;
             this.updateInterval = updateInterval;
         }
 
         public MaterializedView createMaterializedView(String project) {
-            return new MaterializedView(project, name, table_name, query, updateInterval, options);
+            return new MaterializedView(project, name, table_name, query, updateInterval, incremental_field);
         }
     }
 

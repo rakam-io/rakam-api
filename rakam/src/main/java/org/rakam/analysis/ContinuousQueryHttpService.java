@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
@@ -19,7 +20,6 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.Path;
-
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -29,10 +29,12 @@ import java.util.stream.Collectors;
 @Api(value = "/continuous-query", description = "Continuous Query", tags = "continuous-query")
 public class ContinuousQueryHttpService extends HttpService {
     private final ContinuousQueryService service;
+    private final QueryExecutorService queryExecutorService;
 
     @Inject
-    public ContinuousQueryHttpService(com.google.common.base.Optional<ContinuousQueryService> service) {
-        this.service = service.orNull();
+    public ContinuousQueryHttpService(ContinuousQueryService service, QueryExecutorService queryExecutorService) {
+        this.service = service;
+        this.queryExecutorService = queryExecutorService;
     }
 
     /**
@@ -50,19 +52,24 @@ public class ContinuousQueryHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
     public CompletableFuture<JsonResponse> create(@ParamBody ContinuousQuery report) {
-        CompletableFuture<QueryResult> f;
-        List<SchemaField> test = service.test(report.project, report.query);
-        if (report.partitionKeys.stream().filter(key -> !test.stream().anyMatch(a -> a.getName().equals(key))).findAny().isPresent()) {
-            throw new RakamException("Partition keys are not valid.", HttpResponseStatus.BAD_REQUEST);
-        }
-        try {
-            f = service.create(report);
-        } catch (IllegalArgumentException e) {
+        if(service.test(report.project, report.query)) {
             CompletableFuture<JsonResponse> err = new CompletableFuture<>();
-            err.completeExceptionally(new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST));
-            return err;
+            // TODO: more readable message is needed.
+            err.completeExceptionally(new RakamException("Query is not valid.", HttpResponseStatus.BAD_REQUEST));
         }
-        return f.thenApply(JsonResponse::map);
+
+        CompletableFuture<List<SchemaField>> schemaFuture = queryExecutorService.metadata(report.project, report.query);
+        return schemaFuture.thenApply(schema -> {
+            if (report.partitionKeys.stream().filter(key -> !schema.stream().anyMatch(a -> a.getName().equals(key))).findAny().isPresent()) {
+                return JsonResponse.error("Partition keys are not valid.");
+            }
+            try {
+                QueryResult f = service.create(report).join();
+                return JsonResponse.map(f);
+            } catch (IllegalArgumentException e) {
+                return JsonResponse.error(e.getMessage());
+            }
+        });
     }
 
     @JsonRequest
@@ -122,7 +129,7 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/test")
-    public List<SchemaField> test(@ApiParam(name="project") String project, @ApiParam(name="query") String query) {
+    public boolean test(@ApiParam(name = "project") String project, @ApiParam(name = "query") String query) {
         return service.test(project, query);
     }
 }
