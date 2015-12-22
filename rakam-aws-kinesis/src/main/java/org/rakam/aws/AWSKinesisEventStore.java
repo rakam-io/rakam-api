@@ -36,7 +36,7 @@ public class AWSKinesisEventStore implements EventStore {
     private final AWSConfig config;
     private final Set<String> sourceFields;
     private static final int BATCH_SIZE = 500;
-    private static final int BULK_THRESHOLD = 5000;
+    private static final int BULK_THRESHOLD = 50000;
     private final S3BulkEventStore bulkClient;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {

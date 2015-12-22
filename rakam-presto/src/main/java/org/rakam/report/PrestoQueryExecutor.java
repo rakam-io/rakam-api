@@ -47,15 +47,39 @@ public class PrestoQueryExecutor implements QueryExecutor {
                     .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
             ImmutableSet.of(new UserAgentRequestFilter("rakam")));
     private final Metastore metastore;
+    private final ClientSession defaultSession;
 
     @Inject
     public PrestoQueryExecutor(PrestoConfig prestoConfig, Metastore metastore) {
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;
+        this.defaultSession = new ClientSession(
+                prestoConfig.getAddress(),
+                "rakam",
+                "api-server",
+                prestoConfig.getColdStorageConnector(),
+                "default",
+                TimeZone.getDefault().getID(),
+                Locale.ENGLISH,
+                ImmutableMap.of(),
+                false);
     }
 
     public PrestoQueryExecution executeRawQuery(String query) {
-        return new PrestoQueryExecution(startQuery(query));
+        return new PrestoQueryExecution(startQuery(query, defaultSession));
+    }
+
+    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties) {
+        return new PrestoQueryExecution(startQuery(query, new ClientSession(
+                prestoConfig.getAddress(),
+                "rakam",
+                "api-server",
+                prestoConfig.getColdStorageConnector(),
+                "default",
+                TimeZone.getDefault().getID(),
+                Locale.ENGLISH,
+                sessionProperties,
+                false)));
     }
 
     @Override
@@ -103,21 +127,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
         }
     }
 
-    private StatementClient startQuery(String query) {
-
-        URI uri = prestoConfig.getAddress();
-
-        ClientSession session = new ClientSession(
-                uri,
-                "rakam",
-                "api-server",
-                prestoConfig.getColdStorageConnector(),
-                "default",
-                TimeZone.getDefault().getID(),
-                Locale.ENGLISH,
-                ImmutableMap.of(),
-                false);
-
+    private StatementClient startQuery(String query, ClientSession session) {
         return new StatementClient(httpClient, jsonCodec(QueryResults.class), session, query);
     }
 

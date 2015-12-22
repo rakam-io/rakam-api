@@ -1,5 +1,6 @@
 package org.rakam.report;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
@@ -44,8 +45,9 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
         String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", PRESTO_STREAMING_CATALOG_NAME,
                 report.project, report.tableName, builder.toString());
-        return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
-            if(result.getError() == null) {
+        return executor.executeRawQuery(prestoQuery, ImmutableMap.of("partition_keys", Joiner.on(",").join(report.partitionKeys)))
+                .getResult().thenApply(result -> {
+            if (result.getError() == null) {
                 database.createContinuousQuery(report);
                 return QueryResult.empty();
             }
