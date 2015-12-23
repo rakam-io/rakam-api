@@ -14,6 +14,8 @@ public class AWSConfig {
     private String eventStoreStreamName;
     private String region;
     private String eventStoreBulkS3Bucket;
+    private String s3Endpoint;
+    private String kinesisEndpoint;
 
 
     public String getEventStoreStreamName() {
@@ -58,6 +60,30 @@ public class AWSConfig {
 
     public String getRegion() {
         return region;
+    }
+
+    @Config("aws.s3-endpoint")
+    public AWSConfig setS3Endpoint(String s3Endpoint)
+    {
+        this.s3Endpoint = s3Endpoint;
+        return this;
+    }
+
+    public String getS3Endpoint()
+    {
+        return s3Endpoint;
+    }
+
+    @Config("aws.kinesis-endpoint")
+    public AWSConfig setKinesisEndpoint(String kinesisEndpoint)
+    {
+        this.kinesisEndpoint = kinesisEndpoint;
+        return this;
+    }
+
+    public String getKinesisEndpoint()
+    {
+        return kinesisEndpoint;
     }
 
     public Region getAWSRegion() {

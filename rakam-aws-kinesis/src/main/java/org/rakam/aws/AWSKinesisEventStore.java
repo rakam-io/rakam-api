@@ -1,5 +1,6 @@
 package org.rakam.aws;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
@@ -7,15 +8,21 @@ import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.google.common.base.Throwables;
 import io.airlift.slice.BasicSliceInput;
 import io.airlift.slice.DynamicSliceOutput;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.RecordGenericRecordWriter;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.Event;
-import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.collection.SchemaField;
+import org.rakam.collection.event.FieldDependencyBuilder.FieldDependency;
+import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
@@ -23,6 +30,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +38,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
+import static org.rakam.util.AvroUtil.convertAvroSchema;
 
 public class AWSKinesisEventStore implements EventStore {
     private final AmazonKinesisClient kinesis;
@@ -38,6 +47,7 @@ public class AWSKinesisEventStore implements EventStore {
     private static final int BATCH_SIZE = 500;
     private static final int BULK_THRESHOLD = 50000;
     private final S3BulkEventStore bulkClient;
+    private final Metastore metastore;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
@@ -47,11 +57,18 @@ public class AWSKinesisEventStore implements EventStore {
     };
 
     @Inject
-    public AWSKinesisEventStore(AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
-        this.kinesis = new AmazonKinesisClient(config.getCredentials());
+    public AWSKinesisEventStore(AWSConfig config,
+                                Metastore metastore,
+                                FieldDependency fieldDependency) {
+        kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
+        if(config.getKinesisEndpoint() != null) {
+            kinesis.setEndpoint(config.getKinesisEndpoint());
+        }
+
         this.sourceFields = fieldDependency.dependentFields.keySet();
         this.config = config;
+        this.metastore = metastore;
         this.bulkClient = new S3BulkEventStore();
     }
 
@@ -85,7 +102,7 @@ public class AWSKinesisEventStore implements EventStore {
     @Override
     public void storeBatch(List<Event> events) {
         if(events.size() > BULK_THRESHOLD) {
-            bulkClient.upload(events);
+            bulkClient.upload(events.get(0).project(), events);
         } else {
 
             if (events.size() > BATCH_SIZE) {
@@ -147,69 +164,71 @@ public class AWSKinesisEventStore implements EventStore {
         public S3BulkEventStore() {
             this.s3Client = new AmazonS3Client(config.getCredentials());
             s3Client.setRegion(config.getAWSRegion());
+            if(config.getS3Endpoint() != null) {
+                s3Client.setEndpoint(config.getS3Endpoint());
+            }
         }
 
-        public void upload(List<Event> events) {
-            Map<String, Entry> map = new HashMap<>();
+        public void upload(String project, List<Event> events) {
             GenericData data = GenericData.get();
+
+            DynamicSliceOutput buffer = new DynamicSliceOutput(events.size() * 100);
+
+            HashMap<String, List<Event>> map = new HashMap<>();
+            events.forEach(event -> map.computeIfAbsent(event.collection(),
+                    (col) -> new ArrayList<>()).add(event));
+
             BinaryEncoder encoder = null;
-
-            DynamicSliceOutput buffer = new DynamicSliceOutput(1000);
-            for (Event event : events) {
-                Entry entry = map.get(event.collection());
-
-                if (entry == null) {
-                    DynamicSliceOutput output = new DynamicSliceOutput(1000);
-                    output.writeInt(0);
-
-                    entry = new Entry(output, 1);
-                    map.put(event.collection(), entry);
-                } else {
-                    entry.counts++;
-                }
-
-                DynamicSliceOutput output = entry.output;
-
-                DatumWriter writer = new RecordGenericRecordWriter(event.properties().getSchema(), data, sourceFields);
-                encoder = EncoderFactory.get().directBinaryEncoder(buffer, encoder);
-
-                try {
-                    writer.write(event.properties(), encoder);
-                } catch (Exception e) {
-                    throw new RuntimeException("Couldn't serialize event", e);
-                }
-
-                output.writeInt(buffer.size());
-                output.appendBytes(buffer.slice());
-                buffer.reset();
-            }
-
-            for (Map.Entry<String, Entry> entry : map.entrySet()) {
-                Entry value = entry.getValue();
-                value.output.slice().setInt(0, value.counts);
-            }
 
             String batchId = UUID.randomUUID().toString();
 
-            for (Map.Entry<String, Entry> entry : map.entrySet()) {
-                int length = entry.getValue().output.slice().length();
-                BasicSliceInput sliceInput = new BasicSliceInput(entry.getValue().output.slice());
-                InputStream input = new SafeSliceInputStream(sliceInput);
+            List<String> uploadedFiles = new ArrayList<>();
 
-                ObjectMetadata objectMetadata = new ObjectMetadata();
-                objectMetadata.setContentLength(length);
-                String key = events.get(0).project() + "/" + entry.getKey() + "/" + batchId;
-                s3Client.putObject(config.getEventStoreBulkS3Bucket(), key, input, objectMetadata);
-            }
-        }
+            try {
+                for (Map.Entry<String, List<Event>> entry : map.entrySet()) {
+                    buffer.reset();
 
-        public class Entry {
-            private final DynamicSliceOutput output;
-            private int counts;
+                    List<SchemaField> collection = metastore.getCollection(project, entry.getKey());
 
-            public Entry(DynamicSliceOutput output, int counts) {
-                this.output = output;
-                this.counts = counts;
+                    Schema avroSchema = convertAvroSchema(collection);
+                    DatumWriter writer = new GenericDatumWriter(avroSchema, data);
+                    encoder = EncoderFactory.get().directBinaryEncoder(buffer, encoder);
+
+                    encoder.writeInt(collection.size());
+                    for (SchemaField schemaField : collection) {
+                        encoder.writeString(schemaField.getName());
+                    }
+
+                    encoder.writeInt(events.size());
+
+                    for (Event event : entry.getValue()) {
+                        GenericRecord properties = event.properties();
+
+                        List<Schema.Field> existingFields = properties.getSchema().getFields();
+                        if(existingFields.size() != collection.size()) {
+                            GenericData.Record record = new GenericData.Record(avroSchema);
+                            for (int i = 0; i < existingFields.size(); i++) {
+                                record.put(i, properties.get(i));
+                            }
+                        }
+                        writer.write(properties, encoder);
+                    }
+
+                    ObjectMetadata objectMetadata = new ObjectMetadata();
+                    objectMetadata.setContentLength(buffer.size());
+                    String key = events.get(0).project() + "/" + entry.getKey() + "/" + batchId;
+                    s3Client.putObject(
+                            config.getEventStoreBulkS3Bucket(),
+                            key,
+                            new SafeSliceInputStream(new BasicSliceInput(buffer.slice())),
+                            objectMetadata);
+                    uploadedFiles.add(key);
+                }
+            } catch (IOException|AmazonClientException e) {
+                for (String uploadedFile : uploadedFiles) {
+                    s3Client.deleteObject(config.getEventStoreBulkS3Bucket(), uploadedFile);
+                }
+                throw Throwables.propagate(e);
             }
         }
 
