@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 public enum FieldType {
     STRING, LONG, DOUBLE, BOOLEAN, DATE, TIME, TIMESTAMP,
-    ARRAY_STRING, ARRAY_LONG, ARRAY_DOUBLE, ARRAY_BOOLEAN, ARRAY_DATE, ARRAY_TIME, ARRAY_TIMESTAMP;
+    ARRAY_STRING, ARRAY_LONG, ARRAY_DOUBLE, ARRAY_BOOLEAN, ARRAY_DATE, ARRAY_TIME, ARRAY_TIMESTAMP,
+    MAP_STRING_STRING, MAP_STRING_LONG;
 
     private static final FieldType values[] = values();
 
