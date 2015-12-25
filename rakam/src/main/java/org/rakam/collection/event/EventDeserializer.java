@@ -2,10 +2,6 @@ package org.rakam.collection.event;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.ObjectCodec;
-import com.fasterxml.jackson.core.io.IOContext;
-import com.fasterxml.jackson.core.json.ReaderBasedJsonParser;
-import com.fasterxml.jackson.core.sym.CharsToNameCanonicalizer;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -14,7 +10,6 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
-import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -29,14 +24,17 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.io.Reader;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -46,7 +44,6 @@ import static java.util.stream.StreamSupport.stream;
 public class EventDeserializer extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Set<SchemaField> constantMagicFields;
-    private Logger logger = Logger.get(EventDeserializer.class);
 
     private final Metastore metastore;
     private final Map<ProjectCollection, Schema> schemaCache;
@@ -185,7 +182,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                             newFields = new HashSet<>();
 
                         if(fieldName.equals("_user")) {
-                            // the type of magic _user field must always be a string for consistency.
+                            // the type of magic _user field must always be a string
+                            // for consistency.
                             type = FieldType.STRING;
                         }
                         SchemaField newField = new SchemaField(fieldName, type, true);
@@ -200,9 +198,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         }
                         record = newRecord;
 
-                        if(type.isArray()) {
+                        if(type.isArray() || type.isMap()) {
                             // if the type of new field is ARRAY, we already switched to next token
-                            // so the initial token is not START_ARRAY.
+                            // so current token is not START_ARRAY.
                             record.put(field.pos(), getValue(jp, field.schema(), true));
                             continue;
                         }
@@ -284,6 +282,12 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 return stream(jsonNode.spliterator(), false).map(x -> x.asDouble()).collect(toList());
             case ARRAY_BOOLEAN:
                 return stream(jsonNode.spliterator(), false).map(x -> x.asBoolean()).collect(toList());
+            case MAP_STRING_STRING:
+                return stream(Spliterators.spliteratorUnknownSize(jsonNode.fields(), Spliterator.ORDERED), false)
+                        .map(x -> new AbstractMap.SimpleImmutableEntry<>(x.getKey(), x.getValue().asText())).collect(toList());
+            case MAP_STRING_DOUBLE:
+                return stream(Spliterators.spliteratorUnknownSize(jsonNode.fields(), Spliterator.ORDERED), false)
+                        .map(x -> new AbstractMap.SimpleImmutableEntry<>(x.getKey(), x.getValue().asDouble())).collect(toList());
             default:
                 throw new IllegalStateException();
         }
@@ -308,7 +312,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private Object getValue(JsonParser jp, Schema schema, boolean passStartArrayToken) throws IOException {
+    private Object getValue(JsonParser jp, Schema schema, boolean passInitialToken) throws IOException {
         if (schema.getType() == Schema.Type.UNION) {
             schema = schema.getTypes().get(1);
         }
@@ -328,16 +332,44 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 return jp.getValueAsInt();
             case DOUBLE:
                 return jp.getValueAsDouble();
-            case ARRAY:
+            case MAP:
                 JsonToken t = jp.getCurrentToken();
-                // if the passStartArrayToken is true, we already performed jp.nextToken so there is no need to check if the current token is
-                if(!passStartArrayToken) {
+
+                Map<String, Object> map = new HashMap<>();
+
+                if(!passInitialToken) {
+                    if(t != JsonToken.START_OBJECT) {
+                        return null;
+                    } else {
+                        t = jp.nextToken();
+                    }
+                } else {
+                    // In order to determine the value type of map, getType method performed an extra
+                    // jp.nextToken() so the cursor should be at VALUE_STRING token.
+                    if(t == JsonToken.VALUE_STRING) {
+                        String key = jp.getParsingContext().getCurrentName();
+                        map.put(key, jp.getValueAsString());
+                        t = jp.nextToken();
+                    }
+                }
+
+                for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
+                    String key = jp.getCurrentName();
+
+                    jp.nextToken();
+                    map.put(key, getValue(jp, schema.getValueType(), false));
+                }
+                return map;
+            case ARRAY:
+                t = jp.getCurrentToken();
+                // if the passStartArrayToken is true, we already performed jp.nextToken
+                // so there is no need to check if the current token is
+                if(!passInitialToken) {
                     if(t != JsonToken.START_ARRAY) {
                         return null;
                     } else {
                         t = jp.nextToken();
                     }
-
                 }
 
                 List<Object> objects = new ArrayList<>();
@@ -346,7 +378,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 }
                 return new GenericData.Array(schema, objects);
             default:
-                throw new JsonMappingException(format("nested properties is not supported."));
+                throw new JsonMappingException(format("type is not supported."));
         }
     }
 
@@ -371,15 +403,21 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     // TODO: if the key already has a type, return that type instead of null.
                     return null;
                 }
-                try {
-                    return getType(jp).convertToArrayType();
-                } catch (IOException e) {
-                    // fallback to JsonMappingException for nested properties.
+                return getType(jp).convertToArrayType();
+            case START_OBJECT:
+                t = jp.nextToken();
+                if(t == JsonToken.END_OBJECT) {
+                    // if the map is null, return null as value.
+                    // TODO: if the key already has a type, return that type instead of null.
+                    return null;
                 }
-            case VALUE_EMBEDDED_OBJECT:
-                throw new JsonMappingException(format("nested properties is not supported: %s", jp.getValueAsString()));
+                if(t != JsonToken.FIELD_NAME) {
+                    throw new IllegalArgumentException();
+                }
+                jp.nextToken();
+                return getType(jp).convertToMapValueType();
             default:
-                return null;
+                throw new JsonMappingException(format("the type is not supported: %s", jp.getValueAsString()));
         }
     }
 
@@ -410,7 +448,13 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case ARRAY:
                 FieldType type = getTypeFromJsonNode(jsonNode.get(0));
                 if (!type.isArray()) {
-                    throw new IllegalArgumentException("nested properties is not supported");
+                    throw new IllegalArgumentException("type is not array");
+                }
+                return type;
+            case OBJECT:
+                type = getTypeFromJsonNode(jsonNode.get(0));
+                if (!type.isMap()) {
+                    throw new IllegalArgumentException("type is not map");
                 }
                 return type;
             default:
@@ -437,32 +481,6 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
 
         return fields;
-    }
-
-    public static class SaveableReaderBasedJsonParser extends ReaderBasedJsonParser {
-        private int savedInputPtr = -1;
-
-        public SaveableReaderBasedJsonParser(IOContext ctxt, int features, Reader r, ObjectCodec codec, CharsToNameCanonicalizer st, char[] inputBuffer, int start, int end, boolean bufferRecyclable) {
-            super(ctxt, features, r, codec, st, inputBuffer, start, end, bufferRecyclable);
-        }
-
-        public SaveableReaderBasedJsonParser(IOContext ctxt, int features, Reader r, ObjectCodec codec, CharsToNameCanonicalizer st) {
-            super(ctxt, features, r, codec, st);
-        }
-
-        public void save() {
-            savedInputPtr = _inputPtr;
-        }
-
-        public boolean isSaved() {
-            return savedInputPtr > -1;
-        }
-
-        public void load() {
-            _currToken = JsonToken.START_OBJECT;
-            _inputPtr = savedInputPtr;
-            _parsingContext = _parsingContext.createChildObjectContext(0, 0);
-        }
     }
 }
 

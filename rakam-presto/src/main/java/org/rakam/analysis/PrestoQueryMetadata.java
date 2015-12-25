@@ -1,6 +1,8 @@
 package org.rakam.analysis;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.plugin.ContinuousQuery;
@@ -67,7 +69,11 @@ public class PrestoQueryMetadata extends JDBCQueryMetadata {
             ArrayList<ContinuousQuery> continuousQueries = new ArrayList<>();
             ResultSet streaming = prestoMetadata.getTables("streaming", project, null, new String[]{"VIEW"});
             while(streaming.next()) {
-//                continuousQueries.add(new ContinuousQuery(streaming.getString("table_schem"), streaming.getString("table_name"), streaming.getString("table_name"), "select 1", ImmutableList.of(), ImmutableList.of()));
+                continuousQueries.add(new ContinuousQuery(streaming.getString("table_schem"),
+                        streaming.getString("table_name"),
+                        streaming.getString("table_name"), "select 1",
+                        ImmutableList.of(),
+                        ImmutableMap.of()));
             }
             return continuousQueries;
         } catch (SQLException e) {

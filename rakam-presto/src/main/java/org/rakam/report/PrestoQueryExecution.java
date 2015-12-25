@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -91,36 +90,12 @@ public class PrestoQueryExecution implements QueryExecution {
             case StandardTypes.TIMESTAMP:
             case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
                 return TIMESTAMP;
+            case StandardTypes.ARRAY:
+                return fromPrestoType(prestoType.getTypeArguments().get(0)).convertToArrayType();
+            case StandardTypes.MAP:
+                return fromPrestoType(prestoType.getTypeArguments().get(0)).convertToMapValueType();
             default:
-                if(prestoType.getRawType().equals(StandardTypes.ARRAY)) {
-                    return fromPrestoType(prestoType.getTypeArguments().get(0)).convertToArrayType();
-                }
-                throw new NoSuchElementException();
-        }
-    }
-
-    public static String toPrestoType(FieldType type) {
-
-        switch (type) {
-            case LONG:
-                return StandardTypes.BIGINT;
-            case BOOLEAN:
-                return StandardTypes.BOOLEAN;
-            case DATE:
-                return StandardTypes.DATE;
-            case DOUBLE:
-                return StandardTypes.DOUBLE;
-            case STRING:
-                return StandardTypes.VARCHAR;
-            case TIME:
-                return StandardTypes.TIME;
-            case TIMESTAMP:
-                return StandardTypes.TIMESTAMP;
-            default:
-                if(type.isArray()) {
-                    return StandardTypes.ARRAY+"<"+toPrestoType(type.getArrayElementType())+">";
-                }
-                throw new NoSuchElementException();
+                throw new UnsupportedOperationException();
         }
     }
 

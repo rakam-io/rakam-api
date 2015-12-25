@@ -1,5 +1,6 @@
 package org.rakam.collection.mapper.geoip;
 
+import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 import com.google.inject.Binder;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.zip.GZIPInputStream;
 
+@AutoService(RakamModule.class)
 @ConditionalModule(config = "plugin.geoip.enabled", value="true")
 public class GeoIPModule extends RakamModule {
     @Override
@@ -39,7 +41,7 @@ public class GeoIPModule extends RakamModule {
 
     @Override
     public String description() {
-        return "It fills the events that have ip attribute with location information by GeoIP lookup service.";
+        return "It attaches the events that have ip attribute with location information by GeoIP lookup service.";
     }
 
     static File downloadOrGetFile(String fileUrl) throws Exception {

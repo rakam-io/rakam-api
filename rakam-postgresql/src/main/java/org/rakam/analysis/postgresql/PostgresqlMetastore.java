@@ -436,8 +436,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
         return fromSql(sqlType, typeName, new Function<String, FieldType>() {
             @Override
             public FieldType apply(String name) {
-                String substring = name.substring("ARRAY[]".length());
+//                String substring = name.substring("ARRAY[]".length());
                 return FieldType.STRING;
+                // TODO: map and array types
 //                switch (substring) {
 //                    JDBCType jdbcType = JDBCType.valueOf(substring);
 //                    case fromSql(jdbcType.getVendorTypeNumber(), jdbcType.getName(), null);
@@ -475,12 +476,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
             case Types.NVARCHAR:
             case Types.LONGNVARCHAR:
             case Types.VARCHAR:
-            case Types.OTHER:
                 return FieldType.STRING;
-            case Types.ARRAY:
-                return arrayTypeNameMapper.apply(typeName).convertToArrayType();
             default:
-                throw new IllegalStateException("sql type couldn't converted to fieldtype");
+                return arrayTypeNameMapper.apply(typeName);
         }
     }
 }

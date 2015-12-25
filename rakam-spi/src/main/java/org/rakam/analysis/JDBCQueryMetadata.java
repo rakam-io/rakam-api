@@ -145,7 +145,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public void createContinuousQuery(ContinuousQuery report) {
         try(Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, collections, partition_keys, incremental_field) VALUES (:project, :name, :tableName, :query, :collections, :partitionKeys, :options)")
+                handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, partition_keys, options) VALUES (:project, :name, :tableName, :query, :partitionKeys, :options)")
                         .bind("project", report.project)
                         .bind("name", report.name)
                         .bind("tableName", report.tableName)

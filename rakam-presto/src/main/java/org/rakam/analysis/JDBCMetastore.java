@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -261,8 +262,13 @@ public class JDBCMetastore extends AbstractMetastore {
     }
 
     public static FieldType getType(String name) {
-        return FieldType.STRING;
+        FieldType fieldType = reverseMap.get(name.toUpperCase());
+        Objects.requireNonNull(fieldType, String.format("type %s could'nt recognized.", name));
+        return fieldType;
     }
+
+    private static final Map<String, FieldType> reverseMap = Arrays.asList(FieldType.values()).stream()
+            .collect(Collectors.toMap(JDBCMetastore::toSql, a -> a));
 
     private List<SchemaField> getSchema(Connection connection, String project, String collection) throws SQLException {
         ResultSet dbColumns = connection.getMetaData().getColumns(config.getColdStorageConnector(), project, collection, null);
@@ -390,6 +396,9 @@ public class JDBCMetastore extends AbstractMetastore {
             default:
                 if (type.isArray()) {
                     return "ARRAY<" + toSql(type.getArrayElementType()) + ">";
+                }
+                if(type.isMap()) {
+                    return "MAP<VARCHAR, "+ toSql(type.getMapValueType()) +">";
                 }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }

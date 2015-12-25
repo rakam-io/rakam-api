@@ -52,6 +52,10 @@ public class AvroUtil {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);
+            case MAP_STRING_STRING:
+                return Schema.createMap(Schema.create(Schema.Type.STRING));
+            case MAP_STRING_DOUBLE:
+                return Schema.createMap(Schema.create(Schema.Type.DOUBLE));
             case ARRAY_STRING:
                 return Schema.createArray(Schema.create(Schema.Type.STRING));
             case ARRAY_LONG:

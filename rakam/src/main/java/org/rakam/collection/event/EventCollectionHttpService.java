@@ -1,10 +1,7 @@
 package org.rakam.collection.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.Version;
-import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -60,7 +57,7 @@ import static org.rakam.util.JsonHelper.encode;
 @Api(value = "/event", description = "Event collection module", tags = {"event"})
 public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
-    private final ObjectMapper jsonMapper = new ObjectMapper(new EventParserJsonFactory());
+    private final ObjectMapper jsonMapper = new ObjectMapper();
     private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
     private final byte[] OK_MESSAGE = "1".getBytes(UTF8_CHARSET);
 
@@ -335,15 +332,6 @@ public class EventCollectionHttpService extends HttpService {
         }
 
         return true;
-    }
-
-    public static class EventParserJsonFactory extends JsonFactory {
-        @Override
-        protected JsonParser _createParser(char[] data, int offset, int len, IOContext ctxt, boolean recyclable) throws IOException {
-            return new EventDeserializer.SaveableReaderBasedJsonParser(ctxt, _parserFeatures, null, _objectCodec,
-                    _rootCharSymbols.makeChild(_factoryFeatures),
-                    data, offset, offset + len, recyclable);
-        }
     }
 
     public static class EventList {

@@ -29,8 +29,6 @@ import java.util.List;
 import static com.google.common.collect.ImmutableList.of;
 
 public class TimestampEventMapper implements EventMapper {
-    private static final String TIME_EXTRA_PROPERTY = "Upload-Time";
-
     @Override
     public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
         GenericRecord properties = event.properties();
@@ -53,7 +51,7 @@ public class TimestampEventMapper implements EventMapper {
 
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
-        builder.addFields(of(new SchemaField("_time", FieldType.LONG, false)));
+        builder.addFields(of(new SchemaField("_time", FieldType.LONG, true)));
     }
 
     @Override

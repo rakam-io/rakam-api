@@ -22,30 +22,28 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     public final static String PRESTO_STREAMING_CATALOG_NAME = "streaming";
     private final QueryMetadataStore database;
     private final PrestoQueryExecutor executor;
-    private final PrestoConfig config;
 
     @Inject
     public PrestoContinuousQueryService(QueryMetadataStore database, PrestoQueryExecutor executor, PrestoConfig config) {
         super(database);
         this.database = database;
         this.executor = executor;
-        this.config = config;
     }
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
         StringBuilder builder = new StringBuilder();
 
-        new QueryFormatter(builder, name -> {
-            if(name.getParts().size() == 1) {
-                return "_source.\""+report.project+"\".\""+name.toString()+"\"";
-            }
-            return executor.formatTableReference(report.project, name);
-        }).process(report.getQuery(), 1);
+        new QueryFormatter(builder, name ->
+                executor.formatTableReference(report.project, name)).process(report.getQuery(), 1);
 
         String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", PRESTO_STREAMING_CATALOG_NAME,
                 report.project, report.tableName, builder.toString());
-        return executor.executeRawQuery(prestoQuery, ImmutableMap.of("partition_keys", Joiner.on(",").join(report.partitionKeys)))
+
+        ImmutableMap<String, String> sessionParameter = ImmutableMap.of(PRESTO_STREAMING_CATALOG_NAME + ".partition_keys",
+                Joiner.on(",").join(report.partitionKeys));
+
+        return executor.executeRawQuery(prestoQuery, sessionParameter)
                 .getResult().thenApply(result -> {
             if (result.getError() == null) {
                 database.createContinuousQuery(report);

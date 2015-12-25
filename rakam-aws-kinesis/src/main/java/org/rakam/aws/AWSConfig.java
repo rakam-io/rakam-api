@@ -17,7 +17,6 @@ public class AWSConfig {
     private String s3Endpoint;
     private String kinesisEndpoint;
 
-
     public String getEventStoreStreamName() {
         return eventStoreStreamName;
     }
