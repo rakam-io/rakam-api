@@ -437,6 +437,16 @@ public class PostgresqlMetastore extends AbstractMetastore {
             @Override
             public FieldType apply(String name) {
 //                String substring = name.substring("ARRAY[]".length());
+                if(name.length() > 2 && name.substring(name.length() - 2).equals("[]")) {
+                    switch (name.substring(0, name.length()-1)) {
+                        case "bigint":
+                            return FieldType.ARRAY_LONG;
+                        case "double":
+                            return FieldType.ARRAY_DOUBLE;
+                        default:
+                            return FieldType.ARRAY_STRING;
+                    }
+                }
                 return FieldType.STRING;
                 // TODO: map and array types
 //                switch (substring) {
