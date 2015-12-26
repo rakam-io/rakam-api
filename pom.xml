@@ -71,7 +71,6 @@
         <java.version>1.8</java.version>
         <jackson.version>2.6.3</jackson.version>
         <netty.rest.version>0.30</netty.rest.version>
-        <kume.version>0.4</kume.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
@@ -160,35 +159,13 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>org.rakam</groupId>
-                <artifactId>kume</artifactId>
-                <version>${kume.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>ch.qos.logback</groupId>
-                        <artifactId>logback-classic</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>ch.qos.logback</groupId>
-                        <artifactId>logback-core</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.objenesis</groupId>
-                        <artifactId>objenesis</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.slf4j</groupId>
-                        <artifactId>slf4j-api</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.ow2.asm</groupId>
-                        <artifactId>asm</artifactId>
-                    </exclusion>
-                </exclusions>
+                <groupId>io.airlift</groupId>
+                <artifactId>configuration</artifactId>
+                <version>${air.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.airlift</groupId>
-                <artifactId>configuration</artifactId>
+                <artifactId>http-client</artifactId>
                 <version>${air.version}</version>
             </dependency>
             <dependency>

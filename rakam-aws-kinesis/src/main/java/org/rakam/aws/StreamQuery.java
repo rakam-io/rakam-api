@@ -20,18 +20,12 @@ import org.rakam.plugin.CollectionStreamQuery;
 import java.util.List;
 
 public class StreamQuery {
-    public final String id;
-    public final String memberId;
     public final String project;
     public final List<CollectionStreamQuery> collections;
 
     @JsonCreator
-    public StreamQuery(@JsonProperty("id") String id,
-                       @JsonProperty("memberId") String memberId,
-                       @JsonProperty("project") String project,
+    public StreamQuery(@JsonProperty("project") String project,
                        @JsonProperty("collections") List<CollectionStreamQuery> collections) {
-        this.id = id;
-        this.memberId = memberId;
         this.project = project;
         this.collections = collections;
     }

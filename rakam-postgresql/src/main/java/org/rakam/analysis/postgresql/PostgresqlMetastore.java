@@ -433,22 +433,19 @@ public class PostgresqlMetastore extends AbstractMetastore {
     }
 
     public static FieldType fromSql(int sqlType, String typeName) {
-        return fromSql(sqlType, typeName, new Function<String, FieldType>() {
-            @Override
-            public FieldType apply(String name) {
-                if(name.startsWith("_")) {
-                    if(name.startsWith("_int")) {
-                        return FieldType.ARRAY_LONG;
-                    }
-                    if(name.equals("_text") || name.equals("_varchar")) {
-                        return FieldType.ARRAY_STRING;
-                    }
-                    if(name.startsWith("_float")) {
-                        return FieldType.ARRAY_DOUBLE;
-                    }
+        return fromSql(sqlType, typeName, name -> {
+            if(name.startsWith("_")) {
+                if(name.startsWith("_int")) {
+                    return FieldType.ARRAY_LONG;
                 }
-                return FieldType.STRING;
+                if(name.equals("_text") || name.equals("_varchar")) {
+                    return FieldType.ARRAY_STRING;
+                }
+                if(name.startsWith("_float")) {
+                    return FieldType.ARRAY_DOUBLE;
+                }
             }
+            return FieldType.STRING;
         });
     }
 

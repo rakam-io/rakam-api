@@ -1,44 +1,71 @@
 package org.rakam.aws;
 
-import org.rakam.kume.Member;
-import org.rakam.kume.ServiceContext;
-import org.rakam.kume.service.Service;
+import io.airlift.http.client.HttpClient;
+import io.airlift.http.client.JsonBodyGenerator;
+import io.airlift.http.client.Request;
+import io.airlift.http.client.StringResponseHandler;
+import io.airlift.json.JsonCodec;
 import org.rakam.plugin.CollectionStreamQuery;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
+import org.rakam.report.PrestoConfig;
 
+import javax.inject.Inject;
+import javax.ws.rs.core.UriBuilder;
+import java.net.URI;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
-public class KinesisEventStream extends Service implements EventStream {
+import static com.google.common.net.MediaType.JSON_UTF_8;
+import static io.airlift.http.client.Request.Builder.*;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
-    private final ServiceContext<KinesisEventStream> ctx;
+public class KinesisEventStream implements EventStream {
 
-    public KinesisEventStream(ServiceContext<KinesisEventStream> ctx) {
-        this.ctx = ctx;
+    private final HttpClient httpClient;
+    private final int streamingPort;
+    private final URI prestoAddress;
+    private final JsonCodec<StreamQuery> queryCodec;
+
+    @Inject
+    public KinesisEventStream(@ForStreamer HttpClient httpClient, AWSKinesisModule.PrestoStreamConfig config, PrestoConfig prestoConfig) {
+        this.httpClient = httpClient;
+        this.streamingPort = config.getPort();
+        this.prestoAddress = prestoConfig.getAddress();
+        this.queryCodec = JsonCodec.jsonCodec(StreamQuery.class);
     }
 
     @Override
     public EventStreamer subscribe(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
-        String randomId = UUID.randomUUID().toString();
-        StreamQuery ticket = new StreamQuery(randomId, null, project, collections);
 
-        ctx.sendAllMembers(ticket);
+        StreamQuery query = new StreamQuery(project, collections);
+
+        URI uri = UriBuilder.fromUri(prestoAddress)
+                .port(streamingPort)
+                .path("connector/streamer/create-stream")
+                .build();
+
+        Request request = preparePost()
+                .setUri(uri)
+                .setHeader(CONTENT_TYPE, JSON_UTF_8.toString())
+                .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(queryCodec, query))
+                .build();
+
+        String ticket = httpClient.execute(request, StringResponseHandler.createStringResponseHandler()).getBody();
 
         return new EventStreamer() {
             @Override
             public synchronized void sync() {
                 try {
-                    Map<Member, CompletableFuture<Object>> map = ctx.askAllMembers(new FetchQuery(randomId));
-                    String json = map.values().stream()
-                            .map(e -> e.join())
-                            .filter(e -> e != null)
-                            .flatMap(o -> ((List<String>) o).stream())
-                            .collect(Collectors.joining(","));
-                    response.send("data", "["+json+"]");
+                    URI uri = UriBuilder.fromUri(prestoAddress)
+                            .port(streamingPort)
+                            .path("connector/streamer")
+                            .queryParam("ticket", ticket)
+                            .build();
+
+                    Request request = prepareGet().setUri(uri).build();
+                    String data = httpClient.execute(request, StringResponseHandler.createStringResponseHandler()).getBody();
+
+                    response.send("data", data);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -46,13 +73,15 @@ public class KinesisEventStream extends Service implements EventStream {
 
             @Override
             public void shutdown() {
-                ctx.askAllMembers(randomId);
+                URI uri = UriBuilder.fromUri(prestoAddress)
+                        .port(streamingPort)
+                        .path("connector/streamer")
+                        .queryParam("ticket", ticket)
+                        .build();
+
+                Request request = prepareDelete().setUri(uri).build();
+                httpClient.execute(request, StringResponseHandler.createStringResponseHandler());
             }
         };
-    }
-
-    @Override
-    public void onClose() {
-
     }
 }
