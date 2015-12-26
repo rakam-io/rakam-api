@@ -58,12 +58,12 @@ public class PostgresqlEventStore implements EventStore {
         }
     }
 
-    private Schema.Type getActualType(Schema.Field field) {
-        Schema.Type type = field.schema().getType();
-        if(type == Schema.Type.UNION) {
-            return field.schema().getTypes().get(1).getType();
+    private Schema getActualType(Schema.Field field) {
+        Schema schema = field.schema();
+        if(schema.getType() == Schema.Type.UNION) {
+            return schema.getTypes().get(1);
         } else {
-            return type;
+            return schema;
         }
     }
 
@@ -82,9 +82,11 @@ public class PostgresqlEventStore implements EventStore {
                 continue;
             }
 
-            switch (getActualType(field)) {
+            Schema schema = getActualType(field);
+            switch (schema.getType()) {
                 case ARRAY:
-                    ps.setArray(pos++, connection.createArrayOf("varchar", ((List) value).toArray()));
+                    String typeName = toPostgresqlPrimitiveTypeName(schema.getElementType().getType());
+                    ps.setArray(pos++, connection.createArrayOf(typeName, ((List) value).toArray()));
                     break;
                 case STRING:
                     ps.setString(pos++, (String) value);
@@ -105,6 +107,19 @@ public class PostgresqlEventStore implements EventStore {
                     ps.setBoolean(pos++, (Boolean) value);
                     break;
             }
+        }
+    }
+
+    public static String toPostgresqlPrimitiveTypeName(Schema.Type fieldType) {
+        switch (fieldType) {
+            case STRING:
+                return "text";
+            case LONG:
+                return "bigint";
+            case DOUBLE:
+                return "double precision";
+            default:
+                throw new UnsupportedOperationException();
         }
     }
 

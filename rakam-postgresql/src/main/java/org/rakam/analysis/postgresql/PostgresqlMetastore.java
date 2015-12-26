@@ -436,24 +436,18 @@ public class PostgresqlMetastore extends AbstractMetastore {
         return fromSql(sqlType, typeName, new Function<String, FieldType>() {
             @Override
             public FieldType apply(String name) {
-//                String substring = name.substring("ARRAY[]".length());
-                if(name.length() > 2 && name.substring(name.length() - 2).equals("[]")) {
-                    switch (name.substring(0, name.length()-1)) {
-                        case "bigint":
-                            return FieldType.ARRAY_LONG;
-                        case "double":
-                            return FieldType.ARRAY_DOUBLE;
-                        default:
-                            return FieldType.ARRAY_STRING;
+                if(name.startsWith("_")) {
+                    if(name.startsWith("_int")) {
+                        return FieldType.ARRAY_LONG;
+                    }
+                    if(name.equals("_text") || name.equals("_varchar")) {
+                        return FieldType.ARRAY_STRING;
+                    }
+                    if(name.startsWith("_float")) {
+                        return FieldType.ARRAY_DOUBLE;
                     }
                 }
                 return FieldType.STRING;
-                // TODO: map and array types
-//                switch (substring) {
-//                    JDBCType jdbcType = JDBCType.valueOf(substring);
-//                    case fromSql(jdbcType.getVendorTypeNumber(), jdbcType.getName(), null);
-//                }
-//                return substring;
             }
         });
     }
