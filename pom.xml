@@ -205,6 +205,11 @@
                 <artifactId>log</artifactId>
                 <version>${air.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>json</artifactId>
+                <version>${air.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.apache.avro</groupId>

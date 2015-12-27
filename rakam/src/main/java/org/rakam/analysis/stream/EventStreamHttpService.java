@@ -104,7 +104,7 @@ public class EventStreamHttpService extends HttpService {
                     throw e;
                 }
                 return new CollectionStreamQuery(collection.name,
-                        expression == null ? null :expression.toString());
+                        expression == null ? null : expression.toString());
             }).collect(Collectors.toList());
         } catch (ParsingException e) {
             return;
