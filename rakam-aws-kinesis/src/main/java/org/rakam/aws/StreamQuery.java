@@ -29,4 +29,14 @@ public class StreamQuery {
         this.project = project;
         this.collections = collections;
     }
+
+    @JsonProperty
+    public String getProject() {
+        return project;
+    }
+
+    @JsonProperty
+    public List<CollectionStreamQuery> getCollections() {
+        return collections;
+    }
 }

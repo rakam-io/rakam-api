@@ -103,7 +103,8 @@ public class EventStreamHttpService extends HttpService {
                     request.response(encode(obj)).end();
                     throw e;
                 }
-                return new CollectionStreamQuery(collection.name, expression);
+                return new CollectionStreamQuery(collection.name,
+                        expression == null ? null :expression.toString());
             }).collect(Collectors.toList());
         } catch (ParsingException e) {
             return;
@@ -146,7 +147,7 @@ public class EventStreamHttpService extends HttpService {
     }
 
     public static class StreamQueryRequest {
-        public final String name;
+        private final String name;
         public final String filter;
 
         @JsonCreator

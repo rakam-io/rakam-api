@@ -47,7 +47,7 @@ public class KafkaStream implements EventStream {
         private Map<String, List<SchemaField>> metadata;
 
         public KafkaEventSupplier(String project, List<CollectionStreamQuery> collections, List<String> columns, StreamResponse response) {
-            this.collectionNames = collections.stream().map(c -> c.collection).collect(Collectors.toSet());
+            this.collectionNames = collections.stream().map(c -> c.getCollection()).collect(Collectors.toSet());
 
             this.lastOffsets = offsetManager.getOffset(project, collectionNames);
             this.collections = collections;
@@ -81,8 +81,8 @@ public class KafkaStream implements EventStream {
             String query = collections.stream().map(e -> {
                 String select;
 
-                List<SchemaField> cols = columns != null ? columns : getMetadata().get(e.collection);
-                select = String.format("'{\"_collection\": \"%s\",'||'", e.collection) + cols.stream()
+                List<SchemaField> cols = columns != null ? columns : getMetadata().get(e.getCollection());
+                select = String.format("'{\"_collection\": \"%s\",'||'", e.getCollection()) + cols.stream()
                         .map(field -> {
                             switch (field.getType()) {
                                 case LONG:
@@ -97,17 +97,17 @@ public class KafkaStream implements EventStream {
                         .collect(Collectors.joining(", ")) + " }'";
 
 
-                long offsetNow = offsets.get(project + "_" + e.collection.toLowerCase());
-                long offsetBefore = this.lastOffsets.get(project + "_" + e.collection.toLowerCase());
+                long offsetNow = offsets.get(project + "_" + e.getCollection().toLowerCase());
+                long offsetBefore = this.lastOffsets.get(project + "_" + e.getCollection().toLowerCase());
                 if (offsetBefore == offsetNow) {
                     return null;
                 }
                 return format("select %s from %s where _offset > %d and _offset <= %d %s",
                         select,
-                        prestoConfig.getHotStorageConnector() + "." + project + "." + e.collection,
+                        prestoConfig.getHotStorageConnector() + "." + project + "." + e.getCollection(),
                         offsetBefore,
                         offsetNow,
-                        e.filter == null ? "" : " AND " + e.filter.toString());
+                        e.getFilter() == null ? "" : " AND " + e.getFilter().toString());
 
             }).filter(d -> d != null).collect(Collectors.joining(" union all "));
 

@@ -13,16 +13,28 @@
  */
 package org.rakam.plugin;
 
-import com.facebook.presto.sql.tree.Expression;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 
 public class CollectionStreamQuery {
-    public final String collection;
-    public final Expression filter;
+    private final String collection;
+    private final String filter;
 
-
-    public CollectionStreamQuery(String collection, Expression filter) {
+    @JsonCreator
+    public CollectionStreamQuery(@JsonProperty("collection") String collection,
+                                 @JsonProperty("filter") String filter) {
         this.collection = collection;
         this.filter = filter;
+    }
+
+    @JsonProperty
+    public String getCollection() {
+        return collection;
+    }
+
+    @JsonProperty
+    public String getFilter() {
+        return filter;
     }
 }

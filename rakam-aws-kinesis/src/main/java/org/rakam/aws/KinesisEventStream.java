@@ -41,7 +41,7 @@ public class KinesisEventStream implements EventStream {
 
         URI uri = UriBuilder.fromUri(prestoAddress)
                 .port(streamingPort)
-                .path("connector/streamer/create-stream")
+                .path("connector/streamer")
                 .build();
 
         Request request = preparePost()

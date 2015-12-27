@@ -1,6 +1,7 @@
 package org.rakam;
 
 import com.facebook.presto.sql.ExpressionFormatter;
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
@@ -31,6 +32,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     private final StreamResponse response;
     private final List<CollectionStreamQuery> collections;
     private final String project;
+    private final SqlParser sqlParser;
     PGNotificationListener listener;
     private Queue<String> queue = new ConcurrentLinkedQueue<>();
 
@@ -41,6 +43,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
         this.collections = collections;
         this.project = project;
         this.open = true;
+        this.sqlParser = new SqlParser();
 
         if(createProcedures()) {
             listener = (processId, channelName, payload) -> {
@@ -85,11 +88,11 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
             statement.execute("UNLISTEN "+ticket);
             for (CollectionStreamQuery collection : collections) {
                 statement.execute(format("DROP TRIGGER IF EXISTS %s ON %1$s.%2$s",
-                        getProcedureName(collection.collection),
+                        getProcedureName(collection.getCollection()),
                         project,
-                        collection.collection));
+                        collection.getCollection()));
                 statement.execute(format("DROP FUNCTION IF EXISTS stream_%s_%s_%s",
-                        getProcedureName(collection.collection)));
+                        getProcedureName(collection.getCollection())));
             }
         } catch (SQLException e) {
             LOGGER.error(e, "Couldn't deleted functions and triggers from Postgresql server. Ticket: " + ticket);
@@ -105,7 +108,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     private boolean createProcedures() {
         for (CollectionStreamQuery collection : collections) {
             try (Statement statement = conn.createStatement()) {
-                String name = getProcedureName(collection.collection);
+                String name = getProcedureName(collection.getCollection());
                 statement.execute(format("CREATE OR REPLACE FUNCTION %s()" +
                                 "  RETURNS trigger AS" +
                                 "  $BODY$" +
@@ -116,13 +119,13 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                                 "        RETURN NEW;" +
                                 "    END;" +
                                 "  $BODY$ LANGUAGE plpgsql;",
-                        name, createSqlExpression(collection), ticket, collection.collection));
+                        name, createSqlExpression(collection), ticket, collection.getCollection()));
 
                 statement.execute(format("CREATE TRIGGER %s" +
                         "  AFTER INSERT" +
                         "  ON \"%s\".\"%s\"" +
                         "  FOR EACH ROW" +
-                        "  EXECUTE PROCEDURE %s();", name, project, collection.collection, name));
+                        "  EXECUTE PROCEDURE %s();", name, project, collection.getCollection(), name));
 
             } catch (SQLException e) {
                 try {
@@ -138,8 +141,8 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     }
 
     private String createSqlExpression(CollectionStreamQuery collection) {
-        if(collection.filter!=null) {
-            return collection.filter.accept(new ExpressionFormatter.Formatter() {
+        if(collection.getFilter()!=null) {
+            return sqlParser.createExpression(collection.getFilter()).accept(new ExpressionFormatter.Formatter() {
                 @Override
                 protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean context) {
                     List<String> parts = new ArrayList<>();
