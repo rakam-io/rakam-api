@@ -118,7 +118,6 @@ public class AWSKinesisEventStore implements EventStore {
                 storeBatchInline(events, 0, events.size());
             }
         }
-        System.out.println(events.size()+" committed");
     }
 
     @Override

@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
@@ -99,7 +100,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                             if(t == JsonToken.START_OBJECT) {
                                 throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                             } else {
-                                System.out.println(1);
+                                throw new RakamException("Error while deserializing event", INTERNAL_SERVER_ERROR);
                             }
                         }
                     }
