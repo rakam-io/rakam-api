@@ -15,15 +15,29 @@
                 <include>README*</include>
                 <include>LICENSE*</include>
                 <include>NOTICE*</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${air.main.basedir}</directory>
+            <outputDirectory>/etc</outputDirectory>
+            <includes>
                 <include>log.properties</include>
+                <include>jvm.config</include>
             </includes>
         </fileSet>
         <fileSet>
             <directory>${project.build.directory}</directory>
-            <outputDirectory>/</outputDirectory>
+            <outputDirectory>/etc</outputDirectory>
             <includes>
-                <include>/config.properties</include>
-                <include>/git.properties</include>
+                <include>config.properties</include>
+                <include>log.properties</include>
+            </includes>
+        </fileSet>
+        <fileSet>
+            <directory>${basedir}/bin</directory>
+            <outputDirectory>/bin</outputDirectory>
+            <includes>
+                <include>**/*</include>
             </includes>
         </fileSet>
     </fileSets>

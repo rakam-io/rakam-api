@@ -340,6 +340,7 @@ def create_parser():
     parser = OptionParser(prog='launcher', usage='usage: %prog [options] command', description=commands)
     parser.add_option('-v', '--verbose', action='store_true', default=False, help='Run verbosely')
     parser.add_option('--launcher-config', metavar='FILE', help='Defaults to INSTALL_PATH/bin/launcher.properties')
+    parser.add_option('--node-config', metavar='FILE', help='Defaults to INSTALL_PATH/etc/node.properties')
     parser.add_option('--jvm-config', metavar='FILE', help='Defaults to INSTALL_PATH/etc/jvm.config')
     parser.add_option('--config', metavar='FILE', help='Defaults to INSTALL_PATH/etc/config.properties')
     parser.add_option('--log-levels-file', metavar='FILE', help='Defaults to INSTALL_PATH/etc/log.properties')
@@ -403,19 +404,30 @@ def main():
     o.verbose = options.verbose
     o.install_path = install_path
     o.launcher_config = realpath(options.launcher_config or pathjoin(o.install_path, 'bin/launcher.properties'))
+    o.node_config = realpath(options.node_config or pathjoin(o.install_path, 'etc/node.properties'))
     o.jvm_config = realpath(options.jvm_config or pathjoin(o.install_path, 'etc/jvm.config'))
     o.config_path = realpath(options.config or pathjoin(o.install_path, 'etc/config.properties'))
     o.log_levels = realpath(options.log_levels_file or pathjoin(o.install_path, 'etc/log.properties'))
     o.log_levels_set = bool(options.log_levels_file)
 
-    data_dir = os.path.abspath(__file__)
+    if options.node_config and not exists(o.node_config):
+        parser.error('Node config file is missing: %s' % o.node_config)
+
+    node_properties = {}
+    if exists(o.node_config):
+        node_properties = load_properties(o.node_config)
+
+    data_dir = node_properties.get('node.data-dir')
     o.data_dir = realpath(options.data_dir or data_dir or o.install_path)
 
-    o.pid_file = realpath(pathjoin(data_dir, 'var/run/launcher.pid'))
-    o.launcher_log = realpath(data_dir, 'var/log/launcher.log'))
-    o.server_log = realpath(data_dir, 'var/log/server.log'))
+    o.pid_file = realpath(options.pid_file or pathjoin(o.data_dir, 'var/run/launcher.pid'))
+    o.launcher_log = realpath(options.launcher_log_file or pathjoin(o.data_dir, 'var/log/launcher.log'))
+    o.server_log = realpath(options.server_log_file or pathjoin(o.data_dir, 'var/log/server.log'))
 
     o.properties = parse_properties(parser, options.properties or {})
+    for k, v in node_properties.iteritems():
+        if k not in o.properties:
+            o.properties[k] = v
 
     if o.verbose:
         print_options(o)
