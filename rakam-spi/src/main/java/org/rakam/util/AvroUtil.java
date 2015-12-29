@@ -52,20 +52,6 @@ public class AvroUtil {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);
-            case MAP_STRING_STRING:
-                return Schema.createMap(Schema.create(Schema.Type.STRING));
-            case MAP_STRING_DOUBLE:
-                return Schema.createMap(Schema.create(Schema.Type.DOUBLE));
-            case ARRAY_STRING:
-                return Schema.createArray(Schema.create(Schema.Type.STRING));
-            case ARRAY_LONG:
-            case ARRAY_TIMESTAMP:
-            case ARRAY_TIME:
-                return Schema.createArray(Schema.create(Schema.Type.LONG));
-            case ARRAY_DOUBLE:
-                return Schema.createArray(Schema.create(Schema.Type.DOUBLE));
-            case ARRAY_BOOLEAN:
-                return Schema.createArray(Schema.create(Schema.Type.BOOLEAN));
             case LONG:
                 return Schema.create(Schema.Type.LONG);
             case DOUBLE:
@@ -77,6 +63,12 @@ public class AvroUtil {
             case TIME:
                 return Schema.create(Schema.Type.LONG);
             default:
+                if (type.isMap()) {
+                    return Schema.createMap(getAvroSchema(type.getMapValueType()));
+                }
+                if(type.isArray()) {
+                    return Schema.createArray(getAvroSchema(type.getArrayElementType()));
+                }
                 throw new IllegalStateException();
         }
     }

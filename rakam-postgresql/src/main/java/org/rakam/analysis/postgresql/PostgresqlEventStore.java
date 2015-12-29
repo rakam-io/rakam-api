@@ -5,10 +5,12 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.postgresql.util.PGobject;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.Event;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
+import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
 import java.sql.Connection;
@@ -88,6 +90,12 @@ public class PostgresqlEventStore implements EventStore {
                     String typeName = toPostgresqlPrimitiveTypeName(schema.getElementType().getType());
                     ps.setArray(pos++, connection.createArrayOf(typeName, ((List) value).toArray()));
                     break;
+                case MAP:
+                    PGobject jsonObject = new PGobject();
+                    jsonObject.setType("jsonb");
+                    jsonObject.setValue(JsonHelper.encode(value));
+                    ps.setObject(pos++, jsonObject);
+                    break;
                 case STRING:
                     ps.setString(pos++, (String) value);
                     break;
@@ -118,8 +126,10 @@ public class PostgresqlEventStore implements EventStore {
                 return "bigint";
             case DOUBLE:
                 return "double precision";
+            case BOOLEAN:
+                return "boolean";
             default:
-                throw new UnsupportedOperationException();
+                return "bigint";
         }
     }
 

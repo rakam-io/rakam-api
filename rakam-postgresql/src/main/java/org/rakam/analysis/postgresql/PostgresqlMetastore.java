@@ -428,6 +428,12 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 if(type.isArray()) {
                     return  toSql(type.getArrayElementType()) + "[]";
                 }
+                if(type.isMap()) {
+//                    if(type == FieldType.MAP_STRING_STRING) {
+//                        return "hstore";
+//                    }
+                    return "jsonb";
+                }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }
     }
@@ -445,7 +451,11 @@ public class PostgresqlMetastore extends AbstractMetastore {
                     return FieldType.ARRAY_DOUBLE;
                 }
             }
-            return FieldType.STRING;
+            if(name.equals("jsonb")) {
+                return FieldType.MAP_STRING_STRING;
+            }
+
+            throw new UnsupportedOperationException(String.format("type '%s' is not supported.", typeName));
         });
     }
 

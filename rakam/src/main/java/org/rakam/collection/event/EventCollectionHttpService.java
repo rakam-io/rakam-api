@@ -130,7 +130,6 @@ public class EventCollectionHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/collect")
     public void collectEvent(RakamHttpRequest request) {
-
         InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
                 .remoteAddress();
         HttpHeaders headers = request.headers();
@@ -273,14 +272,14 @@ public class EventCollectionHttpService extends HttpService {
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (IOException e) {
-                request.response("json couldn't parsed", BAD_REQUEST).end();
+                request.response("\"json couldn't parsed\"", BAD_REQUEST).end();
                 return;
             } catch (RakamException e) {
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
-                request.response(e.getMessage(), INTERNAL_SERVER_ERROR).end();
+                request.response('\"'+e.getMessage()+'\"', INTERNAL_SERVER_ERROR).end();
                 return;
             }
 

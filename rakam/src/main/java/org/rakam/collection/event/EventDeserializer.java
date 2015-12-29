@@ -5,12 +5,9 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ProjectNotExistsException;
@@ -24,36 +21,31 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.StreamSupport.stream;
 
 public class EventDeserializer extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
-    private final Set<SchemaField> constantMagicFields;
 
     private final Metastore metastore;
-    private final Map<ProjectCollection, Schema> schemaCache;
+    private final Cache<ProjectCollection, Schema> schemaCache  = CacheBuilder.newBuilder()
+            .expireAfterAccess(1, TimeUnit.HOURS).build();
 
     @Inject
     public EventDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
-        this.schemaCache = Maps.newConcurrentMap();
         this.conditionalMagicFields = fieldDependency.dependentFields;
-        this.constantMagicFields = fieldDependency.constantFields;
     }
 
     @Override
@@ -61,7 +53,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         return deserializeWithProject(jp, null);
     }
 
-    public Event deserializeWithProject(JsonParser jp, String project) throws IOException {
+    public Event deserializeWithProject(JsonParser jp, String project) throws IOException, RakamException {
         GenericData.Record properties = null;
 
         String collection = null;
@@ -80,7 +72,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 case "project":
                     if(project != null) {
                         if(jp.getValueAsString() != null) {
-                            throw new IllegalArgumentException("project is already set");
+                            throw new RakamException("project is already set", BAD_REQUEST);
                         }
                     } else {
                         project = jp.getValueAsString();
@@ -105,7 +97,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
                         if(t != JsonToken.END_OBJECT) {
                             if(t == JsonToken.START_OBJECT) {
-                                throw new RakamException("Nested properties are not supported", HttpResponseStatus.BAD_REQUEST);
+                                throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                             } else {
                                 System.out.println(1);
                             }
@@ -137,28 +129,13 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
     private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException, ProjectNotExistsException {
         ProjectCollection key = new ProjectCollection(project, collection);
-        Schema avroSchema = schemaCache.get(key);
+        Schema avroSchema = schemaCache.getIfPresent(key);
         List<SchemaField> schema;
         if (avroSchema == null) {
             schema = metastore.getCollection(project, collection);
-            if (schema != null) {
-                avroSchema = convertAvroSchema(schema);
 
-                schemaCache.put(key, avroSchema);
-            }
-        }
-
-        if (avroSchema == null) {
-            ObjectNode node = jp.readValueAs(ObjectNode.class);
-            Set<SchemaField> fields = createSchemaFromArbitraryJson(node);
-
-            schema = metastore.getOrCreateCollectionFieldList(project, collection, fields);
             avroSchema = convertAvroSchema(schema);
             schemaCache.put(key, avroSchema);
-
-            GenericData.Record record = new GenericData.Record(avroSchema);
-            fields.forEach(field -> record.put(field.getName(), getValue(node.get(field.getName()), field.getType())));
-            return record;
         }
 
         GenericData.Record record = new GenericData.Record(avroSchema);
@@ -242,7 +219,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     }
 
     private Schema createNewSchema(Schema currentSchema, SchemaField newField) {
-        List<Schema.Field> avroFields = copyFields(currentSchema.getFields());
+        List<Schema.Field> avroFields = currentSchema.getFields().stream()
+                .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
+                .collect(toList());
+
         avroFields.add(AvroUtil.generateAvroSchema(newField));
 
         conditionalMagicFields.keySet().stream()
@@ -254,43 +234,6 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         avroSchema.setFields(avroFields);
 
         return avroSchema;
-    }
-
-    private Object getValue(JsonNode jsonNode, FieldType type) {
-
-        if (jsonNode == null)
-            return null;
-
-        switch (type) {
-            case BOOLEAN:
-                return jsonNode.asBoolean();
-            case LONG:
-                return jsonNode.longValue();
-            case STRING:
-            case TIME:
-            case TIMESTAMP:
-                return jsonNode.asText();
-            case DOUBLE:
-                return jsonNode.doubleValue();
-            case ARRAY_STRING:
-            case ARRAY_TIME:
-            case ARRAY_TIMESTAMP:
-                return stream(jsonNode.spliterator(), false).map(x -> x.asText()).collect(toList());
-            case ARRAY_LONG:
-                return stream(jsonNode.spliterator(), false).map(x -> x.asLong()).collect(toList());
-            case ARRAY_DOUBLE:
-                return stream(jsonNode.spliterator(), false).map(x -> x.asDouble()).collect(toList());
-            case ARRAY_BOOLEAN:
-                return stream(jsonNode.spliterator(), false).map(x -> x.asBoolean()).collect(toList());
-            case MAP_STRING_STRING:
-                return stream(Spliterators.spliteratorUnknownSize(jsonNode.fields(), Spliterator.ORDERED), false)
-                        .map(x -> new AbstractMap.SimpleImmutableEntry<>(x.getKey(), x.getValue().asText())).collect(toList());
-            case MAP_STRING_DOUBLE:
-                return stream(Spliterators.spliteratorUnknownSize(jsonNode.fields(), Spliterator.ORDERED), false)
-                        .map(x -> new AbstractMap.SimpleImmutableEntry<>(x.getKey(), x.getValue().asDouble())).collect(toList());
-            default:
-                throw new IllegalStateException();
-        }
     }
 
     private Object getValueOfMagicField(JsonParser jp) throws IOException {
@@ -308,7 +251,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case VALUE_NULL:
                 return null;
             default:
-                throw new RakamException("The value of magic field is unknown", HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException("The value of magic field is unknown", BAD_REQUEST);
         }
     }
 
@@ -346,11 +289,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 } else {
                     // In order to determine the value type of map, getType method performed an extra
                     // jp.nextToken() so the cursor should be at VALUE_STRING token.
-                    if(t == JsonToken.VALUE_STRING) {
-                        String key = jp.getParsingContext().getCurrentName();
-                        map.put(key, jp.getValueAsString());
-                        t = jp.nextToken();
-                    }
+                    String key = jp.getParsingContext().getCurrentName();
+                    map.put(key, getValue(jp, schema.getValueType(), false));
+                    t = jp.nextToken();
                 }
 
                 for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
@@ -419,68 +360,6 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             default:
                 throw new JsonMappingException(format("the type is not supported: %s", jp.getValueAsString()));
         }
-    }
-
-    public static List<Schema.Field> copyFields(List<Schema.Field> fields) {
-        return fields.stream()
-                .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
-                .collect(toList());
-    }
-
-    public static FieldType getTypeFromJsonNode(JsonNode jsonNode) {
-        JsonNodeType nodeType = jsonNode.getNodeType();
-        switch (nodeType) {
-            case NUMBER:
-                switch (jsonNode.numberType()) {
-                    case INT:
-                    case LONG:
-                    case BIG_INTEGER:
-                        return FieldType.LONG;
-                    default:
-                        return FieldType.DOUBLE;
-                }
-            case STRING:
-                return FieldType.STRING;
-            case BOOLEAN:
-                return FieldType.BOOLEAN;
-            case NULL:
-                return null;
-            case ARRAY:
-                FieldType type = getTypeFromJsonNode(jsonNode.get(0));
-                if (!type.isArray()) {
-                    throw new IllegalArgumentException("type is not array");
-                }
-                return type;
-            case OBJECT:
-                type = getTypeFromJsonNode(jsonNode.get(0));
-                if (!type.isMap()) {
-                    throw new IllegalArgumentException("type is not map");
-                }
-                return type;
-            default:
-                throw new UnsupportedOperationException("unsupported json field type");
-        }
-    }
-
-    public static Set<SchemaField> createSchemaFromArbitraryJson(ObjectNode json) {
-        Iterator<Map.Entry<String, JsonNode>> elements = json.fields();
-        Set<SchemaField> fields = new HashSet<>();
-
-        while (elements.hasNext()) {
-            Map.Entry<String, JsonNode> next = elements.next();
-            String key = next.getKey();
-            FieldType fieldType;
-            if(key.equals("_user")) {
-                fieldType = FieldType.STRING;
-            } else {
-                fieldType = getTypeFromJsonNode(next.getValue());
-            }
-            if (fieldType != null) {
-                fields.add(new SchemaField(key, fieldType, true));
-            }
-        }
-
-        return fields;
     }
 }
 

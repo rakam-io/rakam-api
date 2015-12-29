@@ -2,6 +2,7 @@ package org.rakam.report.postgresql;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.postgresql.util.PGobject;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -9,7 +10,9 @@ import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
+import org.rakam.util.JsonHelper;
 
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -117,6 +120,17 @@ public class PostgresqlQueryExecution implements QueryExecution {
                     if (object instanceof Timestamp) {
                         // we remove timezone
                         object = ((Timestamp) object).toInstant();
+                    }
+                    if(object instanceof PGobject) {
+                        PGobject pgObject = (PGobject) object;
+                        if (pgObject.getType().equals("jsonb")) {
+                            object = JsonHelper.read(pgObject.getValue());
+                        } else {
+                            throw new UnsupportedOperationException("Postgresql type is not supported");
+                        }
+                    }
+                    if(object instanceof java.sql.Array) {
+                        object = ((Array) object).getArray();
                     }
                     rowBuilder.set(i - 1, object);
                 }
