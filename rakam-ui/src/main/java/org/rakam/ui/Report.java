@@ -29,10 +29,10 @@ public class Report implements ProjectItem {
     {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
-        this.category = checkNotNull(category, "category is required");
         this.slug = checkNotNull(slug, "slug is required");
         this.query = checkNotNull(query, "query is required");
         this.options = options;
+        this.category = category;
 
         checkArgument(this.slug.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
                 "slug must only contain alphanumeric characters and _");
