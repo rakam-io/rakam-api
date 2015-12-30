@@ -2,7 +2,7 @@ package org.rakam;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import org.rakam.analysis.ProjectNotExistsException;
+import org.rakam.analysis.NotExistsException;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.MaterializedViewService;
@@ -67,7 +67,7 @@ public class RecipeHandler {
         recipe.getCollections().forEach((collectionName, schema) -> {
             try {
                 metastore.getOrCreateCollectionFieldList(project, collectionName, new HashSet<>(schema.getColumns()));
-            } catch (ProjectNotExistsException e) {
+            } catch (NotExistsException e) {
                 throw Throwables.propagate(e);
             }
         });

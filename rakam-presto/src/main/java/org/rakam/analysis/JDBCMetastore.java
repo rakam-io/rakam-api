@@ -10,6 +10,7 @@ import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
@@ -276,7 +277,7 @@ public class JDBCMetastore extends AbstractMetastore {
     }
 
     @Override
-    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
         if (!collection.matches("^[a-zA-Z0-9_]*$")) {
             throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
         }
@@ -296,7 +297,7 @@ public class JDBCMetastore extends AbstractMetastore {
             Runnable task;
             if (currentFields.size() == 0) {
                 if (!getProjects().contains(project)) {
-                    throw new ProjectNotExistsException();
+                    throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
                 }
                 String queryEnd = schemaFields.stream()
                         .map(f -> {

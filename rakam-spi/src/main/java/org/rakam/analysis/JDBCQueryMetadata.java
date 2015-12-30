@@ -57,10 +57,14 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             @Override
             public MaterializedView load(ProjectCollection key) throws Exception {
                 try (Handle handle = dbi.open()) {
-                    return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field from materialized_views WHERE project = :project AND table_name = :name")
+                    MaterializedView first = handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field from materialized_views WHERE project = :project AND table_name = :name")
                             .bind("project", key.project)
                             .bind("name", key.collection)
                             .map(materializedViewMapper).first();
+                    if(first == null) {
+                        throw new NotExistsException("materialized view", HttpResponseStatus.BAD_REQUEST);
+                    }
+                    return first;
                 }
             }
         });

@@ -111,7 +111,7 @@ public abstract class MaterializedViewService {
         CompletableFuture<List<SchemaField>>[] completableFutures = database.getMaterializedViews(project).stream()
                 .map(a -> {
                     CompletableFuture<List<SchemaField>> metadata = metadata(project, a.query);
-                    futures.put(project, metadata);
+                    futures.put(a.tableName, metadata);
                     return metadata;
                 })
                 .toArray(CompletableFuture[]::new);

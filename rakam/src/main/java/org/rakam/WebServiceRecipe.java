@@ -6,6 +6,8 @@ import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Contact;
 import io.swagger.models.Info;
@@ -16,9 +18,9 @@ import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
 import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
-import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.config.HttpServerConfig;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
 import org.rakam.server.http.HttpService;
@@ -26,6 +28,7 @@ import org.rakam.server.http.WebSocketService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.util.Os;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
@@ -74,7 +77,12 @@ public class WebServiceRecipe extends AbstractModule {
                 .securityDefinition("read_key", new ApiKeyAuthDefinition().in(In.HEADER).name("read_key"))
                 .securityDefinition("master_key", new ApiKeyAuthDefinition().in(In.HEADER).name("master_key"));
 
-        NioEventLoopGroup eventExecutors = new NioEventLoopGroup();
+        EventLoopGroup eventExecutors;
+        if (Os.supportsEpoll()) {
+            eventExecutors = new EpollEventLoopGroup();
+        } else {
+            eventExecutors = new NioEventLoopGroup();
+        }
 
         HttpServer httpServer =  new HttpServerBuilder()
                 .setHttpServices(httpServices)

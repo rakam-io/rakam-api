@@ -10,7 +10,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.rakam.analysis.ProjectNotExistsException;
+import org.rakam.analysis.NotExistsException;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -91,7 +91,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     } else {
                         try {
                             properties = parseProperties(project, collection, jp);
-                        } catch (ProjectNotExistsException e) {
+                        } catch (NotExistsException e) {
                             throw Throwables.propagate(e);
                         }
                         t = jp.getCurrentToken();
@@ -128,7 +128,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         return schema;
     }
 
-    private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException, ProjectNotExistsException {
+    private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException, NotExistsException {
         ProjectCollection key = new ProjectCollection(project, collection);
         Schema avroSchema = schemaCache.getIfPresent(key);
         List<SchemaField> schema;

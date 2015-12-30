@@ -2,8 +2,9 @@ package org.rakam.aws;
 
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractMetastore;
-import org.rakam.analysis.ProjectNotExistsException;
+import org.rakam.analysis.NotExistsException;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 
@@ -67,10 +68,10 @@ class InMemoryMetastore extends AbstractMetastore {
     }
 
     @Override
-    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
+    public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
         Map<String, List<SchemaField>> list = collections.get(project);
         if(list == null) {
-            throw new ProjectNotExistsException();
+            throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
         }
         List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<SchemaField>());
         fields.stream()

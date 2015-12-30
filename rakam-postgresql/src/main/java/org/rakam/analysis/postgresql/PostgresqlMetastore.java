@@ -8,9 +8,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AbstractMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.ProjectNotExistsException;
+import org.rakam.analysis.NotExistsException;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
@@ -282,7 +283,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
     }
 
     @Override
-    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
+    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
         if (collection.equals("public")) {
             throw new IllegalArgumentException("Collection name 'public' is not allowed.");
         }
@@ -309,7 +310,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             Runnable task;
             if (currentFields.size() == 0) {
                 if (!getProjects().contains(project)) {
-                    throw new ProjectNotExistsException();
+                    throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
                 }
                 String queryEnd = schemaFields.stream()
                         .map(f -> {

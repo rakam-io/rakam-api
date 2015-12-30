@@ -1,6 +1,6 @@
 package org.rakam.collection.event.metastore;
 
-import org.rakam.analysis.ProjectNotExistsException;
+import org.rakam.analysis.NotExistsException;
 import org.rakam.collection.SchemaField;
 
 import java.util.List;
@@ -25,7 +25,7 @@ public interface Metastore {
 
     List<SchemaField> getCollection(String project, String collection);
 
-    List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException;
+    List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws NotExistsException;
 
     boolean checkPermission(String project, AccessKeyType type, String apiKey);
 

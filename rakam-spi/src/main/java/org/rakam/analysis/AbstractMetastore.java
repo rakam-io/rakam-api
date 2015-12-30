@@ -60,7 +60,7 @@ public abstract class AbstractMetastore implements Metastore {
                     if(!collect.isEmpty()) {
                         try {
                             getOrCreateCollectionFieldList(project, collection, collect);
-                        } catch (ProjectNotExistsException e) {
+                        } catch (NotExistsException e) {
                             throw Throwables.propagate(e);
                         }
                     }
@@ -80,7 +80,7 @@ public abstract class AbstractMetastore implements Metastore {
     }
 
     @Override
-    public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws ProjectNotExistsException {
+    public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
         Iterator<SchemaField> it = fields.iterator();
         while(it.hasNext()) {
             if(sourceFields.contains(it.next())){

@@ -32,6 +32,7 @@ import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 
+import javax.annotation.PostConstruct;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.UnsupportedEncodingException;
@@ -40,10 +41,13 @@ import java.net.URISyntaxException;
 
 @Path("/ui/proxy")
 public class ProxyWebService extends HttpService {
-    Bootstrap bootstrap;
+    private final AttributeKey<RakamHttpRequest> CONNECTION_ATTR = AttributeKey.newInstance("CONNECTION_ATTR");
 
-    public ProxyWebService() {
-        bootstrap = new Bootstrap().channel(NioSocketChannel.class).group(new NioEventLoopGroup());
+    private Bootstrap bootstrap;
+
+    @PostConstruct
+    public void startClient() {
+        bootstrap = new Bootstrap().channel(NioSocketChannel.class).group(new NioEventLoopGroup(4));
 
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
@@ -57,7 +61,7 @@ public class ProxyWebService extends HttpService {
 
                     @Override
                     public void channelRead0(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
-                        RakamHttpRequest rakamHttpRequest = ctx.channel().attr(test).get();
+                        RakamHttpRequest rakamHttpRequest = ctx.channel().attr(CONNECTION_ATTR).get();
                         Channel channel = rakamHttpRequest.context().channel();
                         FullHttpResponse resp = (FullHttpResponse) msg;
 
@@ -105,8 +109,6 @@ public class ProxyWebService extends HttpService {
         });
     }
 
-   private final AttributeKey<RakamHttpRequest> test = AttributeKey.newInstance("test");
-
     @Path("/")
     @GET
     @IgnorePermissionCheck
@@ -119,7 +121,7 @@ public class ProxyWebService extends HttpService {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        ch.attr(test).set(request);
+        ch.attr(CONNECTION_ATTR).set(request);
 
         HttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, url.getRawPath());
         req.headers().set(HttpHeaders.Names.HOST, url.getHost());
