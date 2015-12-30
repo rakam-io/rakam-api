@@ -44,7 +44,7 @@ public class RecipeHandler {
 
         final List<Recipe.ReportBuilder> reports = reportMetadata
                 .getReports(project).stream()
-                .map(r -> new Recipe.ReportBuilder(r.slug, r.name, r.query, r.options))
+                .map(r -> new Recipe.ReportBuilder(r.slug, r.category, r.name, r.query, r.options))
                 .collect(Collectors.toList());
 
         return new Recipe(Recipe.Strategy.SPECIFIC, project, collections, materializedViews, continuousQueryBuilders, reports);

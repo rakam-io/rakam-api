@@ -141,20 +141,23 @@ public class Recipe implements ProjectItem {
         public final String name;
         public final String query;
         public final Map<String, Object> options;
+        public final String category;
 
         @JsonCreator
         public ReportBuilder(@JsonProperty("slug") String slug,
                              @JsonProperty("name") String name,
+                             @JsonProperty("category") String category,
                              @JsonProperty("query") String query,
                              @JsonProperty("options") Map<String, Object> options) {
             this.slug = slug;
+            this.category = category;
             this.name = name;
             this.query = query;
             this.options = options;
         }
 
         public Report createReport(String project) {
-            return new Report(project, slug, name, query, options);
+            return new Report(project, slug, category, name, query, options);
         }
     }
 
