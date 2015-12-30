@@ -20,7 +20,7 @@ public class JDBCReportMetadata {
     private final DBI dbi;
 
     ResultSetMapper<Report> mapper = (index, r, ctx) ->
-            new Report(r.getString(1), r.getString(2),r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), Map.class));
+            new Report(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class));
 
     @Inject
     public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
@@ -33,6 +33,7 @@ public class JDBCReportMetadata {
             handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  slug VARCHAR(255) NOT NULL," +
+                    "  category VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
                     "  query TEXT NOT NULL," +
                     "  options TEXT," +
@@ -44,7 +45,7 @@ public class JDBCReportMetadata {
 
     public List<Report> getReports(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, slug, name, query, options FROM reports WHERE project = :project")
+            return handle.createQuery("SELECT project, slug, category, name, query, options FROM reports WHERE project = :project")
                     .bind("project", project).map(mapper).list();
         }
     }
@@ -58,11 +59,12 @@ public class JDBCReportMetadata {
 
     public void save(Report report) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO reports (project, slug, name, query, options) VALUES (:project, :slug, :name, :query, :options)")
+            handle.createStatement("INSERT INTO reports (project, slug, category, name, query, options) VALUES (:project, :slug, :category, :name, :query, :options)")
                     .bind("project", report.project)
                     .bind("name", report.name)
                     .bind("query", report.query)
                     .bind("slug", report.slug)
+                    .bind("category", report.category)
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();
         } catch (UnableToExecuteStatementException e) {
@@ -75,7 +77,7 @@ public class JDBCReportMetadata {
 
     public Report get(String project, String slug) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, slug, name, query, options FROM reports WHERE project = :project AND slug = :slug")
+            return handle.createQuery("SELECT project, slug, category, name, query, options FROM reports WHERE project = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("slug", slug).map(mapper).first();
         }
@@ -83,10 +85,11 @@ public class JDBCReportMetadata {
 
     public Report update(Report report) {
         try(Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, options = :options WHERE project = :project AND slug = :slug")
+            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project = :project AND slug = :slug")
                     .bind("project", report.project)
                     .bind("name", report.name)
                     .bind("query", report.query)
+                    .bind("category", report.category)
                     .bind("slug", report.slug)
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();

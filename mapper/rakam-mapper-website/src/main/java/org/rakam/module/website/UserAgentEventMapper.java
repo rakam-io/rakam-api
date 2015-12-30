@@ -61,17 +61,26 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
                 return;
             }
 
-            properties.put("user_agent_family", parsed.userAgent.family);
+            if(properties.get("user_agent_family") == null) {
+                properties.put("user_agent_family", parsed.userAgent.family);
+            }
 
-            if(parsed.userAgent != null) {
+            if(parsed.userAgent != null && properties.get("user_agent_version") == null) {
                 try {
                     properties.put("user_agent_version", Long.parseLong(parsed.userAgent.major));
                 } catch (NumberFormatException e) {}
             }
 
+            if (parsed.device != null && properties.get("device_family") == null) {
+                properties.put("device_family", parsed.device.family);
+            }
+
             if(parsed.os != null) {
-                properties.put("os", parsed.os.family);
-                if(parsed.os.major != null) {
+                if(properties.get("os") == null) {
+                    properties.put("os", parsed.os.family);
+                }
+
+                if(parsed.os.major != null && properties.get("os_version") == null) {
                     try {
                         properties.put("os_version", Long.parseLong(parsed.os.major));
                     } catch (Exception e) {

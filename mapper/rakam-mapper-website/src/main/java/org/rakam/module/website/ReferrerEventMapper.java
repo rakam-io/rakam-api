@@ -30,20 +30,19 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     public ReferrerEventMapper() {
         try {
             parser = new Parser();
-        }  catch (IOException | CorruptYamlException e) {
+        } catch (IOException | CorruptYamlException e) {
             throw Throwables.propagate(e);
         }
     }
 
     private void mapInternal(HttpHeaders extraProperties, Object referrer, Object host, GenericRecord record) {
         String hostUrl, referrerUrl;
-        if(referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
+        if (referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
             hostUrl = extraProperties.get("Origin");
             referrerUrl = extraProperties.get("Referer");
-        } else
-        if(referrer instanceof String) {
+        } else if (referrer instanceof String) {
             referrerUrl = (String) referrer;
-            if(host instanceof String) {
+            if (host instanceof String) {
                 hostUrl = (String) host;
             } else {
                 hostUrl = null;
@@ -53,18 +52,26 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
         }
 
         Referer parse;
-        if(referrerUrl != null) {
+        if (referrerUrl != null) {
             try {
                 parse = parser.parse(referrerUrl, hostUrl);
             } catch (URISyntaxException e) {
                 return;
             }
-            if(parse == null) {
+            if (parse == null) {
                 return;
             }
-            record.put("referrer_medium", parse.medium != null ? parse.medium.toString() : null);
-            record.put("referrer_source", parse.source);
-            record.put("referrer_term", parse.term);
+
+            if (record.get("referrer_medium") == null) {
+                record.put("referrer_medium", parse.medium != null ? parse.medium.toString() : null);
+            }
+            if (record.get("referrer_source") == null) {
+                record.put("referrer_source", parse.source);
+            }
+
+            if (record.get("referrer_term") == null) {
+                record.put("referrer_term", parse.term);
+            }
         }
     }
 
