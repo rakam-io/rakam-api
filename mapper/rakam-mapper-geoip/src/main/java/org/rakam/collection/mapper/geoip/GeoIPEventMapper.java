@@ -1,6 +1,5 @@
 package org.rakam.collection.mapper.geoip;
 
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -35,7 +34,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
-
 
 public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);

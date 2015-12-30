@@ -193,7 +193,6 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
                 <version>4.0.33.Final</version>
-                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>javax.inject</groupId>
