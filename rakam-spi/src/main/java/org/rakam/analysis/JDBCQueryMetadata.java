@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -22,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 
@@ -200,8 +202,11 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public MaterializedView getMaterializedView(String project, String tableName) {
-        materializedViewCache.refresh(new ProjectCollection(project, tableName));
-        return materializedViewCache.getUnchecked(new ProjectCollection(project, tableName));
+        try {
+            return materializedViewCache.get(new ProjectCollection(project, tableName));
+        } catch (ExecutionException e) {
+            throw Throwables.propagate(e.getCause());
+        }
     }
 
     @Override
