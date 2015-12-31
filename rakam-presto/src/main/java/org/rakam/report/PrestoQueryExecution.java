@@ -1,6 +1,7 @@
 package org.rakam.report;
 
 import com.facebook.presto.jdbc.internal.client.ClientTypeSignature;
+import com.facebook.presto.jdbc.internal.client.QueryResults;
 import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.client.StatementStats;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
@@ -11,16 +12,20 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import static java.time.ZoneOffset.UTC;
 import static org.rakam.collection.FieldType.*;
 
 public class PrestoQueryExecution implements QueryExecution {
@@ -31,7 +36,10 @@ public class PrestoQueryExecution implements QueryExecution {
             .setNameFormat("presto-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
     private final List<List<Object>> data = Lists.newArrayList();
+    private List<SchemaField> columns;
+
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
+    private static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS");
 
     private final StatementClient client;
     private final Instant startTime;
@@ -44,8 +52,7 @@ public class PrestoQueryExecution implements QueryExecution {
             @Override
             public void run() {
                 while (client.isValid() && client.advance()) {
-                    Optional.ofNullable(client.current().getData())
-                            .ifPresent((newResults) -> newResults.forEach(data::add));
+                    transformAndAdd(client.current());
                 }
 
                 if (client.isFailed()) {
@@ -53,19 +60,42 @@ public class PrestoQueryExecution implements QueryExecution {
                     QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
                     result.complete(QueryResult.errorResult(queryError));
                 } else {
-                    Optional.ofNullable(client.finalResults().getData())
-                            .ifPresent((newResults) -> newResults.forEach(data::add));
+                    transformAndAdd(client.finalResults());
 
-                    List<SchemaField> columns = Lists.newArrayList();
-                    List<com.facebook.presto.jdbc.internal.client.Column> internalColumns = client.finalResults().getColumns();
-                    for (int i = 0; i < internalColumns.size(); i++) {
-                        com.facebook.presto.jdbc.internal.client.Column c = internalColumns.get(i);
-                        columns.add(new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature()), true));
-                    }
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
                             QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS));
 
                     result.complete(new QueryResult(columns, data, stats));
+                }
+            }
+
+            private void transformAndAdd(QueryResults result) {
+                if(result.getError() != null) {
+                    return;
+                }
+
+                if(columns == null) {
+                    columns = result.getColumns().stream()
+                            .map(c -> new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature()), true))
+                            .collect(Collectors.toList());
+                }
+
+                if(result.getData() == null) {
+                    return;
+                }
+
+                for (List<Object> objects : result.getData()) {
+                    Object[] row = new Object[columns.size()];
+
+                    for (int i = 0; i < objects.size(); i++) {
+                        if(columns.get(i).getType() == TIMESTAMP) {
+                            row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
+                        } else {
+                            row[i] = objects.get(i);
+                        }
+                    }
+
+                    data.add(Arrays.asList(row));
                 }
             }
         });
