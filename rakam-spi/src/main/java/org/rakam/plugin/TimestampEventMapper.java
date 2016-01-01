@@ -51,7 +51,7 @@ public class TimestampEventMapper implements EventMapper {
 
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
-        builder.addFields(of(new SchemaField("_time", FieldType.LONG, true)));
+        builder.addFields(of(new SchemaField("_time", FieldType.TIMESTAMP)));
     }
 
     @Override

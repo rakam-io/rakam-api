@@ -176,15 +176,15 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
         List<SchemaField> fields = Arrays.stream(attributes)
-                .map(attr -> new SchemaField(attr, getType(attr), true))
+                .map(attr -> new SchemaField(attr, getType(attr)))
                 .collect(Collectors.toList());
 
         if(ispLookup != null) {
-            fields.add(new SchemaField("isp", FieldType.STRING, true));
+            fields.add(new SchemaField("isp", FieldType.STRING));
         }
 
         if(connectionTypeLookup != null) {
-            fields.add(new SchemaField("connection_type", FieldType.STRING, true));
+            fields.add(new SchemaField("connection_type", FieldType.STRING));
         }
 
         builder.addFields("_ip", fields);

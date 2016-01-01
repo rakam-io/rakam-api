@@ -70,7 +70,7 @@
         <presto.version>0.123</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.6.3</jackson.version>
-        <netty.rest.version>0.31</netty.rest.version>
+        <netty.rest.version>0.33-SNAPSHOT</netty.rest.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
@@ -194,20 +194,29 @@
                 <artifactId>netty-all</artifactId>
                 <version>4.0.33.Final</version>
             </dependency>
+
             <dependency>
                 <groupId>javax.inject</groupId>
                 <artifactId>javax.inject</artifactId>
                 <version>1</version>
             </dependency>
+
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>log</artifactId>
                 <version>${air.version}</version>
             </dependency>
+
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>json</artifactId>
                 <version>${air.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>net.kencochrane.raven</groupId>
+                <artifactId>raven</artifactId>
+                <version>6.0.0</version>
             </dependency>
 
             <dependency>

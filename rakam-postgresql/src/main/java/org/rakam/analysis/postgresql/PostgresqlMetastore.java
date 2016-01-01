@@ -277,7 +277,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             } catch (IllegalStateException e) {
                 continue;
             }
-            schemaFields.add(new SchemaField(columnName, fieldType, true));
+            schemaFields.add(new SchemaField(columnName, fieldType));
         }
         return schemaFields.size() == 0 ? null : schemaFields;
     }
@@ -303,7 +303,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             while (columns.next()) {
                 String colName = columns.getString("COLUMN_NAME");
                 strings.add(colName);
-                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME")), true));
+                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME"))));
             }
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());

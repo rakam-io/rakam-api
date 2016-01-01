@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.logging.Handler;
 
 import static com.google.common.collect.Maps.fromProperties;
 
@@ -134,7 +135,12 @@ public class Bootstrap
         initialized = true;
         Logging logging = null;
         if(this.initializeLogging) {
+            java.util.logging.Logger rootLogger = java.util.logging.Logger.getLogger("");
+            Handler[] handlers = rootLogger.getHandlers();
             logging = Logging.initialize();
+            for (Handler handler : handlers) {
+                rootLogger.addHandler(handler);
+            }
         }
 
         Thread.currentThread().setUncaughtExceptionHandler((t, e) ->

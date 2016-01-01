@@ -44,7 +44,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
                     statement.executeUpdate(sqlQuery);
                     // CREATE TABLE queries doesn't return any value and
                     // fail when using executeQuery so we face the result data
-                    List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN, true));
+                    List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN));
                     List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
                     return new QueryResult(cols, data);
                 } else {
@@ -109,7 +109,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
 
             columns = new ArrayList<>(columnCount);
             for (int i = 1; i < columnCount + 1; i++) {
-                columns.add(new SchemaField(metaData.getColumnName(i), fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i)), true));
+                columns.add(new SchemaField(metaData.getColumnName(i), fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i))));
             }
 
             ImmutableList.Builder<List<Object>> builder = ImmutableList.builder();

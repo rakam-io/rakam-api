@@ -31,7 +31,7 @@ public class RecipeHandler {
     public Recipe export(String project) {
         final Map<String, Recipe.Collection> collections = metastore.getCollections(project).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> {
             List<Map<String, Recipe.SchemaFieldInfo>> map = e.getValue().stream()
-                    .map(a -> ImmutableMap.of(a.getName(), new Recipe.SchemaFieldInfo(a.getCategory(), a.getType(), a.isNullable())))
+                    .map(a -> ImmutableMap.of(a.getName(), new Recipe.SchemaFieldInfo(a.getCategory(), a.getType())))
                     .collect(Collectors.toList());
             return new Recipe.Collection(map);
         }));

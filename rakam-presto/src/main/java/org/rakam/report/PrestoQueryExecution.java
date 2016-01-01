@@ -76,7 +76,7 @@ public class PrestoQueryExecution implements QueryExecution {
 
                 if(columns == null) {
                     columns = result.getColumns().stream()
-                            .map(c -> new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature()), true))
+                            .map(c -> new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature())))
                             .collect(Collectors.toList());
                 }
 

@@ -73,7 +73,7 @@ public class WebUserHttpService extends HttpService {
     @GET
     @IgnorePermissionCheck
     @Path("/me")
-    public Response<WebUser> me(@CookieParam(name="session", required = false) String session) {
+    public Response<WebUser> me(@CookieParam(name = "session", required = false) String session) {
         final int id;
         try {
             id = extractUserFromCookie(session);
@@ -84,7 +84,7 @@ public class WebUserHttpService extends HttpService {
 
         final Optional<WebUser> user = service.getUser(id);
 
-        if(!user.isPresent()) {
+        if (!user.isPresent()) {
             return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
                     .addCookie("session", "", null, true, 0L, null, null);
         }
@@ -95,11 +95,11 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/login")
-    public Response<WebUser> login(@ApiParam(name="email") String email,
-                               @ApiParam(name="password") String password) {
+    public Response<WebUser> login(@ApiParam(name = "email") String email,
+                                   @ApiParam(name = "password") String password) {
         final Optional<WebUser> user = service.login(email, password);
 
-        if(user.isPresent()) {
+        if (user.isPresent()) {
             return getLoginResponseForUser(user.get());
         }
 
@@ -120,11 +120,11 @@ public class WebUserHttpService extends HttpService {
     }
 
     private static int extractUserFromCookie(String session) {
-        if(session == null) {
+        if (session == null) {
             throw new RakamException(UNAUTHORIZED);
         }
         final String[] split = session.split("\\|");
-        if(split.length != 3) {
+        if (split.length != 3) {
             throw new RakamException(UNAUTHORIZED);
         }
 
@@ -135,7 +135,7 @@ public class WebUserHttpService extends HttpService {
         final StringBuilder cookieData = new StringBuilder()
                 .append(expiringTimestamp).append("|")
                 .append(id);
-        if(!CryptUtil.encryptWithHMacSHA1(cookieData.toString(), "secureKey").equals(hash)) {
+        if (!CryptUtil.encryptWithHMacSHA1(cookieData.toString(), "secureKey").equals(hash)) {
             throw new RakamException(UNAUTHORIZED);
         }
 

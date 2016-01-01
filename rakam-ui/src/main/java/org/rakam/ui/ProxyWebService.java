@@ -35,9 +35,8 @@ import org.rakam.server.http.RakamHttpRequest;
 import javax.annotation.PostConstruct;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-import java.io.UnsupportedEncodingException;
+import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 @Path("/ui/proxy")
 public class ProxyWebService extends HttpService {
@@ -112,8 +111,8 @@ public class ProxyWebService extends HttpService {
     @Path("/")
     @GET
     @IgnorePermissionCheck
-    public void proxy(RakamHttpRequest request) throws URISyntaxException, UnsupportedEncodingException {
-        URI url = new URI(request.params().get("u").get(0));
+    public void proxy(RakamHttpRequest request) {
+        URI url = UriBuilder.fromUri(request.params().get("u").get(0)).build();
 
         Channel ch = null;
         try {

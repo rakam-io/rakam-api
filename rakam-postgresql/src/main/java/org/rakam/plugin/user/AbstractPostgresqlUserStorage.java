@@ -350,7 +350,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 } catch (IllegalStateException e) {
                     continue;
                 }
-                columns.add(new SchemaField(columnName, fieldType, null, uniqueColumns.contains(columnName), null, null, null));
+                columns.add(new SchemaField(columnName, fieldType, uniqueColumns.contains(columnName), null, null, null));
             }
             return columns;
 

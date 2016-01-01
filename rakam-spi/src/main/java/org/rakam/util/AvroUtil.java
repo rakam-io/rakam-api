@@ -39,13 +39,8 @@ public class AvroUtil {
 
     public static Schema.Field generateAvroSchema(SchemaField field) {
         Schema es;
-        if (field.isNullable()) {
-            es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
-            return new Schema.Field(field.getName(), es, null, NullNode.getInstance());
-        } else {
-            es = getAvroSchema(field.getType());
-            return new Schema.Field(field.getName(), es, null, null);
-        }
+        es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
+        return new Schema.Field(field.getName(), es, null, NullNode.getInstance());
     }
 
     public static Schema getAvroSchema(FieldType type) {

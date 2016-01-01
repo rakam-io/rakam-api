@@ -81,7 +81,7 @@ public class Recipe implements ProjectItem {
             this.columns = columns.stream()
                     .map(column -> {
                         Map.Entry<String, SchemaFieldInfo> next = column.entrySet().iterator().next();
-                        return new SchemaField(next.getKey(), next.getValue().type, next.getValue().isNullable());
+                        return new SchemaField(next.getKey(), next.getValue().type);
                     }).collect(Collectors.toList());
         }
 
@@ -164,23 +164,16 @@ public class Recipe implements ProjectItem {
     public static class SchemaFieldInfo {
         private final String category;
         private final FieldType type;
-        private final boolean nullable;
 
         @JsonCreator
         public SchemaFieldInfo(@JsonProperty("category") String category,
-                               @JsonProperty("type") FieldType type,
-                               @JsonProperty("nullable") Boolean nullable) {
+                               @JsonProperty("type") FieldType type) {
             this.category = category;
             this.type = type;
-            this.nullable = nullable == null ? true : nullable;
         }
 
         public FieldType getType() {
             return type;
-        }
-
-        public boolean isNullable() {
-            return nullable;
         }
 
         public String getCategory() {

@@ -93,11 +93,11 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
         builder.addFields("_user_agent", ImmutableList.of(
-                new SchemaField("user_agent_family", FieldType.STRING, true),
-                new SchemaField("user_agent_version", FieldType.LONG, true),
-                new SchemaField("os", FieldType.STRING, true),
-                new SchemaField("os_version", FieldType.LONG, true),
-                new SchemaField("device_family", FieldType.STRING, true)
+                new SchemaField("user_agent_family", FieldType.STRING),
+                new SchemaField("user_agent_version", FieldType.LONG),
+                new SchemaField("os", FieldType.STRING),
+                new SchemaField("os_version", FieldType.LONG),
+                new SchemaField("device_family", FieldType.STRING)
         ));
     }
 

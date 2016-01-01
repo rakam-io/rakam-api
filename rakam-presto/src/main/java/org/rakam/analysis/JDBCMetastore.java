@@ -257,7 +257,7 @@ public class JDBCMetastore extends AbstractMetastore {
             String columnName = dbColumns.getString("COLUMN_NAME");
             FieldType fieldType;
             fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCMetastore::getType);
-            schemaFields.add(new SchemaField(columnName, fieldType, true));
+            schemaFields.add(new SchemaField(columnName, fieldType));
         }
         return schemaFields.size() == 0 ? null : schemaFields;
     }
@@ -290,7 +290,7 @@ public class JDBCMetastore extends AbstractMetastore {
             while (columns.next()) {
                 String colName = columns.getString("COLUMN_NAME");
                 strings.add(colName);
-                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME"), JDBCMetastore::getType), true));
+                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME"), JDBCMetastore::getType)));
             }
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());

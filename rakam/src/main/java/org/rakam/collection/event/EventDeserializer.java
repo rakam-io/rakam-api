@@ -164,7 +164,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                             // for consistency.
                             type = FieldType.STRING;
                         }
-                        SchemaField newField = new SchemaField(fieldName, type, true);
+                        SchemaField newField = new SchemaField(fieldName, type);
                         newFields.add(newField);
 
                         avroSchema = createNewSchema(avroSchema, newField);
