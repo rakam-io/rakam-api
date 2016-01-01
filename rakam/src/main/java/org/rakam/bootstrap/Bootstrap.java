@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 
 import static com.google.common.collect.Maps.fromProperties;
@@ -139,6 +140,9 @@ public class Bootstrap
             Handler[] handlers = rootLogger.getHandlers();
             logging = Logging.initialize();
             for (Handler handler : handlers) {
+                if(handler instanceof ConsoleHandler) {
+                    continue;
+                }
                 rootLogger.addHandler(handler);
             }
         }
