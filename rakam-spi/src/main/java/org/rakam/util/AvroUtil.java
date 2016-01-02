@@ -38,8 +38,7 @@ public class AvroUtil {
     }
 
     public static Schema.Field generateAvroSchema(SchemaField field) {
-        Schema es;
-        es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
+        Schema es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
         return new Schema.Field(field.getName(), es, null, NullNode.getInstance());
     }
 
@@ -56,6 +55,7 @@ public class AvroUtil {
             case DATE:
                 return Schema.create(Schema.Type.INT);
             case TIME:
+            case TIMESTAMP:
                 return Schema.create(Schema.Type.LONG);
             default:
                 if (type.isMap()) {

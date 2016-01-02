@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -39,6 +40,7 @@ public class JDBCPoolDataSource implements DataSource {
         }
 
         hikariConfig.setConnectionTimeout(60000);
+        hikariConfig.setMaxLifetime(Duration.ofMinutes(10).toMillis());
 
         hikariConfig.setAutoCommit(true);
         hikariConfig.setPoolName("generic-jdbc-query-executor");

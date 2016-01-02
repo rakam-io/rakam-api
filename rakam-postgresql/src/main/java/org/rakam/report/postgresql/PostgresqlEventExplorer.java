@@ -40,6 +40,6 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
 
     @Inject
     public PostgresqlEventExplorer(QueryExecutorService service, PostgresqlQueryExecutor executor, Metastore metastore) {
-        super(executor, service, metastore, timestampMapping, "to_timestamp");
+        super(executor, service, metastore, timestampMapping);
     }
 }

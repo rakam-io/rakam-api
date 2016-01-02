@@ -29,7 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static org.rakam.util.ValidationUtil.checkArgument;
 
 @Path("/event-explorer")
 @Api(value = "/event-explorer", description = "Event explorer module", tags = "event-explorer")

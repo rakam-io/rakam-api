@@ -70,7 +70,7 @@ public class PrestoQueryExecution implements QueryExecution {
             }
 
             private void transformAndAdd(QueryResults result) {
-                if(result.getError() != null) {
+                if(result.getError() != null || result.getColumns() == null) {
                     return;
                 }
 

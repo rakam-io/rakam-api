@@ -38,6 +38,6 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
 
     @Inject
     public PrestoEventExplorer(QueryExecutorService service, PrestoQueryExecutor executor, Metastore metastore) {
-        super(executor, service, metastore, timestampMapping, "from_unixtime");
+        super(executor, service, metastore, timestampMapping);
     }
 }

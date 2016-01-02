@@ -10,7 +10,6 @@ import org.rakam.realtime.AggregationType;
 import org.rakam.util.RakamException;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +22,7 @@ import java.util.stream.Stream;
 import static java.lang.Character.toUpperCase;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.realtime.AggregationType.COUNT;
@@ -35,15 +35,13 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
     private final Metastore metastore;
     private final Map<EventExplorer.TimestampTransformation, String> timestampMapping;
-    private final String epochTimestampFunctionName;
     private final QueryExecutorService service;
 
-    public AbstractEventExplorer(QueryExecutor executor, QueryExecutorService service, Metastore metastore, Map<TimestampTransformation, String> timestampMapping, String epochTimestampFunctionName) {
+    public AbstractEventExplorer(QueryExecutor executor, QueryExecutorService service, Metastore metastore, Map<TimestampTransformation, String> timestampMapping) {
         this.executor = executor;
         this.service = service;
         this.metastore = metastore;
         this.timestampMapping = timestampMapping;
-        this.epochTimestampFunctionName = epochTimestampFunctionName;
     }
 
     private void checkReference(String refValue, LocalDate startDate, LocalDate endDate) {
@@ -80,7 +78,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             case COLUMN:
                 return ref.value;
             case REFERENCE:
-                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), epochTimestampFunctionName + "(_time)");
+                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "_time");
             default:
                 throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
@@ -132,18 +130,17 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         String groupBy;
         if (segment != null && grouping != null) {
-            groupBy = "1,2";
+            groupBy = "1, 2";
         } else if (segment != null || grouping != null) {
             groupBy = "1";
         } else {
             groupBy = "";
         }
 
-        ZoneId utc = ZoneId.of("UTC");
         String where = Stream.of(
-                startDate == null ? null : format(" _time >= %s ", startDate.atStartOfDay().atZone(utc).toEpochSecond()),
-                endDate == null ? null : format(" _time <= %s ", endDate.atStartOfDay().plusDays(1).atZone(utc).toEpochSecond()),
-                filterExpression).filter(condition -> condition != null && !condition.isEmpty())
+                format(" _time between date '%s' and date '%s'", startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)),
+                filterExpression)
+                .filter(condition -> condition != null && !condition.isEmpty())
                 .collect(Collectors.joining(" and "));
 
         String measureAgg = convertSqlFunction(measureType != null &&
@@ -281,16 +278,15 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             query = format("select collection, %s, total from (", format(timestampMapping.get(aggregationMethod), "time")) +
                     collectionNames.stream()
                             .map(collection ->
-                                    format("select '%s' as collection, %s(time*3600) as time, total from continuous.\"%s\" ",
+                                    format("select '%s' as collection, time, total from continuous.\"%s\" ",
                                             collection,
-                                            epochTimestampFunctionName,
                                             "_total_" + collection))
                             .collect(Collectors.joining(" union ")) +
                     format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
                     .map(collection ->
-                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between to_unixtime(date '%s')/3600 and to_unixtime(date '%s' + interval '1' day)/3600",
+                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day",
                                     collection,
                                     "_total_" + collection,
                                     startDate.format(ISO_DATE), endDate.format(ISO_DATE)))

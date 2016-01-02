@@ -8,7 +8,9 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.NotExistsException;
 import org.rakam.collection.Event;
@@ -21,6 +23,12 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoField;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,18 +37,24 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
+import static org.apache.avro.Schema.Type.NULL;
 
 public class EventDeserializer extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
 
+    private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{4}\\-(0?[1-9]|1[012])\\-(0?[1-9]|[12][0-9]|3[01])$");
+    private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$");
+    private static final Pattern TIME_PATTERN = Pattern.compile("^([2][0-3]|[0-1][0-9]|[1-9]):[0-5][0-9]:([0-5][0-9]|[6][0])$");
+
     private final Metastore metastore;
-    private final Cache<ProjectCollection, Schema> schemaCache  = CacheBuilder.newBuilder()
+    private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache  = CacheBuilder.newBuilder()
             .expireAfterAccess(1, TimeUnit.HOURS).build();
 
     @Inject
@@ -55,7 +69,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     }
 
     public Event deserializeWithProject(JsonParser jp, String project) throws IOException, RakamException {
-        GenericData.Record properties = null;
+        Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
 
         String collection = null;
         Event.EventContext context = null;
@@ -110,7 +124,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         if (properties == null) {
             throw new JsonMappingException("properties is null");
         }
-        return new Event(project, collection, context, properties);
+        return new Event(project, collection, context, properties.getKey(), properties.getValue());
     }
 
     public Schema convertAvroSchema(List<SchemaField> fields) {
@@ -121,23 +135,24 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
         conditionalMagicFields.keySet().stream()
                 .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
-                .map(n -> new Schema.Field(n, Schema.create(Schema.Type.NULL), "", null))
+                .map(n -> new Schema.Field(n, Schema.create(NULL), "", null))
                 .forEach(x -> avroFields.add(x));
 
         schema.setFields(avroFields);
         return schema;
     }
 
-    private GenericData.Record parseProperties(String project, String collection, JsonParser jp) throws IOException, NotExistsException {
+    private Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp) throws IOException, NotExistsException {
         ProjectCollection key = new ProjectCollection(project, collection);
-        Schema avroSchema = schemaCache.getIfPresent(key);
-        List<SchemaField> schema;
-        if (avroSchema == null) {
-            schema = metastore.getCollection(project, collection);
+        Map.Entry<List<SchemaField>, Schema> schema = schemaCache.getIfPresent(key);
+        if (schema == null) {
+            List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
 
-            avroSchema = convertAvroSchema(schema);
-            schemaCache.put(key, avroSchema);
+            schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema));
+            schemaCache.put(key, schema);
         }
+        Schema avroSchema = schema.getValue();
+        List<SchemaField> rakamSchema = schema.getKey();
 
         GenericData.Record record = new GenericData.Record(avroSchema);
         Set<SchemaField> newFields = null;
@@ -179,16 +194,19 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         if(type.isArray() || type.isMap()) {
                             // if the type of new field is ARRAY, we already switched to next token
                             // so current token is not START_ARRAY.
-                            record.put(field.pos(), getValue(jp, field.schema(), true));
-                            continue;
+                            record.put(field.pos(), getValue(jp, type, field.schema(), true));
+                        } else {
+                            record.put(field.pos(), getValue(jp, type, field.schema(), false));
                         }
+                        continue;
+
                     } else {
                         // the type is null or an empty array
                         continue;
                     }
                 }
             } else {
-                if(field.schema().getType() == Schema.Type.NULL) {
+                if(field.schema().getType() == NULL) {
                     // TODO: get rid of this loop.
                     for (SchemaField schemaField : conditionalMagicFields.get(fieldName)) {
                         if(avroSchema.getField(schemaField.getName()) == null) {
@@ -201,14 +219,15 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 }
             }
 
-            record.put(field.pos(), getValue(jp, field.schema(), false));
+            Object value = getValue(jp, field.schema().getType() == NULL ? null : rakamSchema.get(field.pos()).getType(), field.schema(), false);
+            record.put(field.pos(), value);
         }
 
         if (newFields != null) {
             List<SchemaField> newSchema = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
             Schema newAvroSchema = convertAvroSchema(newSchema);
 
-            schemaCache.put(key, newAvroSchema);
+            schemaCache.put(key, new SimpleImmutableEntry<>(newSchema, newAvroSchema));
             GenericData.Record newRecord = new GenericData.Record(newAvroSchema);
             for (Schema.Field field : record.getSchema().getFields()) {
                 newRecord.put(field.name(), record.get(field.name()));
@@ -216,19 +235,23 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             record = newRecord;
         }
 
-        return record;
+        return new SimpleImmutableEntry<>(rakamSchema, record);
     }
 
     private Schema createNewSchema(Schema currentSchema, SchemaField newField) {
         List<Schema.Field> avroFields = currentSchema.getFields().stream()
+                .filter(field -> field.schema().getType() != Schema.Type.NULL)
                 .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
                 .collect(toList());
-
-        avroFields.add(AvroUtil.generateAvroSchema(newField));
+        try {
+            avroFields.add(AvroUtil.generateAvroSchema(newField));
+        } catch (SchemaParseException e) {
+            throw new RakamException("Couldn't create new column: "+e.getMessage(), BAD_REQUEST);
+        }
 
         conditionalMagicFields.keySet().stream()
                 .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
-                .map(n -> new Schema.Field(n, Schema.create(Schema.Type.NULL), "", null))
+                .map(n -> new Schema.Field(n, Schema.create(NULL), "", null))
                 .forEach(x -> avroFields.add(x));
 
         Schema avroSchema = Schema.createRecord("collection", null, null, false);
@@ -256,14 +279,12 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private Object getValue(JsonParser jp, Schema schema, boolean passInitialToken) throws IOException {
-        if (schema.getType() == Schema.Type.UNION) {
-            schema = schema.getTypes().get(1);
+    private Object getValue(JsonParser jp, FieldType type, Schema schema, boolean passInitialToken) throws IOException {
+        if(type == null) {
+            return getValueOfMagicField(jp);
         }
 
-        switch (schema.getType()) {
-            case NULL:
-                return getValueOfMagicField(jp);
+        switch (type) {
             case STRING:
                 // TODO: is it a good idea to cast the value automatically?
 //                if (t == JsonToken.VALUE_STRING)
@@ -272,54 +293,76 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 return jp.getValueAsBoolean();
             case LONG:
                 return jp.getValueAsLong();
-            case INT:
-                return jp.getValueAsInt();
+            case TIME:
+                return (long) LocalTime.parse(jp.getValueAsString()).get(ChronoField.MILLI_OF_DAY);
             case DOUBLE:
                 return jp.getValueAsDouble();
-            case MAP:
-                JsonToken t = jp.getCurrentToken();
-
-                Map<String, Object> map = new HashMap<>();
-
-                if(!passInitialToken) {
-                    if(t != JsonToken.START_OBJECT) {
-                        return null;
-                    } else {
-                        t = jp.nextToken();
-                    }
-                } else {
-                    // In order to determine the value type of map, getType method performed an extra
-                    // jp.nextToken() so the cursor should be at VALUE_STRING token.
-                    String key = jp.getParsingContext().getCurrentName();
-                    map.put(key, getValue(jp, schema.getValueType(), false));
-                    t = jp.nextToken();
+            case TIMESTAMP:
+                if (jp.getCurrentToken() == JsonToken.VALUE_NUMBER_INT) {
+                    return jp.getValueAsLong();
                 }
-
-                for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
-                    String key = jp.getCurrentName();
-
-                    jp.nextToken();
-                    map.put(key, getValue(jp, schema.getValueType(), false));
+                try {
+                    return Instant.parse(jp.getValueAsString()).toEpochMilli();
+                } catch (DateTimeParseException e) {
+                    return null;
                 }
-                return map;
-            case ARRAY:
-                t = jp.getCurrentToken();
-                // if the passStartArrayToken is true, we already performed jp.nextToken
-                // so there is no need to check if the current token is
-                if(!passInitialToken) {
-                    if(t != JsonToken.START_ARRAY) {
-                        return null;
-                    } else {
-                        t = jp.nextToken();
-                    }
+            case DATE:
+                try {
+                    return Ints.checkedCast(LocalDate.parse(jp.getValueAsString()).toEpochDay());
+                } catch (DateTimeParseException e) {
+                    return null;
                 }
-
-                List<Object> objects = new ArrayList<>();
-                for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
-                    objects.add(getValue(jp, schema.getElementType(), false));
-                }
-                return new GenericData.Array(schema, objects);
             default:
+                Schema actualSchema = schema.getTypes().get(1);
+                if (type.isMap()) {
+                    JsonToken t = jp.getCurrentToken();
+
+                    Map<String, Object> map = new HashMap<>();
+
+                    Schema elementType = actualSchema.getValueType();
+
+                    if(!passInitialToken) {
+                        if(t != JsonToken.START_OBJECT) {
+                            return null;
+                        } else {
+                            t = jp.nextToken();
+                        }
+                    } else {
+                        // In order to determine the value type of map, getType method performed an extra
+                        // jp.nextToken() so the cursor should be at VALUE_STRING token.
+                        String key = jp.getParsingContext().getCurrentName();
+                        map.put(key, getValue(jp, type.getMapValueType(), elementType, false));
+                        t = jp.nextToken();
+                    }
+
+                    for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
+                        String key = jp.getCurrentName();
+
+                        jp.nextToken();
+                        map.put(key, getValue(jp, type.getMapValueType(), elementType, false));
+                    }
+                    return map;
+                }
+                if (type.isArray()) {
+                    JsonToken t = jp.getCurrentToken();
+                    // if the passStartArrayToken is true, we already performed jp.nextToken
+                    // so there is no need to check if the current token is
+                    if(!passInitialToken) {
+                        if(t != JsonToken.START_ARRAY) {
+                            return null;
+                        } else {
+                            t = jp.nextToken();
+                        }
+                    }
+
+                    Schema elementType = actualSchema.getElementType();
+
+                    List<Object> objects = new ArrayList<>();
+                    for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
+                        objects.add(getValue(jp, type.getArrayElementType(), elementType, false));
+                    }
+                    return new GenericData.Array(actualSchema, objects);
+                }
                 throw new JsonMappingException(format("type is not supported."));
         }
     }
@@ -329,6 +372,16 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case VALUE_NULL:
                 return null;
             case VALUE_STRING:
+                String value = jp.getValueAsString();
+                if (DATE_PATTERN.matcher(value).matches()) {
+                    return FieldType.DATE;
+                }
+                if (TIMESTAMP_PATTERN.matcher(value).matches()) {
+                    return FieldType.TIMESTAMP;
+                }
+//                if (TIME_PATTERN.matcher(value).matches()) {
+//                    return FieldType.TIME;
+//                }
                 return FieldType.STRING;
             case VALUE_FALSE:
                 return FieldType.BOOLEAN;

@@ -1,5 +1,9 @@
 package org.rakam.util;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
+
+import javax.annotation.Nullable;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 
@@ -23,5 +27,11 @@ public class ValidationUtil {
             throw new IllegalArgumentException(type+" is not valid.");
         }
         return column;
+    }
+
+    public static void checkArgument(boolean expression, @Nullable String errorMessage) {
+        if (!expression) {
+            throw new RakamException(errorMessage, HttpResponseStatus.BAD_REQUEST);
+        }
     }
 }

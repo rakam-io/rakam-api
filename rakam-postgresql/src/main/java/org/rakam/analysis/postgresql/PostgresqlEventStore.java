@@ -8,14 +8,21 @@ import org.apache.avro.generic.GenericRecord;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 
@@ -35,7 +42,7 @@ public class PostgresqlEventStore implements EventStore {
         GenericRecord record = event.properties();
         try(Connection connection = connectionPool.getConnection()) {
             PreparedStatement ps = connection.prepareStatement(getQuery(event));
-            bindParam(connection, ps, event.properties().getSchema().getFields(), record);
+            bindParam(connection, ps, event.schema(), record);
             ps.executeUpdate();
         } catch (SQLException e) {
             Throwables.propagate(e);
@@ -49,7 +56,7 @@ public class PostgresqlEventStore implements EventStore {
             for (Event event : events) {
                 GenericRecord record = event.properties();
                 PreparedStatement ps = connection.prepareStatement(getQuery(event));
-                bindParam(connection, ps, event.properties().getSchema().getFields(), record);
+                bindParam(connection, ps, event.schema(), record);
 
                 ps.executeUpdate();
             }
@@ -69,67 +76,53 @@ public class PostgresqlEventStore implements EventStore {
         }
     }
 
-    private void bindParam(Connection connection, PreparedStatement ps, List<Schema.Field> fields, GenericRecord record) throws SQLException {
+    private void bindParam(Connection connection, PreparedStatement ps, List<SchemaField> fields, GenericRecord record) throws SQLException {
         Object value;
-        int pos = 1;
-        for (Schema.Field field : fields) {
-            value = record.get(field.pos());
-
-            if(sourceFields.contains(field.name())) {
-                continue;
-            }
+        for (int i = 0; i < fields.size(); i++) {
+            SchemaField field = fields.get(i);
+            value = record.get(i);
 
             if(value == null) {
-                ps.setNull(pos++, 0);
+                ps.setNull(i+1, 0);
                 continue;
             }
 
-            Schema schema = getActualType(field);
-            switch (schema.getType()) {
-                case ARRAY:
-                    String typeName = toPostgresqlPrimitiveTypeName(schema.getElementType().getType());
-                    ps.setArray(pos++, connection.createArrayOf(typeName, ((List) value).toArray()));
-                    break;
-                case MAP:
-                    PGobject jsonObject = new PGobject();
-                    jsonObject.setType("jsonb");
-                    jsonObject.setValue(JsonHelper.encode(value));
-                    ps.setObject(pos++, jsonObject);
-                    break;
+            FieldType type = field.getType();
+            switch (type) {
                 case STRING:
-                    ps.setString(pos++, (String) value);
-                    break;
-                case INT:
-                    ps.setInt(pos++, ((Number) value).intValue());
+                    ps.setString(i+1, (String) value);
                     break;
                 case LONG:
-                    ps.setLong(pos++, ((Number) value).longValue());
-                    break;
-                case FLOAT:
-                    ps.setFloat(pos++, ((Number) value).floatValue());
+                    ps.setLong(i+1, ((Number) value).longValue());
                     break;
                 case DOUBLE:
-                    ps.setDouble(pos++, ((Number) value).doubleValue());
+                    ps.setDouble(i+1, ((Number) value).doubleValue());
+                case TIMESTAMP:
+                    ps.setTimestamp(i+1, new Timestamp(((Number) value).longValue()));
+                    break;
+                case TIME:
+                    ps.setTime(i+1, Time.valueOf(LocalTime.ofSecondOfDay(((Number) value).intValue())));
+                    break;
+                case DATE:
+                    ps.setDate(i+1, Date.valueOf(LocalDate.ofEpochDay(((Number) value).intValue())));
                     break;
                 case BOOLEAN:
-                    ps.setBoolean(pos++, (Boolean) value);
+                    ps.setBoolean(i+1, (Boolean) value);
                     break;
+                default:
+                    if(type.isArray()) {
+                        String typeName = PostgresqlMetastore.toSql(type.getArrayElementType());
+                        ps.setArray(i+1, connection.createArrayOf(typeName, ((List) value).toArray()));
+                    } else
+                    if(type.isMap()) {
+                        PGobject jsonObject = new PGobject();
+                        jsonObject.setType("jsonb");
+                        jsonObject.setValue(JsonHelper.encode(value));
+                        ps.setObject(i+1, jsonObject);
+                    } else {
+                        throw new UnsupportedOperationException();
+                    }
             }
-        }
-    }
-
-    public static String toPostgresqlPrimitiveTypeName(Schema.Type fieldType) {
-        switch (fieldType) {
-            case STRING:
-                return "text";
-            case LONG:
-                return "bigint";
-            case DOUBLE:
-                return "double precision";
-            case BOOLEAN:
-                return "boolean";
-            default:
-                return "bigint";
         }
     }
 

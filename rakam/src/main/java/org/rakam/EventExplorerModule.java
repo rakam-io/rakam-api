@@ -44,7 +44,7 @@ public class EventExplorerModule extends RakamModule {
     }
 
     private static class EventExplorerListener {
-        private static final String QUERY = "select _time/3600 as time, count(*) as total from \"%s\" group by 1";
+        private static final String QUERY = "select date_trunc('hour', _time) as time, count(*) as total from \"%s\" group by 1";
         private final ContinuousQueryService continuousQueryService;
 
         @Inject

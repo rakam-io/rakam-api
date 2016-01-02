@@ -78,13 +78,13 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         String dimensionColumn = dimension.isPresent() ? dimension.get()+"," : "";
 
         if(idx == 0) {
-            return String.format("step%s AS (select %s %s from %s where _time BETWEEN %s and %s %s\n group by 1 %s)",
+            return String.format("step%s AS (select %s %s from %s where _time BETWEEN from_unixtime(%s) and from_unixtime(%s) %s\n group by 1 %s)",
                     idx, dimensionColumn, connectorField, funnelStep.collection, startTs, endTs,
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
                             "select %7$s %2$s.%9$s from %2$s join %3$s on (%2$s.%9$s = %3$s.%9$s) " +
-                            "where _time BETWEEN %5$s and %6$s %4$s group by 1 %8$s)",
+                            "where _time BETWEEN from_unixtime(%5$s) and from_unixtime(%6$s) %4$s group by 1 %8$s)",
                     "step"+idx, funnelStep.collection, "step"+(idx-1), filterExp, startTs,
                     endTs, dimensionColumn.isEmpty() ? "" : funnelStep.collection+"."+dimensionColumn,
                     dimension.isPresent() ? ", 2" : "",

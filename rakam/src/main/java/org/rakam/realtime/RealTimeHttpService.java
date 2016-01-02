@@ -85,7 +85,7 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(_time / %d) as _time, ", slideInterval.getSeconds()))
+                .append(format("(to_timestamp(_time) / %d) as _time, ", slideInterval.toMillis()))
                 .append(createSelect(report.aggregation, report.measure, report.dimensions))
                 .append(" from stream ")
                 .append(report.filter == null ? "" : " where " + report.filter)

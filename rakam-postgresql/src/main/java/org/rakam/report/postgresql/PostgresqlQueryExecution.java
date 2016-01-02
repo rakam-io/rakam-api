@@ -27,6 +27,7 @@ import java.util.function.Supplier;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
+import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
 public class PostgresqlQueryExecution implements QueryExecution {
 
@@ -137,7 +138,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
                 builder.add(rowBuilder);
             }
             data = builder.build();
-            return new QueryResult(columns, data, ImmutableMap.of(QueryResult.EXECUTION_TIME, executionTimeInMillis));
+            return new QueryResult(columns, data, ImmutableMap.of(EXECUTION_TIME, executionTimeInMillis));
         } catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode());
             return QueryResult.errorResult(error);

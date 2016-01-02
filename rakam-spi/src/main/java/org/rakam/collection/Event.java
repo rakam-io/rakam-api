@@ -1,17 +1,22 @@
 package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.server.http.annotations.ApiParam;
 
+import java.util.List;
+
 @JsonPropertyOrder({ "project", "collection", "api", "properties" })
 public class Event {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final String project;
     private final String collection;
+    @JsonIgnore
+    private final List<SchemaField> schema;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private EventContext api;
     private final GenericRecord properties;
@@ -24,6 +29,19 @@ public class Event {
         this.project = project;
         this.collection = collection;
         this.properties = properties;
+        this.api = api;
+        this.schema = null;
+    }
+
+    public Event(String project,
+                 String collection,
+                 EventContext api,
+                 List<SchemaField> schema,
+                 GenericRecord properties) {
+        this.project = project;
+        this.collection = collection;
+        this.properties = properties;
+        this.schema = schema;
         this.api = api;
     }
 
@@ -46,6 +64,10 @@ public class Event {
     @JsonProperty
     public GenericRecord properties() {
         return properties;
+    }
+
+    public List<SchemaField> schema() {
+        return schema;
     }
 
     public <T> T getAttribute(String attr) {

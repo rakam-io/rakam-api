@@ -5,6 +5,7 @@ import io.airlift.http.client.JsonBodyGenerator;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.json.JsonCodec;
+import io.airlift.log.Logger;
 import org.rakam.plugin.CollectionStreamQuery;
 import org.rakam.plugin.EventStream;
 import org.rakam.plugin.StreamResponse;
@@ -14,12 +15,14 @@ import javax.inject.Inject;
 import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.net.MediaType.JSON_UTF_8;
 import static io.airlift.http.client.Request.Builder.*;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
 public class KinesisEventStream implements EventStream {
+    private final static Logger LOGGER = Logger.get(KinesisEventStream.class);
 
     private final HttpClient httpClient;
     private final int streamingPort;
@@ -53,6 +56,8 @@ public class KinesisEventStream implements EventStream {
         String ticket = httpClient.execute(request, StringResponseHandler.createStringResponseHandler()).getBody();
 
         return new EventStreamer() {
+            AtomicInteger failed = new AtomicInteger();
+
             @Override
             public synchronized void sync() {
                 try {
@@ -67,7 +72,10 @@ public class KinesisEventStream implements EventStream {
 
                     response.send("data", data);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    if (failed.incrementAndGet() > 5) {
+                        LOGGER.error(e, "Error while streaming records to client");
+                        shutdown();
+                    }
                 }
             }
 

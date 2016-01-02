@@ -8,7 +8,7 @@ import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.collection.event.metastore.Metastore;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
@@ -42,16 +42,15 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         checkTableColumn(connectorField, "connector field");
 
         if(dateUnit == DateUnit.DAY) {
-            long seconds = ChronoUnit.DAYS.getDuration().getSeconds();
-            timeColumn = format("_time/%d", seconds);
-            timeTransformation = format("cast("+convertTimestampFunction()+"((data.time)*%d) as date)", seconds);
+            timeColumn = format("_time");
+            timeTransformation = format("cast(data.time as date)");
         } else
         if(dateUnit == DateUnit.WEEK) {
-            timeColumn = format("cast(date_trunc('week', "+convertTimestampFunction()+"(_time)) as date)");
+            timeColumn = format("cast(date_trunc('week', _time) as date)");
             timeTransformation ="data.time";
         } else
         if(dateUnit == DateUnit.MONTH) {
-            timeColumn = format("cast(date_trunc('month', "+convertTimestampFunction()+"(_time)) as date)");
+            timeColumn = format("cast(date_trunc('month', _time) as date)");
             timeTransformation ="data.time";
         } else {
             throw new UnsupportedOperationException();
@@ -180,17 +179,13 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                                  Optional<Expression> exp,
                                  LocalDate startDate,
                                  LocalDate endDate) {
-        ZoneId utc = ZoneId.of("UTC");
-
-        long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
-        long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
-
-        return format("select %s, %s as time %s from %s where _time between %d and %d %s",
+        return format("select %s, %s as time %s from %s where _time between date '%s' and date '%s' %s",
                 connectorField,
                 timeColumn,
                 dimension.isPresent() ? ", " + dimension.get() + " as dimension" : "",
                 executor.formatTableReference(project, QualifiedName.of(collection)),
-                startTs, endTs,
+                startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                endDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
                 exp.isPresent() ? "and " + exp.get().accept(new ExpressionFormatter.Formatter(), false) : "");
     }
 

@@ -8,6 +8,7 @@ import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.collection.event.metastore.Metastore.ProjectApiKeys;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -110,7 +111,7 @@ public class WebUserService {
             throw new RakamException("Project already exists", BAD_REQUEST);
         }
         metastore.createProject(project);
-        final Metastore.ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+        final ProjectApiKeys apiKeys = metastore.createApiKeys(project);
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO web_user_project " +
                     "(id, user_id, project, has_read_permission, has_write_permission, is_admin) " +
@@ -123,18 +124,18 @@ public class WebUserService {
         return new WebUser.UserApiKey(apiKeys.readKey, apiKeys.writeKey, apiKeys.masterKey);
     }
 
-    public Metastore.ProjectApiKeys createApiKeys(int user, String project) {
+    public ProjectApiKeys createApiKeys(int user, String project) {
         if (!metastore.getProjects().contains(project)) {
             throw new RakamException("Project does not exists", BAD_REQUEST);
         }
 
         try(Handle handle = dbi.open()) {
-            if (!getUserApiKeys(handle, user).containsKey(project)) {
+            if (!getUserApiKeys(handle, user).stream().anyMatch(a -> a.project.equals(project))) {
                 // TODO: check scope permission keys
                 throw new RakamException(UNAUTHORIZED);
             }
 
-            final Metastore.ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+            final ProjectApiKeys apiKeys = metastore.createApiKeys(project);
 
             handle.createStatement("INSERT INTO web_user_project " +
                     "(id, user_id, project, has_read_permission, has_write_permission, is_admin) " +
@@ -153,7 +154,7 @@ public class WebUserService {
         String name;
         int id;
 
-        Map<String, List<Metastore.ProjectApiKeys>> projects;
+        List<ProjectPermission> projects;
 
         try(Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
@@ -174,7 +175,7 @@ public class WebUserService {
             projects = getUserApiKeys(handle, id);
         }
 
-        return Optional.of(new WebUser(id, email, name, projects));
+        return Optional.of(new WebUser(id, email, name, transformPermissions(projects)));
     }
 
 
@@ -182,7 +183,7 @@ public class WebUserService {
         String name;
         String email;
 
-        Map<String, List<Metastore.ProjectApiKeys>> projects;
+        List<ProjectPermission> projectPermissions;
 
         try(Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
@@ -195,35 +196,59 @@ public class WebUserService {
             email = (String) data.get("email");
             id = (int) data.get("id");
 
-            projects = getUserApiKeys(handle, id);
+            projectPermissions = getUserApiKeys(handle, id);
         }
+
+        Map<String, List<ProjectApiKeys>> projects = transformPermissions(projectPermissions);
 
         return Optional.of(new WebUser(id, email, name, projects));
     }
 
-    private Map<String, List<Metastore.ProjectApiKeys>> getUserApiKeys(Handle handle, int userId) {
+    public static class ProjectPermission {
+        public final int id;
+        public final String project;
+        public final String scope_expression;
+        public final boolean has_read_permission;
+        public final boolean has_write_permission;
+        public final boolean is_admin;
 
-        final List<Map<String, Object>> keys = handle.createQuery("SELECT id, project, scope_expression, has_read_permission, has_write_permission, is_admin FROM web_user_project WHERE user_id = :userId")
+        public ProjectPermission(int id, String project, String scope_expression, boolean has_read_permission, boolean has_write_permission, boolean is_admin) {
+            this.id = id;
+            this.project = project;
+            this.scope_expression = scope_expression;
+            this.has_read_permission = has_read_permission;
+            this.has_write_permission = has_write_permission;
+            this.is_admin = is_admin;
+        }
+    }
+
+    private List<ProjectPermission> getUserApiKeys(Handle handle, int userId) {
+        return handle.createQuery("SELECT id, project, scope_expression, has_read_permission, has_write_permission, is_admin FROM web_user_project WHERE user_id = :userId")
                 .bind("userId", userId)
+                .map((i, r, statementContext) ->
+                        new ProjectPermission(r.getInt(1), r.getString(2), r.getString(3), r.getBoolean(4), r.getBoolean(5), r.getBoolean(6)))
                 .list();
+    }
 
-        Map<String, List<Metastore.ProjectApiKeys>> projects = Maps.newHashMap();
+    private Map<String, List<ProjectApiKeys>> transformPermissions(List<ProjectPermission> permissions) {
 
-        final List<Metastore.ProjectApiKeys> apiKeys = metastore
-                .getApiKeys(keys.stream().mapToInt(row -> (int) row.get("id")).toArray());
+        Map<String, List<ProjectApiKeys>> projects = Maps.newHashMap();
 
-        for(Metastore.ProjectApiKeys apiKey : apiKeys) {
-            final Map<String, Object> keyProps = keys.stream().filter(key -> key.get("id").equals(apiKey.id)).findAny().get();
-            if(keyProps.get("scope_expression") != null) {
+        final List<ProjectApiKeys> apiKeys = metastore
+                .getApiKeys(permissions.stream().mapToInt(row -> row.id).toArray());
+
+        for(ProjectApiKeys apiKey : apiKeys) {
+            final ProjectPermission keyProps = permissions.stream().filter(key -> key.id == apiKey.id).findAny().get();
+            if(keyProps.scope_expression != null) {
                 //TODO generate scoped key
                 throw new UnsupportedOperationException();
             }
 
-            String masterKey = Boolean.TRUE.equals(keyProps.get("is_admin")) ? apiKey.masterKey : null;
-            String readKey = Boolean.TRUE.equals(keyProps.get("has_read_permission")) ? apiKey.readKey : null;
-            String writeKey = Boolean.TRUE.equals(keyProps.get("has_write_permission")) ? apiKey.writeKey : null;
+            String masterKey = Boolean.TRUE.equals(keyProps.is_admin) ? apiKey.masterKey : null;
+            String readKey = Boolean.TRUE.equals(keyProps.has_read_permission) ? apiKey.readKey : null;
+            String writeKey = Boolean.TRUE.equals(keyProps.has_write_permission) ? apiKey.writeKey : null;
             projects.computeIfAbsent(apiKey.project, (k) -> Lists.newArrayList())
-                    .add(new Metastore.ProjectApiKeys(apiKey.id, apiKey.project, masterKey, readKey, writeKey));
+                    .add(new ProjectApiKeys(apiKey.id, apiKey.project, masterKey, readKey, writeKey));
         }
         return projects;
     }
@@ -235,7 +260,7 @@ public class WebUserService {
         }
 
         try(Handle handle = dbi.open()) {
-            if (!getUserApiKeys(handle, user).containsKey(project)) {
+            if (!getUserApiKeys(handle, user).stream().anyMatch(a -> a.project.equals(project))) {
                 // TODO: check scope permission keys
                 throw new RakamException(UNAUTHORIZED);
             }
