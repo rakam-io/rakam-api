@@ -105,25 +105,32 @@ public class PrestoQueryExecutor implements QueryExecutor {
         // special prefix for all columns
         if (node.getSuffix().equals("_all")) {
             Map<String, List<SchemaField>> collections = metastore.getCollections(project);
-            String columns = collections.values().stream()
-                    .flatMap(item -> item.stream()).distinct()
-                    .map(field -> field.getName()).collect(Collectors.joining(", "));
+            String sharedColumns = collections.entrySet().iterator().next().getValue().stream()
+                    .filter(col -> collections.entrySet().stream().allMatch(list -> list.getValue().contains(col)))
+                    .map(f -> f.getName())
+                    .collect(Collectors.joining(", "));
 
             return "(" +collections.keySet().stream()
-                    .map(collection -> format("select %s from %s", columns.isEmpty() ? "1" : columns, collection))
+                    .map(collection -> format("select %s from %s",
+                            sharedColumns.isEmpty() ? "1" : sharedColumns,
+                            getTableReference(project, QualifiedName.of(collection))))
                     .collect(Collectors.joining(" union all ")) + ")";
         } else {
-            QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
-            String hotStorageConnector = prestoConfig.getHotStorageConnector();
-            String table = '"'+project + "\".\"" + node.getSuffix() + '\"';
+            return getTableReference(project, node);
+        }
+    }
 
-            if (hotStorageConnector != null) {
-                return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
-                        "select * from " + hotStorageConnector + "." + table + ")" +
-                        " as " + node.getSuffix()+")";
-            } else {
-                return prefix.getSuffix() + "." + table;
-            }
+    private String getTableReference(String project, QualifiedName node) {
+        QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
+        String hotStorageConnector = prestoConfig.getHotStorageConnector();
+        String table = '"'+project + "\".\"" + node.getSuffix() + '\"';
+
+        if (hotStorageConnector != null) {
+            return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
+                    "select * from " + hotStorageConnector + "." + table + ")" +
+                    " as " + node.getSuffix()+")";
+        } else {
+            return prefix.getSuffix() + "." + table;
         }
     }
 

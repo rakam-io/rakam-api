@@ -27,6 +27,7 @@ import java.util.Optional;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public interface FunnelQueryExecutor {
+
     QueryExecution query(String project, String connectorField, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers);
 
     class FunnelStep {

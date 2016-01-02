@@ -26,12 +26,6 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
         super(executor, metastore);
     }
 
-
-    @Override
-    public String convertTimestampFunction() {
-        return "to_timestamp";
-    }
-
     @Override
     public String diffTimestamps() {
         return "date_part('%s', age(%s, %s))";

@@ -18,22 +18,15 @@ import org.rakam.collection.event.metastore.Metastore;
 import javax.inject.Inject;
 
 public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
-    private final PrestoConfig config;
 
     @Inject
     public PrestoRetentionQueryExecutor(PrestoQueryExecutor executor, Metastore metastore, PrestoConfig config) {
         super(executor, metastore);
-        this.config = config;
-    }
-
-    @Override
-    public String convertTimestampFunction() {
-        return "from_unixtime";
     }
 
     @Override
     public String diffTimestamps() {
-        return "date_diff(%s, %s, %s)";
+        return "date_diff('%s', %s, %s)";
     }
 }
 
