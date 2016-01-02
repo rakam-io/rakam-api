@@ -171,10 +171,10 @@
             <artifactId>presto-parser</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>net.kencochrane.raven</groupId>
-            <artifactId>raven</artifactId>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>net.kencochrane.raven</groupId>-->
+            <!--<artifactId>raven</artifactId>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>org.jdbi</groupId>

@@ -31,7 +31,11 @@ public class ValidationUtil {
 
     public static void checkArgument(boolean expression, @Nullable String errorMessage) {
         if (!expression) {
-            throw new RakamException(errorMessage, HttpResponseStatus.BAD_REQUEST);
+            if(errorMessage == null) {
+                throw new RakamException(HttpResponseStatus.BAD_REQUEST);
+            } else {
+                throw new RakamException(errorMessage, HttpResponseStatus.BAD_REQUEST);
+            }
         }
     }
 }

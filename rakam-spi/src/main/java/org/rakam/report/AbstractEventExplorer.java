@@ -138,7 +138,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         }
 
         String where = Stream.of(
-                format(" _time between date '%s' and date '%s'", startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)),
+                format(" _time between date '%s' and date '%s' + interval '1' day", startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)),
                 filterExpression)
                 .filter(condition -> condition != null && !condition.isEmpty())
                 .collect(Collectors.joining(" and "));
