@@ -13,6 +13,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.PrestoAbstractUserService;
 import org.rakam.analysis.PrestoMaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.ConditionalModule;
@@ -40,6 +41,7 @@ public class PrestoModule extends RakamModule {
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
         binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
+        binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "presto.metastore.jdbc");
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(config);

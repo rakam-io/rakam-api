@@ -24,8 +24,10 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
@@ -41,6 +43,7 @@ import javax.net.ssl.SSLException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.UriBuilder;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.List;
@@ -57,13 +60,23 @@ public class ProxyWebService extends HttpService {
         NioEventLoopGroup group = new NioEventLoopGroup(4);
 
         SslContext sslCtx = SslContextBuilder.forClient()
+                .clientAuth(ClientAuth.NONE)
                 .trustManager(InsecureTrustManagerFactory.INSTANCE).build();
 
         sslBootstrap = new Bootstrap().channel(NioSocketChannel.class)
                 .group(group).handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                ch.pipeline().addLast(sslCtx.newHandler(ch.alloc()))
+                InetSocketAddress addr = ch.remoteAddress();
+                SslHandler sslHandler;
+                // for some hosts the hostname and port required, jdk ssl throws handshake_failure
+                if(addr != null) {
+                    sslHandler = sslCtx.newHandler(ch.alloc(), addr.getHostName(), addr.getPort());
+                } else {
+                    sslHandler = sslCtx.newHandler(ch.alloc());
+                }
+
+                ch.pipeline().addLast(sslHandler)
                         .addLast(new HttpClientCodec())
                         .addLast(new HttpContentDecompressor())
                         .addLast(new HttpObjectAggregator(1048576))

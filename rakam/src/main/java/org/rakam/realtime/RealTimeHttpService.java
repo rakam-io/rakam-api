@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryExecutor;
@@ -34,7 +35,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -43,7 +43,6 @@ import java.util.stream.IntStream;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.rakam.util.JsonHelper.convert;
 
 @Singleton
 @Api(value = "/realtime", description = "Realtime module", tags = "realtime",
@@ -58,11 +57,13 @@ public class RealTimeHttpService extends HttpService {
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
+    private final String timestampToEpochFunction;
 
     @Inject
-    public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor) {
+    public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor, @TimestampToEpochFunction String timestampToEpochFunction) {
         this.service = requireNonNull(service, "service is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.timestampToEpochFunction = requireNonNull(timestampToEpochFunction, "timestampToEpochFunction is null");
     }
 
     /**
@@ -85,9 +86,9 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(to_timestamp(_time) / %d) as _time, ", slideInterval.toMillis()))
-                .append(createSelect(report.aggregation, report.measure, report.dimensions))
-                .append(" from stream ")
+                .append(format("(cast("+timestampToEpochFunction+"(_time) as bigint) / %d) as _time, ", slideInterval.getSeconds()))
+                .append(createFinalSelect(report.aggregation, report.measure, report.dimensions))
+                .append(" FROM ("+report.collections.stream().map(col -> "(SELECT "+createSelect(report.measure, report.dimensions)+" FROM "+col+") as data").collect(Collectors.joining(" UNION ALL "))+")")
                 .append(report.filter == null ? "" : " where " + report.filter)
                 .append(" group by 1 ")
                 .append(report.dimensions != null ?
@@ -99,7 +100,7 @@ public class RealTimeHttpService extends HttpService {
                 tableName,
                 sqlQuery,
                 ImmutableList.of(),
-                ImmutableMap.of("type", "realtime", "report", report));
+                ImmutableMap.of());
         return service.create(query).thenApply(JsonResponse::map);
     }
 
@@ -149,7 +150,7 @@ public class RealTimeHttpService extends HttpService {
                 format("_time >= %d", previousWindow) +
                         (dateEnd == null ? "" :
                                 format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
-                !noDimension || !aggregate ? String.format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().collect(Collectors.joining(", "))) : "",
+                !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().collect(Collectors.joining(", "))) : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {
@@ -210,19 +211,6 @@ public class RealTimeHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "List reports")
-    @Path("/list")
-    public List<RealTimeReport> listReports(@ApiParam(name = "project", required = true) String project) {
-        if (project == null) {
-            throw new RakamException("project parameter is required", HttpResponseStatus.BAD_REQUEST);
-        }
-        return service.list(project).stream()
-                .filter(report -> report.options != null && Objects.equals(report.options.get("type"), "realtime"))
-                .map(report -> convert(report.options.get("report"), RealTimeReport.class))
-                .collect(Collectors.toList());
-    }
-
-    @JsonRequest
     @ApiOperation(value = "Delete report")
     @Path("/delete")
     public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project", required = true) String project,
@@ -239,34 +227,45 @@ public class RealTimeHttpService extends HttpService {
 
     }
 
-    public String createSelect(AggregationType aggType, String measure, List<String> dimensions) {
+    public String createSelect(String measure, List<String> dimensions) {
+        if (measure == null) {
+            measure = "1";
+        }
+        String collect = dimensions.stream().collect(Collectors.joining(", "));
+        return "_time, "+ measure + (collect.isEmpty() ? "" : "," +collect);
+    }
+
+    public String createFinalSelect(AggregationType aggType, String measure, List<String> dimensions) {
 
         if (measure == null) {
             if (aggType != AggregationType.COUNT)
                 throw new IllegalArgumentException("either measure.expression or measure.field must be specified.");
+            else {
+                measure = "*";
+            }
         }
 
         StringBuilder builder = new StringBuilder();
-        if (dimensions != null)
+        if (dimensions != null && !dimensions.isEmpty())
             builder.append(" " + dimensions.stream().collect(Collectors.joining(", ")) + ", ");
 
         switch (aggType) {
             case AVERAGE:
-                return builder.append("avg(1) as value").toString();
+                return builder.append(format("avg(%s) as value", measure)).toString();
             case MAXIMUM:
-                return builder.append("max(1) as value").toString();
+                return builder.append(format("max(%s) as value", measure)).toString();
             case MINIMUM:
-                return builder.append("min(1) as value").toString();
+                return builder.append(format("min(%s) as value", measure)).toString();
             case COUNT:
-                return builder.append("count(1) as value").toString();
+                return builder.append(format("count(%s) as value", measure)).toString();
             case SUM:
-                return builder.append("sum(1) as value").toString();
+                return builder.append(format("sum(%s) as value", measure)).toString();
             case APPROXIMATE_UNIQUE:
-                return builder.append("approx_distinct(1) as value").toString();
+                return builder.append(format("approx_distinct(%s) as value", measure)).toString();
             case POPULATION_VARIANCE:
-                return builder.append("variance(1) as value").toString();
+                return builder.append(format("variance(%s) as value", measure)).toString();
             case STANDARD_DEVIATION:
-                return builder.append("stddev(1) as value").toString();
+                return builder.append(format("stddev(%s) as value", measure)).toString();
             default:
                 throw new IllegalArgumentException("aggregation type couldn't found.");
         }

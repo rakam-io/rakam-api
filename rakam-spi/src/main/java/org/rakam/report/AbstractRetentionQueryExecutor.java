@@ -36,21 +36,17 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
     @Override
     public QueryExecution query(String project, String connectorField, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         String timeColumn;
-        String timeTransformation;
 
         checkTableColumn(connectorField, "connector field");
 
         if(dateUnit == DateUnit.DAY) {
-            timeColumn = format("_time");
-            timeTransformation = format("cast(data.time as date)");
+            timeColumn = format("cast(_time as date)");
         } else
         if(dateUnit == DateUnit.WEEK) {
             timeColumn = format("cast(date_trunc('week', _time) as date)");
-            timeTransformation ="data.time";
         } else
         if(dateUnit == DateUnit.MONTH) {
             timeColumn = format("cast(date_trunc('month', _time) as date)");
-            timeTransformation ="data.time";
         } else {
             throw new UnsupportedOperationException();
         }
@@ -102,7 +98,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             firstAction.get().filter(), startDate, endDate),
                     dimension.isPresent() ? ", 3" : "");
 
-            String dimensionColumn = dimension.isPresent() ? "data.dimension" : timeTransformation;
+            String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.time";
 
             query = format("with first_action as (\n" +
                             "  %s\n" +
@@ -147,9 +143,9 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "union all (select * from (select time, lead, count from result \n" +
                             "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d)",
                     connectorField, from.toString(), connectorField,
-                    leads.isEmpty() ? "" : ", "+leads, timeTransformation,
+                    leads.isEmpty() ? "" : ", "+leads, "data.time",
                     leadColumns, connectorField, groups,
-                    timeTransformation, connectorField,
+                    "data.time", connectorField,
                     leadColumnNames.isEmpty() ? "" : ", "+leadColumnNames, MAXIMUM_LEAD);
         }
 

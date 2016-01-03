@@ -49,7 +49,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
                 database.createContinuousQuery(report);
                 return QueryResult.empty();
             }
-            return QueryResult.empty();
+            return result;
         });
     }
 

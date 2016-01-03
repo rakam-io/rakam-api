@@ -3,6 +3,7 @@ package org.rakam.realtime;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.util.ValidationUtil;
 
 import javax.validation.constraints.NotNull;
 import java.util.List;
@@ -25,7 +26,7 @@ public class RealTimeReport implements ProjectItem {
                           @ApiParam(name ="name") String name,
                           @ApiParam(name ="aggregation") AggregationType aggregation,
                           @ApiParam(name ="table_name") String tableName,
-                          @ApiParam(name ="collections", required = false) List<String> collections,
+                          @ApiParam(name ="collections") List<String> collections,
                           @ApiParam(name ="filter", required = false) String filter,
                           @ApiParam(name ="measure", required = false) String measure,
                           @ApiParam(name ="dimensions", required = false) List<String> dimensions) {
@@ -37,6 +38,7 @@ public class RealTimeReport implements ProjectItem {
         this.filter = filter;
         this.measure = measure;
         this.dimensions = dimensions;
+        ValidationUtil.checkArgument(collections.size() > 0, "collections is empty");
     }
 
     @Override

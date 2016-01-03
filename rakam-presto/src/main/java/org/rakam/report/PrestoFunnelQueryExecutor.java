@@ -29,12 +29,10 @@ import java.util.stream.IntStream;
 
 public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     private final QueryExecutorService executor;
-    private final String coldStorageConnector;
 
     @Inject
-    public PrestoFunnelQueryExecutor(QueryExecutorService executor, PrestoConfig config) {
+    public PrestoFunnelQueryExecutor(QueryExecutorService executor) {
         this.executor = executor;
-        coldStorageConnector = config.getColdStorageConnector();
     }
 
     @Override
