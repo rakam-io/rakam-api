@@ -4,23 +4,20 @@ import org.apache.avro.Schema;
 import org.apache.avro.io.Encoder;
 
 import java.io.IOException;
-import java.util.Set;
 
-public class RecordGenericRecordWriter extends GenericDatumWriter {
+public class FilteredRecordWriter extends GenericDatumWriter {
     private final GenericData data;
-    private final Set<String> sourceFields;
 
-    public RecordGenericRecordWriter(Schema root, GenericData data, Set<String> sourceFields) {
+    public FilteredRecordWriter(Schema root, GenericData data) {
         super(root, data);
         this.data = data;
-        this.sourceFields = sourceFields;
     }
 
     @Override
     public void writeRecord(Schema schema, Object datum, Encoder out) throws IOException {
         Object state = data.getRecordState(datum, schema);
         for (Schema.Field f : schema.getFields()) {
-            if(!sourceFields.contains(f.name())) {
+            if(f.schema().getType() != Schema.Type.NULL) {
                 writeField(datum, f, out, state);
             }
         }
