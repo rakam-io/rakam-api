@@ -60,8 +60,6 @@ public class GeoIPModuleConfig {
     }
 
     @Config("plugin.geoip.use-existing-fields")
-    @ConfigDescription("Use existing fields  " +
-            "Available attributes: country, country_code, region,city, latitude, longitude, timezone")
     public GeoIPModuleConfig setUseExistingFields(boolean useExistingFields)
     {
         this.useExistingFields = useExistingFields;

@@ -40,7 +40,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     final static String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
 
     private final static List<String> CITY_DATABASE_ATTRIBUTES = ImmutableList
-            .of("city", "region", "city", "latitude", "longitude", "timezone");
+            .of("city", "region", "country_code", "latitude", "longitude", "timezone");
 
     private final String[] attributes;
     private final DatabaseReader connectionTypeLookup;
@@ -192,7 +192,6 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
 
     private static FieldType getType(String attr) {
         switch (attr) {
-            case "country":
             case "region":
             case "city":
             case "timezone":
@@ -248,9 +247,6 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
 
         for (String attribute : attributes) {
             switch (attribute) {
-                case "country":
-                    properties.put("country", city.getCountry().getName());
-                    break;
                 case "country_code":
                     properties.put("country_code", city.getCountry().getIsoCode());
                     break;
