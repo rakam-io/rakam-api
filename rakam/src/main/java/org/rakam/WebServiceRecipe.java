@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
-import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -40,8 +39,6 @@ import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.*;
 
 @Singleton
 public class WebServiceRecipe extends AbstractModule {
-    private final static Logger LOGGER = Logger.get(ServiceStarter.class);
-
     private final Set<WebSocketService> webSocketServices;
     private final Set<HttpService> httpServices;
     private final HttpServerConfig config;
@@ -90,7 +87,8 @@ public class WebServiceRecipe extends AbstractModule {
                 .setSwagger(swagger)
                 .setEventLoopGroup(eventExecutors)
                 .setMapper(JsonHelper.getMapper())
-                .setDebugMode(true)
+                .setDebugMode(config.getDebug())
+                .setProxyProtocol(config.getProxyProtocol())
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))

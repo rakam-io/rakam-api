@@ -35,7 +35,7 @@ import javax.ws.rs.Path;
 import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -86,12 +86,12 @@ public class EventCollectionHttpService extends HttpService {
         });
     }
 
-    private List<Cookie> mapEvent(Event event, HttpHeaders headers, InetAddress socketAddress, DefaultFullHttpResponse response) {
+    private List<Cookie> mapEvent(Event event, HttpHeaders headers, InetAddress remoteAddress, DefaultFullHttpResponse response) {
         List<Cookie> responseAttachment = null;
         for (EventMapper mapper : eventMappers) {
             try {
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
-                final List<Cookie> map = mapper.map(event, headers, socketAddress, response);
+                final List<Cookie> map = mapper.map(event, headers, remoteAddress, response);
                 if(map != null) {
                     if(responseAttachment == null) {
                         responseAttachment = new ArrayList<>();
@@ -106,7 +106,7 @@ public class EventCollectionHttpService extends HttpService {
 
         for (EventProcessor eventProcessor : eventProcessors) {
             try {
-                final List<Cookie> map = eventProcessor.map(event, headers, socketAddress, response);
+                final List<Cookie> map = eventProcessor.map(event, headers, remoteAddress, response);
                 if(map != null) {
                     if(responseAttachment == null) {
                         responseAttachment = new ArrayList<>();
@@ -130,8 +130,7 @@ public class EventCollectionHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/collect")
     public void collectEvent(RakamHttpRequest request) {
-        InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
-                .remoteAddress();
+        String socketAddress = request.getRemoteAddress();
         HttpHeaders headers = request.headers();
 
         request.bodyHandler(buff -> {
@@ -159,7 +158,7 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 try {
-                    cookies = mapEvent(event, headers, socketAddress.getAddress(), response);
+                    cookies = mapEvent(event, headers, getRemoteAddress(socketAddress), response);
                 } catch (Exception e) {
                     LOGGER.error(e);
                     request.response("0", BAD_REQUEST).end();
@@ -201,6 +200,14 @@ public class EventCollectionHttpService extends HttpService {
         });
     }
 
+    private InetAddress getRemoteAddress(String socketAddress) {
+        try {
+            return InetAddress.getByName(socketAddress);
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
+
     private boolean validateProjectPermission(String project, String writeKey) {
         if(writeKey == null) {
             return false;
@@ -218,9 +225,6 @@ public class EventCollectionHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch")
     public void batchEvents(RakamHttpRequest request) {
-
-        InetSocketAddress socketAddress = (InetSocketAddress) request.context().channel()
-                .remoteAddress();
         HttpHeaders headers = request.headers();
 
         request.bodyHandler(buff -> {
@@ -241,9 +245,11 @@ public class EventCollectionHttpService extends HttpService {
                     return;
                 }
 
+                InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
+
                 for (Event event : events.events) {
                     try {
-                        List<Cookie> mapperEntries = mapEvent(event, headers, socketAddress.getAddress(), response);
+                        List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, response);
                         if(mapperEntries != null) {
                             if(entries == null) {
                                 entries = new ArrayList<>();

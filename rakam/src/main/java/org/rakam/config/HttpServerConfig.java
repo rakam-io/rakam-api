@@ -9,6 +9,8 @@ public class HttpServerConfig {
 
     private HostAndPort address = HostAndPort.fromParts(RAKAM_DEFAULT_HOST, RAKAM_DEFAULT_PORT);
     private boolean disabled;
+    private boolean proxyProtocol;
+    private boolean debug;
 
     @Config("http.server.address")
     public HttpServerConfig setAddress(String address) {
@@ -31,5 +33,25 @@ public class HttpServerConfig {
 
     public boolean getDisabled() {
         return disabled;
+    }
+
+    @Config("http.server.proxy-protocol")
+    public HttpServerConfig setProxyProtocol(boolean proxyProtocol) {
+        this.proxyProtocol = proxyProtocol;
+        return this;
+    }
+
+    public boolean getProxyProtocol() {
+        return proxyProtocol;
+    }
+
+    @Config("http.server.debug")
+    public HttpServerConfig setDebug(boolean debug) {
+        this.debug = debug;
+        return this;
+    }
+
+    public boolean getDebug() {
+        return debug;
     }
 }

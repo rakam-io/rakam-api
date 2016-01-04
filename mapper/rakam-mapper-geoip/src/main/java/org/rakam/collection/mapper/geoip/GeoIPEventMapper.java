@@ -61,13 +61,13 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
                         cityLookup = getLookup(attr);
                     }
                     continue;
-                } else if ("isp" .equals(attr)) {
+                } else if ("isp".equals(attr)) {
                     if (config.getIspDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.isp-database.url", attr));
                     }
                     if (ispLookup == null) ispLookup = getLookup(attr);
                     continue;
-                } else if ("connection_type" .equals(attr)) {
+                } else if ("connection_type".equals(attr)) {
                     if (config.getConnectionTypeDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.connection-type-database.url", attr));
                     }
@@ -113,15 +113,14 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;
-        if((ip instanceof String)) {
+        if ((ip instanceof String)) {
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 addr = Inet4Address.getByName((String) ip);
             } catch (UnknownHostException e) {
                 return null;
             }
-        } else
-        if(Boolean.TRUE == ip) {
+        } else if (Boolean.TRUE == ip) {
             addr = sourceAddress;
         } else {
             return null;
@@ -146,10 +145,10 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     public void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress) {
         Object ip = properties.get("_ip");
 
-        if(ip == null)
+        if (ip == null)
             return;
 
-        if((ip instanceof String)) {
+        if ((ip instanceof String)) {
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 sourceAddress = Inet4Address.getByName((String) ip);
@@ -179,11 +178,11 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
                 .map(attr -> new SchemaField(attr, getType(attr)))
                 .collect(Collectors.toList());
 
-        if(ispLookup != null) {
+        if (ispLookup != null) {
             fields.add(new SchemaField("isp", FieldType.STRING));
         }
 
-        if(connectionTypeLookup != null) {
+        if (connectionTypeLookup != null) {
             fields.add(new SchemaField("connection_type", FieldType.STRING));
         }
 
