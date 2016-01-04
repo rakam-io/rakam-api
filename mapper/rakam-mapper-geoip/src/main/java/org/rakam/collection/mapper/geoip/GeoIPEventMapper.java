@@ -192,10 +192,10 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
 
     private static FieldType getType(String attr) {
         switch (attr) {
+            case "country_code":
             case "region":
             case "city":
             case "timezone":
-            case "isp":
                 return FieldType.STRING;
             case "latitude":
             case "longitude":
