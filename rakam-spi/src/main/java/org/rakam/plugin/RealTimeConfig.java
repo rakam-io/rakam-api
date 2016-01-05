@@ -6,8 +6,9 @@ import io.airlift.units.MinDuration;
 
 
 public class RealTimeConfig {
-    private Duration timeout = Duration.valueOf("45s");
     private boolean enabled;
+    private Duration windowInterval = Duration.valueOf("45s");
+    private Duration slideInterval = Duration.valueOf("5s");
 
     @Config("real-time.enabled")
     public RealTimeConfig setRealtimeModuleEnabled(boolean enabled) {
@@ -19,17 +20,28 @@ public class RealTimeConfig {
         return enabled;
     }
 
-    @MinDuration("1s")
-    public Duration getTimeout()
+    public Duration getWindowInterval()
     {
-        return timeout;
+        return windowInterval;
     }
 
-    @Config("realtime.timeout")
-    public RealTimeConfig setTimeout(String timeout)
+    @Config("realtime.window.interval")
+    public RealTimeConfig setWindowInterval(String windowInterval)
     {
-        if(timeout != null)
-            this.timeout = Duration.valueOf(timeout);
+        this.windowInterval = Duration.valueOf(windowInterval);
+        return this;
+    }
+
+    @MinDuration("1s")
+    public Duration getSlideInterval()
+    {
+        return slideInterval;
+    }
+
+    @Config("realtime.window.interval")
+    public RealTimeConfig setSlideInterval(String slideInterval)
+    {
+        this.slideInterval = Duration.valueOf(slideInterval);
         return this;
     }
 }

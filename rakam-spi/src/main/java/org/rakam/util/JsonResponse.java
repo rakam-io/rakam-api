@@ -3,6 +3,8 @@ package org.rakam.util;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.rakam.report.QueryResult;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+
 
 public class JsonResponse {
     private static final JsonResponse SUCCESS = new JsonResponse(true);
@@ -62,8 +64,8 @@ public class JsonResponse {
 
     public static JsonResponse map(QueryResult queryResult) {
         if(queryResult.isFailed()) {
-            return JsonResponse.error(queryResult.getError().message);
-        }else {
+            throw new RakamException(queryResult.getError().message, INTERNAL_SERVER_ERROR);
+        } else {
             return JsonResponse.success();
         }
     }

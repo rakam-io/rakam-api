@@ -8,10 +8,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
+import io.airlift.units.Duration;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.plugin.RealTimeConfig;
 import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
@@ -30,17 +32,17 @@ import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.text.Normalizer;
-import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -52,17 +54,19 @@ public class RealTimeHttpService extends HttpService {
     private final ContinuousQueryService service;
     private final QueryExecutor executor;
     private final SqlParser sqlParser = new SqlParser();
-    private final Duration slideInterval = Duration.ofSeconds(5);
-    private final Duration window = Duration.ofSeconds(45);
+    private final Duration slide;
+    private final Duration window;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
     private final String timestampToEpochFunction;
 
     @Inject
-    public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor, @TimestampToEpochFunction String timestampToEpochFunction) {
+    public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction) {
         this.service = requireNonNull(service, "service is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.window = requireNonNull(config, "config is null").getWindowInterval();
+        this.slide = requireNonNull(config, "config is null").getSlideInterval();
         this.timestampToEpochFunction = requireNonNull(timestampToEpochFunction, "timestampToEpochFunction is null");
     }
 
@@ -86,7 +90,7 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(cast("+timestampToEpochFunction+"(_time) as bigint) / %d) as _time, ", slideInterval.getSeconds()))
+                .append(format("(cast("+timestampToEpochFunction+"(_time) as bigint) / %d) as _time, ", slide.getValue(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.aggregation, report.measure, report.dimensions))
                 .append(" FROM ("+report.collections.stream().map(col -> "(SELECT "+createSelect(report.measure, report.dimensions)+" FROM "+col+") as data").collect(Collectors.joining(" UNION ALL "))+")")
                 .append(report.filter == null ? "" : " where " + report.filter)
@@ -111,7 +115,7 @@ public class RealTimeHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
-    public CompletableFuture<Object> get(@ApiParam(name = "project", required = true) String project,
+    public CompletableFuture<RealTimeQueryResult> get(@ApiParam(name = "project", required = true) String project,
                                          @ApiParam(name = "table_name", required = true) String tableName,
                                          @ApiParam(name = "filter", required = false) String filter,
                                          @ApiParam(name = "aggregation") AggregationType aggregation,
@@ -131,18 +135,18 @@ public class RealTimeHttpService extends HttpService {
 
         ContinuousQuery continuousQuery = service.get(project, tableName);
         if (continuousQuery == null) {
-            CompletableFuture<Object> f = new CompletableFuture<>();
+            CompletableFuture<RealTimeQueryResult> f = new CompletableFuture<>();
             f.completeExceptionally(new RakamException("Couldn't found rule", HttpResponseStatus.BAD_REQUEST));
             return f;
         }
 
         long last_update = Instant.now().getEpochSecond();
-        long previousWindow = (dateStart == null ? (last_update - window.getSeconds()) : dateStart.getEpochSecond()) / 5;
-        long currentWindow = (dateEnd == null ? last_update : dateEnd.getEpochSecond()) / 5;
+        long previousWindow = (dateStart == null ? (last_update - ((long) window.getValue(TimeUnit.SECONDS))) : dateStart.getEpochSecond()) / (slide.toMillis() / 1000);
+        long currentWindow = (dateEnd == null ? last_update : dateEnd.getEpochSecond()) / (slide.toMillis() / 1000);
 
         Object timeCol = aggregate ? currentWindow : "_time";
         String sqlQuery = format("select %s, %s %s(%s) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
-                timeCol,
+                timeCol + " * "+slide.toMillis(),
                 !noDimension ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
                 aggregation != null ? mapFunction(aggregation) : "",
                 measure == null ? "*" : measure,
@@ -155,16 +159,17 @@ public class RealTimeHttpService extends HttpService {
 
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {
             if (result.isFailed()) {
-                return JsonResponse.error("Error running query: " + sqlQuery);
+                // TODO: be sure that this exception is catched
+                throw new RakamException(result.getError().message, INTERNAL_SERVER_ERROR);
             }
 
-            long previousTimestamp = previousWindow * 5;
-            long currentTimestamp = currentWindow * 5;
+            long previousTimestamp = previousWindow * slide.toMillis() / 1000;
+            long currentTimestamp = currentWindow * slide.toMillis() / 1000;
 
             List<List<Object>> data = result.getResult();
 
             if (!aggregate) {
-                if (noDimension) {
+//                if (noDimension) {
                     List<List<Object>> newData = Lists.newLinkedList();
                     int currentDataIdx = 0;
                     for (long current = previousWindow; current < currentWindow; current++) {
@@ -172,19 +177,35 @@ public class RealTimeHttpService extends HttpService {
                             List<Object> objects = data.get(currentDataIdx++);
                             Long time = ((Number) objects.get(0)).longValue();
                             if (time == current) {
-                                newData.add(ImmutableList.of(current * 5, objects.get(1)));
+                                ArrayList<Object> list = new ArrayList<>(dimensions.size() + 2);
+                                list.add(current * slide.toMillis());
+
+                                for (int i = 0; i < dimensions.size(); i++) {
+                                    list.add(objects.get(i+1));
+                                }
+
+                                list.add(objects.get(dimensions.size()+1));
+                                newData.add(list);
                                 continue;
                             }
                         }
-                        newData.add(ImmutableList.of(current * 5, 0));
+
+                        ArrayList<Object> list = new ArrayList<>(dimensions.size() + 2);
+                        list.add(current * slide.toMillis());
+
+                        for (int i = 0; i < dimensions.size(); i++) {
+                            list.add(null);
+                        }
+                        list.add(0);
+                        newData.add(list);
                     }
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
-                } else {
-                    Map<Object, List<Object>> newData = data.stream()
-                            .collect(Collectors.groupingBy(entry -> (Function<List<Object>, Object>) list -> list.get(0),
-                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
-                }
+//                } else {
+//                    Map<Object, List<Object>> newData = data.stream()
+//                            .collect(Collectors.groupingBy(entry -> entry.get(0),
+//                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
+//                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
+//                }
             } else {
                 if (noDimension) {
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
@@ -214,7 +235,7 @@ public class RealTimeHttpService extends HttpService {
     @ApiOperation(value = "Delete report")
     @Path("/delete")
     public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project", required = true) String project,
-                                                  @ApiParam(name = "name", required = true) String tableName) {
+                                                  @ApiParam(name = "table_name", required = true) String tableName) {
 
         // TODO: Check if it's a real-time report.
         return service.delete(project, tableName).thenApply(result -> {

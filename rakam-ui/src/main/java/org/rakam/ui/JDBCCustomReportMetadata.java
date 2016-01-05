@@ -101,7 +101,7 @@ public class JDBCCustomReportMetadata {
 
     public void delete(String reportType, String project, String name) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name)")
+            handle.createStatement("DELETE FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name")
                     .bind("reportType", reportType)
                     .bind("project", project)
                     .bind("name", name).execute();
