@@ -132,4 +132,13 @@ public class ContinuousQueryHttpService extends HttpService {
     public boolean test(@ApiParam(name = "project") String project, @ApiParam(name = "query") String query) {
         return service.test(project, query);
     }
+
+    @JsonRequest
+    @ApiOperation(value = "Get continuous query", authorizations = @Authorization(value = "read_key"))
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.") })
+    @Path("/get")
+    public ContinuousQuery get(@ApiParam(name = "project") String project, @ApiParam(name = "table_name") String tableName) {
+        return service.get(project, tableName);
+    }
 }

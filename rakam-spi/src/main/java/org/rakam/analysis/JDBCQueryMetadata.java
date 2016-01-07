@@ -41,7 +41,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 r.getString("incremental_field"));
         Long last_updated = r.getLong("last_updated");
         if(last_updated != null && last_updated != 0) {
-            materializedView.lastUpdate = Instant.ofEpochMilli(last_updated);
+            materializedView.lastUpdate = Instant.ofEpochSecond(last_updated);
         }
         return materializedView;
     };
@@ -112,7 +112,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
                     .bind("incremental_field", materializedView.incrementalField)
                     .execute();
-            materializedViewCache.refresh(new ProjectCollection(materializedView.project, materializedView.tableName));
         }
     }
 

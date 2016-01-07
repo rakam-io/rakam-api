@@ -12,7 +12,7 @@ public interface QueryMetadataStore {
 
     void deleteMaterializedView(String project, String name);
 
-    MaterializedView getMaterializedView(String project, String name);
+    MaterializedView getMaterializedView(String project, String tableName);
 
     List<MaterializedView> getMaterializedViews(String project);
 

@@ -77,12 +77,13 @@ public abstract class MaterializedViewService {
         return queryExecutor.executeRawQuery(format("DELETE TABLE %s",
                 reference)).getResult();
     }
+
     public List<MaterializedView> list(String project) {
         return database.getMaterializedViews(project);
     }
 
-    public MaterializedView get(String project, String name) {
-        return database.getMaterializedView(project, name);
+    public MaterializedView get(String project, String tableName) {
+        return database.getMaterializedView(project, tableName);
     }
 
     private CompletableFuture<List<SchemaField>> metadata(String project, String query) {

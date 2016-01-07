@@ -154,8 +154,8 @@ public class MaterializedViewHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/get")
     public Object get(@ApiParam(name="project", required = true) String project,
-                      @ApiParam(name="name", required = true) String name) {
-        return service.get(project, name);
+                      @ApiParam(name="table_name", required = true) String tableName) {
+        return service.get(project, tableName);
     }
 
 }

@@ -15,12 +15,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 
 public class ContinuousQuery implements ProjectItem {
+    @JsonIgnore
     private final static SqlParser SQL_PARSER = new SqlParser();
 
     public final String project;
     public final String name;
-    @JsonIgnore
     public final String query;
+    @JsonIgnore
     public Query queryStatement;
     public final String tableName;
     public final List<String> partitionKeys;
@@ -47,7 +48,7 @@ public class ContinuousQuery implements ProjectItem {
         return project;
     }
 
-
+    @JsonIgnore
     public synchronized Query getQuery() {
         if(queryStatement == null) {
             queryStatement = (Query) SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
