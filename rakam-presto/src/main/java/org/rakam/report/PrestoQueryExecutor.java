@@ -35,6 +35,7 @@ import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Buil
 import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
 import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
+import static java.time.ZoneOffset.UTC;
 import static org.rakam.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CATALOG_NAME;
 
@@ -59,7 +60,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 "api-server",
                 prestoConfig.getColdStorageConnector(),
                 "default",
-                TimeZone.getDefault().getID(),
+                TimeZone.getTimeZone(UTC).getID(),
                 Locale.ENGLISH,
                 ImmutableMap.of(),
                 false);

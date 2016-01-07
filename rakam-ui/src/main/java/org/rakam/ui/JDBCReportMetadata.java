@@ -33,7 +33,7 @@ public class JDBCReportMetadata {
             handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  slug VARCHAR(255) NOT NULL," +
-                    "  category VARCHAR(255) NOT NULL," +
+                    "  category VARCHAR(255)," +
                     "  name VARCHAR(255) NOT NULL," +
                     "  query TEXT NOT NULL," +
                     "  options TEXT," +
@@ -71,6 +71,8 @@ public class JDBCReportMetadata {
             if(e.getCause() instanceof SQLException && ((SQLException) e.getCause()).getSQLState().equals("23505")) {
                 // TODO: replace
                 throw new RakamException("Report already exists", HttpResponseStatus.BAD_REQUEST);
+            } else {
+                throw e;
             }
         }
     }
