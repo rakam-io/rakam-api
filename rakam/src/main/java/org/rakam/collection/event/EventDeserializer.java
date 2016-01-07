@@ -386,11 +386,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case VALUE_FALSE:
                 return FieldType.BOOLEAN;
             case VALUE_NUMBER_FLOAT:
+            case VALUE_NUMBER_INT:
                 return FieldType.DOUBLE;
             case VALUE_TRUE:
                 return FieldType.BOOLEAN;
-            case VALUE_NUMBER_INT:
-                return FieldType.LONG;
             case START_ARRAY:
                 JsonToken t = jp.nextToken();
                 if(t == JsonToken.END_ARRAY) {
