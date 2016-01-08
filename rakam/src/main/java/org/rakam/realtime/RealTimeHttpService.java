@@ -65,8 +65,9 @@ public class RealTimeHttpService extends HttpService {
     public RealTimeHttpService(ContinuousQueryService service, QueryExecutor executor, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction) {
         this.service = requireNonNull(service, "service is null");
         this.executor = requireNonNull(executor, "executor is null");
-        this.window = requireNonNull(config, "config is null").getWindowInterval();
-        this.slide = requireNonNull(config, "config is null").getSlideInterval();
+        RealTimeConfig realTimeConfig = requireNonNull(config, "config is null");
+        this.window = realTimeConfig.getWindowInterval();
+        this.slide = realTimeConfig.getSlideInterval();
         this.timestampToEpochFunction = requireNonNull(timestampToEpochFunction, "timestampToEpochFunction is null");
     }
 
