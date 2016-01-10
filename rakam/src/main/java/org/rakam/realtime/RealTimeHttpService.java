@@ -36,6 +36,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -76,7 +77,7 @@ public class RealTimeHttpService extends HttpService {
      * This module adds a new attribute called 'time' to events, it's simply a unix epoch that represents the seconds the event is occurred.
      * Continuous query continuously aggregates 'time' column and
      * real-time module executes queries on continuous query table similar to 'select count from stream_count where time &gt; now() - interval 5 second'
-     *
+     * <p>
      * curl 'http://localhost:9999/realtime/create' -H 'Content-Type: application/json;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Events by collection", "aggregation": "COUNT"}'
      *
      * @param report real-time report
@@ -91,9 +92,9 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(cast("+timestampToEpochFunction+"(_time) as bigint) / %d) as _time, ", slide.getValue(TimeUnit.SECONDS)))
+                .append(format("(cast(" + timestampToEpochFunction + "(_time) as bigint) / %d) as _time, ", slide.getValue(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.aggregation, report.measure, report.dimensions))
-                .append(" FROM ("+report.collections.stream().map(col -> "(SELECT "+createSelect(report.measure, report.dimensions)+" FROM "+col+") as data").collect(Collectors.joining(" UNION ALL "))+")")
+                .append(" FROM (" + report.collections.stream().map(col -> "(SELECT " + createSelect(report.measure, report.dimensions) + " FROM " + col + ") as data").collect(Collectors.joining(" UNION ALL ")) + ")")
                 .append(report.filter == null ? "" : " where " + report.filter)
                 .append(" group by 1 ")
                 .append(report.dimensions != null ?
@@ -105,8 +106,19 @@ public class RealTimeHttpService extends HttpService {
                 tableName,
                 sqlQuery,
                 ImmutableList.of(),
-                ImmutableMap.of());
+                ImmutableMap.of("realtime", true));
         return service.create(query).thenApply(JsonResponse::map);
+    }
+    
+    @JsonRequest
+    @ApiOperation(value = "List queries")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/list")
+    public List<ContinuousQuery> list(@ApiParam(name = "project") String project) {
+        return service.list(project).stream()
+                .filter(c -> Boolean.TRUE.equals(c.options.get("realtime")))
+                .collect(Collectors.toList());
     }
 
     @JsonRequest
@@ -116,15 +128,15 @@ public class RealTimeHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
-    public CompletableFuture<RealTimeQueryResult> get(@ApiParam(name = "project", required = true) String project,
-                                         @ApiParam(name = "table_name", required = true) String tableName,
-                                         @ApiParam(name = "filter", required = false) String filter,
-                                         @ApiParam(name = "aggregation") AggregationType aggregation,
-                                         @ApiParam(name = "measure", required = false) String measure,
-                                         @ApiParam(name = "dimensions", required = false) List<String> dimensions,
-                                         @ApiParam(name = "aggregate", required = false) boolean aggregate,
-                                         @ApiParam(name = "date_start", required = false) Instant dateStart,
-                                         @ApiParam(name = "date_end", required = false) Instant dateEnd) {
+    public CompletableFuture<RealTimeQueryResult> get(@ApiParam(name = "project") String project,
+                                                      @ApiParam(name = "table_name") String tableName,
+                                                      @ApiParam(name = "filter", required = false) String filter,
+                                                      @ApiParam(name = "aggregation") AggregationType aggregation,
+                                                      @ApiParam(name = "measure", required = false) String measure,
+                                                      @ApiParam(name = "dimensions", required = false) List<String> dimensions,
+                                                      @ApiParam(name = "aggregate", required = false) boolean aggregate,
+                                                      @ApiParam(name = "date_start", required = false) Instant dateStart,
+                                                      @ApiParam(name = "date_end", required = false) Instant dateEnd) {
         Expression expression;
         if (filter != null) {
             expression = sqlParser.createExpression(filter);
@@ -141,13 +153,13 @@ public class RealTimeHttpService extends HttpService {
             return f;
         }
 
-        long last_update = Instant.now().getEpochSecond();
-        long previousWindow = (dateStart == null ? (last_update - ((long) window.getValue(TimeUnit.SECONDS))) : dateStart.getEpochSecond()) / (slide.toMillis() / 1000);
-        long currentWindow = (dateEnd == null ? last_update : dateEnd.getEpochSecond()) / (slide.toMillis() / 1000);
+        long last_update = Instant.now().toEpochMilli() - slide.toMillis();
+        long previousWindow = (dateStart == null ? (last_update - window.toMillis()) : dateStart.toEpochMilli()) / (slide.toMillis());
+        long currentWindow = (dateEnd == null ? last_update : dateEnd.toEpochMilli()) / slide.toMillis();
 
         Object timeCol = aggregate ? currentWindow : "_time";
         String sqlQuery = format("select %s, %s %s(%s) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
-                timeCol + " * "+slide.toMillis(),
+                timeCol + " * " + slide.toMillis(),
                 !noDimension ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
                 aggregation != null ? mapFunction(aggregation) : "",
                 measure == null ? "*" : measure,
@@ -170,43 +182,35 @@ public class RealTimeHttpService extends HttpService {
             List<List<Object>> data = result.getResult();
 
             if (!aggregate) {
-//                if (noDimension) {
+                if (noDimension) {
                     List<List<Object>> newData = Lists.newLinkedList();
-                    int currentDataIdx = 0;
-                    for (long current = previousWindow; current < currentWindow; current++) {
-                        if (data.size() > currentDataIdx) {
-                            List<Object> objects = data.get(currentDataIdx++);
-                            Long time = ((Number) objects.get(0)).longValue();
-                            if (time == current) {
-                                ArrayList<Object> list = new ArrayList<>(dimensions.size() + 2);
-                                list.add(current * slide.toMillis());
+                    Map<Long, List<Object>> collect = data.stream().collect(Collectors.toMap(a -> (Long) a.get(0), a -> a));
+                    for (long current = previousWindow * slide.toMillis(); current < currentWindow * slide.toMillis(); current += slide.toMillis()) {
 
-                                for (int i = 0; i < dimensions.size(); i++) {
-                                    list.add(objects.get(i+1));
-                                }
+                        List<Object> objects = collect.get(current);
 
-                                list.add(objects.get(dimensions.size()+1));
-                                newData.add(list);
-                                continue;
-                            }
+                        if (objects != null) {
+                            ArrayList<Object> list = new ArrayList<>(2);
+                            list.add(current);
+
+                            list.add(objects.get(dimensions.size() + 1));
+                            newData.add(list);
+                            continue;
                         }
 
-                        ArrayList<Object> list = new ArrayList<>(dimensions.size() + 2);
-                        list.add(current * slide.toMillis());
+                        ArrayList<Object> list = new ArrayList<>(2);
+                        list.add(current);
 
-                        for (int i = 0; i < dimensions.size(); i++) {
-                            list.add(null);
-                        }
                         list.add(0);
                         newData.add(list);
                     }
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
-//                } else {
-//                    Map<Object, List<Object>> newData = data.stream()
-//                            .collect(Collectors.groupingBy(entry -> entry.get(0),
-//                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
-//                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
-//                }
+                } else {
+                    Map<Object, List<Object>> newData = data.stream()
+                            .collect(Collectors.groupingBy(entry -> entry.get(0),
+                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
+                }
             } else {
                 if (noDimension) {
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
@@ -235,8 +239,8 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete report")
     @Path("/delete")
-    public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project", required = true) String project,
-                                                  @ApiParam(name = "table_name", required = true) String tableName) {
+    public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project") String project,
+                                                  @ApiParam(name = "table_name") String tableName) {
 
         // TODO: Check if it's a real-time report.
         return service.delete(project, tableName).thenApply(result -> {
@@ -254,7 +258,7 @@ public class RealTimeHttpService extends HttpService {
             measure = "1";
         }
         String collect = dimensions.stream().collect(Collectors.joining(", "));
-        return "_time, "+ measure + (collect.isEmpty() ? "" : "," +collect);
+        return "_time, " + measure + (collect.isEmpty() ? "" : "," + collect);
     }
 
     public String createFinalSelect(AggregationType aggType, String measure, List<String> dimensions) {

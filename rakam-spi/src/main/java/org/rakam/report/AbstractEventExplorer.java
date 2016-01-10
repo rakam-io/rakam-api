@@ -275,18 +275,18 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         String query;
         if (dimension.isPresent()) {
             EventExplorer.TimestampTransformation aggregationMethod = EventExplorer.TimestampTransformation.fromString(dimension.get().replace(" ", "_"));
-            query = format("select collection, %s, total from (", format(timestampMapping.get(aggregationMethod), "time")) +
+            query = format("select collection, %s as %s, sum(total) from (", format(timestampMapping.get(aggregationMethod), "time"), aggregationMethod) +
                     collectionNames.stream()
                             .map(collection ->
                                     format("select '%s' as collection, time, total from continuous.\"%s\" ",
                                             collection,
                                             "_total_" + collection))
                             .collect(Collectors.joining(" union ")) +
-                    format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+                    format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day group by 1,2 order by 1", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
                     .map(collection ->
-                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day",
+                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day order by 1",
                                     collection,
                                     "_total_" + collection,
                                     startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
@@ -298,13 +298,6 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
     @Override
     public List<String> getExtraDimensions(String project) {
-        return timestampMapping.keySet().stream()
-                .map(key -> toUpperCase(key.name().charAt(0)) + key.name().replace("_", " ").substring(1).toLowerCase(ENGLISH))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<String> getEventDimensions(String project) {
         return timestampMapping.keySet().stream()
                 .map(key -> toUpperCase(key.name().charAt(0)) + key.name().replace("_", " ").substring(1).toLowerCase(ENGLISH))
                 .collect(Collectors.toList());

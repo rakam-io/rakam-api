@@ -13,6 +13,7 @@ import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
 import com.facebook.presto.sql.tree.Union;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -106,7 +107,7 @@ public class QueryHttpService extends HttpService {
         try {
             query = JsonHelper.readSafe(data.get(0), clazz);
         } catch (IOException e) {
-            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST))).end();
+            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
 
@@ -116,7 +117,7 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        if(!metastore.checkPermission(query.project(), Metastore.AccessKeyType.READ_KEY, apiKey.get(0))) {
+        if (!metastore.checkPermission(query.project(), Metastore.AccessKeyType.READ_KEY, apiKey.get(0))) {
             response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.UNAUTHORIZED.reasonPhrase(),
                     HttpResponseStatus.UNAUTHORIZED))).end();
             return;
@@ -134,7 +135,7 @@ public class QueryHttpService extends HttpService {
     }
 
     private void handleServerSentQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
-        if(query == null) {
+        if (query == null) {
             // TODO: custom message
             response.send("result", encode(jsonObject()
                     .put("success", false)
@@ -143,8 +144,8 @@ public class QueryHttpService extends HttpService {
             return;
         }
         query.getResult().whenComplete((result, ex) -> {
-            if(response.isClosed()) {
-              query.kill();
+            if (response.isClosed()) {
+                query.kill();
             } else if (ex != null) {
                 response.send("result", encode(jsonObject()
                         .put("success", false)
@@ -170,9 +171,9 @@ public class QueryHttpService extends HttpService {
         eventLoopGroup.schedule(new Runnable() {
             @Override
             public void run() {
-                if(response.isClosed()) {
+                if (response.isClosed()) {
                     query.kill();
-                } else if(!query.isFinished()) {
+                } else if (!query.isFinished()) {
                     String encode = encode(query.currentStats());
                     response.send("stats", encode);
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
@@ -197,7 +198,7 @@ public class QueryHttpService extends HttpService {
                             @ApiParam(name = "limit", required = false) Integer limit) {
             this.project = requireNonNull(project, "project is empty");
             this.query = requireNonNull(query, "query is empty");
-            if(limit !=null && limit > 5000) {
+            if (limit != null && limit > 5000) {
                 throw new IllegalArgumentException("maximum value of limit is 5000");
             }
             this.limit = limit;
@@ -213,23 +214,27 @@ public class QueryHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Explain query", authorizations = @Authorization(value = "read_key"))
     @Path("/explain")
-    public Object explain(@ApiParam(name="query", value = "Query", required = true) String query) {
+    public Object explain(@ApiParam(name = "query", value = "Query", required = true) String query) {
         try {
             Query statement;
             statement = (Query) new SqlParser().createStatement(query);
 
-            if(statement.getQueryBody() instanceof QuerySpecification) {
+            if (statement.getQueryBody() instanceof QuerySpecification) {
                 return parseQuerySpecification((QuerySpecification) statement.getQueryBody());
-            } else
-            if(statement.getQueryBody() instanceof Union) {
-                final Relation relation = ((Union) statement.getQueryBody()).getRelations().get(0);
-                if(relation instanceof QuerySpecification) {
+            } else if (statement.getQueryBody() instanceof Union) {
+                Relation relation = ((Union) statement.getQueryBody()).getRelations().get(0);
+                while (relation instanceof Union) {
+                    relation = ((Union) relation).getRelations().get(0);
+                }
+
+                if (relation instanceof QuerySpecification) {
                     return parseQuerySpecification((QuerySpecification) relation);
                 }
             }
-            return ResponseQuery.UNKNOWN;
+            return new ResponseQuery(ImmutableList.of(), ImmutableList.of(),
+                    statement.getLimit().map(l -> Long.parseLong(l)).orElse(null));
 
-        } catch (ParsingException|ClassCastException e) {
+        } catch (ParsingException | ClassCastException e) {
             return ResponseQuery.UNKNOWN;
         }
     }
@@ -237,9 +242,9 @@ public class QueryHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Test query", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
-    public CompletableFuture<List<SchemaField>> metadata(@ApiParam(name="project") String project, @ApiParam(name="query") String query) {
+    public CompletableFuture<List<SchemaField>> metadata(@ApiParam(name = "project") String project, @ApiParam(name = "query") String query) {
         return executorService.metadata(project, query);
     }
 
@@ -264,13 +269,14 @@ public class QueryHttpService extends HttpService {
 
         String limitStr = queryBody.getLimit().orElse(null);
         Long limit = null;
-        if(limitStr != null) {
+        if (limitStr != null) {
             try {
                 limit = Long.parseLong(limitStr);
-            } catch (NumberFormatException e) {}
+            } catch (NumberFormatException e) {
+            }
         }
 
-        return new ResponseQuery(groupBy, orderBy, limit, null);
+        return new ResponseQuery(groupBy, orderBy, limit);
     }
 
     private Optional<Integer> findSelectIndex(List<SelectItem> selectItems, String reference) {
@@ -279,9 +285,9 @@ public class QueryHttpService extends HttpService {
             if (selectItem instanceof SingleColumn) {
                 SingleColumn selectItem1 = (SingleColumn) selectItem;
                 Optional<String> alias = selectItem1.getAlias();
-                if((alias.isPresent() && alias.get().equals(reference)) ||
+                if ((alias.isPresent() && alias.get().equals(reference)) ||
                         selectItem1.getExpression().toString().equals(reference)) {
-                    return Optional.of(i+1);
+                    return Optional.of(i + 1);
                 }
             }
         }
@@ -289,19 +295,17 @@ public class QueryHttpService extends HttpService {
     }
 
     public static class ResponseQuery {
-        public static final ResponseQuery UNKNOWN = new ResponseQuery(null, null, null, null);
+        public static final ResponseQuery UNKNOWN = new ResponseQuery(ImmutableList.of(), ImmutableList.of(), null);
 
         public final List<GroupBy> groupBy;
         public final List<Ordering> orderBy;
         public final Long limit;
-        public final List<String> parameters;
 
         @JsonCreator
-        public ResponseQuery(List<GroupBy> groupBy, List<Ordering> orderBy, Long limit, List<String> parameters) {
+        public ResponseQuery(List<GroupBy> groupBy, List<Ordering> orderBy, Long limit) {
             this.groupBy = groupBy;
             this.orderBy = orderBy;
             this.limit = limit;
-            this.parameters = parameters;
         }
     }
 

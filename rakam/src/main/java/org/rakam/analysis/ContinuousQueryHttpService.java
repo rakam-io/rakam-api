@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Path("/continuous-query")
 @Api(value = "/continuous-query", description = "Continuous Query", tags = "continuous-query")
@@ -86,16 +87,20 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public List<Collection> schema(@ApiParam(name="project") String project) {
+    public List<Collection> schema(@ApiParam(name="project") String project,
+                                   @ApiParam(name="names", required = false) List<String> names) {
         Map<String, List<SchemaField>> schemas = service.getSchemas(project);
         if(schemas == null) {
             throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
         }
-        return schemas.entrySet().stream()
-                    // ignore system tables
+        Stream<Collection> collectionStream = schemas.entrySet().stream()
+                // ignore system tables
 //                    .filter(entry -> !entry.getKey().startsWith("_"))
-                    .map(entry -> new Collection(entry.getKey(), entry.getValue()))
-                    .collect(Collectors.toList());
+                .map(entry -> new Collection(entry.getKey(), entry.getValue()));
+        if(names != null) {
+            collectionStream = collectionStream.filter(a -> names.contains(a.name));
+        }
+        return collectionStream.collect(Collectors.toList());
     }
 
     public static class Collection {

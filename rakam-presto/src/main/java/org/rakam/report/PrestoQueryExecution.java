@@ -89,7 +89,11 @@ public class PrestoQueryExecution implements QueryExecution {
 
                     for (int i = 0; i < objects.size(); i++) {
                         if(columns.get(i).getType() == TIMESTAMP) {
-                            row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
+                            try {
+                                row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
+                            } catch (Exception e) {
+                                // TODO: log
+                            }
                         } else {
                             row[i] = objects.get(i);
                         }

@@ -14,6 +14,7 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.JDBCQueryMetadata;
 import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.postgresql.PostgresqlConfig;
 import org.rakam.analysis.postgresql.PostgresqlEventStore;
 import org.rakam.analysis.postgresql.PostgresqlFunnelQueryExecutor;
@@ -64,6 +65,7 @@ public class PostgresqlModule extends RakamModule {
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
+        binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
         if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
             binder.bind(EventStream.class).to(PostgresqlEventStream.class);

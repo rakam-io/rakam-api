@@ -33,8 +33,6 @@ public interface EventExplorer {
     CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
     List<String> getExtraDimensions(String project);
 
-    List<String> getEventDimensions(String project);
-
     enum TimestampTransformation {
         HOUR_OF_DAY, DAY_OF_MONTH, WEEK_OF_YEAR, MONTH_OF_YEAR, QUARTER_OF_YEAR, DAY_PART, DAY_OF_WEEK, HOUR, DAY, MONTH, YEAR;
 

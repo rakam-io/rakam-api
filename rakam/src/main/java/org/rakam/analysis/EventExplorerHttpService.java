@@ -64,15 +64,6 @@ public class EventExplorerHttpService extends HttpService {
         return eventExplorer.getExtraDimensions(project);
     }
 
-    @JsonRequest
-    @ApiOperation(value = "Event statistics",
-            authorizations = @Authorization(value = "read_key")
-    )
-    @Path("/event_dimensions")
-    public List<String> getEventDimensions(@ApiParam(name = "project", required = true) String project) {
-        return eventExplorer.getEventDimensions(project);
-    }
-
     @ApiOperation(value = "Perform simple query on event data",
             authorizations = @Authorization(value = "read_key")
     )

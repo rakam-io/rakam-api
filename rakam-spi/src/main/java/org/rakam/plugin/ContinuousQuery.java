@@ -6,6 +6,7 @@ import com.facebook.presto.sql.tree.Query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
@@ -38,7 +39,7 @@ public class ContinuousQuery implements ProjectItem {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
-        this.options = options;
+        this.options = options == null ? ImmutableMap.of() : options;
         this.partitionKeys = partitionKeys == null ? ImmutableList.of() : partitionKeys;
         this.query = query;
     }
