@@ -84,6 +84,7 @@ public class CustomPageHttpService extends HttpService {
                 "                frame.setAttribute('sandbox', 'allow-forms allow-popups allow-scripts allow-same-origin');\n" +
                 "                document.body.appendChild(frame);\n" +
                 "                frame.contentWindow.API_URL = data.apiUrl;\n" +
+                "                frame.contentWindow.API_KEY = data.apiKey;\n" +
                 "                frame.contentWindow.PROJECT = data.project;\n" +
                 "                frame.contentWindow.document.write(data.html +'<script>window.onerror = function(message, url, lineNumber) {console.log(2);}<\\/script>');\n" +
                 "                frame.contentWindow.document.close();\n" +
