@@ -7,6 +7,7 @@ import org.rakam.server.http.RequestPreprocessor;
 import org.rakam.util.RakamException;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 class ProjectAuthPreprocessor implements RequestPreprocessor<ObjectNode> {
 
@@ -20,7 +21,9 @@ class ProjectAuthPreprocessor implements RequestPreprocessor<ObjectNode> {
 
     @Override
     public void handle(HttpHeaders headers, ObjectNode bodyData) {
-        if(!metastore.checkPermission(bodyData.get("project").asText(), key, headers.get("api_key"))) {
+        String project = bodyData.get("project").asText();
+        checkProject(project);
+        if(!metastore.checkPermission(project, key, headers.get("api_key"))) {
             throw new RakamException(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
         }
     }

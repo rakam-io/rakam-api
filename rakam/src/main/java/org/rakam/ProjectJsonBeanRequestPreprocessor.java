@@ -9,6 +9,7 @@ import org.rakam.util.RakamException;
 import java.lang.reflect.Method;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 class ProjectJsonBeanRequestPreprocessor implements RequestPreprocessor<Object> {
     private final Metastore metastore;
@@ -22,7 +23,9 @@ class ProjectJsonBeanRequestPreprocessor implements RequestPreprocessor<Object> 
     @Override
     public void handle(HttpHeaders headers, Object bodyData) {
         String api_key = headers.get("api_key");
-        if(api_key == null || !metastore.checkPermission(((ProjectItem) bodyData).project(), key, api_key)) {
+        String project = ((ProjectItem) bodyData).project();
+        checkProject(project);
+        if(api_key == null || !metastore.checkPermission(project, key, api_key)) {
             throw new RakamException(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
         }
     }
