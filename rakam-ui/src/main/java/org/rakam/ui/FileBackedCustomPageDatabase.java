@@ -43,7 +43,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public void save(String project, String name, Map<String, String> files) {
+    public void save(String project1, String s, String project, String name, Map<String, String> files) {
         File projectDirectory = new File(directory, project);
         if (!projectDirectory.exists()) {
             projectDirectory.mkdir();

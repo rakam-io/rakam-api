@@ -43,17 +43,21 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
                 handle.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
                 "  project VARCHAR(255) NOT NULL," +
                 "  name VARCHAR(255) NOT NULL," +
+                "  slug VARCHAR(255) NOT NULL," +
+                "  category VARCHAR(255)," +
                 "  data TEXT NOT NULL," +
                 "  PRIMARY KEY (project, name)" +
                 "  )")
                 .execute());
     }
 
-    public void save(String project, String name, Map<String, String> files) {
+    public void save(String project, String name, String slug, String category, Map<String, String> files) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO custom_page (project, name, data) VALUES (:project, :name, :data)")
+            handle.createStatement("INSERT INTO custom_page (project, name, slug, category, data) VALUES (:project, :name, :slug, :category, :data)")
                     .bind("project", project)
                     .bind("name", name)
+                    .bind("slug", slug)
+                    .bind("category", category)
                     .bind("data", JsonHelper.encode(files)).execute();
         } catch (Exception e) {
             // TODO move it to transaction
@@ -74,9 +78,9 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
 
     public Map<String, String> get(String project, String name) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT data FROM custom_page WHERE project = :project AND name = :name")
+            return handle.createQuery("SELECT data FROM custom_page WHERE project = :project AND slug = :slug")
                     .bind("project", project)
-                    .bind("name", name)
+                    .bind("slug", name)
                     .map((i, resultSet, statementContext) -> {
                         return JsonHelper.read(resultSet.getString(2), Map.class);
                     }).first();
@@ -91,9 +95,9 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
     @Override
     public void delete(String project, String name) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM custom_page WHERE project = :project AND name = :name)")
+            handle.createStatement("DELETE FROM custom_page WHERE project = :project AND slug = :slug)")
                     .bind("project", project)
-                    .bind("name", name).execute();
+                    .bind("slug", name).execute();
         }
     }
 }

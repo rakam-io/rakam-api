@@ -44,6 +44,17 @@ public class ProjectHttpService extends HttpService {
         return JsonResponse.success();
     }
 
+    @ApiOperation(value = "Delete project",
+            authorizations = @Authorization(value = "master_key")
+    )
+    @JsonRequest
+    @Path("/delete")
+    public JsonResponse deleteProject(@ApiParam(name="name") String name) {
+        checkProject(name);
+        metastore.deleteProject(name.toLowerCase(Locale.ENGLISH));
+        return JsonResponse.success();
+    }
+
     @ApiOperation(value = "List created projects",
             authorizations = @Authorization(value = "read_key")
     )

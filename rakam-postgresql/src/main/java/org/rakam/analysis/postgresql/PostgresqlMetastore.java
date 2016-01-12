@@ -102,13 +102,13 @@ public class PostgresqlMetastore extends AbstractMetastore {
     private void setup() {
         try (Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
-            statement.execute("" +
-                    "  CREATE TABLE IF NOT EXISTS public.collections_last_sync (" +
-                    "  project TEXT NOT NULL," +
-                    "  collection TEXT NOT NULL," +
-                    "  last_sync int4 NOT NULL," +
-                    "  PRIMARY KEY (project, collection)" +
-                    "  )");
+//            statement.execute("" +
+//                    "  CREATE TABLE IF NOT EXISTS public.collections_last_sync (" +
+//                    "  project TEXT NOT NULL," +
+//                    "  collection TEXT NOT NULL," +
+//                    "  last_sync int4 NOT NULL," +
+//                    "  PRIMARY KEY (project, collection)" +
+//                    "  )");
 
             statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
                     "  id SERIAL PRIMARY KEY,\n" +
@@ -407,6 +407,17 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 list.add(new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
             }
             return Collections.unmodifiableList(list);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public void deleteProject(String project) {
+        try (Connection conn = connectionPool.getConnection()) {
+            PreparedStatement statement = conn.prepareStatement("delete from api_key where project = ?");
+            statement.setString(1, project);
+            statement.execute();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

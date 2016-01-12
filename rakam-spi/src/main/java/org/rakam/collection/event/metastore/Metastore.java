@@ -31,6 +31,8 @@ public interface Metastore {
 
     List<ProjectApiKeys> getApiKeys(int[] ids);
 
+    void deleteProject(String project);
+
     class ProjectApiKeys {
         public final int id;
         public final String project;

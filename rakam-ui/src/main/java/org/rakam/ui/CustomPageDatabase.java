@@ -19,7 +19,7 @@ import java.util.Map;
 
 
 public interface CustomPageDatabase {
-    void save(String project, String name, Map<String, String> files);
+    void save(String project, String name, String slug, String category, Map<String, String> files);
     List<String> list(String project);
     Map<String, String> get(String project, String name);
     InputStream getFile(String project, String name, String file);

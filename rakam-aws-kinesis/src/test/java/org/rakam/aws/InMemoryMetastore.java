@@ -89,4 +89,9 @@ class InMemoryMetastore extends AbstractMetastore {
     public List<ProjectApiKeys> getApiKeys(int[] ids) {
         return null;
     }
+
+    @Override
+    public void deleteProject(String project) {
+        collections.remove(project);
+    }
 }

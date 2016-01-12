@@ -30,6 +30,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -376,6 +377,31 @@ public class JDBCMetastore extends AbstractMetastore {
                 list.add(new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
             }
             return list;
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public void deleteProject(String project) {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("delete from api_key where project = :project").execute();
+            handle.createStatement("delete from project where name = :project").execute();
+        }
+
+        Set<String> collectionNames = getCollectionNames(project);
+        try (Connection connection = prestoConnectionFactory.openConnection()) {
+            Statement statement = connection.createStatement();
+
+            while(!collectionNames.isEmpty()) {
+                for (String collectionName : collectionNames) {
+                    statement.execute(String.format("drop table %s.%s.%s",
+                            config.getColdStorageConnector(), project, collectionName));
+                }
+
+                collectionCache.refresh(project);
+                collectionNames = collectionCache.getUnchecked(project);
+            }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

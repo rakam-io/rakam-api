@@ -57,7 +57,6 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/frame")
-
     @GET
     @IgnorePermissionCheck
     public void frame(RakamHttpRequest request) {
@@ -105,13 +104,15 @@ public class CustomPageHttpService extends HttpService {
         }
     }
 
-    @Path("/save")
-    @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"))
+    @Path("/create")
+    @ApiOperation(value = "Create Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public JsonResponse save(@ApiParam(name = "project") String project,
                              @ApiParam(name = "name") String name,
+                             @ApiParam(name = "slug") String slug,
+                             @ApiParam(name = "category", required = false) String category,
                              @ApiParam(name = "files") Map<String, String> files) {
-        database.save(project, name, files);
+        database.save(project, name, slug, category, files);
         return JsonResponse.success();
     }
 
