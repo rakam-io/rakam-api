@@ -119,6 +119,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         }
                     }
                     break;
+                default:
+                    throw new RakamException(String.format("Unrecognized field '%s' ", fieldName), BAD_REQUEST);
             }
         }
         if (properties == null) {

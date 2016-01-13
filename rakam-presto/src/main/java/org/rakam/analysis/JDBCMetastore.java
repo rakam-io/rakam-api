@@ -24,6 +24,7 @@ import org.skife.jdbi.v2.tweak.ConnectionFactory;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -144,11 +145,16 @@ public class JDBCMetastore extends AbstractMetastore {
             }
         });
 
-        setup();
+
+    }
+
+    @PostConstruct
+    public void setup() {
+        setupTables();
         super.checkExistingSchema();
     }
 
-    private void setup() {
+    private void setupTables() {
         dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
             handle.createStatement("CREATE TABLE IF NOT EXISTS api_key (" +
                     "  id SERIAL PRIMARY KEY,\n" +

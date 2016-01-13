@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -33,9 +34,9 @@
             <version>1.4.7</version>
         </dependency>
         <!--<dependency>-->
-            <!--<groupId>javax.mail</groupId>-->
-            <!--<artifactId>javax.mail-api</artifactId>-->
-            <!--<version>1.5.2</version>-->
+        <!--<groupId>javax.mail</groupId>-->
+        <!--<artifactId>javax.mail-api</artifactId>-->
+        <!--<version>1.5.2</version>-->
         <!--</dependency>-->
         <dependency>
             <groupId>org.rakam</groupId>
@@ -99,9 +100,14 @@
             <artifactId>guice</artifactId>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>testing-postgresql-server</artifactId>
+            <version>0.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -176,8 +182,8 @@
         </dependency>
 
         <!--<dependency>-->
-            <!--<groupId>net.kencochrane.raven</groupId>-->
-            <!--<artifactId>raven</artifactId>-->
+        <!--<groupId>net.kencochrane.raven</groupId>-->
+        <!--<artifactId>raven</artifactId>-->
         <!--</dependency>-->
 
         <dependency>
@@ -217,7 +223,7 @@
                                 <argument>-classpath</argument>
                                 <!-- automatically creates the classpath using all project dependencies,
                                      also adding the project build directory -->
-                                <classpath />
+                                <classpath/>
                                 <argument>org.rakam.SystemRegistryGenerator</argument>
                                 <argument>json</argument>
                             </arguments>
@@ -236,7 +242,7 @@
                                 <argument>-classpath</argument>
                                 <!-- automatically creates the classpath using all project dependencies,
                                      also adding the project build directory -->
-                                <classpath />
+                                <classpath/>
                                 <argument>org.rakam.SystemRegistryGenerator</argument>
                                 <argument>properties</argument>
                             </arguments>
@@ -290,12 +296,18 @@
                             <failOnWarning>true</failOnWarning>
 
                             <ignoredUnusedDeclaredDependencies>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-website</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto-kafka</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws-kinesis</ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip
+                                </ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-website
+                                </ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto-kafka
+                                </ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-presto
+                                </ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql
+                                </ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws-kinesis
+                                </ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>

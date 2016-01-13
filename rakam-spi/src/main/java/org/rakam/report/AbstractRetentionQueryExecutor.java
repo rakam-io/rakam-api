@@ -136,7 +136,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "  from daily_groups\n" +
                             "),\n" +
                             "result as (\n" +
-                            "   select %s as time %s, count(distinct %s) as count\n" +
+                            "   select %s as time, %s, count(distinct %s) as count\n" +
                             "   from lead_relations data group by 1 %s order by 1\n" +
                             ") \n" +
                             "select %s, cast(null as bigint) as lead, count(%s) as count from daily_groups data group by 1\n" +
@@ -144,9 +144,10 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d)",
                     connectorField, from.toString(), connectorField,
                     leads.isEmpty() ? "" : ", "+leads, "data.time",
-                    leadColumns, connectorField, groups,
+                    leadColumns, connectorField,
+                    groups.isEmpty() ? "" : ", "+groups,
                     "data.time", connectorField,
-                    leadColumnNames.isEmpty() ? "" : ", "+leadColumnNames, MAXIMUM_LEAD);
+                    leadColumnNames, MAXIMUM_LEAD);
         }
 
         return executor.executeRawQuery(query);

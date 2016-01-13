@@ -281,16 +281,16 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     format("select '%s' as collection, time, total from continuous.\"%s\" ",
                                             collection,
                                             "_total_" + collection))
-                            .collect(Collectors.joining(" union ")) +
-                    format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day group by 1,2 order by 1", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+                            .collect(Collectors.joining(" union all ")) +
+                    format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day group by 1,2", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
                     .map(collection ->
-                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day order by 1",
+                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day",
                                     collection,
                                     "_total_" + collection,
                                     startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
-                    .collect(Collectors.joining(" union "));
+                    .collect(Collectors.joining(" union all "));
         }
 
         return service.executeQuery(project, query, 5000).getResult();

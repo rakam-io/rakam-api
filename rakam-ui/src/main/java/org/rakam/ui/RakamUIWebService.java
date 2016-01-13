@@ -225,6 +225,7 @@ public class RakamUIWebService extends HttpService {
 
         time.add(Calendar.SECOND, HTTP_CACHE_SECONDS);
         response.headers().set(EXPIRES, dateFormatter.format(time.getTime()));
+        response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
         response.headers().set(CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS);
         response.headers().set(LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
     }

@@ -82,10 +82,7 @@ public class CustomPageHttpService extends HttpService {
                 "                frame.setAttribute('style', 'border:none;width:100%;height:100%;margin:0;padding:0;position:absolute;');\n" +
                 "                frame.setAttribute('sandbox', 'allow-forms allow-popups allow-scripts allow-same-origin');\n" +
                 "                document.body.appendChild(frame);\n" +
-                "                frame.contentWindow.API_URL = data.apiUrl;\n" +
-                "                frame.contentWindow.API_KEY = data.apiKey;\n" +
-                "                frame.contentWindow.PROJECT = data.project;\n" +
-                "                frame.contentWindow.document.write(data.html +'<script>window.onerror = function(message, url, lineNumber) {console.log(2);}<\\/script>');\n" +
+                "                frame.contentWindow.document.write(data.html);\n" +
                 "                frame.contentWindow.document.close();\n" +
                 "            }\n" +
                 "        });\n" +
@@ -104,8 +101,8 @@ public class CustomPageHttpService extends HttpService {
         }
     }
 
-    @Path("/create")
-    @ApiOperation(value = "Create Report", authorizations = @Authorization(value = "read_key"))
+    @Path("/save")
+    @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public JsonResponse save(@ApiParam(name = "project") String project,
                              @ApiParam(name = "name") String name,
@@ -128,8 +125,8 @@ public class CustomPageHttpService extends HttpService {
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
     public Map<String, String> get(@ApiParam(name = "project") String project,
-                                   @ApiParam(name = "name") String name) {
-        return database.get(project, name);
+                                   @ApiParam(name = "slug") String slug) {
+        return database.get(project, slug);
     }
 
     @Path("/display/*")
@@ -160,7 +157,7 @@ public class CustomPageHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public List<String> list(@ApiParam(name = "project") String project) {
+    public List<CustomPageDatabase.Page> list(@ApiParam(name = "project") String project) {
         return database.list(project);
     }
 

@@ -20,8 +20,20 @@ import java.util.Map;
 
 public interface CustomPageDatabase {
     void save(String project, String name, String slug, String category, Map<String, String> files);
-    List<String> list(String project);
-    Map<String, String> get(String project, String name);
+    List<Page> list(String project);
+    Map<String, String> get(String project, String slug);
     InputStream getFile(String project, String name, String file);
     void delete(String project, String name);
+
+    class Page {
+        public final String name;
+        public final String slug;
+        public final String category;
+
+        public Page(String name, String slug, String category) {
+            this.name = name;
+            this.slug = slug;
+            this.category = category;
+        }
+    }
 }

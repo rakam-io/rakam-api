@@ -63,13 +63,14 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public List<String> list(String project) {
+    public List<Page> list(String project) {
         File projectDir = new File(directory, project);
         String[] list = projectDir.list();
         if(list == null) {
             return ImmutableList.of();
         }
-        return Arrays.stream(list).filter(file -> new File(projectDir, file).isDirectory()).collect(Collectors.toList());
+        return Arrays.stream(list).filter(file -> new File(projectDir, file).isDirectory())
+                .map(name -> new Page(name, name, null)).collect(Collectors.toList());
     }
 
     @Override

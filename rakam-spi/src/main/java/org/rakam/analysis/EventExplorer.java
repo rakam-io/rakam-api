@@ -34,7 +34,7 @@ public interface EventExplorer {
     List<String> getExtraDimensions(String project);
 
     enum TimestampTransformation {
-        HOUR_OF_DAY, DAY_OF_MONTH, WEEK_OF_YEAR, MONTH_OF_YEAR, QUARTER_OF_YEAR, DAY_PART, DAY_OF_WEEK, HOUR, DAY, MONTH, YEAR;
+        HOUR_OF_DAY, DAY_OF_MONTH, WEEK_OF_YEAR, MONTH_OF_YEAR, QUARTER_OF_YEAR, DAY_PART, DAY_OF_WEEK, HOUR, DAY, WEEK, MONTH, YEAR;
 
         @JsonCreator
         public static TimestampTransformation fromString(String key) {

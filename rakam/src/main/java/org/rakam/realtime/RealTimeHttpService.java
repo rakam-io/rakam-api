@@ -92,7 +92,7 @@ public class RealTimeHttpService extends HttpService {
         String tableName = toSlug(report.name);
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(cast(" + timestampToEpochFunction + "(_time) as bigint) / %d) as _time, ", slide.getValue(TimeUnit.SECONDS)))
+                .append(format("(cast(" + timestampToEpochFunction + "(_time) as bigint) / %d) as _time, ", slide.roundTo(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.aggregation, report.measure, report.dimensions))
                 .append(" FROM (" + report.collections.stream().map(col -> "(SELECT " + createSelect(report.measure, report.dimensions) + " FROM " + col + ") as data").collect(Collectors.joining(" UNION ALL ")) + ")")
                 .append(report.filter == null ? "" : " where " + report.filter)
@@ -134,7 +134,7 @@ public class RealTimeHttpService extends HttpService {
                                                       @ApiParam(name = "aggregation") AggregationType aggregation,
                                                       @ApiParam(name = "measure", required = false) String measure,
                                                       @ApiParam(name = "dimensions", required = false) List<String> dimensions,
-                                                      @ApiParam(name = "aggregate", required = false) boolean aggregate,
+                                                      @ApiParam(name = "aggregate", required = false) Boolean aggregate,
                                                       @ApiParam(name = "date_start", required = false) Instant dateStart,
                                                       @ApiParam(name = "date_end", required = false) Instant dateEnd) {
         Expression expression;
@@ -142,6 +142,10 @@ public class RealTimeHttpService extends HttpService {
             expression = sqlParser.createExpression(filter);
         } else {
             expression = null;
+        }
+
+        if(aggregate == null) {
+            aggregate = false;
         }
 
         boolean noDimension = dimensions == null || dimensions.size() == 0;
@@ -170,6 +174,7 @@ public class RealTimeHttpService extends HttpService {
                 !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().collect(Collectors.joining(", "))) : "",
                 expression == null ? "" : ExpressionFormatter.formatExpression(expression));
 
+        final boolean finalAggregate = aggregate;
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {
             if (result.isFailed()) {
                 // TODO: be sure that this exception is catched
@@ -181,7 +186,7 @@ public class RealTimeHttpService extends HttpService {
 
             List<List<Object>> data = result.getResult();
 
-            if (!aggregate) {
+            if (!finalAggregate) {
                 if (noDimension) {
                     List<List<Object>> newData = Lists.newLinkedList();
                     Map<Long, List<Object>> collect = data.stream().collect(Collectors.toMap(a -> (Long) a.get(0), a -> a));

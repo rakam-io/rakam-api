@@ -10,8 +10,8 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
-import org.junit.Test;
 import org.rakam.Recipe;
+import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -25,7 +25,6 @@ public class RecipeConfigTest {
         InputStream io = getClass().getResourceAsStream("recipes/ecommerce_test.yml");
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         Recipe recipe = mapper.readValue(io, Recipe.class);
-
     }
 
     @Test
