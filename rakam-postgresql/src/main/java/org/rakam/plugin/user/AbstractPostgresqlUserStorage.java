@@ -314,7 +314,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                             ImmutableMap.of(QueryResult.TOTAL_RESULT, v1)));
                 } else
                 if(ex != null) {
-                    result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0)));
+                    result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0, null, null)));
                 } else {
                     result.complete(data);
                 }

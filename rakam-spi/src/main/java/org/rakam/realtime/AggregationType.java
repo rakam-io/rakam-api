@@ -10,11 +10,8 @@ public enum AggregationType {
     SUM,
     MINIMUM,
     MAXIMUM,
-    APPROXIMATE_UNIQUE,
-    VARIANCE,
-    POPULATION_VARIANCE,
-    STANDARD_DEVIATION,
-    AVERAGE;
+    AVERAGE,
+    APPROXIMATE_UNIQUE;
 
     @JsonCreator
     public static AggregationType get(String name) {

@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 
 public enum FieldType {
-    STRING, DOUBLE, LONG, BOOLEAN, DATE, TIME, TIMESTAMP,
-    ARRAY_STRING, ARRAY_DOUBLE, ARRAY_LONG, ARRAY_BOOLEAN, ARRAY_DATE, ARRAY_TIME, ARRAY_TIMESTAMP,
-    MAP_STRING_STRING, MAP_STRING_DOUBLE, MAP_STRING_LONG, MAP_STRING_BOOLEAN, MAP_STRING_DATE, MAP_STRING_TIME, MAP_STRING_TIMESTAMP;
+    STRING, DOUBLE, LONG, BOOLEAN, DATE, TIME, TIMESTAMP, BINARY,
+    ARRAY_STRING, ARRAY_DOUBLE, ARRAY_LONG, ARRAY_BOOLEAN, ARRAY_DATE, ARRAY_TIME, ARRAY_TIMESTAMP, ARRAY_BINARY,
+    MAP_STRING, MAP_DOUBLE, MAP_LONG, MAP_BOOLEAN, MAP_DATE, MAP_TIME, MAP_TIMESTAMP, MAP_BINARY;
 
     private static final FieldType values[] = values();
 
@@ -16,11 +16,11 @@ public enum FieldType {
     }
 
     public boolean isArray() {
-        return ordinal() > 6 && !isMap();
+        return ordinal() > 7 && !isMap();
     }
 
     public boolean isMap() {
-        return ordinal() > 13;
+        return ordinal() > 15;
     }
 
     public FieldType getArrayElementType() {
@@ -28,7 +28,7 @@ public enum FieldType {
             throw new IllegalStateException("type is not array");
         }
 
-        return values[ordinal() - 7];
+        return values[ordinal() - 8];
     }
 
     public FieldType getMapValueType() {
@@ -36,26 +36,25 @@ public enum FieldType {
             throw new IllegalStateException("type is not map");
         }
 
-        return values[ordinal() - 14];
+        return values[ordinal() - 16];
     }
 
     public FieldType convertToMapValueType() {
         if(isMap()) {
             throw new IllegalStateException("type is already a map");
         }
-
-        if(ordinal() > 3) {
-            throw new IllegalStateException("map type is supported");
+        if(isArray()) {
+            throw new IllegalStateException("type is already a array");
         }
 
-        return values[ordinal() + 14];
+        return values[ordinal() + 16];
     }
 
     public FieldType convertToArrayType() {
-        if(ordinal() > 6) {
+        if(ordinal() > 7) {
             throw new IllegalStateException("type is already array");
         }
 
-        return values[ordinal() + 7];
+        return values[ordinal() + 8];
     }
 }

@@ -34,6 +34,7 @@ public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage 
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
                 }
+                // TODO: timeframe
                 filters.add((format("id in (%s)", builder.toString())));
             } else {
                 builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, filter.collection));

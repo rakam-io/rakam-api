@@ -62,7 +62,7 @@ public class EventListDeserializer extends JsonDeserializer<EventCollectionHttpS
         }
 
         jp.nextToken();
-        if (!jp.getValueAsString().equals("events")) {
+        if (!"events".equals(jp.getCurrentName())) {
             throw new RakamException("Third field must be events.", HttpResponseStatus.BAD_REQUEST);
         }
 

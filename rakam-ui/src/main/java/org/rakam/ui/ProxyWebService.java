@@ -187,6 +187,8 @@ public class ProxyWebService extends HttpService {
 
             String location = resp.headers().get(HttpHeaders.Names.LOCATION);
 
+            copy.headers().set("X-Frame-Options", "ALLOWALL");
+
             if(location != null && (location.startsWith("/") || (resp.getStatus().code() == 301 || resp.getStatus().code() == 302))) {
                 if(location.startsWith("/")) {
                     location = url.trim()+location;

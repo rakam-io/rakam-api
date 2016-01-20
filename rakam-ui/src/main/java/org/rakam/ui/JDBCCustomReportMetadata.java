@@ -21,6 +21,7 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
+import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.inject.Inject;
 import java.util.List;
@@ -83,7 +84,7 @@ public class JDBCCustomReportMetadata {
                     .bind("project", project)
                     .bind("name", name)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(reportType, project, name, JsonHelper.read(resultSet.getString(2)));
+                        return new CustomReport(reportType, project, name, JsonHelper.read(resultSet.getString(1)));
                     }).first();
         }
     }
@@ -119,6 +120,14 @@ public class JDBCCustomReportMetadata {
         }
         if(execute == 0) {
             throw new RakamException("Report does not exist.", HttpResponseStatus.BAD_REQUEST);
+        }
+    }
+
+    public List<String> types(String project) {
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT DISTINCT report_type FROM custom_reports WHERE project = :project")
+                    .bind("project", project)
+                    .map(StringMapper.FIRST).list();
         }
     }
 }

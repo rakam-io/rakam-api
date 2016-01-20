@@ -47,6 +47,13 @@ public class CustomReportHttpService extends HttpService {
     }
 
     @JsonRequest
+    @Path("/types")
+    @ApiOperation(value = "List report types", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
+    public List<String> types(@ApiParam(name="project", required = true) String project) {
+        return metadata.types(project);
+    }
+
+    @JsonRequest
     @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
     public JsonResponse create(@ParamBody CustomReport report) {

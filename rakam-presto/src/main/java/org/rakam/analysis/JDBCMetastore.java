@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -57,6 +58,8 @@ public class JDBCMetastore extends AbstractMetastore {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
     private final ConnectionFactory prestoConnectionFactory;
     private final PrestoConfig config;
+    private static final Map<String, FieldType> REVERSE_TYPE_MAP = Arrays.asList(FieldType.values()).stream()
+            .collect(Collectors.toMap(JDBCMetastore::toSql, a -> a));
 
     @Inject
     public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency) {
@@ -270,13 +273,10 @@ public class JDBCMetastore extends AbstractMetastore {
     }
 
     public static FieldType getType(String name) {
-        FieldType fieldType = reverseMap.get(name.toUpperCase());
-        Objects.requireNonNull(fieldType, String.format("type %s could'nt recognized.", name));
+        FieldType fieldType = REVERSE_TYPE_MAP.get(name.toUpperCase());
+        Objects.requireNonNull(fieldType, String.format("type %s couldn't recognized.", name));
         return fieldType;
     }
-
-    private static final Map<String, FieldType> reverseMap = Arrays.asList(FieldType.values()).stream()
-            .collect(Collectors.toMap(JDBCMetastore::toSql, a -> a));
 
     private List<SchemaField> getSchema(Connection connection, String project, String collection) throws SQLException {
         ResultSet dbColumns = connection.getMetaData().getColumns(config.getColdStorageConnector(), project, collection, null);
@@ -419,6 +419,8 @@ public class JDBCMetastore extends AbstractMetastore {
                 return "BIGINT";
             case STRING:
                 return "VARCHAR";
+            case BINARY:
+                return "BYTEA";
             case BOOLEAN:
             case DATE:
             case TIME:
@@ -436,4 +438,21 @@ public class JDBCMetastore extends AbstractMetastore {
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }
     }
+
+    @VisibleForTesting
+    public void destroy() {
+        clearCache();
+        try (Handle handle = dbi.open()) {
+            handle.execute("drop table api_key");
+            handle.execute("drop table project");
+        }
+    }
+
+    @VisibleForTesting
+    public void clearCache() {
+        collectionCache.cleanUp();
+        apiKeyCache.cleanUp();
+        schemaCache.cleanUp();
+    }
+
 }

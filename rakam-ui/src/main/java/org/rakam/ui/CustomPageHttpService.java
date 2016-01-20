@@ -37,10 +37,12 @@ import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
@@ -137,7 +139,11 @@ public class CustomPageHttpService extends HttpService {
         String[] projectCustomPage = path.split("/", 3);
         byte[] bytes;
         try {
-            bytes = ByteStreams.toByteArray(database.getFile(projectCustomPage[0], projectCustomPage[1], projectCustomPage[2]));
+            InputStream file = database.getFile(projectCustomPage[0], projectCustomPage[1], projectCustomPage[2]);
+            if(file == null) {
+                request.response(NOT_FOUND.reasonPhrase(), NOT_FOUND).end();
+            }
+            bytes = ByteStreams.toByteArray(file);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

@@ -1,6 +1,7 @@
 package org.rakam.report;
 
 import com.facebook.presto.jdbc.internal.client.ClientTypeSignature;
+import com.facebook.presto.jdbc.internal.client.ErrorLocation;
 import com.facebook.presto.jdbc.internal.client.QueryResults;
 import com.facebook.presto.jdbc.internal.client.StatementClient;
 import com.facebook.presto.jdbc.internal.client.StatementStats;
@@ -39,7 +40,7 @@ public class PrestoQueryExecution implements QueryExecution {
     private List<SchemaField> columns;
 
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
-    private static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS");
+    public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS");
 
     private final StatementClient client;
     private final Instant startTime;
@@ -57,7 +58,12 @@ public class PrestoQueryExecution implements QueryExecution {
 
                 if (client.isFailed()) {
                     com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
-                    QueryError queryError = new QueryError(error.getFailureInfo().getMessage(), error.getSqlState(), error.getErrorCode());
+                    ErrorLocation errorLocation = error.getErrorLocation();
+                    QueryError queryError = new QueryError(error.getFailureInfo().getMessage(),
+                            error.getSqlState(),
+                            error.getErrorCode(),
+                            errorLocation != null ? errorLocation.getLineNumber() : null,
+                            errorLocation != null ? errorLocation.getColumnNumber() : null);
                     result.complete(QueryResult.errorResult(queryError));
                 } else {
                     transformAndAdd(client.finalResults());
@@ -116,6 +122,8 @@ public class PrestoQueryExecution implements QueryExecution {
                 return DATE;
             case StandardTypes.DOUBLE:
                 return DOUBLE;
+            case StandardTypes.HYPER_LOG_LOG:
+                return BINARY;
             case StandardTypes.VARCHAR:
                 return STRING;
             case StandardTypes.TIME:

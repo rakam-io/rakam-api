@@ -19,15 +19,16 @@ import static java.lang.String.format;
 
 public class PrestoContinuousQueryService extends ContinuousQueryService {
 
-    public final static String PRESTO_STREAMING_CATALOG_NAME = "streaming";
     private final QueryMetadataStore database;
     private final PrestoQueryExecutor executor;
+    private final PrestoConfig config;
 
     @Inject
     public PrestoContinuousQueryService(QueryMetadataStore database, PrestoQueryExecutor executor, PrestoConfig config) {
         super(database);
         this.database = database;
         this.executor = executor;
+        this.config = config;
     }
 
     @Override
@@ -37,27 +38,41 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         new QueryFormatter(builder, name ->
                 executor.formatTableReference(report.project, name)).process(report.getQuery(), 1);
 
-        String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", PRESTO_STREAMING_CATALOG_NAME,
+        String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
                 report.project, report.tableName, builder.toString());
 
-        ImmutableMap<String, String> sessionParameter = ImmutableMap.of(PRESTO_STREAMING_CATALOG_NAME + ".partition_keys",
-                Joiner.on(",").join(report.partitionKeys));
 
-        return executor.executeRawQuery(prestoQuery, sessionParameter)
-                .getResult().thenApply(result -> {
-            if (result.getError() == null) {
-                database.createContinuousQuery(report);
-                return QueryResult.empty();
-            }
-            return result;
-        });
+        PrestoQueryExecution prestoQueryExecution;
+        if(report.partitionKeys.size() > 0) {
+            ImmutableMap<String, String> sessionParameter = ImmutableMap.of(config.getStreamingConnector() + ".partition_keys",
+                    Joiner.on(",").join(report.partitionKeys));
+            prestoQueryExecution = executor.executeRawQuery(prestoQuery, sessionParameter);
+        } else {
+            prestoQueryExecution = executor.executeRawQuery(prestoQuery);
+        }
+
+        try {
+            return prestoQueryExecution
+                    .getResult().thenApply(result -> {
+                if (result.getError() == null) {
+                    database.createContinuousQuery(report);
+                    return QueryResult.empty();
+                }
+                return result;
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+
     }
 
     @Override
     public CompletableFuture<Boolean> delete(String project, String name) {
         ContinuousQuery continuousQuery = database.getContinuousQuery(project, name);
 
-        String prestoQuery = format("drop view %s.\"%s\".\"%s\"", PRESTO_STREAMING_CATALOG_NAME,
+        String prestoQuery = format("drop view %s.\"%s\".\"%s\"", config.getStreamingConnector(),
                 continuousQuery.project, continuousQuery.tableName);
         return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
             if(result.getError() == null) {
@@ -73,7 +88,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         List<SimpleImmutableEntry<String, CompletableFuture<QueryResult>>> collect = database.getContinuousQueries(project).stream()
                 .map(query -> {
                     PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("select * from %s.\"%s\".\"%s\" limit 0",
-                            PRESTO_STREAMING_CATALOG_NAME, project, query.tableName));
+                            config.getStreamingConnector(), project, query.tableName));
                     return new SimpleImmutableEntry<>(query.tableName, prestoQueryExecution
                             .getResult());
                 }).collect(Collectors.toList());

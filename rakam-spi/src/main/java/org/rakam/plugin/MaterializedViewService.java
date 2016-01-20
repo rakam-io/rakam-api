@@ -13,9 +13,11 @@ import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.time.Clock;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -106,10 +108,17 @@ public abstract class MaterializedViewService {
         return f;
     }
 
-    public CompletableFuture<Map<String, List<SchemaField>>> getSchemas(String project) {
+    public CompletableFuture<Map<String, List<SchemaField>>> getSchemas(String project, Optional<List<String>> names) {
         Map<String, CompletableFuture<List<SchemaField>>> futures = new HashMap<>();
 
-        CompletableFuture<List<SchemaField>>[] completableFutures = database.getMaterializedViews(project).stream()
+        List<MaterializedView> materializedViews;
+        if(names.isPresent()) {
+            materializedViews = names.get().stream().map(name -> database.getMaterializedView(project, name)).collect(Collectors.toList());
+        } else {
+            materializedViews = database.getMaterializedViews(project);
+        }
+
+        CompletableFuture<List<SchemaField>>[] completableFutures = materializedViews.stream()
                 .map(a -> {
                     CompletableFuture<List<SchemaField>> metadata = metadata(project, a.query);
                     futures.put(a.tableName, metadata);
@@ -121,7 +130,10 @@ public abstract class MaterializedViewService {
                     CompletableFuture<List<SchemaField>> value = key.getValue();
                     return value.join();
                 })));
+    }
 
+    public CompletableFuture<List<SchemaField>> getSchema(String project, String tableName) {
+        return metadata(project, database.getMaterializedView(project, tableName).query);
     }
 
     public QueryExecution lockAndUpdateView(MaterializedView materializedView) {
@@ -153,4 +165,9 @@ public abstract class MaterializedViewService {
         }
 
         return null;
-    }}
+    }
+
+    public boolean needsUpdate(MaterializedView m) {
+        return m.lastUpdate == null || m.lastUpdate.until(clock.instant(), ChronoUnit.MILLIS) > m.updateInterval.toMillis();
+    }
+}

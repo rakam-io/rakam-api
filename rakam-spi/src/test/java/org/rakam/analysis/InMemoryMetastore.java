@@ -1,10 +1,7 @@
-package org.rakam.aws;
+package org.rakam.analysis;
 
 import com.google.common.eventbus.EventBus;
-import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.AbstractMetastore;
-import org.rakam.analysis.NotExistsException;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 
@@ -16,10 +13,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-class InMemoryMetastore extends AbstractMetastore {
+public class InMemoryMetastore extends AbstractMetastore {
     private final Map<String, Map<String, List<SchemaField>>> collections = new HashMap<>();
 
-    @Inject
+    public InMemoryMetastore() {
+        super(new FieldDependencyBuilder().build(), new EventBus());
+    }
+
     public InMemoryMetastore(FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus) {
         super(fieldDependency, eventBus);
     }
@@ -73,7 +73,7 @@ class InMemoryMetastore extends AbstractMetastore {
         if(list == null) {
             throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
         }
-        List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<SchemaField>());
+        List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<>());
         fields.stream()
                 .filter(field -> !schemaFields.contains(field))
                 .forEach(schemaFields::add);

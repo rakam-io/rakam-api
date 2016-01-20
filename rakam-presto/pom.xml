@@ -58,6 +58,13 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
+            <artifactId>rakam-spi</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.rakam</groupId>
             <artifactId>rakam-postgresql</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -79,14 +86,55 @@
             <artifactId>jdbi</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-spi</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-main</artifactId>
+            <version>${presto.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-testing-server-launcher</artifactId>
             <version>${presto.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-raptor</artifactId>
+            <version>${presto.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jdbi</groupId>
+                    <artifactId>jdbi</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>testing-postgresql-server</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

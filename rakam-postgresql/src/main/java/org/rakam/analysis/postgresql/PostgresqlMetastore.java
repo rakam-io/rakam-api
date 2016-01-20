@@ -102,14 +102,6 @@ public class PostgresqlMetastore extends AbstractMetastore {
     private void setup() {
         try (Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
-//            statement.execute("" +
-//                    "  CREATE TABLE IF NOT EXISTS public.collections_last_sync (" +
-//                    "  project TEXT NOT NULL," +
-//                    "  collection TEXT NOT NULL," +
-//                    "  last_sync int4 NOT NULL," +
-//                    "  PRIMARY KEY (project, collection)" +
-//                    "  )");
-
             statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
                     "  id SERIAL PRIMARY KEY,\n" +
                     "  project TEXT NOT NULL,\n" +
@@ -464,7 +456,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 }
             }
             if(name.equals("jsonb")) {
-                return FieldType.MAP_STRING_STRING;
+                return FieldType.MAP_STRING;
             }
 
             throw new UnsupportedOperationException(String.format("type '%s' is not supported.", typeName));

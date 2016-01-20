@@ -22,6 +22,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -58,8 +59,9 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/schema")
-    public CompletableFuture<List<MaterializedViewSchema>> schema(@ApiParam(name="project", required = true) String project) {
-        CompletableFuture<Map<String, List<SchemaField>>> schemas = service.getSchemas(project);
+    public CompletableFuture<List<MaterializedViewSchema>> schema(@ApiParam(name="project") String project,
+                                                                  @ApiParam(name="names", required = false) List<String> tableNames) {
+        CompletableFuture<Map<String, List<SchemaField>>> schemas = service.getSchemas(project, Optional.ofNullable(tableNames));
 
         return schemas.thenApply(schema -> schema.entrySet().stream()
                 .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
@@ -93,9 +95,8 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/create")
-    public JsonResponse create(@ParamBody MaterializedView query) {
-        service.create(query);
-        return JsonResponse.success();
+    public CompletableFuture<JsonResponse> create(@ParamBody MaterializedView query) {
+        return service.create(query).thenApply(res -> JsonResponse.success());
     }
 
     @JsonRequest
@@ -126,8 +127,8 @@ public class MaterializedViewHttpService extends HttpService {
                 query -> {
                     QueryExecution execution = service.lockAndUpdateView(service.get(query.project, query.name));
                     if(execution == null) {
-                        QueryResult result = QueryResult.errorResult(new QueryError("There is another process that updates materialized view", null, 0, null));
-                        return QueryExecution.completedQueryExecution(result);
+                        QueryResult result = QueryResult.errorResult(new QueryError("There is another process that updates materialized view", null, null, null, null));
+                        return QueryExecution.completedQueryExecution(null, result);
                     }
                     return execution;
                 });
@@ -153,7 +154,7 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/get")
-    public Object get(@ApiParam(name="project", required = true) String project,
+    public MaterializedView get(@ApiParam(name="project", required = true) String project,
                       @ApiParam(name="table_name", required = true) String tableName) {
         return service.get(project, tableName);
     }

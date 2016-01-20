@@ -1,4 +1,4 @@
-package org.rakam.aws;
+package org.rakam.analysis;
 
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-class InMemoryQueryMetadataStore implements QueryMetadataStore {
+public class InMemoryQueryMetadataStore implements QueryMetadataStore {
     private final List<ContinuousQuery> continuousQueries = new ArrayList<>();
     private final List<MaterializedView> materializedViews = new ArrayList<>();
 

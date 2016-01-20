@@ -37,7 +37,6 @@ import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNo
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static org.rakam.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
-import static org.rakam.report.PrestoContinuousQueryService.PRESTO_STREAMING_CATALOG_NAME;
 
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
@@ -93,7 +92,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();
             if(prefix.equals("continuous")) {
-                return PRESTO_STREAMING_CATALOG_NAME + ".\"" + project + "\".\"" +node.getSuffix() + '"';
+                return prestoConfig.getStreamingConnector() + ".\"" + project + "\".\"" +node.getSuffix() + '"';
             } else
             if(prefix.equals("materialized")) {
                 return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\""+ MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';

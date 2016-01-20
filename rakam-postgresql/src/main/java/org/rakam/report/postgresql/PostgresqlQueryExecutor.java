@@ -6,7 +6,6 @@ import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
@@ -25,21 +24,18 @@ import java.util.concurrent.TimeUnit;
 public class PostgresqlQueryExecutor implements QueryExecutor {
     final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
-    public final static String CONTINUOUS_QUERY_PREFIX = "_continuous_";
 
     private final JDBCPoolDataSource connectionPool;
     static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
-    private final Metastore metastore;
     private final QueryMetadataStore queryMetadataStore;
 
     @Inject
-    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, QueryMetadataStore queryMetadataStore, Metastore metastore) {
+    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, QueryMetadataStore queryMetadataStore) {
         this.connectionPool = connectionPool;
         this.queryMetadataStore = queryMetadataStore;
-        this.metastore = metastore;
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.createStatement().execute("CREATE OR REPLACE FUNCTION to_unixtime(timestamp) RETURNS double precision" +

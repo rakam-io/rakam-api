@@ -137,9 +137,10 @@ public final class RakamSqlFormatter
                     appendAliasColumns(builder, query.getColumnNames());
                     builder.append(" AS ");
                     process(new TableSubquery(query.getQuery()), indent);
-                    builder.append('\n');
                     if (queries.hasNext()) {
                         builder.append(", ");
+                    } else {
+                        builder.append('\n');
                     }
                 }
             }

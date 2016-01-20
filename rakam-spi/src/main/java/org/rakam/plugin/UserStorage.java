@@ -12,6 +12,7 @@ import org.rakam.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -66,19 +67,33 @@ public interface UserStorage {
         }
     }
 
+    class Timeframe {
+        public final Instant start;
+        public final Instant end;
+
+        @JsonCreator
+        public Timeframe(@JsonProperty("start") Instant start, @JsonProperty("end") Instant end) {
+            this.start = start;
+            this.end = end;
+        }
+    }
+
     class EventFilter {
         private static final SqlParser SQL_PARSER = new SqlParser();
 
         public final String collection;
         public final String filterExpression;
+        public final Timeframe timeframe;
         public final EventFilterAggregation aggregation;
 
         @JsonCreator
         public EventFilter(@JsonProperty("collection") String collection,
                            @JsonProperty("filter") String filterExpression,
+                           @JsonProperty("timeframe") Timeframe timeframe,
                            @JsonProperty("aggregation") EventFilterAggregation aggregation) {
             this.collection = collection;
             this.filterExpression = filterExpression;
+            this.timeframe = timeframe;
             this.aggregation = aggregation;
         }
 

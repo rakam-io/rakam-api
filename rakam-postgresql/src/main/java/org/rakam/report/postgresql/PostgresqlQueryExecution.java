@@ -59,9 +59,9 @@ public class PostgresqlQueryExecution implements QueryExecution {
                 QueryError error;
                 if (e instanceof SQLException) {
                     SQLException cause = (SQLException) e;
-                    error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), query);
+                    error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), null, null);
                 } else {
-                    error = new QueryError("Internal query execution error", null, 0, query);
+                    error = new QueryError("Internal query execution error", null, null, null, null);
                 }
                 PostgresqlQueryExecutor.LOGGER.debug(e, format("Error while executing Postgresql query: \n%s", query));
                 return QueryResult.errorResult(error);
@@ -140,7 +140,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
             data = builder.build();
             return new QueryResult(columns, data, ImmutableMap.of(EXECUTION_TIME, executionTimeInMillis));
         } catch (SQLException e) {
-            QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode());
+            QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode(), null, null);
             return QueryResult.errorResult(error);
         }
     }

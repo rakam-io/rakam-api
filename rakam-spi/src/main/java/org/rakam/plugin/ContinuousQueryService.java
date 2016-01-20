@@ -1,6 +1,5 @@
 package org.rakam.plugin;
 
-
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryResult;
@@ -8,7 +7,6 @@ import org.rakam.report.QueryResult;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
 
 public abstract class ContinuousQueryService {
 

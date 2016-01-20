@@ -69,7 +69,7 @@
         <air.version>0.117</air.version>
         <presto.version>0.123</presto.version>
         <java.version>1.8</java.version>
-        <jackson.version>2.6.3</jackson.version>
+        <jackson.version>2.4.4</jackson.version>
         <netty.rest.version>0.37</netty.rest.version>
 
         <!--Plugin versions-->
@@ -373,6 +373,26 @@
             </dependency>
 
             <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>testing-postgresql-server</artifactId>
+                <version>0.3</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.airlift</groupId>
+                        <artifactId>concurrent</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.airlift</groupId>
+                        <artifactId>log</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.airlift</groupId>
+                        <artifactId>units</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
                 <groupId>org.rakam</groupId>
                 <artifactId>netty-rest</artifactId>
                 <version>${netty.rest.version}</version>
@@ -388,6 +408,22 @@
                     <exclusion>
                         <groupId>log4j</groupId>
                         <artifactId>log4j</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.dataformat</groupId>
+                        <artifactId>jackson-dataformat-yaml</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-databind</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-core</artifactId>
                     </exclusion>
                     <exclusion>
                         <groupId>org.apache.commons</groupId>

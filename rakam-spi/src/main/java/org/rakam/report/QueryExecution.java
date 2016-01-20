@@ -11,7 +11,7 @@ public interface QueryExecution {
     String getQuery();
     void kill();
 
-    static QueryExecution completedQueryExecution(QueryResult result) {
+    static QueryExecution completedQueryExecution(String query, QueryResult result) {
         return new QueryExecution() {
             @Override
             public QueryStats currentStats() {
@@ -30,7 +30,7 @@ public interface QueryExecution {
 
             @Override
             public String getQuery() {
-                return null;
+                return query;
             }
 
             @Override

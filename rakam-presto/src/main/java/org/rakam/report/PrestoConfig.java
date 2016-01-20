@@ -7,25 +7,14 @@ import java.net.URI;
 public class PrestoConfig {
     private URI address;
     private String dataConnectorName;
-    private String streamConnectorName;
-    private String storage;
+    private String hotStorageConnectorName;
+    private String streamingConnector = "streaming";
 
     @Config("presto.address")
     public PrestoConfig setAddress(URI address)
     {
 
         this.address = address;
-        return this;
-    }
-
-    public String getStorage() {
-        return storage;
-    }
-
-    @Config("presto.storage")
-    public PrestoConfig setStorage(String storage)
-    {
-        this.storage = storage;
         return this;
     }
 
@@ -40,6 +29,17 @@ public class PrestoConfig {
         return this;
     }
 
+    @Config("presto.streaming_connector")
+    public PrestoConfig setStreamingConnector(String connectorName)
+    {
+        this.streamingConnector = connectorName;
+        return this;
+    }
+
+    public String getStreamingConnector() {
+        return streamingConnector;
+    }
+
     public String getColdStorageConnector() {
         return dataConnectorName;
     }
@@ -47,11 +47,11 @@ public class PrestoConfig {
     @Config("presto.hot_storage_connector")
     public PrestoConfig setHotStorageConnector(String streamConnectorName)
     {
-        this.streamConnectorName = streamConnectorName;
+        this.hotStorageConnectorName = streamConnectorName;
         return this;
     }
 
     public String getHotStorageConnector() {
-        return streamConnectorName;
+        return hotStorageConnectorName;
     }
 }

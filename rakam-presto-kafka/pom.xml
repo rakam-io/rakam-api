@@ -66,11 +66,6 @@
             <artifactId>guice</artifactId>
         </dependency>
 
-        <!--<dependency>-->
-            <!--<groupId>org.rakam</groupId>-->
-            <!--<artifactId>netty-rest</artifactId>-->
-        <!--</dependency>-->
-
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-presto</artifactId>

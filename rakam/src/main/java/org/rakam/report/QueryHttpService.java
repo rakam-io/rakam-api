@@ -155,7 +155,7 @@ public class QueryHttpService extends HttpService {
                 response.send("result", encode(jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
-                        .put("error", result.getError().message))).end();
+                        .putPOJO("error", result.getError()))).end();
             } else {
                 List<? extends SchemaField> metadata = result.getMetadata();
 

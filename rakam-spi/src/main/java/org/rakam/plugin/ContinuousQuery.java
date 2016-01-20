@@ -56,4 +56,32 @@ public class ContinuousQuery implements ProjectItem {
         }
         return queryStatement;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ContinuousQuery)) return false;
+
+        ContinuousQuery that = (ContinuousQuery) o;
+
+        if (!project.equals(that.project)) return false;
+        if (name != null ? !name.equals(that.name) : that.name != null) return false;
+        if (!query.equals(that.query)) return false;
+        if (!tableName.equals(that.tableName)) return false;
+        if (partitionKeys != null ? !partitionKeys.equals(that.partitionKeys) : that.partitionKeys != null)
+            return false;
+        return !(options != null ? !options.equals(that.options) : that.options != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = project.hashCode();
+        result = 31 * result + (name != null ? name.hashCode() : 0);
+        result = 31 * result + query.hashCode();
+        result = 31 * result + tableName.hashCode();
+        result = 31 * result + (partitionKeys != null ? partitionKeys.hashCode() : 0);
+        result = 31 * result + (options != null ? options.hashCode() : 0);
+        return result;
+    }
 }

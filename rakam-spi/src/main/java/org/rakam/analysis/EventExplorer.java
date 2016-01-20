@@ -34,11 +34,35 @@ public interface EventExplorer {
     List<String> getExtraDimensions(String project);
 
     enum TimestampTransformation {
-        HOUR_OF_DAY, DAY_OF_MONTH, WEEK_OF_YEAR, MONTH_OF_YEAR, QUARTER_OF_YEAR, DAY_PART, DAY_OF_WEEK, HOUR, DAY, WEEK, MONTH, YEAR;
+        HOUR_OF_DAY("Hour of day"), DAY_OF_MONTH("Day of month"),
+        WEEK_OF_YEAR("Week of year"), MONTH_OF_YEAR("Month of year"),
+        QUARTER_OF_YEAR("Quarter of year"), DAY_PART("Day part"),
+        DAY_OF_WEEK("Day of week"), HOUR("Hour"),
+        DAY("Day"), WEEK("Week"),
+        MONTH("Month"), YEAR("Year");
+
+        private final String prettyName;
+
+        TimestampTransformation(String name) {
+            this.prettyName = name;
+        }
 
         @JsonCreator
         public static TimestampTransformation fromString(String key) {
             return key == null ? null : valueOf(key.toUpperCase());
+        }
+
+        public String getPrettyName() {
+            return prettyName;
+        }
+
+        public static Optional<TimestampTransformation> fromPrettyName(String name) {
+            for (TimestampTransformation transformation : values()) {
+                if(transformation.getPrettyName().equals(name)) {
+                    return Optional.of(transformation);
+                }
+            }
+            return Optional.empty();
         }
     }
 
@@ -49,7 +73,10 @@ public interface EventExplorer {
         @JsonCreator
         public Measure(@JsonProperty("column") String column,
                        @JsonProperty("aggregation") AggregationType aggregation) {
-            this.column = Objects.requireNonNull(column, "column is null");
+            if(column == null && aggregation != AggregationType.COUNT) {
+                throw new IllegalArgumentException("measure column is required if aggregation is not COUNT");
+            }
+            this.column = column;
             this.aggregation = Objects.requireNonNull(aggregation, "aggregation is null");
         }
     }

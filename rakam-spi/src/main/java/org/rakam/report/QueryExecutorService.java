@@ -1,5 +1,6 @@
 package org.rakam.report;
 
+import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
@@ -13,8 +14,6 @@ import org.rakam.plugin.MaterializedViewService;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,9 +48,16 @@ public class QueryExecutorService {
             throw new IllegalArgumentException("Project is not valid");
         }
         List<MaterializedView> materializedViews = new ArrayList<>();
-        String query = buildQuery(project, sqlQuery, limit, materializedViews);
+        String query;
+
+        try {
+            query = buildQuery(project, sqlQuery, limit, materializedViews);
+        } catch (ParsingException e) {
+            return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.errorResult(new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber())));
+        }
+
         List<Map.Entry<MaterializedView, QueryExecution>> queryExecutions = materializedViews.stream()
-                .filter(m -> m.lastUpdate == null || m.lastUpdate.until(Instant.now(), ChronoUnit.MILLIS) > m.updateInterval.toMillis())
+                .filter(m -> materializedViewService.needsUpdate(m))
                 .map(m -> new AbstractMap.SimpleImmutableEntry<>(m, materializedViewService.lockAndUpdateView(m)))
                 // there may be processes updating this materialized views
                 .filter(m -> m.getValue() != null)
@@ -62,7 +68,7 @@ public class QueryExecutorService {
             if(materializedViews.size() == 0) {
                 return execution;
             } else {
-                Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate.toEpochMilli()));
+                Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate != null ? v.lastUpdate.toEpochMilli() : -1));
                 return new DelegateQueryExecution(execution, result -> {
                     result.setProperty("materializedViews", collect);
                     return result;
@@ -81,7 +87,7 @@ public class QueryExecutorService {
                                 materializedQueryUpdateResult -> {
                                     QueryError error = materializedQueryUpdateResult.getError();
                                     String message = String.format("Error while updating materialized table '%s': %s", queryExecution.getKey().tableName, error.message);
-                                    return QueryResult.errorResult(new QueryError(message, error.sqlState, error.errorCode));
+                                    return QueryResult.errorResult(new QueryError(message, error.sqlState, error.errorCode, error.errorLine, error.charPositionInLine));
                                 });
                     }
                 }

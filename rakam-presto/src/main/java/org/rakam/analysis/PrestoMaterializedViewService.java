@@ -3,10 +3,10 @@ package org.rakam.analysis;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.DefaultTraversalVisitor;
+import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
-import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
@@ -23,12 +23,9 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
     public final static SqlParser sqlParser = new SqlParser();
 
-    private final Metastore metastore;
-
     @Inject
-    public PrestoMaterializedViewService(QueryExecutor executor, QueryMetadataStore database, Metastore metastore, Clock clock) {
+    public PrestoMaterializedViewService(QueryExecutor executor, QueryMetadataStore database, Clock clock) {
         super(executor, database, clock);
-        this.metastore = metastore;
     }
 
     @Override
@@ -41,8 +38,9 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                         throw new RakamException("Wildcard in select items is not supported in materialized views.", BAD_REQUEST);
                     }
                     if(selectItem instanceof SingleColumn) {
-                        if(!((SingleColumn) selectItem).getAlias().isPresent()) {
-                            throw new RakamException(String.format("Column '%s' must have alias", ((SingleColumn) selectItem).getExpression().toString()), BAD_REQUEST);
+                        SingleColumn selectColumn = (SingleColumn) selectItem;
+                        if(!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)) {
+                            throw new RakamException(String.format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
                         } else {
                             continue;
                         }

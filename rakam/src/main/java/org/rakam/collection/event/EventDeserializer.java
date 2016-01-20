@@ -399,7 +399,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     // TODO: if the key already has a type, return that type instead of null.
                     return null;
                 }
-                return getType(jp).convertToArrayType();
+                FieldType type = getType(jp);
+                if(type.isArray() || type.isMap()) {
+                    throw new RakamException("Nested properties is not supported", BAD_REQUEST);
+                }
+                return type.convertToArrayType();
             case START_OBJECT:
                 t = jp.nextToken();
                 if(t == JsonToken.END_OBJECT) {

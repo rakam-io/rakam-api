@@ -43,7 +43,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -91,6 +93,10 @@ public class RealTimeHttpService extends HttpService {
     public CompletableFuture<JsonResponse> create(@ParamBody RealTimeReport report) {
         String tableName = toSlug(report.name);
 
+        if(report.aggregation == AggregationType.AVERAGE) {
+            throw new RakamException("Average aggregation is not supported in realtime service.", BAD_REQUEST);
+        }
+
         String sqlQuery = new StringBuilder().append("select ")
                 .append(format("(cast(" + timestampToEpochFunction + "(_time) as bigint) / %d) as _time, ", slide.roundTo(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.aggregation, report.measure, report.dimensions))
@@ -106,7 +112,7 @@ public class RealTimeHttpService extends HttpService {
                 tableName,
                 sqlQuery,
                 ImmutableList.of(),
-                ImmutableMap.of("realtime", true));
+                ImmutableMap.of("realtime", true, "aggregation", report.aggregation));
         return service.create(query).thenApply(JsonResponse::map);
     }
     
@@ -117,7 +123,7 @@ public class RealTimeHttpService extends HttpService {
     @Path("/list")
     public List<ContinuousQuery> list(@ApiParam(name = "project") String project) {
         return service.list(project).stream()
-                .filter(c -> Boolean.TRUE.equals(c.options.get("realtime")))
+                .filter(c -> TRUE.equals(c.options.get("realtime")))
                 .collect(Collectors.toList());
     }
 
@@ -131,8 +137,6 @@ public class RealTimeHttpService extends HttpService {
     public CompletableFuture<RealTimeQueryResult> get(@ApiParam(name = "project") String project,
                                                       @ApiParam(name = "table_name") String tableName,
                                                       @ApiParam(name = "filter", required = false) String filter,
-                                                      @ApiParam(name = "aggregation") AggregationType aggregation,
-                                                      @ApiParam(name = "measure", required = false) String measure,
                                                       @ApiParam(name = "dimensions", required = false) List<String> dimensions,
                                                       @ApiParam(name = "aggregate", required = false) Boolean aggregate,
                                                       @ApiParam(name = "date_start", required = false) Instant dateStart,
@@ -157,6 +161,15 @@ public class RealTimeHttpService extends HttpService {
             return f;
         }
 
+        String aggregation = (String) continuousQuery.options.get("aggregation");
+        if(!TRUE.equals(continuousQuery.options.get("realtime")) || aggregation == null) {
+            CompletableFuture<RealTimeQueryResult> f = new CompletableFuture<>();
+            f.completeExceptionally(new RakamException("Invalid rule.", HttpResponseStatus.BAD_REQUEST));
+            return f;
+        }
+
+        AggregationType sourceAggregation = AggregationType.valueOf(aggregation);
+
         long last_update = Instant.now().toEpochMilli() - slide.toMillis();
         long previousWindow = (dateStart == null ? (last_update - window.toMillis()) : dateStart.toEpochMilli()) / (slide.toMillis());
         long currentWindow = (dateEnd == null ? last_update : dateEnd.toEpochMilli()) / slide.toMillis();
@@ -165,8 +178,8 @@ public class RealTimeHttpService extends HttpService {
         String sqlQuery = format("select %s, %s %s(%s) from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol + " * " + slide.toMillis(),
                 !noDimension ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
-                aggregation != null ? mapFunction(aggregation) : "",
-                measure == null ? "*" : measure,
+                combineFunction(sourceAggregation),
+                "value",
                 executor.formatTableReference(continuousQuery.project, QualifiedName.of("continuous", continuousQuery.tableName)),
                 format("_time >= %d", previousWindow) +
                         (dateEnd == null ? "" :
@@ -211,19 +224,19 @@ public class RealTimeHttpService extends HttpService {
                     }
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                 } else {
-                    Map<Object, List<Object>> newData = data.stream()
-                            .collect(Collectors.groupingBy(entry -> entry.get(0),
-                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
+//                    Map<Object, List<Object>> newData = data.stream()
+//                            .collect(Collectors.groupingBy(entry -> entry.get(0),
+//                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data);
                 }
             } else {
                 if (noDimension) {
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
                 } else {
-                    List<ImmutableList<Object>> newData = data.stream()
-                            .map(m -> ImmutableList.of(m.get(1), m.get(2)))
-                            .collect(Collectors.toList());
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
+//                    List<ImmutableList<Object>> newData = data.stream()
+//                            .map(m -> ImmutableList.of(m.get(1), m.get(2)))
+//                            .collect(Collectors.toList());
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data);
                 }
             }
         });
@@ -281,8 +294,6 @@ public class RealTimeHttpService extends HttpService {
             builder.append(" " + dimensions.stream().collect(Collectors.joining(", ")) + ", ");
 
         switch (aggType) {
-            case AVERAGE:
-                return builder.append(format("avg(%s) as value", measure)).toString();
             case MAXIMUM:
                 return builder.append(format("max(%s) as value", measure)).toString();
             case MINIMUM:
@@ -292,11 +303,7 @@ public class RealTimeHttpService extends HttpService {
             case SUM:
                 return builder.append(format("sum(%s) as value", measure)).toString();
             case APPROXIMATE_UNIQUE:
-                return builder.append(format("approx_distinct(%s) as value", measure)).toString();
-            case POPULATION_VARIANCE:
-                return builder.append(format("variance(%s) as value", measure)).toString();
-            case STANDARD_DEVIATION:
-                return builder.append(format("stddev(%s) as value", measure)).toString();
+                return builder.append(format("approx_set(%s) as value", measure)).toString();
             default:
                 throw new IllegalArgumentException("aggregation type couldn't found.");
         }
@@ -311,14 +318,24 @@ public class RealTimeHttpService extends HttpService {
                 return "min";
             case MAXIMUM:
                 return "max";
-            case AVERAGE:
-                return "avg";
-            case STANDARD_DEVIATION:
-                return "stddev";
-            case POPULATION_VARIANCE:
-                return "variance";
             case APPROXIMATE_UNIQUE:
-                return "approx_distinct";
+                return "approx_set";
+            default:
+                throw new NotImplementedException();
+        }
+    }
+
+    public String combineFunction(AggregationType aggregationType) {
+        switch (aggregationType) {
+            case COUNT:
+            case SUM:
+                return "sum";
+            case MINIMUM:
+                return "min";
+            case MAXIMUM:
+                return "max";
+            case APPROXIMATE_UNIQUE:
+                return "merge";
             default:
                 throw new NotImplementedException();
         }
