@@ -104,12 +104,23 @@ public class ProjectHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema")
-    public List<Collection> schema(@ApiParam(name = "project", required = true) String project) {
+    public List<Collection> schema(@ApiParam(name = "project") String project,
+                                   @ApiParam(name = "names", required = false) Set<String> names) {
         return metastore.getCollections(project).entrySet().stream()
                 // ignore system tables
-                .filter(entry -> !entry.getKey().startsWith("_"))
+                .filter(entry -> !entry.getKey().startsWith("_") && (names == null || names.contains(entry.getKey())))
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Get collection names",
+            authorizations = @Authorization(value = "read_key"))
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/collection")
+    public Set<String> collections(@ApiParam(name = "project") String project) {
+        return metastore.getCollectionNames(project);
     }
 
     public static class Collection {

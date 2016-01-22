@@ -1,23 +1,22 @@
 package org.rakam.analysis;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.primitives.UnsignedBytes.checkedCast;
-import static java.lang.Math.min;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -50,9 +49,12 @@ public class PrestoAbstractUserService extends AbstractUserService {
                                         case LONG:
                                         case DOUBLE:
                                         case BOOLEAN:
-                                            return format("\"%1$s\": '||COALESCE(cast(%1$s as varchar), 'null')||'", field.getName());
+                                            return format("\"%1$s\": '|| COALESCE(cast(%1$s as varchar), 'null')||'", field.getName());
                                         default:
-                                            return format("\"%1$s\": \"'||COALESCE(replace(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
+                                            if (field.getType().isArray() || field.getType().isMap()) {
+                                                return format("\"%1$s\": '|| json_format(try_cast(%1$s as json)) ||'", field.getName());
+                                            }
+                                            return format("\"%1$s\": \"'|| COALESCE(replace(try_cast(%1$s as varchar), '\n', '\\n'), 'null')||'\"", field.getName());
                                     }
                                 })
                                 .collect(Collectors.joining(", ")) +
@@ -60,10 +62,17 @@ public class PrestoAbstractUserService extends AbstractUserService {
                                         prestoConfig.getColdStorageConnector() + "." + project + "." + entry.getKey(),
                                         user))
                 .collect(Collectors.joining(" union all "));
-        return executor.executeRawQuery(format("select json from (%s) order by _time desc limit %d", sqlQuery, limit, offset+limit)).getResult()
-                .thenApply(result -> (List<CollectionEvent>) IntStream.range(min(checkedCast(offset), result.getResult().size()), min(checkedCast(offset + limit), result.getResult().size()))
-                        .mapToObj(i -> result.getResult().get(i))
-                        .map(s -> new CollectionEvent((String) s.get(0), JsonHelper.read(s.get(1).toString(), Map.class)))
-                        .collect(Collectors.toList()));
+
+        return executor.executeRawQuery(format("select collection, json from (%s) order by _time desc limit %d", sqlQuery, limit, offset + limit))
+                .getResult()
+                .thenApply(result -> {
+                    if (result.isFailed()) {
+                        throw new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                    }
+                    List<CollectionEvent> collect = (List<CollectionEvent>) result.getResult().stream()
+                            .map(row -> new CollectionEvent((String) row.get(0), JsonHelper.read(row.get(1).toString(), Map.class)))
+                            .collect(Collectors.toList());
+                    return collect;
+                });
     }
 }

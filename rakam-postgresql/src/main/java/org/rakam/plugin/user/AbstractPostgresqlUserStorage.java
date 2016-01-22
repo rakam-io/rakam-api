@@ -11,7 +11,6 @@ import com.google.common.collect.Sets;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
@@ -50,7 +49,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     private final PostgresqlQueryExecutor queryExecutor;
     private final Cache<String, Map<String, FieldType>> propertyCache = CacheBuilder.newBuilder().build();
 
-    public AbstractPostgresqlUserStorage(PostgresqlQueryExecutor queryExecutor, Metastore metastore) {
+    public AbstractPostgresqlUserStorage(PostgresqlQueryExecutor queryExecutor) {
         this.queryExecutor = queryExecutor;
     }
 
@@ -144,7 +143,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             try {
                 resultSet = statement.executeQuery();
             } catch (SQLException e) {
-                if(e.getMessage().contains("duplicate key value")) {
+                if (e.getMessage().contains("duplicate key value")) {
                     return userId;
                 } else {
                     throw e;
@@ -158,24 +157,32 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     }
 
     private String sqlArrayTypeName(FieldType fieldType) {
-        if(fieldType.isArray()) {
+        if (fieldType.isArray()) {
             throw new UnsupportedOperationException();
         }
         switch (fieldType) {
-            case BOOLEAN: return "boolean";
-            case STRING: return "varchar";
-            case DOUBLE: return "double precision";
-            case LONG: return "bigint";
-            case TIMESTAMP: return "timestamp";
-            case TIME: return "time";
-            case DATE: return "date";
-            default: throw new UnsupportedOperationException();
+            case BOOLEAN:
+                return "boolean";
+            case STRING:
+                return "varchar";
+            case DOUBLE:
+                return "double precision";
+            case LONG:
+                return "bigint";
+            case TIMESTAMP:
+                return "timestamp";
+            case TIME:
+                return "time";
+            case DATE:
+                return "date";
+            default:
+                throw new UnsupportedOperationException();
         }
     }
 
     public Object getJDBCValue(FieldType fieldType, Object value, Connection conn) throws SQLException {
-        if(fieldType.isArray()) {
-            if(value instanceof List) {
+        if (fieldType.isArray()) {
+            if (value instanceof List) {
                 FieldType arrayType = fieldType.getArrayElementType();
                 List value1 = (List) value;
 
@@ -191,7 +198,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         switch (fieldType) {
             case TIMESTAMP:
             case DATE:
-               return parseTimestamp(value);
+                return parseTimestamp(value);
             case LONG:
             case DOUBLE:
                 return value instanceof Number ? value : null;
@@ -208,7 +215,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     }
 
     private Time parseTime(Object value) {
-        if(value instanceof String) {
+        if (value instanceof String) {
             try {
                 return Time.valueOf((String) value);
             } catch (Exception e) {
@@ -218,8 +225,9 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             return null;
         }
     }
+
     private Timestamp parseTimestamp(Object value) {
-        if(value instanceof String) {
+        if (value instanceof String) {
             try {
                 return Timestamp.from(Instant.parse((CharSequence) value));
             } catch (Exception e) {
@@ -266,7 +274,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         checkProject(project);
         List<SchemaField> metadata = getMetadata(project);
         Stream<SchemaField> projectColumns = metadata.stream();
-        if(selectColumns != null) {
+        if (selectColumns != null) {
             projectColumns = projectColumns.filter(column -> selectColumns.contains(column.getName()));
         }
         // TODO: fail id column is not exist.
@@ -297,7 +305,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         if (eventFilter == null || eventFilter.isEmpty()) {
             StringBuilder builder = new StringBuilder();
-            builder.append("SELECT count(*) FROM "+getUserTable(project));
+            builder.append("SELECT count(*) FROM " + getUserTable(project));
             if (filterExpression != null) {
                 builder.append(" WHERE ").append(filters.get(0));
             }
@@ -312,8 +320,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                     Object v1 = totalResultData.getResult().get(0).get(0);
                     result.complete(new QueryResult(data.getMetadata(), data.getResult(),
                             ImmutableMap.of(QueryResult.TOTAL_RESULT, v1)));
-                } else
-                if(ex != null) {
+                } else if (ex != null) {
                     result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0, null, null)));
                 } else {
                     result.complete(data);
@@ -378,7 +385,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 while (resultSet.next()) {
                     for (int i = 1; i < columnCount; i++) {
                         String key = metaData.getColumnName(i);
-                        if(key.equals(PRIMARY_KEY)) {
+                        if (key.equals(PRIMARY_KEY)) {
                             id = resultSet.getString(i);
                         } else {
                             Object value = resultSet.getObject(i);
@@ -421,12 +428,12 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         if (entries.hasNext()) {
             Map.Entry<String, Object> entry = entries.next();
             builder.append("\"").append(entry.getKey())
-                    .append(onlyOnce ? "\"=coalesce(\""+entry.getKey()+"\", ?)" : "\"=?");
+                    .append(onlyOnce ? "\"=coalesce(\"" + entry.getKey() + "\", ?)" : "\"=?");
 
             while (entries.hasNext()) {
                 entry = entries.next();
                 builder.append(" and ").append("\"").append(entry.getKey())
-                        .append(onlyOnce ? "\"=coalesce(\""+entry.getKey()+"\", ?)" : "\"=?");
+                        .append(onlyOnce ? "\"=coalesce(\"" + entry.getKey() + "\", ?)" : "\"=?");
             }
         }
 
@@ -437,7 +444,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             int i = 1;
             for (Map.Entry<String, Object> entry : properties.entrySet()) {
                 FieldType fieldType = columns.get(entry);
-                if(fieldType == null) {
+                if (fieldType == null) {
                     createColumn(project, entry.getKey(), entry.getValue());
                 }
                 statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
@@ -445,8 +452,8 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             statement.setLong(i++, Long.parseLong(userId));
 
             i = statement.executeUpdate();
-            if(i == 0) {
-                Map<String, Object> map = new HashMap<>(properties.size()+1);
+            if (i == 0) {
+                Map<String, Object> map = new HashMap<>(properties.size() + 1);
                 map.putAll(properties);
                 map.put(PRIMARY_KEY, userId);
                 create(project, map);
@@ -490,20 +497,19 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         }
 
         FieldType fieldType = columns.get(property);
-        if(fieldType == null) {
+        if (fieldType == null) {
             createColumn(project, property, 0);
         }
 
-        if(fieldType != FieldType.LONG || fieldType != FieldType.DOUBLE) {
+        if (fieldType != FieldType.LONG || fieldType != FieldType.DOUBLE) {
             throw new RakamException(String.format("The property the is %s and it can't be incremented.", fieldType.name()),
                     HttpResponseStatus.BAD_REQUEST);
         }
 
         try (Connection conn = queryExecutor.getConnection()) {
-            conn.createStatement().execute("update " + getUserTable(project) + " set " + property + " += "+value);
+            conn.createStatement().execute("update " + getUserTable(project) + " set " + property + " += " + value);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
-
     }
 }

@@ -39,10 +39,8 @@ public abstract class MaterializedViewService {
     }
 
     public CompletableFuture<Void> create(MaterializedView materializedView) {
-        materializedView.validateQuery();
-
-        database.createMaterializedView(materializedView);
-        return CompletableFuture.completedFuture(null);
+        return metadata(materializedView.project, materializedView.query)
+                .thenAccept(metadata -> database.createMaterializedView(materializedView));
     }
 
     private QueryExecution update(MaterializedView materializedView) {

@@ -1,6 +1,5 @@
 package org.rakam.report;
 
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
@@ -26,8 +25,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.rakam.server.http.HttpServer.errorMessage;
-
 @Path("/materialized-view")
 @Api(value = "/materialized-view", description = "Materialized View", tags = "materialized-view")
 public class MaterializedViewHttpService extends HttpService {
@@ -46,11 +43,7 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
-    public Object listViews(@ApiParam(name="project", required = true) String project) {
-        if (project == null) {
-            return errorMessage("project parameter is required", HttpResponseStatus.BAD_REQUEST);
-        }
-
+    public List<MaterializedView> listViews(@ApiParam(name="project") String project) {
         return service.list(project);
     }
 
@@ -70,13 +63,13 @@ public class MaterializedViewHttpService extends HttpService {
 
     public static class MaterializedViewSchema {
         public final String name;
+        public final List<SchemaField> fields;
 
         public MaterializedViewSchema(String name, List<SchemaField> fields) {
             this.name = name;
             this.fields = fields;
         }
 
-        public final List<SchemaField> fields;
     }
 
     /**

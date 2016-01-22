@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -147,6 +148,35 @@ public class UserHttpService extends HttpService {
                                                                                   @ApiParam(name = "limit", required = false) Integer limit,
                                                                                   @ApiParam(name = "offset", required = false) Long offset) {
         return service.getEvents(project, user, limit == null ? 15 : limit, offset == null ? 0 : offset);
+    }
+
+    @POST
+    @JsonRequest
+    @ApiOperation(value = "Get events of the user")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist."),
+            @ApiResponse(code = 400, message = "User does not exist.")})
+    @Path("/create_segment")
+    public JsonResponse createSegment(@ApiParam(name = "project") String project,
+                                                                  @ApiParam(name = "name") String name,
+                                                                  @ApiParam(name = "table_name") String tableName,
+                                                                  @ApiParam(name = "filter_expression", required = false) String filterExpression,
+                                                                  @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> eventFilters,
+                                                                  @ApiParam(name = "cache_eviction") Duration duration) {
+        if(filterExpression == null && (eventFilters == null || eventFilters.isEmpty())) {
+            throw new RakamException("At least one predicate is required", BAD_REQUEST);
+        }
+
+        Expression expression = null;
+        if(filterExpression != null) {
+            synchronized (sqlParser) {
+                expression = sqlParser.createExpression(filterExpression);
+            }
+        }
+
+        service.createSegment(project, name, tableName, expression, eventFilters, duration);
+
+        return JsonResponse.success();
     }
 
     @JsonRequest

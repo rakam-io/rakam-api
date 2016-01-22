@@ -78,7 +78,7 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/list")
-    public List<ContinuousQuery> listQueries(@ApiParam(name="project", required = true) String project) {
+    public List<ContinuousQuery> listQueries(@ApiParam(name="project") String project) {
         return service.list(project);
     }
 

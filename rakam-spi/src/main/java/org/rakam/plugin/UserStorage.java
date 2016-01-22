@@ -12,6 +12,7 @@ import org.rakam.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -24,13 +25,23 @@ public interface UserStorage {
     String PRIMARY_KEY = "id";
 
     String create(String project, Map<String, Object> properties);
+
     List<String> batchCreate(String project, List<User> users);
+
     CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
+
+    void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval);
+
     List<SchemaField> getMetadata(String project);
+
     CompletableFuture<User> getUser(String project, String userId);
+
     void setUserProperty(String project, String user, Map<String, Object> properties);
+
     void setUserPropertyOnce(String project, String user, Map<String, Object> properties);
+
     void createProject(String project);
+
     void incrementProperty(String project, String user, String property, long value);
 
     class Sorting {

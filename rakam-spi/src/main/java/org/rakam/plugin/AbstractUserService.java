@@ -7,6 +7,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
 import org.rakam.report.QueryResult;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +38,10 @@ public abstract class AbstractUserService {
 
     public CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, int offset) {
         return storage.filter(project, columns, filterExpression, eventFilter, sorting, limit, offset);
+    }
+
+    public void createSegment(String project, String name, String tableName, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, Duration interval) {
+        storage.createSegment(project, name, tableName, filterExpression, eventFilter, interval);
     }
 
     public CompletableFuture<User> getUser(String project, String user) {

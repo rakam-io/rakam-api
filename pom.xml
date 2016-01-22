@@ -59,7 +59,7 @@
 
     <properties>
         <air.main.basedir>${project.basedir}</air.main.basedir>
-        <air.java.version>1.8.0-32</air.java.version>
+        <air.java.version>1.8.0-40</air.java.version>
         <air.check.skip-extended>true</air.check.skip-extended>
         <air.check.skip-license>true</air.check.skip-license>
         <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
