@@ -24,7 +24,7 @@ public class QueryFormatter
 
     public QueryFormatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper)
     {
-        super(builder);
+        super(builder, tableNameMapper);
         this.builder = builder;
         this.queryWithTables = new ArrayList<>();
         this.tableNameMapper = tableNameMapper;

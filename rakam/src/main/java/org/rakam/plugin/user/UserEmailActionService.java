@@ -83,7 +83,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
         List<String> variables = new StringTemplate(config.content).getVariables();
         variables.add(config.columnName);
 
-        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, null, 0, 100000);
+        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, null, null, 100000);
         return batch(project, future, config);
     }
 

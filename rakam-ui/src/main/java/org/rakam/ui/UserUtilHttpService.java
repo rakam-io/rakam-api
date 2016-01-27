@@ -126,7 +126,7 @@ public class UserUtilHttpService extends HttpService {
         }
 
         final CompletableFuture<QueryResult> search = service.filter(read.filterQuery.project, null, expression,
-                read.filterQuery.event_filter, read.filterQuery.sorting, 100000, 0);
+                read.filterQuery.event_filter, read.filterQuery.sorting, 100000, null);
         final CompletableFuture<byte[]> stream;
         switch (read.exportFormat) {
             case XLS:

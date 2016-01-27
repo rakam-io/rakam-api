@@ -16,6 +16,7 @@ package com.facebook.presto.sql;
 import com.facebook.presto.sql.tree.AddColumn;
 import com.facebook.presto.sql.tree.AliasedRelation;
 import com.facebook.presto.sql.tree.AllColumns;
+import com.facebook.presto.sql.tree.ArrayConstructor;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.CreateTable;
 import com.facebook.presto.sql.tree.CreateTableAsSelect;
@@ -24,6 +25,7 @@ import com.facebook.presto.sql.tree.Delete;
 import com.facebook.presto.sql.tree.DropTable;
 import com.facebook.presto.sql.tree.DropView;
 import com.facebook.presto.sql.tree.Except;
+import com.facebook.presto.sql.tree.ExistsPredicate;
 import com.facebook.presto.sql.tree.Explain;
 import com.facebook.presto.sql.tree.ExplainFormat;
 import com.facebook.presto.sql.tree.ExplainOption;
@@ -37,6 +39,8 @@ import com.facebook.presto.sql.tree.JoinOn;
 import com.facebook.presto.sql.tree.JoinUsing;
 import com.facebook.presto.sql.tree.NaturalJoin;
 import com.facebook.presto.sql.tree.Node;
+import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Relation;
@@ -55,6 +59,8 @@ import com.facebook.presto.sql.tree.ShowSchemas;
 import com.facebook.presto.sql.tree.ShowSession;
 import com.facebook.presto.sql.tree.ShowTables;
 import com.facebook.presto.sql.tree.SingleColumn;
+import com.facebook.presto.sql.tree.SubqueryExpression;
+import com.facebook.presto.sql.tree.SubscriptExpression;
 import com.facebook.presto.sql.tree.Table;
 import com.facebook.presto.sql.tree.TableSubquery;
 import com.facebook.presto.sql.tree.Union;
@@ -64,12 +70,14 @@ import com.facebook.presto.sql.tree.With;
 import com.facebook.presto.sql.tree.WithQuery;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-import static com.facebook.presto.sql.ExpressionFormatter.formatExpression;
 import static com.facebook.presto.sql.ExpressionFormatter.formatSortItems;
 import static com.facebook.presto.sql.ExpressionFormatter.formatStringLiteral;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -82,21 +90,30 @@ public final class RakamSqlFormatter
 
     private RakamSqlFormatter() {}
 
-    public static String formatSql(Node root)
+    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper)
     {
         StringBuilder builder = new StringBuilder();
-        new Formatter(builder).process(root, 0);
+        new Formatter(builder, tableNameMapper).process(root, 0);
         return builder.toString();
     }
+
+//    public static String formatSql(Node root)
+//    {
+//        StringBuilder builder = new StringBuilder();
+//        new Formatter(builder, (name) -> name.toString()).process(root, 0);
+//        return builder.toString();
+//    }
 
     public static class Formatter
             extends AstVisitor<Void, Integer>
     {
         private final StringBuilder builder;
+        private final Function<QualifiedName, String> tableNameMapper;
 
-        public Formatter(StringBuilder builder)
+        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper)
         {
             this.builder = builder;
+            this.tableNameMapper = tableNameMapper;
         }
 
         @Override
@@ -109,7 +126,7 @@ public final class RakamSqlFormatter
         protected Void visitExpression(Expression node, Integer indent)
         {
             checkArgument(indent == 0, "visitExpression should only be called at root");
-            builder.append(formatExpression(node));
+            builder.append(formatExpression(node, tableNameMapper));
             return null;
         }
 
@@ -137,10 +154,9 @@ public final class RakamSqlFormatter
                     appendAliasColumns(builder, query.getColumnNames());
                     builder.append(" AS ");
                     process(new TableSubquery(query.getQuery()), indent);
+                    builder.append('\n');
                     if (queries.hasNext()) {
                         builder.append(", ");
-                    } else {
-                        builder.append('\n');
                     }
                 }
             }
@@ -181,17 +197,17 @@ public final class RakamSqlFormatter
             builder.append('\n');
 
             if (node.getWhere().isPresent()) {
-                append(indent, "WHERE " + formatExpression(node.getWhere().get()))
+                append(indent, "WHERE " + formatExpression(node.getWhere().get(), tableNameMapper))
                         .append('\n');
             }
 
             if (!node.getGroupBy().isEmpty()) {
-                append(indent, "GROUP BY " + Joiner.on(", ").join(transform(node.getGroupBy(), ExpressionFormatter::formatExpression)))
+                append(indent, "GROUP BY " + Joiner.on(", ").join(transform(node.getGroupBy(), input -> formatExpression(input, tableNameMapper))))
                         .append('\n');
             }
 
             if (node.getHaving().isPresent()) {
-                append(indent, "HAVING " + formatExpression(node.getHaving().get()))
+                append(indent, "HAVING " + formatExpression(node.getHaving().get(), tableNameMapper))
                         .append('\n');
             }
 
@@ -239,7 +255,7 @@ public final class RakamSqlFormatter
         @Override
         protected Void visitSingleColumn(SingleColumn node, Integer indent)
         {
-            builder.append(formatExpression(node.getExpression()));
+            builder.append(formatExpression(node.getExpression(), tableNameMapper));
             if (node.getAlias().isPresent()) {
                 builder.append(' ')
                         .append('"')
@@ -261,7 +277,7 @@ public final class RakamSqlFormatter
         @Override
         protected Void visitTable(Table node, Integer indent)
         {
-            builder.append(node.getName().toString());
+            builder.append(tableNameMapper.apply(node.getName()));
             return null;
         }
 
@@ -299,7 +315,7 @@ public final class RakamSqlFormatter
                 else if (criteria instanceof JoinOn) {
                     JoinOn on = (JoinOn) criteria;
                     builder.append(" ON (")
-                            .append(formatExpression(on.getExpression()))
+                            .append(formatExpression(on.getExpression(), tableNameMapper))
                             .append(")");
                 }
                 else if (!(criteria instanceof NaturalJoin)) {
@@ -359,7 +375,7 @@ public final class RakamSqlFormatter
                         .append(indentString(indent))
                         .append(first ? "  " : ", ");
 
-                builder.append(formatExpression(row));
+                builder.append(formatExpression(row, tableNameMapper));
                 first = false;
             }
             builder.append('\n');
@@ -547,7 +563,7 @@ public final class RakamSqlFormatter
 
             if (node.getWhere().isPresent()) {
                 builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get()));
+                        .append(formatExpression(node.getWhere().get(), tableNameMapper));
             }
 
             if (!node.getOrderBy().isEmpty()) {
@@ -587,7 +603,7 @@ public final class RakamSqlFormatter
 
             if (node.getWhere().isPresent()) {
                 builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get()));
+                        .append(formatExpression(node.getWhere().get(), tableNameMapper));
             }
 
             return null;
@@ -602,7 +618,7 @@ public final class RakamSqlFormatter
             if (!node.getProperties().isEmpty()) {
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue())));
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper)));
                 builder.append(")");
             }
 
@@ -630,7 +646,7 @@ public final class RakamSqlFormatter
             if (!node.getProperties().isEmpty()) {
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue())));
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper)));
                 builder.append(")");
             }
 
@@ -704,7 +720,7 @@ public final class RakamSqlFormatter
             builder.append("SET SESSION ")
                     .append(node.getName())
                     .append(" = ")
-                    .append(formatExpression(node.getValue()));
+                    .append(formatExpression(node.getValue(), tableNameMapper));
 
             return null;
         }
@@ -749,6 +765,72 @@ public final class RakamSqlFormatter
             builder.append(" (");
             Joiner.on(", ").appendTo(builder, columns);
             builder.append(')');
+        }
+    }
+
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper)
+    {
+        return formatExpression(expression, tableNameMapper, true);
+    }
+
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, boolean unmangleNames)
+    {
+        return new ExpressionFormatter(tableNameMapper).process(expression, unmangleNames);
+    }
+
+    public static class ExpressionFormatter extends com.facebook.presto.sql.ExpressionFormatter.Formatter {
+
+        private final Function<QualifiedName, String> tableNameMapper;
+
+        public ExpressionFormatter(Function<QualifiedName, String> tableNameMapper) {
+            this.tableNameMapper = tableNameMapper;
+        }
+
+        @Override
+        protected String visitSubscriptExpression(SubscriptExpression node, Boolean unmangleNames)
+        {
+            return formatSql(node.getBase(), tableNameMapper) + "[" + formatSql(node.getIndex(), tableNameMapper) + "]";
+        }
+
+        @Override
+        protected String visitSubqueryExpression(SubqueryExpression node, Boolean unmangleNames)
+        {
+            return "(" + formatSql(node.getQuery(), tableNameMapper) + ")";
+        }
+
+        @Override
+        protected String visitExists(ExistsPredicate node, Boolean unmangleNames)
+        {
+            return "EXISTS (" + formatSql(node.getSubquery(), tableNameMapper) + ")";
+        }
+
+        @Override
+        protected String visitArrayConstructor(ArrayConstructor node, Boolean unmangleNames)
+        {
+            ImmutableList.Builder<String> valueStrings = ImmutableList.builder();
+            for (Expression value : node.getValues()) {
+                valueStrings.add(formatSql(value, tableNameMapper));
+            }
+            return "ARRAY[" + Joiner.on(",").join(valueStrings.build()) + "]";
+        }
+
+        @Override
+        protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean unmangleNames)
+        {
+            return formatQualifiedName(node.getName());
+        }
+
+        private static String formatQualifiedName(QualifiedName name)
+        {
+            List<String> parts = name.getParts().stream()
+                    .map(ExpressionFormatter::formatIdentifier).collect(Collectors.toList());
+            return Joiner.on('.').join(parts);
+        }
+
+        private static String formatIdentifier(String s)
+        {
+            // TODO: handle escaping properly
+            return '"' + s + '"';
         }
     }
 }

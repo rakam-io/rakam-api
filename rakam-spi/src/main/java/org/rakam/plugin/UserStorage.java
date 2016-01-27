@@ -24,11 +24,11 @@ import static java.lang.String.format;
 public interface UserStorage {
     String PRIMARY_KEY = "id";
 
-    String create(String project, Map<String, Object> properties);
+    String create(String project, String id, Map<String, Object> properties);
 
     List<String> batchCreate(String project, List<User> users);
 
-    CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset);
+    CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);
 
     void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval);
 
@@ -42,7 +42,9 @@ public interface UserStorage {
 
     void createProject(String project);
 
-    void incrementProperty(String project, String user, String property, long value);
+    void incrementProperty(String project, String user, String property, double value);
+
+    void unsetProperties(String project, String user, List<String> properties);
 
     class Sorting {
         public final String column;

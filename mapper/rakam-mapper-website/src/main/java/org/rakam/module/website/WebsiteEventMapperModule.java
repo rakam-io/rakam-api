@@ -30,11 +30,11 @@ public class WebsiteEventMapperModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "Event website related attribute mapping module";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Resolves _referrer, _user_agent attributes and related fields such as user_agent_version, referrer_medium to the event.";
     }
 }

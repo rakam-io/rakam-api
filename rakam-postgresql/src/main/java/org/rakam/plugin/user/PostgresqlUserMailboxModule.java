@@ -28,11 +28,11 @@ public class PostgresqlUserMailboxModule extends RakamModule {
 
     @Override
     public String name() {
-        return null;
+        return "Postgresql User mailbox module";
     }
 
     @Override
     public String description() {
-        return null;
+        return "Real-time mailbox module that allows your users to get mail notifications in real-time. Can also be used as chat application.";
     }
 }

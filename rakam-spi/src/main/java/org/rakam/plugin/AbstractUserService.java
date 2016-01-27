@@ -20,8 +20,8 @@ public abstract class AbstractUserService {
         this.storage = storage;
     }
 
-    public String create(String project, Map<String, Object> properties) {
-        return storage.create(project, properties);
+    public String create(String project, String id, Map<String, Object> properties) {
+        return storage.create(project, id, properties);
     }
 
     public List<String> batchCreate(String project, List<User> users) {
@@ -36,7 +36,7 @@ public abstract class AbstractUserService {
         return storage.getMetadata(project);
     }
 
-    public CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, int offset) {
+    public CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<UserStorage.EventFilter> eventFilter, UserStorage.Sorting sorting, int limit, String offset) {
         return storage.filter(project, columns, filterExpression, eventFilter, sorting, limit, offset);
     }
 
@@ -58,8 +58,12 @@ public abstract class AbstractUserService {
 
     public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, long offset);
 
-    public void incrementProperty(String project, String user, String property, long value) {
+    public void incrementProperty(String project, String user, String property, double value) {
         storage.incrementProperty(project, user, property, value);
+    }
+
+    public void unsetProperties(String project, String user, List<String> properties) {
+        storage.unsetProperties(project, user, properties);
     }
 
     public static class CollectionEvent {

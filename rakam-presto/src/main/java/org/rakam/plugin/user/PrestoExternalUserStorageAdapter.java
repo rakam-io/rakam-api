@@ -42,14 +42,14 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     }
 
     @Override
-    public CompletableFuture<QueryResult> filter(String project, List<String> selectColumns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, long offset) {
+    public CompletableFuture<QueryResult> filter(String project, List<String> selectColumns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset) {
         if (filterExpression != null) {
             return super.filter(project, selectColumns, filterExpression, eventFilter, sortColumn, limit, offset);
         }
 
         String query;
         if (eventFilter != null && !eventFilter.isEmpty()) {
-            query = String.format("select distinct _user as %s from (%s)",
+            query = String.format("select distinct _user as %s from (%s) ",
                     config.getIdentifierColumn(),
                     eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), executor.formatTableReference(project, QualifiedName.of(f.collection))))
                             .collect(Collectors.joining(" union all ")));
@@ -59,9 +59,13 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                     executor.formatTableReference(project, QualifiedName.of("_all")));
         }
 
-        return executor.executeRawQuery(query + " " +
-                (sortColumn == null ? "" : ("ORDER BY " + sortColumn.column + " " + sortColumn.order.name())) +
-                " LIMIT " + limit).getResult();
+//        if(sortColumn == null) {
+//            sortColumn = new Sorting("_user", Ordering.asc);
+//        }
+
+        return executor.executeRawQuery(query +
+                (sortColumn == null ? "" : (" ORDER BY " + sortColumn.column + " " + sortColumn.order.name()))
+                + " LIMIT " + limit).getResult();
     }
 
     @Override
