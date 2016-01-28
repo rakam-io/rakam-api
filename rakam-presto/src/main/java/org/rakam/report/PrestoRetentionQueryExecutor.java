@@ -20,7 +20,7 @@ import javax.inject.Inject;
 public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
 
     @Inject
-    public PrestoRetentionQueryExecutor(PrestoQueryExecutor executor, Metastore metastore, PrestoConfig config) {
+    public PrestoRetentionQueryExecutor(PrestoQueryExecutor executor, Metastore metastore) {
         super(executor, metastore);
     }
 

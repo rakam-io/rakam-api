@@ -1,6 +1,5 @@
 package org.rakam.plugin.user;
 
-import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import org.rakam.collection.event.metastore.Metastore;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -51,7 +51,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         if (eventFilter != null && !eventFilter.isEmpty()) {
             query = String.format("select distinct _user as %s from (%s) ",
                     config.getIdentifierColumn(),
-                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), executor.formatTableReference(project, QualifiedName.of(f.collection))))
+                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection))))
                             .collect(Collectors.joining(" union all ")));
         } else {
             query = String.format("select distinct _user as %s from %s",
@@ -73,7 +73,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
         String query;
         if(filterExpression == null) {
-            query = String.format("select distinct _user as id from (%s)", eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
+            query = String.format("select distinct _user as id from (%s)", eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
         } else {
             throw new UnsupportedOperationException();
         }
@@ -84,7 +84,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     @Override
     public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter) {
         return eventFilter.stream().map(f -> {
-            String ids = executor.executeRawQuery(String.format(getEventFilterQuery(f), executor.formatTableReference(project, QualifiedName.of(f.collection))))
+            String ids = executor.executeRawQuery(String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection))))
                     .getResult().join().getResult().stream()
                     .map(e -> "'" + e.get(0).toString() + "'")
                     .collect(Collectors.joining(", "));
@@ -93,7 +93,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }).collect(Collectors.toList());
     }
 
-    public String getEventFilterQuery(EventFilter filter) {
+    public String getEventFilterQuery(String project, EventFilter filter) {
             StringBuilder builder = new StringBuilder();
 
             checkCollection(filter.collection);
@@ -102,7 +102,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
             ArrayList<String> filterList = new ArrayList<>(3);
             if (filter.filterExpression != null) {
-                filterList.add(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
+                filterList.add(formatExpression(filter.getExpression(), reference -> executor.formatTableReference(project, reference)));
             }
             if (filter.timeframe != null) {
                 if (filter.timeframe.start != null) {

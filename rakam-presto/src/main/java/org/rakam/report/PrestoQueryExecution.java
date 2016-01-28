@@ -13,6 +13,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -94,12 +95,16 @@ public class PrestoQueryExecution implements QueryExecution {
                     Object[] row = new Object[columns.size()];
 
                     for (int i = 0; i < objects.size(); i++) {
-                        if(columns.get(i).getType() == TIMESTAMP) {
+                        FieldType type = columns.get(i).getType();
+                        if(type == TIMESTAMP) {
                             try {
                                 row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
                             } catch (Exception e) {
                                 // TODO: log
                             }
+                        } else
+                        if(type == DATE){
+                            row[i] = LocalDate.parse((CharSequence)objects.get(i));
                         } else {
                             row[i] = objects.get(i);
                         }

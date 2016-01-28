@@ -13,19 +13,21 @@
  */
 package org.rakam.report;
 
-import com.facebook.presto.sql.ExpressionFormatter;
+import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.RakamSqlFormatter.ExpressionFormatter;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static com.facebook.presto.sql.RakamSqlFormatter.ExpressionFormatter.formatIdentifier;
 
 public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     private final QueryExecutorService executor;
@@ -40,6 +42,10 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         if(dimension.isPresent() && connectorField.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
+        if(groupOthers && !dimension.isPresent()) {
+            throw new RakamException("Dimension is required when grouping.", HttpResponseStatus.BAD_REQUEST);
+        }
+
         String ctes = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(connectorField, i, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
@@ -48,7 +54,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         if(dimension.isPresent()) {
             if(groupOthers) {
                 query =  IntStream.range(0, steps.size())
-                        .mapToObj(i -> String.format("(SELECT step, CASE WHEN rank > 15 THEN 'Others' ELSE %s END, sum(count) FROM (select 'Step %d' as step, %s, count(*) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s GROUP BY 2 ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
+                        .mapToObj(i -> String.format("(SELECT step, CASE WHEN rank > 15 THEN 'Others' ELSE cast(%s as varchar) END, sum(count) FROM (select 'Step %d' as step, %s, count(*) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s GROUP BY 2 ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
                                 dimension.get(), i+1, dimension.get(), i))
                         .collect(Collectors.joining(" UNION ALL "));
             } else {
@@ -71,7 +77,10 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
         String filterExp = funnelStep.filterExpression != null && !funnelStep.filterExpression.isEmpty() ?
-                "AND " + funnelStep.getExpression().accept(new ExpressionFormatter.Formatter(), false) : "";
+                "AND " + RakamSqlFormatter.formatExpression(funnelStep.getExpression(),
+                        name -> name.getParts().stream() .map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
+                        name -> formatIdentifier(funnelStep.collection)+"."+name.getParts().stream()
+                                .map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))) : "";
 
         String dimensionColumn = dimension.isPresent() ? dimension.get()+"," : "";
 

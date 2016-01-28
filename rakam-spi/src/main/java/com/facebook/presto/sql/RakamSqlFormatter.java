@@ -75,6 +75,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -96,13 +97,6 @@ public final class RakamSqlFormatter
         new Formatter(builder, tableNameMapper).process(root, 0);
         return builder.toString();
     }
-
-//    public static String formatSql(Node root)
-//    {
-//        StringBuilder builder = new StringBuilder();
-//        new Formatter(builder, (name) -> name.toString()).process(root, 0);
-//        return builder.toString();
-//    }
 
     public static class Formatter
             extends AstVisitor<Void, Integer>
@@ -770,20 +764,22 @@ public final class RakamSqlFormatter
 
     public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper)
     {
-        return formatExpression(expression, tableNameMapper, true);
+        return new ExpressionFormatter(tableNameMapper, Optional.empty()).process(expression, false);
     }
 
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, boolean unmangleNames)
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper)
     {
-        return new ExpressionFormatter(tableNameMapper).process(expression, unmangleNames);
+        return new ExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper)).process(expression, false);
     }
 
     public static class ExpressionFormatter extends com.facebook.presto.sql.ExpressionFormatter.Formatter {
 
         private final Function<QualifiedName, String> tableNameMapper;
+        private final Optional<Function<QualifiedName, String>> columnNameMapper;
 
-        public ExpressionFormatter(Function<QualifiedName, String> tableNameMapper) {
+        public ExpressionFormatter(Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper) {
             this.tableNameMapper = tableNameMapper;
+            this.columnNameMapper = columnNameMapper;
         }
 
         @Override
@@ -817,6 +813,9 @@ public final class RakamSqlFormatter
         @Override
         protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean unmangleNames)
         {
+            if(columnNameMapper.isPresent()) {
+                return columnNameMapper.get().apply(node.getName());
+            }
             return formatQualifiedName(node.getName());
         }
 
@@ -827,7 +826,7 @@ public final class RakamSqlFormatter
             return Joiner.on('.').join(parts);
         }
 
-        private static String formatIdentifier(String s)
+        public static String formatIdentifier(String s)
         {
             // TODO: handle escaping properly
             return '"' + s + '"';

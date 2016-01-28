@@ -1,6 +1,5 @@
 package org.rakam.report;
 
-import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.primitives.Ints;
@@ -18,6 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -39,13 +39,11 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
         checkTableColumn(connectorField, "connector field");
 
-        if(dateUnit == DateUnit.DAY) {
+        if (dateUnit == DateUnit.DAY) {
             timeColumn = format("cast(_time as date)");
-        } else
-        if(dateUnit == DateUnit.WEEK) {
+        } else if (dateUnit == DateUnit.WEEK) {
             timeColumn = format("cast(date_trunc('week', _time) as date)");
-        } else
-        if(dateUnit == DateUnit.MONTH) {
+        } else if (dateUnit == DateUnit.MONTH) {
             timeColumn = format("cast(date_trunc('month', _time) as date)");
         } else {
             throw new UnsupportedOperationException();
@@ -53,7 +51,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
         StringBuilder from = new StringBuilder();
 
-        if(returningAction.isPresent()) {
+        if (returningAction.isPresent()) {
             RetentionAction retentionAction = returningAction.get();
             from.append(generateQuery(project, retentionAction.collection(), connectorField, timeColumn, dimension,
                     retentionAction.filter(),
@@ -68,16 +66,14 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
         LocalDate start;
         LocalDate end;
-        if(dateUnit == DateUnit.MONTH) {
+        if (dateUnit == DateUnit.MONTH) {
             start = startDate.withDayOfMonth(1);
             end = endDate.withDayOfMonth(1).plus(1, ChronoUnit.MONTHS);
-        }else
-        if(dateUnit == DateUnit.WEEK) {
+        } else if (dateUnit == DateUnit.WEEK) {
             TemporalField fieldUS = WeekFields.of(Locale.US).dayOfWeek();
             start = startDate.with(fieldUS, 1);
             end = endDate.with(fieldUS, 1).plus(1, ChronoUnit.MONTHS);
-        } else
-        if(dateUnit == DateUnit.DAY) {
+        } else if (dateUnit == DateUnit.DAY) {
             start = startDate;
             end = endDate;
         } else {
@@ -89,8 +85,12 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
             throw new IllegalArgumentException("startDate and endDate are invalid.");
         }
 
+        if(range == 0) {
+            return QueryExecution.completedQueryExecution(null, QueryResult.empty());
+        }
+
         String query;
-        if(firstAction.isPresent()) {
+        if (firstAction.isPresent()) {
             String timeSubtraction = String.format(diffTimestamps(), dateUnit.name().toLowerCase(), "data.time", "returning_action.time");
 
             String firstActionQuery = format("%s group by 1, 2 %s",
@@ -109,21 +109,21 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "select %s, cast(null as bigint) as lead, count(distinct %s) count from first_action data group by 1,2 union all\n" +
                             "select %s, %s, count(distinct data.%s) \n" +
                             "from first_action data join returning_action on (data.%s = returning_action.%s) \n" +
-                            "where data.time < returning_action.time and %s < %d group by 1, 2",
+                            "where data.time < returning_action.time and %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
                     firstActionQuery, from.toString(), dimensionColumn, connectorField,
                     dimensionColumn, timeSubtraction, connectorField, connectorField, connectorField,
                     timeSubtraction, MAXIMUM_LEAD);
         } else {
-            String timeSubtraction = String.format(diffTimestamps(), dateUnit.name().toLowerCase(), "time",  "lead%d");
+            String timeSubtraction = String.format(diffTimestamps(), dateUnit.name().toLowerCase(), "time", "lead%d");
 
-            String leadTemplate = "lead(time, %d) over "+String.format("(partition by %s order by %s, time)", connectorField, connectorField);
+            String leadTemplate = "lead(time, %d) over " + String.format("(partition by %s order by %s, time)", connectorField, connectorField);
             String leadColumns = IntStream.range(0, range)
                     .mapToObj(i -> "(" + format(timeSubtraction, i) + ") as lead" + i)
                     .collect(Collectors.joining(", "));
-            String groups = IntStream.range(2, range+2).mapToObj(Integer::toString).collect(Collectors.joining(", "));
+            String groups = IntStream.range(2, range + 2).mapToObj(Integer::toString).collect(Collectors.joining(", "));
 
             String leads = IntStream.range(0, range)
-                    .mapToObj(i -> format(leadTemplate+" lead"+i, i))
+                    .mapToObj(i -> format(leadTemplate + " lead" + i, i))
                     .collect(Collectors.joining(", "));
             String leadColumnNames = IntStream.range(0, range).mapToObj(i -> "lead" + i).collect(Collectors.joining(", "));
 
@@ -141,11 +141,12 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             ") \n" +
                             "select %s, cast(null as bigint) as lead, count(%s) as count from daily_groups data group by 1\n" +
                             "union all (select * from (select time, lead, count from result \n" +
-                            "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d)",
+                            "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d) ORDER BY 1, 2 NULLS FIRST",
                     connectorField, from.toString(), connectorField,
-                    leads.isEmpty() ? "" : ", "+leads, "data.time",
+                    leads.isEmpty() ? "" : ", " + leads,
+                    "data.time",
                     leadColumns, connectorField,
-                    groups.isEmpty() ? "" : ", "+groups,
+                    groups.isEmpty() ? "" : ", " + groups,
                     "data.time", connectorField,
                     leadColumnNames, MAXIMUM_LEAD);
         }
@@ -164,11 +165,11 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         return format("select %s, %s as time %s from %s where _time between date '%s' and date '%s' + interval '1' day %s",
                 connectorField,
                 timeColumn,
-                dimension.isPresent() ? ", " + dimension.get() + " as dimension" : "",
+                dimension.isPresent() ? ", " + checkTableColumn(dimension.get(), "dimension") + " as dimension" : "",
                 executor.formatTableReference(project, QualifiedName.of(collection)),
                 startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
                 endDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                exp.isPresent() ? "and " + exp.get().accept(new ExpressionFormatter.Formatter(), false) : "");
+                exp.isPresent() ? "and " + formatExpression(exp.get(), reference -> executor.formatTableReference(project, reference)) : "");
     }
 
 }

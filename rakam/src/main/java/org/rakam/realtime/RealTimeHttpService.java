@@ -1,6 +1,5 @@
 package org.rakam.realtime;
 
-import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
@@ -43,6 +42,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.Boolean.TRUE;
@@ -185,7 +185,7 @@ public class RealTimeHttpService extends HttpService {
                         (dateEnd == null ? "" :
                                 format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
                 !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().collect(Collectors.joining(", "))) : "",
-                expression == null ? "" : ExpressionFormatter.formatExpression(expression));
+                (expression == null) ? "" : formatExpression(expression, reference -> executor.formatTableReference(project, reference)));
 
         final boolean finalAggregate = aggregate;
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {

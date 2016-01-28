@@ -1,12 +1,11 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.PrestoMaterializedViewService;
-import org.rakam.analysis.TestEventExplorer;
+import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.analysis.TestRetentionQueryExecutor;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.event.TestingEnvironment;
@@ -14,20 +13,16 @@ import org.rakam.plugin.EventStore;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoContinuousQueryService;
-import org.rakam.report.PrestoEventExplorer;
 import org.rakam.report.PrestoQueryExecutor;
-import org.rakam.report.QueryExecutorService;
-import org.testng.annotations.AfterSuite;
+import org.rakam.report.PrestoRetentionQueryExecutor;
 import org.testng.annotations.BeforeSuite;
 
-import java.time.Clock;
+public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor {
 
-public class PrestoTestEventExplorer extends TestEventExplorer {
-
-    private EventExplorer eventExplorer;
-    private TestingPrestoEventStore testingPrestoEventStore;
     private TestingEnvironment testingEnvironment;
     private JDBCMetastore metastore;
+    private PrestoRetentionQueryExecutor retentionQueryExecutor;
+    private TestingPrestoEventStore testingPrestoEventStore;
 
     @BeforeSuite
     @Override
@@ -51,10 +46,7 @@ public class PrestoTestEventExplorer extends TestEventExplorer {
                 prestoQueryExecutor, prestoConfig);
         eventBus.register(new EventExplorerListener(continuousQueryService));
 
-        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, inMemoryQueryMetadataStore, metastore,
-                new PrestoMaterializedViewService(prestoQueryExecutor, inMemoryQueryMetadataStore, Clock.systemUTC()));
-
-        eventExplorer = new PrestoEventExplorer(queryExecutorService, prestoQueryExecutor, metastore);
+        retentionQueryExecutor = new PrestoRetentionQueryExecutor(prestoQueryExecutor, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 
         super.setUp();
@@ -71,12 +63,7 @@ public class PrestoTestEventExplorer extends TestEventExplorer {
     }
 
     @Override
-    public EventExplorer getEventExplorer() {
-        return eventExplorer;
-    }
-
-    @AfterSuite
-    public void destroy() throws Exception {
-        testingEnvironment.close();
+    public RetentionQueryExecutor getRetentionQueryExecutor() {
+        return retentionQueryExecutor;
     }
 }
