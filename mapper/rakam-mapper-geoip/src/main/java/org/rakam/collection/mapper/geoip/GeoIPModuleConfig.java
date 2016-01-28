@@ -15,15 +15,15 @@ public class GeoIPModuleConfig {
     private boolean useExistingFields;
 
     @Config("plugin.geoip.database.url")
-    public GeoIPModuleConfig setDatabaseUrl(String type)
+    public GeoIPModuleConfig setDatabaseUrl(String url)
     {
-        this.databaseUrl = type;
+        this.databaseUrl = url;
         return this;
     }
     @Config("plugin.geoip.isp-database.url")
-    public GeoIPModuleConfig setIspDatabaseUrl(String type)
+    public GeoIPModuleConfig setIspDatabaseUrl(String url)
     {
-        this.ispDatabaseUrl = type;
+        this.ispDatabaseUrl = url;
         return this;
     }
 

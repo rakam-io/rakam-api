@@ -391,8 +391,10 @@ public class JDBCMetastore extends AbstractMetastore {
     @Override
     public void deleteProject(String project) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("delete from api_key where project = :project").execute();
-            handle.createStatement("delete from project where name = :project").execute();
+            handle.createStatement("delete from api_key where project = :project")
+                    .bind("project", project).execute();
+            handle.createStatement("delete from project where name = :project")
+                    .bind("project", project).execute();
         }
 
         Set<String> collectionNames = getCollectionNames(project);
@@ -420,7 +422,7 @@ public class JDBCMetastore extends AbstractMetastore {
             case STRING:
                 return "VARCHAR";
             case BINARY:
-                return "BYTEA";
+                return "VARBINARY";
             case BOOLEAN:
             case DATE:
             case TIME:
@@ -442,6 +444,8 @@ public class JDBCMetastore extends AbstractMetastore {
     @VisibleForTesting
     public void destroy() {
         clearCache();
+        getProjects().forEach(this::deleteProject);
+
         try (Handle handle = dbi.open()) {
             handle.execute("drop table api_key");
             handle.execute("drop table project");

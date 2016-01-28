@@ -1,7 +1,6 @@
 package org.rakam.event;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.JDBCMetastore;
@@ -15,14 +14,14 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
 public class TestJdbcMetastore extends TestingEnvironment {
     private JDBCMetastore metastore;
@@ -113,7 +112,7 @@ public class TestJdbcMetastore extends TestingEnvironment {
         metastore.createProject("testing");
 
         Metastore.ProjectApiKeys testing = metastore.createApiKeys("testing");
-        assertEquals(metastore.getApiKeys(new int[]{testing.id}), ImmutableList.of(testing));
+        assertEquals(ImmutableSet.copyOf(metastore.getApiKeys(new int[]{testing.id})), ImmutableSet.of(testing));
     }
 
     @Test
@@ -122,11 +121,14 @@ public class TestJdbcMetastore extends TestingEnvironment {
 
         ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test1", STRING), new SchemaField("test2", STRING));
         metastore.getOrCreateCollectionFields("testing", "testcollection1", schema);
-
         metastore.getOrCreateCollectionFields("testing", "testcollection2", schema);
 
-        assertEquals(metastore.getCollectionNames("testing"), ImmutableList.of("testcollection1", "testcollection2"));
-        assertEquals(metastore.getCollections("testing"), ImmutableMap.of("testcollection1", schema, "testcollection2", schema));
+        assertEquals(ImmutableSet.of("testcollection1", "testcollection2"), ImmutableSet.copyOf(metastore.getCollectionNames("testing")));
+
+        Map<String, List<SchemaField>> testing = metastore.getCollections("testing");
+        assertEquals(testing.size(), 2);
+        assertEquals(ImmutableSet.copyOf(testing.get("testcollection1")), schema);
+        assertEquals(ImmutableSet.copyOf(testing.get("testcollection2")), schema);
     }
 
     @Test
@@ -148,7 +150,7 @@ public class TestJdbcMetastore extends TestingEnvironment {
     }
 
     @Test
-    public void testDuplicateFieldNames() throws Exception {
+    public void testDuplicateFields() throws Exception {
         metastore.createProject("testing");
 
         ImmutableSet.Builder<SchemaField> builder = ImmutableSet.builder();
@@ -156,6 +158,20 @@ public class TestJdbcMetastore extends TestingEnvironment {
         for (FieldType fieldType : FieldType.values()) {
             builder.add(new SchemaField(fieldType.name(), fieldType));
         }
+
+        metastore.getOrCreateCollectionFields("testing", "testcollection",
+                ImmutableSet.of(new SchemaField("test", LONG)));
+
+        metastore.getOrCreateCollectionFields("testing", "testcollection",
+                ImmutableSet.of(new SchemaField("test", LONG)));
+
+        assertEquals(ImmutableSet.copyOf(metastore.getCollection("testing", "testcollection")),
+                ImmutableSet.of(new SchemaField("test", LONG), new SchemaField("test", LONG)));
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class, expectedExceptionsMessageRegExp = "Query failed \\(\\#[0-9_A-Za-z]+\\)\\: Multiple entries with same key: test\\=raptor\\:test\\:2\\:bigint and test\\=raptor\\:test\\:1\\:varchar")
+    public void testInvalidDuplicateFieldNames() throws Exception {
+        metastore.createProject("testing");
 
         metastore.getOrCreateCollectionFields("testing", "testcollection",
                 ImmutableSet.of(new SchemaField("test", STRING), new SchemaField("test", LONG)));
@@ -187,11 +203,11 @@ public class TestJdbcMetastore extends TestingEnvironment {
                 metastore.getOrCreateCollectionFieldList("test", "test", ImmutableSet.of(new SchemaField("test" + i, FieldType.STRING))))
                 .collect(Collectors.toList());
 
-        List<SchemaField> allSchemas = collect.stream().sorted((o1, o2) -> o1.size() - o2.size()).findFirst().get();
+        Set<SchemaField> allSchemas = ImmutableSet.copyOf(collect.stream().sorted((o1, o2) -> o2.size() - o1.size()).findFirst().get());
 
         for (List<SchemaField> schemaFields : collect) {
             for (int i = 0; i < schemaFields.size(); i++) {
-                assertEquals(schemaFields.get(i), allSchemas.get(i));
+                assertTrue(allSchemas.contains(schemaFields.get(i)), String.format("%s not in %s", schemaFields.get(i), allSchemas));
             }
         }
     }

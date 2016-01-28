@@ -58,20 +58,20 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.database.url", attr));
                     }
                     if (cityLookup == null) {
-                        cityLookup = getLookup(attr);
+                        cityLookup = getReader(config.getDatabaseUrl());
                     }
                     continue;
                 } else if ("isp".equals(attr)) {
                     if (config.getIspDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.isp-database.url", attr));
                     }
-                    if (ispLookup == null) ispLookup = getLookup(attr);
+                    if (ispLookup == null) ispLookup = getReader(config.getIspDatabaseUrl());
                     continue;
                 } else if ("connection_type".equals(attr)) {
                     if (config.getConnectionTypeDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.connection-type-database.url", attr));
                     }
-                    if (connectionTypeLookup == null) connectionTypeLookup = getLookup(attr);
+                    if (connectionTypeLookup == null) connectionTypeLookup = getReader(config.getConnectionTypeDatabaseUrl());
                     continue;
                 }
                 throw new IllegalArgumentException("Attribute " + attr + " is not valid. Available attributes: " +
@@ -80,18 +80,18 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
             attributes = config.getAttributes().stream().toArray(String[]::new);
         } else {
             if (config.getDatabaseUrl() != null) {
-                cityLookup = getLookup(config.getDatabaseUrl());
+                cityLookup = getReader(config.getDatabaseUrl());
                 attributes = CITY_DATABASE_ATTRIBUTES.stream().toArray(String[]::new);
             } else {
                 attributes = null;
             }
+        }
 
-            if (config.getIspDatabaseUrl() != null) {
-                ispLookup = getLookup(config.getIspDatabaseUrl());
-            }
-            if (config.getConnectionTypeDatabaseUrl() != null) {
-                connectionTypeLookup = getLookup(config.getConnectionTypeDatabaseUrl());
-            }
+        if (config.getIspDatabaseUrl() != null) {
+            ispLookup = getReader(config.getIspDatabaseUrl());
+        }
+        if (config.getConnectionTypeDatabaseUrl() != null) {
+            connectionTypeLookup = getReader(config.getConnectionTypeDatabaseUrl());
         }
 
         this.cityLookup = cityLookup;
@@ -99,7 +99,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         this.connectionTypeLookup = connectionTypeLookup;
     }
 
-    private DatabaseReader getLookup(String url) {
+    private DatabaseReader getReader(String url) {
         try {
             FileInputStream cityDatabase = new FileInputStream(downloadOrGetFile(url));
             return new DatabaseReader.Builder(cityDatabase).fileMode(Reader.FileMode.MEMORY).build();
@@ -109,7 +109,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse _) {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;

@@ -50,7 +50,8 @@ public class GeoIPModule extends RakamModule {
             return new File(fileUrl.substring("file:/".length()));
         }
         String name = url.getFile().substring(url.getFile().lastIndexOf('/') + 1, url.getFile().length());
-        File data = new File("/tmp/rakam/" + name);
+        File data = new File(new File(System.getProperty("java.io.tmpdir")), "rakam/" + name);
+
         data.getParentFile().mkdirs();
 
         String extension = Files.getFileExtension(data.getAbsolutePath());

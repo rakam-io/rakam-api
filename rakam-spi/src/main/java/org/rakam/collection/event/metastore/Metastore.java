@@ -47,6 +47,31 @@ public interface Metastore {
             this.readKey = readKey;
             this.writeKey = writeKey;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ProjectApiKeys)) return false;
+
+            ProjectApiKeys that = (ProjectApiKeys) o;
+
+            if (id != that.id) return false;
+            if (!project.equals(that.project)) return false;
+            if (masterKey != null ? !masterKey.equals(that.masterKey) : that.masterKey != null) return false;
+            if (readKey != null ? !readKey.equals(that.readKey) : that.readKey != null) return false;
+            return !(writeKey != null ? !writeKey.equals(that.writeKey) : that.writeKey != null);
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = id;
+            result = 31 * result + project.hashCode();
+            result = 31 * result + (masterKey != null ? masterKey.hashCode() : 0);
+            result = 31 * result + (readKey != null ? readKey.hashCode() : 0);
+            result = 31 * result + (writeKey != null ? writeKey.hashCode() : 0);
+            return result;
+        }
     }
 
     enum AccessKeyType {

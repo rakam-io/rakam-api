@@ -49,8 +49,11 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
         String userAgent;
         if(agent instanceof Boolean && ((Boolean) agent).booleanValue()) {
             userAgent = extraProperties.get("User-Agent");
-        } else {
+        } else
+        if(agent instanceof String){
             userAgent = (String) agent;
+        } else {
+            userAgent = null;
         }
 
         if(userAgent != null) {
