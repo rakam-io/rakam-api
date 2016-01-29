@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.CreateTable;
 import com.facebook.presto.sql.tree.DropTable;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.Statement;
 import com.facebook.presto.sql.tree.Table;
 import com.facebook.presto.sql.tree.WithQuery;
 import com.google.common.base.Joiner;
@@ -30,7 +31,7 @@ public class QueryFormatter
         this.tableNameMapper = tableNameMapper;
     }
 
-    public static String format(Query query, Function<QualifiedName, String> tableNameMapper) {
+    public static String format(Statement query, Function<QualifiedName, String> tableNameMapper) {
         StringBuilder builder = new StringBuilder();
         new QueryFormatter(builder, tableNameMapper).process(query, 1);
         return builder.toString();

@@ -316,6 +316,7 @@ public class JDBCMetastore extends AbstractMetastore {
                 if (queryEnd.isEmpty()) {
                     return currentFields;
                 }
+                // WITH (temporal_column = '_time', ordering = ARRAY['_time'])
                 query = format("CREATE TABLE %s.\"%s\".\"%s\" (%s)", config.getColdStorageConnector(), project, collection, queryEnd);
                 connection.createStatement().execute(query);
 

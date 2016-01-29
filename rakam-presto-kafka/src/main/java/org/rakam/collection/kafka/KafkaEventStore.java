@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -45,7 +44,6 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
     final static String ZK_OFFSET_PATH = "/collectionOffsets";
 
     private final Producer<byte[], byte[]> producer;
-    private final long updateInterval;
     private final Set<String> sourceFields;
     ScheduledExecutorService executorService;
 
@@ -69,8 +67,6 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
         ProducerConfig producerConfig = new ProducerConfig(props);
         this.producer = new Producer(producerConfig);
-
-        this.updateInterval = config.getCommitInterval().roundTo(TimeUnit.SECONDS);
 
         CuratorFramework client = CuratorFrameworkFactory.newClient(config.getZookeeperNode().toString(),
                 new ExponentialBackoffRetry(1000, 3));

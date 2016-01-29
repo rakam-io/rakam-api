@@ -1,20 +1,28 @@
 package org.rakam.analysis;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class InMemoryMetastore extends AbstractMetastore {
-    private final Map<String, Map<String, List<SchemaField>>> collections = new HashMap<>();
+    private final Map<String, Map<String, List<SchemaField>>> collections = new ConcurrentHashMap<>();
+    private final Map<String, List<ProjectApiKeys>> apiKeys = new ConcurrentHashMap<>();
+    private final AtomicInteger apiKeyCounter = new AtomicInteger();
 
     public InMemoryMetastore() {
         super(new FieldDependencyBuilder().build(), new EventBus());
@@ -43,13 +51,23 @@ public class InMemoryMetastore extends AbstractMetastore {
     }
 
     @Override
-    public ProjectApiKeys createApiKeys(String project) {
-        return null;
+    public synchronized ProjectApiKeys createApiKeys(String project) {
+        List<ProjectApiKeys> keys = apiKeys.computeIfAbsent(project, p -> new ArrayList<>());
+
+        ProjectApiKeys projectApiKeys = new ProjectApiKeys(apiKeyCounter.incrementAndGet(), project,
+                UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString());
+        keys.add(projectApiKeys);
+        return projectApiKeys;
     }
 
     @Override
-    public void revokeApiKeys(String project, int keys) {
-
+    public synchronized void revokeApiKeys(String project, int id) {
+        Iterator<ProjectApiKeys> keys = apiKeys.getOrDefault(project, ImmutableList.of()).iterator();
+        while(keys.hasNext()) {
+            if(keys.next().id == id) {
+                keys.remove();
+            }
+        }
     }
 
     @Override
@@ -64,7 +82,7 @@ public class InMemoryMetastore extends AbstractMetastore {
 
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
-        return collections.get(project).get(collection);
+        return collections.get(project).getOrDefault(collection, ImmutableList.of());
     }
 
     @Override
@@ -75,23 +93,39 @@ public class InMemoryMetastore extends AbstractMetastore {
         }
         List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<>());
         fields.stream()
-                .filter(field -> !schemaFields.contains(field))
+                .filter(field -> !schemaFields.stream().anyMatch(f -> f.getName().equals(field.getName())))
                 .forEach(schemaFields::add);
         return schemaFields;
     }
 
     @Override
     public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
-        return false;
+        return apiKeys.getOrDefault(project, ImmutableList.of()).stream().anyMatch(a -> apiKey.equals(getKey(a, type)));
+    }
+
+    private String getKey(ProjectApiKeys keys, AccessKeyType type) {
+        switch (type) {
+            case MASTER_KEY:
+                return keys.masterKey;
+            case READ_KEY:
+                return keys.readKey;
+            case WRITE_KEY:
+                return keys.writeKey;
+            default:
+                throw new IllegalStateException();
+        }
     }
 
     @Override
     public List<ProjectApiKeys> getApiKeys(int[] ids) {
-        return null;
+        return apiKeys.entrySet().stream().flatMap(a -> a.getValue().stream())
+                .filter(a -> Arrays.asList(ids).contains(a.id))
+                .collect(Collectors.toList());
     }
 
     @Override
     public void deleteProject(String project) {
         collections.remove(project);
+        apiKeys.remove(project);
     }
 }

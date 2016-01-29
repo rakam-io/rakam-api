@@ -27,7 +27,7 @@ public abstract class TestRetentionQueryExecutor {
     private static final int SCALE_FACTOR = 3;
 
     @BeforeSuite
-    public void setUp() throws Exception {
+    public void addEvents() throws Exception {
 
         EventBuilder builder = new EventBuilder("test", getMetastore());
 

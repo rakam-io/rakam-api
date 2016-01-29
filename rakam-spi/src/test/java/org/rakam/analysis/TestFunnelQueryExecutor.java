@@ -27,7 +27,7 @@ public abstract class TestFunnelQueryExecutor {
     private static final int SCALE_FACTOR = 10;
 
     @BeforeSuite
-    public void setUp() throws Exception {
+    public void addEvents() throws Exception {
 
         EventBuilder builder = new EventBuilder("test", getMetastore());
 

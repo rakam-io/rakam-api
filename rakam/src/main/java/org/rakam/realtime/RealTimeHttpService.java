@@ -30,15 +30,12 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import java.text.Normalizer;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -60,8 +57,6 @@ public class RealTimeHttpService extends HttpService {
     private final Duration slide;
     private final Duration window;
 
-    private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
-    private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
     private final String timestampToEpochFunction;
 
     @Inject
@@ -91,8 +86,6 @@ public class RealTimeHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
     public CompletableFuture<JsonResponse> create(@ParamBody RealTimeReport report) {
-        String tableName = toSlug(report.name);
-
         if(report.aggregation == AggregationType.AVERAGE) {
             throw new RakamException("Average aggregation is not supported in realtime service.", BAD_REQUEST);
         }
@@ -109,7 +102,7 @@ public class RealTimeHttpService extends HttpService {
 
         ContinuousQuery query = new ContinuousQuery(report.project,
                 report.name,
-                tableName,
+                report.table_name,
                 sqlQuery,
                 ImmutableList.of(),
                 ImmutableMap.of("realtime", true, "aggregation", report.aggregation));
@@ -224,18 +217,12 @@ public class RealTimeHttpService extends HttpService {
                     }
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
                 } else {
-//                    Map<Object, List<Object>> newData = data.stream()
-//                            .collect(Collectors.groupingBy(entry -> entry.get(0),
-//                                    Collectors.mapping(l -> ImmutableList.of(l.get(1), l.get(2)), Collectors.toList())));
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data);
                 }
             } else {
                 if (noDimension) {
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
                 } else {
-//                    List<ImmutableList<Object>> newData = data.stream()
-//                            .map(m -> ImmutableList.of(m.get(1), m.get(2)))
-//                            .collect(Collectors.toList());
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data);
                 }
             }
@@ -271,7 +258,7 @@ public class RealTimeHttpService extends HttpService {
 
     }
 
-    public String createSelect(String measure, List<String> dimensions) {
+    private String createSelect(String measure, List<String> dimensions) {
         if (measure == null) {
             measure = "1";
         }
@@ -279,7 +266,7 @@ public class RealTimeHttpService extends HttpService {
         return "_time, " + measure + (collect.isEmpty() ? "" : "," + collect);
     }
 
-    public String createFinalSelect(AggregationType aggType, String measure, List<String> dimensions) {
+    private String createFinalSelect(AggregationType aggType, String measure, List<String> dimensions) {
 
         if (measure == null) {
             if (aggType != AggregationType.COUNT)
@@ -309,7 +296,7 @@ public class RealTimeHttpService extends HttpService {
         }
     }
 
-    public String mapFunction(AggregationType aggregationType) {
+    private String mapFunction(AggregationType aggregationType) {
         switch (aggregationType) {
             case COUNT:
             case SUM:
@@ -325,7 +312,7 @@ public class RealTimeHttpService extends HttpService {
         }
     }
 
-    public String combineFunction(AggregationType aggregationType) {
+    private String combineFunction(AggregationType aggregationType) {
         switch (aggregationType) {
             case COUNT:
             case SUM:
@@ -339,15 +326,5 @@ public class RealTimeHttpService extends HttpService {
             default:
                 throw new NotImplementedException();
         }
-    }
-
-    /*
-     * Taken from http://stackoverflow.com/a/1657250/689144
-     */
-    public static String toSlug(String input) {
-        String nowhitespace = WHITESPACE.matcher(input).replaceAll("_");
-        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
-        String slug = NONLATIN.matcher(normalized).replaceAll("");
-        return slug.toLowerCase(Locale.ENGLISH);
     }
 }

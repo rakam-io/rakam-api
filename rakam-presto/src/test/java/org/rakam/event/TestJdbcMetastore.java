@@ -26,14 +26,11 @@ import static org.testng.Assert.*;
 public class TestJdbcMetastore extends TestingEnvironment {
     private JDBCMetastore metastore;
 
-    public TestJdbcMetastore() throws Exception {
-    }
-
     @BeforeMethod
     public void setUpMethod() throws Exception {
-        JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
+        JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(getPostgresqlConfig());
 
-        metastore = new JDBCMetastore(metastoreDataSource, prestoConfig,
+        metastore = new JDBCMetastore(metastoreDataSource, getPrestoConfig(),
                 new EventBus(), new FieldDependencyBuilder().build());
         metastore.setup();
     }

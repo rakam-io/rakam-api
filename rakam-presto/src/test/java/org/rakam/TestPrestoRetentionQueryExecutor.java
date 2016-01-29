@@ -25,7 +25,6 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
     private TestingPrestoEventStore testingPrestoEventStore;
 
     @BeforeSuite
-    @Override
     public void setUp() throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
@@ -48,8 +47,6 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
 
         retentionQueryExecutor = new PrestoRetentionQueryExecutor(prestoQueryExecutor, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
-
-        super.setUp();
     }
 
     @Override

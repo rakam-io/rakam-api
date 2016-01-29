@@ -63,7 +63,7 @@ public class InMemoryQueryMetadataStore implements QueryMetadataStore {
     @Override
     public ContinuousQuery getContinuousQuery(String project, String name) {
         return continuousQueries.stream()
-                .filter(view -> view.project.equals(project) && view.name.equals(name))
+                .filter(view -> view.project.equals(project) && view.tableName.equals(name))
                 .findAny().get();
     }
 

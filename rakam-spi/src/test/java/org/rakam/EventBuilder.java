@@ -1,6 +1,8 @@
 package org.rakam;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.Ints;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -13,14 +15,13 @@ import java.time.LocalDate;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class EventBuilder {
     private final Metastore metastore;
     private final String project;
-    private final Map<String, Set<SchemaField>> fieldCache = new ConcurrentHashMap<>();
+    private final Map<String, List<SchemaField>> fieldCache = new ConcurrentHashMap<>();
 
     public EventBuilder(String project, Metastore metastore) {
         this.project = project;
@@ -28,18 +29,55 @@ public class EventBuilder {
     }
 
     public Event createEvent(String collection, Map<String, Object> properties) {
-        List<SchemaField> fields = generateSchema(properties);
-        Set<SchemaField> cache = fieldCache.get(collection);
-        if (cache == null || !fields.stream().allMatch(f -> cache.contains(f))) {
-            ImmutableSet<SchemaField> fieldsSet = ImmutableSet.copyOf(fields);
-            fields = metastore.getOrCreateCollectionFieldList(project, collection, fieldsSet);
-            fieldCache.put(collection, fieldsSet);
+        List<SchemaField> cache = fieldCache.get(collection);
+
+        List<SchemaField> fields;
+        List<SchemaField> generatedSchema = generateSchema(properties);
+        if (cache == null || !generatedSchema.stream().allMatch(f -> cache.contains(f))) {
+            fields = metastore.getOrCreateCollectionFieldList(project, collection, ImmutableSet.copyOf(generatedSchema));
+            fieldCache.put(collection, fields);
+        } else {
+            fields = cache;
         }
 
         GenericData.Record record = new GenericData.Record(AvroUtil.convertAvroSchema(fields));
-        properties.forEach((key, value) -> record.put(key, value));
+        properties.forEach((key, value) -> record.put(key, cast(value,
+                record.getSchema().getField(key).schema().getTypes().get(1).getType())));
 
         return new Event(project, collection, new Event.EventContext(null, null, null, null), record);
+    }
+
+    public void cleanCache() {
+        fieldCache.clear();
+    }
+
+    private Object cast(Object value, Schema.Type type) {
+        if(value instanceof Instant) {
+            if(type != Schema.Type.LONG) {
+                throw new IllegalStateException();
+            }
+            return ((Instant) value).toEpochMilli();
+        }
+        if(value instanceof LocalDate) {
+            if(type != Schema.Type.INT) {
+                throw new IllegalStateException();
+            }
+            return Ints.checkedCast(((LocalDate) value).toEpochDay());
+        }
+
+        if(type == Schema.Type.DOUBLE) {
+            return ((Number) value).doubleValue();
+        }
+        if(type == Schema.Type.INT) {
+            return ((Number) value).intValue();
+        }
+        if(type == Schema.Type.LONG) {
+            return ((Number) value).longValue();
+        }
+        if(type == Schema.Type.STRING) {
+            return value.toString();
+        }
+        return value;
     }
 
     private List<SchemaField> generateSchema(Map<String, Object> properties) {

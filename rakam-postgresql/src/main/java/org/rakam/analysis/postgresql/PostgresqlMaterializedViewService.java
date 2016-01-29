@@ -20,15 +20,13 @@ import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 
 public class PostgresqlMaterializedViewService extends MaterializedViewService {
-    private final PostgresqlMetastore metastore;
     private final SqlParser parser = new SqlParser();
 
     private final PostgresqlQueryExecutor queryExecutor;
 
     @Inject
-    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database, PostgresqlMetastore metastore, Clock clock) {
+    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database, Clock clock) {
         super(queryExecutor, database, clock);
-        this.metastore = metastore;
         this.queryExecutor = queryExecutor;
     }
 

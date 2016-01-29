@@ -235,7 +235,7 @@ public class EventCollectionHttpService extends HttpService {
             try {
                 EventList events = jsonMapper.readValue(buff, EventList.class);
 
-                Event.EventContext context = events.context;
+                Event.EventContext context = events.api;
                 if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
                     return;
                 }
@@ -340,17 +340,17 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     public static class EventList {
-        public final Event.EventContext context;
+        public final Event.EventContext api;
         public final String project;
         public final List<Event> events;
 
         @JsonCreator
-        public EventList(@ApiParam(name = "api") Event.EventContext context,
+        public EventList(@ApiParam(name = "api") Event.EventContext api,
                          @ApiParam(name = "project") String project,
                          @ApiParam(name = "events") List<Event> events) {
             this.project = checkNotNull(project, "project parameter is null");
             this.events = checkNotNull(events, "events parameter is null");
-            this.context = checkNotNull(context, "api is null");
+            this.api = checkNotNull(api, "api is null");
         }
     }
 }

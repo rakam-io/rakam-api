@@ -6,7 +6,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
@@ -24,13 +23,11 @@ import java.util.stream.Collectors;
 
 public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryService {
     private final PostgresqlQueryExecutor executor;
-    private final PostgresqlMetastore metastore;
 
     @Inject
-    public PostgresqlPseudoContinuousQueryService(QueryMetadataStore database, PostgresqlQueryExecutor executor, PostgresqlMetastore metastore) {
+    public PostgresqlPseudoContinuousQueryService(QueryMetadataStore database, PostgresqlQueryExecutor executor) {
         super(database);
         this.executor = executor;
-        this.metastore = metastore;
     }
 
     @Override

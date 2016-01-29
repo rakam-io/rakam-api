@@ -51,21 +51,14 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
             prestoQueryExecution = executor.executeRawQuery(prestoQuery);
         }
 
-        try {
-            return prestoQueryExecution
-                    .getResult().thenApply(result -> {
-                if (result.getError() == null) {
-                    database.createContinuousQuery(report);
-                    return QueryResult.empty();
-                }
-                return result;
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-
-
+        return prestoQueryExecution
+                .getResult().thenApply(result -> {
+            if (result.getError() == null) {
+                database.createContinuousQuery(report);
+                return QueryResult.empty();
+            }
+            return result;
+        });
     }
 
     @Override

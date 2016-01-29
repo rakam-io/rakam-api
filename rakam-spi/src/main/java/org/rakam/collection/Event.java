@@ -91,5 +91,38 @@ public class Event {
             this.uploadTime = uploadTime;
             this.checksum = checksum;
         }
+
+        @Override
+        public String toString() {
+            return "EventContext{" +
+                    "writeKey='" + writeKey + '\'' +
+                    ", apiVersion='" + apiVersion + '\'' +
+                    ", uploadTime=" + uploadTime +
+                    ", checksum='" + checksum + '\'' +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof EventContext)) return false;
+
+            EventContext context = (EventContext) o;
+
+            if (writeKey != null ? !writeKey.equals(context.writeKey) : context.writeKey != null) return false;
+            if (apiVersion != null ? !apiVersion.equals(context.apiVersion) : context.apiVersion != null) return false;
+            if (uploadTime != null ? !uploadTime.equals(context.uploadTime) : context.uploadTime != null) return false;
+            return !(checksum != null ? !checksum.equals(context.checksum) : context.checksum != null);
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = writeKey != null ? writeKey.hashCode() : 0;
+            result = 31 * result + (apiVersion != null ? apiVersion.hashCode() : 0);
+            result = 31 * result + (uploadTime != null ? uploadTime.hashCode() : 0);
+            result = 31 * result + (checksum != null ? checksum.hashCode() : 0);
+            return result;
+        }
     }
 }

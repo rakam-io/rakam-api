@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -81,10 +82,13 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
             String fieldName = jp.getCurrentName();
 
-            jp.nextToken();
+            t = jp.nextToken();
 
             switch (fieldName) {
                 case "project":
+                    if(t != JsonToken.VALUE_STRING) {
+                        throw new RakamException("project parameter must be a string", BAD_REQUEST);
+                    }
                     if(project != null) {
                         if(jp.getValueAsString() != null) {
                             throw new RakamException("project is already set", BAD_REQUEST);
@@ -94,6 +98,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     }
                     break;
                 case "collection":
+                    if(t != JsonToken.VALUE_STRING) {
+                        throw new RakamException("collection parameter must be a string", BAD_REQUEST);
+                    }
                     collection = jp.getValueAsString().toLowerCase();
                     break;
                 case "api":
@@ -196,9 +203,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         if(type.isArray() || type.isMap()) {
                             // if the type of new field is ARRAY, we already switched to next token
                             // so current token is not START_ARRAY.
-                            record.put(field.pos(), getValue(jp, type, field.schema(), true));
+                            record.put(field.pos(), getValue(jp, type, field, true));
                         } else {
-                            record.put(field.pos(), getValue(jp, type, field.schema(), false));
+                            record.put(field.pos(), getValue(jp, type, field, false));
                         }
                         continue;
 
@@ -221,7 +228,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 }
             }
 
-            Object value = getValue(jp, field.schema().getType() == NULL ? null : rakamSchema.get(field.pos()).getType(), field.schema(), false);
+            Object value = getValue(jp, field.schema().getType() == NULL ? null : rakamSchema.get(field.pos()).getType(), field, false);
             record.put(field.pos(), value);
         }
 
@@ -281,7 +288,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private Object getValue(JsonParser jp, FieldType type, Schema schema, boolean passInitialToken) throws IOException {
+    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken) throws IOException {
         if(type == null) {
             return getValueOfMagicField(jp);
         }
@@ -315,13 +322,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     return null;
                 }
             default:
-                Schema actualSchema = schema.getTypes().get(1);
+                Schema actualSchema = field.schema().getTypes().get(1);
                 if (type.isMap()) {
                     JsonToken t = jp.getCurrentToken();
 
                     Map<String, Object> map = new HashMap<>();
-
-                    Schema elementType = actualSchema.getValueType();
 
                     if(!passInitialToken) {
                         if(t != JsonToken.START_OBJECT) {
@@ -333,15 +338,18 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         // In order to determine the value type of map, getType method performed an extra
                         // jp.nextToken() so the cursor should be at VALUE_STRING token.
                         String key = jp.getParsingContext().getCurrentName();
-                        map.put(key, getValue(jp, type.getMapValueType(), elementType, false));
+                        map.put(key, getValue(jp, type.getMapValueType(), null, false));
                         t = jp.nextToken();
                     }
 
                     for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
                         String key = jp.getCurrentName();
 
-                        jp.nextToken();
-                        map.put(key, getValue(jp, type.getMapValueType(), elementType, false));
+                        if(!jp.nextToken().isScalarValue()) {
+                            throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
+                        }
+
+                        map.put(key, getValue(jp, type.getMapValueType(), null, false));
                     }
                     return map;
                 }
@@ -357,11 +365,12 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         }
                     }
 
-                    Schema elementType = actualSchema.getElementType();
-
                     List<Object> objects = new ArrayList<>();
                     for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
-                        objects.add(getValue(jp, type.getArrayElementType(), elementType, false));
+                        if(!t.isScalarValue()) {
+                            throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
+                        }
+                        objects.add(getValue(jp, type.getArrayElementType(), null, false));
                     }
                     return new GenericData.Array(actualSchema, objects);
                 }
@@ -415,10 +424,20 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     throw new IllegalArgumentException();
                 }
                 jp.nextToken();
-                return getType(jp).convertToMapValueType();
+                type = getType(jp);
+
+                if(type.isArray() || type.isMap()) {
+                    throw new RakamException("Nested properties is not supported", BAD_REQUEST);
+                }
+                return type.convertToMapValueType();
             default:
                 throw new JsonMappingException(format("the type is not supported: %s", jp.getValueAsString()));
         }
+    }
+
+    @VisibleForTesting
+    public void cleanCache() {
+        schemaCache.invalidateAll();
     }
 }
 

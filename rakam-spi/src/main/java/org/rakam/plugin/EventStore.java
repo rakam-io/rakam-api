@@ -7,9 +7,8 @@ import java.util.List;
 
 public interface EventStore {
     void store(Event event);
+
     default void storeBatch(List<Event> events) {
-        for (Event event : events) {
-            store(event);
-        }
+        events.forEach(this::store);
     }
 }

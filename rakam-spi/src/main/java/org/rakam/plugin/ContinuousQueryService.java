@@ -24,8 +24,8 @@ public abstract class ContinuousQueryService {
         return database.getContinuousQueries(project);
     }
 
-    public ContinuousQuery get(String project, String name) {
-        return database.getContinuousQuery(project, name);
+    public ContinuousQuery get(String project, String tableName) {
+        return database.getContinuousQuery(project, tableName);
     }
 
     public abstract Map<String, List<SchemaField>> getSchemas(String project);

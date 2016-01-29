@@ -1,5 +1,6 @@
 package org.rakam.event;
 
+import com.facebook.presto.hadoop.shaded.com.google.common.base.Throwables;
 import com.facebook.presto.raptor.RaptorPlugin;
 import com.facebook.presto.server.testing.TestingPrestoServer;
 import com.google.common.collect.ImmutableMap;
@@ -14,14 +15,41 @@ import java.util.Map;
 
 public class TestingEnvironment {
 
-    protected PrestoConfig prestoConfig;
-    private TestingPrestoServer testingPrestoServer;
+    private final PrestoConfig prestoConfig;
+    private final TestingPrestoServer testingPrestoServer;
     private TestingPostgreSqlServer testingPostgresqlServer;
-    protected JDBCConfig postgresqlConfig;
+    private JDBCConfig postgresqlConfig;
 
-    public TestingEnvironment() throws Exception {
-        testingPrestoServer = new TestingPrestoServer();
-        testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
+    public TestingEnvironment() {
+        this(true);
+    }
+
+    public TestingEnvironment(boolean installMetadata) {
+        try {
+            testingPrestoServer = new TestingPrestoServer();
+
+            if (installMetadata) {
+                testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
+
+                postgresqlConfig = new JDBCConfig()
+                        .setUrl(testingPostgresqlServer.getJdbcUrl())
+                        .setUsername(testingPostgresqlServer.getUser());
+
+                Runtime.getRuntime().addShutdownHook(
+                        new Thread(
+                                () -> {
+                                    try {
+                                        testingPostgresqlServer.close();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                        )
+                );
+            }
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
 
         ImmutableMap<String, String> configs = ImmutableMap.of(
                 "storage.data-directory", Files.createTempDir().getAbsolutePath(),
@@ -42,26 +70,12 @@ public class TestingEnvironment {
                 .setAddress(URI.create("http://" + testingPrestoServer.getAddress().toString()))
                 .setStreamingConnector("raptor")
                 .setColdStorageConnector("raptor");
-        postgresqlConfig = new JDBCConfig()
-//                .setUrl("jdbc:postgresql://127.0.0.1:5432/testng")
-//                .setUsername("buremba");
-                .setUrl(testingPostgresqlServer.getJdbcUrl())
-                .setUsername(testingPostgresqlServer.getUser());
-
-        Runtime.getRuntime().addShutdownHook(
-                new Thread(
-                        () -> {
-                            try {
-                                testingPostgresqlServer.close();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                )
-        );
     }
 
     public JDBCConfig getPostgresqlConfig() {
+        if(postgresqlConfig == null) {
+            throw new UnsupportedOperationException();
+        }
         return postgresqlConfig;
     }
 
@@ -71,6 +85,8 @@ public class TestingEnvironment {
 
     public void close() throws Exception {
         testingPrestoServer.close();
-        testingPostgresqlServer.close();
+        if(testingPostgresqlServer != null) {
+            testingPostgresqlServer.close();
+        }
     }
 }

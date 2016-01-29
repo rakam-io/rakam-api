@@ -30,7 +30,7 @@ public abstract class TestEventExplorer {
     private static final int SCALE_FACTOR = 100;
 
     @BeforeSuite
-    public void setUp() throws Exception {
+    public void addEvents() throws Exception {
 
         EventBuilder builder = new EventBuilder("test", getMetastore());
 
