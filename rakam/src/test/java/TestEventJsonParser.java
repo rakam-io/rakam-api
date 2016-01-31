@@ -294,5 +294,5 @@ public class TestEventJsonParser {
         mapper.readValue(bytes, EventList.class);
     }
 
-    // TODO: test invalid json
+    // TODO: test invalid json data
 }

@@ -89,9 +89,9 @@ public class TestingPrestoEventStore implements EventStore {
                     builder.append("]");
                 } else if (type.isMap()) {
                     builder.append("MAP(");
-                    appendValue(builder, ((Map) value).keySet(), FieldType.STRING);
+                    appendValue(builder, ((Map) value).keySet(), FieldType.ARRAY_STRING);
                     builder.append(", ");
-                    appendValue(builder, ((Map) value).values(), type.getMapValueType());
+                    appendValue(builder, ((Map) value).values(), type.getMapValueType().convertToArrayType());
                     builder.append(")");
                 }
         }

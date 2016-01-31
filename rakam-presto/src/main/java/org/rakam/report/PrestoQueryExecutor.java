@@ -70,7 +70,6 @@ public class PrestoQueryExecutor implements QueryExecutor {
     }
 
     public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties) {
-        System.out.println(query);
         return new PrestoQueryExecution(startQuery(query, new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
