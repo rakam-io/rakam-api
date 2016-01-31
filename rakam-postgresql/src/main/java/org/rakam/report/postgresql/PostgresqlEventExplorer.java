@@ -15,6 +15,7 @@ package org.rakam.report.postgresql;
 
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.realtime.AggregationType;
 import org.rakam.report.AbstractEventExplorer;
 import org.rakam.report.QueryExecutorService;
 
@@ -26,12 +27,12 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 public class PostgresqlEventExplorer extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
-            .put(HOUR_OF_DAY, "extract(hour from %s)")
-            .put(DAY_OF_MONTH, "extract(day FROM %s)")
-            .put(WEEK_OF_YEAR, "extract(doy FROM %s)")
-            .put(MONTH_OF_YEAR, "extract(month FROM %s)")
-            .put(QUARTER_OF_YEAR, "extract(quarter FROM %s)")
-            .put(DAY_OF_WEEK, "extract(dow FROM %s)")
+            .put(HOUR_OF_DAY, "cast(extract(hour from %s) as bigint)")
+            .put(DAY_OF_MONTH, "cast(extract(day FROM %s) as bigint)")
+            .put(WEEK_OF_YEAR, "cast(extract(doy FROM %s) as bigint)")
+            .put(MONTH_OF_YEAR, "cast(extract(month FROM %s) as bigint)")
+            .put(QUARTER_OF_YEAR, "cast(extract(quarter FROM %s) as bigint)")
+            .put(DAY_OF_WEEK, "cast(extract(dow FROM %s) as bigint)")
             .put(HOUR, "date_trunc('hour', %s)")
             .put(DAY, "cast(%s as date)")
             .put(MONTH, "date_trunc('month', %s)")
@@ -41,5 +42,27 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
     @Inject
     public PostgresqlEventExplorer(QueryExecutorService service, PostgresqlQueryExecutor executor, Metastore metastore) {
         super(executor, service, metastore, timestampMapping);
+    }
+
+    @Override
+    public String convertSqlFunction(AggregationType aggType) {
+        switch (aggType) {
+            case AVERAGE:
+                return "avg(%s)";
+            case MAXIMUM:
+                return "max(%s)";
+            case MINIMUM:
+                return "min(%s)";
+            case COUNT:
+                return "count(%s)";
+            case SUM:
+                return "sum(%s)";
+            case COUNT_UNIQUE:
+                return "count(distinct %s)";
+            case APPROXIMATE_UNIQUE:
+                return "count(distinct %s)";
+            default:
+                throw new IllegalArgumentException("aggregation type is not supported");
+        }
     }
 }

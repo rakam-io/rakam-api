@@ -3,8 +3,6 @@ package org.rakam.report;
 import com.facebook.presto.sql.tree.QualifiedName;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EventExplorer;
-import org.rakam.collection.FieldType;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.realtime.AggregationType;
 import org.rakam.util.RakamException;
@@ -22,6 +20,8 @@ import java.util.stream.Stream;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
+import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -108,21 +108,21 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     }
 
     public CompletableFuture<QueryResult> analyze(String project, List<String> collections, EventExplorer.Measure measureType, EventExplorer.Reference grouping, EventExplorer.Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate) {
-        if (grouping != null && grouping.type == EventExplorer.ReferenceType.REFERENCE) {
+        if (grouping != null && grouping.type == REFERENCE) {
             checkReference(grouping.value, startDate, endDate);
         }
-        if (segment != null && segment.type == EventExplorer.ReferenceType.REFERENCE) {
+        if (segment != null && segment.type == REFERENCE) {
             checkReference(segment.value, startDate, endDate);
         }
         StringBuilder selectBuilder = new StringBuilder();
-        if(grouping != null) {
-            selectBuilder.append(getColumnValue(grouping)+" as "+getColumnReference(grouping)+"_group");
-            if(segment != null) {
+        if (grouping != null) {
+            selectBuilder.append(getColumnValue(grouping) + " as " + getColumnReference(grouping) + "_group");
+            if (segment != null) {
                 selectBuilder.append(", ");
             }
         }
-        if(segment != null) {
-            selectBuilder.append(getColumnValue(segment)+" as "+getColumnReference(segment)+"_segment");
+        if (segment != null) {
+            selectBuilder.append(getColumnValue(segment) + " as " + getColumnReference(segment) + "_segment");
         }
         String select = selectBuilder.toString();
 
@@ -155,9 +155,9 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     where,
                     groupBy);
         } else {
-            String selectPart = (grouping == null ? "": getColumnReference(grouping)+"_group") +
-            (segment == null ? "":
-                    (grouping == null ? "" : ", ")+getColumnReference(segment)+"_segment");
+            String selectPart = (grouping == null ? "" : getColumnReference(grouping) + "_group") +
+                    (segment == null ? "" :
+                            (grouping == null ? "" : ", ") + getColumnReference(segment) + "_segment");
 
             String queries = "(" + collections.stream()
                     .map(collection -> format("select %s %s from %s where %s",
@@ -177,9 +177,6 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         if (intermediateAggregation.isPresent()) {
             if (grouping != null && segment != null) {
-                boolean groupingSupported = isGroupingSupported(project, collections, grouping);
-                boolean segmentSupported = isGroupingSupported(project, collections, segment);
-
                 query = format(" SELECT " +
                                 " CASE WHEN group_rank > 15 THEN 'Others' ELSE cast(%s_group as varchar) END,\n" +
                                 " CASE WHEN segment_rank > 20 THEN 'Others' ELSE cast(%s_segment as varchar) END,\n" +
@@ -188,28 +185,24 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                 "          row_number() OVER (ORDER BY %s DESC) AS group_rank,\n" +
                                 "          row_number() OVER (PARTITION BY %s ORDER BY value DESC) AS segment_rank\n" +
                                 "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
-//                        groupingSupported ? "'Others'" : "null",
                         getColumnReference(grouping),
-//                        segmentSupported ? "'Others'" : "null",
                         getColumnReference(segment),
                         format(convertSqlFunction(intermediateAggregation.get()), "value"),
                         format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                        format(getColumnReference(grouping), "value")+"_group",
+                        format(getColumnReference(grouping), "value") + "_group",
                         computeQuery);
             } else {
                 String columnValue = null;
-                boolean group, reference;
+                boolean reference;
 
                 if (segment != null) {
                     columnValue = getColumnValue(segment);
-                    group = isGroupingSupported(project, collections, segment);
-                    reference = segment.type == ReferenceType.REFERENCE;
+                    reference = segment.type == REFERENCE;
                 } else if (grouping != null) {
                     columnValue = getColumnValue(grouping);
-                    group = isGroupingSupported(project, collections, grouping);
-                    reference = grouping.type == ReferenceType.REFERENCE;
+                    reference = grouping.type == REFERENCE;
                 } else {
-                    group = reference = false;
+                    reference = false;
                 }
 
                 if (columnValue != null && !reference) {
@@ -217,8 +210,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     " CASE WHEN group_rank > 50 THEN 'Others' ELSE CAST(%s as varchar) END, %s FROM (\n" +
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                     "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
-//                            group ? "'Others'" : "null",
-                            columnValue+"_group",
+                            columnValue + "_group",
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             computeQuery);
@@ -229,29 +221,14 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         }
 
         if (query == null) {
-            query = computeQuery + format(" ORDER BY %s DESC LIMIT 100", segment != null && grouping != null ? 3 : 2);
+            query = format("select %s %s %s value from (%s) data ORDER BY %s DESC LIMIT 100",
+                    grouping == null ? "" : format(grouping.type == COLUMN ? "cast(%s_group as varchar)" : "%s_group", getColumnReference(grouping)),
+                    segment == null ? "" : ((grouping == null ? "" : ",") + format(segment.type == COLUMN ? "cast(%s_segment as varchar)" : "%s_segment", getColumnReference(segment))),
+                    grouping != null || segment != null ? "," : "",
+                    computeQuery, segment != null && grouping != null ? 3 : 2);
         }
 
         return executor.executeRawQuery(query).getResult();
-    }
-
-
-    private boolean isGroupingSupported(String project, List<String> collections, EventExplorer.Reference ref) {
-        List<SchemaField> fields = null;
-
-        switch (ref.type) {
-            case COLUMN:
-                if (fields == null) {
-                    fields = metastore.getCollection(project, collections.get(0));
-                }
-                return fields.stream()
-                        .filter(col -> col.getName().equals(ref.value))
-                        .findAny().get().getType() == FieldType.STRING;
-            case REFERENCE:
-                return false;
-            default:
-                throw new IllegalArgumentException("Unknown reference type: " + ref.value);
-        }
     }
 
     public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
@@ -273,14 +250,14 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         String query;
         if (dimension.isPresent()) {
             Optional<TimestampTransformation> aggregationMethod = TimestampTransformation.fromPrettyName(dimension.get());
-            if(!aggregationMethod.isPresent()) {
+            if (!aggregationMethod.isPresent()) {
                 throw new RakamException(HttpResponseStatus.BAD_REQUEST);
             }
 
             query = format("select collection, %s as %s, sum(total) from (", format(timestampMapping.get(aggregationMethod.get()), "time"), aggregationMethod.get()) +
                     collectionNames.stream()
                             .map(collection ->
-                                    format("select '%s' as collection, time, total from continuous.\"%s\" ",
+                                    format("select cast('%s' as varchar) as collection, time, coalesce(total, 0) as total from continuous.\"%s\" ",
                                             collection,
                                             "_total_" + collection))
                             .collect(Collectors.joining(" union all ")) +
@@ -288,7 +265,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         } else {
             query = collectionNames.stream()
                     .map(collection ->
-                            format("select '%s' as collection, sum(total) from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day",
+                            format("select cast('%s' as varchar) as collection, coalesce(sum(total), 0) as total from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day",
                                     collection,
                                     "_total_" + collection,
                                     startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
@@ -305,7 +282,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                 .collect(Collectors.toList());
     }
 
-    private String convertSqlFunction(AggregationType aggType) {
+    public String convertSqlFunction(AggregationType aggType) {
         switch (aggType) {
             case AVERAGE:
                 return "avg(%s)";

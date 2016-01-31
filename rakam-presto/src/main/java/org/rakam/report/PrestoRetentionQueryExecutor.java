@@ -25,8 +25,9 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
     }
 
     @Override
-    public String diffTimestamps() {
-        return "date_diff('%s', %s, %s)";
+    public String diffTimestamps(DateUnit dateUnit, String start, String end) {
+        return String.format("date_diff('%s', %s, %s)",
+                dateUnit.name().toLowerCase(), start, end);
     }
 }
 

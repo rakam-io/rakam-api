@@ -31,7 +31,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
 
     @BeforeSuite
     @Override
-    public void setUp() throws Exception {
+    public void setup() throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
@@ -57,7 +57,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
         eventExplorer = new PrestoEventExplorer(queryExecutorService, prestoQueryExecutor, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 
-        super.setUp();
+        super.setup();
     }
 
     @Override

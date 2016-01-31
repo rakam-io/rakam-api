@@ -2,6 +2,8 @@ package org.rakam;
 
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
@@ -29,7 +31,7 @@ public class TestingPrestoEventStore implements EventStore {
     public void store(Event event) {
         queryExecutor.executeRawStatement(String.format("INSERT INTO %s.%s.%s VALUES %s",
                 config.getColdStorageConnector(), event.project(),
-                event.collection(), buildValues(event.properties())));
+                event.collection(), buildValues(event.properties(), event.schema())));
     }
 
     @Override
@@ -38,55 +40,60 @@ public class TestingPrestoEventStore implements EventStore {
             queryExecutor.executeRawStatement(String.format("INSERT INTO %s.%s.%s VALUES %s",
                     config.getColdStorageConnector(), events.get(0).project(),
                     collection.getKey(),
-                    collection.getValue().stream().map(e -> buildValues(e.properties())).collect(Collectors.joining(", "))))
+                    collection.getValue().stream().map(e -> buildValues(e.properties(), e.schema())).collect(Collectors.joining(", "))))
                     .getResult().join();
         }
     }
 
-    private String buildValues(GenericRecord properties) {
+    private String buildValues(GenericRecord properties, List<SchemaField> schema) {
         StringBuilder builder = new StringBuilder("(");
         int size = properties.getSchema().getFields().size();
 
-        if(size > 0) {
-            appendValue(builder, properties.get(0));
+        if (size > 0) {
+            appendValue(builder, properties.get(0), schema.get(0).getType());
             for (int i = 1; i < size; i++) {
                 builder.append(", ");
-                appendValue(builder, properties.get(i));
+                appendValue(builder, properties.get(i), schema.get(i).getType());
             }
         }
 
         return builder.append(")").toString();
     }
 
-    private void appendValue(StringBuilder builder, Object value) {
-        if(value instanceof String) {
-            builder.append("'").append(value).append("'");
-        } else
-        if(value instanceof Number) {
-            builder.append(String.format("%.2f", ((Number) value).doubleValue()));
-        } else
-        if(value instanceof Boolean) {
-            builder.append(value);
-        } else
-        if(value instanceof Map) {
-            builder.append("MAP(");
-            appendValue(builder, ((Map) value).keySet());
-            builder.append(", ");
-            appendValue(builder, ((Map) value).values());
-            builder.append(")");
-        } else
-        if(value instanceof Collection) {
-            builder.append("ARRAY [");
-            for (Object item : ((Collection) value)) {
-                appendValue(builder, item);
-            }
-            builder.append("]");
-        } else
-        if(value instanceof Instant) {
-            builder.append("timestamp '").append(PRESTO_TIMESTAMP_FORMAT.format(((Instant) value).atZone(ZoneId.systemDefault()))).append('\'');
-        } else
-        if(value instanceof LocalDate) {
-            builder.append("date '").append(value).append('\'');
+    private void appendValue(StringBuilder builder, Object value, FieldType type) {
+        switch (type) {
+            case STRING:
+                builder.append("'").append(value).append("'");
+                break;
+            case LONG:
+                builder.append(((Number) value).longValue());
+                break;
+            case DOUBLE:
+                builder.append(String.format("%.2f", ((Number) value).doubleValue()));
+                break;
+            case BOOLEAN:
+                builder.append(value);
+                break;
+            case TIMESTAMP:
+                builder.append("timestamp '").append(PRESTO_TIMESTAMP_FORMAT.format(Instant.ofEpochMilli((Long) value).atZone(ZoneId.systemDefault()))).append('\'');
+                break;
+            case DATE:
+                builder.append("date '").append(LocalDate.ofEpochDay((int) value)).append('\'');
+                break;
+            default:
+                if (type.isArray()) {
+                    builder.append("ARRAY [");
+                    for (Object item : ((Collection) value)) {
+                        appendValue(builder, item, type.getArrayElementType());
+                    }
+                    builder.append("]");
+                } else if (type.isMap()) {
+                    builder.append("MAP(");
+                    appendValue(builder, ((Map) value).keySet(), FieldType.STRING);
+                    builder.append(", ");
+                    appendValue(builder, ((Map) value).values(), type.getMapValueType());
+                    builder.append(")");
+                }
         }
     }
 }

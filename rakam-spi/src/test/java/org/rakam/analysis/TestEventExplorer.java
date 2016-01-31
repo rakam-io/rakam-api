@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.EventBuilder;
+import org.rakam.analysis.EventExplorer.TimestampTransformation;
 import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventStore;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.of;
+import static com.google.common.collect.ImmutableSet.copyOf;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 import static org.testng.Assert.*;
@@ -30,7 +32,7 @@ public abstract class TestEventExplorer {
     private static final int SCALE_FACTOR = 100;
 
     @BeforeSuite
-    public void addEvents() throws Exception {
+    public void setup() throws Exception {
 
         EventBuilder builder = new EventBuilder("test", getMetastore());
 
@@ -53,7 +55,7 @@ public abstract class TestEventExplorer {
 
     public abstract EventExplorer getEventExplorer();
 
-    private static final Map<EventExplorer.TimestampTransformation, Set<List>> EVENT_STATISTICS_RESULTS = ImmutableMap.<EventExplorer.TimestampTransformation, Set<List>>builder()
+    private static final Map<TimestampTransformation, Set<List>> EVENT_STATISTICS_RESULTS = ImmutableMap.<TimestampTransformation, Set<List>>builder()
             .put(HOUR_OF_DAY, ImmutableSet.of(of("test", 0L, 36L), of("test", 1L, 36L), of("test", 2L, 28L)))
             .put(DAY_OF_MONTH, ImmutableSet.of(of("test", 1L, 100L)))
             .put(WEEK_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
@@ -61,7 +63,7 @@ public abstract class TestEventExplorer {
             .put(QUARTER_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
             .put(DAY_OF_WEEK, ImmutableSet.of(of("test", 4L, 100L)))
             .put(HOUR, ImmutableSet.of(of("test", Instant.parse("1970-01-01T00:00:00Z"), 36L), of("test", Instant.parse("1970-01-01T01:00:00Z"), 36L), of("test", Instant.parse("1970-01-01T02:00:00Z"), 28L)))
-            .put(DAY, ImmutableSet.of(of("test", "1970-01-01", 100L)))
+            .put(DAY, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L)))
             .put(WEEK, ImmutableSet.of(of("test", Instant.parse("1969-12-29T00:00:00Z"), 100L)))
             .put(MONTH, ImmutableSet.of(of("test", Instant.parse("1970-01-01T00:00:00Z"), 100L)))
             .put(YEAR, ImmutableSet.of(of("test", Instant.parse("1970-01-01T00:00:00Z"), 100L))).build();
@@ -71,7 +73,7 @@ public abstract class TestEventExplorer {
         QueryResult test = getEventExplorer().getEventStatistics("test",
                 Optional.empty(), Optional.empty(),
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
     }
 
     @Test
@@ -79,7 +81,7 @@ public abstract class TestEventExplorer {
         QueryResult test = getEventExplorer().getEventStatistics("test",
                 Optional.of(ImmutableSet.of("test")), Optional.empty(),
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
     }
 
     @Test
@@ -91,19 +93,18 @@ public abstract class TestEventExplorer {
     }
 
     @Test
-    public void testExtraDimensions() throws Exception {
+    public void testExtraDimensionsForStaticstics() throws Exception {
         List<String> dimensions = getEventExplorer().getExtraDimensions("test");
         for (String dimension : dimensions) {
             QueryResult test = getEventExplorer().getEventStatistics("test",
                     Optional.empty(), Optional.of(dimension),
                     LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-            Optional<EventExplorer.TimestampTransformation> transformation = EventExplorer.TimestampTransformation.fromPrettyName(dimension);
-
             assertFalse(test.isFailed());
 
+            Optional<TimestampTransformation> transformation = fromPrettyName(dimension);
             if(transformation.isPresent()) {
-                assertEquals(EVENT_STATISTICS_RESULTS.get(transformation.get()), ImmutableSet.copyOf(test.getResult()));
+                assertEquals(EVENT_STATISTICS_RESULTS.get(transformation.get()), copyOf(test.getResult()));
             } else {
                 // TODO: test custom parameters
             }
@@ -116,7 +117,7 @@ public abstract class TestEventExplorer {
                 Optional.empty(), Optional.empty(),
                 LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(101)).join();
 
-        assertEquals(test.getResult(), of());
+        assertEquals(test.getResult(), of(of("test", 0L)));
     }
 
     @Test
@@ -132,7 +133,7 @@ public abstract class TestEventExplorer {
         assertEquals(test.getResult().get(0).get(0), "Others");
         assertEquals(test.getResult().get(1).get(0), "Others");
 
-        assertEquals(test.getResult().stream().mapToLong(a -> (Long) a.get(2)).sum(), 100L);
+        assertEquals(test.getResult().stream().mapToLong(a -> ((Number) a.get(2)).longValue()).sum(), 100L);
 
         for (int i = 2; i < test.getResult().size(); i++) {
             assertTrue(ImmutableSet.of("true", "false").contains(test.getResult().get(i).get(1)));
@@ -184,7 +185,7 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(test.getResult().get(0), 4950.0);
+        assertEquals(test.getResult().get(0), of(4950.0));
     }
 
     @Test
@@ -206,7 +207,7 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("true", 49L), of("false", 50L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 49.0), of("false", 50.0)));
     }
 
     @Test
@@ -217,7 +218,7 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("true", 99.0), of("false", 99.0)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 98.0), of("false", 99.0)));
     }
 
     @Test
@@ -225,10 +226,11 @@ public abstract class TestEventExplorer {
         QueryResult test = getEventExplorer().analyze("test",
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
-                new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testnumber"),
+                new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("true", 98L), of("false", 99L)));
+        assertFalse(test.isFailed());
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "true", 50L), of("false", "false", 50L)));
     }
 
     @Test
@@ -239,7 +241,7 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
     }
 
     @Test
@@ -250,7 +252,7 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
     }
 
     @Test
@@ -261,7 +263,7 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("true", 0.0), of("false", 1.0)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 0.0), of("false", 1.0)));
     }
 
     @Test
@@ -272,20 +274,20 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
     }
 
     @Test
     public void testReferenceGrouping() throws Exception {
-        Map<EventExplorer.TimestampTransformation, Set> GROUPING = ImmutableMap.<EventExplorer.TimestampTransformation, Set>builder()
-                .put(HOUR_OF_DAY, ImmutableSet.of(of(1L, 36L), of(0L, 36L), of(2L, 28L)))
+        Map<TimestampTransformation, Set> GROUPING = ImmutableMap.<TimestampTransformation, Set>builder()
+                .put(HOUR_OF_DAY, ImmutableSet.of(of(0L, 36L), of(1L, 36L), of(2L, 28L)))
                 .put(DAY_OF_MONTH, ImmutableSet.of(of(1L, 100L)))
                 .put(WEEK_OF_YEAR, ImmutableSet. of(of(1L, 100L)))
                 .put(MONTH_OF_YEAR, ImmutableSet.of(of(1L, 100L)))
                 .put(QUARTER_OF_YEAR, ImmutableSet. of(of(1L, 100L)))
                 .put(DAY_OF_WEEK, ImmutableSet.of(of(4L, 100L)))
                 .put(HOUR, ImmutableSet.of(of(Instant.parse("1970-01-01T00:00:00Z"), 36L), of(Instant.parse("1970-01-01T01:00:00Z"), 36L), of(Instant.parse("1970-01-01T02:00:00Z"), 28L)))
-                .put(DAY, ImmutableSet.of(of("1970-01-01", 100L)))
+                .put(DAY, ImmutableSet.of(of(LocalDate.parse("1970-01-01"), 100L)))
                 .put(WEEK, ImmutableSet.of(of(Instant.parse("1969-12-29T00:00:00Z"), 100L)))
                 .put(MONTH, ImmutableSet.of(of(Instant.parse("1970-01-01T00:00:00Z"), 100L)))
                 .put(YEAR, ImmutableSet.of(of(Instant.parse("1970-01-01T00:00:00Z"), 100L)))
@@ -294,7 +296,7 @@ public abstract class TestEventExplorer {
         List<String> dimensions = getEventExplorer().getExtraDimensions("test");
 
         for (String dimension : dimensions) {
-            Optional<EventExplorer.TimestampTransformation> trans = EventExplorer.TimestampTransformation.fromPrettyName(dimension);
+            Optional<TimestampTransformation> trans = fromPrettyName(dimension);
 
             if(trans.isPresent()) {
                 QueryResult test = getEventExplorer().analyze("test",
@@ -303,7 +305,8 @@ public abstract class TestEventExplorer {
                         null,
                         null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-                assertEquals(GROUPING.get(trans.get()), ImmutableSet.copyOf(test.getResult()));
+                assertFalse(test.isFailed());
+                assertEquals(GROUPING.get(trans.get()), copyOf(test.getResult()));
             } else {
                 // TODO: implement
             }
@@ -319,7 +322,8 @@ public abstract class TestEventExplorer {
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
-        assertEquals(ImmutableSet.copyOf(test.getResult()), ImmutableSet.of(of(1L, 1L, 100L)));
+        assertFalse(test.isFailed());
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of(1L, 1L, 100L)));
     }
 }
 

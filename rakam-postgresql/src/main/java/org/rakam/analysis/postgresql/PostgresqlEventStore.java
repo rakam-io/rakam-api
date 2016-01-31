@@ -67,15 +67,6 @@ public class PostgresqlEventStore implements EventStore {
         }
     }
 
-    private Schema getActualType(Schema.Field field) {
-        Schema schema = field.schema();
-        if(schema.getType() == Schema.Type.UNION) {
-            return schema.getTypes().get(1);
-        } else {
-            return schema;
-        }
-    }
-
     private void bindParam(Connection connection, PreparedStatement ps, List<SchemaField> fields, GenericRecord record) throws SQLException {
         Object value;
         for (int i = 0; i < fields.size(); i++) {
@@ -97,6 +88,7 @@ public class PostgresqlEventStore implements EventStore {
                     break;
                 case DOUBLE:
                     ps.setDouble(i+1, ((Number) value).doubleValue());
+                    break;
                 case TIMESTAMP:
                     ps.setTimestamp(i+1, new Timestamp(((Number) value).longValue()));
                     break;
@@ -111,7 +103,7 @@ public class PostgresqlEventStore implements EventStore {
                     break;
                 default:
                     if(type.isArray()) {
-                        String typeName = PostgresqlMetastore.toSql(type.getArrayElementType());
+                        String typeName = toPostgresqlPrimitiveTypeName(type.getArrayElementType());
                         ps.setArray(i+1, connection.createArrayOf(typeName, ((List) value).toArray()));
                     } else
                     if(type.isMap()) {
@@ -154,5 +146,26 @@ public class PostgresqlEventStore implements EventStore {
         }
 
         return query.append("\") VALUES (").append(params.toString()).append(")").toString();
+    }
+
+    public static String toPostgresqlPrimitiveTypeName(FieldType type) {
+        switch (type) {
+            case LONG:
+                return "int8";
+            case STRING:
+                return "text";
+            case BOOLEAN:
+                return "bool";
+            case DATE:
+                return "date";
+            case TIME:
+                return "time";
+            case TIMESTAMP:
+                return "timestamp";
+            case DOUBLE:
+                return "float8";
+            default:
+                throw new IllegalStateException("sql type couldn't converted to fieldtype");
+        }
     }
 }

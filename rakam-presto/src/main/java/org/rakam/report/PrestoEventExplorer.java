@@ -15,6 +15,7 @@ package org.rakam.report;
 
 import com.google.common.collect.ImmutableMap;
 import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.realtime.AggregationType;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -40,5 +41,27 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
     @Inject
     public PrestoEventExplorer(QueryExecutorService service, PrestoQueryExecutor executor, Metastore metastore) {
         super(executor, service, metastore, timestampMapping);
+    }
+
+    @Override
+    public String convertSqlFunction(AggregationType aggType) {
+        switch (aggType) {
+            case AVERAGE:
+                return "avg(%s)";
+            case MAXIMUM:
+                return "max(%s)";
+            case MINIMUM:
+                return "min(%s)";
+            case COUNT:
+                return "count(%s)";
+            case SUM:
+                return "sum(%s)";
+            case COUNT_UNIQUE:
+                return "count(distinct %s)";
+            case APPROXIMATE_UNIQUE:
+                return "approx_distinct(%s)";
+            default:
+                throw new IllegalArgumentException("aggregation type is not supported");
+        }
     }
 }

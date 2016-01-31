@@ -19,6 +19,9 @@ import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
 
+import static java.lang.String.format;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
+
 public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
 
     @Inject
@@ -27,8 +30,13 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
     }
 
     @Override
-    public String diffTimestamps() {
-        return "date_part('%s', age(%s, %s))";
+    public String diffTimestamps(DateUnit dateUnit, String start, String end) {
+        if(dateUnit == WEEK) {
+            // Postgresql doesn't support date_part('week', interval).
+            return format("cast(date_part('day', age(%s, %s)) as bigint)*7", end, start);
+        }
+        return format("cast(date_part('%s', age(%s, %s)) as bigint)",
+                dateUnit.name().toLowerCase(), end, start);
     }
 }
 

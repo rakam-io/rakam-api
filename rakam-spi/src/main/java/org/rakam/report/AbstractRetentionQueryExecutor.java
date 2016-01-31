@@ -31,7 +31,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         this.metastore = metastore;
     }
 
-    public abstract String diffTimestamps();
+    public abstract String diffTimestamps(DateUnit dateUnit, String start, String end);
 
     @Override
     public QueryExecution query(String project, String connectorField, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
@@ -91,7 +91,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
         String query;
         if (firstAction.isPresent()) {
-            String timeSubtraction = String.format(diffTimestamps(), dateUnit.name().toLowerCase(), "data.time", "returning_action.time");
+            String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time");
 
             String firstActionQuery = format("%s group by 1, 2 %s",
                     generateQuery(project, firstAction.get().collection(), connectorField, timeColumn, dimension,
@@ -114,7 +114,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                     dimensionColumn, timeSubtraction, connectorField, connectorField, connectorField,
                     timeSubtraction, MAXIMUM_LEAD);
         } else {
-            String timeSubtraction = String.format(diffTimestamps(), dateUnit.name().toLowerCase(), "time", "lead%d");
+            String timeSubtraction =  diffTimestamps(dateUnit, "time", "lead%d");
 
             String leadTemplate = "lead(time, %d) over " + String.format("(partition by %s order by %s, time)", connectorField, connectorField);
             String leadColumns = IntStream.range(0, range)

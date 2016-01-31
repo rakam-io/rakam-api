@@ -22,7 +22,8 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
     private PostgresqlFunnelQueryExecutor funnelQueryExecutor;
 
     @BeforeSuite
-    public void setUp() throws Exception {
+    @Override
+    public void setup() throws Exception {
         testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
         JDBCConfig postgresqlConfig = new JDBCConfig()
                 .setUrl(testingPostgresqlServer.getJdbcUrl())
@@ -45,6 +46,8 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
                 e.printStackTrace();
             }
         }));
+
+        super.setup();
     }
 
     @Override

@@ -29,7 +29,8 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
     private JDBCMetastore metastore;
 
     @BeforeSuite
-    public void setUp() throws Exception {
+    @Override
+    public void setup() throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
@@ -54,6 +55,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
+        super.setup();
     }
 
     @Override

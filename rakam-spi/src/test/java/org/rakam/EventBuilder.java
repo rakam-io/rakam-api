@@ -44,7 +44,7 @@ public class EventBuilder {
         properties.forEach((key, value) -> record.put(key, cast(value,
                 record.getSchema().getField(key).schema().getTypes().get(1).getType())));
 
-        return new Event(project, collection, new Event.EventContext(null, null, null, null), record);
+        return new Event(project, collection, new Event.EventContext(null, null, null, null), fields, record);
     }
 
     public void cleanCache() {

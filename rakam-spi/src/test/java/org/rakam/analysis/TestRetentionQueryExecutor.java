@@ -2,6 +2,7 @@ package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableMap;
 import org.rakam.EventBuilder;
+import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
 import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventStore;
@@ -27,8 +28,7 @@ public abstract class TestRetentionQueryExecutor {
     private static final int SCALE_FACTOR = 3;
 
     @BeforeSuite
-    public void addEvents() throws Exception {
-
+    public void setup() throws Exception {
         EventBuilder builder = new EventBuilder("test", getMetastore());
 
         getMetastore().createProject("test");
@@ -69,46 +69,48 @@ public abstract class TestRetentionQueryExecutor {
     @Test
     public void testDifferentCollections() throws Exception {
         QueryResult result = getRetentionQueryExecutor().query("test", "_user",
-                Optional.of(RetentionQueryExecutor.RetentionAction.create("test0", Optional.<String>empty())),
-                Optional.of(RetentionQueryExecutor.RetentionAction.create("test1", Optional.<String>empty())), DAY, Optional.empty(),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                Optional.of(RetentionAction.create("test0", Optional.empty())),
+                Optional.of(RetentionAction.create("test1", Optional.empty())), DAY, Optional.empty(),
+                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR))
+                .getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(of(
+        assertEquals(result.getResult(), of(
                 asList(LocalDate.parse("1970-01-01"), null, 1L),
                 asList(LocalDate.parse("1970-01-01"), 2L, 1L),
                 asList(LocalDate.parse("1970-01-02"), null, 1L),
-                asList(LocalDate.parse("1970-01-03"), null, 1L)), result.getResult());
+                asList(LocalDate.parse("1970-01-03"), null, 1L)));
     }
 
     @Test
     public void testFilter() throws Exception {
         QueryResult result = getRetentionQueryExecutor().query("test", "_user",
-                Optional.of(RetentionQueryExecutor.RetentionAction.create("test0", Optional.of("teststr = 'test0'"))),
-                Optional.of(RetentionQueryExecutor.RetentionAction.create("test1", Optional.of("teststr = 'test0'"))),
+                Optional.of(RetentionAction.create("test0", Optional.of("teststr = 'test0'"))),
+                Optional.of(RetentionAction.create("test1", Optional.of("teststr = 'test0'"))),
                 DAY, Optional.empty(),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR))
+                .getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(of(
+        assertEquals(result.getResult(), of(
                 asList(LocalDate.parse("1970-01-01"), null, 1L),
                 asList(LocalDate.parse("1970-01-01"), 2L, 1L),
-                asList(LocalDate.parse("1970-01-03"), null, 1L)), result.getResult());
+                asList(LocalDate.parse("1970-01-03"), null, 1L)));
     }
 
     @Test
     public void testDimension() throws Exception {
         QueryResult result = getRetentionQueryExecutor().query("test", "_user",
-                Optional.of(RetentionQueryExecutor.RetentionAction.create("test0", Optional.empty())),
-                Optional.of(RetentionQueryExecutor.RetentionAction.create("test1", Optional.empty())),
+                Optional.of(RetentionAction.create("test0", Optional.empty())),
+                Optional.of(RetentionAction.create("test1", Optional.empty())),
                 DAY, Optional.of("teststr"),
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(of(
+        assertEquals(result.getResult(), of(
                 asList("test0", null, 1L),
                 asList("test0", 2L, 1L),
-                asList("test1", null, 1L)), result.getResult());
+                asList("test1", null, 1L)));
     }
 
     @Test
@@ -117,10 +119,11 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.empty(),
                 Optional.empty(),
                 DAY, Optional.of("teststr"),
-                LocalDate.ofEpochDay(10000), LocalDate.ofEpochDay(10000)).getResult().join();
+                LocalDate.ofEpochDay(10000), LocalDate.ofEpochDay(10000))
+                .getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(of(), result.getResult());
+        assertEquals(result.getResult(), of());
     }
 
     @Test
@@ -129,12 +132,13 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.empty(),
                 Optional.empty(),
                 WEEK, Optional.of("teststr"),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR))
+                .getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(of(
+        assertEquals(result.getResult(), of(
                 asList(LocalDate.parse("1969-12-29"), null, 2L), // week start
-                asList(LocalDate.parse("1969-12-29"), 0L, 2L)), result.getResult());
+                asList(LocalDate.parse("1969-12-29"), 0L, 2L)));
     }
 
     @Test
@@ -143,11 +147,12 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.empty(),
                 Optional.empty(),
                 MONTH, Optional.of("teststr"),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR))
+                .getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(of(
+        assertEquals(result.getResult(), of(
                 asList(LocalDate.parse("1970-01-01"), null, 2L),
-                asList(LocalDate.parse("1970-01-01"), 0L, 2L)), result.getResult());
+                asList(LocalDate.parse("1970-01-01"), 0L, 2L)));
     }
 }

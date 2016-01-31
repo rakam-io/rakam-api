@@ -129,7 +129,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>io.airlift</groupId>
+            <groupId>org.rakam</groupId>
             <artifactId>testing-postgresql-server</artifactId>
             <scope>test</scope>
         </dependency>

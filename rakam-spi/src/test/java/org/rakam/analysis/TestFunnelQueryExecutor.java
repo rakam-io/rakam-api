@@ -8,7 +8,6 @@ import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.QueryResult;
-import org.rakam.util.RakamException;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
@@ -27,7 +26,7 @@ public abstract class TestFunnelQueryExecutor {
     private static final int SCALE_FACTOR = 10;
 
     @BeforeSuite
-    public void addEvents() throws Exception {
+    public void setup() throws Exception {
 
         EventBuilder builder = new EventBuilder("test", getMetastore());
 
@@ -87,17 +86,6 @@ public abstract class TestFunnelQueryExecutor {
                         of("Step 2", "test0", 3L), of("Step 2", "test1", 3L),
                         of("Step 3", "test0", 3L), of("Step 3", "test1", 3L)),
                 ImmutableSet.copyOf(query.getResult()));
-    }
-
-    @Test(expectedExceptions = RakamException.class)
-    public void testInvalidGrouping() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query("test", "_user",
-                of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
-                Optional.empty(),
-                LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), true).getResult().join();
-
-        assertFalse(query.isFailed());
     }
 
     @Test

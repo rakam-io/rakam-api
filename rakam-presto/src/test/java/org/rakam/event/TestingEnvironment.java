@@ -1,6 +1,5 @@
 package org.rakam.event;
 
-import com.facebook.presto.hadoop.shaded.com.google.common.base.Throwables;
 import com.facebook.presto.raptor.RaptorPlugin;
 import com.facebook.presto.server.testing.TestingPrestoServer;
 import com.google.common.collect.ImmutableMap;
@@ -12,6 +11,8 @@ import org.rakam.report.PrestoConfig;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
+
+import static com.google.common.base.Throwables.propagate;
 
 public class TestingEnvironment {
 
@@ -48,7 +49,7 @@ public class TestingEnvironment {
                 );
             }
         } catch (Exception e) {
-            throw Throwables.propagate(e);
+            throw propagate(e);
         }
 
         ImmutableMap<String, String> configs = ImmutableMap.of(

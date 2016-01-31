@@ -1,7 +1,6 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RetentionQueryExecutor;
@@ -12,7 +11,6 @@ import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.report.PrestoConfig;
-import org.rakam.report.PrestoContinuousQueryService;
 import org.rakam.report.PrestoQueryExecutor;
 import org.rakam.report.PrestoRetentionQueryExecutor;
 import org.testng.annotations.BeforeSuite;
@@ -25,28 +23,22 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
     private TestingPrestoEventStore testingPrestoEventStore;
 
     @BeforeSuite
-    public void setUp() throws Exception {
+    public void setup() throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
 
         JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
-        InMemoryQueryMetadataStore inMemoryQueryMetadataStore = new InMemoryQueryMetadataStore();
-
-        EventBus eventBus = new EventBus();
-
-        metastore = new JDBCMetastore(metastoreDataSource, prestoConfig,
-                eventBus, new FieldDependencyBuilder().build());
+        metastore = new JDBCMetastore(metastoreDataSource, prestoConfig, new EventBus(), new FieldDependencyBuilder().build());
         metastore.setup();
 
         PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
 
-        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore,
-                prestoQueryExecutor, prestoConfig);
-        eventBus.register(new EventExplorerListener(continuousQueryService));
-
         retentionQueryExecutor = new PrestoRetentionQueryExecutor(prestoQueryExecutor, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
+
+        Thread.sleep(1000);
+        super.setup();
     }
 
     @Override
