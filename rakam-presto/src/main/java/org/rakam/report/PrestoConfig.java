@@ -9,6 +9,7 @@ public class PrestoConfig {
     private String dataConnectorName;
     private String hotStorageConnectorName;
     private String streamingConnector = "streaming";
+    private String userConnector = "user";
 
     @Config("presto.address")
     public PrestoConfig setAddress(URI address)
@@ -16,6 +17,18 @@ public class PrestoConfig {
 
         this.address = address;
         return this;
+    }
+
+    @Config("presto.user_connector")
+    public PrestoConfig setUserConnector(String userConnector)
+    {
+
+        this.userConnector = userConnector;
+        return this;
+    }
+
+    public String getUserConnector() {
+        return userConnector;
     }
 
     public URI getAddress() {

@@ -52,24 +52,24 @@ public abstract class TestFunnelQueryExecutor {
     @Test
     public void testSingleStep() throws Exception {
         QueryResult query = getFunnelQueryExecutor().query("test", "_user", of(new FunnelStep("test0", null)),
-                Optional.<String>empty(),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
 
         assertFalse(query.isFailed());
-        assertEquals(of(of("Step 1", 3L)), query.getResult());
+        assertEquals(query.getResult(), of(of("Step 1", 3L)));
     }
 
     @Test
     public void testMultipleSteps() throws Exception {
         QueryResult query = getFunnelQueryExecutor().query("test", "_user",
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
-                Optional.<String>empty(),
+                Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
 
         assertFalse(query.isFailed());
-        assertEquals(of(of("Step 1", 3L), of("Step 2", 3L), of("Step 3", 3L)), query.getResult());
+        assertEquals(query.getResult(), of(of("Step 1", 3L), of("Step 2", 3L), of("Step 3", 3L)));
     }
 
     @Test

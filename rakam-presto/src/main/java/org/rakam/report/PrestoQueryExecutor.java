@@ -97,6 +97,9 @@ public class PrestoQueryExecutor implements QueryExecutor {
             if(prefix.equals("materialized")) {
                 return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\""+ MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
             } else
+            if(prefix.equals("user")) {
+                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\""+ MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
+            } else
             if(!prefix.equals("collection")) {
                 throw new IllegalArgumentException("Schema does not exist: " + prefix);
             }

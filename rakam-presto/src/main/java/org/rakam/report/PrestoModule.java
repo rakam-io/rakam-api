@@ -10,7 +10,7 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.PrestoAbstractUserService;
+import org.rakam.analysis.PrestoUserService;
 import org.rakam.analysis.PrestoMaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
@@ -53,7 +53,7 @@ public class PrestoModule extends RakamModule {
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {
             binder.bind(AbstractPostgresqlUserStorage.class).to(PrestoExternalUserStorageAdapter.class)
                     .in(Scopes.SINGLETON);
-            binder.bind(AbstractUserService.class).to(PrestoAbstractUserService.class)
+            binder.bind(AbstractUserService.class).to(PrestoUserService.class)
                     .in(Scopes.SINGLETON);
         }
 

@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
@@ -19,14 +20,21 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage {
     public static final String USER_TABLE = "_users";
     private final MaterializedViewService materializedViewService;
+    private final PostgresqlQueryExecutor queryExecutor;
 
     @Inject
     public PostgresqlUserStorageAdapter(MaterializedViewService materializedViewService,
                                         PostgresqlQueryExecutor queryExecutor,
                                         PostgresqlMetastore metastore) {
         super(queryExecutor);
+        this.queryExecutor = queryExecutor;
         this.materializedViewService = materializedViewService;
         metastore.getProjects().forEach(this::createProject);
+    }
+
+    @Override
+    public QueryExecutor getExecutorForWithEventFilter() {
+        return queryExecutor;
     }
 
     @Override
@@ -76,13 +84,13 @@ public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage 
     }
 
     @Override
-    public String getUserTable(String project) {
+    public String getUserTable(String project, boolean isEventFilterActive) {
         return project + "." + USER_TABLE;
     }
 
     @Override
     public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval) {
-        StringBuilder builder = new StringBuilder(String.format("select distinct id from %s where ", getUserTable(project)));
+        StringBuilder builder = new StringBuilder(String.format("select distinct id from %s where ", getUserTable(project, false)));
 
         if(filterExpression != null) {
             builder.append(filterExpression.toString());

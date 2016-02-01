@@ -20,13 +20,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PrestoAbstractUserService extends AbstractUserService {
+public class PrestoUserService extends AbstractUserService {
     private final Metastore metastore;
     private final PrestoConfig prestoConfig;
     private final PrestoQueryExecutor executor;
 
     @Inject
-    public PrestoAbstractUserService(UserStorage storage, Metastore metastore, PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
+    public PrestoUserService(UserStorage storage, Metastore metastore, PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
         super(storage);
         this.metastore = metastore;
         this.prestoConfig = prestoConfig;

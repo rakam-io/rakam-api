@@ -16,6 +16,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
@@ -82,6 +83,8 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         return columns;
     }
 
+    public abstract QueryExecutor getExecutorForWithEventFilter();
+
     public String createInternal(String project, String id, Iterable<Map.Entry<String, Object>> properties) {
         try (Connection conn = queryExecutor.getConnection()) {
             checkProject(project);
@@ -116,7 +119,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             parametrizedValues.append(", ").append("?");
             cols.append(", ").append(PRIMARY_KEY);
 
-            PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + getUserTable(project) + " (" + cols +
+            PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + getUserTable(project, false) + " (" + cols +
                     ") values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
 
             Instant createdAt = null;
@@ -267,7 +270,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         try (Connection conn = queryExecutor.getConnection()) {
             try {
                 conn.createStatement().execute(format("alter table %s add column %s %s",
-                        getUserTable(project), column, getPostgresqlType(value.getClass())));
+                        getUserTable(project, false), column, getPostgresqlType(value.getClass())));
             } catch (SQLException e) {
                 // TODO: check the column is already exists or this is a different exception
             }
@@ -307,14 +310,17 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         String orderBy = sortColumn == null ? "" : format(" ORDER BY %s %s", sortColumn.column, sortColumn.order);
 
-        QueryExecution query = queryExecutor.executeRawQuery(format("SELECT %s FROM %s %s %s LIMIT %s OFFSET %s",
-                columns, getUserTable(project), filters.isEmpty() ? "" : " WHERE " + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
+        boolean isEventFilterActive = eventFilter != null && !eventFilter.isEmpty();
+
+        QueryExecution query = (isEventFilterActive ? getExecutorForWithEventFilter() : queryExecutor)
+                .executeRawQuery(format("SELECT %s FROM %s %s %s LIMIT %s",
+                        columns, getUserTable(project, isEventFilterActive), filters.isEmpty() ? "" : " WHERE " + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
 
         CompletableFuture<QueryResult> dataResult = query.getResult();
 
-        if (eventFilter == null || eventFilter.isEmpty()) {
+        if (!isEventFilterActive) {
             StringBuilder builder = new StringBuilder();
-            builder.append("SELECT count(*) FROM " + getUserTable(project));
+            builder.append("SELECT count(*) FROM " + getUserTable(project, false));
             if (filterExpression != null) {
                 builder.append(" WHERE ").append(filters.get(0));
             }
@@ -349,7 +355,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         try (Connection conn = queryExecutor.getConnection()) {
             DatabaseMetaData metaData = conn.getMetaData();
-            String[] userTable = getUserTable(project).split("\\.", 2);
+            String[] userTable = getUserTable(project, false).split("\\.", 2);
             ResultSet indexInfo = metaData.getIndexInfo(null, userTable[0], userTable[1], true, false);
             ResultSet dbColumns = metaData.getColumns(null, userTable[0], userTable[1], null);
 
@@ -375,14 +381,14 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         }
     }
 
-    public abstract String getUserTable(String project);
+    public abstract String getUserTable(String project, boolean isEventFilterActive);
 
     @Override
     public CompletableFuture<org.rakam.plugin.user.User> getUser(String project, String userId) {
         checkProject(project);
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = queryExecutor.getConnection()) {
-                PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", getUserTable(project), PRIMARY_KEY));
+                PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", getUserTable(project, false), PRIMARY_KEY));
                 ps.setString(1, userId);
                 ResultSet resultSet = ps.executeQuery();
 
@@ -432,7 +438,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             columns = createMissingColumns(project, properties);
         }
 
-        StringBuilder builder = new StringBuilder("update " + getUserTable(project) + " set ");
+        StringBuilder builder = new StringBuilder("update " + getUserTable(project, false) + " set ");
         Iterator<Map.Entry<String, Object>> entries = properties.iterator();
         if (entries.hasNext()) {
             Map.Entry<String, Object> entry = entries.next();
@@ -492,7 +498,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 "  %s TEXT NOT NULL,\n" +
                 "  created_at timestamp NOT NULL,\n" +
                 "  PRIMARY KEY (%s)" +
-                ")", getUserTable(project), PRIMARY_KEY, PRIMARY_KEY));
+                ")", getUserTable(project, false), PRIMARY_KEY, PRIMARY_KEY));
     }
 
     @Override
@@ -519,7 +525,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         }
 
         try (Connection conn = queryExecutor.getConnection()) {
-            conn.createStatement().execute("update " + getUserTable(project) + " set " + property + " += " + value);
+            conn.createStatement().execute("update " + getUserTable(project, false) + " set " + property + " += " + value);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
