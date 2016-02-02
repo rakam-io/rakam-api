@@ -46,14 +46,13 @@ public class AvroUtil {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);
-            case LONG:
-                return Schema.create(Schema.Type.LONG);
             case DOUBLE:
                 return Schema.create(Schema.Type.DOUBLE);
             case BOOLEAN:
                 return Schema.create(Schema.Type.BOOLEAN);
             case DATE:
                 return Schema.create(Schema.Type.INT);
+            case LONG:
             case TIME:
             case TIMESTAMP:
                 return Schema.create(Schema.Type.LONG);

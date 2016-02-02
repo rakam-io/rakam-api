@@ -9,6 +9,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
@@ -46,6 +47,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class EventDeserializer extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
@@ -57,11 +59,13 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     private final Metastore metastore;
     private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache  = CacheBuilder.newBuilder()
             .expireAfterAccess(1, TimeUnit.HOURS).build();
+    private final Set<SchemaField> constantFields;
 
     @Inject
     public EventDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
+        this.constantFields = fieldDependency.constantFields;
     }
 
     @Override
@@ -156,6 +160,9 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         Map.Entry<List<SchemaField>, Schema> schema = schemaCache.getIfPresent(key);
         if (schema == null) {
             List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
+            if(rakamSchema.isEmpty()) {
+                rakamSchema = ImmutableList.copyOf(constantFields);
+            }
 
             schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema));
             schemaCache.put(key, schema);
@@ -177,7 +184,10 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             if (field == null) {
                 fieldName = fieldName.toLowerCase(Locale.ENGLISH);
                 field = avroSchema.getField(fieldName);
+
                 if(field == null) {
+                    checkTableColumn(fieldName, fieldName);
+
                     FieldType type = getType(jp);
                     if (type != null) {
                         if (newFields == null)
