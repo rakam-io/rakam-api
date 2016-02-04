@@ -43,16 +43,16 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public void save(String project1, String s, String project, String name, Map<String, String> files) {
-        File projectDirectory = new File(directory, project);
+    public void save(Page page) {
+        File projectDirectory = new File(directory, page.project());
         if (!projectDirectory.exists()) {
             projectDirectory.mkdir();
         }
-        File pageDirectory = new File(projectDirectory, name);
+        File pageDirectory = new File(projectDirectory, page.name);
         if(!pageDirectory.exists()) {
             pageDirectory.mkdir();
         }
-        for (Map.Entry<String, String> entry : files.entrySet()) {
+        for (Map.Entry<String, String> entry : page.files.entrySet()) {
             try {
                 // overwrite
                 Files.write(new File(pageDirectory, entry.getKey()).toPath(), entry.getValue().getBytes(Charset.forName("UTF-8")), StandardOpenOption.CREATE);
@@ -70,7 +70,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
             return ImmutableList.of();
         }
         return Arrays.stream(list).filter(file -> new File(projectDir, file).isDirectory())
-                .map(name -> new Page(name, name, null)).collect(Collectors.toList());
+                .map(name -> new Page(project, name, name, null)).collect(Collectors.toList());
     }
 
     @Override

@@ -61,6 +61,10 @@ public class GeoIPModule extends RakamModule {
                 return extractedFile;
             }
 
+            if(!extractedFile.getParentFile().exists()) {
+                extractedFile.getParentFile().mkdirs();
+            }
+
             if (!data.exists()) {
                 try {
                     new HttpDownloadHelper().download(url, data.toPath(), new HttpDownloadHelper.VerboseProgress(System.out));

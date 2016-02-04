@@ -57,7 +57,7 @@ public class CustomReportHttpService extends HttpService {
     @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
     public JsonResponse create(@ParamBody CustomReport report) {
-        metadata.add(report);
+        metadata.save(report);
         return JsonResponse.success();
     }
 

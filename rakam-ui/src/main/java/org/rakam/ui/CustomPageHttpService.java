@@ -31,6 +31,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
@@ -106,19 +107,16 @@ public class CustomPageHttpService extends HttpService {
     @Path("/save")
     @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public JsonResponse save(@ApiParam(name = "project") String project,
-                             @ApiParam(name = "name") String name,
-                             @ApiParam(name = "slug") String slug,
-                             @ApiParam(name = "category", required = false) String category,
-                             @ApiParam(name = "files") Map<String, String> files) {
-        database.save(project, name, slug, category, files);
+    public JsonResponse save(@ParamBody CustomPageDatabase.Page page) {
+        database.save(page);
         return JsonResponse.success();
     }
 
     @Path("/delete")
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public JsonResponse delete(String project, String name) {
+    public JsonResponse delete(@ApiParam(name = "project") String project,
+                               @ApiParam(name = "name") String name) {
         database.delete(project, name);
         return JsonResponse.success();
     }

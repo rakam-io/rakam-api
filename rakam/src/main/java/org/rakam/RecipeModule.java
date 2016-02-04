@@ -20,6 +20,8 @@ import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.server.http.HttpService;
+import org.rakam.ui.CustomPageDatabase;
+import org.rakam.ui.JDBCCustomReportMetadata;
 import org.rakam.ui.JDBCReportMetadata;
 
 import javax.inject.Inject;
@@ -41,7 +43,7 @@ public class RecipeModule extends RakamModule {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(RecipeHttpService.class).in(Scopes.SINGLETON);
 
-        if(recipes.getRecipes() == null) {
+        if (recipes.getRecipes() == null) {
             return;
         }
 
@@ -66,8 +68,8 @@ public class RecipeModule extends RakamModule {
                     break;
                 case "resources":
                     stream = getClass().getResourceAsStream(path);
-                    if(stream == null) {
-                        throw new IllegalArgumentException("Recipe file couldn't found: "+recipeUri);
+                    if (stream == null) {
+                        throw new IllegalArgumentException("Recipe file couldn't found: " + recipeUri);
                     }
                     break;
                 case "http":
@@ -101,7 +103,7 @@ public class RecipeModule extends RakamModule {
 
             switch (recipe.getStrategy()) {
                 case DEFAULT:
-                    if(set_default) {
+                    if (set_default) {
                         binder.addError("Only one recipe can use DEFAULT strategy.");
                         return;
                     }
@@ -136,14 +138,16 @@ public class RecipeModule extends RakamModule {
         private final RecipeHandler installer;
 
         @Inject
-        public RecipeLoader(Recipe recipe, Metastore metastore, ContinuousQueryService continuousQueryService, MaterializedViewService materializedViewService, JDBCReportMetadata reportMetadata) {
+        public RecipeLoader(Recipe recipe, Metastore metastore, ContinuousQueryService continuousQueryService, MaterializedViewService materializedViewService, JDBCCustomReportMetadata customReportMetadata,
+                            CustomPageDatabase customPageDatabase, JDBCReportMetadata reportMetadata) {
             this.recipe = recipe;
-            this.installer = new RecipeHandler(metastore, continuousQueryService, materializedViewService, reportMetadata);
+            this.installer = new RecipeHandler(metastore, continuousQueryService, materializedViewService, customReportMetadata,
+                    customPageDatabase, reportMetadata);
         }
 
         @Subscribe
         public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
-            installer.install(recipe, event.project);
+            installer.install(recipe, event.project, false);
         }
 
     }

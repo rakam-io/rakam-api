@@ -15,6 +15,7 @@ package org.rakam.ui;
 
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -25,6 +26,8 @@ import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.inject.Inject;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 public class JDBCCustomReportMetadata {
@@ -61,7 +64,7 @@ public class JDBCCustomReportMetadata {
         }
     }
 
-    public void add(CustomReport report) {
+    public void save(CustomReport report) {
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
                     .bind("reportType", report.reportType)
@@ -71,7 +74,7 @@ public class JDBCCustomReportMetadata {
         } catch (Exception e) {
             // TODO move it to transaction
             if (get(report.reportType, report.project, report.name) != null) {
-                throw new RakamException("Report already exists", HttpResponseStatus.BAD_REQUEST);
+                throw new AlreadyExistsException("Custom report", HttpResponseStatus.BAD_REQUEST);
             }
             throw e;
         }
@@ -97,6 +100,16 @@ public class JDBCCustomReportMetadata {
                     .map((i, resultSet, statementContext) -> {
                         return new CustomReport(reportType, project, resultSet.getString(1), JsonHelper.read(resultSet.getString(2)));
                     }).list();
+        }
+    }
+
+    public Map<String, List<CustomReport>> list(String project) {
+        try(Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT report_type, name, data FROM custom_reports WHERE project = :project")
+                    .bind("project", project)
+                    .map((i, resultSet, statementContext) -> {
+                        return new CustomReport(resultSet.getString(1), project, resultSet.getString(2), JsonHelper.read(resultSet.getString(3)));
+                    }).list().stream().collect(Collectors.groupingBy(customReport -> customReport.reportType));
         }
     }
 

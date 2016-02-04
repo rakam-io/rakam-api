@@ -14,10 +14,9 @@
 package org.rakam.ui;
 
 import com.google.inject.name.Named;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
@@ -28,6 +27,8 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 
 public class JDBCCustomPageDatabase implements CustomPageDatabase {
@@ -48,23 +49,23 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
                         "  slug VARCHAR(255) NOT NULL," +
                         "  category VARCHAR(255)," +
                         "  data TEXT NOT NULL," +
-                        "  PRIMARY KEY (project, name)" +
+                        "  PRIMARY KEY (project, slug)" +
                         "  )")
                         .execute());
     }
 
-    public void save(String project, String name, String slug, String category, Map<String, String> files) {
+    public void save(Page page) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO custom_page (project, name, slug, category, data) VALUES (:project, :name, :slug, :category, :data)")
-                    .bind("project", project)
-                    .bind("name", name)
-                    .bind("slug", slug)
-                    .bind("category", category)
-                    .bind("data", JsonHelper.encode(files)).execute();
+                    .bind("project", page.project)
+                    .bind("name", page.name)
+                    .bind("slug", page.slug)
+                    .bind("category", page.category)
+                    .bind("data", JsonHelper.encode(page.files)).execute();
         } catch (Exception e) {
             // TODO move it to transaction
-            if (get(project, name) != null) {
-                throw new RakamException("Report already exists", HttpResponseStatus.BAD_REQUEST);
+            if (get(page.project(), page.slug) != null) {
+                throw new AlreadyExistsException(String.format("Custom page %s", page.slug), BAD_REQUEST);
             }
             throw e;
         }
@@ -75,14 +76,14 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
             return handle.createQuery("SELECT name, slug, category FROM custom_page WHERE project = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
-                        return new Page(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3));
+                        return new Page(project, resultSet.getString(1), resultSet.getString(2), resultSet.getString(3));
                     }).list();
         }
     }
 
     public Map<String, String> get(String project, String slug) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT data FROM custom_page WHERE project = :project AND slug = :slug")
+           return handle.createQuery("SELECT data FROM custom_page WHERE project = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("slug", slug)
                     .map((i, resultSet, statementContext) -> {

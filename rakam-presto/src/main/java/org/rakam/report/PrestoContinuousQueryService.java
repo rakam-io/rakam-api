@@ -2,6 +2,8 @@ package org.rakam.report;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.AlreadyExistsException;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
@@ -51,11 +53,20 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
             prestoQueryExecution = executor.executeRawQuery(prestoQuery);
         }
 
-        return prestoQueryExecution
-                .getResult().thenApply(result -> {
+        return prestoQueryExecution.getResult().thenApply(result -> {
             if (result.getError() == null) {
-                database.createContinuousQuery(report);
+                try {
+                    database.createContinuousQuery(report);
+                } catch (AlreadyExistsException e) {
+                    database.deleteContinuousQuery(report.project, report.tableName);
+                    database.createContinuousQuery(report);
+                }
+
                 return QueryResult.empty();
+            } else {
+                if(result.getError().message.contains("already exists")) {
+                    throw new AlreadyExistsException("Continuous query", HttpResponseStatus.BAD_REQUEST);
+                }
             }
             return result;
         });

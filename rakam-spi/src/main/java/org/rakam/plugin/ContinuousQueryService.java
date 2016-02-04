@@ -1,5 +1,6 @@
 package org.rakam.plugin;
 
+import org.rakam.analysis.AlreadyExistsException;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.report.QueryResult;
@@ -16,7 +17,7 @@ public abstract class ContinuousQueryService {
         this.database = database;
     }
 
-    public abstract CompletableFuture<QueryResult> create(ContinuousQuery report);
+    public abstract CompletableFuture<QueryResult> create(ContinuousQuery report) throws AlreadyExistsException;
 
     public abstract CompletableFuture<Boolean> delete(String project, String name);
 

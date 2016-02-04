@@ -7,6 +7,7 @@ import org.rakam.plugin.JDBCConfig;
 import javax.sql.DataSource;
 import java.io.PrintWriter;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.time.Duration;
@@ -20,18 +21,20 @@ import static com.google.common.base.Preconditions.checkState;
 public class JDBCPoolDataSource implements DataSource {
     private static final Map<JDBCConfig, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
     private final HikariDataSource dataSource;
+    private final JDBCConfig config;
 
     private JDBCPoolDataSource(JDBCConfig config) {
+        this.config = config;
         checkArgument(config.getUrl() != null, "JDBC url is required");
 
         HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setUsername(config.getUsername());
         hikariConfig.setPassword(config.getPassword());
         hikariConfig.setJdbcUrl(config.getUrl());
-        if(config.getConnectionMaxLifeTime() != null) {
+        if (config.getConnectionMaxLifeTime() != null) {
             hikariConfig.setMaxLifetime(config.getConnectionMaxLifeTime());
         }
-        if(config.getConnectionIdleTimeout() != null) {
+        if (config.getConnectionIdleTimeout() != null) {
             hikariConfig.setIdleTimeout(config.getConnectionIdleTimeout());
         }
 
@@ -39,7 +42,7 @@ public class JDBCPoolDataSource implements DataSource {
             hikariConfig.setMaximumPoolSize(config.getMaxConnection());
         }
 
-        hikariConfig.setConnectionTimeout(60000);
+        hikariConfig.setConnectionTimeout(15000);
         hikariConfig.setMaxLifetime(Duration.ofMinutes(10).toMillis());
 
         hikariConfig.setAutoCommit(true);
@@ -69,12 +72,13 @@ public class JDBCPoolDataSource implements DataSource {
 
     @Override
     public Connection getConnection() throws SQLException {
-          return dataSource.getConnection();
+        return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+//        return dataSource.getConnection();
     }
 
     @Override
     public Connection getConnection(String username, String password) throws SQLException {
-          return dataSource.getConnection(username, password);
+        return dataSource.getConnection(username, password);
     }
 
     @Override

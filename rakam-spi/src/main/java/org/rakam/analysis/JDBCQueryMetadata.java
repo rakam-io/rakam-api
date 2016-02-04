@@ -104,14 +104,20 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public void createMaterializedView(MaterializedView materializedView) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental_field) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental_field)")
-                    .bind("project", materializedView.project)
-                    .bind("name", materializedView.name)
-                    .bind("table_name", materializedView.tableName)
-                    .bind("query", materializedView.query)
-                    .bind("update_interval", materializedView.updateInterval!=null ? materializedView.updateInterval.toMillis() : null)
-                    .bind("incremental_field", materializedView.incrementalField)
-                    .execute();
+            try {
+                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental_field) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental_field)")
+                        .bind("project", materializedView.project)
+                        .bind("name", materializedView.name)
+                        .bind("table_name", materializedView.tableName)
+                        .bind("query", materializedView.query)
+                        .bind("update_interval", materializedView.updateInterval != null ? materializedView.updateInterval.toMillis() : null)
+                        .bind("incremental_field", materializedView.incrementalField)
+                        .execute();
+            } catch (Exception e) {
+                if (getMaterializedView(materializedView.project, materializedView.tableName) != null) {
+                    throw new AlreadyExistsException("Materialized view", HttpResponseStatus.BAD_REQUEST);
+                }
+            }
         }
     }
 
@@ -159,6 +165,9 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                         .bind("options", JsonHelper.encode(report.options))
                         .execute();
             } catch (Exception e) {
+                if (getContinuousQuery(report.project, report.tableName) != null) {
+                    throw new AlreadyExistsException("Continuous query", HttpResponseStatus.BAD_REQUEST);
+                }
                 throw new RakamException(e.getCause().getMessage(), HttpResponseStatus.BAD_REQUEST);
             }
         }

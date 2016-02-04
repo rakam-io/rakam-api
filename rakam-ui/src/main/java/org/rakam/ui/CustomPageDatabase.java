@@ -13,27 +13,59 @@
  */
 package org.rakam.ui;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import org.rakam.plugin.ProjectItem;
+import org.rakam.server.http.annotations.ApiParam;
+
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 
 public interface CustomPageDatabase {
-    void save(String project, String name, String slug, String category, Map<String, String> files);
+    void save(Page page);
+
     List<Page> list(String project);
+
     Map<String, String> get(String project, String slug);
+
     InputStream getFile(String project, String name, String file);
+
     void delete(String project, String name);
 
-    class Page {
+    class Page implements ProjectItem {
+        public final String project;
         public final String name;
         public final String slug;
         public final String category;
+        public final Map<String, String> files;
 
-        public Page(String name, String slug, String category) {
+        @JsonCreator
+        public Page(@ApiParam(name = "project") String project,
+                    @ApiParam(name = "name") String name,
+                    @ApiParam(name = "slug") String slug,
+                    @ApiParam(name = "category") String category,
+                    @ApiParam(name = "files") Map<String, String> files) {
+            this.project = project;
             this.name = name;
             this.slug = slug;
             this.category = category;
+            this.files = checkNotNull(files);
+        }
+
+        public Page(String project, String name, String slug, String category) {
+            this.project = project;
+            this.name = name;
+            this.slug = slug;
+            this.category = category;
+            this.files = null;
+        }
+
+        @Override
+        public String project() {
+            return project;
         }
     }
 }
