@@ -1,6 +1,6 @@
 package org.rakam;
 
-import com.google.api.client.repackaged.com.google.common.base.Throwables;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.analysis.AlreadyExistsException;
