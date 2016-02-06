@@ -458,13 +458,13 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             PreparedStatement statement = conn.prepareStatement(builder.toString());
             int i = 1;
             for (Map.Entry<String, Object> entry : properties) {
-                FieldType fieldType = columns.get(entry);
+                FieldType fieldType = columns.get(entry.getKey());
                 if (fieldType == null) {
                     createColumn(project, entry.getKey(), entry.getValue());
                 }
                 statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
             }
-            statement.setLong(i++, Long.parseLong(userId));
+            statement.setString(i++, userId);
 
             i = statement.executeUpdate();
             if (i == 0) {

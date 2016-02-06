@@ -197,7 +197,7 @@ public class QueryHttpService extends HttpService {
                             @ApiParam(name = "query") String query,
                             @ApiParam(name = "limit", required = false) Integer limit) {
             this.project = requireNonNull(project, "project is empty");
-            this.query = requireNonNull(query, "query is empty");
+            this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
             if (limit != null && limit > 5000) {
                 throw new IllegalArgumentException("maximum value of limit is 5000");
             }

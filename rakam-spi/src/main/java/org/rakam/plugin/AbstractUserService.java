@@ -8,6 +8,7 @@ import org.rakam.plugin.user.User;
 import org.rakam.report.QueryResult;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -65,6 +66,8 @@ public abstract class AbstractUserService {
     public void unsetProperties(String project, String user, List<String> properties) {
         storage.unsetProperties(project, user, properties);
     }
+
+    public abstract void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt);
 
     public static class CollectionEvent {
         public final String collection;

@@ -9,6 +9,8 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.AbstractUserService.CollectionEvent;
+import org.rakam.plugin.AllowCookie;
+import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.UserPropertyMapper;
 import org.rakam.plugin.UserStorage;
@@ -36,6 +38,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -214,12 +217,34 @@ public class UserHttpService extends HttpService {
         return service.getUser(project, user);
     }
 
+    @JsonRequest
+    @ApiOperation(value = "Merge user with anonymous id")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist."),
+            @ApiResponse(code = 400, message = "User does not exist.")})
+    @Path("/merge")
+    @AllowCookie
+    @IgnorePermissionCheck()
+    public boolean mergeUser(@ApiParam(name = "project", required = true) String project,
+                             @ApiParam(name = "user", required = true) String user,
+                             @ApiParam(name = "api") User.UserContext api,
+                             @ApiParam(name = "anonymous_id") String anonymousId,
+                             @ApiParam(name = "created_at") Instant createdAt,
+                             @ApiParam(name = "merged_at") Instant mergedAt) {
+        // TODO: what if a user sends real user ids instead of its previous anonymous id?
+        if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
+            throw new RakamException(UNAUTHORIZED);
+        }
+        service.merge(project, user, anonymousId, createdAt, mergedAt);
+        return true;
+    }
+
     @ApiOperation(value = "Set user properties", request = SetUserProperties.class, response = Integer.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/set_properties")
-    @IgnoreApi
+    @IgnorePermissionCheck
     @POST
     public void setProperties(RakamHttpRequest request) {
         request.bodyHandler(s -> {
@@ -263,11 +288,11 @@ public class UserHttpService extends HttpService {
     }
 
     @JsonRequest
+    @IgnorePermissionCheck
     @ApiOperation(value = "Set user properties once", request = SetUserProperties.class, response = Integer.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
-    @IgnoreApi
     @Path("/set_properties_once")
     public void setPropertiesOnce(RakamHttpRequest request) {
         request.bodyHandler(s -> {
@@ -296,15 +321,17 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Set user property")
+    @IgnorePermissionCheck
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/increment_property")
+    @AllowCookie
     public JsonResponse incrementProperty(@ApiParam(name = "project") String project,
-                                              @ApiParam(name = "api") User.UserContext api,
-                                              @ApiParam(name = "user") String user,
-                                              @ApiParam(name = "property") String property,
-                                              @ApiParam("value") double value) {
+                                          @ApiParam(name = "api") User.UserContext api,
+                                          @ApiParam(name = "user") String user,
+                                          @ApiParam(name = "property") String property,
+                                          @ApiParam("value") double value) {
         if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
         }
@@ -315,14 +342,16 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Unset user property")
+    @IgnorePermissionCheck
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/unset_properties")
+    @AllowCookie
     public JsonResponse unsetProperty(@ApiParam(name = "project") String project,
-                                          @ApiParam(name = "api") User.UserContext api,
-                                          @ApiParam(name = "user") String user,
-                                          @ApiParam(name = "property") List<String> properties) {
+                                      @ApiParam(name = "api") User.UserContext api,
+                                      @ApiParam(name = "user") String user,
+                                      @ApiParam(name = "property") List<String> properties) {
         if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
         }

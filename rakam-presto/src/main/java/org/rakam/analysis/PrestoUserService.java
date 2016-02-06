@@ -1,8 +1,13 @@
 package org.rakam.analysis;
 
+import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.AbstractUserService;
+import org.rakam.plugin.EventStore;
 import org.rakam.plugin.UserStorage;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
@@ -10,6 +15,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -24,13 +30,16 @@ public class PrestoUserService extends AbstractUserService {
     private final Metastore metastore;
     private final PrestoConfig prestoConfig;
     private final PrestoQueryExecutor executor;
+    private final EventStore eventStore;
 
     @Inject
-    public PrestoUserService(UserStorage storage, Metastore metastore, PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
+    public PrestoUserService(UserStorage storage, EventStore eventStore, Metastore metastore,
+                             PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
         super(storage);
         this.metastore = metastore;
         this.prestoConfig = prestoConfig;
         this.executor = executor;
+        this.eventStore = eventStore;
     }
 
     @Override
@@ -74,5 +83,24 @@ public class PrestoUserService extends AbstractUserService {
                             .collect(Collectors.toList());
                     return collect;
                 });
+    }
+
+    private static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(ImmutableList.of(
+            new Schema.Field("id", Schema.create(Schema.Type.STRING), null, null),
+            new Schema.Field("_user", Schema.create(Schema.Type.STRING), null, null),
+            new Schema.Field("created_at", Schema.create(Schema.Type.INT), null, null),
+            new Schema.Field("merged_at", Schema.create(Schema.Type.INT), null, null)
+    ));
+
+    @Override
+    public void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt) {
+
+        GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
+        properties.put(0, anonymousId);
+        properties.put(1, user);
+        properties.put(2,  Math.floorDiv(createdAt.getEpochSecond(), 86400));
+        properties.put(3,  Math.floorDiv(mergedAt.getEpochSecond(), 86400));
+
+        eventStore.store(new Event(project, "_anonymous_id_mapping", null, properties));
     }
 }

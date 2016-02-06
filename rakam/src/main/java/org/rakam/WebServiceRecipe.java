@@ -19,6 +19,7 @@ import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.config.HttpServerConfig;
+import org.rakam.plugin.AllowCookie;
 import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
@@ -35,6 +36,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Set;
 
+import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.*;
 
 @Singleton
@@ -90,6 +92,7 @@ public class WebServiceRecipe extends AbstractModule {
                 .setDebugMode(config.getDebug())
                 .setProxyProtocol(config.getProxyProtocol())
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
+                .addJsonPreprocessor((httpHeaders, jsonNodes) -> httpHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"), method -> method.isAnnotationPresent(AllowCookie.class))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))

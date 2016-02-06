@@ -100,7 +100,7 @@ public class WebUserService {
                     .bind("id", user.id)
                     .bind("email", user.email)
                     .bind("name", user.name)
-                    .bind("password", oldPassword)
+                    .bind("password", oldScrypt)
                     .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
             return new WebUser(id, user.email, user.name, ImmutableMap.of());
         }

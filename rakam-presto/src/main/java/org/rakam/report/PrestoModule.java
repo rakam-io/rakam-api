@@ -1,6 +1,8 @@
 package org.rakam.report;
 
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.auto.service.AutoService;
+import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -10,8 +12,8 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.PrestoUserService;
 import org.rakam.analysis.PrestoMaterializedViewService;
+import org.rakam.analysis.PrestoUserService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.collection.event.metastore.Metastore;
@@ -23,10 +25,13 @@ import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.MaterializedViewService;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.plugin.user.PrestoExternalUserStorageAdapter;
+
+import javax.inject.Inject;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
@@ -57,6 +62,8 @@ public class PrestoModule extends RakamModule {
                     .in(Scopes.SINGLETON);
         }
 
+        binder.bind(UserMergeTableHook.class).asEagerSingleton();
+
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
         }
@@ -82,5 +89,20 @@ public class PrestoModule extends RakamModule {
     @Override
     public String description() {
         return "Rakam backend for high-throughput systems.";
+    }
+
+    public static class UserMergeTableHook {
+        private final PrestoQueryExecutor executor;
+
+        @Inject
+        public UserMergeTableHook(PrestoQueryExecutor executor) {
+            this.executor = executor;
+        }
+
+        @Subscribe
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+            executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, created_at DATE, merged_at DATE)",
+                    executor.formatTableReference(event.project, QualifiedName.of("_anonymous_id_mapping"))));
+        }
     }
 }
