@@ -9,11 +9,22 @@ public class MetadataConfig {
     private String metastore;
     private String eventStore;
     private String reportMetastore;
+    private boolean enableDynamic = true;
 
     @Config("event.schema.store")
     public MetadataConfig setMetastore(String store) {
         this.metastore = store;
         return this;
+    }
+
+    @Config("event.schema.enable-dynamic")
+    public MetadataConfig setEnableDynamic(boolean enableDynamic) {
+        this.enableDynamic = enableDynamic;
+        return this;
+    }
+
+    public boolean isEnableDynamic() {
+        return enableDynamic;
     }
 
     @Config("report.metadata.store")

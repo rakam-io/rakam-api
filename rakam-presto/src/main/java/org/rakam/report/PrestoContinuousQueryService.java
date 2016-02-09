@@ -91,6 +91,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     public Map<String, List<SchemaField>> getSchemas(String project) {
         List<SimpleImmutableEntry<String, CompletableFuture<QueryResult>>> collect = database.getContinuousQueries(project).stream()
                 .map(query -> {
+                    // TODO: use jdbc metadata
                     PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("select * from %s.\"%s\".\"%s\" limit 0",
                             config.getStreamingConnector(), project, query.tableName));
                     return new SimpleImmutableEntry<>(query.tableName, prestoQueryExecution

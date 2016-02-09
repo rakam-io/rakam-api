@@ -35,6 +35,7 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -75,7 +76,12 @@ public class QueryHttpService extends HttpService {
     )
     @JsonRequest
     public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
-        return executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult();
+        return executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
+            if(result.isFailed()) {
+                throw new RakamException(result.getError().toString(), HttpResponseStatus.BAD_REQUEST);
+            }
+            return result;
+        });
     }
 
     @GET

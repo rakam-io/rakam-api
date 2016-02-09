@@ -7,6 +7,10 @@ build:
           echo $JAVA_HOME
           java -version
           javac -version
+          echo $PWD
+    - script:
+        name: Create user
+        code: adduser --disabled-password --gecos "" dev
     - script:
         name: Run maven
-        code: ./mvnw
+        code: su dev -l -c "cd /pipeline/source/; ./mvnw clean install"

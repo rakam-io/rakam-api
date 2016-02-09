@@ -28,10 +28,11 @@ public abstract class TestContinuousQueryService {
     @AfterMethod
     public void tearDown() throws Exception {
         getMetastore().deleteProject("test");
+        getContinuousQueryService().delete("test", "streamtest");
     }
 
     @Test
-    public void testCreate1() throws Exception {
+    public void testCreate1() {
         ContinuousQuery report = new ContinuousQuery("test", "test", "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());
         getContinuousQueryService().create(report).join();
@@ -40,7 +41,7 @@ public abstract class TestContinuousQueryService {
     }
 
     @Test
-    public void testCreate() throws Exception {
+    public void testSchema() throws Exception {
         ContinuousQuery report = new ContinuousQuery("test", "test",
                 "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());

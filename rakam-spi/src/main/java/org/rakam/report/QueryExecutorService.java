@@ -4,6 +4,7 @@ import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.QuerySpecification;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
@@ -219,8 +220,17 @@ public class QueryExecutorService {
         new QueryFormatter(builder, tableNameMapper(project, materializedViews)).process(statement, 1);
 
         if (maxLimit != null) {
-            if (statement.getLimit().isPresent() && Long.parseLong(statement.getLimit().get()) > maxLimit) {
-                throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
+            Integer limit = null;
+            if(statement.getLimit().isPresent()) {
+                limit = Integer.parseInt(statement.getLimit().get());
+            }
+            if(statement.getQueryBody() instanceof QuerySpecification && ((QuerySpecification) statement.getQueryBody()).getLimit().isPresent()) {
+                limit = Integer.parseInt(((QuerySpecification) statement.getQueryBody()).getLimit().get());
+            }
+            if(limit != null) {
+                if(limit > maxLimit) {
+                    throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
+                }
             } else {
                 builder.append(" LIMIT ").append(maxLimit);
             }

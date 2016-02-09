@@ -233,7 +233,9 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
     public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         checkProject(project);
-        Set<String> collectionNames = metastore.getCollectionNames(project);
+        Set<String> collectionNames = metastore.getCollectionNames(project).stream()
+                .filter(c -> !c.startsWith("_"))
+                .collect(Collectors.toSet());
 
         if (collections.isPresent()) {
             for (String name : collections.get()) {

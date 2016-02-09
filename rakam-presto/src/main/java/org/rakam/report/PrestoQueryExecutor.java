@@ -107,17 +107,20 @@ public class PrestoQueryExecutor implements QueryExecutor {
 
         // special prefix for all columns
         if (node.getSuffix().equals("_all")) {
-            Map<String, List<SchemaField>> collections = metastore.getCollections(project);
-            String sharedColumns = collections.entrySet().iterator().next().getValue().stream()
-                    .filter(col -> collections.entrySet().stream().allMatch(list -> list.getValue().contains(col)))
+            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> !c.getKey().startsWith("_"))
+                    .collect(Collectors.toList());
+            String sharedColumns = collections.get(0).getValue().stream()
+                    .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
                     .map(f -> f.getName())
                     .collect(Collectors.joining(", "));
 
-            return "(" +collections.keySet().stream()
-                    .map(collection -> format("select %s from %s",
+            return "(" +collections.stream().map(Map.Entry::getKey)
+                    .map(collection -> format("select '%s' as collection, %s from %s",
+                            collection,
                             sharedColumns.isEmpty() ? "1" : sharedColumns,
                             getTableReference(project, QualifiedName.of(collection))))
-                    .collect(Collectors.joining(" union all ")) + ")";
+                    .collect(Collectors.joining(" union all ")) + ") _all";
         } else {
             return getTableReference(project, node);
         }

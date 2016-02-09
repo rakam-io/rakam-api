@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.rakam.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.analysis.postgresql.PostgresqlMetastore.fromSql;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -97,7 +98,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     while (tableRs.next()) {
                         String tableName = tableRs.getString("table_name");
 
-                        if (!tableName.startsWith("_")) {
+                        if (!tableName.startsWith(MATERIALIZED_VIEW_PREFIX)) {
                             tables.add(tableName);
                         }
                     }
