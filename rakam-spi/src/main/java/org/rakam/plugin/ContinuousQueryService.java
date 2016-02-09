@@ -19,7 +19,7 @@ public abstract class ContinuousQueryService {
 
     public abstract CompletableFuture<QueryResult> create(ContinuousQuery report) throws AlreadyExistsException;
 
-    public abstract CompletableFuture<Boolean> delete(String project, String name);
+    public abstract CompletableFuture<Boolean> delete(String project, String tableName);
 
     public List<ContinuousQuery> list(String project) {
         return database.getContinuousQueries(project);
