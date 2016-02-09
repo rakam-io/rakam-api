@@ -42,7 +42,9 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         EventBus eventBus = new EventBus();
 
-        PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, queryExecutor);
+        QueryExecutorService executorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore,
+                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC()));
+        PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
         eventBus.register(new EventExplorerListener(continuousQueryService));
 
         metastore = new PostgresqlMetastore(dataSource, eventBus, build);

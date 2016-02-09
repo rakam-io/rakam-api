@@ -11,11 +11,13 @@ import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -23,31 +25,47 @@ import java.util.stream.Collectors;
 
 public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryService {
     private final PostgresqlQueryExecutor executor;
+    private final QueryExecutorService service;
 
     @Inject
-    public PostgresqlPseudoContinuousQueryService(QueryMetadataStore database, PostgresqlQueryExecutor executor) {
+    public PostgresqlPseudoContinuousQueryService(QueryMetadataStore database, QueryExecutorService service, PostgresqlQueryExecutor executor) {
         super(database);
         this.executor = executor;
+        this.service = service;
     }
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report) {
-        database.createContinuousQuery(report);
-        return CompletableFuture.completedFuture(QueryResult.empty());
+        return executor.executeRawStatement(String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new ArrayList<>())))
+                .getResult().thenApply(result -> {
+                    if (!result.isFailed()) {
+                        database.createContinuousQuery(report);
+                    } else {
+                        throw new RakamException(result.getError().toString(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                    }
+                    return result;
+                });
     }
 
     @Override
     public CompletableFuture<Boolean> delete(String project, String name) {
-        return executor.executeRawQuery(String.format("DROP VIEW \"%s\".\"%s\"", project, name)).getResult().thenApply(result -> !result.isFailed());
+        return executor.executeRawStatement(String.format("DROP VIEW \"%s\".\"%s\"", project, name)).getResult().thenApply(result -> {
+            if (!result.isFailed()) {
+                database.deleteContinuousQuery(project, name);
+            } else {
+                throw new RakamException(result.getError().toString(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            }
+            return true;
+        });
     }
 
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return database.getContinuousQueries(project).stream()
-                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("select * from "+executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")))
+                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("select * from " + executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")))
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
                     QueryResult join = entry.getValue().getResult().join();
-                    if(join.isFailed()) {
+                    if (join.isFailed()) {
                         return ImmutableList.of();
                     }
                     return join.getMetadata();
@@ -60,8 +78,8 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
         try {
             continuousQuery = new ContinuousQuery(project, "test", "test",
                     query, ImmutableList.of(), ImmutableMap.of());
-        } catch (ParsingException|IllegalArgumentException e) {
-            throw new RakamException("Query is not valid: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+        } catch (ParsingException | IllegalArgumentException e) {
+            throw new RakamException("Query is not valid: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }
 
         StringBuilder builder = new StringBuilder();
@@ -72,8 +90,8 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
         QueryExecution execution = executor
                 .executeRawQuery(builder.toString() + " limit 0");
         QueryResult result = execution.getResult().join();
-        if(result.isFailed()) {
-            throw new RakamException("Query error: "+result.getError().message, HttpResponseStatus.BAD_REQUEST);
+        if (result.isFailed()) {
+            throw new RakamException("Query error: " + result.getError().message, HttpResponseStatus.BAD_REQUEST);
         }
         return !result.isFailed();
     }

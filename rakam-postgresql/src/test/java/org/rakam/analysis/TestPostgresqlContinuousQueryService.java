@@ -2,17 +2,20 @@ package org.rakam.analysis;
 
 import com.google.common.eventbus.EventBus;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
+import org.rakam.analysis.postgresql.PostgresqlMaterializedViewService;
 import org.rakam.analysis.postgresql.PostgresqlMetastore;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.JDBCConfig;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.report.postgresql.PostgresqlPseudoContinuousQueryService;
 import org.rakam.report.postgresql.PostgresqlQueryExecutor;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
 import java.io.IOException;
+import java.time.Clock;
 
 public class TestPostgresqlContinuousQueryService  extends TestContinuousQueryService {
 
@@ -33,7 +36,9 @@ public class TestPostgresqlContinuousQueryService  extends TestContinuousQuerySe
         metastore = new PostgresqlMetastore(dataSource, new EventBus(), new FieldDependencyBuilder().build());
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, queryMetadataStore);
-        continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, queryExecutor);
+        QueryExecutorService executorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore,
+                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC()));
+        continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {

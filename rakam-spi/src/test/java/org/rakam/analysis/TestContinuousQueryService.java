@@ -26,7 +26,7 @@ public abstract class TestContinuousQueryService {
     }
 
     @AfterMethod
-    public void tearDown() throws Exception {
+    public void afterMethod() throws Exception {
         getMetastore().deleteProject("test");
         getContinuousQueryService().delete("test", "streamtest");
     }
