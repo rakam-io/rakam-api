@@ -69,7 +69,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                             i+1, i))
                     .collect(Collectors.joining(" UNION ALL "));
         }
-        return executor.executeQuery(project, "WITH \n" + ctes + " " + query + " ORDER BY 1 DESC");
+        return executor.executeQuery(project, "WITH \n" + ctes + " " + query + " ORDER BY 1 ASC");
     }
 
     private String convertFunnel(String connectorField, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {

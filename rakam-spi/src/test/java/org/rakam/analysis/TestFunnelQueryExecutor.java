@@ -81,11 +81,10 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), true).getResult().join();
 
         assertFalse(query.isFailed());
-        assertEquals(ImmutableSet.of(
+        assertEquals(ImmutableSet.copyOf(query.getResult()), ImmutableSet.of(
                         of("Step 1", "test0", 3L), of("Step 1", "test1", 3L),
                         of("Step 2", "test0", 3L), of("Step 2", "test1", 3L),
-                        of("Step 3", "test0", 3L), of("Step 3", "test1", 3L)),
-                ImmutableSet.copyOf(query.getResult()));
+                        of("Step 3", "test0", 3L), of("Step 3", "test1", 3L)));
     }
 
     @Test
@@ -97,8 +96,8 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
 
         assertFalse(query.isFailed());
-        assertEquals(ImmutableSet.of(of("Step 1", "test0", 3L), of("Step 1", "test1", 3L), of("Step 2", "test0", 3L), of("Step 2", "test1", 3L)),
-                ImmutableSet.copyOf(query.getResult()));
+        assertEquals(ImmutableSet.copyOf(query.getResult()),
+                ImmutableSet.of(of("Step 1", "test0", 3L), of("Step 1", "test1", 3L), of("Step 2", "test0", 3L), of("Step 2", "test1", 3L)));
     }
 
     @Test
@@ -110,7 +109,7 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
 
         assertFalse(query.isFailed());
-        assertEquals(of(of("Step 1", "test1", 3L), of("Step 2", "test1", 3L)), query.getResult());
+        assertEquals(query.getResult(), of(of("Step 1", "test1", 3L), of("Step 2", "test1", 3L)));
     }
 
     @Test
@@ -122,7 +121,7 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(101), false).getResult().join();
 
         assertFalse(query.isFailed());
-        assertEquals(of(of("Step 1", 0L)), query.getResult());
+        assertEquals(query.getResult(), of(of("Step 1", 0L)));
     }
 
     @Test
