@@ -68,7 +68,7 @@ public class RecipeHandler {
 
         final List<Recipe.CustomPageBuilder> customPages = customPageDatabase
                 .list(project).stream()
-                .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, r.files))
+                .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, customPageDatabase.get(r.project(), r.slug)))
                 .collect(Collectors.toList());
 
         return new Recipe(Recipe.Strategy.SPECIFIC, project, collections, materializedViews,
