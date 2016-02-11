@@ -52,7 +52,7 @@ public class PrestoUserService extends AbstractUserService {
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, long offset) {
+    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime) {
         checkProject(project);
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
@@ -76,12 +76,13 @@ public class PrestoUserService extends AbstractUserService {
                                     }
                                 })
                                 .collect(Collectors.joining(", ")) +
-                                format(" }' as json, _time from %s where _user = '%s'",
+                                format(" }' as json, _time from %s where _user = '%s' %s",
                                         prestoConfig.getColdStorageConnector() + "." + project + "." + entry.getKey(),
-                                        user))
+                                        user,
+                                        beforeThisTime == null ? "" : format("and _time < from_iso8601_timestamp('%s')", beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
-        return executor.executeRawQuery(format("select collection, json from (%s) order by _time desc limit %d", sqlQuery, limit, offset + limit))
+        return executor.executeRawQuery(format("select collection, json from (%s) order by _time desc limit %d", sqlQuery, limit))
                 .getResult()
                 .thenApply(result -> {
                     if (result.isFailed()) {
@@ -96,7 +97,6 @@ public class PrestoUserService extends AbstractUserService {
 
     @Override
     public void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt) {
-
         GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
         properties.put(0, anonymousId);
         properties.put(1, user);

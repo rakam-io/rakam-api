@@ -23,6 +23,7 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static org.rakam.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStorage {
     private final PrestoQueryExecutor executor;
@@ -108,7 +109,9 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
         checkCollection(filter.collection);
 
-        builder.append("select \"_user\" from %s");
+        builder.append("select ")
+                .append(config.getEnableUserMapping() ? "coalesce(mapping._user, collection._user, collection.device_id) as _user" : "collection._user")
+                .append(" from %s collection");
 
         ArrayList<String> filterList = new ArrayList<>(3);
         if (filter.filterExpression != null) {
@@ -122,6 +125,13 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                 filterList.add(String.format("_time < cast(%s as timestamp)", filter.timeframe.end.toString()));
             }
         }
+
+        if (config.getEnableUserMapping()) {
+            // and collection.user is not null and mapping.created_at <= max and mapping.merged_at > min
+            builder.append(String.format(" left join %s mapping on (mapping.id = collection.device_id)",
+                    executor.formatTableReference(project, QualifiedName.of("_anonymous_id_mapping"))));
+        }
+
         if (!filterList.isEmpty()) {
             builder.append(" where ").append(filterList.stream().collect(Collectors.joining(" AND ")));
         }
@@ -129,22 +139,27 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         if (filter.aggregation != null) {
             String field;
             if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
-                field = "_user";
+                field = "collection._user";
             } else {
-                field = filter.aggregation.field;
+                field = "collection.\"" + checkTableColumn(filter.aggregation.field, "aggregation field")+"\"";
             }
-            builder.append(" group by \"_user\" ");
+
+            if (config.getEnableUserMapping()) {
+                builder.append(" group by mapping._user, collection._user, collection.device_id");
+            } else {
+                builder.append(" group by collection._user");
+            }
             if (filter.aggregation.minimum != null || filter.aggregation.maximum != null) {
                 builder.append(" having ");
             }
             if (filter.aggregation.minimum != null) {
-                builder.append(format(" %s(\"%s\") >= %d ", filter.aggregation.type, field, filter.aggregation.minimum));
+                builder.append(format(" %s(%s) >= %d ", filter.aggregation.type, field, filter.aggregation.minimum));
             }
             if (filter.aggregation.maximum != null) {
                 if (filter.aggregation.minimum != null) {
                     builder.append(" and ");
                 }
-                builder.append(format(" %s(\"%s\") < %d ", filter.aggregation.type, field, filter.aggregation.maximum));
+                builder.append(format(" %s(%s) < %d ", filter.aggregation.type, field, filter.aggregation.maximum));
             }
         }
 

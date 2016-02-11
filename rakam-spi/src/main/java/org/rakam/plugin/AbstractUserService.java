@@ -57,7 +57,7 @@ public abstract class AbstractUserService {
         storage.setUserPropertyOnce(project, user, properties);
     }
 
-    public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, long offset);
+    public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime);
 
     public void incrementProperty(String project, String user, String property, double value) {
         storage.incrementProperty(project, user, property, value);

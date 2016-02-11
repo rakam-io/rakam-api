@@ -173,8 +173,8 @@ public class UserHttpService extends HttpService {
     public CompletableFuture<List<CollectionEvent>> getEvents(@ApiParam(name = "project", required = true) String project,
                                                               @ApiParam(name = "user", required = true) String user,
                                                               @ApiParam(name = "limit", required = false) Integer limit,
-                                                              @ApiParam(name = "offset", required = false) Long offset) {
-        return service.getEvents(project, user, limit == null ? 15 : limit, offset == null ? 0 : offset);
+                                                              @ApiParam(name = "offset", required = false) Instant offset) {
+        return service.getEvents(project, user, limit == null ? 15 : limit, offset);
     }
 
     @POST
@@ -234,6 +234,9 @@ public class UserHttpService extends HttpService {
         // TODO: what if a user sends real user ids instead of its previous anonymous id?
         if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
+        }
+        if(!config.getEnableUserMapping()) {
+            throw new RakamException("The feature is not supported", HttpResponseStatus.PRECONDITION_FAILED);
         }
         service.merge(project, user, anonymousId, createdAt, mergedAt);
         return true;

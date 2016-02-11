@@ -33,15 +33,15 @@ import org.rakam.plugin.user.PrestoExternalUserStorageAdapter;
 
 import javax.inject.Inject;
 
-import static io.airlift.configuration.ConfigurationModule.bindConfig;
+import static io.airlift.configuration.ConfigBinder.configBinder;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="store.adapter", value="presto")
+@ConditionalModule(config = "store.adapter", value = "presto")
 public class PrestoModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
-        bindConfig(binder).to(MetadataConfig.class);
-        bindConfig(binder).to(PrestoConfig.class);
+        configBinder(binder).bindConfig(MetadataConfig.class);
+        configBinder(binder).bindConfig(PrestoConfig.class);
 
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
         binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
@@ -62,12 +62,14 @@ public class PrestoModule extends RakamModule {
                     .in(Scopes.SINGLETON);
         }
 
-        binder.bind(UserMergeTableHook.class).asEagerSingleton();
-
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
         }
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
+
+        if(userPluginConfig.getEnableUserMapping()) {
+            binder.bind(UserMergeTableHook.class).asEagerSingleton();
+        }
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
             binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);

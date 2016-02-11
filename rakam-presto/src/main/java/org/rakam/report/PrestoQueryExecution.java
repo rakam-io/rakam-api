@@ -9,6 +9,7 @@ import com.facebook.presto.jdbc.internal.guava.collect.Lists;
 import com.facebook.presto.jdbc.internal.guava.util.concurrent.ThreadFactoryBuilder;
 import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.log.Logger;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
@@ -31,6 +32,8 @@ import static java.time.ZoneOffset.UTC;
 import static org.rakam.collection.FieldType.*;
 
 public class PrestoQueryExecution implements QueryExecution {
+    private final static Logger LOGGER = Logger.get(PrestoQueryExecution.class);
+
     // doesn't seem to be a good way but presto client uses a synchronous http client
     // so it blocks the thread when executing queries
     private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
@@ -42,6 +45,7 @@ public class PrestoQueryExecution implements QueryExecution {
 
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
     public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS");
+    public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS z");
 
     private final StatementClient client;
     private final Instant startTime;
@@ -95,15 +99,22 @@ public class PrestoQueryExecution implements QueryExecution {
                     Object[] row = new Object[columns.size()];
 
                     for (int i = 0; i < objects.size(); i++) {
-                        FieldType type = columns.get(i).getType();
-                        if(type == TIMESTAMP) {
+                        String type = result.getColumns().get(i).getTypeSignature().getRawType();
+                        if(type.equals(StandardTypes.TIMESTAMP)) {
                             try {
                                 row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
                             } catch (Exception e) {
-                                // TODO: log
+                                LOGGER.error(e, "Error while parsing Presto TIMESTAMP.");
                             }
                         } else
-                        if(type == DATE){
+                        if(type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
+                            try {
+                                row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT).toInstant(UTC);
+                            } catch (Exception e) {
+                                LOGGER.error(e, "Error while parsing Presto TIMESTAMP WITH TIMEZONE.");
+                            }
+                        } else
+                        if(type.equals(StandardTypes.DATE)){
                             row[i] = LocalDate.parse((CharSequence)objects.get(i));
                         } else {
                             row[i] = objects.get(i);

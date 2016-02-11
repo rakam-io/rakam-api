@@ -37,7 +37,7 @@ public class PostgresqlUserService extends AbstractUserService {
     }
 
     @Override
-    public CompletableFuture getEvents(String project, String user, int limit, long offset) {
+    public CompletableFuture getEvents(String project, String user, int limit, Instant beforeThisTime) {
         checkProject(project);
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
@@ -45,13 +45,13 @@ public class PostgresqlUserService extends AbstractUserService {
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_user")))
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
                 .map(entry ->
-                        format("select '%s' as collection, row_to_json(coll) json, _time from \"%s\".\"%s\" coll where \"_user\" = '%s'",
-                                entry.getKey(), project, entry.getKey(), user))
+                        format("select '%s' as collection, row_to_json(coll) json, _time from \"%s\".\"%s\" coll where _user = '%s' %s",
+                                entry.getKey(), project, entry.getKey(), user, beforeThisTime == null ? "" : String.format("and _time < timestamp '%s'", beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
         if (sqlQuery.isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }
-        return executor.executeRawQuery(format("select collection, json from (%s) data order by _time desc limit %d offset %d", sqlQuery, limit, offset)).getResult()
+        return executor.executeRawQuery(format("select collection, json from (%s) data order by _time desc limit %d", sqlQuery, limit)).getResult()
                 .thenApply(result ->
                         result.getResult().stream()
                                 .map(s -> new CollectionEvent((String) s.get(0), JsonHelper.read(s.get(1).toString(), Map.class)))

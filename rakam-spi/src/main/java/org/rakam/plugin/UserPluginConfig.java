@@ -13,6 +13,7 @@ public class UserPluginConfig {
     private boolean mailboxEnabled;
     private String mailBoxStorageModule;
     private String sessionColumn;
+    private boolean enableUserMapping = true;
     private String identifierColumn;
     private boolean funnelAnalysisEnabled = true;
     private boolean retentionAnalysisEnabled = true;
@@ -22,6 +23,15 @@ public class UserPluginConfig {
     public UserPluginConfig setIdentifierColumn(String colName) {
         this.identifierColumn = colName;
         return this;
+    }
+
+    @Config("plugin.user.enable_user_mapping")
+    public void setEnableUserMapping(boolean enableUserMapping) {
+        this.enableUserMapping = enableUserMapping;
+    }
+
+    public boolean getEnableUserMapping() {
+        return enableUserMapping;
     }
 
     public String getIdentifierColumn() {
