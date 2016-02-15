@@ -19,8 +19,12 @@ import java.util.Map;
 public class JDBCReportMetadata {
     private final DBI dbi;
 
-    ResultSetMapper<Report> mapper = (index, r, ctx) ->
-            new Report(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class));
+    ResultSetMapper<Report> mapper = (index, r, ctx) -> {
+        if(r.getString(6).contains("columnOptions")) {
+            System.out.println(r.getString(2));
+        }
+            return new Report(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class));
+    };
 
     @Inject
     public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {

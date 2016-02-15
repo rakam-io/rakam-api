@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
 import io.airlift.units.Duration;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ContinuousQueryService;
@@ -150,14 +149,14 @@ public class RealTimeHttpService extends HttpService {
         ContinuousQuery continuousQuery = service.get(project, tableName);
         if (continuousQuery == null) {
             CompletableFuture<RealTimeQueryResult> f = new CompletableFuture<>();
-            f.completeExceptionally(new RakamException("Couldn't found rule", HttpResponseStatus.BAD_REQUEST));
+            f.completeExceptionally(new RakamException("Couldn't found rule", BAD_REQUEST));
             return f;
         }
 
         String aggregation = (String) continuousQuery.options.get("aggregation");
         if(!TRUE.equals(continuousQuery.options.get("realtime")) || aggregation == null) {
             CompletableFuture<RealTimeQueryResult> f = new CompletableFuture<>();
-            f.completeExceptionally(new RakamException("Invalid rule.", HttpResponseStatus.BAD_REQUEST));
+            f.completeExceptionally(new RakamException("Invalid rule.", BAD_REQUEST));
             return f;
         }
 

@@ -99,6 +99,18 @@ public class ProjectHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Add fields to collections",
+            authorizations = @Authorization(value = "master_key"))
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/schema/add")
+    public List<SchemaField> addFieldsToSchema(@ApiParam(name = "project") String project,
+                                               @ApiParam(name = "collection") String collection,
+                                               @ApiParam(name = "fields") Set<SchemaField> fields) {
+        return metastore.getOrCreateCollectionFieldList(project, collection, fields);
+    }
+
+    @JsonRequest
     @ApiOperation(value = "Get collection schema",
             authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {

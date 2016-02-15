@@ -6,12 +6,14 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
+import io.netty.util.CharsetUtil;
 import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventMapper;
@@ -47,11 +49,9 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.ImmutableMap.of;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.WRITE_KEY;
-import static org.rakam.util.JsonHelper.encode;
 
 @Path("/event")
 @Api(value = "/event", description = "Event collection module", tags = {"event"})
@@ -153,25 +153,16 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 if(!validateProjectPermission(event.project(), context.writeKey)) {
-                    request.response("\"api key is invalid\"", UNAUTHORIZED).end();
+                    ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
+                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, UNAUTHORIZED, byteBuf);
+                    errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+                    request.response(errResponse).end();
                     return;
                 }
 
-                try {
-                    cookies = mapEvent(event, headers, getRemoteAddress(socketAddress), response);
-                } catch (Exception e) {
-                    LOGGER.error(e);
-                    request.response("0", BAD_REQUEST).end();
-                    return;
-                }
+                cookies = mapEvent(event, headers, getRemoteAddress(socketAddress), response);
 
-                try {
-                    eventStore.store(event);
-                } catch (Exception e) {
-                    LOGGER.error(e, "error while storing event.");
-                    request.response("0", BAD_REQUEST).end();
-                    return;
-                }
+                eventStore.store(event);
             } catch (JsonMappingException e) {
                 request.response("\""+e.getMessage()+"\"", BAD_REQUEST).end();
                 return;
@@ -183,7 +174,11 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
-                request.response("\"internal server error\"", INTERNAL_SERVER_ERROR).end();
+
+                ByteBuf byteBuf = Unpooled.wrappedBuffer("\"internal server error\"".getBytes(CharsetUtil.UTF_8));
+                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
+                errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+                request.response(errResponse).end();
                 return;
             }
 
@@ -241,25 +236,22 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 if(!validateProjectPermission(events.project, context.writeKey)) {
-                    request.response("\"api key is invalid\"", UNAUTHORIZED).end();
+                    ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
+                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, UNAUTHORIZED, byteBuf);
+                    errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+                    request.response(errResponse).end();
                     return;
                 }
 
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
                 for (Event event : events.events) {
-                    try {
-                        List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, response);
-                        if(mapperEntries != null) {
-                            if(entries == null) {
-                                entries = new ArrayList<>();
-                            }
-                            entries.addAll(mapperEntries);
+                    List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, response);
+                    if(mapperEntries != null) {
+                        if(entries == null) {
+                            entries = new ArrayList<>();
                         }
-                    } catch (Exception e) {
-                        LOGGER.error(e);
-                        request.response("0", BAD_REQUEST).end();
-                        return;
+                        entries.addAll(mapperEntries);
                     }
                 }
 
@@ -285,7 +277,11 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
-                request.response('\"'+e.getMessage()+'\"', INTERNAL_SERVER_ERROR).end();
+
+                ByteBuf byteBuf = Unpooled.wrappedBuffer("0".getBytes(CharsetUtil.UTF_8));
+                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
+                errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+                request.response(errResponse).end();
                 return;
             }
 
@@ -327,12 +323,18 @@ public class EventCollectionHttpService extends HttpService {
         try {
             md = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
-            request.response("Internal Error", INTERNAL_SERVER_ERROR).end();
+            ByteBuf byteBuf = Unpooled.wrappedBuffer("0".getBytes(CharsetUtil.UTF_8));
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
+            response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+            request.response(response).end();
             return false;
         }
 
         if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF8_CHARSET))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
-            request.response(encode(of("error", "checksum is invalid")), BAD_REQUEST).end();
+            ByteBuf byteBuf = Unpooled.wrappedBuffer("\"checksum is invalid\"".getBytes(CharsetUtil.UTF_8));
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, BAD_REQUEST, byteBuf);
+            response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+            request.response(response).end();
             return false;
         }
 

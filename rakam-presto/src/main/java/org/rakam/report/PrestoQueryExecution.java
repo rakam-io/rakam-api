@@ -100,22 +100,27 @@ public class PrestoQueryExecution implements QueryExecution {
 
                     for (int i = 0; i < objects.size(); i++) {
                         String type = result.getColumns().get(i).getTypeSignature().getRawType();
-                        if(type.equals(StandardTypes.TIMESTAMP)) {
-                            try {
-                                row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
-                            } catch (Exception e) {
-                                LOGGER.error(e, "Error while parsing Presto TIMESTAMP.");
+                        Object value = objects.get(i);
+                        if(value != null) {
+                            if(type.equals(StandardTypes.TIMESTAMP)) {
+                                try {
+                                    row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
+                                } catch (Exception e) {
+                                    LOGGER.error(e, "Error while parsing Presto TIMESTAMP.");
+                                }
+                            } else
+                            if(type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
+                                try {
+                                    row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT).toInstant(UTC);
+                                } catch (Exception e) {
+                                    LOGGER.error(e, "Error while parsing Presto TIMESTAMP WITH TIMEZONE.");
+                                }
+                            } else
+                            if(type.equals(StandardTypes.DATE)){
+                                row[i] = LocalDate.parse((CharSequence) value);
+                            } else {
+                                row[i] = objects.get(i);
                             }
-                        } else
-                        if(type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
-                            try {
-                                row[i] = LocalDateTime.parse((CharSequence) objects.get(i), PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT).toInstant(UTC);
-                            } catch (Exception e) {
-                                LOGGER.error(e, "Error while parsing Presto TIMESTAMP WITH TIMEZONE.");
-                            }
-                        } else
-                        if(type.equals(StandardTypes.DATE)){
-                            row[i] = LocalDate.parse((CharSequence)objects.get(i));
                         } else {
                             row[i] = objects.get(i);
                         }
