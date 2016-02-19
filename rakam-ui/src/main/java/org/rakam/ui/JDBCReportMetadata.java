@@ -54,10 +54,10 @@ public class JDBCReportMetadata {
         }
     }
 
-    public void delete(String project, String name) {
+    public void delete(String project, String slug) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM reports WHERE project = :project AND name = :name")
-                    .bind("project", project).bind("name", name).execute();
+            handle.createStatement("DELETE FROM reports WHERE project = :project AND slug = :slug")
+                    .bind("project", project).bind("slug", slug).execute();
         }
     }
 

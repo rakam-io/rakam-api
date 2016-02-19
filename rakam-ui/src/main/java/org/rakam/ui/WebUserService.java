@@ -6,12 +6,14 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
+import org.rakam.analysis.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.Metastore.ProjectApiKeys;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.util.IntegerMapper;
 
 import java.util.List;
@@ -19,8 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 public class WebUserService {
 
@@ -75,11 +76,18 @@ public class WebUserService {
         }
 
         try(Handle handle = dbi.open()) {
-            int id = handle.createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")
-                    .bind("email", email)
-                    .bind("name", name)
-                    .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
-            return new WebUser(id, email, name, ImmutableMap.of());
+            try {
+                int id = handle.createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")
+                        .bind("email", email)
+                        .bind("name", name)
+                        .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+                return new WebUser(id, email, name, ImmutableMap.of());
+            } catch (UnableToExecuteStatementException e) {
+                if (handle.createQuery("SELECT 1 FROM web_user WHERE email = :email").bind("email", email).first() != null) {
+                    throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
+                }
+                throw e;
+            }
         }
     }
 

@@ -45,8 +45,8 @@ public class ReportHttpService extends HttpService {
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
     public JsonResponse delete(@ApiParam(name="project", value = "Project id", required = true) String project,
-                               @ApiParam(name="name", value = "Project name", required = true) String name) {
-        metadata.delete(project, name);
+                               @ApiParam(name="slug", value = "Slug", required = true) String slug) {
+        metadata.delete(project, slug);
 
         return JsonResponse.success();
     }

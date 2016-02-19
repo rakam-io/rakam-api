@@ -1,16 +1,24 @@
 package org.rakam.ui;
 
 import com.google.inject.Inject;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.DefaultCookie;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import io.netty.util.CharsetUtil;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.WebUser.UserApiKey;
 import org.rakam.util.CryptUtil;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
@@ -19,9 +27,20 @@ import javax.ws.rs.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import static io.netty.buffer.Unpooled.wrappedBuffer;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.COOKIE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
+import static org.rakam.util.JsonResponse.error;
 
 @Path("/ui/user")
 public class WebUserHttpService extends HttpService {
@@ -69,27 +88,66 @@ public class WebUserHttpService extends HttpService {
         return JsonResponse.success();
     }
 
-    @JsonRequest
     @GET
     @IgnorePermissionCheck
     @Path("/me")
-    public Response<WebUser> me(@CookieParam(name = "session", required = false) String session) {
-        final int id;
-        try {
-            id = extractUserFromCookie(session);
-        } catch (Exception e) {
-            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
-                    .addCookie("session", "", null, true, 0L, null, null);
+    public void me(RakamHttpRequest request) {
+        String cookie = request.headers().get(COOKIE);
+
+        List<String> jsonpParam = request.params().get("jsonp");
+        Optional<String> jsonp = jsonpParam == null ? Optional.empty() : jsonpParam.stream().findAny();
+
+        if (cookie != null) {
+            Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(cookie);
+            Optional<Cookie> session = cookies.stream().filter(c -> c.name().equals("session")).findAny();
+
+            if (jsonp.isPresent() && !jsonp.get().matches("^[A-Za-z]+$")) {
+                throw new RakamException(BAD_REQUEST);
+            }
+
+            if (session.isPresent()) {
+                Integer id = null;
+                try {
+                    id = extractUserFromCookie(session.get().value());
+                } catch (Exception e) {
+                    request.response(unauthorized(jsonp)).end();
+                }
+
+                if (id != null) {
+                    final Optional<WebUser> user = service.getUser(id);
+
+                    if (user.isPresent()) {
+                        String encode = JsonHelper.encode(user.get());
+                        if (jsonp.isPresent()) {
+                            encode = jsonp.get() + "(" + encode + ")";
+                        }
+                        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
+                                wrappedBuffer(encode.getBytes(CharsetUtil.UTF_8)));
+                        response.headers().set(CONTENT_TYPE, "application/json; charset=utf-8");
+                        request.response(response).end();
+                        return;
+                    }
+                }
+            }
         }
 
-        final Optional<WebUser> user = service.getUser(id);
+        request.response(unauthorized(jsonp)).end();
+    }
 
-        if (!user.isPresent()) {
-            return Response.value(JsonResponse.error(UNAUTHORIZED.reasonPhrase()), UNAUTHORIZED)
-                    .addCookie("session", "", null, true, 0L, null, null);
+    private FullHttpResponse unauthorized(Optional<String> jsonp) {
+        String encode = JsonHelper.encode(error(UNAUTHORIZED.reasonPhrase()));
+        if (jsonp.isPresent()) {
+            encode = jsonp.get() + "(" + encode + ")";
         }
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
+                wrappedBuffer(encode.getBytes(CharsetUtil.UTF_8)));
 
-        return Response.ok(user.get());
+        DefaultCookie cookie = new DefaultCookie("session", "");
+        cookie.setHttpOnly(true);
+        cookie.setMaxAge(0);
+        response.headers().add(SET_COOKIE, STRICT.encode(cookie));
+        response.headers().set(CONTENT_TYPE, "application/json; charset=utf-8");
+        return response;
     }
 
     @JsonRequest
