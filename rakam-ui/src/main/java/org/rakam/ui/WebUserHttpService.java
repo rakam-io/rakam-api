@@ -28,16 +28,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static io.netty.buffer.Unpooled.wrappedBuffer;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.COOKIE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static org.rakam.util.JsonResponse.error;
@@ -66,6 +63,24 @@ public class WebUserHttpService extends HttpService {
 
     @JsonRequest
     @IgnorePermissionCheck
+    @Path("/update/password")
+    public JsonResponse update(@ApiParam(name = "oldPassword") String oldPassword,
+                               @ApiParam(name = "newPassword") String newPassword,
+                               @CookieParam(name = "session") String session) {
+        service.updateUserPassword(extractUserFromCookie(session), oldPassword, newPassword);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/update/info")
+    public JsonResponse update(@ApiParam(name = "name") String name, @CookieParam(name = "session") String session) {
+        service.updateUserInfo(extractUserFromCookie(session), name);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @IgnorePermissionCheck
     @Path("/create-project")
     public UserApiKey createProject(@ApiParam(name = "name") String name,
                                     @CookieParam(name = "session") String session) {
@@ -86,6 +101,15 @@ public class WebUserHttpService extends HttpService {
     public JsonResponse revokeApiKeys(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id, @CookieParam(name = "session") String session) {
         service.revokeApiKeys(extractUserFromCookie(session), project, id);
         return JsonResponse.success();
+    }
+
+
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/user-access")
+    public Map<String, List<WebUserService.UserAccess>> getUserAccess(@CookieParam(name = "session") String session,
+                                                                      @ApiParam(name="project", required = false) String project) {
+        return service.getUserAccessForAllProjects(extractUserFromCookie(session));
     }
 
     @GET
@@ -162,6 +186,13 @@ public class WebUserHttpService extends HttpService {
         }
 
         throw new RakamException("Account couldn't found.", HttpResponseStatus.NOT_FOUND);
+    }
+
+    @IgnorePermissionCheck
+    @GET
+    @Path("/logout")
+    public Response<JsonResponse> logout() {
+        return Response.ok(JsonResponse.success()).addCookie("session", "", null, true, -1L, "/", null);
     }
 
     private Response getLoginResponseForUser(WebUser user) {

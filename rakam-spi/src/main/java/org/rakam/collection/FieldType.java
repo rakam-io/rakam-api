@@ -57,4 +57,14 @@ public enum FieldType {
 
         return values[ordinal() + 8];
     }
+
+    public String getPrettyName() {
+        if (isArray()) {
+            return "ARRAY<"+getArrayElementType().toString()+">";
+        }
+        if(isMap()) {
+            return "MAP<STRING, "+getMapValueType().toString()+">";
+        }
+        return toString();
+    }
 }
