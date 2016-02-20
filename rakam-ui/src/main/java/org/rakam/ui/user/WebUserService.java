@@ -144,12 +144,15 @@ public class WebUserService {
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
 
+        Map<String, Object>  scopes = ImmutableMap.of("product_name", "Rakam");
+
         try (Handle handle = dbi.open()) {
             try {
                 int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at) VALUES (:email, :password, :name, now())")
                         .bind("email", email)
                         .bind("name", name)
-                        .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+                        .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();                            sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
+                sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
                 return new WebUser(id, email, name, ImmutableMap.of());
             } catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
@@ -163,6 +166,7 @@ public class WebUserService {
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                         if (id > 0) {
+                            sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
                             return new WebUser(id, email, name, ImmutableMap.of());
                         }
                     }
@@ -244,27 +248,31 @@ public class WebUserService {
         String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
         String encoded = new String(Base64.getEncoder().encode(key.getBytes(UTF_8)), UTF_8);
 
-        HashMap<String, Object> scopes = new HashMap<>();
-        scopes.put("product_name", "Rakam");
+        Map<String, Object> scopes;
         try {
-            scopes.put("action_url", String.format("https://%s/recover-password?key=%s&hash=%s",
-                    mailConfig.getSiteUrl(), URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8")));
+            scopes = ImmutableMap.of("product_name", "Rakam",
+                    "action_url", String.format("https://%s/recover-password?key=%s&hash=%s",
+                            mailConfig.getSiteUrl(), URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8")));
         } catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
 
+        sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes);
+    }
+
+    private void sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data) {
         StringWriter writer;
 
         writer = new StringWriter();
-        resetPasswordTxtCompiler.execute(writer, scopes);
+        contentCompiler.execute(writer, data);
         String txtContent = writer.toString();
 
         writer = new StringWriter();
-        resetPasswordHtmlCompiler.execute(writer, scopes);
+        htmlCompiler.execute(writer, data);
         String htmlContent = writer.toString();
 
         writer = new StringWriter();
-        resetPasswordTitleCompiler.execute(writer, scopes);
+        titleCompiler.execute(writer, data);
         String title = writer.toString();
 
         try {

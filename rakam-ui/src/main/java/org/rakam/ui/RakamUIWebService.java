@@ -10,12 +10,12 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
+import org.rakam.util.IgnorePermissionCheck;
 
 import javax.activation.MimetypesFileTypeMap;
 import javax.inject.Inject;

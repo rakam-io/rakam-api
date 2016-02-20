@@ -2,12 +2,6 @@ Hi {{name}},
 
 Thanks for signing up for {{product_name}}. We're very excited to have you on board.
 
-To get started using {{product_name}}, please confirm your account below:
-
-{{action_url}}
-
-For your reference, your username is {{username}} for logging in.
-
 Thanks,
 {{product_name}} Team
 
