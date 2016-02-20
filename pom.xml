@@ -278,6 +278,12 @@
             </dependency>
 
             <dependency>
+                <groupId>javax.mail</groupId>
+                <artifactId>mail</artifactId>
+                <version>1.4.7</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.fasterxml.jackson.datatype</groupId>
                 <artifactId>jackson-datatype-jsr310</artifactId>
                 <version>${jackson.version}</version>
@@ -365,6 +371,11 @@
                 <version>0.15</version>
             </dependency>
 
+            <dependency>
+                <groupId>com.github.spullara.mustache.java</groupId>
+                <artifactId>compiler</artifactId>
+                <version>0.9.1</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.facebook.presto</groupId>

@@ -1,6 +1,12 @@
-package org.rakam.plugin.user;
+package org.rakam.report;
 
 import io.airlift.configuration.Config;
+import org.rakam.util.MailSender;
+
+import javax.mail.Authenticator;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import java.util.Properties;
 
 public class EmailClientConfig {
     private String host;
@@ -22,7 +28,7 @@ public class EmailClientConfig {
     }
 
     @Config("mail.from-name")
-    public void setFromName(String fromAddress) {
+    public void setFromName(String fromName) {
         this.fromName = fromName;
     }
 
@@ -72,5 +78,25 @@ public class EmailClientConfig {
 
     public boolean isUseTls() {
         return useTls;
+    }
+
+    /*
+        The javax documentation doesn't mention but it seems that Session is thread-safe. See http://stackoverflow.com/a/12733317/689144
+     */
+    public MailSender getMailSender() {
+        Properties props = new Properties();
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", isUseTls());
+        props.put("mail.smtp.host", getHost());
+        if(getPort() != null) {
+            props.put("mail.smtp.port", getPort());
+        }
+        Session session = Session.getInstance(props,
+                new Authenticator() {
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        return new PasswordAuthentication(getUser(), getPassword());
+                    }
+                });
+        new MailSender(session, getFromAddress(), getFromName());
     }
 }

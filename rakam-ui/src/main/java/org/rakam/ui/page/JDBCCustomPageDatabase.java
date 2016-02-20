@@ -14,8 +14,8 @@
 package org.rakam.ui.page;
 
 import com.google.inject.name.Named;
-import org.rakam.util.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -24,10 +24,10 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 
@@ -100,7 +100,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
                     .bind("slug", slug)
                     .map((i, resultSet, statementContext) -> {
                         return new ByteArrayInputStream(((String) JsonHelper.read(resultSet.getString(1), Map.class)
-                                .get(file)).getBytes(Charset.forName("UTF-8")));
+                                .get(file)).getBytes(UTF_8));
                     }).first();
         }
     }

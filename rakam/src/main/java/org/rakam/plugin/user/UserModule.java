@@ -12,6 +12,7 @@ import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
+import org.rakam.report.EmailClientConfig;
 import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;

@@ -1,8 +1,13 @@
 package org.rakam.ui.user;
 
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
@@ -10,9 +15,11 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.Metastore.ProjectApiKeys;
 import org.rakam.config.EncryptionConfig;
+import org.rakam.report.EmailClientConfig;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.CryptUtil;
+import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -20,7 +27,9 @@ import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
-import java.nio.charset.Charset;
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -32,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 public class WebUserService {
@@ -43,14 +53,42 @@ public class WebUserService {
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$");
     private final RakamUIConfig config;
     private final EncryptionConfig encryptionConfig;
+    private final MailSender mailSender;
+
+    public static final Mustache resetPasswordHtmlCompiler;
+    public static final Mustache resetPasswordTxtCompiler;
+    public static final Mustache welcomeHtmlCompiler;
+    public static final Mustache welcomeTxtCompiler;
+    static {
+        try {
+            MustacheFactory mf = new DefaultMustacheFactory();
+
+            resetPasswordHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("mail/resetpassword/resetpassword.html"), UTF_8)), "resetpassword.html");
+            resetPasswordTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("mail/resetpassword/resetpassword.txt"), UTF_8)), "resetpassword.txt");
+
+            welcomeHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("mail/welcome/welcome.html"), UTF_8)), "welcome.html");
+            welcomeTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
 
     @Inject
     public WebUserService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
-                          Metastore metastore, RakamUIConfig config, EncryptionConfig encryptionConfig) {
+                          Metastore metastore,
+                          RakamUIConfig config,
+                          EncryptionConfig encryptionConfig,
+                          EmailClientConfig mailConfig) {
         dbi = new DBI(dataSource);
         this.metastore = metastore;
         this.config = config;
         this.encryptionConfig = encryptionConfig;
+        this.mailSender = mailConfig.getMailSender();
         setup();
     }
 
@@ -192,9 +230,23 @@ public class WebUserService {
         long expiration = Instant.now().plus(3, ChronoUnit.HOURS).getEpochSecond();
         String key = email + expiration;
         String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
-        String encoded = new String(Base64.getEncoder().encode(key.getBytes(Charset.forName("UTF-8"))), Charset.forName("UTF-8"));
+        String encoded = new String(Base64.getEncoder().encode(key.getBytes(UTF_8)), UTF_8);
 
+        HashMap<String, Object> scopes = new HashMap<>();
+        scopes.put("product_name", "Rakam");
+        scopes.put("action_url", "Rakam");
 
+        StringWriter writer;
+
+        writer = new StringWriter();
+        resetPasswordHtmlCompiler.execute(writer, scopes);
+        String txtContent = writer.toString();
+
+        writer = new StringWriter();
+        resetPasswordHtmlCompiler.execute(writer, scopes);
+        String htmlContent = writer.toString();
+
+        mailSender.sendMail(email, config.title, txtContent, Optional.of(htmlContent));
     }
 
     public static class UserAccess {

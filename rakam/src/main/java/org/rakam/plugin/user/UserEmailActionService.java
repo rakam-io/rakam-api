@@ -6,6 +6,7 @@ import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.report.EmailClientConfig;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -13,28 +14,19 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.rakam.util.StringTemplate;
 
 import javax.inject.Inject;
-import javax.mail.Message;
 import javax.mail.MessagingException;
-import javax.mail.Multipart;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
 import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
 import javax.ws.rs.Path;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 @Path("/user/action/email")
@@ -42,32 +34,18 @@ import java.util.concurrent.CompletableFuture;
 public class UserEmailActionService extends UserActionService<UserEmailActionService.EmailActionConfig> {
     final static Logger LOGGER = Logger.get(UserEmailActionService.class);
 
-    private final EmailClientConfig mailConfig;
-    private final Session session;
+    private final MailSender mailSender;
     private final UserHttpService httpService;
 
     @Inject
     public UserEmailActionService(UserHttpService httpService, EmailClientConfig mailConfig) {
         this.httpService = httpService;
-        this.mailConfig = mailConfig;
 
         if(mailConfig.getHost() == null || mailConfig.getUser() == null) {
             throw new IllegalStateException("SMTP configuration is required when mail action is active. See mail.smtp.* configurations.");
         }
 
-        Properties props = new Properties();
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", mailConfig.isUseTls());
-        props.put("mail.smtp.host", mailConfig.getHost());
-        if(mailConfig.getPort() != null) {
-            props.put("mail.smtp.port", mailConfig.getPort());
-        }
-        session = Session.getInstance(props,
-                new javax.mail.Authenticator() {
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(mailConfig.getUser(), mailConfig.getPassword());
-                    }
-                });
+        mailSender = mailConfig.getMailSender();
     }
 
     @JsonRequest
@@ -207,19 +185,8 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
     private boolean sendInternal(String toEmail, EmailActionConfig config, String content) {
         try {
-            Message msg = new MimeMessage(session);
-            msg.setFrom(new InternetAddress(mailConfig.getFromAddress(), mailConfig.getFromName()));
-            msg.addRecipient(Message.RecipientType.TO, new InternetAddress(toEmail));
-            msg.setSubject(config.title);
-            msg.setText(content);
-            if(config.richText) {
-                Multipart mp = new MimeMultipart();
-                MimeBodyPart htmlPart = new MimeBodyPart();
-                htmlPart.setContent(toEmail, "text/html");
-                mp.addBodyPart(htmlPart);
-                msg.setContent(mp);
-            }
-            Transport.send(msg);
+            mailSender.sendMail(toEmail, config.title, content,
+                    config.richText ? Optional.of(content) : Optional.empty());
         } catch (AddressException e) {
             return false;
         }  catch (UnsupportedEncodingException|MessagingException e) {

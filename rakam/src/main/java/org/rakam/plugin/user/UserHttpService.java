@@ -5,11 +5,9 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.SchemaField;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
-import org.rakam.util.AllowCookie;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.plugin.user.UserStorage.Sorting;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
@@ -22,6 +20,8 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.AllowCookie;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
@@ -32,7 +32,6 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
@@ -50,7 +50,7 @@ import static org.rakam.server.http.HttpServer.returnError;
 @Api(value = "/user", description = "User", tags = "user")
 public class UserHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(UserHttpService.class);
-    private final byte[] OK_MESSAGE = "1".getBytes(Charset.forName("UTF-8"));
+    private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
 
     private final UserPluginConfig config;
     private final SqlParser sqlParser;

@@ -18,7 +18,6 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
@@ -28,6 +27,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -37,7 +37,6 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -47,6 +46,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -57,8 +57,7 @@ import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper();
-    private static final Charset UTF8_CHARSET = Charset.forName("UTF-8");
-    private final byte[] OK_MESSAGE = "1".getBytes(UTF8_CHARSET);
+    private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
 
     private final EventStore eventStore;
     private final Set<EventMapper> eventMappers;
@@ -329,7 +328,7 @@ public class EventCollectionHttpService extends HttpService {
             return false;
         }
 
-        if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF8_CHARSET))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
+        if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF_8))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
             ByteBuf byteBuf = Unpooled.wrappedBuffer("\"checksum is invalid\"".getBytes(CharsetUtil.UTF_8));
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, BAD_REQUEST, byteBuf);
             response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");

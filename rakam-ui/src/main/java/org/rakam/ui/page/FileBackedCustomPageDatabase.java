@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Charsets.UTF_8;
+
 
 public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     private final File directory;
@@ -56,7 +58,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
         for (Map.Entry<String, String> entry : page.files.entrySet()) {
             try {
                 // overwrite
-                Files.write(new File(pageDirectory, entry.getKey()).toPath(), entry.getValue().getBytes(Charset.forName("UTF-8")), StandardOpenOption.CREATE);
+                Files.write(new File(pageDirectory, entry.getKey()).toPath(), entry.getValue().getBytes(UTF_8), StandardOpenOption.CREATE);
             } catch (IOException e) {
                 throw Throwables.propagate(e);
             }
