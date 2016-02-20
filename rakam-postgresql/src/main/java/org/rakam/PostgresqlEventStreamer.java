@@ -9,8 +9,8 @@ import com.impossibl.postgres.api.jdbc.PGConnection;
 import com.impossibl.postgres.api.jdbc.PGNotificationListener;
 import io.airlift.log.Logger;
 import org.rakam.plugin.CollectionStreamQuery;
-import org.rakam.plugin.EventStream;
-import org.rakam.plugin.StreamResponse;
+import org.rakam.plugin.stream.EventStream;
+import org.rakam.plugin.stream.StreamResponse;
 
 import java.sql.SQLException;
 import java.sql.Statement;

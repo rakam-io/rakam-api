@@ -12,7 +12,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.UserPropertyMapper;
+import org.rakam.plugin.user.UserPropertyMapper;
 import ua_parser.CachingParser;
 import ua_parser.Client;
 import ua_parser.Parser;

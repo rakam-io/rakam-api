@@ -18,7 +18,7 @@ import io.airlift.configuration.ConfigurationAwareProvider;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationInspector;
 import io.airlift.configuration.WarningsMonitor;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 
 import java.util.List;

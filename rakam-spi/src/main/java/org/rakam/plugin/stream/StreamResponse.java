@@ -1,4 +1,4 @@
-package org.rakam.plugin;
+package org.rakam.plugin.stream;
 
 
 public interface StreamResponse {

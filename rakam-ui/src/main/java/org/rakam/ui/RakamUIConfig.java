@@ -14,6 +14,7 @@
 package org.rakam.ui;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import org.rakam.ui.RakamUIModule.CustomPageBackend;
 
 import java.io.File;
@@ -24,10 +25,24 @@ public class RakamUIConfig {
     private CustomPageBackend customPageBackend = CustomPageBackend.JDBC;
     private File customPageBackendDirectory;
     private boolean enableUi = true;
+    private boolean hashPassword = false;
+    private String secretKey;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
         this.uiDirectory = uiDirectory;
+        return this;
+    }
+
+    public boolean getHashPassword() {
+        return hashPassword;
+    }
+
+    @Config("ui.hash-password")
+    @ConfigDescription("Set true if you want passwords to be hashed with ui.secret-key before encrypting with one-way hashing algorithm. " +
+            "If you modify this key, all passwords saved in database will be invalidated.")
+    public RakamUIConfig setHashPassword(boolean hashPassword) {
+        this.hashPassword = hashPassword;
         return this;
     }
 
@@ -63,5 +78,17 @@ public class RakamUIConfig {
 
     public File getCustomPageBackendDirectory() {
         return customPageBackendDirectory;
+    }
+
+    public String getSecretKey() {
+        return secretKey;
+    }
+
+    @Config("secret-key")
+    @ConfigDescription("The secret key that will be used when encrypting sessions and passwords. " +
+            "Do not expose this key because if it's known, the sessions may be hijacked.")
+    public RakamUIConfig setSecretKey(String secretKey) {
+        this.secretKey = secretKey;
+        return this;
     }
 }

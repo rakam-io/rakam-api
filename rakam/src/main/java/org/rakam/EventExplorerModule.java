@@ -5,7 +5,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.analysis.EventExplorerHttpService;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;

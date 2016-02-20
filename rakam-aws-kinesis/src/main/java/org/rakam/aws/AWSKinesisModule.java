@@ -5,10 +5,10 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.Config;
 import io.airlift.log.Logger;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.EventStream;
-import org.rakam.plugin.EventStreamConfig;
+import org.rakam.plugin.stream.EventStream;
+import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.RakamModule;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;

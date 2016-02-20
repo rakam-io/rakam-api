@@ -5,10 +5,10 @@ import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.UserPropertyMapper;
+import org.rakam.plugin.user.UserPropertyMapper;
 
 import java.io.File;
 import java.io.FileInputStream;

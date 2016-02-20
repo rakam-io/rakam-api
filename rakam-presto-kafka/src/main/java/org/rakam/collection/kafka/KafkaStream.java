@@ -3,8 +3,8 @@ package org.rakam.collection.kafka;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.CollectionStreamQuery;
-import org.rakam.plugin.EventStream;
-import org.rakam.plugin.StreamResponse;
+import org.rakam.plugin.stream.EventStream;
+import org.rakam.plugin.stream.StreamResponse;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
 

@@ -2,6 +2,8 @@ package org.rakam.config;
 
 import com.google.common.net.HostAndPort;
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
+import org.rakam.util.CryptUtil;
 
 public class HttpServerConfig {
     private static final int RAKAM_DEFAULT_PORT = 9999;
@@ -11,6 +13,7 @@ public class HttpServerConfig {
     private boolean disabled;
     private boolean proxyProtocol;
     private boolean debug;
+    private String secretKey = CryptUtil.generateRandomKey(50);
 
     @Config("http.server.address")
     public HttpServerConfig setAddress(String address) {
@@ -53,5 +56,17 @@ public class HttpServerConfig {
 
     public boolean getDebug() {
         return debug;
+    }
+
+    public String getSecretKey() {
+        return secretKey;
+    }
+
+    @Config("secret-key")
+    @ConfigDescription("The secret key that will be used when encrypting sessions and passwords. " +
+            "Do not expose this key because if it's known, the sessions may be hijacked.")
+    public HttpServerConfig setSecretKey(String secretKey) {
+        this.secretKey = secretKey;
+        return this;
     }
 }

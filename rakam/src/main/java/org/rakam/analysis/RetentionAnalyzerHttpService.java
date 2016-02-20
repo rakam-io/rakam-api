@@ -16,7 +16,7 @@ package org.rakam.analysis;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
-import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryHttpService;
 import org.rakam.report.QueryResult;

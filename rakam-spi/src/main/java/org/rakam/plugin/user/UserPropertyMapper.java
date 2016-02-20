@@ -1,4 +1,4 @@
-package org.rakam.plugin;
+package org.rakam.plugin.user;
 
 import io.netty.handler.codec.http.HttpHeaders;
 

@@ -2,9 +2,8 @@ package org.rakam.plugin.user;
 
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.UserPluginConfig;
 import org.rakam.plugin.user.mailbox.Message;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.server.http.HttpServer;

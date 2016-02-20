@@ -5,7 +5,6 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.MaterializedViewService;
-import org.rakam.plugin.UserPluginConfig;
 import org.rakam.report.PrestoConfig;
 import org.rakam.report.PrestoQueryExecutor;
 import org.rakam.report.QueryExecutor;

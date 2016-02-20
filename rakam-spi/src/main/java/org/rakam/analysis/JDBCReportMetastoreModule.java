@@ -4,7 +4,7 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 

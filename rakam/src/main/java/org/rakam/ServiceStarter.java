@@ -28,7 +28,7 @@ import org.rakam.collection.event.EventCollectionHttpService;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.config.ForHttpServer;
 import org.rakam.config.HttpServerConfig;
-import org.rakam.plugin.AbstractUserService;
+import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;

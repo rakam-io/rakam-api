@@ -24,7 +24,7 @@ import io.airlift.configuration.WarningsMonitor;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.airlift.log.LoggingConfiguration;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 
 import java.io.PrintWriter;

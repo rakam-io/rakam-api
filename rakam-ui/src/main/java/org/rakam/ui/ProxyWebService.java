@@ -34,7 +34,7 @@ import io.netty.util.CharsetUtil;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.parser.Parser;
-import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 

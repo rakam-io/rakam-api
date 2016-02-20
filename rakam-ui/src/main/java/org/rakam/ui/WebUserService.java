@@ -163,8 +163,8 @@ public class WebUserService {
         try (Handle handle = dbi.open()) {
             Map<String, List<UserAccess>> map = new HashMap<>();
             handle.createQuery("SELECT web_user.email, project, scope_expression, has_read_permission, has_write_permission, is_admin FROM web_user_project " +
-                    "JOIN web_user ON (web_user.id = web_user_project.user) WHERE project IN " +
-                    "(SELECT DISTINCT project FROM web_user_project WHERE user = :user AND is_admin)")
+                    "JOIN web_user ON (web_user.id = web_user_project.user_id) WHERE project IN " +
+                    "(SELECT DISTINCT project FROM web_user_project WHERE user_id = :user AND is_admin)")
                     .bind("user", user).map((i, resultSet, statementContext) -> {
                         return new SimpleImmutableEntry<>(resultSet.getString(2),
                                 new UserAccess(resultSet.getString(1), resultSet.getString(3),

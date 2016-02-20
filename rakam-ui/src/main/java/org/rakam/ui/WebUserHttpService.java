@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.plugin.IgnorePermissionCheck;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
@@ -43,10 +43,12 @@ import static org.rakam.util.JsonResponse.error;
 public class WebUserHttpService extends HttpService {
 
     private final WebUserService service;
+    private final RakamUIConfig serverConfig;
 
     @Inject
-    public WebUserHttpService(WebUserService service) {
+    public WebUserHttpService(WebUserService service, RakamUIConfig serverConfig) {
         this.service = service;
+        this.serverConfig = serverConfig;
     }
 
     @JsonRequest

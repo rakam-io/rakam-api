@@ -18,7 +18,7 @@ import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
 import org.rakam.analysis.FunnelAnalyzerHttpService;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
 

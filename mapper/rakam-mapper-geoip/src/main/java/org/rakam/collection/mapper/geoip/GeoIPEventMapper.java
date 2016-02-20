@@ -21,7 +21,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.UserPropertyMapper;
+import org.rakam.plugin.user.UserPropertyMapper;
 
 import java.io.FileInputStream;
 import java.io.IOException;

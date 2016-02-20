@@ -17,7 +17,7 @@ public class CryptUtil {
 
     public static String generateRandomKey(int length) {
         String key;
-        while((key=new BigInteger(length*5/*base 32,2^5*/, random).toString(32)).length()<length);
+        while ((key = new BigInteger(length * 5/*base 32,2^5*/, random).toString(32)).length() < length) ;
         return key;
     }
 
@@ -31,7 +31,7 @@ public class CryptUtil {
             byte[] rawHmac = mac.doFinal(data.getBytes("UTF-8"));
 
             return DatatypeConverter.printBase64Binary(rawHmac);
-        } catch (NoSuchAlgorithmException|InvalidKeyException|UnsupportedEncodingException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }

@@ -11,7 +11,6 @@ import org.rakam.collection.Event;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.User;
-import org.rakam.plugin.user.UserActionService;
 import org.rakam.util.CryptUtil;
 
 import javax.inject.Inject;
@@ -23,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 public class AutomationEventProcessor implements EventProcessor {
 
@@ -34,7 +32,6 @@ public class AutomationEventProcessor implements EventProcessor {
     private final UserStorage userStorage;
 
     private static final List<Cookie> clearData;
-    private final Map<String, UserActionService> userActionServiceMap;
 
     static {
         DefaultCookie defaultCookie = new DefaultCookie(PROPERTY_KEY, "");
@@ -42,17 +39,10 @@ public class AutomationEventProcessor implements EventProcessor {
         clearData = ImmutableList.of(defaultCookie);
     }
 
-    private final Set<AutomationAction> automationActions;
-
     @Inject
-    public AutomationEventProcessor(UserAutomationService service, UserStorage userStorage,
-                                    Set<AutomationAction> automationActions,
-                                    Set<UserActionService> userActionServices) {
+    public AutomationEventProcessor(UserAutomationService service, UserStorage userStorage) {
         this.service = service;
-        userActionServiceMap = userActionServices.stream()
-                .collect(Collectors.toMap(a -> a.getName(), a -> a));
         this.userStorage = userStorage;
-        this.automationActions = automationActions;
     }
 
     @Override

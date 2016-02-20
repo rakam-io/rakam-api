@@ -1,6 +1,6 @@
 package org.rakam.analysis;
 
-import org.rakam.plugin.StreamResponse;
+import org.rakam.plugin.stream.StreamResponse;
 import org.rakam.server.http.RakamHttpRequest;
 
 public class StreamResponseAdapter implements StreamResponse {

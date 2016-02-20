@@ -5,7 +5,6 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.AbstractUserService;
 import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.Message;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;

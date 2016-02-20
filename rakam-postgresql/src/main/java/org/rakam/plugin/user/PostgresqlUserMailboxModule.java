@@ -5,7 +5,7 @@ import com.google.inject.Binder;
 import com.google.inject.name.Names;
 import org.rakam.PostgresqlModule;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.plugin.ConditionalModule;
+import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.mailbox.PostgresqlUserMailboxStorage;
