@@ -45,7 +45,7 @@ public abstract class TestFunnelQueryExecutor {
     }
 
     @AfterSuite
-    private void cleanUp() {
+    public void destroy() {
         getMetastore().deleteProject("test");
     }
 

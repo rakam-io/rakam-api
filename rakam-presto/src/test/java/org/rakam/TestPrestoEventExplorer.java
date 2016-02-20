@@ -78,6 +78,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
 
     @AfterSuite
     public void destroy() throws Exception {
+        super.destroy();
         testingEnvironment.close();
     }
 }

@@ -1,5 +1,6 @@
 package org.rakam;
 
+import com.facebook.presto.hadoop.shaded.com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.config.JDBCConfig;
 import org.rakam.presto.analysis.JDBCMetastore;
@@ -13,6 +14,7 @@ import org.rakam.plugin.EventStore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
 public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor {
@@ -37,9 +39,19 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         retentionQueryExecutor = new PrestoRetentionQueryExecutor(prestoQueryExecutor, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 
-        // TODO: Presto throws "NO node available" error, find a way to avoid this ugly hack.
+        // TODO: Presto throws "No node available" error, find a way to avoid this ugly hack.
         Thread.sleep(1000);
         super.setup();
+    }
+
+    @AfterSuite
+    public void clean() {
+        super.clean();
+        try {
+            testingEnvironment.close();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override

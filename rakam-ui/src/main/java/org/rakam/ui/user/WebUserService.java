@@ -242,6 +242,10 @@ public class WebUserService {
         }
     }
 
+    public boolean checkRecoverPassword(String key, String hash) {
+
+    }
+
     public void recoverPassword(String email) {
         long expiration = Instant.now().plus(3, ChronoUnit.HOURS).getEpochSecond();
         String key = email + expiration;

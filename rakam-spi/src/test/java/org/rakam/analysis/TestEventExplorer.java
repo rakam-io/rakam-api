@@ -51,7 +51,7 @@ public abstract class TestEventExplorer {
     }
 
     @AfterSuite
-    public void cleanUp() throws Exception {
+    public void destroy() throws Exception {
         getMetastore().deleteProject("test");
     }
 

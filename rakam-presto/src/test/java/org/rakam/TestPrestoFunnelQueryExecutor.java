@@ -1,23 +1,25 @@
 package org.rakam;
 
+import com.facebook.presto.hadoop.shaded.com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
-import org.rakam.config.JDBCConfig;
-import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.analysis.TestFunnelQueryExecutor;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.JDBCConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
-import org.rakam.report.eventexplorer.EventExplorerListener;
+import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
+import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.report.eventexplorer.EventExplorerListener;
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -58,6 +60,16 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
         Thread.sleep(1000);
         super.setup();
+    }
+
+    @AfterSuite
+    public void destroy() {
+        super.destroy();
+        try {
+            testingEnvironment.close();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
