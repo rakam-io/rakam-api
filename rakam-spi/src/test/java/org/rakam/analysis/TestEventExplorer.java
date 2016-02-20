@@ -10,6 +10,7 @@ import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
@@ -47,6 +48,11 @@ public abstract class TestEventExplorer {
                 .put("_time", Instant.ofEpochSecond(i * 100)).build())).collect(Collectors.toList());
 
         getEventStore().storeBatch(events);
+    }
+
+    @AfterSuite
+    public void cleanUp() throws Exception {
+        getMetastore().deleteProject("test");
     }
 
     public abstract EventStore getEventStore();

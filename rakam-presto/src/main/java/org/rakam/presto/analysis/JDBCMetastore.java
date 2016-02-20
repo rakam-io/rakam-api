@@ -408,6 +408,7 @@ public class JDBCMetastore extends AbstractMetastore {
                 for (String collectionName : collectionNames) {
                     statement.execute(String.format("drop table %s.%s.%s",
                             config.getColdStorageConnector(), project, collectionName));
+                    schemaCache.invalidate(new ProjectCollection(project, collectionName));
                 }
 
                 collectionCache.refresh(project);
@@ -416,6 +417,8 @@ public class JDBCMetastore extends AbstractMetastore {
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+
+        collectionCache.invalidate(project);
     }
 
     public static String toSql(FieldType type) {

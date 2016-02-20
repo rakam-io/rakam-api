@@ -160,7 +160,7 @@ public class WebUserService {
                     if (existingUser.get("created_at") != null) {
                         throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
                     } else {
-                        // somebody gave access to a project for this email address
+                        // somebody gave access for a project to this email address
                         int id = handle.createStatement("UPDATE web_user SET password = :password, name = :name, created_at = now() WHERE email = :email")
                                 .bind("email", email)
                                 .bind("name", name)

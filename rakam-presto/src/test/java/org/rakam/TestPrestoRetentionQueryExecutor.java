@@ -37,6 +37,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         retentionQueryExecutor = new PrestoRetentionQueryExecutor(prestoQueryExecutor, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 
+        // TODO: Presto throws "NO node available" error, find a way to avoid this ugly hack.
         Thread.sleep(1000);
         super.setup();
     }

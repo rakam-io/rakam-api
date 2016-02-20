@@ -7,6 +7,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.QueryResult;
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
@@ -42,6 +43,11 @@ public abstract class TestRetentionQueryExecutor {
 
             getEventStore().storeBatch(events);
         }
+    }
+
+    @AfterSuite
+    private void cleanUp() {
+        getMetastore().deleteProject("test");
     }
 
     public abstract EventStore getEventStore();
