@@ -22,7 +22,6 @@ import javax.inject.Inject;
 import javax.mail.MessagingException;
 import javax.mail.internet.AddressException;
 import javax.ws.rs.Path;
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -189,7 +188,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
                     config.richText ? Optional.of(content) : Optional.empty());
         } catch (AddressException e) {
             return false;
-        }  catch (UnsupportedEncodingException|MessagingException e) {
+        }  catch (MessagingException e) {
             LOGGER.error(e);
             return false;
         }

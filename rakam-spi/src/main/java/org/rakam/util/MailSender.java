@@ -1,5 +1,7 @@
 package org.rakam.util;
 
+import com.google.common.base.Throwables;
+
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
@@ -16,19 +18,21 @@ import static javax.mail.Message.RecipientType.TO;
 
 public class MailSender {
     private final Session session;
-    private final String fromAddress;
-    private final String fromName;
+    private final InternetAddress fromAddress;
 
     public MailSender(Session session, String fromAddress, String fromName) {
         this.session = session;
-        this.fromAddress = fromAddress;
-        this.fromName = fromName;
+        try {
+            this.fromAddress = new InternetAddress(fromAddress, fromName);
+        } catch (UnsupportedEncodingException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     public void sendMail(String toEmail, String title, String textContent, Optional<String> richText)
-            throws MessagingException, UnsupportedEncodingException {
+            throws MessagingException {
         Message msg = new MimeMessage(session);
-        msg.setFrom(new InternetAddress(fromAddress, fromName));
+        msg.setFrom(fromAddress);
         msg.addRecipient(TO, new InternetAddress(toEmail));
         msg.setSubject(title);
         msg.setText(textContent);

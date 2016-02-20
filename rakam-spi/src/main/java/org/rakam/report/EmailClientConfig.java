@@ -6,6 +6,7 @@ import org.rakam.util.MailSender;
 import javax.mail.Authenticator;
 import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
+import java.net.URL;
 import java.util.Properties;
 
 public class EmailClientConfig {
@@ -16,6 +17,7 @@ public class EmailClientConfig {
     private boolean useTls;
     private String fromAddress;
     private String fromName;
+    private URL siteUrl;
 
     @Config("mail.smtp.host")
     public void setHost(String host) {
@@ -34,6 +36,15 @@ public class EmailClientConfig {
 
     public String getFromName() {
         return fromName;
+    }
+
+    @Config("mail.site-url")
+    public void setSiteUrl(URL siteUrl) {
+        this.siteUrl = siteUrl;
+    }
+
+    public URL getSiteUrl() {
+        return siteUrl;
     }
 
     @Config("mail.smtp.port")
@@ -97,6 +108,6 @@ public class EmailClientConfig {
                         return new PasswordAuthentication(getUser(), getPassword());
                     }
                 });
-        new MailSender(session, getFromAddress(), getFromName());
+        return new MailSender(session, getFromAddress(), getFromName());
     }
 }

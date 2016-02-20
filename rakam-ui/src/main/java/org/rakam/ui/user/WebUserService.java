@@ -27,9 +27,13 @@ import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
+import javax.mail.MessagingException;
+import javax.mail.internet.AddressException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -54,29 +58,36 @@ public class WebUserService {
     private final RakamUIConfig config;
     private final EncryptionConfig encryptionConfig;
     private final MailSender mailSender;
+    private final EmailClientConfig mailConfig;
 
-    public static final Mustache resetPasswordHtmlCompiler;
-    public static final Mustache resetPasswordTxtCompiler;
-    public static final Mustache welcomeHtmlCompiler;
-    public static final Mustache welcomeTxtCompiler;
+    private static final Mustache resetPasswordHtmlCompiler;
+    private static final Mustache resetPasswordTxtCompiler;
+    private static final Mustache welcomeHtmlCompiler;
+    private static final Mustache welcomeTxtCompiler;
+    private static final Mustache resetPasswordTitleCompiler;
+    private static final Mustache welcomeTitleCompiler;
+
     static {
         try {
             MustacheFactory mf = new DefaultMustacheFactory();
 
             resetPasswordHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("mail/resetpassword/resetpassword.html"), UTF_8)), "resetpassword.html");
+                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.html"), UTF_8)), "resetpassword.html");
             resetPasswordTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("mail/resetpassword/resetpassword.txt"), UTF_8)), "resetpassword.txt");
+                    WebUserService.class.getResource("/mail/resetpassword/resetpassword.txt"), UTF_8)), "resetpassword.txt");
+            resetPasswordTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/resetpassword/title.txt"), UTF_8)), "resetpassword_title.txt");
 
             welcomeHtmlCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("mail/welcome/welcome.html"), UTF_8)), "welcome.html");
+                    WebUserService.class.getResource("/mail/welcome/welcome.html"), UTF_8)), "welcome.html");
             welcomeTxtCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
+                    WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
+            welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome_title.txt");
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
-
 
     @Inject
     public WebUserService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
@@ -88,6 +99,7 @@ public class WebUserService {
         this.metastore = metastore;
         this.config = config;
         this.encryptionConfig = encryptionConfig;
+        this.mailConfig = mailConfig;
         this.mailSender = mailConfig.getMailSender();
         setup();
     }
@@ -234,19 +246,34 @@ public class WebUserService {
 
         HashMap<String, Object> scopes = new HashMap<>();
         scopes.put("product_name", "Rakam");
-        scopes.put("action_url", "Rakam");
+        try {
+            scopes.put("action_url", String.format("https://%s/recover-password?key=%s&hash=%s",
+                    mailConfig.getSiteUrl(), URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8")));
+        } catch (UnsupportedEncodingException e) {
+            throw Throwables.propagate(e);
+        }
 
         StringWriter writer;
 
         writer = new StringWriter();
-        resetPasswordHtmlCompiler.execute(writer, scopes);
+        resetPasswordTxtCompiler.execute(writer, scopes);
         String txtContent = writer.toString();
 
         writer = new StringWriter();
         resetPasswordHtmlCompiler.execute(writer, scopes);
         String htmlContent = writer.toString();
 
-        mailSender.sendMail(email, config.title, txtContent, Optional.of(htmlContent));
+        writer = new StringWriter();
+        resetPasswordTitleCompiler.execute(writer, scopes);
+        String title = writer.toString();
+
+        try {
+            mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent));
+        } catch (AddressException e) {
+            throw new RakamException("Invalid mail", BAD_REQUEST);
+        } catch (MessagingException e) {
+            throw new RakamException("Unable to send mail", INTERNAL_SERVER_ERROR);
+        }
     }
 
     public static class UserAccess {
