@@ -23,7 +23,7 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 

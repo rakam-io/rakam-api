@@ -14,7 +14,7 @@ import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
 import io.swagger.jackson.SwaggerAnnotationIntrospector_;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.plugin.InjectionHook;

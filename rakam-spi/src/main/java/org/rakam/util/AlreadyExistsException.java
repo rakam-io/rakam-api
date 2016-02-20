@@ -1,4 +1,4 @@
-package org.rakam.analysis;
+package org.rakam.util;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.util.RakamException;

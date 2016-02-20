@@ -10,7 +10,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

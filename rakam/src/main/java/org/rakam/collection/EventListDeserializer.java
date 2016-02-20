@@ -6,8 +6,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;

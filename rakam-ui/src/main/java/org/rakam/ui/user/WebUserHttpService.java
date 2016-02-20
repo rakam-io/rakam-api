@@ -8,9 +8,8 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.CharsetUtil;
-import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.ui.RakamUIConfig;
-import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.analysis.metadata.Metastore;
+import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
@@ -19,6 +18,7 @@ import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.user.WebUser.UserApiKey;
 import org.rakam.util.CryptUtil;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
@@ -44,12 +44,12 @@ import static org.rakam.util.JsonResponse.error;
 public class WebUserHttpService extends HttpService {
 
     private final WebUserService service;
-    private final RakamUIConfig serverConfig;
+    private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public WebUserHttpService(WebUserService service, RakamUIConfig serverConfig) {
+    public WebUserHttpService(WebUserService service, EncryptionConfig encryptionConfig) {
         this.service = service;
-        this.serverConfig = serverConfig;
+        this.encryptionConfig = encryptionConfig;
     }
 
     @JsonRequest
@@ -204,14 +204,14 @@ public class WebUserHttpService extends HttpService {
                 .append(expiringTimestamp).append("|")
                 .append(user.id);
 
-        final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), "secureKey");
+        final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), encryptionConfig.getSecretKey());
         cookieData.append("|").append(secureKey);
 
         return Response.ok(user).addCookie("session", cookieData.toString(),
                 null, true, Duration.ofDays(30).getSeconds(), "/", null);
     }
 
-    private static int extractUserFromCookie(String session) {
+    private int extractUserFromCookie(String session) {
         if (session == null) {
             throw new RakamException(UNAUTHORIZED);
         }
@@ -227,7 +227,7 @@ public class WebUserHttpService extends HttpService {
         final StringBuilder cookieData = new StringBuilder()
                 .append(expiringTimestamp).append("|")
                 .append(id);
-        if (!CryptUtil.encryptWithHMacSHA1(cookieData.toString(), "secureKey").equals(hash)) {
+        if (!CryptUtil.encryptWithHMacSHA1(cookieData.toString(), encryptionConfig.getSecretKey()).equals(hash)) {
             throw new RakamException(UNAUTHORIZED);
         }
 

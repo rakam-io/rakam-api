@@ -14,9 +14,8 @@
 package org.rakam.ui.page;
 
 import com.google.inject.name.Named;
-import org.rakam.analysis.AlreadyExistsException;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;

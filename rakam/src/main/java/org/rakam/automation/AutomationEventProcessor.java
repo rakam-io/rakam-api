@@ -8,9 +8,10 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.rakam.collection.Event;
+import org.rakam.config.EncryptionConfig;
 import org.rakam.plugin.EventProcessor;
-import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.User;
+import org.rakam.plugin.user.UserStorage;
 import org.rakam.util.CryptUtil;
 
 import javax.inject.Inject;
@@ -30,6 +31,7 @@ public class AutomationEventProcessor implements EventProcessor {
 
     private final UserAutomationService service;
     private final UserStorage userStorage;
+    private final EncryptionConfig encryptionConfig;
 
     private static final List<Cookie> clearData;
 
@@ -39,10 +41,12 @@ public class AutomationEventProcessor implements EventProcessor {
         clearData = ImmutableList.of(defaultCookie);
     }
 
+
     @Inject
-    public AutomationEventProcessor(UserAutomationService service, UserStorage userStorage) {
+    public AutomationEventProcessor(UserAutomationService service, UserStorage userStorage, EncryptionConfig encryptionConfig) {
         this.service = service;
         this.userStorage = userStorage;
+        this.encryptionConfig = encryptionConfig;
     }
 
     @Override
@@ -160,7 +164,7 @@ public class AutomationEventProcessor implements EventProcessor {
             }
         }
 
-        String secureKey = CryptUtil.encryptWithHMacSHA1(builder.toString(), "secureKey");
+        String secureKey = CryptUtil.encryptWithHMacSHA1(builder.toString(), encryptionConfig.getSecretKey());
         builder.append("|").append(secureKey);
 
         return builder.toString();
@@ -213,7 +217,7 @@ public class AutomationEventProcessor implements EventProcessor {
                 }
                 String[] cookie = val.split("\\|", 2);
 
-                if (cookie.length != 2 || !CryptUtil.encryptWithHMacSHA1(cookie[0], "secureKey").equals(cookie[1])) {
+                if (cookie.length != 2 || !CryptUtil.encryptWithHMacSHA1(cookie[0], encryptionConfig.getSecretKey()).equals(cookie[1])) {
                     throw new IllegalStateException();
                 }
 

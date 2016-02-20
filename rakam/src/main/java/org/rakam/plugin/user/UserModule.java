@@ -8,7 +8,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
-import org.rakam.MetadataConfig;
+import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;

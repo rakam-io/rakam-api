@@ -4,7 +4,7 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
-import org.rakam.MetadataConfig;
+import org.rakam.config.MetadataConfig;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;

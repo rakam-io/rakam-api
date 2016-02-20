@@ -1,6 +1,6 @@
 package org.rakam.analysis;
 
-import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.util.AllowCookie;
 import org.rakam.util.IgnorePermissionCheck;
@@ -43,7 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")

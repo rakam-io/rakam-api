@@ -1,4 +1,4 @@
-package org.rakam.collection.event.metastore;
+package org.rakam.analysis.metadata;
 
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;

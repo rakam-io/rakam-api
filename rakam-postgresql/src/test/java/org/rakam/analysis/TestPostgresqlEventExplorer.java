@@ -2,14 +2,14 @@ package org.rakam.analysis;
 
 import com.google.common.eventbus.EventBus;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.eventexplorer.EventExplorerListener;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
-import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.JDBCConfig;
+import org.rakam.config.JDBCConfig;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.postgresql.report.PostgresqlEventExplorer;
 import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;

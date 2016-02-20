@@ -18,7 +18,7 @@ import io.swagger.models.auth.In;
 import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.ServiceStarter;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
 import org.rakam.server.http.HttpService;
@@ -37,7 +37,7 @@ import java.util.Arrays;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.*;
+import static org.rakam.analysis.metadata.Metastore.AccessKeyType.*;
 
 @Singleton
 public class WebServiceModule extends AbstractModule {

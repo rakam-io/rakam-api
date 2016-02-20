@@ -1,6 +1,6 @@
 package org.rakam.ui.user;
 
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 
 import java.util.List;
 import java.util.Map;

@@ -15,7 +15,7 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 
 import java.io.IOException;
 import java.io.InputStream;

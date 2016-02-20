@@ -13,7 +13,7 @@
  */
 package org.rakam.postgresql.analysis;
 
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 

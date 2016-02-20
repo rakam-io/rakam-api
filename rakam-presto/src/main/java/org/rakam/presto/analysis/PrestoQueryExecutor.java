@@ -17,7 +17,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 

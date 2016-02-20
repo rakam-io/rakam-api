@@ -1,7 +1,7 @@
 package org.rakam.kafka.collection;
 
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
 import org.rakam.plugin.stream.StreamResponse;

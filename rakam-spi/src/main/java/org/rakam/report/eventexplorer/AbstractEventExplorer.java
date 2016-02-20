@@ -3,7 +3,7 @@ package org.rakam.report.eventexplorer;
 import com.facebook.presto.sql.tree.QualifiedName;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EventExplorer;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;

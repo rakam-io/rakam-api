@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.collection.Event;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.UserStorage;

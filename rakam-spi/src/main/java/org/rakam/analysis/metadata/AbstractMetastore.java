@@ -1,11 +1,10 @@
-package org.rakam.analysis;
+package org.rakam.analysis.metadata;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.util.NotExistsException;
 

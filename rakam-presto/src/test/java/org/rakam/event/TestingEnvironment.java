@@ -5,7 +5,7 @@ import com.facebook.presto.server.testing.TestingPrestoServer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
-import org.rakam.plugin.JDBCConfig;
+import org.rakam.config.JDBCConfig;
 import org.rakam.presto.analysis.PrestoConfig;
 
 import java.io.IOException;

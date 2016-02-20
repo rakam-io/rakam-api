@@ -2,7 +2,7 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.report.DelegateQueryExecution;

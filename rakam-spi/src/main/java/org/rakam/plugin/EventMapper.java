@@ -4,7 +4,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.collection.Event;
-import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder;
 
 import java.net.InetAddress;
 import java.util.List;

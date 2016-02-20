@@ -1,15 +1,15 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
+import org.rakam.config.JDBCConfig;
 import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TestRetentionQueryExecutor;
-import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.JDBCConfig;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;

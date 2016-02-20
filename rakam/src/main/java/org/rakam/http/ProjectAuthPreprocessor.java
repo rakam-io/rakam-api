@@ -2,7 +2,7 @@ package org.rakam.http;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.handler.codec.http.HttpHeaders;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.server.http.RequestPreprocessor;
 import org.rakam.util.RakamException;
 

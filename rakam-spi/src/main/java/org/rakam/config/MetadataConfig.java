@@ -1,4 +1,4 @@
-package org.rakam;
+package org.rakam.config;
 
 import io.airlift.configuration.Config;
 import io.swagger.models.ExternalDocs;

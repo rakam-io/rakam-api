@@ -1,4 +1,4 @@
-package org.rakam.collection.event;
+package org.rakam.collection;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;

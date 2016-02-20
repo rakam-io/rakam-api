@@ -6,7 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.JDBCQueryMetadata;
+import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;

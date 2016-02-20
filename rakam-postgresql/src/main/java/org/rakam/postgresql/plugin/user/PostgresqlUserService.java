@@ -2,7 +2,7 @@ package org.rakam.postgresql.plugin.user;
 
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.base.Throwables;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.report.QueryResult;

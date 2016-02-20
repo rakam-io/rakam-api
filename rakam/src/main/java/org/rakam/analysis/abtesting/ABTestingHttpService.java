@@ -1,6 +1,6 @@
 package org.rakam.analysis.abtesting;
 
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -22,7 +22,7 @@ import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 
 @Path("/ab-testing")
 @Api(value = "/ab-testing", description = "A/B Testing module", tags = {"ab-testing"})

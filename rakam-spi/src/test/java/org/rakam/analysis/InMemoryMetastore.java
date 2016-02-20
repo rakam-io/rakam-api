@@ -3,8 +3,9 @@ package org.rakam.analysis;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.util.NotExistsException;
 
 import java.util.ArrayList;

@@ -14,7 +14,7 @@
 package org.rakam.presto.analysis;
 
 import com.google.common.collect.ImmutableMap;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
 import org.rakam.report.realtime.AggregationType;

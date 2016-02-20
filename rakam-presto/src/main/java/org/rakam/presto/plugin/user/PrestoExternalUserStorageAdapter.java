@@ -2,7 +2,7 @@ package org.rakam.presto.plugin.user;
 
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.presto.analysis.PrestoConfig;

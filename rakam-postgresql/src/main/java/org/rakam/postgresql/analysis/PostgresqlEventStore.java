@@ -10,7 +10,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.JsonHelper;
 

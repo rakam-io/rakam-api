@@ -11,8 +11,8 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.Event;
-import org.rakam.collection.event.FieldDependencyBuilder.FieldDependency;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 

@@ -5,6 +5,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.binder.AnnotatedBindingBuilder;
 import com.google.inject.multibindings.Multibinder;
+import org.rakam.config.EncryptionConfig;
 import org.rakam.ui.customreport.CustomPageHttpService;
 import org.rakam.ui.customreport.CustomReportHttpService;
 import org.rakam.ui.page.CustomPageDatabase;
@@ -20,11 +21,15 @@ import org.rakam.server.http.HttpService;
 
 import javax.inject.Inject;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
+
 
 @ConditionalModule(config = "ui.enable", value = "true")
 public class RakamUIModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
+        configBinder(binder).bindConfig(EncryptionConfig.class);
+
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 
         AnnotatedBindingBuilder<CustomPageDatabase> customPageDb = binder.bind(CustomPageDatabase.class);

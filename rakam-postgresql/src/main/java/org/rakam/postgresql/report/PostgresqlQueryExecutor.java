@@ -6,7 +6,7 @@ import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;

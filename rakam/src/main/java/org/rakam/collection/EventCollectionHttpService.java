@@ -14,7 +14,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -50,7 +50,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
-import static org.rakam.collection.event.metastore.Metastore.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 
 @Path("/event")
 @Api(value = "/event", description = "Event collection module", tags = {"event"})

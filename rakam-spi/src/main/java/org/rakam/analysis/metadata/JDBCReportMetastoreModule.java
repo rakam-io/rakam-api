@@ -1,11 +1,11 @@
-package org.rakam.analysis;
+package org.rakam.analysis.metadata;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.ConditionalModule;
-import org.rakam.plugin.JDBCConfig;
+import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 
 

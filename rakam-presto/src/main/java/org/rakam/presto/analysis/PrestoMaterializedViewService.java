@@ -8,7 +8,7 @@ import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryExecutor;
 import org.rakam.util.RakamException;

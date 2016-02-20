@@ -1,11 +1,9 @@
 package org.rakam.analysis;
 
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.analysis.MaterializedViewService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;

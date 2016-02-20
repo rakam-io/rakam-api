@@ -1,9 +1,10 @@
 package org.rakam.analysis;
 
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryResult;
+import org.rakam.util.AlreadyExistsException;
 
 import java.util.List;
 import java.util.Map;

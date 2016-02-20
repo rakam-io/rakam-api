@@ -1,4 +1,4 @@
-package org.rakam.analysis;
+package org.rakam.analysis.metadata;
 
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
@@ -7,9 +7,10 @@ import com.google.common.cache.LoadingCache;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;

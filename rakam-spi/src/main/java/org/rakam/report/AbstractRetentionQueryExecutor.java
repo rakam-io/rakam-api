@@ -4,7 +4,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.RetentionQueryExecutor;
-import org.rakam.collection.event.metastore.Metastore;
+import org.rakam.analysis.metadata.Metastore;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;

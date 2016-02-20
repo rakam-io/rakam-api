@@ -1,4 +1,4 @@
-package org.rakam.collection.event.metastore;
+package org.rakam.analysis.metadata;
 
 import org.rakam.util.NotExistsException;
 import org.rakam.collection.SchemaField;

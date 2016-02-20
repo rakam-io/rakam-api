@@ -2,7 +2,7 @@ package org.rakam.analysis;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.rakam.plugin.JDBCConfig;
+import org.rakam.config.JDBCConfig;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;

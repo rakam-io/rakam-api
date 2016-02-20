@@ -6,10 +6,13 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
-import org.rakam.analysis.AlreadyExistsException;
+import org.rakam.config.EncryptionConfig;
+import org.rakam.ui.RakamUIConfig;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.collection.event.metastore.Metastore;
-import org.rakam.collection.event.metastore.Metastore.ProjectApiKeys;
+import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.Metastore.ProjectApiKeys;
+import org.rakam.util.CryptUtil;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -34,11 +37,16 @@ public class WebUserService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
             + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$");
+    private final RakamUIConfig config;
+    private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public WebUserService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, Metastore metastore) {
+    public WebUserService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+                          Metastore metastore, RakamUIConfig config, EncryptionConfig encryptionConfig) {
         dbi = new DBI(dataSource);
         this.metastore = metastore;
+        this.config = config;
+        this.encryptionConfig = encryptionConfig;
         setup();
     }
 
@@ -69,14 +77,17 @@ public class WebUserService {
     }
 
     public WebUser createUser(String email, String password, String name) {
+        if (!PASSWORD_PATTERN.matcher(password).matches()) {
+            throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
+        }
+
+        if(config.getHashPassword()) {
+            password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
+        }
         final String scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
 
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new RakamException("Email is not valid", BAD_REQUEST);
-        }
-
-        if (!PASSWORD_PATTERN.matcher(password).matches()) {
-            throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
         }
 
         try (Handle handle = dbi.open()) {
@@ -108,6 +119,10 @@ public class WebUserService {
 
         if (!PASSWORD_PATTERN.matcher(newPassword).matches()) {
             throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
+        }
+
+        if(config.getHashPassword()) {
+            oldPassword = CryptUtil.encryptWithHMacSHA1(oldPassword, encryptionConfig.getSecretKey());
         }
 
         try (Handle handle = dbi.open()) {
@@ -203,6 +218,10 @@ public class WebUserService {
         String hashedPassword;
         String name;
         int id;
+
+        if(config.getHashPassword()) {
+            password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
+        }
 
         List<ProjectPermission> projects;
 

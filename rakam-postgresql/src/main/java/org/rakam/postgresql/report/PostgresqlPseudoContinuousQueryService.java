@@ -7,7 +7,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.event.metastore.QueryMetadataStore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.report.QueryExecution;
