@@ -38,7 +38,6 @@ import java.util.Map;
 
 
 @Path("/ui/dashboard")
-@Api(value = "/retention", tags = "retention", authorizations = @Authorization(value = "read_key"))
 @IgnoreApi
 public class DashboardService extends HttpService {
     private final DBI dbi;

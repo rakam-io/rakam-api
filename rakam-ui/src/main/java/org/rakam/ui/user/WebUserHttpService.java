@@ -18,6 +18,7 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.user.WebUser.UserApiKey;
 import org.rakam.util.CryptUtil;
@@ -44,6 +45,7 @@ import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static org.rakam.util.JsonResponse.error;
 
 @Path("/ui/user")
+@IgnoreApi
 public class WebUserHttpService extends HttpService {
 
     private final WebUserService service;
@@ -122,9 +124,20 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
     @IgnorePermissionCheck
-    @Path("/recover-password")
-    public JsonResponse recoverPassword(@ApiParam(name = "email") String email) {
-        service.recoverPassword(email);
+    @Path("/prepare-recover-password")
+    public JsonResponse prepareRecoverPassword(@ApiParam(name = "email") String email) {
+        service.prepareRecoverPassword(email);
+        return JsonResponse.success();
+    }
+
+    @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/perform-recover-password")
+    public JsonResponse performRecoverPassword(@ApiParam(name = "key") String key,
+                                               @ApiParam(name = "hash") String hash,
+                                               @ApiParam(name = "password") String password) {
+        service.performRecoverPassword(key, hash, password);
         return JsonResponse.success();
     }
 

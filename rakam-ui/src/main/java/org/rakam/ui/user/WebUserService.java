@@ -242,13 +242,39 @@ public class WebUserService {
         }
     }
 
-    public boolean checkRecoverPassword(String key, String hash) {
+    public void performRecoverPassword(String key, String hash, String newPassword) {
+        String realKey = new String(Base64.getDecoder().decode(key.getBytes(UTF_8)), UTF_8);
+        if(!CryptUtil.encryptWithHMacSHA1(realKey, encryptionConfig.getSecretKey()).equals(hash)) {
+            throw new RakamException("Invalid token", UNAUTHORIZED);
+        }
 
+        String[] split = realKey.split("|", 2);
+        if(split.length != 2) {
+            throw new RakamException(BAD_REQUEST);
+        }
+        try {
+            if (Instant.ofEpochSecond(Long.parseLong(split[0])).compareTo(Instant.now()) > 0) {
+                throw new RakamException("Token expired", UNAUTHORIZED);
+            }
+        } catch (NumberFormatException e) {
+            throw new RakamException("Invalid token", UNAUTHORIZED);
+        }
+
+        final String scrypt = SCryptUtil.scrypt(newPassword, 2 << 14, 8, 1);
+
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("UPDATE web_user SET password = :password WHERE email = :email AND password = :password")
+                    .bind("email", split[1])
+                    .bind("password", scrypt).execute();
+        }
     }
 
-    public void recoverPassword(String email) {
+    public void prepareRecoverPassword(String email) {
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new RakamException("Email is not valid", BAD_REQUEST);
+        }
         long expiration = Instant.now().plus(3, ChronoUnit.HOURS).getEpochSecond();
-        String key = email + expiration;
+        String key = expiration + "|" + email;
         String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
         String encoded = new String(Base64.getEncoder().encode(key.getBytes(UTF_8)), UTF_8);
 
