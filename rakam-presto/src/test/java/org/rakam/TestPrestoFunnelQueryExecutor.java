@@ -1,6 +1,6 @@
 package org.rakam;
 
-import com.facebook.presto.hadoop.shaded.com.google.common.base.Throwables;
+import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
