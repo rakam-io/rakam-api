@@ -3,7 +3,7 @@ package org.rakam.event;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
-import org.rakam.analysis.JDBCMetastore;
+import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;

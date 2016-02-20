@@ -7,6 +7,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.util.NotExistsException;
 
 import java.util.Iterator;
 import java.util.List;

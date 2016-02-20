@@ -15,7 +15,7 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.rakam.realtime.AggregationType;
+import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 
 import java.time.LocalDate;

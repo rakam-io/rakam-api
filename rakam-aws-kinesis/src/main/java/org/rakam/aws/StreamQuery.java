@@ -15,7 +15,7 @@ package org.rakam.aws;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.rakam.plugin.CollectionStreamQuery;
+import org.rakam.plugin.stream.CollectionStreamQuery;
 
 import java.util.List;
 

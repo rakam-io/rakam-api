@@ -8,7 +8,7 @@ import org.rakam.analysis.EventExplorer.TimestampTransformation;
 import org.rakam.collection.Event;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.plugin.EventStore;
-import org.rakam.realtime.AggregationType;
+import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;

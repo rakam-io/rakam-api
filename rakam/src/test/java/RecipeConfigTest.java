@@ -10,7 +10,7 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
-import org.rakam.Recipe;
+import org.rakam.recipe.Recipe;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;

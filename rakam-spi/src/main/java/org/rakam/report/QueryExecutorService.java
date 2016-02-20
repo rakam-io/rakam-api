@@ -11,7 +11,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.collection.event.metastore.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.plugin.MaterializedViewService;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
@@ -44,7 +44,7 @@ public class QueryExecutorService {
         this.metastore = metastore;
     }
 
-    QueryExecution executeQuery(String project, String sqlQuery, int limit) {
+    public QueryExecution executeQuery(String project, String sqlQuery, int limit) {
         if (!projectExists(project)) {
             throw new IllegalArgumentException("Project is not valid");
         }

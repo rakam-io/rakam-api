@@ -3,7 +3,6 @@ package org.rakam.analysis;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.plugin.ContinuousQueryService;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;

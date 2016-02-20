@@ -6,10 +6,10 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
-import org.rakam.plugin.CollectionStreamQuery;
+import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
 import org.rakam.plugin.stream.StreamResponse;
-import org.rakam.report.PrestoConfig;
+import org.rakam.presto.analysis.PrestoConfig;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.UriBuilder;

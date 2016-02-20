@@ -14,8 +14,8 @@ public class SystemRegistryGenerator {
 
     public static void main(String[] args) throws IOException {
         if(args.length != 1 || !args[0].equals("json") && !args[0].equals("properties")) {
-//            System.err.println("Usage: [json] or [properties]");
-//            System.exit(1);
+            System.err.println("Usage: [json] or [properties]");
+            System.exit(1);
         }
         Set<Module> allModules = ServiceStarter.getModules();
         SystemRegistry systemRegistry = new SystemRegistry(allModules, allModules);

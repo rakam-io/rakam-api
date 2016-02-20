@@ -1,8 +1,6 @@
 package org.rakam.plugin.stream;
 
 
-import org.rakam.plugin.CollectionStreamQuery;
-
 import java.util.List;
 
 

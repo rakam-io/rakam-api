@@ -4,8 +4,6 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.UserStorage;
-import org.rakam.plugin.user.User;
 import org.rakam.report.QueryResult;
 
 import java.time.Duration;

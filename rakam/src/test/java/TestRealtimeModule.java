@@ -1,11 +1,11 @@
 import com.google.common.collect.ImmutableList;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.plugin.ContinuousQueryService;
-import org.rakam.plugin.RealTimeConfig;
-import org.rakam.realtime.AggregationType;
-import org.rakam.realtime.RealTimeHttpService;
-import org.rakam.realtime.RealTimeHttpService.RealTimeQueryResult;
-import org.rakam.realtime.RealTimeReport;
+import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.report.realtime.RealTimeConfig;
+import org.rakam.report.realtime.AggregationType;
+import org.rakam.analysis.realtime.RealTimeHttpService;
+import org.rakam.analysis.realtime.RealTimeHttpService.RealTimeQueryResult;
+import org.rakam.report.realtime.RealTimeReport;
 import org.rakam.report.QueryExecutor;
 import org.testng.annotations.Test;
 

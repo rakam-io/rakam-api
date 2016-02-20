@@ -5,8 +5,8 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
-import org.rakam.report.PrestoConfig;
-import org.rakam.report.PrestoQueryExecutor;
+import org.rakam.presto.analysis.PrestoConfig;
+import org.rakam.presto.analysis.PrestoQueryExecutor;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.rakam.report.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
+import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 
 public class TestingPrestoEventStore implements EventStore {
     private final PrestoQueryExecutor queryExecutor;

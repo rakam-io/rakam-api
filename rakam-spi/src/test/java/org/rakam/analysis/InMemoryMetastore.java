@@ -5,6 +5,7 @@ import com.google.common.eventbus.EventBus;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.event.FieldDependencyBuilder;
+import org.rakam.util.NotExistsException;
 
 import java.util.ArrayList;
 import java.util.Arrays;

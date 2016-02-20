@@ -22,21 +22,25 @@ import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Tag;
+import org.rakam.analysis.AdminHttpService;
 import org.rakam.analysis.ContinuousQueryHttpService;
+import org.rakam.analysis.ProjectHttpService;
 import org.rakam.bootstrap.Bootstrap;
-import org.rakam.collection.event.EventCollectionHttpService;
+import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.event.FieldDependencyBuilder;
-import org.rakam.config.ForHttpServer;
-import org.rakam.config.HttpServerConfig;
+import org.rakam.http.ForHttpServer;
+import org.rakam.http.HttpServerConfig;
+import org.rakam.http.WebServiceModule;
 import org.rakam.plugin.user.AbstractUserService;
-import org.rakam.plugin.ContinuousQueryService;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
-import org.rakam.report.MaterializedViewHttpService;
-import org.rakam.report.QueryHttpService;
+import org.rakam.plugin.InjectionHook;
+import org.rakam.analysis.MaterializedViewHttpService;
+import org.rakam.analysis.QueryHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 
@@ -66,13 +70,13 @@ public class ServiceStarter {
 
         Set<InjectionHook> hooks = injector.getInstance(
                 Key.get(new TypeLiteral<Set<InjectionHook>>() {}));
-        hooks.forEach(org.rakam.InjectionHook::call);
+        hooks.forEach(InjectionHook::call);
 
         HttpServerConfig httpConfig = injector.getInstance(HttpServerConfig.class);
 
         if(!httpConfig.getDisabled()) {
-            WebServiceRecipe webServiceRecipe = injector.getInstance(WebServiceRecipe.class);
-            injector.createChildInjector(webServiceRecipe);
+            WebServiceModule webServiceModule = injector.getInstance(WebServiceModule.class);
+            injector.createChildInjector(webServiceModule);
         }
 
         LOGGER.info("======== SERVER STARTED ========");
@@ -170,7 +174,7 @@ public class ServiceStarter {
                     .to(NioEventLoopGroup.class)
                     .in(Scopes.SINGLETON);
 
-            binder.bind(WebServiceRecipe.class);
+            binder.bind(WebServiceModule.class);
         }
 
 

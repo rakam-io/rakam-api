@@ -6,7 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
 import org.rakam.plugin.JDBCConfig;
-import org.rakam.report.PrestoConfig;
+import org.rakam.presto.analysis.PrestoConfig;
 
 import java.io.IOException;
 import java.net.URI;

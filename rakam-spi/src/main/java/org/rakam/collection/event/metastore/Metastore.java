@@ -1,6 +1,6 @@
 package org.rakam.collection.event.metastore;
 
-import org.rakam.analysis.NotExistsException;
+import org.rakam.util.NotExistsException;
 import org.rakam.collection.SchemaField;
 
 import java.util.List;

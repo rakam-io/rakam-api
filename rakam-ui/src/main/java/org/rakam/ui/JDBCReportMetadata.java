@@ -4,6 +4,7 @@ import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.ui.report.Report;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;

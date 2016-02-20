@@ -2,15 +2,15 @@ package org.rakam;
 
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
-import org.rakam.analysis.JDBCMetastore;
+import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestContinuousQueryService;
 import org.rakam.collection.event.FieldDependencyBuilder;
 import org.rakam.collection.event.metastore.Metastore;
 import org.rakam.event.TestingEnvironment;
-import org.rakam.plugin.ContinuousQueryService;
-import org.rakam.report.PrestoContinuousQueryService;
-import org.rakam.report.PrestoQueryExecutor;
+import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.presto.analysis.PrestoContinuousQueryService;
+import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeSuite;
 

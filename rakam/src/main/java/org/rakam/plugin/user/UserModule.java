@@ -9,12 +9,14 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
 import org.rakam.MetadataConfig;
+import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
+import org.rakam.plugin.user.mailbox.UserMailboxActionService;
+import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
 import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
-import org.rakam.plugin.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
-import org.rakam.report.postgresql.PostgresqlQueryExecutor;
+import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 

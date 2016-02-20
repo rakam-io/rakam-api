@@ -2,9 +2,9 @@ package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
-import org.rakam.plugin.EventExplorerConfig;
+import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.plugin.stream.EventStreamConfig;
-import org.rakam.plugin.RealTimeConfig;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 

@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventProcessor;
-import org.rakam.plugin.UserStorage;
+import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.User;
 import org.rakam.util.CryptUtil;
 
