@@ -54,6 +54,7 @@ public class DashboardService extends HttpService {
             handle.createStatement("CREATE TABLE IF NOT EXISTS dashboard (" +
                     "  id SERIAL," +
                     "  project VARCHAR(255) NOT NULL," +
+                    "  user_id INT NOT NULL REFERENCES web_user(id)," +
                     "  name VARCHAR(255) NOT NULL," +
                     "  options TEXT," +
                     "  UNIQUE (project, name)," +

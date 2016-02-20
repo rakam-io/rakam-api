@@ -1,5 +1,6 @@
 package org.rakam.ui.user;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -13,7 +14,9 @@ import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
+import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.user.WebUser.UserApiKey;
@@ -108,11 +111,68 @@ public class WebUserHttpService extends HttpService {
 
 
     @JsonRequest
+    @ApiOperation(value = "List users who can access to the project", authorizations = @Authorization(value = "master_key"))
     @IgnorePermissionCheck
     @Path("/user-access")
     public Map<String, List<WebUserService.UserAccess>> getUserAccess(@CookieParam(name = "session") String session,
-                                                                      @ApiParam(name="project", required = false) String project) {
+                                                                      @ApiParam(name = "project", required = false) String project) {
         return service.getUserAccessForAllProjects(extractUserFromCookie(session));
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
+    @IgnorePermissionCheck
+    @Path("/recover-password")
+    public JsonResponse recoverPassword(@ApiParam(name = "email") String email) {
+        service.recoverPassword(email);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @IgnorePermissionCheck
+    @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
+    @Path("/revoke-user-access")
+    public JsonResponse revokeUserAccess(@CookieParam(name = "session") String session,
+                                         @ApiParam(name = "project") String project,
+                                         @ApiParam(name = "email") String email) {
+        Optional<WebUser> user = service.getUser(extractUserFromCookie(session));
+        if (!user.isPresent()) {
+            throw new RakamException(BAD_REQUEST);
+        }
+        boolean hasPermission = user.get().projects.getOrDefault(project, ImmutableList.of())
+                .stream().anyMatch(e -> e.masterKey != null);
+
+        if (!hasPermission) {
+            throw new RakamException(UNAUTHORIZED);
+        }
+
+        service.revokeUserAccess(project, email);
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/give-user-access")
+    public JsonResponse getUserAccess(@CookieParam(name = "session") String session,
+                                      @ApiParam(name = "project") String project,
+                                      @ApiParam(name = "email") String email,
+                                      @ApiParam(name = "scope_expression", required = false) String scopeExpression,
+                                      @ApiParam(name = "has_read_permission") boolean has_read_permission,
+                                      @ApiParam(name = "has_write_permission") boolean has_write_permission,
+                                      @ApiParam(name = "is_admin") boolean isAdmin) {
+        Optional<WebUser> user = service.getUser(extractUserFromCookie(session));
+        if (!user.isPresent()) {
+            throw new RakamException(BAD_REQUEST);
+        }
+        boolean hasPermission = user.get().projects.getOrDefault(project, ImmutableList.of())
+                .stream().anyMatch(e -> e.masterKey != null);
+
+        if (!hasPermission) {
+            throw new RakamException(UNAUTHORIZED);
+        }
+
+        service.giveAccessToUser(project, email, scopeExpression, has_read_permission, has_write_permission, isAdmin);
+        return JsonResponse.success();
     }
 
     @GET

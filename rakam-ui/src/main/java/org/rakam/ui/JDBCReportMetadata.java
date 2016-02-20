@@ -37,6 +37,7 @@ public class JDBCReportMetadata {
         try(Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
                     "  project VARCHAR(255) NOT NULL," +
+                    "  user_id INT NOT NULL REFERENCES web_user(id)," +
                     "  slug VARCHAR(255) NOT NULL," +
                     "  category VARCHAR(255)," +
                     "  name VARCHAR(255) NOT NULL," +

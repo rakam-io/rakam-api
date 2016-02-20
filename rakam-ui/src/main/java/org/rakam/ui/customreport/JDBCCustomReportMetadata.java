@@ -44,6 +44,7 @@ public class JDBCCustomReportMetadata {
         try(Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
                     "  report_type VARCHAR(255) NOT NULL," +
+                    "  user_id INT NOT NULL REFERENCES web_user(id)," +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
                     "  data TEXT NOT NULL," +

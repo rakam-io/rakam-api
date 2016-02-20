@@ -6,12 +6,12 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
-import org.rakam.config.EncryptionConfig;
-import org.rakam.ui.RakamUIConfig;
-import org.rakam.util.AlreadyExistsException;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.Metastore.ProjectApiKeys;
+import org.rakam.config.EncryptionConfig;
+import org.rakam.ui.RakamUIConfig;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
@@ -20,8 +20,12 @@ import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
+import java.nio.charset.Charset;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,9 +61,9 @@ public class WebUserService {
                     "  id SERIAL PRIMARY KEY,\n" +
                     "  email TEXT NOT NULL UNIQUE,\n" +
                     "  is_activated BOOLEAN DEFAULT false NOT NULL,\n" +
-                    "  password TEXT NOT NULL,\n" +
+                    "  password TEXT,\n" +
                     "  name TEXT NOT NULL,\n" +
-                    "  created_at TIMESTAMP DEFAULT current_timestamp NOT NULL\n" +
+                    "  created_at TIMESTAMP NOT NULL\n" +
                     "  )")
                     .execute();
 
@@ -81,7 +85,7 @@ public class WebUserService {
             throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
         }
 
-        if(config.getHashPassword()) {
+        if (config.getHashPassword()) {
             password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
         }
         final String scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
@@ -92,14 +96,26 @@ public class WebUserService {
 
         try (Handle handle = dbi.open()) {
             try {
-                int id = handle.createStatement("INSERT INTO web_user (email, password, name) VALUES (:email, :password, :name)")
+                int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at) VALUES (:email, :password, :name, now())")
                         .bind("email", email)
                         .bind("name", name)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                 return new WebUser(id, email, name, ImmutableMap.of());
             } catch (UnableToExecuteStatementException e) {
-                if (handle.createQuery("SELECT 1 FROM web_user WHERE email = :email").bind("email", email).first() != null) {
-                    throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
+                Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
+                if (existingUser != null) {
+                    if (existingUser.get("created_at") != null) {
+                        throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
+                    } else {
+                        // somebody gave access to a project for this email address
+                        int id = handle.createStatement("UPDATE web_user SET password = :password, name = :name, created_at = now() WHERE email = :email")
+                                .bind("email", email)
+                                .bind("name", name)
+                                .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+                        if (id > 0) {
+                            return new WebUser(id, email, name, ImmutableMap.of());
+                        }
+                    }
                 }
                 throw e;
             }
@@ -121,7 +137,7 @@ public class WebUserService {
             throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
         }
 
-        if(config.getHashPassword()) {
+        if (config.getHashPassword()) {
             oldPassword = CryptUtil.encryptWithHMacSHA1(oldPassword, encryptionConfig.getSecretKey());
         }
 
@@ -131,7 +147,7 @@ public class WebUserService {
             if (hashedPass == null) {
                 throw new RakamException("User does not exist", BAD_REQUEST);
             }
-            if(!SCryptUtil.check(oldPassword, hashedPass)) {
+            if (!SCryptUtil.check(oldPassword, hashedPass)) {
                 throw new RakamException("Password is wrong", BAD_REQUEST);
             }
             handle.createStatement("UPDATE web_user SET password = :password WHERE id = :id AND password = :password")
@@ -158,6 +174,29 @@ public class WebUserService {
         return new WebUser.UserApiKey(apiKeys.readKey, apiKeys.writeKey, apiKeys.masterKey);
     }
 
+    public void revokeUserAccess(String project, String email) {
+        List<Integer> integers;
+        try (Handle handle = dbi.open()) {
+            integers = handle.createStatement("DELETE FROM web_user_project WHERE project = :project AND user_id = (SELECT id FROM web_user WHERE email = :email)")
+                    .bind("project", project)
+                    .bind("email", email)
+                    .bind("project", project)
+                    .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).list();
+        }
+        for (Integer integer : integers) {
+            metastore.revokeApiKeys(project, integer);
+        }
+    }
+
+    public void recoverPassword(String email) {
+        long expiration = Instant.now().plus(3, ChronoUnit.HOURS).getEpochSecond();
+        String key = email + expiration;
+        String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
+        String encoded = new String(Base64.getEncoder().encode(key.getBytes(Charset.forName("UTF-8"))), Charset.forName("UTF-8"));
+
+
+    }
+
     public static class UserAccess {
         public final String email;
         public final String scope_expression;
@@ -177,15 +216,53 @@ public class WebUserService {
     public Map<String, List<UserAccess>> getUserAccessForAllProjects(int user) {
         try (Handle handle = dbi.open()) {
             Map<String, List<UserAccess>> map = new HashMap<>();
-            handle.createQuery("SELECT web_user.email, project, scope_expression, has_read_permission, has_write_permission, is_admin FROM web_user_project " +
+            handle.createQuery("SELECT project, web_user.email, scope_expression, has_read_permission, has_write_permission, is_admin FROM web_user_project " +
                     "JOIN web_user ON (web_user.id = web_user_project.user_id) WHERE project IN " +
                     "(SELECT DISTINCT project FROM web_user_project WHERE user_id = :user AND is_admin)")
                     .bind("user", user).map((i, resultSet, statementContext) -> {
-                        return new SimpleImmutableEntry<>(resultSet.getString(2),
-                                new UserAccess(resultSet.getString(1), resultSet.getString(3),
-                                        resultSet.getBoolean(3), resultSet.getBoolean(4), resultSet.getBoolean(5)));
-                    }).list().forEach(item -> map.computeIfAbsent(item.getKey(), (key) -> new ArrayList<>()).add(item.getValue()));
+                return new SimpleImmutableEntry<>(resultSet.getString(1),
+                        new UserAccess(resultSet.getString(2), resultSet.getString(3),
+                                resultSet.getBoolean(4), resultSet.getBoolean(5), resultSet.getBoolean(6)));
+            }).list().forEach(item -> map.computeIfAbsent(item.getKey(), (key) -> new ArrayList<>()).add(item.getValue()));
             return map;
+        }
+    }
+
+    public void giveAccessToUser(String project, String email, String scopePermission, boolean hasReadPermission, boolean hasWritePermission, boolean isAdmin) {
+        Integer userId;
+        try (Handle handle = dbi.open()) {
+            userId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
+                    .map(IntegerMapper.FIRST).first();
+            if (userId == null) {
+                userId = handle.createStatement("INSERT INTO web_user (email) VALUES (:email)")
+                        .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+            }
+        }
+
+        final ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+
+        try (Handle handle = dbi.open()) {
+            int affectedRows = handle.createStatement("UPDATE web_user_project SET has_read_permission = :read, " +
+                    " has_write_permission = :write, scope_expression = :scope, is_admin = :admin" +
+                    " WHERE project = :project AND user_id = :user")
+                    .bind("user", userId)
+                    .bind("project", project)
+                    .bind("scope", scopePermission)
+                    .bind("admin", isAdmin)
+                    .bind("write", hasWritePermission)
+                    .bind("read", hasReadPermission).execute();
+            if (affectedRows == 0) {
+                handle.createStatement("INSERT INTO web_user_project " +
+                        "(id, user_id, project, has_read_permission, has_write_permission, scope_expression, is_admin) " +
+                        "VALUES (:id, :userId, :project, :hasReadPermission, :hasWritePermission, :scopePermission, :isAdmin)")
+                        .bind("id", apiKeys.id)
+                        .bind("userId", userId)
+                        .bind("hasReadPermission", hasReadPermission)
+                        .bind("hasWritePermission", hasWritePermission)
+                        .bind("scopePermission", scopePermission)
+                        .bind("isAdmin", isAdmin)
+                        .bind("project", project).execute();
+            }
         }
     }
 
@@ -219,7 +296,7 @@ public class WebUserService {
         String name;
         int id;
 
-        if(config.getHashPassword()) {
+        if (config.getHashPassword()) {
             password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
         }
 

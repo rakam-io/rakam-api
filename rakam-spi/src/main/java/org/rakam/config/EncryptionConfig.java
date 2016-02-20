@@ -5,7 +5,7 @@ import io.airlift.configuration.ConfigDescription;
 import org.rakam.util.CryptUtil;
 
 public class EncryptionConfig {
-    private String secretKey = CryptUtil.generateRandomKey(50);
+    private String secretKey = CryptUtil.generateRandomKey(70);
 
     public String getSecretKey() {
         return secretKey;

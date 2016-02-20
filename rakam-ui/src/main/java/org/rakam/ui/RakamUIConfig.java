@@ -38,6 +38,7 @@ public class RakamUIConfig {
         return hashPassword;
     }
 
+    // TODO: should we use sha256 instead of sha1 for hashing password in order to be able to sure that we won't get any collision?
     @Config("ui.hash-password")
     @ConfigDescription("Set true if you want passwords to be hashed with ui.secret-key before encrypting with one-way hashing algorithm. " +
             "If you modify this key, all passwords saved in database will be invalidated.")
