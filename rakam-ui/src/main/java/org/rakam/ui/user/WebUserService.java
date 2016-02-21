@@ -155,8 +155,6 @@ public class WebUserService {
                         .bind("email", email)
                         .bind("name", name)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
-                sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
-
                 webuser = new WebUser(id, email, name, ImmutableMap.of());
             } catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
