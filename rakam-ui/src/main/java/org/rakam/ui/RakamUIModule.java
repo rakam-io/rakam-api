@@ -6,6 +6,9 @@ import com.google.inject.Scopes;
 import com.google.inject.binder.AnnotatedBindingBuilder;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.config.EncryptionConfig;
+import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEvents;
+import org.rakam.server.http.HttpService;
 import org.rakam.ui.customreport.CustomPageHttpService;
 import org.rakam.ui.customreport.CustomReportHttpService;
 import org.rakam.ui.page.CustomPageDatabase;
@@ -14,10 +17,8 @@ import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.ReportHttpService;
 import org.rakam.ui.user.UserUtilHttpService;
 import org.rakam.ui.user.WebUserHttpService;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.ConditionalModule;
-import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
-import org.rakam.server.http.HttpService;
 
 import javax.inject.Inject;
 
@@ -29,6 +30,8 @@ public class RakamUIModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         configBinder(binder).bindConfig(EncryptionConfig.class);
+
+        binder.bind(WebUserService.class).asEagerSingleton();
 
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 

@@ -243,6 +243,11 @@ public class WebUserService {
     }
 
     public void performRecoverPassword(String key, String hash, String newPassword) {
+        if (!PASSWORD_PATTERN.matcher(newPassword).matches()) {
+            throw new RakamException("Password is not valid. " +
+                    "Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
+        }
+
         String realKey = new String(Base64.getDecoder().decode(key.getBytes(UTF_8)), UTF_8);
         if(!CryptUtil.encryptWithHMacSHA1(realKey, encryptionConfig.getSecretKey()).equals(hash)) {
             throw new RakamException("Invalid token", UNAUTHORIZED);
