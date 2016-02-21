@@ -128,6 +128,7 @@ public abstract class TestFunnelQueryExecutor {
                 LocalDate.ofEpochDay(101), false).getResult().join();
 
         assertFalse(query.isFailed());
+        System.out.println(query.getResult());
         assertEquals(query.getResult(), of(of("Step 1", 0L)));
     }
 
