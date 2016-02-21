@@ -11,6 +11,7 @@ import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
+import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.Metastore.ProjectApiKeys;
@@ -49,6 +50,7 @@ import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 public class WebUserService {
+    private final static Logger LOGGER = Logger.get(WebUserService.class);
 
     private final DBI dbi;
     private final Metastore metastore;
@@ -57,7 +59,7 @@ public class WebUserService {
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$");
     private final RakamUIConfig config;
     private final EncryptionConfig encryptionConfig;
-    private final MailSender mailSender;
+    private MailSender mailSender;
     private final EmailClientConfig mailConfig;
 
     private static final Mustache resetPasswordHtmlCompiler;
@@ -100,7 +102,6 @@ public class WebUserService {
         this.config = config;
         this.encryptionConfig = encryptionConfig;
         this.mailConfig = mailConfig;
-        this.mailSender = mailConfig.getMailSender();
         setup();
     }
 
@@ -144,16 +145,19 @@ public class WebUserService {
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
 
-        Map<String, Object>  scopes = ImmutableMap.of("product_name", "Rakam");
+        Map<String, Object> scopes = ImmutableMap.of("product_name", "Rakam");
+
+        WebUser webuser = null;
 
         try (Handle handle = dbi.open()) {
             try {
                 int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at) VALUES (:email, :password, :name, now())")
                         .bind("email", email)
                         .bind("name", name)
-                        .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();                            sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
+                        .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                 sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
-                return new WebUser(id, email, name, ImmutableMap.of());
+
+                webuser = new WebUser(id, email, name, ImmutableMap.of());
             } catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
                 if (existingUser != null) {
@@ -166,14 +170,24 @@ public class WebUserService {
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                         if (id > 0) {
-                            sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
-                            return new WebUser(id, email, name, ImmutableMap.of());
+                            webuser = new WebUser(id, email, name, ImmutableMap.of());
                         }
                     }
                 }
-                throw e;
+
+                if (webuser == null) {
+                    throw e;
+                }
             }
         }
+
+        try {
+            sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
+        } catch (Exception e) {
+            LOGGER.error("Error while sending welcome mail", e);
+        }
+
+        return webuser;
     }
 
     public void updateUserInfo(int id, String name) {
@@ -249,12 +263,12 @@ public class WebUserService {
         }
 
         String realKey = new String(Base64.getDecoder().decode(key.getBytes(UTF_8)), UTF_8);
-        if(!CryptUtil.encryptWithHMacSHA1(realKey, encryptionConfig.getSecretKey()).equals(hash)) {
+        if (!CryptUtil.encryptWithHMacSHA1(realKey, encryptionConfig.getSecretKey()).equals(hash)) {
             throw new RakamException("Invalid token", UNAUTHORIZED);
         }
 
         String[] split = realKey.split("|", 2);
-        if(split.length != 2) {
+        if (split.length != 2) {
             throw new RakamException(BAD_REQUEST);
         }
         try {
@@ -310,11 +324,18 @@ public class WebUserService {
         titleCompiler.execute(writer, data);
         String title = writer.toString();
 
+        if (mailSender == null) {
+            synchronized (this) {
+                mailSender = mailConfig.getMailSender();
+            }
+        }
+
         try {
             mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent));
         } catch (AddressException e) {
             throw new RakamException("Invalid mail", BAD_REQUEST);
         } catch (MessagingException e) {
+            LOGGER.error("Unable to send mail", e);
             throw new RakamException("Unable to send mail", INTERNAL_SERVER_ERROR);
         }
     }

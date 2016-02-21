@@ -15,7 +15,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeSuite;
 
 public class TestPrestoContinuousQueryService extends TestContinuousQueryService {
-
     private PrestoContinuousQueryService continuousQueryService;
     private JDBCMetastore metastore;
     private TestingEnvironment testEnvironment;

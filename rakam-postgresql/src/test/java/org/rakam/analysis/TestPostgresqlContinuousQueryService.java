@@ -16,7 +16,7 @@ import org.testng.annotations.BeforeSuite;
 import java.io.IOException;
 import java.time.Clock;
 
-public class TestPostgresqlContinuousQueryService  extends TestContinuousQueryService {
+public class TestPostgresqlContinuousQueryService extends TestContinuousQueryService {
 
     private TestingPostgreSqlServer testingPostgresqlServer;
     private PostgresqlPseudoContinuousQueryService continuousQueryService;

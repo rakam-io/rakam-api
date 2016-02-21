@@ -1,5 +1,6 @@
 package org.rakam;
 
+import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
@@ -77,8 +78,12 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
     }
 
     @AfterSuite
-    public void destroy() throws Exception {
+    public void destroy() {
         super.destroy();
-        testingEnvironment.close();
+        try {
+            testingEnvironment.close();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 }

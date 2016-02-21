@@ -8,6 +8,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -30,8 +31,13 @@ public abstract class TestContinuousQueryService {
         getContinuousQueryService().delete("test", "streamtest");
     }
 
+    @AfterSuite
+    public void destroy() {
+        getMetastore().deleteProject("test");
+    }
+
     @Test
-    public void testCreate1() {
+    public void testCreate() {
         ContinuousQuery report = new ContinuousQuery("test", "test", "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());
         getContinuousQueryService().create(report).join();

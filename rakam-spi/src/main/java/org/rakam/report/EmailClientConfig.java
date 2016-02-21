@@ -95,6 +95,9 @@ public class EmailClientConfig {
         The javax documentation doesn't mention but it seems that Session is thread-safe. See http://stackoverflow.com/a/12733317/689144
      */
     public MailSender getMailSender() {
+        if(getHost() == null || getUser() == null) {
+            throw new IllegalStateException("mail.smtp.host or mail.smtp.username is not set.");
+        }
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", isUseTls());

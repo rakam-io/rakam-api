@@ -8,8 +8,8 @@ import org.rakam.analysis.EventExplorer.TimestampTransformation;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
-import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
+import org.rakam.report.realtime.AggregationType;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
@@ -51,7 +51,7 @@ public abstract class TestEventExplorer {
     }
 
     @AfterSuite
-    public void destroy() throws Exception {
+    public void destroy() {
         getMetastore().deleteProject("test");
     }
 
