@@ -5,6 +5,7 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
@@ -37,7 +38,7 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Create Report", authorizations = @Authorization(value = "read_key"))
     @Path("/create")
-    public JsonResponse create(@ParamBody Report report) {
+    public JsonResponse create(@ParamBody Report report, @CookieParam(name = "session") String session) {
         metadata.save(report);
         return JsonResponse.success();
     }

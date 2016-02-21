@@ -1,6 +1,5 @@
 package org.rakam;
 
-import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RetentionQueryExecutor;
@@ -14,7 +13,6 @@ import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
 public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor {
@@ -42,16 +40,6 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         // TODO: Presto throws "No node available" error, find a way to avoid this ugly hack.
         Thread.sleep(1000);
         super.setup();
-    }
-
-    @AfterSuite
-    public void clean() {
-        super.clean();
-        try {
-            testingEnvironment.close();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
     }
 
     @Override

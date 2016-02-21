@@ -46,6 +46,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
                 handle.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
                         "  project VARCHAR(255) NOT NULL," +
                         "  name VARCHAR(255) NOT NULL," +
+                        "  user_id INT NOT NULL REFERENCES web_user(id)," +
                         "  slug VARCHAR(255) NOT NULL," +
                         "  category VARCHAR(255)," +
                         "  data TEXT NOT NULL," +

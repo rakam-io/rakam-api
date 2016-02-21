@@ -1,28 +1,25 @@
 package org.rakam.analysis;
 
 import com.google.common.eventbus.EventBus;
-import io.airlift.testing.postgresql.TestingPostgreSqlServer;
+import org.rakam.TestingEnvironment;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.report.eventexplorer.EventExplorerListener;
+import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.plugin.EventStore;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
-import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.plugin.EventStore;
-import org.rakam.config.JDBCConfig;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.postgresql.report.PostgresqlEventExplorer;
 import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.report.QueryExecutorService;
+import org.rakam.report.eventexplorer.EventExplorerListener;
 import org.testng.annotations.BeforeSuite;
 
-import java.io.IOException;
 import java.time.Clock;
 
 public class TestPostgresqlEventExplorer extends TestEventExplorer {
 
-    private TestingPostgreSqlServer testingPostgresqlServer;
-    private JDBCConfig postgresqlConfig;
+    private TestingEnvironment testingPostgresqlServer;
     private PostgresqlMetastore metastore;
     private PostgresqlEventStore eventStore;
     private PostgresqlEventExplorer eventExplorer;
@@ -30,13 +27,10 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
     @Override
     @BeforeSuite
     public void setup() throws Exception {
-        testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
-        postgresqlConfig = new JDBCConfig()
-                .setUrl(testingPostgresqlServer.getJdbcUrl())
-                .setUsername(testingPostgresqlServer.getUser());
+        testingPostgresqlServer = new TestingEnvironment();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
-        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
+        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, queryMetadataStore);
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
@@ -54,14 +48,6 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
         eventExplorer = new PostgresqlEventExplorer(
                 new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService),
                 queryExecutor, metastore);
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                testingPostgresqlServer.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }));
         super.setup();
     }
 

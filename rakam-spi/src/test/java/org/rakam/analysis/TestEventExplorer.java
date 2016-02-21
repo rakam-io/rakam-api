@@ -31,13 +31,14 @@ import static org.testng.Assert.*;
 
 public abstract class TestEventExplorer {
     private static final int SCALE_FACTOR = 100;
+    private static final String PROJECT_NAME = TestEventExplorer.class.getName().replace(".", "_").toLowerCase();
 
     @BeforeSuite
     public void setup() throws Exception {
 
-        EventBuilder builder = new EventBuilder("test", getMetastore());
+        EventBuilder builder = new EventBuilder(PROJECT_NAME, getMetastore());
 
-        getMetastore().createProject("test");
+        getMetastore().createProject(PROJECT_NAME);
         List<Event> events = IntStream.range(0, SCALE_FACTOR).mapToObj(i -> builder.createEvent("test", ImmutableMap.<String, Object>builder()
                 .put("teststr", "test" + i)
                 .put("testnumber", i)
@@ -52,7 +53,7 @@ public abstract class TestEventExplorer {
 
     @AfterSuite
     public void destroy() {
-        getMetastore().deleteProject("test");
+        getMetastore().deleteProject(PROJECT_NAME);
     }
 
     public abstract EventStore getEventStore();
@@ -76,25 +77,31 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testTotalStatistics() throws Exception {
-        QueryResult test = getEventExplorer().getEventStatistics("test",
+        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.empty(), Optional.empty(),
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
     }
 
     @Test
     public void testCollectionSingleName() throws Exception {
-        QueryResult test = getEventExplorer().getEventStatistics("test",
+        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.of(ImmutableSet.of("test")), Optional.empty(),
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
     }
 
     @Test
     public void testCollectionNotExisting() throws Exception {
-        QueryResult test = getEventExplorer().getEventStatistics("test",
+        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.of(ImmutableSet.of()), Optional.empty(),
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+
+        assertFalse(test.isFailed());
         assertEquals(test.getResult(), of());
     }
 
@@ -102,7 +109,7 @@ public abstract class TestEventExplorer {
     public void testExtraDimensionsForStaticstics() throws Exception {
         List<String> dimensions = getEventExplorer().getExtraDimensions("test");
         for (String dimension : dimensions) {
-            QueryResult test = getEventExplorer().getEventStatistics("test",
+            QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                     Optional.empty(), Optional.of(dimension),
                     LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
@@ -110,7 +117,7 @@ public abstract class TestEventExplorer {
 
             Optional<TimestampTransformation> transformation = fromPrettyName(dimension);
             if(transformation.isPresent()) {
-                assertEquals(EVENT_STATISTICS_RESULTS.get(transformation.get()), copyOf(test.getResult()));
+                assertEquals(copyOf(test.getResult()), EVENT_STATISTICS_RESULTS.get(transformation.get()));
             } else {
                 // TODO: test custom parameters
             }
@@ -119,21 +126,23 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testStatisticsDates() throws Exception {
-        QueryResult test = getEventExplorer().getEventStatistics("test",
+        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.empty(), Optional.empty(),
                 LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(101)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(test.getResult(), of(of("test", 0L)));
     }
 
     @Test
     public void testAllDimensionsNumberBoolean() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure(null, AggregationType.COUNT),
                 new EventExplorer.Reference(COLUMN, "testnumber"),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(test.getResult().size(), 17);
 
         assertEquals(test.getResult().get(0).get(0), "Others");
@@ -149,12 +158,13 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testGroupingNumberBoolean() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure(null, AggregationType.COUNT),
                 new EventExplorer.Reference(COLUMN, "testnumber"),
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(test.getResult().size(), 51);
 
         assertEquals(test.getResult().get(0), ImmutableList.of("Others", 50L));
@@ -163,40 +173,43 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testSimpleWithFilter() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure(null, AggregationType.COUNT),
                 null,
                 null,
                 "testbool", LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(test.getResult().get(0), of(50L));
     }
 
     @Test
     public void testSimple() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure(null, AggregationType.COUNT),
                 null,
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(test.getResult().get(0), of(100L));
     }
 
     @Test
     public void testSumAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.SUM),
                 null,
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(test.getResult().get(0), of(4950.0));
     }
 
     @Test
     public void testInvalidAvgAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.AVERAGE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null,
@@ -207,29 +220,31 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testAvgAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.AVERAGE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 49.0), of("false", 50.0)));
     }
 
     @Test
     public void testMaximumAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.MAXIMUM),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 98.0), of("false", 99.0)));
     }
 
     @Test
     public void testSegmentAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
@@ -241,45 +256,49 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testCountUniqueAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
     }
 
     @Test
     public void testCountAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
     }
 
     @Test
     public void testMinimumAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.MINIMUM),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 0.0), of("false", 1.0)));
     }
 
     @Test
     public void testApproxAggregation() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.COLUMN, "testbool"),
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
 
+        assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
     }
 
@@ -305,7 +324,7 @@ public abstract class TestEventExplorer {
             Optional<TimestampTransformation> trans = fromPrettyName(dimension);
 
             if(trans.isPresent()) {
-                QueryResult test = getEventExplorer().analyze("test",
+                QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                         of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                         new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, trans.get().getPrettyName()),
                         null,
@@ -322,7 +341,7 @@ public abstract class TestEventExplorer {
 
     @Test
     public void tesMultipleReferenceGrouping() throws Exception {
-        QueryResult test = getEventExplorer().analyze("test",
+        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),

@@ -8,51 +8,46 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
 
 public abstract class TestContinuousQueryService {
+    private static final String PROJECT_NAME = TestContinuousQueryService.class.getName().replace(".", "_").toLowerCase().toLowerCase();
 
     public abstract ContinuousQueryService getContinuousQueryService();
     public abstract Metastore getMetastore();
 
     @BeforeMethod
     public void beforeMethod() throws Exception {
-        getMetastore().createProject("test");
-        getMetastore().getOrCreateCollectionFieldList("test", "test", ImmutableSet.of(new SchemaField("test", FieldType.LONG)));
+        getMetastore().createProject(PROJECT_NAME);
+        getMetastore().getOrCreateCollectionFieldList(PROJECT_NAME, "test", ImmutableSet.of(new SchemaField("test", FieldType.LONG)));
     }
 
     @AfterMethod
     public void afterMethod() throws Exception {
-        getMetastore().deleteProject("test");
-        getContinuousQueryService().delete("test", "streamtest");
-    }
-
-    @AfterSuite
-    public void destroy() {
-        getMetastore().deleteProject("test");
+        getMetastore().deleteProject(PROJECT_NAME);
+        getContinuousQueryService().delete(PROJECT_NAME, "streamtest");
     }
 
     @Test
     public void testCreate() {
-        ContinuousQuery report = new ContinuousQuery("test", "test", "streamtest", "select count(*) as count from test",
+        ContinuousQuery report = new ContinuousQuery(PROJECT_NAME, "test", "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());
         getContinuousQueryService().create(report).join();
 
-        assertEquals(getContinuousQueryService().get("test", "streamtest"), report);
+        assertEquals(getContinuousQueryService().get(PROJECT_NAME, "streamtest"), report);
     }
 
     @Test
     public void testSchema() throws Exception {
-        ContinuousQuery report = new ContinuousQuery("test", "test",
+        ContinuousQuery report = new ContinuousQuery(PROJECT_NAME, "test",
                 "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());
         getContinuousQueryService().create(report).join();
 
-        assertEquals(getContinuousQueryService().getSchemas("test"),
+        assertEquals(getContinuousQueryService().getSchemas(PROJECT_NAME),
                 ImmutableMap.of("streamtest", ImmutableList.of(new SchemaField("count", FieldType.LONG))));
     }
 }

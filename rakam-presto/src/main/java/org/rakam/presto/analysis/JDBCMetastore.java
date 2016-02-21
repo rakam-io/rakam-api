@@ -448,17 +448,6 @@ public class JDBCMetastore extends AbstractMetastore {
     }
 
     @VisibleForTesting
-    public void destroy() {
-        clearCache();
-        getProjects().forEach(this::deleteProject);
-
-        try (Handle handle = dbi.open()) {
-            handle.execute("drop table api_key");
-            handle.execute("drop table project");
-        }
-    }
-
-    @VisibleForTesting
     public void clearCache() {
         collectionCache.cleanUp();
         apiKeyCache.cleanUp();

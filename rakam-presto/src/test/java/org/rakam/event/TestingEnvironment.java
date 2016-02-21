@@ -16,10 +16,10 @@ import static com.google.common.base.Throwables.propagate;
 
 public class TestingEnvironment {
 
-    private final PrestoConfig prestoConfig;
-    private final TestingPrestoServer testingPrestoServer;
-    private TestingPostgreSqlServer testingPostgresqlServer;
-    private JDBCConfig postgresqlConfig;
+    private static PrestoConfig prestoConfig;
+    private static TestingPrestoServer testingPrestoServer;
+    private static TestingPostgreSqlServer testingPostgresqlServer;
+    private static JDBCConfig postgresqlConfig;
 
     public TestingEnvironment() {
         this(true);
@@ -27,54 +27,61 @@ public class TestingEnvironment {
 
     public TestingEnvironment(boolean installMetadata) {
         try {
-            testingPrestoServer = new TestingPrestoServer();
+            if (testingPrestoServer == null) {
+                synchronized (TestingEnvironment.class) {
+                    testingPrestoServer = new TestingPrestoServer();
 
+                    RaptorPlugin plugin = new RaptorPlugin() {
+                        @Override
+                        public void setOptionalConfig(Map<String, String> optionalConfig) {
+                            ImmutableMap<String, String> configs = ImmutableMap.of(
+                                    "storage.data-directory", Files.createTempDir().getAbsolutePath(),
+                                    "metadata.db.type", "h2",
+                                    "metadata.db.filename", Files.createTempDir().getAbsolutePath());
+
+                            super.setOptionalConfig(ImmutableMap.<String, String>builder().putAll(optionalConfig).putAll(configs).build());
+                        }
+                    };
+
+                    testingPrestoServer.installPlugin(plugin);
+                    testingPrestoServer.createCatalog("raptor", "raptor");
+
+                    prestoConfig = new PrestoConfig()
+                            .setAddress(URI.create("http://" + testingPrestoServer.getAddress().toString()))
+                            .setStreamingConnector("raptor")
+                            .setColdStorageConnector("raptor");
+                }
+            }
             if (installMetadata) {
-                testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
+                if (testingPostgresqlServer == null) {
+                    synchronized (TestingEnvironment.class) {
+                        testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
+
+                        Runtime.getRuntime().addShutdownHook(
+                                new Thread(
+                                        () -> {
+                                            try {
+                                                testingPostgresqlServer.close();
+                                            } catch (IOException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                )
+                        );
+                    }
+                }
 
                 postgresqlConfig = new JDBCConfig()
                         .setUrl(testingPostgresqlServer.getJdbcUrl())
                         .setUsername(testingPostgresqlServer.getUser());
-
-                Runtime.getRuntime().addShutdownHook(
-                        new Thread(
-                                () -> {
-                                    try {
-                                        testingPostgresqlServer.close();
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                        )
-                );
             }
         } catch (Exception e) {
             throw propagate(e);
         }
-
-        ImmutableMap<String, String> configs = ImmutableMap.of(
-                "storage.data-directory", Files.createTempDir().getAbsolutePath(),
-                "metadata.db.type", "h2",
-                "metadata.db.filename", Files.createTempDir().getAbsolutePath());
-
-        RaptorPlugin plugin = new RaptorPlugin() {
-            @Override
-            public void setOptionalConfig(Map<String, String> optionalConfig) {
-                super.setOptionalConfig(ImmutableMap.<String, String>builder().putAll(optionalConfig).putAll(configs).build());
-            }
-        };
-
-        testingPrestoServer.installPlugin(plugin);
-        testingPrestoServer.createCatalog("raptor", "raptor");
-
-        prestoConfig = new PrestoConfig()
-                .setAddress(URI.create("http://" + testingPrestoServer.getAddress().toString()))
-                .setStreamingConnector("raptor")
-                .setColdStorageConnector("raptor");
     }
 
     public JDBCConfig getPostgresqlConfig() {
-        if(postgresqlConfig == null) {
+        if (postgresqlConfig == null) {
             throw new UnsupportedOperationException();
         }
         return postgresqlConfig;
@@ -86,7 +93,7 @@ public class TestingEnvironment {
 
     public void close() throws Exception {
         testingPrestoServer.close();
-        if(testingPostgresqlServer != null) {
+        if (testingPostgresqlServer != null) {
             testingPostgresqlServer.close();
         }
     }

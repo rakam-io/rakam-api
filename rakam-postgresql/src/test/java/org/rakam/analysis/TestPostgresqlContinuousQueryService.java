@@ -1,36 +1,30 @@
 package org.rakam.analysis;
 
 import com.google.common.eventbus.EventBus;
-import io.airlift.testing.postgresql.TestingPostgreSqlServer;
+import org.rakam.TestingEnvironment;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
-import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.config.JDBCConfig;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
-import org.testng.annotations.AfterSuite;
+import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
 
-import java.io.IOException;
 import java.time.Clock;
 
 public class TestPostgresqlContinuousQueryService extends TestContinuousQueryService {
 
-    private TestingPostgreSqlServer testingPostgresqlServer;
+    private TestingEnvironment testingPostgresqlServer;
     private PostgresqlPseudoContinuousQueryService continuousQueryService;
     private PostgresqlMetastore metastore;
 
     @BeforeSuite
     public void setUp() throws Exception {
-        testingPostgresqlServer = new TestingPostgreSqlServer("testuser", "testdb");
-        JDBCConfig postgresqlConfig = new JDBCConfig()
-                .setUrl(testingPostgresqlServer.getJdbcUrl())
-                .setUsername(testingPostgresqlServer.getUser());
+        testingPostgresqlServer = new TestingEnvironment();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
-        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
+        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
 
         metastore = new PostgresqlMetastore(dataSource, new EventBus(), new FieldDependencyBuilder().build());
 
@@ -38,14 +32,6 @@ public class TestPostgresqlContinuousQueryService extends TestContinuousQuerySer
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore,
                 new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC()));
         continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                testingPostgresqlServer.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }));
     }
 
     @Override
@@ -56,10 +42,5 @@ public class TestPostgresqlContinuousQueryService extends TestContinuousQuerySer
     @Override
     public Metastore getMetastore() {
         return metastore;
-    }
-
-    @AfterSuite
-    public void tearDown() throws Exception {
-        testingPostgresqlServer.close();
     }
 }
