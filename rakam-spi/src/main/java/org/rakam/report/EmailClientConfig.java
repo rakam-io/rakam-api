@@ -1,11 +1,13 @@
 package org.rakam.report;
 
+import com.google.common.base.Throwables;
 import io.airlift.configuration.Config;
 import org.rakam.util.MailSender;
 
 import javax.mail.Authenticator;
 import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Properties;
 
@@ -15,9 +17,17 @@ public class EmailClientConfig {
     private String user;
     private String password;
     private boolean useTls;
-    private String fromAddress;
-    private String fromName;
+    private String fromAddress = "happy@rakam.io";
+    private String fromName = "Rakam.io";
     private URL siteUrl;
+
+    public EmailClientConfig() {
+        try {
+            siteUrl = new URL("https://rakam.io");
+        } catch (MalformedURLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
 
     @Config("mail.smtp.host")
     public void setHost(String host) {
