@@ -184,7 +184,7 @@ public class WebUserService {
         try {
             sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
         } catch (Exception e) {
-            LOGGER.error("Error while sending welcome mail", e);
+            LOGGER.error(e, "Error while sending welcome mail");
         }
 
         return webuser;
@@ -300,7 +300,7 @@ public class WebUserService {
         Map<String, Object> scopes;
         try {
             scopes = ImmutableMap.of("product_name", "Rakam",
-                    "action_url", String.format("https://%s/recover-password?key=%s&hash=%s",
+                    "action_url", String.format("%s/perform-recover-password?key=%s&hash=%s",
                             mailConfig.getSiteUrl(), URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8")));
         } catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
@@ -335,7 +335,7 @@ public class WebUserService {
         } catch (AddressException e) {
             throw new RakamException("Invalid mail", BAD_REQUEST);
         } catch (MessagingException e) {
-            LOGGER.error("Unable to send mail", e);
+            LOGGER.error(e, "Unable to send mail");
             throw new RakamException("Unable to send mail", INTERNAL_SERVER_ERROR);
         }
     }
