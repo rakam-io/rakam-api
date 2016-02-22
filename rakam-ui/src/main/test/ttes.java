@@ -1,10 +1,6 @@
 import javax.crypto.Cipher;
-import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
-import java.io.UnsupportedEncodingException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 
 public class ttes {
 
@@ -45,9 +41,5 @@ public class ttes {
 
         String cipherText = encrypt(plainText, encryptionKey);
         String decryptedCipherText = decrypt(cipherText, encryptionKey);
-
-        System.out.println(plainText);
-        System.out.println(cipherText);
-        System.out.println(decryptedCipherText);
     }
 }

@@ -17,7 +17,6 @@ import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.ReportHttpService;
 import org.rakam.ui.user.UserUtilHttpService;
 import org.rakam.ui.user.WebUserHttpService;
-import org.rakam.ui.user.WebUserService;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
@@ -30,8 +29,6 @@ public class RakamUIModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         configBinder(binder).bindConfig(EncryptionConfig.class);
-
-        binder.bind(WebUserService.class).asEagerSingleton();
 
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 
@@ -48,11 +45,13 @@ public class RakamUIModule extends RakamModule {
         binder.bind(DefaultDashboardCreator.class).asEagerSingleton();
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+        // it must be loaded first because report, custom-report and page needs web_user db table
+        httpServices.addBinding().to(WebUserHttpService.class);
+
         httpServices.addBinding().to(ReportHttpService.class);
         httpServices.addBinding().to(CustomReportHttpService.class);
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(DashboardService.class);
-        httpServices.addBinding().to(WebUserHttpService.class);
         httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(RakamUIWebService.class);
         httpServices.addBinding().to(UserUtilHttpService.class);

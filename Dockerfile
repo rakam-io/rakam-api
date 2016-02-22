@@ -11,14 +11,14 @@ RUN git clone https://github.com/buremba/rakam-ui.git
 RUN cd rakam-ui && npm install
 
 RUN git clone https://github.com/buremba/rakam.git
-RUN cd rakam && mvn install && cd rakam/target && tar -zxvf *-bundle.tar.gz
+RUN cd rakam && mvn install -DskipTests && cd rakam/target && tar -zxvf *-bundle.tar.gz
 
 RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
 
 RUN env | grep RAKAM_ | awk  '{gsub(/\_/,".",$0); print substr(tolower($0), 8)}' > config.properties
 
-RUN [ -s config.properties ] || apt-get install -y postgresql-9.4 postgresql-client-9.4 postgresql-contrib-9.4 \
+RUN [ -s config.properties ] || apt-get update && apt-get install -y postgresql-9.4 postgresql-client-9.4 postgresql-contrib-9.4 \
 								&& POSTGRES_PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) \
 								&& service postgresql start \
 							    && su postgres -l -c "psql --command \"CREATE USER rakam WITH SUPERUSER PASSWORD 'dummy';\"" \
@@ -42,7 +42,7 @@ http.server.address=0.0.0.0:9999\n\
 plugin.user.storage.identifier_column=id\n\
 plugin.user.mailbox.adapter=postgresql\n\
 store.adapter.postgresql.max_connection=20\n\
-plugin.geoip.database=/tmp/GeoLite2-City.mmdb\n\
+plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n\
 ui.custom-page.backend=jdbc\n\
 ui.enable=true" > config.properties
 
