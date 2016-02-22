@@ -27,23 +27,6 @@ public class JDBCReportMetadata {
     @Inject
     public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
-        setup();
-    }
-
-    public void setup() {
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
-                    "  project VARCHAR(255) NOT NULL," +
-                    "  user_id INT REFERENCES web_user(id)," +
-                    "  slug VARCHAR(255) NOT NULL," +
-                    "  category VARCHAR(255)," +
-                    "  name VARCHAR(255) NOT NULL," +
-                    "  query TEXT NOT NULL," +
-                    "  options TEXT," +
-                    "  PRIMARY KEY (project, slug)" +
-                    "  )")
-                    .execute();
-        }
     }
 
     public List<Report> getReports(String project) {

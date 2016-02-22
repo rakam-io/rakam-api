@@ -32,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import static java.lang.String.format;
 
 @Path("/user/action/mailbox")
-@Api(value = "/user/action/mailbox", description = "Mailbox action", tags = "user-action")
+@Api(value = "/user/action/mailbox", nickname = "userMailboxAction", description = "Mailbox action", tags = "user-action")
 public class UserMailboxActionService extends UserActionService<UserMailboxActionService.MailAction> {
     private final SqlParser sqlParser = new SqlParser();
     private final AbstractUserService userService;

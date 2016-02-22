@@ -29,7 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Path("/user/action/email")
-@Api(value = "/user/action/email", description = "Email action", tags = "user-action")
+@Api(value = "/user/action/email", nickname = "userEmailAction", description = "Email action", tags = "user-action")
 public class UserEmailActionService extends UserActionService<UserEmailActionService.EmailActionConfig> {
     final static Logger LOGGER = Logger.get(UserEmailActionService.class);
 
@@ -52,7 +52,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch")
-    public CompletableFuture<Long> batchSendEmails(@ApiParam(name="project") String project,
+    public CompletableFuture<Long> batch(@ApiParam(name="project") String project,
                                          @ApiParam(name = "filter", required = false) String filter,
                                          @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                                          @ApiParam(name = "config") EmailActionConfig config) {

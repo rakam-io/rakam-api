@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Path("/materialized-view")
-@Api(value = "/materialized-view", description = "Materialized View", tags = "materialized-view")
+@Api(value = "/materialized-view", nickname = "materializedView", description = "Materialized View", tags = "materialized-view")
 public class MaterializedViewHttpService extends HttpService {
     private final MaterializedViewService service;
     private final QueryHttpService queryService;

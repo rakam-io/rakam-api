@@ -25,7 +25,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 
 @Path("/ab-testing")
-@Api(value = "/ab-testing", description = "A/B Testing module", tags = {"ab-testing"})
+@Api(value = "/ab-testing", nickname = "abTesting", description = "A/B Testing module", tags = {"ab-testing"})
 public class ABTestingHttpService extends HttpService {
 
     private final ABTestingMetastore metadata;

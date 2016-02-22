@@ -14,7 +14,7 @@ import javax.ws.rs.Path;
 import java.util.List;
 
 @Path("/automation")
-@Api(value = "/automation", description = "Automation module", tags = "automation")
+@Api(value = "/automation", nickname = "automation", description = "Automation module", tags = "automation")
 public class AutomationHttpService extends HttpService {
 
     private final UserAutomationService service;

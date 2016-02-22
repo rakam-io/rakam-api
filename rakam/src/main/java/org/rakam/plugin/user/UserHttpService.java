@@ -47,7 +47,7 @@ import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")
-@Api(value = "/user", description = "User", tags = "user")
+@Api(value = "/user", nickname = "user", description = "User", tags = "user")
 public class UserHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(UserHttpService.class);
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);

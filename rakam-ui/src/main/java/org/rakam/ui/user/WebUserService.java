@@ -102,33 +102,6 @@ public class WebUserService {
         this.config = config;
         this.encryptionConfig = encryptionConfig;
         this.mailConfig = mailConfig;
-        setup();
-    }
-
-    private void setup() {
-        try (Handle handle = dbi.open()) {
-
-            handle.createStatement("CREATE TABLE IF NOT EXISTS web_user (" +
-                    "  id SERIAL PRIMARY KEY,\n" +
-                    "  email TEXT NOT NULL UNIQUE,\n" +
-                    "  is_activated BOOLEAN DEFAULT false NOT NULL,\n" +
-                    "  password TEXT,\n" +
-                    "  name TEXT NOT NULL,\n" +
-                    "  created_at TIMESTAMP NOT NULL\n" +
-                    "  )")
-                    .execute();
-
-            handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (" +
-                    "  id SERIAL PRIMARY KEY,\n" +
-                    "  user_id INTEGER REFERENCES web_user(id),\n" +
-                    "  project TEXT NOT NULL,\n" +
-                    "  scope_expression TEXT,\n" +
-                    "  has_read_permission BOOLEAN NOT NULL,\n" +
-                    "  has_write_permission BOOLEAN NOT NULL,\n" +
-                    "  is_admin BOOLEAN DEFAULT false NOT NULL\n" +
-                    "  )")
-                    .execute();
-        }
     }
 
     public WebUser createUser(String email, String password, String name) {

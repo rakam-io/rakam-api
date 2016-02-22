@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Path("/admin")
-@Api(value = "/admin", description = "System operations", tags = "admin")
+@Api(value = "/admin", nickname = "admin", description = "System operations", tags = "admin")
 public class AdminHttpService extends HttpService {
     private final SystemRegistry systemRegistry;
 

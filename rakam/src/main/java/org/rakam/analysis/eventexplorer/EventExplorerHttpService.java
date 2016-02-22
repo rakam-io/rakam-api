@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.rakam.util.ValidationUtil.checkArgument;
 
 @Path("/event-explorer")
-@Api(value = "/event-explorer", description = "Event explorer module", tags = "event-explorer")
+@Api(value = "/event-explorer", nickname = "eventExplorer", description = "Event explorer module", tags = "event-explorer")
 public class EventExplorerHttpService extends HttpService {
     private final EventExplorer eventExplorer;
 

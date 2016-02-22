@@ -36,22 +36,7 @@ public class JDBCCustomReportMetadata {
     @Inject
     public JDBCCustomReportMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
-        setup();
         createIndexIfNotExists();
-    }
-
-    public void setup() {
-        try(Handle handle = dbi.open()) {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
-                    "  report_type VARCHAR(255) NOT NULL," +
-                    "  user_id INT REFERENCES web_user(id)," +
-                    "  project VARCHAR(255) NOT NULL," +
-                    "  name VARCHAR(255) NOT NULL," +
-                    "  data TEXT NOT NULL," +
-                    "  PRIMARY KEY (report_type, project, name)" +
-                    "  )")
-                    .execute();
-        }
     }
 
     private void createIndexIfNotExists() {

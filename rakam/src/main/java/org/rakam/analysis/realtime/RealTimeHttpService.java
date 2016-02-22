@@ -48,7 +48,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
-@Api(value = "/realtime", description = "Realtime module", tags = "realtime",
+@Api(value = "/realtime", nickname = "realtime", description = "Realtime module", tags = "realtime",
         authorizations = @Authorization(value = "read_key"))
 @Path("/realtime")
 public class RealTimeHttpService extends HttpService {

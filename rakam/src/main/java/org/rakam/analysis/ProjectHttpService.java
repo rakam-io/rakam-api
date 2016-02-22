@@ -27,7 +27,7 @@ import static java.util.Locale.ENGLISH;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/project")
-@Api(value = "/project", description = "Project operations", tags = "admin")
+@Api(value = "/project", nickname = "project", description = "Project operations", tags = "admin")
 public class ProjectHttpService extends HttpService {
 
     private final Metastore metastore;

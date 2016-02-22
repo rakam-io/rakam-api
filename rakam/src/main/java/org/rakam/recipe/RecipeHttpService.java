@@ -32,7 +32,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/recipe")
-@Api(value = "/recipe", description = "Recipe operations", tags = "recipe")
+@Api(value = "/recipe", nickname = "recipe", description = "Recipe operations", tags = "recipe")
 public class RecipeHttpService extends HttpService {
     private static ObjectMapper yamlMapper;
     static {

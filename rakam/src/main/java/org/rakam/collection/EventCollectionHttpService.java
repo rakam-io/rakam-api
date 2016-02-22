@@ -53,7 +53,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 
 @Path("/event")
-@Api(value = "/event", description = "Event collection module", tags = {"event"})
+@Api(value = "/event", nickname="collectEvent", description = "Event collection module", tags = {"event"})
 public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper();

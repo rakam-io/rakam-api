@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Path("/continuous-query")
-@Api(value = "/continuous-query", description = "Continuous Query", tags = "continuous-query")
+@Api(value = "/continuous-query", nickname = "continuousQuery", description = "Continuous Query", tags = "continuous-query")
 public class ContinuousQueryHttpService extends HttpService {
     private final ContinuousQueryService service;
     private final QueryExecutorService queryExecutorService;

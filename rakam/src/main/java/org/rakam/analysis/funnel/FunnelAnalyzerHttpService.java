@@ -15,6 +15,7 @@ package org.rakam.analysis.funnel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.plugin.ProjectItem;
 import org.rakam.analysis.QueryHttpService;
@@ -42,7 +43,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Path("/funnel")
-@Api(value = "/funnel", tags = "funnel")
+@Api(value = "/funnel", nickname = "funnelAnalyzer", tags = "funnel")
 public class FunnelAnalyzerHttpService extends HttpService {
     private final FunnelQueryExecutor funnelQueryExecutor;
     private final QueryHttpService queryService;
@@ -60,6 +61,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @GET
+    @IgnoreApi
     @IgnorePermissionCheck
     @Path("/analyze")
     public void analyze(RakamHttpRequest request) {

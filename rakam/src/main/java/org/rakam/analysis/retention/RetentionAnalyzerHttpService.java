@@ -40,7 +40,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Path("/retention")
-@Api(value = "/retention", tags = "retention")
+@Api(value = "/retention", nickname = "retentionAnalyzer", tags = "retention")
 public class RetentionAnalyzerHttpService extends HttpService {
     private final RetentionQueryExecutor retentionQueryExecutor;
     private final QueryHttpService queryService;

@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
@@ -45,32 +44,6 @@ public class DashboardService extends HttpService {
     @Inject
     public DashboardService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
-        setup();
-    }
-
-    public void setup() {
-        dbi.inTransaction((handle, transactionStatus) -> {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS dashboard (" +
-                    "  id SERIAL," +
-                    "  project VARCHAR(255) NOT NULL," +
-                    "  user_id INT NOT NULL REFERENCES web_user(id)," +
-                    "  name VARCHAR(255) NOT NULL," +
-                    "  options TEXT," +
-                    "  UNIQUE (project, name)," +
-                    "  PRIMARY KEY (id)" +
-                    "  )")
-                    .execute();
-            handle.createStatement("CREATE TABLE IF NOT EXISTS dashboard_items (" +
-                    "  id SERIAL," +
-                    "  dashboard int NOT NULL REFERENCES dashboard(id) ON DELETE CASCADE," +
-                    "  name VARCHAR(255) NOT NULL," +
-                    "  directive VARCHAR(255) NOT NULL," +
-                    "  data TEXT NOT NULL," +
-                    "  PRIMARY KEY (id)" +
-                    "  )")
-                    .execute();
-            return null;
-        });
     }
 
     @JsonRequest
