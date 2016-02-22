@@ -44,7 +44,7 @@ public class JDBCCustomReportMetadata {
         try(Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
                     "  report_type VARCHAR(255) NOT NULL," +
-                    "  user_id INT NOT NULL REFERENCES web_user(id)," +
+                    "  user_id INT REFERENCES web_user(id)," +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
                     "  data TEXT NOT NULL," +
@@ -65,12 +65,13 @@ public class JDBCCustomReportMetadata {
         }
     }
 
-    public void save(CustomReport report) {
+    public void save(Integer user, CustomReport report) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO custom_reports (report_type, project, name, data) VALUES (:reportType, :project, :name, :data)")
+            handle.createStatement("INSERT INTO custom_reports (report_type, project, name, data, user_id) VALUES (:reportType, :project, :name, :data, :user)")
                     .bind("reportType", report.reportType)
                     .bind("project", report.project)
                     .bind("name", report.name)
+                    .bind("user", user)
                     .bind("data", JsonHelper.encode(report.data)).execute();
         } catch (Exception e) {
             // TODO move it to transaction

@@ -24,7 +24,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
@@ -46,7 +45,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public void save(Page page) {
+    public void save(Integer user, Page page) {
         File projectDirectory = new File(directory, page.project());
         if (!projectDirectory.exists()) {
             projectDirectory.mkdir();

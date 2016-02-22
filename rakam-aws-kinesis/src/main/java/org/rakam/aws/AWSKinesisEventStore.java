@@ -5,32 +5,31 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import org.apache.avro.generic.GenericData;
+import io.airlift.log.Logger;
 import org.apache.avro.generic.FilteredRecordWriter;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
-import org.rakam.collection.Event;
-import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Set;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
 public class AWSKinesisEventStore implements EventStore {
+    private final static Logger LOGGER = Logger.get(AWSKinesisEventStore.class);
+
     private final AmazonKinesisClient kinesis;
     private final AWSConfig config;
-    private final Set<String> sourceFields;
     private static final int BATCH_SIZE = 500;
     private static final int BULK_THRESHOLD = 50000;
     private final S3BulkEventStore bulkClient;
-    private final Metastore metastore;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
@@ -41,17 +40,14 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Inject
     public AWSKinesisEventStore(AWSConfig config,
-                                Metastore metastore,
-                                FieldDependency fieldDependency) {
+                                Metastore metastore) {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
         if(config.getKinesisEndpoint() != null) {
             kinesis.setEndpoint(config.getKinesisEndpoint());
         }
 
-        this.sourceFields = fieldDependency.dependentFields.keySet();
         this.config = config;
-        this.metastore = metastore;
         this.bulkClient = new S3BulkEventStore(metastore, config);
     }
 
@@ -71,6 +67,8 @@ public class AWSKinesisEventStore implements EventStore {
                     .withRecords(records)
                     .withStreamName(config.getEventStoreStreamName()));
             if (putRecordsResult.getFailedRecordCount() > 0) {
+//                putRecordsResult.getRecords().stream().filter(e -> e.getErrorCode())
+                LOGGER.error("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), putRecordsResult.getRecords());
                 System.out.println("error "+putRecordsResult.getFailedRecordCount()+": "+putRecordsResult.getRecords().get(0).getErrorMessage());
             }
         } catch (ResourceNotFoundException e) {

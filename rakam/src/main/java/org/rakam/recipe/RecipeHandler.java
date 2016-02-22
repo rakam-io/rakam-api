@@ -143,7 +143,7 @@ public class RecipeHandler {
                 .map(reportBuilder -> reportBuilder.createReport(project))
                 .forEach(report -> {
                     try {
-                        reportMetadata.save(report);
+                        reportMetadata.save(null, report);
                     } catch (AlreadyExistsException e) {
                         if(overrideExisting) {
                             reportMetadata.update(report);
@@ -157,7 +157,7 @@ public class RecipeHandler {
                 .map(reportBuilder -> reportBuilder.createCustomReport(project))
                 .forEach(customReport -> {
                     try {
-                        customReportMetadata.save(customReport);
+                        customReportMetadata.save(null, customReport);
                     } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
                             customReportMetadata.update(customReport);
@@ -171,11 +171,11 @@ public class RecipeHandler {
                 .map(reportBuilder -> reportBuilder.createCustomPage(project))
                 .forEach(customReport -> {
                     try {
-                        customPageDatabase.save(customReport);
+                        customPageDatabase.save(null, customReport);
                     } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
                             customPageDatabase.delete(customReport.project(), customReport.slug);
-                            customPageDatabase.save(customReport);
+                            customPageDatabase.save(null, customReport);
                         } else {
                             throw Throwables.propagate(e);
                         }

@@ -9,7 +9,7 @@ public class HttpServerConfig {
 
     private HostAndPort address = HostAndPort.fromParts(RAKAM_DEFAULT_HOST, RAKAM_DEFAULT_PORT);
     private boolean disabled;
-    private boolean proxyProtocol;
+    private boolean proxyProtocol = false;
     private boolean debug;
 
     @Config("http.server.address")

@@ -37,7 +37,7 @@ public class JDBCReportMetadata {
         try(Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
                     "  project VARCHAR(255) NOT NULL," +
-                    "  user_id INT NOT NULL REFERENCES web_user(id)," +
+                    "  user_id INT REFERENCES web_user(id)," +
                     "  slug VARCHAR(255) NOT NULL," +
                     "  category VARCHAR(255)," +
                     "  name VARCHAR(255) NOT NULL," +
@@ -63,13 +63,14 @@ public class JDBCReportMetadata {
         }
     }
 
-    public void save(Report report) {
+    public void save(Integer userId, Report report) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO reports (project, slug, category, name, query, options) VALUES (:project, :slug, :category, :name, :query, :options)")
+            handle.createStatement("INSERT INTO reports (project, slug, category, name, query, options, user_id) VALUES (:project, :slug, :category, :name, :query, :options, :user)")
                     .bind("project", report.project)
                     .bind("name", report.name)
                     .bind("query", report.query)
                     .bind("slug", report.slug)
+                    .bind("user", userId)
                     .bind("category", report.category)
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();

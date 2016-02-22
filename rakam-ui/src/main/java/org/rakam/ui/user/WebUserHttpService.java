@@ -75,7 +75,7 @@ public class WebUserHttpService extends HttpService {
     public JsonResponse update(@ApiParam(name = "oldPassword") String oldPassword,
                                @ApiParam(name = "newPassword") String newPassword,
                                @CookieParam(name = "session") String session) {
-        service.updateUserPassword(extractUserFromCookie(session), oldPassword, newPassword);
+        service.updateUserPassword(extractUserFromCookie(session, encryptionConfig.getSecretKey()), oldPassword, newPassword);
         return JsonResponse.success();
     }
 
@@ -83,7 +83,7 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @Path("/update/info")
     public JsonResponse update(@ApiParam(name = "name") String name, @CookieParam(name = "session") String session) {
-        service.updateUserInfo(extractUserFromCookie(session), name);
+        service.updateUserInfo(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
         return JsonResponse.success();
     }
 
@@ -92,7 +92,7 @@ public class WebUserHttpService extends HttpService {
     @Path("/create-project")
     public UserApiKey createProject(@ApiParam(name = "name") String name,
                                     @CookieParam(name = "session") String session) {
-        final UserApiKey newApiKey = service.createProject(extractUserFromCookie(session), name);
+        final UserApiKey newApiKey = service.createProject(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
         return newApiKey;
     }
 
@@ -100,14 +100,14 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @Path("/create-api-keys")
     public Metastore.ProjectApiKeys createApiKeys(@ApiParam(name = "project") String project, @CookieParam(name = "session") String session) {
-        return service.createApiKeys(extractUserFromCookie(session), project);
+        return service.createApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project);
     }
 
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/revoke-api-keys")
     public JsonResponse revokeApiKeys(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id, @CookieParam(name = "session") String session) {
-        service.revokeApiKeys(extractUserFromCookie(session), project, id);
+        service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, id);
         return JsonResponse.success();
     }
 
@@ -118,7 +118,7 @@ public class WebUserHttpService extends HttpService {
     @Path("/user-access")
     public Map<String, List<WebUserService.UserAccess>> getUserAccess(@CookieParam(name = "session") String session,
                                                                       @ApiParam(name = "project", required = false) String project) {
-        return service.getUserAccessForAllProjects(extractUserFromCookie(session));
+        return service.getUserAccessForAllProjects(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
     }
 
     @JsonRequest
@@ -148,7 +148,7 @@ public class WebUserHttpService extends HttpService {
     public JsonResponse revokeUserAccess(@CookieParam(name = "session") String session,
                                          @ApiParam(name = "project") String project,
                                          @ApiParam(name = "email") String email) {
-        Optional<WebUser> user = service.getUser(extractUserFromCookie(session));
+        Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
         }
@@ -173,7 +173,7 @@ public class WebUserHttpService extends HttpService {
                                       @ApiParam(name = "has_read_permission") boolean has_read_permission,
                                       @ApiParam(name = "has_write_permission") boolean has_write_permission,
                                       @ApiParam(name = "is_admin") boolean isAdmin) {
-        Optional<WebUser> user = service.getUser(extractUserFromCookie(session));
+        Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
         }
@@ -208,7 +208,7 @@ public class WebUserHttpService extends HttpService {
             if (session.isPresent()) {
                 Integer id = null;
                 try {
-                    id = extractUserFromCookie(session.get().value());
+                    id = extractUserFromCookie(session.get().value(), encryptionConfig.getSecretKey());
                 } catch (Exception e) {
                     request.response(unauthorized(jsonp)).end();
                 }
@@ -284,7 +284,7 @@ public class WebUserHttpService extends HttpService {
                 null, true, Duration.ofDays(30).getSeconds(), "/", null);
     }
 
-    private int extractUserFromCookie(String session) {
+    public static int extractUserFromCookie(String session, String key) {
         if (session == null) {
             throw new RakamException(UNAUTHORIZED);
         }
@@ -300,7 +300,7 @@ public class WebUserHttpService extends HttpService {
         final StringBuilder cookieData = new StringBuilder()
                 .append(expiringTimestamp).append("|")
                 .append(id);
-        if (!CryptUtil.encryptWithHMacSHA1(cookieData.toString(), encryptionConfig.getSecretKey()).equals(hash)) {
+        if (!CryptUtil.encryptWithHMacSHA1(cookieData.toString(), key).equals(hash)) {
             throw new RakamException(UNAUTHORIZED);
         }
 

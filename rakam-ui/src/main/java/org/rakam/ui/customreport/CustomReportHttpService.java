@@ -13,18 +13,28 @@
  */
 package org.rakam.ui.customreport;
 
+import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.ui.user.WebUserHttpService;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.util.List;
+import java.util.Optional;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static org.rakam.util.JsonHelper.encode;
 
 
 @Path("/custom-report")
@@ -32,10 +42,12 @@ import java.util.List;
 public class CustomReportHttpService extends HttpService {
 
     private final JDBCCustomReportMetadata metadata;
+    private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public CustomReportHttpService(JDBCCustomReportMetadata metadata) {
+    public CustomReportHttpService(JDBCCustomReportMetadata metadata, EncryptionConfig encryptionConfig) {
         this.metadata = metadata;
+        this.encryptionConfig = encryptionConfig;
     }
 
     @JsonRequest
@@ -53,12 +65,24 @@ public class CustomReportHttpService extends HttpService {
         return metadata.types(project);
     }
 
-    @JsonRequest
-    @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
+    @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"),
+            response = JsonResponse.class, request = CustomReport.class)
     @Path("/create")
-    public JsonResponse create(@ParamBody CustomReport report) {
-        metadata.save(report);
-        return JsonResponse.success();
+    @POST
+    public void create(RakamHttpRequest request) {
+        request.bodyHandler(body -> {
+            CustomReport report = JsonHelper.read(body, CustomReport.class);
+
+            Optional<Integer> user = request.cookies().stream().filter(a -> a.name().equals("session")).findFirst()
+                    .map(cookie -> WebUserHttpService.extractUserFromCookie(cookie.value(), encryptionConfig.getSecretKey()));
+
+            if (!user.isPresent()) {
+                request.response(encode(JsonResponse.error("Unauthorized")), UNAUTHORIZED).end();
+            } else {
+                metadata.save(user.get(), report);
+                request.response(encode(JsonResponse.success()), OK).end();
+            }
+        });
     }
 
     @JsonRequest

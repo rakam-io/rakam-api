@@ -22,8 +22,7 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import org.rakam.ui.page.CustomPageDatabase;
-import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -32,21 +31,26 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.ui.page.CustomPageDatabase;
+import org.rakam.ui.user.WebUserHttpService;
+import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.rakam.util.JsonHelper.encode;
 
 
 @Path("/custom-page")
@@ -54,10 +58,12 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 @Api(value = "/custom-page", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 public class CustomPageHttpService extends HttpService {
     private final CustomPageDatabase database;
+    private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public CustomPageHttpService(CustomPageDatabase database) {
+    public CustomPageHttpService(CustomPageDatabase database, EncryptionConfig encryptionConfig) {
         this.database = database;
+        this.encryptionConfig = encryptionConfig;
     }
 
     @Path("/frame")
@@ -106,11 +112,23 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/save")
-    @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"))
-    @JsonRequest
-    public JsonResponse save(@ParamBody CustomPageDatabase.Page page) {
-        database.save(page);
-        return JsonResponse.success();
+    @POST
+    @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"),
+            response = JsonResponse.class, request = CustomPageDatabase.Page.class)
+    public void save(RakamHttpRequest request) {
+        request.bodyHandler(body -> {
+            CustomPageDatabase.Page report = JsonHelper.read(body, CustomPageDatabase.Page.class);
+
+            Optional<Integer> user = request.cookies().stream().filter(a -> a.name().equals("session")).findFirst()
+                    .map(cookie -> WebUserHttpService.extractUserFromCookie(cookie.value(), encryptionConfig.getSecretKey()));
+
+            if (!user.isPresent()) {
+                request.response(encode(JsonResponse.error("Unauthorized")), UNAUTHORIZED).end();
+            } else {
+                database.save(user.get(), report);
+                request.response(encode(JsonResponse.success()), OK).end();
+            }
+        });
     }
 
     @Path("/delete")
@@ -165,27 +183,4 @@ public class CustomPageHttpService extends HttpService {
     public List<CustomPageDatabase.Page> list(@ApiParam(name = "project") String project) {
         return database.list(project);
     }
-
-//    @Path("/render")
-//    @POST
-//    public void render(RakamHttpRequest request) {
-//        request.bodyHandler(body -> {
-//            QueryStringDecoder decoder = new QueryStringDecoder(body, false);
-//            Map<String, List<String>> parameters = decoder.parameters();
-//            String data = parameters.get("data").get(0);
-//
-//            HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-//
-//            response.headers().set(CONTENT_TYPE, "text/html");
-//            response.headers().set("Content-Security-Policy", "default-src *");
-//            HttpHeaders.setContentLength(response, data.length());
-//            request.api().write(response);
-//            request.api().write(Unpooled.wrappedBuffer(data.getBytes()));
-//            ChannelFuture lastContentFuture = request.api().writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-//
-//            if (!HttpHeaders.isKeepAlive(request)) {
-//                lastContentFuture.addListener(ChannelFutureListener.CLOSE);
-//            }
-//        });
-//    }
 }

@@ -25,7 +25,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 
 public interface CustomPageDatabase {
-    void save(Page page);
+    void save(Integer user, Page page);
 
     List<Page> list(String project);
 

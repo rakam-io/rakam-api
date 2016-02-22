@@ -46,7 +46,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
                 handle.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
                         "  project VARCHAR(255) NOT NULL," +
                         "  name VARCHAR(255) NOT NULL," +
-                        "  user_id INT NOT NULL REFERENCES web_user(id)," +
+                        "  user_id INT REFERENCES web_user(id)," +
                         "  slug VARCHAR(255) NOT NULL," +
                         "  category VARCHAR(255)," +
                         "  data TEXT NOT NULL," +
@@ -55,13 +55,14 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
                         .execute());
     }
 
-    public void save(Page page) {
+    public void save(Integer user, Page page) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO custom_page (project, name, slug, category, data) VALUES (:project, :name, :slug, :category, :data)")
+            handle.createStatement("INSERT INTO custom_page (project, name, slug, category, data, user_id) VALUES (:project, :name, :slug, :category, :data, :user)")
                     .bind("project", page.project)
                     .bind("name", page.name)
                     .bind("slug", page.slug)
                     .bind("category", page.category)
+                    .bind("user", user)
                     .bind("data", JsonHelper.encode(page.files)).execute();
         } catch (Exception e) {
             // TODO move it to transaction

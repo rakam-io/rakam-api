@@ -52,6 +52,6 @@ EXPOSE 9999
 
 #-Dlog.enable-console=false
 #-Dlog.output-file=../logs/app.log
-ENTRYPOINT ([ -f /etc/init.d/postgresql ] && /etc/init.d/postgresql start); java -Dlog.levels-file=../log.properties -Dui.directory=../rakam-ui/app -cp rakam/target/rakam-*/lib/*: org.rakam.ServiceStarter ../config.properties
+ENTRYPOINT ([ -f /etc/init.d/postgresql ] && /etc/init.d/postgresql start); java -Dlog.levels-file=../log.properties -Dui.directory=../rakam-ui/app -cp $(echo rakam/target/rakam-*-bundle/rakam-*/lib)/*: org.rakam.ServiceStarter ../config.properties
 
 RUN apt-get clean
