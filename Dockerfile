@@ -8,7 +8,7 @@ RUN echo '{ "allow_root": true }' > /root/.bowerrc
 WORKDIR /var/app
 
 RUN git clone https://github.com/buremba/rakam-ui.git
-RUN cd rakam-ui && npm install
+RUN cd rakam-ui && npm install --unsafe-perm
 
 RUN git clone https://github.com/buremba/rakam.git
 RUN cd rakam && mvn install -DskipTests && cd rakam/target && tar -zxvf *-bundle.tar.gz
