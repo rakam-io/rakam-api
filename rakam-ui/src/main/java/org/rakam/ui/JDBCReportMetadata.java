@@ -21,6 +21,7 @@ public class JDBCReportMetadata {
     private final DBI dbi;
 
     ResultSetMapper<Report> mapper = (index, r, ctx) -> {
+//        update(new Report(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6).replace("default_value", "defaultValue").replace("type_settings", "typeSettings"), Map.class)));
         return new Report(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class));
     };
 
