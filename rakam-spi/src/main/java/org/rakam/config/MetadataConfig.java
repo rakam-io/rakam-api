@@ -23,7 +23,7 @@ public class MetadataConfig {
         return this;
     }
 
-    public boolean isEnableDynamic() {
+    public boolean getEnableDynamic() {
         return enableDynamic;
     }
 
