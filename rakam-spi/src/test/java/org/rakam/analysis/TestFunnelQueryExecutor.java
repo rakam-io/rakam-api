@@ -124,8 +124,8 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, "_user",
                 of(new FunnelStep("test0", null)),
                 Optional.empty(),
-                LocalDate.ofEpochDay(100),
-                LocalDate.ofEpochDay(101), false).getResult().join();
+                LocalDate.ofEpochDay(1000),
+                LocalDate.ofEpochDay(1001), false).getResult().join();
 
         assertFalse(query.isFailed());
         System.out.println(query.getResult());
