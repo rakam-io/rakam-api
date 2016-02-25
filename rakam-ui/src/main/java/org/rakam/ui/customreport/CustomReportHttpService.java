@@ -65,7 +65,7 @@ public class CustomReportHttpService extends HttpService {
         return metadata.types(project);
     }
 
-    @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"),
+    @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"),
             response = JsonResponse.class, request = CustomReport.class)
     @Path("/create")
     @POST
@@ -87,7 +87,7 @@ public class CustomReportHttpService extends HttpService {
 
     @JsonRequest
     @Path("/update")
-    @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
+    @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public JsonResponse update(@ParamBody CustomReport report) {
         metadata.update(report);
         return JsonResponse.success();
@@ -95,7 +95,7 @@ public class CustomReportHttpService extends HttpService {
 
     @JsonRequest
     @Path("/delete")
-    @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "master_key"))
+    @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public JsonResponse delete(@ApiParam(name="report_type", required = true) String reportType,
                                @ApiParam(name="project", value = "Project id", required = true) String project,
                                @ApiParam(name="name", value = "Project name", required = true) String name) {

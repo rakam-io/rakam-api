@@ -82,7 +82,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         int range = Math.min(MAXIMUM_LEAD, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end)));
 
         if (range < 0) {
-            throw new IllegalArgumentException("startDate and endDate are invalid.");
+            throw new IllegalArgumentException("startDate must be before endDate.");
         }
 
         if(range == 0) {

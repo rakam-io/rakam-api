@@ -57,8 +57,8 @@ public class RecipeHandler {
                 .collect(Collectors.toList());
 
         final List<Recipe.ReportBuilder> reports = reportMetadata
-                .getReports(project).stream()
-                .map(r -> new Recipe.ReportBuilder(r.slug, r.name, r.category, r.query, r.options))
+                .getReports(null, project).stream()
+                .map(r -> new Recipe.ReportBuilder(r.slug, r.name, r.category, r.query, r.options, r.shared))
                 .collect(Collectors.toList());
 
         final List<Recipe.CustomReportBuilder> customReports = customReportMetadata
@@ -146,7 +146,7 @@ public class RecipeHandler {
                         reportMetadata.save(null, report);
                     } catch (AlreadyExistsException e) {
                         if(overrideExisting) {
-                            reportMetadata.update(report);
+                            reportMetadata.update(null, report);
                         } else {
                             throw Throwables.propagate(e);
                         }

@@ -135,7 +135,8 @@ public class RakamUIModule extends RakamModule {
                         "  name VARCHAR(255) NOT NULL," +
                         "  query TEXT NOT NULL," +
                         "  options TEXT," +
-                        "  PRIMARY KEY (project, slug)" +
+                        "  created_at TIMESTAMP NOT NULL DEFAULT now()," +
+                        "  CONSTRAINT address UNIQUE(project, user_id, slug)" +
                         "  )")
                         .execute();
 
