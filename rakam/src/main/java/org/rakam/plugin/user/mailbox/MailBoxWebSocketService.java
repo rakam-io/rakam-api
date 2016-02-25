@@ -59,7 +59,7 @@ public class MailBoxWebSocketService extends WebSocketService {
 
         String project;
         String user;
-        if(userParam != null && userParam.size()>0 && projectParam !=null && projectParam.size()>0) {
+        if(userParam != null && !userParam.isEmpty() && projectParam !=null && !projectParam.isEmpty()) {
             user = userParam.get(0);
             project = projectParam.get(0);
             ChannelHandlerContext context = request.context();

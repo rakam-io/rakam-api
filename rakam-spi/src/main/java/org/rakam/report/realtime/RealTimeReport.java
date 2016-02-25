@@ -38,7 +38,7 @@ public class RealTimeReport implements ProjectItem {
         this.filter = filter;
         this.measure = measure;
         this.dimensions = dimensions;
-        ValidationUtil.checkArgument(collections.size() > 0, "collections is empty");
+        ValidationUtil.checkArgument(!collections.isEmpty(), "collections is empty");
     }
 
     @Override

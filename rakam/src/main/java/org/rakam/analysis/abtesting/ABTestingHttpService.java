@@ -60,11 +60,11 @@ public class ABTestingHttpService extends HttpService {
         Map<String, List<String>> params = request.params();
         List<String> project = params.get("project");
         List<String> api_key = params.get("api_key");
-        if(project == null || project.size() == 0) {
+        if(project == null || project.isEmpty()) {
             request.response("\"project is missing\"", BAD_REQUEST).end();
             return;
         }
-        if(api_key == null || api_key.size() == 0) {
+        if(api_key == null || api_key.isEmpty()) {
             request.response("\"api_key is missing\"", BAD_REQUEST).end();
             return;
         }

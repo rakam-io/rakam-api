@@ -271,7 +271,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             }
             schemaFields.add(new SchemaField(columnName, fieldType));
         }
-        return schemaFields.size() == 0 ? null : schemaFields;
+        return schemaFields.isEmpty() ? null : schemaFields;
     }
 
     @Override
@@ -300,7 +300,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
             Runnable task;
-            if (currentFields.size() == 0) {
+            if (currentFields.isEmpty()) {
                 if (!getProjects().contains(project)) {
                     throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
                 }
