@@ -135,7 +135,7 @@ public class RakamUIModule extends RakamModule {
                         "  name VARCHAR(255) NOT NULL," +
                         "  query TEXT NOT NULL," +
                         "  options TEXT," +
-                        "  shared NOT NULL BOOLEAN DEFAULT false," +
+                        "  shared BOOLEAN NOT NULL DEFAULT false," +
                         "  created_at TIMESTAMP NOT NULL DEFAULT now()," +
                         "  CONSTRAINT address UNIQUE(project, user_id, slug)" +
                         "  )")

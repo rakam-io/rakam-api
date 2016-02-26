@@ -120,10 +120,10 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }
         if (filter.timeframe != null) {
             if (filter.timeframe.start != null) {
-                filterList.add(String.format("_time > cast(%s as timestamp)", filter.timeframe.start.toString()));
+                filterList.add(String.format("_time > cast('%s' as timestamp)", filter.timeframe.start.toString()));
             }
             if (filter.timeframe.end != null) {
-                filterList.add(String.format("_time < cast(%s as timestamp)", filter.timeframe.end.toString()));
+                filterList.add(String.format("_time < cast('%s' as timestamp)", filter.timeframe.end.toString()));
             }
         }
 

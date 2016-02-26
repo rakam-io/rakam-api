@@ -5,6 +5,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.collection.Event;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldType;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.UserStorage;
@@ -60,6 +61,7 @@ public class PrestoUserService extends AbstractUserService {
                 .map(entry ->
                         format("select '%s' as collection, '{", entry.getKey()) + entry.getValue().stream()
                                 .filter(field -> !field.getName().equals("user"))
+                                .filter(field -> field.getType() != FieldType.BINARY)
                                 .map(field -> {
                                     switch (field.getType()) {
                                         case LONG:
