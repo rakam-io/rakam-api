@@ -54,11 +54,15 @@ import static io.airlift.configuration.ConfigurationModule.bindConfig;
 import static java.lang.String.format;
 
 
-public class ServiceStarter {
+public final class ServiceStarter {
     // TODO: find a way to move this from here
     public static final String RAKAM_VERSION = "0.3";
 
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
+
+    private ServiceStarter() throws InstantiationException {
+        throw new InstantiationException("The class is not created for instantiation");
+    }
 
     public static void main(String[] args) throws Throwable {
         if (args.length > 0) {

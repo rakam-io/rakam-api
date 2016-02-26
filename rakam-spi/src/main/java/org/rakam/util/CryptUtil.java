@@ -12,8 +12,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Random;
 
-public class CryptUtil {
+public final class CryptUtil {
     static final Random random = new SecureRandom();
+
+    private CryptUtil() {}
 
     public static String generateRandomKey(int length) {
         String key;

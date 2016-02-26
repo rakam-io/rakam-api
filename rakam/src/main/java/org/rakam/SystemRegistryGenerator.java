@@ -10,7 +10,11 @@ import java.io.PrintWriter;
 import java.util.Locale;
 import java.util.Set;
 
-public class SystemRegistryGenerator {
+public final class SystemRegistryGenerator {
+
+    private SystemRegistryGenerator() throws InstantiationException {
+        throw new InstantiationException("The class is not created for instantiation");
+    }
 
     public static void main(String[] args) throws IOException {
         if(args.length != 1 || !args[0].equals("json") && !args[0].equals("properties")) {

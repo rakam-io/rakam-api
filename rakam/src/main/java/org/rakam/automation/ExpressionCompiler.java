@@ -20,7 +20,12 @@ import java.util.function.Predicate;
 
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class ExpressionCompiler {
+public final class ExpressionCompiler {
+
+    private ExpressionCompiler() throws InstantiationException {
+        throw new InstantiationException("The class is not created for instantiation");
+    }
+
     public static Predicate<Event> compile(String expressionStr) throws UnsupportedOperationException {
         final Expression expression = new SqlParser().createExpression(expressionStr);
         final String javaExp = new JavaSourceAstVisitor().process(expression, false);

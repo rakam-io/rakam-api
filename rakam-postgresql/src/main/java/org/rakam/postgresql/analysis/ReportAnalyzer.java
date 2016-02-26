@@ -13,7 +13,11 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.time.format.DateTimeFormatter;
 
-public class ReportAnalyzer {
+public final class ReportAnalyzer {
+
+    private ReportAnalyzer() throws InstantiationException {
+        throw new InstantiationException("The class is not created for instantiation");
+    }
 
     public static ObjectNode execute(Connection conn, String sql) throws SQLException {
             Statement stmt = conn.createStatement();

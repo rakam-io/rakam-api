@@ -5,7 +5,12 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import javax.annotation.Nullable;
 
 
-public class ValidationUtil {
+public final class ValidationUtil {
+
+    private ValidationUtil() throws InstantiationException {
+        throw new InstantiationException("The class is not created for instantiation");
+    }
+
     public static void checkProject(String project) {
         checkArgument(project != null, "project is null");
         if(!project.matches("^[0-9A-Za-z_]+$")) {
