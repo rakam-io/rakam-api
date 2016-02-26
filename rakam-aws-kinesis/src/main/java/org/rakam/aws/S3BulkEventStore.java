@@ -14,6 +14,7 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 import org.rakam.analysis.metadata.Metastore;
 
@@ -31,15 +32,17 @@ public class S3BulkEventStore {
     private final Metastore metastore;
     private final AmazonS3Client s3Client;
     private final AWSConfig config;
+    private final int conditionalMagicFieldsSize;
 
-    public S3BulkEventStore(Metastore metastore, AWSConfig config) {
+    public S3BulkEventStore(Metastore metastore, AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.config = config;
         this.s3Client = new AmazonS3Client(config.getCredentials());
         s3Client.setRegion(config.getAWSRegion());
-        if(config.getS3Endpoint() != null) {
+        if (config.getS3Endpoint() != null) {
             s3Client.setEndpoint(config.getS3Endpoint());
         }
+        this.conditionalMagicFieldsSize = fieldDependency.dependentFields.size();
     }
 
     public void upload(String project, List<Event> events) {
@@ -78,10 +81,12 @@ public class S3BulkEventStore {
                     GenericRecord properties = event.properties();
 
                     List<Schema.Field> existingFields = properties.getSchema().getFields();
-                    if(existingFields.size() != collection.size()) {
+                    if (existingFields.size() != collection.size() + conditionalMagicFieldsSize) {
                         GenericData.Record record = new GenericData.Record(avroSchema);
                         for (int i = 0; i < existingFields.size(); i++) {
-                            record.put(i, properties.get(i));
+                            if (existingFields.get(i).schema().getType() != Schema.Type.NULL) {
+                                record.put(i, properties.get(i));
+                            }
                         }
                     }
                     writer.write(properties, encoder);
@@ -97,7 +102,7 @@ public class S3BulkEventStore {
                         objectMetadata);
                 uploadedFiles.add(key);
             }
-        } catch (IOException |AmazonClientException e) {
+        } catch (IOException | AmazonClientException e) {
             for (String uploadedFile : uploadedFiles) {
                 s3Client.deleteObject(config.getEventStoreBulkS3Bucket(), uploadedFile);
             }

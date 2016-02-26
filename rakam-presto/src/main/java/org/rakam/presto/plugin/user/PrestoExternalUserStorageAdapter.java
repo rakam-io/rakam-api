@@ -2,19 +2,20 @@ package org.rakam.presto.plugin.user;
 
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.analysis.MaterializedViewService;
+import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
+import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
-import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 
 import javax.inject.Inject;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
+import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -120,10 +122,10 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }
         if (filter.timeframe != null) {
             if (filter.timeframe.start != null) {
-                filterList.add(String.format("_time > cast('%s' as timestamp)", filter.timeframe.start.toString()));
+                filterList.add(String.format("collection._time > cast('%s' as timestamp)", PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.start.atZone(ZoneId.of("UTC")))));
             }
             if (filter.timeframe.end != null) {
-                filterList.add(String.format("_time < cast('%s' as timestamp)", filter.timeframe.end.toString()));
+                filterList.add(String.format("collection._time < cast('%s' as timestamp)",  PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.end.atZone(ZoneId.of("UTC")))));
             }
         }
 

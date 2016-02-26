@@ -13,6 +13,7 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
@@ -41,7 +42,8 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Inject
     public AWSKinesisEventStore(AWSConfig config,
-                                Metastore metastore) {
+                                Metastore metastore,
+                                FieldDependencyBuilder.FieldDependency fieldDependency) {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
         if(config.getKinesisEndpoint() != null) {
@@ -49,7 +51,7 @@ public class AWSKinesisEventStore implements EventStore {
         }
 
         this.config = config;
-        this.bulkClient = new S3BulkEventStore(metastore, config);
+        this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
     }
 
     public void storeBatchInline(List<Event> events, int offset, int limit) {
@@ -93,7 +95,7 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Override
     public void storeBatch(List<Event> events) {
-        if(events.size() > BULK_THRESHOLD) {
+        if(events.size() >= BULK_THRESHOLD) {
             bulkClient.upload(events.get(0).project(), events);
         } else {
 
