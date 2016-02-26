@@ -271,7 +271,7 @@ public class JDBCMetastore extends AbstractMetastore {
             fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCMetastore::getType);
             schemaFields.add(new SchemaField(columnName, fieldType));
         }
-        return schemaFields.size() == 0 ? null : schemaFields;
+        return schemaFields.isEmpty() ? null : schemaFields;
     }
 
     public static FieldType getType(String name) {
@@ -304,7 +304,7 @@ public class JDBCMetastore extends AbstractMetastore {
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
             Runnable task;
-            if (currentFields.size() == 0) {
+            if (currentFields.isEmpty()) {
                 if (!getProjects().contains(project)) {
                     throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
                 }

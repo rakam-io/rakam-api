@@ -66,7 +66,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
             response.send("error", "stream is closed").end();
         } else {
             StringBuilder builder = new StringBuilder("[");
-            if(queue.size() > 0) {
+            if(!queue.isEmpty()) {
                 builder.append(queue.poll());
                 for (int i = 1; i < queue.size(); i++) {
                     builder.append(", " + queue.poll());

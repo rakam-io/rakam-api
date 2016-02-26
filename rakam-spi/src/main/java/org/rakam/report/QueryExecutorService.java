@@ -64,9 +64,9 @@ public class QueryExecutorService {
                 .filter(m -> m.getValue() != null)
                 .collect(Collectors.toList());
 
-        if(queryExecutions.size() == 0) {
+        if(queryExecutions.isEmpty()) {
             QueryExecution execution = executor.executeRawQuery(query);
-            if(materializedViews.size() == 0) {
+            if(materializedViews.isEmpty()) {
                 return execution;
             } else {
                 Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate != null ? v.lastUpdate.toEpochMilli() : -1));

@@ -146,7 +146,7 @@ public class RealTimeHttpService extends HttpService {
             aggregate = false;
         }
 
-        boolean noDimension = dimensions == null || dimensions.size() == 0;
+        boolean noDimension = dimensions == null || dimensions.isEmpty();
 
         ContinuousQuery continuousQuery = service.get(project, tableName);
         if (continuousQuery == null) {
@@ -222,7 +222,7 @@ public class RealTimeHttpService extends HttpService {
                 }
             } else {
                 if (noDimension) {
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data.size() > 0 ? data.get(0).get(1) : 0);
+                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, !data.isEmpty() ? data.get(0).get(1) : 0);
                 } else {
                     return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data);
                 }

@@ -93,7 +93,7 @@ public class UserUtilHttpService extends HttpService {
     public void export(RakamHttpRequest request) {
         final Map<String, List<String>> params = request.params();
         final List<String> query = params.get("query");
-        if (query.size() == 0) {
+        if (query.isEmpty()) {
             HttpServer.returnError(request, BAD_REQUEST.reasonPhrase(), BAD_REQUEST);
             return;
         }

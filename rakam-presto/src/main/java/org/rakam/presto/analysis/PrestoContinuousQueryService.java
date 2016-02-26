@@ -46,7 +46,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
 
         PrestoQueryExecution prestoQueryExecution;
-        if(report.partitionKeys.size() > 0) {
+        if(!report.partitionKeys.isEmpty()) {
             ImmutableMap<String, String> sessionParameter = ImmutableMap.of(config.getStreamingConnector() + ".partition_keys",
                     Joiner.on(",").join(report.partitionKeys));
             prestoQueryExecution = executor.executeRawQuery(prestoQuery, sessionParameter);

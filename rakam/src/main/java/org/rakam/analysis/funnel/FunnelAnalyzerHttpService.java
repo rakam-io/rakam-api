@@ -114,7 +114,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;
-            checkState(steps.size() > 0, "steps field cannot be empty.");
+            checkState(!steps.isEmpty(), "steps field cannot be empty.");
         }
 
         @Override

@@ -158,7 +158,7 @@ public class KinesisUtils {
         ListStreamsResult listStreamsResult = kinesisClient.listStreams(listStreamsRequest);
         List<String> streamNames = listStreamsResult.getStreamNames();
         while (listStreamsResult.isHasMoreStreams()) {
-            if (streamNames.size() > 0) {
+            if (!streamNames.isEmpty()) {
                 listStreamsRequest.setExclusiveStartStreamName(streamNames.get(streamNames.size() - 1));
             }
 
