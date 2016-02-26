@@ -133,7 +133,7 @@ public class PostgresqlEventStore implements EventStore {
         Schema.Field f = fields.get(0);
         if(!sourceFields.contains(f.name())) {
             query.append(" (\"").append(f.name());
-            params.append("?");
+            params.append('?');
         }
 
         for (int i = 1; i < fields.size(); i++) {

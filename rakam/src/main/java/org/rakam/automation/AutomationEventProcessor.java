@@ -160,12 +160,12 @@ public class AutomationEventProcessor implements EventProcessor {
         StringBuilder builder = new StringBuilder();
         for (ScenarioState scenarioState : states) {
             if(scenarioState != null) {
-                builder.append(scenarioState.ruleId).append(":").append(scenarioState.state).append(":").append(scenarioState.threshold);
+                builder.append(scenarioState.ruleId).append(':').append(scenarioState.state).append(':').append(scenarioState.threshold);
             }
         }
 
         String secureKey = CryptUtil.encryptWithHMacSHA1(builder.toString(), encryptionConfig.getSecretKey());
-        builder.append("|").append(secureKey);
+        builder.append('|').append(secureKey);
 
         return builder.toString();
     }

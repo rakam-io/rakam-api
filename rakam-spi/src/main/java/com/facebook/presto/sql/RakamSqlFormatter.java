@@ -228,7 +228,7 @@ public final class RakamSqlFormatter
             if (node.getSelectItems().size() > 1) {
                 boolean first = true;
                 for (SelectItem item : node.getSelectItems()) {
-                    builder.append("\n")
+                    builder.append('\n')
                             .append(indentString(indent))
                             .append(first ? "  " : ", ");
 
@@ -304,13 +304,13 @@ public final class RakamSqlFormatter
                     JoinUsing using = (JoinUsing) criteria;
                     builder.append(" USING (")
                             .append(Joiner.on(", ").join(using.getColumns()))
-                            .append(")");
+                            .append(')');
                 }
                 else if (criteria instanceof JoinOn) {
                     JoinOn on = (JoinOn) criteria;
                     builder.append(" ON (")
                             .append(formatExpression(on.getExpression(), tableNameMapper))
-                            .append(")");
+                            .append(')');
                 }
                 else if (!(criteria instanceof NaturalJoin)) {
                     throw new UnsupportedOperationException("unknown join criteria: " + criteria);
@@ -318,7 +318,7 @@ public final class RakamSqlFormatter
             }
 
             if (node.getType() != Join.Type.IMPLICIT) {
-                builder.append(")");
+                builder.append(')');
             }
 
             return null;
@@ -365,7 +365,7 @@ public final class RakamSqlFormatter
 
             boolean first = true;
             for (Expression row : node.getRows()) {
-                builder.append("\n")
+                builder.append('\n')
                         .append(indentString(indent))
                         .append(first ? "  " : ", ");
 
@@ -491,12 +491,12 @@ public final class RakamSqlFormatter
             }
 
             if (!options.isEmpty()) {
-                builder.append("(");
+                builder.append('(');
                 Joiner.on(", ").appendTo(builder, options);
-                builder.append(")");
+                builder.append(')');
             }
 
-            builder.append("\n");
+            builder.append('\n');
 
             process(node.getStatement(), indent);
 
@@ -613,7 +613,7 @@ public final class RakamSqlFormatter
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
                         entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper)));
-                builder.append(")");
+                builder.append(')');
             }
 
             builder.append(" AS ");
@@ -635,13 +635,13 @@ public final class RakamSqlFormatter
             Joiner.on(", ").appendTo(builder, transform(node.getElements(),
                     element -> element.getName() + " " + element.getType()));
 
-            builder.append(")");
+            builder.append(')');
 
             if (!node.getProperties().isEmpty()) {
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
                         entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper)));
-                builder.append(")");
+                builder.append(')');
             }
 
             return null;
@@ -690,7 +690,7 @@ public final class RakamSqlFormatter
                     .append(node.getName())
                     .append(" ADD COLUMN ")
                     .append(node.getColumn().getName())
-                    .append(" ")
+                    .append(' ')
                     .append(node.getColumn().getType());
 
             return null;
@@ -701,7 +701,7 @@ public final class RakamSqlFormatter
         {
             builder.append("INSERT INTO ")
                     .append(node.getTarget())
-                    .append(" ");
+                    .append(' ');
 
             process(node.getQuery(), indent);
 

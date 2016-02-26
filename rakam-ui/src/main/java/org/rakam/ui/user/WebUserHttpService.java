@@ -278,7 +278,7 @@ public class WebUserHttpService extends HttpService {
                 .append(user.id);
 
         final String secureKey = CryptUtil.encryptWithHMacSHA1(cookieData.toString(), encryptionConfig.getSecretKey());
-        cookieData.append("|").append(secureKey);
+        cookieData.append('|').append(secureKey);
 
         return Response.ok(user).addCookie("session", cookieData.toString(),
                 null, true, Duration.ofDays(30).getSeconds(), "/", null);
