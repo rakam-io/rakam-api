@@ -413,6 +413,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+        super.onDeleteProject(project);
     }
 
     public static String toSql(FieldType type) {

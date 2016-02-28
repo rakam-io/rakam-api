@@ -13,7 +13,6 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
-import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -22,7 +21,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -57,31 +55,19 @@ public class ProjectHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/delete")
-    public JsonResponse deleteProject(@ApiParam(name="name") String name) {
-        checkProject(name);
-        metastore.deleteProject(name.toLowerCase(ENGLISH));
+    public JsonResponse deleteProject(@ApiParam(name="project") String project) {
+        checkProject(project);
+        metastore.deleteProject(project.toLowerCase(ENGLISH));
 
-        List<ContinuousQuery> list = continuousQueryService.list(name);
-        int maxLoop = 20;
-        while(!list.isEmpty()) {
-            for (ContinuousQuery continuousQuery : list) {
-                continuousQueryService.delete(continuousQuery.project,
-                        continuousQuery.tableName);
-            }
-            if(maxLoop-- == 0) {
-                throw new RakamException("Unable to delete continuous queries", INTERNAL_SERVER_ERROR);
-            }
+        List<ContinuousQuery> list = continuousQueryService.list(project);
+        for (ContinuousQuery continuousQuery : list) {
+            continuousQueryService.delete(continuousQuery.project,
+                    continuousQuery.tableName);
         }
 
-        List<MaterializedView> views = materializedViewService.list(name);
-        maxLoop = 20;
-        while(!views.isEmpty()) {
-            for (ContinuousQuery view : list) {
-                materializedViewService.delete(view.project, view.tableName);
-            }
-            if(maxLoop-- == 0) {
-                throw new RakamException("Unable to delete materialized views", INTERNAL_SERVER_ERROR);
-            }
+        List<MaterializedView> views = materializedViewService.list(project);
+        for (MaterializedView view : views) {
+            materializedViewService.delete(view.project, view.tableName);
         }
 
         return JsonResponse.success();

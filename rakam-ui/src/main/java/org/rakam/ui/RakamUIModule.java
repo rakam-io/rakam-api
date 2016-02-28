@@ -13,10 +13,13 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.customreport.CustomPageHttpService;
+import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.customreport.CustomReportHttpService;
+import org.rakam.ui.customreport.JDBCCustomReportMetadata;
 import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.ui.page.FileBackedCustomPageDatabase;
 import org.rakam.ui.page.JDBCCustomPageDatabase;
+import org.rakam.ui.report.Report;
 import org.rakam.ui.report.ReportHttpService;
 import org.rakam.ui.user.UserUtilHttpService;
 import org.rakam.ui.user.WebUserHttpService;
@@ -25,6 +28,9 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
 import javax.inject.Inject;
+
+import java.util.List;
+import java.util.Map;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
@@ -50,6 +56,7 @@ public class RakamUIModule extends RakamModule {
         Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
         hooks.addBinding().to(DatabaseScript.class);
 
+        binder.bind(ProjectDeleteEventListener.class).asEagerSingleton();
         binder.bind(DefaultDashboardCreator.class).asEagerSingleton();
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
@@ -89,6 +96,43 @@ public class RakamUIModule extends RakamModule {
         @Subscribe
         public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
             service.create(event.project, "Default", null);
+        }
+    }
+
+    public static class ProjectDeleteEventListener {
+
+        private final DashboardService dashboardService;
+        private final CustomPageDatabase customPageDatabase;
+        private final JDBCReportMetadata reportMetadata;
+        private final JDBCCustomReportMetadata customReportMetadata;
+
+        @Inject
+        public ProjectDeleteEventListener(DashboardService dashboardService,
+                                          CustomPageDatabase customPageDatabase,
+                                          JDBCReportMetadata reportMetadata,
+                                          JDBCCustomReportMetadata customReportMetadata) {
+            this.reportMetadata = reportMetadata;
+            this.customReportMetadata = customReportMetadata;
+            this.customPageDatabase = customPageDatabase;
+            this.dashboardService = dashboardService;
+        }
+
+        @Subscribe
+        public void onDeleteProject(SystemEvents.ProjectDeletedEvent event) {
+            for (DashboardService.Dashboard dashboard : dashboardService.list(event.project)) {
+                dashboardService.delete(event.project, dashboard.name);
+            }
+            for (CustomPageDatabase.Page page : customPageDatabase.list(event.project)) {
+                customPageDatabase.delete(event.project, page.slug);
+            }
+            for (Report report : reportMetadata.getReports(null, event.project)) {
+                reportMetadata.delete(null, event.project, report.slug);
+            }
+            for (Map.Entry<String, List<CustomReport>> types : customReportMetadata.list(event.project).entrySet()) {
+                for (CustomReport customReport : types.getValue()) {
+                    customReportMetadata.delete(types.getKey(), event.project, customReport.name);
+                }
+            }
         }
     }
 

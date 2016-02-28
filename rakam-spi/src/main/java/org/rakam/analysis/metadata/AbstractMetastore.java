@@ -30,6 +30,10 @@ public abstract class AbstractMetastore implements Metastore {
         eventBus.post(new SystemEvents.ProjectCreatedEvent(project));
     }
 
+    protected void onDeleteProject(String project) {
+        eventBus.post(new SystemEvents.ProjectDeletedEvent(project));
+    }
+
     protected void onCreateCollection(String project, String collection, List<SchemaField> fields) {
         eventBus.post(new SystemEvents.CollectionCreatedEvent(project, collection, fields));
     }

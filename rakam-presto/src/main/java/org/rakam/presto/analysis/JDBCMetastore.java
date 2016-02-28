@@ -419,6 +419,7 @@ public class JDBCMetastore extends AbstractMetastore {
         }
 
         collectionCache.invalidate(project);
+        super.onDeleteProject(project);
     }
 
     public static String toSql(FieldType type) {

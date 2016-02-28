@@ -129,5 +129,6 @@ public class InMemoryMetastore extends AbstractMetastore {
     public void deleteProject(String project) {
         collections.remove(project);
         apiKeys.remove(project);
+        super.onDeleteProject(project);
     }
 }

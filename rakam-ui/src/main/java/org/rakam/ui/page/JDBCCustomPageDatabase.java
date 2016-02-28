@@ -92,11 +92,11 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public void delete(String project, String name) {
+    public void delete(String project, String slug) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM custom_page WHERE project = :project AND slug = :slug)")
                     .bind("project", project)
-                    .bind("slug", name).execute();
+                    .bind("slug", slug).execute();
         }
     }
 }

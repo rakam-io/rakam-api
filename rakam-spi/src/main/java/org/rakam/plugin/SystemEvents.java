@@ -13,6 +13,14 @@ public class SystemEvents {
         }
     }
 
+    public static class ProjectDeletedEvent {
+        public final String project;
+
+        public ProjectDeletedEvent(String project) {
+            this.project = project;
+        }
+    }
+
     public static class CollectionCreatedEvent {
         public final String project;
         public final String collection;

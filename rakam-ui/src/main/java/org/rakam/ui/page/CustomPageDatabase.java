@@ -33,7 +33,7 @@ public interface CustomPageDatabase {
 
     InputStream getFile(String project, String name, String file);
 
-    void delete(String project, String name);
+    void delete(String project, String slug);
 
     class Page implements ProjectItem {
         public final String project;

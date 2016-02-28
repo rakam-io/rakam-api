@@ -16,8 +16,8 @@ import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
-import org.rakam.collection.SchemaField;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 
@@ -112,17 +112,22 @@ public class PrestoQueryExecutor implements QueryExecutor {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
                     .filter(c -> !c.getKey().startsWith("_"))
                     .collect(Collectors.toList());
-            String sharedColumns = collections.get(0).getValue().stream()
-                    .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
-                    .map(f -> f.getName())
-                    .collect(Collectors.joining(", "));
+            if(!collections.isEmpty()) {
+                String sharedColumns = collections.get(0).getValue().stream()
+                        .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
+                        .map(f -> f.getName())
+                        .collect(Collectors.joining(", "));
 
-            return "(" +collections.stream().map(Map.Entry::getKey)
-                    .map(collection -> format("select '%s' as collection, %s from %s",
-                            collection,
-                            sharedColumns.isEmpty() ? "1" : sharedColumns,
-                            getTableReference(project, QualifiedName.of(collection))))
-                    .collect(Collectors.joining(" union all ")) + ") _all";
+                return "(" +collections.stream().map(Map.Entry::getKey)
+                        .map(collection -> format("select '%s' as collection, %s from %s",
+                                collection,
+                                sharedColumns.isEmpty() ? "1" : sharedColumns,
+                                getTableReference(project, QualifiedName.of(collection))))
+                        .collect(Collectors.joining(" union all ")) + ") _all";
+            } else {
+                return "(select null as collection, null as _user, null as _time limit 0) _all";
+            }
+
         } else {
             return getTableReference(project, node);
         }

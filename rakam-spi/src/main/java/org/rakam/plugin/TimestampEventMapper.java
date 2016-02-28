@@ -36,13 +36,13 @@ public class TimestampEventMapper implements EventMapper {
         if (time == null) {
             long serverTime = Instant.now().getEpochSecond();
 
-            properties.put("_time", serverTime*1000);
+            properties.put("_time", serverTime * 1000);
         } else {
             if (time instanceof Number) {
                 // match server time and client time and get an estimate
-                if(event.api() != null && event.api().uploadTime != null) {
+                if (event.api() != null && event.api().uploadTime != null) {
                     long fixedTime = ((Number) time).longValue() + Instant.now().getEpochSecond() - event.api().uploadTime;
-                    properties.put("_time", fixedTime*1000);
+                    properties.put("_time", fixedTime * 1000);
                 }
             }
         }
