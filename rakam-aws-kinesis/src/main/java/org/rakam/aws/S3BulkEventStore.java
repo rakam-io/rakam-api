@@ -88,6 +88,7 @@ public class S3BulkEventStore {
                                 record.put(i, properties.get(i));
                             }
                         }
+                        properties = record;
                     }
                     writer.write(properties, encoder);
                 }

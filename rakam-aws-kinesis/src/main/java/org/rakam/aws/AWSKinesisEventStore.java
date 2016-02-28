@@ -36,7 +36,7 @@ public class AWSKinesisEventStore implements EventStore {
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
         protected KByteArrayOutputStream initialValue() {
-            return new KByteArrayOutputStream(500000);
+            return new KByteArrayOutputStream(1000000);
         }
     };
 
