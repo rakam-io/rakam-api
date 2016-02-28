@@ -20,7 +20,6 @@ import org.rakam.util.KByteArrayOutputStream;
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
@@ -70,17 +69,17 @@ public class AWSKinesisEventStore implements EventStore {
                     .withRecords(records)
                     .withStreamName(config.getEventStoreStreamName()));
             if (putRecordsResult.getFailedRecordCount() > 0) {
-                if(putRecordsResult.getFailedRecordCount() > 0) {
-                    String reasons = putRecordsResult.getRecords().stream().collect(Collectors.groupingBy(e -> e.getErrorCode())).entrySet()
-                            .stream().map(e -> e.getValue().size() + " items for " + e.getKey()).collect(Collectors.joining(", "));
-
-                    if(putRecordsResult.getRecords().stream().anyMatch(a -> a.getErrorCode().equals("ProvisionedThroughputExceededException"))) {
-                        kinesis.describeStream(config.getEventStoreStreamName()).getStreamDescription().getStreamName();
+//                if(putRecordsResult.getFailedRecordCount() > 0) {
+//                    String reasons = putRecordsResult.getRecords().stream().collect(Collectors.groupingBy(e -> e.getErrorCode())).entrySet()
+//                            .stream().map(e -> e.getValue().size() + " items for " + e.getKey()).collect(Collectors.joining(", "));
+//
+//                    if(putRecordsResult.getRecords().stream().anyMatch(a -> a.getErrorCode().equals("ProvisionedThroughputExceededException"))) {
+//                        kinesis.describeStream(config.getEventStoreStreamName()).getStreamDescription().getStreamName();
 //                        kinesis.splitShard();;
-                    }
-
-                    throw new IllegalStateException("Failed to put records to Kinesis: "+reasons);
-                }
+//                    }
+//
+//                    throw new IllegalStateException("Failed to put records to Kinesis: "+reasons);
+//                }
 
                 LOGGER.error("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), putRecordsResult.getRecords());
             }
