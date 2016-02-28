@@ -280,7 +280,7 @@ def start(process, options):
 
 def terminate(process, signal, message):
     if not process.alive():
-        print 'Not runnning'
+        print 'Not running'
         return
 
     pid = process.read_pid()

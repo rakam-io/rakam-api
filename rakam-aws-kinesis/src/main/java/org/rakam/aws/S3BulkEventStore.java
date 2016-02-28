@@ -7,16 +7,16 @@ import com.google.common.base.Throwables;
 import io.airlift.slice.BasicSliceInput;
 import io.airlift.slice.DynamicSliceOutput;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
-import org.rakam.analysis.metadata.Metastore;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,7 +67,7 @@ public class S3BulkEventStore {
                 List<SchemaField> collection = metastore.getCollection(project, entry.getKey());
 
                 Schema avroSchema = convertAvroSchema(collection);
-                DatumWriter writer = new GenericDatumWriter(avroSchema, data);
+                DatumWriter writer = new FilteredRecordWriter(avroSchema, data);
                 encoder = EncoderFactory.get().directBinaryEncoder(buffer, encoder);
 
                 encoder.writeInt(collection.size());
