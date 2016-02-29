@@ -155,11 +155,10 @@ public class PrestoQueryExecutor implements QueryExecutor {
     {
         URI uri = URI.create("socket://0.0.0.0:80");
         for (Proxy proxy : ProxySelector.getDefault().select(uri)) {
-            if (proxy.type() == Proxy.Type.SOCKS) {
-                if (proxy.address() instanceof InetSocketAddress) {
-                    InetSocketAddress address = (InetSocketAddress) proxy.address();
-                    return HostAndPort.fromParts(address.getHostString(), address.getPort());
-                }
+            if (proxy.type() == Proxy.Type.SOCKS &&
+                    proxy.address() instanceof InetSocketAddress) {
+                InetSocketAddress address = (InetSocketAddress) proxy.address();
+                return HostAndPort.fromParts(address.getHostString(), address.getPort());
             }
         }
         return null;

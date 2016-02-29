@@ -117,10 +117,8 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
                     return config.defaultValues.get(name);
                 });
 
-                if(toEmail != null) {
-                    if(sendInternal(toEmail, config, format)) {
-                        sentEmails++;
-                    }
+                if (toEmail != null && sendInternal(toEmail, config, format)) {
+                    sentEmails++;
                 }
             }
 

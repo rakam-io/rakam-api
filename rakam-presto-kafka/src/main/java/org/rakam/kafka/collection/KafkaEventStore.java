@@ -22,8 +22,8 @@ import org.apache.curator.framework.recipes.leader.LeaderSelectorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.rakam.collection.Event;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
@@ -122,11 +122,9 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
 
     @Override
     public void stateChanged(CuratorFramework curatorFramework, ConnectionState connectionState) {
-        if(!connectionState.isConnected()) {
-            if(executorService != null) {
-                executorService.shutdown();
-                executorService = null;
-            }
+        if (!connectionState.isConnected() && executorService != null) {
+            executorService.shutdown();
+            executorService = null;
         }
     }
 }
