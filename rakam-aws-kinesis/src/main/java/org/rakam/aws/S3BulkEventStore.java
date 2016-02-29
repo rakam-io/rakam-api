@@ -75,7 +75,7 @@ public class S3BulkEventStore {
                     encoder.writeString(schemaField.getName());
                 }
 
-                encoder.writeInt(events.size());
+                encoder.writeInt(entry.getValue().size());
 
                 for (Event event : entry.getValue()) {
                     GenericRecord properties = event.properties();

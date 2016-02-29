@@ -61,8 +61,9 @@ public class ProjectHttpService extends HttpService {
 
         List<ContinuousQuery> list = continuousQueryService.list(project);
         for (ContinuousQuery continuousQuery : list) {
-            continuousQueryService.delete(continuousQuery.project,
-                    continuousQuery.tableName);
+            if(!continuousQueryService.delete(continuousQuery.project,
+                    continuousQuery.tableName).join()) {
+            }
         }
 
         List<MaterializedView> views = materializedViewService.list(project);
