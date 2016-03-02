@@ -4,7 +4,7 @@ import io.airlift.configuration.Config;
 import io.swagger.models.ExternalDocs;
 
 public class MetadataConfig {
-    public final static ExternalDocs centralDocs = new ExternalDocs().url("https://getrakam.com/doc").description("Rakam Documentation");
+    public final static ExternalDocs centralDocs = new ExternalDocs().url("https://rakam.io/doc").description("Rakam Documentation");
 
     private String metastore;
     private String eventStore;
