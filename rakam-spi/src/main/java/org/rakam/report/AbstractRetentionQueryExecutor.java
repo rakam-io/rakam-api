@@ -24,6 +24,7 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public abstract class AbstractRetentionQueryExecutor implements RetentionQueryExecutor {
     private final int MAXIMUM_LEAD = 15;
     private final QueryExecutor executor;
+    private final static String CONNECTOR_FIELD = "_user";
     private final Metastore metastore;
 
     public AbstractRetentionQueryExecutor(QueryExecutor executor, Metastore metastore) {
@@ -34,10 +35,10 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
     public abstract String diffTimestamps(DateUnit dateUnit, String start, String end);
 
     @Override
-    public QueryExecution query(String project, String connectorField, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         String timeColumn;
 
-        checkTableColumn(connectorField, "connector field");
+        checkTableColumn(CONNECTOR_FIELD, "connector field");
 
         if (dateUnit == DateUnit.DAY) {
             timeColumn = format("cast(_time as date)");
@@ -53,13 +54,13 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
         if (returningAction.isPresent()) {
             RetentionAction retentionAction = returningAction.get();
-            from.append(generateQuery(project, retentionAction.collection(), connectorField, timeColumn, dimension,
+            from.append(generateQuery(project, retentionAction.collection(), CONNECTOR_FIELD, timeColumn, dimension,
                     retentionAction.filter(),
                     startDate, endDate));
         } else {
             Set<String> collectionNames = metastore.getCollectionNames(project);
             from.append(collectionNames.stream()
-                    .map(collection -> generateQuery(project, collection, connectorField,
+                    .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
                             timeColumn, dimension, Optional.empty(), startDate, endDate))
                     .collect(Collectors.joining(" union all ")));
         }
@@ -94,7 +95,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
             String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time");
 
             String firstActionQuery = format("%s group by 1, 2 %s",
-                    generateQuery(project, firstAction.get().collection(), connectorField, timeColumn, dimension,
+                    generateQuery(project, firstAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
                             firstAction.get().filter(), startDate, endDate),
                     dimension.isPresent() ? ", 3" : "");
 
@@ -106,17 +107,17 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "returning_action as (\n" +
                             "  %s\n" +
                             ") \n" +
-                            "select %s, cast(null as bigint) as lead, count(distinct %s) count from first_action data group by 1,2 union all\n" +
+                            "select %s, cast(null as bigint) as lead, count(%s) count from first_action data group by 1,2 union all\n" +
                             "select %s, %s, count(distinct data.%s) \n" +
                             "from first_action data join returning_action on (data.%s = returning_action.%s) \n" +
                             "where data.time < returning_action.time and %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
-                    firstActionQuery, from.toString(), dimensionColumn, connectorField,
-                    dimensionColumn, timeSubtraction, connectorField, connectorField, connectorField,
+                    firstActionQuery, from.toString(), dimensionColumn, CONNECTOR_FIELD,
+                    dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD, CONNECTOR_FIELD,
                     timeSubtraction, MAXIMUM_LEAD);
         } else {
             String timeSubtraction =  diffTimestamps(dateUnit, "time", "lead%d");
 
-            String leadTemplate = "lead(time, %d) over " + String.format("(partition by %s order by %s, time)", connectorField, connectorField);
+            String leadTemplate = "lead(time, %d) over " + String.format("(partition by %s order by %s, time)", CONNECTOR_FIELD, CONNECTOR_FIELD);
             String leadColumns = IntStream.range(0, range)
                     .mapToObj(i -> "(" + format(timeSubtraction, i) + ") as lead" + i)
                     .collect(Collectors.joining(", "));
@@ -142,12 +143,12 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                             "select %s, cast(null as bigint) as lead, count(%s) as count from daily_groups data group by 1\n" +
                             "union all (select * from (select time, lead, count from result \n" +
                             "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d) ORDER BY 1, 2 NULLS FIRST",
-                    connectorField, from.toString(), connectorField,
+                    CONNECTOR_FIELD, from.toString(), CONNECTOR_FIELD,
                     leads.isEmpty() ? "" : ", " + leads,
                     "data.time",
-                    leadColumns, connectorField,
+                    leadColumns, CONNECTOR_FIELD,
                     groups.isEmpty() ? "" : ", " + groups,
-                    "data.time", connectorField,
+                    "data.time", CONNECTOR_FIELD,
                     leadColumnNames, MAXIMUM_LEAD);
         }
 
@@ -156,14 +157,14 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
     private String generateQuery(String project,
                                  String collection,
-                                 String connectorField,
+                                 String CONNECTOR_FIELD,
                                  String timeColumn,
                                  Optional<String> dimension,
                                  Optional<Expression> exp,
                                  LocalDate startDate,
                                  LocalDate endDate) {
         return format("select %s, %s as time %s from %s where _time between date '%s' and date '%s' + interval '1' day %s",
-                connectorField,
+                CONNECTOR_FIELD,
                 timeColumn,
                 dimension.isPresent() ? ", " + checkTableColumn(dimension.get(), "dimension") + " as dimension" : "",
                 executor.formatTableReference(project, QualifiedName.of(collection)),

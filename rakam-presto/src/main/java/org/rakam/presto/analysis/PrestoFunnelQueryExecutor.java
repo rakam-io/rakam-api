@@ -33,6 +33,7 @@ import static com.facebook.presto.sql.RakamSqlFormatter.ExpressionFormatter.form
 
 public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     private final QueryExecutorService executor;
+    private static final String CONNECTOR_FIELD = "_user";
 
     @Inject
     public PrestoFunnelQueryExecutor(QueryExecutorService executor) {
@@ -40,8 +41,8 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, String connectorField, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
-        if(dimension.isPresent() && connectorField.equals(dimension.get())) {
+    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
+        if(dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
         if(groupOthers && !dimension.isPresent()) {
@@ -49,7 +50,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         }
 
         String ctes = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(connectorField, i, steps.get(i), dimension, startDate, endDate))
+                .mapToObj(i -> convertFunnel(CONNECTOR_FIELD, i, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
 
         String query;
@@ -74,7 +75,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         return executor.executeQuery(project, "WITH \n" + ctes + " " + query + " ORDER BY 1 ASC");
     }
 
-    private String convertFunnel(String connectorField, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    private String convertFunnel(String CONNECTOR_FIELD, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         ZoneId utc = ZoneId.of("UTC");
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
@@ -88,7 +89,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
 
         if(idx == 0) {
             return String.format("step%s AS (select %s %s from %s where _time BETWEEN from_unixtime(%s) and from_unixtime(%s) + interval '1' day %s\n group by 1 %s)",
-                    idx, dimensionColumn, connectorField, funnelStep.collection, startTs, endTs,
+                    idx, dimensionColumn, CONNECTOR_FIELD, funnelStep.collection, startTs, endTs,
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
@@ -97,7 +98,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                     "step"+idx, funnelStep.collection, "step"+(idx-1), filterExp, startTs,
                     endTs, dimensionColumn.isEmpty() ? "" : funnelStep.collection+"."+dimensionColumn,
                     dimension.isPresent() ? ", 2" : "",
-                    connectorField);
+                    CONNECTOR_FIELD);
         }
     }
 }

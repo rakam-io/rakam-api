@@ -63,7 +63,6 @@ public class RetentionAnalyzerHttpService extends HttpService {
     public void execute(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (query) ->
                 retentionQueryExecutor.query(query.project,
-                        query.connectorField,
                         Optional.ofNullable(query.firstAction),
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
@@ -80,7 +79,6 @@ public class RetentionAnalyzerHttpService extends HttpService {
     @Path("/analyze")
     public CompletableFuture<QueryResult> execute(@ParamBody RetentionQuery query) {
           return retentionQueryExecutor.query(query.project,
-                        query.connectorField,
                         Optional.ofNullable(query.firstAction),
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
@@ -91,7 +89,6 @@ public class RetentionAnalyzerHttpService extends HttpService {
 
     private static class RetentionQuery implements ProjectItem {
         private final String project;
-        private final String connectorField;
         private final RetentionAction firstAction;
         private final RetentionAction returningAction;
         private final DateUnit dateUnit;
@@ -113,7 +110,6 @@ public class RetentionAnalyzerHttpService extends HttpService {
                                @ApiParam(name = "startDate") LocalDate startDate,
                                @ApiParam(name = "endDate") LocalDate endDate) {
             this.project = project;
-            this.connectorField = connectorField;
             this.firstAction = firstAction;
             this.returningAction = returningAction;
             this.dateUnit = dateUnit;

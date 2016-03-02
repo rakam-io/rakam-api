@@ -32,6 +32,7 @@ import static com.facebook.presto.sql.RakamSqlFormatter.ExpressionFormatter.form
 
 public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     private final PostgresqlQueryExecutor executor;
+    private static final String CONNECTOR_FIELD = "_user";
 
     @Inject
     public PostgresqlFunnelQueryExecutor(PostgresqlQueryExecutor executor) {
@@ -39,12 +40,12 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, String connectorField, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
-        if(dimension.isPresent() && connectorField.equals(dimension.get())) {
+    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
+        if(dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
         String ctes = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(project, connectorField, i, steps.get(i), dimension, startDate, endDate))
+                .mapToObj(i -> convertFunnel(project, CONNECTOR_FIELD, i, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
 
         String query;
@@ -69,7 +70,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         return executor.executeRawQuery("WITH \n"+ ctes + " " + query);
     }
 
-    private String convertFunnel(String project, String connectorField, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    private String convertFunnel(String project, String CONNECTOR_FIELD, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         String table = project + "." + funnelStep.collection;
         ZoneId utc = ZoneId.of("UTC");
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
@@ -83,7 +84,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
 
         if(idx == 0) {
             return String.format("step0 AS (select %s %s from %s step0 where _time BETWEEN to_timestamp(%s) and to_timestamp(%s) %s\n group by 1 %s)",
-                    dimensionColumn, connectorField, table, startTs, endTs,
+                    dimensionColumn, CONNECTOR_FIELD, table, startTs, endTs,
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
@@ -92,7 +93,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
                     "step"+idx, table, "step"+(idx-1), filterExp, startTs,
                     endTs, dimensionColumn.isEmpty() ? "" : "step"+idx+"."+dimensionColumn,
                     dimension.isPresent() ? ", 2" : "",
-                    connectorField);
+                    CONNECTOR_FIELD);
         }
     }
 }

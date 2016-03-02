@@ -58,7 +58,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testSingleStep() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, "_user", of(new FunnelStep("test0", null)),
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, of(new FunnelStep("test0", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
@@ -69,7 +69,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testMultipleSteps() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, "_user",
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
@@ -81,7 +81,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testMultipleStepsGrouping() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, "_user",
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
@@ -96,7 +96,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testDimension() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, "_user",
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null)),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
@@ -109,7 +109,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testFilter() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, "_user",
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", "teststr = 'test1'"), new FunnelStep("test1", "teststr = 'test1'")),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
@@ -121,7 +121,7 @@ public abstract class TestFunnelQueryExecutor {
 
     @Test
     public void testInterval() throws Exception {
-        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, "_user",
+        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
                 of(new FunnelStep("test0", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(1000),

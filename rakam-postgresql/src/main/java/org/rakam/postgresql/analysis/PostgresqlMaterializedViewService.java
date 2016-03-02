@@ -2,13 +2,13 @@ package org.rakam.postgresql.analysis;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.analysis.MaterializedViewService;
+import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
@@ -23,11 +23,13 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
     private final SqlParser parser = new SqlParser();
 
     private final PostgresqlQueryExecutor queryExecutor;
+    private final QueryMetadataStore database;
 
     @Inject
     public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database, Clock clock) {
-        super(queryExecutor, database, clock);
+        super(database, queryExecutor, clock);
         this.queryExecutor = queryExecutor;
+        this.database = database;
     }
 
     @Override

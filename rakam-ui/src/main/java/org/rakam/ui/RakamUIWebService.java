@@ -45,7 +45,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 public class RakamUIWebService extends HttpService {
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
-    public static final int HTTP_CACHE_SECONDS = 60;
+    public static final int HTTP_CACHE_SECONDS = 60*60*24;
     private final File directory;
     private final ActiveModuleList activeModules;
 

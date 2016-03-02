@@ -57,6 +57,8 @@ public class QueryExecutorService {
             return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.errorResult(new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber())));
         }
 
+        long startTime = System.currentTimeMillis();
+
         List<Map.Entry<MaterializedView, QueryExecution>> queryExecutions = materializedViews.stream()
                 .filter(m -> materializedViewService.needsUpdate(m))
                 .map(m -> new AbstractMap.SimpleImmutableEntry<>(m, materializedViewService.lockAndUpdateView(m)))
@@ -149,6 +151,7 @@ public class QueryExecutorService {
                                 if (!result.isFailed()) {
                                     Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate.toEpochMilli()));
                                     result.setProperty("materializedViews", collect);
+                                    result.setProperty(QueryResult.EXECUTION_TIME, System.currentTimeMillis() - startTime);
                                 }
 
                                 future.complete(result);

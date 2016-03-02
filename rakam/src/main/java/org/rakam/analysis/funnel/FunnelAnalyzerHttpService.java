@@ -15,10 +15,8 @@ package org.rakam.analysis.funnel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.analysis.FunnelQueryExecutor;
-import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.util.IgnorePermissionCheck;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -26,8 +24,10 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.IgnorePermissionCheck;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -40,7 +40,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Path("/funnel")
 @Api(value = "/funnel", nickname = "funnelAnalyzer", tags = "funnel")
@@ -67,7 +66,6 @@ public class FunnelAnalyzerHttpService extends HttpService {
     public void analyze(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (query) ->
                 funnelQueryExecutor.query(query.project,
-                        query.connectorField,
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
@@ -83,7 +81,6 @@ public class FunnelAnalyzerHttpService extends HttpService {
     @Path("/analyze")
     public CompletableFuture<QueryResult> analyze(@ParamBody FunnelQuery query) {
          return funnelQueryExecutor.query(query.project,
-                        query.connectorField,
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
@@ -92,7 +89,6 @@ public class FunnelAnalyzerHttpService extends HttpService {
 
     private static class FunnelQuery implements ProjectItem {
         public final String project;
-        public final String connectorField;
         public final List<FunnelQueryExecutor.FunnelStep> steps;
         public final String dimension;
         public final LocalDate startDate;
@@ -101,14 +97,12 @@ public class FunnelAnalyzerHttpService extends HttpService {
 
         @JsonCreator
         public FunnelQuery(@ApiParam(name="project") String project,
-                           @ApiParam(name="connector_field") String connectorField,
                            @ApiParam(name="steps") List<FunnelQueryExecutor.FunnelStep> steps,
                            @ApiParam(name="dimension", required = false) String dimension,
                            @ApiParam(name="startDate") LocalDate startDate,
                            @ApiParam(name="endDate") LocalDate endDate,
                            @ApiParam(name="enableOtherGrouping", required = false) Boolean enableOtherGrouping) {
             this.project = project;
-            this.connectorField = checkTableColumn(connectorField, "connector field");
             this.enableOtherGrouping = enableOtherGrouping == null ? false : enableOtherGrouping.booleanValue();
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;

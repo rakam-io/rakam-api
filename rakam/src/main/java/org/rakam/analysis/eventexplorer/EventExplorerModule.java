@@ -4,12 +4,12 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.report.eventexplorer.EventExplorerListener;
-import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;
+import org.rakam.report.eventexplorer.EventExplorerListener;
 import org.rakam.server.http.HttpService;
+import org.rakam.util.ConditionalModule;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "event-explorer.enabled", value = "true")
@@ -34,5 +34,4 @@ public class EventExplorerModule extends RakamModule {
     public String description() {
         return "It allows analyzing and visualizing events via a simple interface.";
     }
-
 }
