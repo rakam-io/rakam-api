@@ -76,18 +76,21 @@ public class JDBCMetastore extends AbstractMetastore {
         };
         dbi = new DBI(dataSource);
 
-        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
-            @Override
-            public List<SchemaField> load(ProjectCollection key) throws Exception {
-                try (Connection conn = prestoConnectionFactory.openConnection()) {
-                    List<SchemaField> schema = getSchema(conn, key.project, key.collection);
-                    if (schema == null) {
-                        return ImmutableList.of();
+        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(3, TimeUnit.HOURS)
+                .build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
+                    @Override
+                    public List<SchemaField> load(ProjectCollection key) throws Exception {
+                        try (Connection conn = prestoConnectionFactory.openConnection()) {
+                            ResultSet dbColumns = conn.getMetaData().getColumns(config.getColdStorageConnector(), key.project, key.collection, null);
+                            List<SchemaField> schema = convertToSchema(dbColumns);
+
+                            if (schema == null) {
+                                return ImmutableList.of();
+                            }
+                            return schema;
+                        }
                     }
-                    return schema;
-                }
-            }
-        });
+                });
 
         collectionCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
             @Override
@@ -262,7 +265,7 @@ public class JDBCMetastore extends AbstractMetastore {
         }
     }
 
-    public static List<SchemaField> convertToSchema(ResultSet dbColumns) throws SQLException {
+    private static List<SchemaField> convertToSchema(ResultSet dbColumns) throws SQLException {
         List<SchemaField> schemaFields = Lists.newArrayList();
 
         while (dbColumns.next()) {
@@ -278,11 +281,6 @@ public class JDBCMetastore extends AbstractMetastore {
         FieldType fieldType = REVERSE_TYPE_MAP.get(name.toUpperCase());
         Objects.requireNonNull(fieldType, String.format("type %s couldn't recognized.", name));
         return fieldType;
-    }
-
-    private List<SchemaField> getSchema(Connection connection, String project, String collection) throws SQLException {
-        ResultSet dbColumns = connection.getMetaData().getColumns(config.getColdStorageConnector(), project, collection, null);
-        return convertToSchema(dbColumns);
     }
 
     @Override

@@ -45,7 +45,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     }
 
     @JsonRequest
-    @ApiOperation(value = "Apply batch operation")
+    @ApiOperation(value = "Apply batch operation", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch")

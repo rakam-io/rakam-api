@@ -13,6 +13,7 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
@@ -48,7 +49,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     }
 
     @JsonRequest
-    @ApiOperation(value = "Apply batch operation")
+    @ApiOperation(value = "Apply batch operation", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch")
@@ -150,7 +151,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
 
     @JsonRequest
-    @ApiOperation(value = "Perform action for single user")
+    @ApiOperation(value = "Perform action for single user", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/single")

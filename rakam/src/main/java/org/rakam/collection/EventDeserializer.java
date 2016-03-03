@@ -54,7 +54,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     private static final Pattern TIME_PATTERN = Pattern.compile("^([2][0-3]|[0-1][0-9]|[1-9]):[0-5][0-9]:([0-5][0-9]|[6][0])$");
 
     private final Metastore metastore;
-    private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache  = CacheBuilder.newBuilder()
+    private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache = CacheBuilder.newBuilder()
             .expireAfterAccess(1, TimeUnit.HOURS).build();
     private final Set<SchemaField> constantFields;
 
@@ -87,11 +87,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
             switch (fieldName) {
                 case "project":
-                    if(t != JsonToken.VALUE_STRING) {
+                    if (t != JsonToken.VALUE_STRING) {
                         throw new RakamException("project parameter must be a string", BAD_REQUEST);
                     }
-                    if(project != null) {
-                        if(jp.getValueAsString() != null) {
+                    if (project != null) {
+                        if (jp.getValueAsString() != null) {
                             throw new RakamException("project is already set", BAD_REQUEST);
                         }
                     } else {
@@ -99,7 +99,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     }
                     break;
                 case "collection":
-                    if(t != JsonToken.VALUE_STRING) {
+                    if (t != JsonToken.VALUE_STRING) {
                         throw new RakamException("collection parameter must be a string", BAD_REQUEST);
                     }
                     collection = jp.getValueAsString().toLowerCase();
@@ -118,8 +118,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         }
                         t = jp.getCurrentToken();
 
-                        if(t != JsonToken.END_OBJECT) {
-                            if(t == JsonToken.START_OBJECT) {
+                        if (t != JsonToken.END_OBJECT) {
+                            if (t == JsonToken.START_OBJECT) {
                                 throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                             } else {
                                 throw new RakamException("Error while deserializing event", INTERNAL_SERVER_ERROR);
@@ -157,7 +157,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         Map.Entry<List<SchemaField>, Schema> schema = schemaCache.getIfPresent(key);
         if (schema == null) {
             List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
-            if(rakamSchema.isEmpty()) {
+            if (rakamSchema.isEmpty()) {
                 rakamSchema = ImmutableList.copyOf(constantFields);
             }
 
@@ -182,18 +182,24 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 fieldName = fieldName.toLowerCase(Locale.ENGLISH);
                 field = avroSchema.getField(fieldName);
 
-                if(field == null) {
+                if (field == null) {
                     checkTableColumn(fieldName, fieldName);
 
                     FieldType type = getType(jp);
                     if (type != null) {
-                        if (newFields == null)
+                        if (newFields == null) {
                             newFields = new HashSet<>();
+                        }
 
-                        if(fieldName.equals("_user")) {
-                            // the type of magic _user field must always be a string
-                            // for consistency.
-                            type = FieldType.STRING;
+                        if (fieldName.equals("_user")) {
+                            // the type of magic _user field must be consistent between collections
+                            for (List<SchemaField> fields : metastore.getCollections(project).values()) {
+                                for (SchemaField schemaField : fields) {
+                                    if (schemaField.getName().equals("_user")) {
+                                        type = schemaField.getType();
+                                    }
+                                }
+                            }
                         }
                         SchemaField newField = new SchemaField(fieldName, type);
                         newFields.add(newField);
@@ -207,7 +213,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                         }
                         record = newRecord;
 
-                        if(type.isArray() || type.isMap()) {
+                        if (type.isArray() || type.isMap()) {
                             // if the type of new field is ARRAY, we already switched to next token
                             // so current token is not START_ARRAY.
                             record.put(field.pos(), getValue(jp, type, field, true));
@@ -222,11 +228,11 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     }
                 }
             } else {
-                if(field.schema().getType() == NULL) {
+                if (field.schema().getType() == NULL) {
                     // TODO: get rid of this loop.
                     for (SchemaField schemaField : conditionalMagicFields.get(fieldName)) {
-                        if(avroSchema.getField(schemaField.getName()) == null) {
-                            if(newFields == null) {
+                        if (avroSchema.getField(schemaField.getName()) == null) {
+                            if (newFields == null) {
                                 newFields = new HashSet<>();
                             }
                             newFields.add(schemaField);
@@ -262,7 +268,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         try {
             avroFields.add(AvroUtil.generateAvroSchema(newField));
         } catch (SchemaParseException e) {
-            throw new RakamException("Couldn't create new column: "+e.getMessage(), BAD_REQUEST);
+            throw new RakamException("Couldn't create new column: " + e.getMessage(), BAD_REQUEST);
         }
 
         conditionalMagicFields.keySet().stream()
@@ -296,7 +302,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
     }
 
     private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken) throws IOException {
-        if(type == null) {
+        if (type == null) {
             return getValueOfMagicField(jp);
         }
 
@@ -304,7 +310,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
             case STRING:
                 // TODO: is it a good idea to cast the value automatically?
 //                if (t == JsonToken.VALUE_STRING)
-                    return jp.getValueAsString();
+                return jp.getValueAsString();
             case BOOLEAN:
                 return jp.getValueAsBoolean();
             case LONG:
@@ -335,8 +341,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
                     Map<String, Object> map = new HashMap<>();
 
-                    if(!passInitialToken) {
-                        if(t != JsonToken.START_OBJECT) {
+                    if (!passInitialToken) {
+                        if (t != JsonToken.START_OBJECT) {
                             return null;
                         } else {
                             t = jp.nextToken();
@@ -352,7 +358,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
                         String key = jp.getCurrentName();
 
-                        if(!jp.nextToken().isScalarValue()) {
+                        if (!jp.nextToken().isScalarValue()) {
                             throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
                         }
 
@@ -364,8 +370,8 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                     JsonToken t = jp.getCurrentToken();
                     // if the passStartArrayToken is true, we already performed jp.nextToken
                     // so there is no need to check if the current token is
-                    if(!passInitialToken) {
-                        if(t != JsonToken.START_ARRAY) {
+                    if (!passInitialToken) {
+                        if (t != JsonToken.START_ARRAY) {
                             return null;
                         } else {
                             t = jp.nextToken();
@@ -374,7 +380,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
                     List<Object> objects = new ArrayList<>();
                     for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
-                        if(!t.isScalarValue()) {
+                        if (!t.isScalarValue()) {
                             throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
                         }
                         objects.add(getValue(jp, type.getArrayElementType(), null, false));
@@ -410,30 +416,30 @@ public class EventDeserializer extends JsonDeserializer<Event> {
                 return FieldType.BOOLEAN;
             case START_ARRAY:
                 JsonToken t = jp.nextToken();
-                if(t == JsonToken.END_ARRAY) {
+                if (t == JsonToken.END_ARRAY) {
                     // if the array is null, return null as value.
                     // TODO: if the key already has a type, return that type instead of null.
                     return null;
                 }
                 FieldType type = getType(jp);
-                if(type.isArray() || type.isMap()) {
+                if (type.isArray() || type.isMap()) {
                     throw new RakamException("Nested properties is not supported", BAD_REQUEST);
                 }
                 return type.convertToArrayType();
             case START_OBJECT:
                 t = jp.nextToken();
-                if(t == JsonToken.END_OBJECT) {
+                if (t == JsonToken.END_OBJECT) {
                     // if the map is null, return null as value.
                     // TODO: if the key already has a type, return that type instead of null.
                     return null;
                 }
-                if(t != JsonToken.FIELD_NAME) {
+                if (t != JsonToken.FIELD_NAME) {
                     throw new IllegalArgumentException();
                 }
                 jp.nextToken();
                 type = getType(jp);
 
-                if(type.isArray() || type.isMap()) {
+                if (type.isArray() || type.isMap()) {
                     throw new RakamException("Nested properties is not supported", BAD_REQUEST);
                 }
                 return type.convertToMapValueType();

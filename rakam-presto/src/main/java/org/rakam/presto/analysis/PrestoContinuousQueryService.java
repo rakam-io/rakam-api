@@ -48,7 +48,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         PrestoQueryExecution prestoQueryExecution;
         if(!report.partitionKeys.isEmpty()) {
             ImmutableMap<String, String> sessionParameter = ImmutableMap.of(config.getStreamingConnector() + ".partition_keys",
-                    Joiner.on(",").join(report.partitionKeys));
+                    Joiner.on("|").join(report.partitionKeys));
             prestoQueryExecution = executor.executeRawQuery(prestoQuery, sessionParameter);
         } else {
             prestoQueryExecution = executor.executeRawQuery(prestoQuery);
@@ -75,7 +75,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
     @Override
     public CompletableFuture<Boolean> delete(String project, String tableName) {
-        String prestoQuery = format("drop view %s.\"%s\".\"%s\"", config.getStreamingConnector(), project, tableName);
+        String prestoQuery = format("drop table %s.\"%s\".\"%s\"", config.getStreamingConnector(), project, tableName);
         return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
             if(result.getError() == null) {
                 database.deleteContinuousQuery(project, tableName);

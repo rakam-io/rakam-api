@@ -82,7 +82,7 @@ public class RealTimeHttpService extends HttpService {
      * @return a future that contains the operation status
      */
     @JsonRequest
-    @ApiOperation(value = "Create report")
+    @ApiOperation(value = "Create report",  authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
@@ -111,7 +111,7 @@ public class RealTimeHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "List queries")
+    @ApiOperation(value = "List queries", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/list")
@@ -123,7 +123,7 @@ public class RealTimeHttpService extends HttpService {
 
     @JsonRequest
     @POST
-    @ApiOperation(value = "Get report")
+    @ApiOperation(value = "Get report", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "Report does not exist.")})
@@ -242,7 +242,7 @@ public class RealTimeHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Delete report")
+    @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
     public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project") String project,
                                                   @ApiParam(name = "table_name") String tableName) {

@@ -17,7 +17,7 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
-import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.AllowCookie;
@@ -75,7 +75,7 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
-    @IgnoreApi
+    @IgnorePermissionCheck
     public String create(@ParamBody User user) {
         if (!metastore.checkPermission(user.project, WRITE_KEY, user.api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
@@ -93,7 +93,7 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch/create")
-    @IgnoreApi
+    @IgnorePermissionCheck
     public List<String> batchCreate(@ApiParam(name = "project") String project,
                                     @ApiParam(name = "users") List<User> users) {
         for (User user : users) {
@@ -110,7 +110,7 @@ public class UserHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get user storage metadata")
+    @ApiOperation(value = "Get user storage metadata", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
@@ -129,7 +129,7 @@ public class UserHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Search users")
+    @ApiOperation(value = "Search users", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/search")
@@ -161,7 +161,7 @@ public class UserHttpService extends HttpService {
 
     @POST
     @JsonRequest
-    @ApiOperation(value = "Get events of the user")
+    @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
@@ -175,7 +175,7 @@ public class UserHttpService extends HttpService {
 
     @POST
     @JsonRequest
-    @ApiOperation(value = "Get events of the user")
+    @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
@@ -203,7 +203,7 @@ public class UserHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Get user")
+    @ApiOperation(value = "Get user", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
@@ -214,7 +214,7 @@ public class UserHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Merge user with anonymous id")
+    @ApiOperation(value = "Merge user with anonymous id", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})

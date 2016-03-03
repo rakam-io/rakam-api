@@ -118,12 +118,12 @@ public class ContinuousQueryHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/delete")
     public CompletableFuture<JsonResponse> delete(@ApiParam(name="project") String project,
-                         @ApiParam(name="name") String name) {
-        return service.delete(project, name).thenApply(result -> {
-            if(result) {
-                return JsonResponse.error("Error while deleting.");
-            }else {
+                         @ApiParam(name="table_name") String tableName) {
+        return service.delete(project, tableName).thenApply(success -> {
+            if(success) {
                 return JsonResponse.success();
+            }else {
+                return JsonResponse.error("Error while deleting.");
             }
         });
     }

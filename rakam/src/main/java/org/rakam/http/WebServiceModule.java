@@ -121,7 +121,9 @@ public class WebServiceModule extends AbstractModule {
             return false;
         }
         final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
-        Authorization[] authorizations = annotation == null ? new Authorization[0] : annotation.authorizations();
+        Authorization[] authorizations = annotation == null ?
+                new Authorization[0] :
+                Arrays.stream(annotation.authorizations()).filter(auth -> !auth.value().equals("")).toArray(value -> new Authorization[value]);
 
         if(authorizations.length == 0) {
             throw new IllegalStateException(method.toGenericString()+": The permission check component requires endpoints to have authorizations definition in @ApiOperation. " +

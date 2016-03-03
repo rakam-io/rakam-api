@@ -43,7 +43,6 @@ public class RetentionAnalyzerModule extends RakamModule {
                 .description("Retention Analyzer module").externalDocs(MetadataConfig.centralDocs));
 
         binder.bind(RetentionAnalyzerListener.class).asEagerSingleton();
-
     }
 
     @Override
@@ -67,10 +66,10 @@ public class RetentionAnalyzerModule extends RakamModule {
 
         @Subscribe
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            ContinuousQuery report = new ContinuousQuery(event.project, "Total count of "+event.collection,
-                    "_total_" + event.collection,
+            ContinuousQuery report = new ContinuousQuery(event.project, "Daily distinct users " + event.collection,
+                    "_users_" + event.collection,
                     String.format(QUERY, event.collection),
-                    ImmutableList.of(), ImmutableMap.of());
+                    ImmutableList.of("date"), ImmutableMap.of());
             continuousQueryService.create(report);
         }
     }

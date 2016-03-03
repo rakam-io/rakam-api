@@ -7,18 +7,17 @@ import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractRetentionQueryExecutor implements RetentionQueryExecutor {
@@ -34,47 +33,33 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
     public abstract String diffTimestamps(DateUnit dateUnit, String start, String end);
 
+
     @Override
     public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         String timeColumn;
 
         checkTableColumn(CONNECTOR_FIELD, "connector field");
 
-        if (dateUnit == DateUnit.DAY) {
+        if (dateUnit == DAY) {
             timeColumn = format("cast(_time as date)");
-        } else if (dateUnit == DateUnit.WEEK) {
+        } else if (dateUnit == WEEK) {
             timeColumn = format("cast(date_trunc('week', _time) as date)");
-        } else if (dateUnit == DateUnit.MONTH) {
+        } else if (dateUnit == MONTH) {
             timeColumn = format("cast(date_trunc('month', _time) as date)");
         } else {
             throw new UnsupportedOperationException();
         }
 
-        StringBuilder from = new StringBuilder();
-
-        if (returningAction.isPresent()) {
-            RetentionAction retentionAction = returningAction.get();
-            from.append(generateQuery(project, retentionAction.collection(), CONNECTOR_FIELD, timeColumn, dimension,
-                    retentionAction.filter(),
-                    startDate, endDate));
-        } else {
-            Set<String> collectionNames = metastore.getCollectionNames(project);
-            from.append(collectionNames.stream()
-                    .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
-                            timeColumn, dimension, Optional.empty(), startDate, endDate))
-                    .collect(Collectors.joining(" union all ")));
-        }
-
         LocalDate start;
         LocalDate end;
-        if (dateUnit == DateUnit.MONTH) {
+        if (dateUnit == MONTH) {
             start = startDate.withDayOfMonth(1);
             end = endDate.withDayOfMonth(1).plus(1, ChronoUnit.MONTHS);
-        } else if (dateUnit == DateUnit.WEEK) {
+        } else if (dateUnit == WEEK) {
             TemporalField fieldUS = WeekFields.of(Locale.US).dayOfWeek();
             start = startDate.with(fieldUS, 1);
             end = endDate.with(fieldUS, 1).plus(1, ChronoUnit.MONTHS);
-        } else if (dateUnit == DateUnit.DAY) {
+        } else if (dateUnit == DAY) {
             start = startDate;
             end = endDate;
         } else {
@@ -86,91 +71,68 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
             throw new IllegalArgumentException("startDate must be before endDate.");
         }
 
-        if(range == 0) {
+        if (range == 0) {
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
+        String firstActionQuery = firstAction.isPresent() ? format("%s group by 1, 2 %s",
+                generateQuery(project, firstAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
+                        firstAction.get().filter(), startDate, endDate),
+                dimension.isPresent() ? ", 3" : "") : metastore.getCollectionNames(project).stream()
+                .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
+                        timeColumn, dimension, Optional.empty(), startDate, endDate))
+                .collect(Collectors.joining(" union all "));
+
+        String returningActionQuery = format("%s group by 1, 2 %s",
+                returningAction.isPresent() ? generateQuery(project, returningAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
+                        returningAction.get().filter(),
+                        startDate, endDate) : metastore.getCollectionNames(project).stream()
+                        .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
+                                timeColumn, dimension, Optional.empty(), startDate, endDate))
+                        .collect(Collectors.joining(" union all ")),
+                dimension.isPresent() ? ", 3" : "");
+
         String query;
-        if (firstAction.isPresent()) {
-            String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time");
+        String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time") + "-1";
 
-            String firstActionQuery = format("%s group by 1, 2 %s",
-                    generateQuery(project, firstAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
-                            firstAction.get().filter(), startDate, endDate),
-                    dimension.isPresent() ? ", 3" : "");
+        String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.time";
 
-            String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.time";
-
-            query = format("with first_action as (\n" +
-                            "  %s\n" +
-                            "), \n" +
-                            "returning_action as (\n" +
-                            "  %s\n" +
-                            ") \n" +
-                            "select %s, cast(null as bigint) as lead, count(%s) count from first_action data group by 1,2 union all\n" +
-                            "select %s, %s, count(distinct data.%s) \n" +
-                            "from first_action data join returning_action on (data.%s = returning_action.%s) \n" +
-                            "where data.time < returning_action.time and %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
-                    firstActionQuery, from.toString(), dimensionColumn, CONNECTOR_FIELD,
-                    dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD, CONNECTOR_FIELD,
-                    timeSubtraction, MAXIMUM_LEAD);
-        } else {
-            String timeSubtraction =  diffTimestamps(dateUnit, "time", "lead%d");
-
-            String leadTemplate = "lead(time, %d) over " + String.format("(partition by %s order by %s, time)", CONNECTOR_FIELD, CONNECTOR_FIELD);
-            String leadColumns = IntStream.range(0, range)
-                    .mapToObj(i -> "(" + format(timeSubtraction, i) + ") as lead" + i)
-                    .collect(Collectors.joining(", "));
-            String groups = IntStream.range(2, range + 2).mapToObj(Integer::toString).collect(Collectors.joining(", "));
-
-            String leads = IntStream.range(0, range)
-                    .mapToObj(i -> format(leadTemplate + " lead" + i, i))
-                    .collect(Collectors.joining(", "));
-            String leadColumnNames = IntStream.range(0, range).mapToObj(i -> "lead" + i).collect(Collectors.joining(", "));
-
-            query = format("with daily_groups as (\n" +
-                            "  select %s, time\n" +
-                            "  from (%s) as data group by 1, 2\n" +
-                            "), \n" +
-                            "lead_relations as (\n" +
-                            "  select %s, time %s\n" +
-                            "  from daily_groups\n" +
-                            "),\n" +
-                            "result as (\n" +
-                            "   select %s as time, %s, count(distinct %s) as count\n" +
-                            "   from lead_relations data group by 1 %s order by 1\n" +
-                            ") \n" +
-                            "select %s, cast(null as bigint) as lead, count(%s) as count from daily_groups data group by 1\n" +
-                            "union all (select * from (select time, lead, count from result \n" +
-                            "CROSS JOIN unnest(array[%s]) t(lead)) as data where lead < %d) ORDER BY 1, 2 NULLS FIRST",
-                    CONNECTOR_FIELD, from.toString(), CONNECTOR_FIELD,
-                    leads.isEmpty() ? "" : ", " + leads,
-                    "data.time",
-                    leadColumns, CONNECTOR_FIELD,
-                    groups.isEmpty() ? "" : ", " + groups,
-                    "data.time", CONNECTOR_FIELD,
-                    leadColumnNames, MAXIMUM_LEAD);
-        }
+        query = format("with first_action as (\n" +
+                        "  %s\n" +
+                        "), \n" +
+                        "returning_action as (\n" +
+                        "  %s\n" +
+                        ") \n" +
+                        "select %s, cast(null as bigint) as lead, count(*) count from first_action data group by 1 union all\n" +
+                        "select %s, %s, count(*) \n" +
+                        "from first_action data join returning_action on (data.%s = returning_action.%s AND data.time < returning_action.time) \n" +
+                        "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
+                firstActionQuery, returningActionQuery, dimensionColumn,
+                dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD,
+                timeSubtraction, MAXIMUM_LEAD);
 
         return executor.executeRawQuery(query);
     }
 
     private String generateQuery(String project,
                                  String collection,
-                                 String CONNECTOR_FIELD,
+                                 String connectorField,
                                  String timeColumn,
                                  Optional<String> dimension,
-                                 Optional<Expression> exp,
+                                 Optional<Expression> filter,
                                  LocalDate startDate,
                                  LocalDate endDate) {
+        if (dimension.isPresent()) {
+
+        }
         return format("select %s, %s as time %s from %s where _time between date '%s' and date '%s' + interval '1' day %s",
-                CONNECTOR_FIELD,
+                connectorField,
                 timeColumn,
                 dimension.isPresent() ? ", " + checkTableColumn(dimension.get(), "dimension") + " as dimension" : "",
                 executor.formatTableReference(project, QualifiedName.of(collection)),
-                startDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                endDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                exp.isPresent() ? "and " + formatExpression(exp.get(), reference -> executor.formatTableReference(project, reference)) : "");
+                startDate.format(ISO_LOCAL_DATE),
+                endDate.format(ISO_LOCAL_DATE),
+                filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> executor.formatTableReference(project, reference)) : "");
     }
 
 }
