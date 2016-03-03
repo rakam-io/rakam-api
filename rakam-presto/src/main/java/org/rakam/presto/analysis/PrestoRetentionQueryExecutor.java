@@ -13,6 +13,8 @@
  */
 package org.rakam.presto.analysis;
 
+import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.AbstractRetentionQueryExecutor;
 
@@ -21,8 +23,11 @@ import javax.inject.Inject;
 public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
 
     @Inject
-    public PrestoRetentionQueryExecutor(PrestoQueryExecutor executor, Metastore metastore) {
-        super(executor, metastore);
+    public PrestoRetentionQueryExecutor(PrestoQueryExecutor executor,
+                                        Metastore metastore,
+                                        MaterializedViewService materializedViewService,
+                                        ContinuousQueryService continuousQueryService) {
+        super(executor, metastore, materializedViewService, continuousQueryService);
     }
 
     @Override

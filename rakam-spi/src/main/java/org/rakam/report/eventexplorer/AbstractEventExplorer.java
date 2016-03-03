@@ -264,7 +264,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                 throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, sum(total) from (", aggregationMethod.get() == DAY ? "time" : format(timestampMapping.get(aggregationMethod.get()), "time"), aggregationMethod.get()) +
+            query = format("select collection, %s as %s, sum(total) from (", aggregationMethod.get() == HOUR ? "time" : format(timestampMapping.get(aggregationMethod.get()), "time"), aggregationMethod.get()) +
                     collectionNames.stream()
                             .map(collection ->
                                     format("select cast('%s' as varchar) as collection, time, coalesce(total, 0) as total from continuous.\"%s\" ",

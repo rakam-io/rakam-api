@@ -1,6 +1,7 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
+import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TestRetentionQueryExecutor;
@@ -11,9 +12,13 @@ import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.presto.analysis.PrestoConfig;
+import org.rakam.presto.analysis.PrestoContinuousQueryService;
+import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.testng.annotations.BeforeSuite;
+
+import java.time.Clock;
 
 public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor {
 
@@ -27,15 +32,18 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
+        InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 
         JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
         metastore = new JDBCMetastore(metastoreDataSource, prestoConfig, new EventBus(), new FieldDependencyBuilder().build());
         metastore.setup();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
+        PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
+        PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC());
+        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, queryExecutor, prestoConfig);
 
-        retentionQueryExecutor = new PrestoRetentionQueryExecutor(prestoQueryExecutor, metastore);
-        testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
+        retentionQueryExecutor = new PrestoRetentionQueryExecutor(queryExecutor, metastore, materializedViewService, continuousQueryService);
+        testingPrestoEventStore = new TestingPrestoEventStore(queryExecutor, prestoConfig);
 
         // TODO: Presto throws "No node available" error, find a way to avoid this ugly hack.
         Thread.sleep(1000);

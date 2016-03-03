@@ -3,6 +3,8 @@ package org.rakam.report;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.primitives.Ints;
+import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
 
@@ -25,10 +27,16 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
     private final QueryExecutor executor;
     private final static String CONNECTOR_FIELD = "_user";
     private final Metastore metastore;
+    private final MaterializedViewService materializedViewService;
+    private final ContinuousQueryService continuousQueryService;
 
-    public AbstractRetentionQueryExecutor(QueryExecutor executor, Metastore metastore) {
+    public AbstractRetentionQueryExecutor(QueryExecutor executor, Metastore metastore,
+                                          MaterializedViewService materializedViewService,
+                                          ContinuousQueryService continuousQueryService) {
         this.executor = executor;
         this.metastore = metastore;
+        this.materializedViewService = materializedViewService;
+        this.continuousQueryService = continuousQueryService;
     }
 
     public abstract String diffTimestamps(DateUnit dateUnit, String start, String end);
@@ -75,22 +83,21 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
-        String firstActionQuery = firstAction.isPresent() ? format("%s group by 1, 2 %s",
+        String firstActionQuery = firstAction.isPresent() ?
                 generateQuery(project, firstAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
-                        firstAction.get().filter(), startDate, endDate),
-                dimension.isPresent() ? ", 3" : "") : metastore.getCollectionNames(project).stream()
-                .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
-                        timeColumn, dimension, Optional.empty(), startDate, endDate))
-                .collect(Collectors.joining(" union all "));
-
-        String returningActionQuery = format("%s group by 1, 2 %s",
-                returningAction.isPresent() ? generateQuery(project, returningAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
-                        returningAction.get().filter(),
-                        startDate, endDate) : metastore.getCollectionNames(project).stream()
+                        firstAction.get().filter(), startDate, endDate) :
+                metastore.getCollectionNames(project).stream()
                         .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
                                 timeColumn, dimension, Optional.empty(), startDate, endDate))
-                        .collect(Collectors.joining(" union all ")),
-                dimension.isPresent() ? ", 3" : "");
+                        .collect(Collectors.joining(" union all "));
+
+        String returningActionQuery = returningAction.isPresent() ?
+                generateQuery(project, returningAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
+                        returningAction.get().filter(), startDate, endDate) :
+                metastore.getCollectionNames(project).stream()
+                        .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
+                                timeColumn, dimension, Optional.empty(), startDate, endDate))
+                        .collect(Collectors.joining(" union all "));
 
         String query;
         String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time") + "-1";
@@ -114,6 +121,11 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         return executor.executeRawQuery(query);
     }
 
+    private String getPrecalculatedTable(String project, String collection, String schema, String timePredicate) {
+        return String.format("select date as time, _user from %s where %s",
+                executor.formatTableReference(project, QualifiedName.of(schema, "_users_daily_" + collection)), timePredicate);
+    }
+
     private String generateQuery(String project,
                                  String collection,
                                  String connectorField,
@@ -122,17 +134,28 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                                  Optional<Expression> filter,
                                  LocalDate startDate,
                                  LocalDate endDate) {
-        if (dimension.isPresent()) {
+
+        if (!dimension.isPresent()) {
+            if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily_" + collection))) {
+                return getPrecalculatedTable(project, collection, "continuous", String.format("date between date '%s' and date '%s' + interval '1' day",
+                        startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)));
+            } else
+            if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily_" + collection))) {
+                return getPrecalculatedTable(project, collection, "materialized", String.format("date between date '%s' and date '%s' + interval '1' day",
+                        startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)));
+            }
+        } else {
 
         }
-        return format("select %s, %s as time %s from %s where _time between date '%s' and date '%s' + interval '1' day %s",
+
+        return format("select %s, %s as time %s from %s where _time between date '%s' and date '%s' + interval '1' day %s group by 1, 2 %s",
                 connectorField,
                 timeColumn,
                 dimension.isPresent() ? ", " + checkTableColumn(dimension.get(), "dimension") + " as dimension" : "",
                 executor.formatTableReference(project, QualifiedName.of(collection)),
-                startDate.format(ISO_LOCAL_DATE),
-                endDate.format(ISO_LOCAL_DATE),
-                filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> executor.formatTableReference(project, reference)) : "");
+                startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
+                filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> executor.formatTableReference(project, reference)) : "",
+                dimension.isPresent() ? ", 3" : "");
     }
 
 }

@@ -52,7 +52,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                     if(selectItem instanceof SingleColumn) {
                         SingleColumn selectColumn = (SingleColumn) selectItem;
                         if(!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)) {
-                            throw new RakamException(String.format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
+                            throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
                         } else {
                             continue;
                         }
@@ -79,8 +79,9 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         String query;
 
         if(materializedView.incrementalField == null || materializedView.lastUpdate == null) {
-            query = format("CREATE TABLE %s AS (%s) WITH (temporal_column = '_time')",
+            query = format("CREATE TABLE %s %s AS (%s)",
                     queryExecutor.formatTableReference(materializedView.project, QualifiedName.of("materialized", materializedView.tableName)),
+                    materializedView.incrementalField != null ? format("WITH (temporal_column = '%1$s', ordering = ARRAY['%1$s'])", materializedView.incrementalField) : "",
                     builder.toString());
         } else {
             query = format("INSERT INTO %s SELECT * FROM (%s) WHERE %s > from_unixtime(%d)",
@@ -122,7 +123,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                 if(materializedView.incrementalField == null) {
                     execution = queryExecutor.executeRawStatement(format("DROP TABLE %s", reference));
                 } else {
-                    execution = queryExecutor.executeRawStatement(String.format("DELETE FROM %s WHERE %s > from_unixtime(%d)",
+                    execution = queryExecutor.executeRawStatement(format("DELETE FROM %s WHERE %s > from_unixtime(%d)",
                             reference, materializedView.incrementalField, materializedView.lastUpdate.getEpochSecond()));
                 }
 

@@ -51,7 +51,9 @@ public class MaterializedView implements ProjectItem {
                 "The query of materialized view can't contain LIMIT statement");
         checkState(!(((QuerySpecification) ((Query) query).getQueryBody()).getLimit().isPresent()),
                 "The query of materialized view can't contain LIMIT statement");
-        checkArgument(this.tableName.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
+//        checkArgument(this.tableName.matches("^[A-Za-z]+[A-Za-z0-9_]*"),
+//                "table_name must only contain alphanumeric characters and _");
+        checkArgument(this.tableName.matches("^[A-Za-z0-9_]*"),
                 "table_name must only contain alphanumeric characters and _");
         if(this.incrementalField != null)
             checkTableColumn(this.incrementalField, "incremental field is invalid");
