@@ -53,7 +53,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 
 @Path("/event")
-@Api(value = "/event", nickname="collectEvent", description = "Event collection module", tags = {"event"})
+@Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
 public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper();
@@ -65,7 +65,7 @@ public class EventCollectionHttpService extends HttpService {
     private final Set<EventProcessor> eventProcessors;
 
     @Inject
-    public EventCollectionHttpService(EventStore eventStore, EventDeserializer deserializer, EventListDeserializer eventListDeserializer,  Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Metastore metastore) {
+    public EventCollectionHttpService(EventStore eventStore, EventDeserializer deserializer, EventListDeserializer eventListDeserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Metastore metastore) {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
         this.eventProcessors = eventProcessors;
@@ -90,8 +90,8 @@ public class EventCollectionHttpService extends HttpService {
             try {
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
                 final List<Cookie> map = mapper.map(event, headers, remoteAddress, response);
-                if(map != null) {
-                    if(responseAttachment == null) {
+                if (map != null) {
+                    if (responseAttachment == null) {
                         responseAttachment = new ArrayList<>();
                     }
 
@@ -105,8 +105,8 @@ public class EventCollectionHttpService extends HttpService {
         for (EventProcessor eventProcessor : eventProcessors) {
             try {
                 final List<Cookie> map = eventProcessor.map(event, headers, remoteAddress, response);
-                if(map != null) {
-                    if(responseAttachment == null) {
+                if (map != null) {
+                    if (responseAttachment == null) {
                         responseAttachment = new ArrayList<>();
                     }
 
@@ -141,7 +141,7 @@ public class EventCollectionHttpService extends HttpService {
 
                 Event.EventContext context = event.api();
 
-                if(context == null) {
+                if (context == null) {
                     request.response("\"api key is missing\"", UNAUTHORIZED).end();
                     return;
                 }
@@ -150,7 +150,7 @@ public class EventCollectionHttpService extends HttpService {
                     return;
                 }
 
-                if(!validateProjectPermission(event.project(), context.writeKey)) {
+                if (!validateProjectPermission(event.project(), context.writeKey)) {
                     ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
                     DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, UNAUTHORIZED, byteBuf);
                     errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
@@ -162,7 +162,7 @@ public class EventCollectionHttpService extends HttpService {
 
                 eventStore.store(event);
             } catch (JsonMappingException e) {
-                request.response("\""+e.getMessage()+"\"", BAD_REQUEST).end();
+                request.response("\"" + e.getMessage() + "\"", BAD_REQUEST).end();
                 return;
             } catch (IOException e) {
                 request.response("\"json couldn't parsed\"", BAD_REQUEST).end();
@@ -180,12 +180,12 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             }
 
-            if(cookies != null) {
+            if (cookies != null) {
                 response.headers().add(HttpHeaders.Names.SET_COOKIE,
                         ServerCookieEncoder.STRICT.encode(cookies));
             }
             String headerList = getHeaderList(response.headers().iterator());
-            if(headerList != null) {
+            if (headerList != null) {
                 response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
 
@@ -202,7 +202,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     private boolean validateProjectPermission(String project, String writeKey) {
-        if(writeKey == null) {
+        if (writeKey == null) {
             return false;
         }
 
@@ -228,12 +228,14 @@ public class EventCollectionHttpService extends HttpService {
             try {
                 EventList events = jsonMapper.readValue(buff, EventList.class);
 
+                LOGGER.info("Parsed %d events", events.events.size());
+
                 Event.EventContext context = events.api;
                 if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
                     return;
                 }
 
-                if(!validateProjectPermission(events.project, context.writeKey)) {
+                if (!validateProjectPermission(events.project, context.writeKey)) {
                     ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
                     DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, UNAUTHORIZED, byteBuf);
                     errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
@@ -245,8 +247,8 @@ public class EventCollectionHttpService extends HttpService {
 
                 for (Event event : events.events) {
                     List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, response);
-                    if(mapperEntries != null) {
-                        if(entries == null) {
+                    if (mapperEntries != null) {
+                        if (entries == null) {
                             entries = new ArrayList<>();
                         }
                         entries.addAll(mapperEntries);
@@ -261,7 +263,7 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
             } catch (JsonMappingException e) {
-                if(e.getCause() != null) {
+                if (e.getCause() != null) {
                     request.response(e.getCause().getMessage(), BAD_REQUEST).end();
                     return;
                 }
@@ -283,13 +285,13 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             }
 
-            if(entries != null) {
+            if (entries != null) {
                 response.headers().add(HttpHeaders.Names.SET_COOKIE,
                         ServerCookieEncoder.STRICT.encode(entries));
             }
 
             String headerList = getHeaderList(response.headers().iterator());
-            if(headerList != null) {
+            if (headerList != null) {
                 response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
 
@@ -301,13 +303,13 @@ public class EventCollectionHttpService extends HttpService {
 
     private String getHeaderList(Iterator<Map.Entry<String, String>> it) {
         StringBuilder builder = null;
-        while(it.hasNext()) {
+        while (it.hasNext()) {
             String key = it.next().getKey();
-            if(!key.equals(SET_COOKIE)) {
-                if(builder == null) {
+            if (!key.equals(SET_COOKIE)) {
+                if (builder == null) {
                     builder = new StringBuilder();
                 }
-                if(builder.length() != 0) {
+                if (builder.length() != 0) {
                     builder.append(',');
                 }
                 builder.append(key);

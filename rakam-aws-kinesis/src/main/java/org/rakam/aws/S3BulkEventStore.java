@@ -1,9 +1,14 @@
 package org.rakam.aws;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
+import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.amazonaws.services.cloudwatch.model.MetricDatum;
+import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.google.common.base.Throwables;
+import io.airlift.log.Logger;
 import io.airlift.slice.BasicSliceInput;
 import io.airlift.slice.DynamicSliceOutput;
 import org.apache.avro.Schema;
@@ -29,10 +34,12 @@ import java.util.UUID;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 
 public class S3BulkEventStore {
+    private final static Logger LOGGER = Logger.get(S3BulkEventStore.class);
     private final Metastore metastore;
     private final AmazonS3Client s3Client;
     private final AWSConfig config;
     private final int conditionalMagicFieldsSize;
+    private final AmazonCloudWatchClient cloudWatchClient;
 
     public S3BulkEventStore(Metastore metastore, AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
@@ -42,6 +49,8 @@ public class S3BulkEventStore {
         if (config.getS3Endpoint() != null) {
             s3Client.setEndpoint(config.getS3Endpoint());
         }
+
+        cloudWatchClient = new AmazonCloudWatchClient(config.getCredentials());
         this.conditionalMagicFieldsSize = fieldDependency.dependentFields.size();
     }
 
@@ -59,7 +68,6 @@ public class S3BulkEventStore {
         String batchId = UUID.randomUUID().toString();
 
         List<String> uploadedFiles = new ArrayList<>();
-
         try {
             for (Map.Entry<String, List<Event>> entry : map.entrySet()) {
                 buffer.reset();
@@ -103,6 +111,19 @@ public class S3BulkEventStore {
                         objectMetadata);
                 uploadedFiles.add(key);
             }
+            LOGGER.info("Stored batch file '%s', %d events in %d collection.", batchId, events.size(), map.size());
+
+            try {
+                cloudWatchClient.putMetricData(new PutMetricDataRequest()
+                        .withNamespace("bulk")
+                        .withMetricData(new MetricDatum()
+                                .withMetricName("events")
+                                .withValue(((Number) events.size()).doubleValue())
+                                .withDimensions(new Dimension().withName("id").withValue(batchId))));
+            } catch (Exception e) {
+                LOGGER.info("Unable to send data to Cloudwatch");
+            }
+
         } catch (IOException | AmazonClientException e) {
             for (String uploadedFile : uploadedFiles) {
                 s3Client.deleteObject(config.getEventStoreBulkS3Bucket(), uploadedFile);

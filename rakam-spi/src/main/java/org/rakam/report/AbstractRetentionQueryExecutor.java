@@ -83,21 +83,8 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
-        String firstActionQuery = firstAction.isPresent() ?
-                generateQuery(project, firstAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
-                        firstAction.get().filter(), startDate, endDate) :
-                metastore.getCollectionNames(project).stream()
-                        .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
-                                timeColumn, dimension, Optional.empty(), startDate, endDate))
-                        .collect(Collectors.joining(" union all "));
-
-        String returningActionQuery = returningAction.isPresent() ?
-                generateQuery(project, returningAction.get().collection(), CONNECTOR_FIELD, timeColumn, dimension,
-                        returningAction.get().filter(), startDate, endDate) :
-                metastore.getCollectionNames(project).stream()
-                        .map(collection -> generateQuery(project, collection, CONNECTOR_FIELD,
-                                timeColumn, dimension, Optional.empty(), startDate, endDate))
-                        .collect(Collectors.joining(" union all "));
+        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
+        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
         String query;
         String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time") + "-1";
@@ -121,39 +108,55 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         return executor.executeRawQuery(query);
     }
 
-    private String getPrecalculatedTable(String project, String collection, String schema, String timePredicate) {
-        return String.format("select date as time, _user from %s where %s",
-                executor.formatTableReference(project, QualifiedName.of(schema, "_users_daily_" + collection)), timePredicate);
+    private String getPreCalculatedTable(String project, Optional<String> collection, String schema, String timePredicate) {
+        return String.format("select date as time, _user from %s where date %s",
+                executor.formatTableReference(project, QualifiedName.of(schema,
+                        collection.isPresent() ? "_users_daily_" + collection : "_users_daily")), timePredicate);
     }
 
     private String generateQuery(String project,
-                                 String collection,
+                                 Optional<RetentionAction> retentionAction,
                                  String connectorField,
                                  String timeColumn,
                                  Optional<String> dimension,
-                                 Optional<Expression> filter,
                                  LocalDate startDate,
                                  LocalDate endDate) {
 
-        if (!dimension.isPresent()) {
-            if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily_" + collection))) {
-                return getPrecalculatedTable(project, collection, "continuous", String.format("date between date '%s' and date '%s' + interval '1' day",
-                        startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)));
-            } else
-            if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily_" + collection))) {
-                return getPrecalculatedTable(project, collection, "materialized", String.format("date between date '%s' and date '%s' + interval '1' day",
-                        startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)));
+        String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
+                startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
+
+        if (!retentionAction.isPresent()) {
+            if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily"))) {
+                return getPreCalculatedTable(project, Optional.empty(), "continuous", timePredicate);
+            } else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily"))) {
+                return getPreCalculatedTable(project, Optional.empty(), "materialized", timePredicate);
             }
+
+            return metastore.getCollectionNames(project).stream()
+                    .map(collection -> getTableSubQuery(project, collection, connectorField,
+                            timeColumn, dimension, timePredicate, Optional.empty()))
+                    .collect(Collectors.joining(" union all "));
         } else {
+            String collection = retentionAction.get().collection();
 
+            if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily_" + collection))) {
+                return getPreCalculatedTable(project, Optional.of(collection), "continuous", timePredicate);
+            } else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily"))) {
+                return getPreCalculatedTable(project, Optional.of(collection), "materialized", timePredicate);
+            }
+
+            return getTableSubQuery(project, collection, connectorField,
+                    timeColumn, dimension, timePredicate, retentionAction.get().filter());
         }
+    }
 
-        return format("select %s, %s as time %s from %s where _time between date '%s' and date '%s' + interval '1' day %s group by 1, 2 %s",
+    private String getTableSubQuery(String project, String collection, String connectorField, String timeColumn, Optional<String> dimension, String timePredicate, Optional<Expression> filter) {
+        return format("select %s, %s as time %s from %s where _time %s %s group by 1, 2 %s",
                 connectorField,
                 timeColumn,
                 dimension.isPresent() ? ", " + checkTableColumn(dimension.get(), "dimension") + " as dimension" : "",
                 executor.formatTableReference(project, QualifiedName.of(collection)),
-                startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
+                timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> executor.formatTableReference(project, reference)) : "",
                 dimension.isPresent() ? ", 3" : "");
     }

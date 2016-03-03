@@ -48,7 +48,6 @@ public class AWSKinesisEventStore implements EventStore {
         if(config.getKinesisEndpoint() != null) {
             kinesis.setEndpoint(config.getKinesisEndpoint());
         }
-
         this.config = config;
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
     }
@@ -69,7 +68,6 @@ public class AWSKinesisEventStore implements EventStore {
                     .withRecords(records)
                     .withStreamName(config.getEventStoreStreamName()));
             if (putRecordsResult.getFailedRecordCount() > 0) {
-//                if(putRecordsResult.getFailedRecordCount() > 0) {
 //                    String reasons = putRecordsResult.getRecords().stream().collect(Collectors.groupingBy(e -> e.getErrorCode())).entrySet()
 //                            .stream().map(e -> e.getValue().size() + " items for " + e.getKey()).collect(Collectors.joining(", "));
 //
@@ -79,7 +77,6 @@ public class AWSKinesisEventStore implements EventStore {
 //                    }
 //
 //                    throw new IllegalStateException("Failed to put records to Kinesis: "+reasons);
-//                }
 
                 LOGGER.error("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), putRecordsResult.getRecords());
             }
@@ -149,5 +146,4 @@ public class AWSKinesisEventStore implements EventStore {
 
         return out.getBuffer(startPosition, endPosition - startPosition);
     }
-
 }
