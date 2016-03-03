@@ -23,13 +23,13 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.ExpressionFormatter.formatIdentifier;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 
 public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     private final QueryExecutorService executor;
@@ -42,10 +42,10 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
 
     @Override
     public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
-        if(dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
+        if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
-        if(groupOthers && !dimension.isPresent()) {
+        if (groupOthers && !dimension.isPresent()) {
             throw new RakamException("Dimension is required when grouping.", HttpResponseStatus.BAD_REQUEST);
         }
 
@@ -54,11 +54,11 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                 .collect(Collectors.joining(", "));
 
         String query;
-        if(dimension.isPresent()) {
-            if(groupOthers) {
-                query =  IntStream.range(0, steps.size())
+        if (dimension.isPresent()) {
+            if (groupOthers) {
+                query = IntStream.range(0, steps.size())
                         .mapToObj(i -> String.format("(SELECT step, CASE WHEN rank > 15 THEN 'Others' ELSE cast(%s as varchar) END, sum(count) FROM (select 'Step %d' as step, %s, count(*) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s GROUP BY 2 ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
-                                dimension.get(), i+1, dimension.get(), i))
+                                dimension.get(), i + 1, dimension.get(), i))
                         .collect(Collectors.joining(" UNION ALL "));
             } else {
                 query = IntStream.range(0, steps.size())
@@ -69,36 +69,33 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         } else {
             query = IntStream.range(0, steps.size())
                     .mapToObj(i -> String.format("(SELECT 'Step %d' as step, count(*) count FROM step%s)",
-                            i+1, i))
+                            i + 1, i))
                     .collect(Collectors.joining(" UNION ALL "));
         }
         return executor.executeQuery(project, "WITH \n" + ctes + " " + query + " ORDER BY 1 ASC");
     }
 
-    private String convertFunnel(String CONNECTOR_FIELD, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
-        ZoneId utc = ZoneId.of("UTC");
-        long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
-        long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
+    private String convertFunnel(String connectorField, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         String filterExp = funnelStep.filterExpression != null && !funnelStep.filterExpression.isEmpty() ?
                 "AND " + RakamSqlFormatter.formatExpression(funnelStep.getExpression(),
-                        name -> name.getParts().stream() .map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
-                        name -> formatIdentifier(funnelStep.collection)+"."+name.getParts().stream()
+                        name -> name.getParts().stream().map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
+                        name -> formatIdentifier(funnelStep.collection) + "." + name.getParts().stream()
                                 .map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))) : "";
 
-        String dimensionColumn = dimension.isPresent() ? dimension.get()+"," : "";
+        String dimensionColumn = dimension.isPresent() ? dimension.get() + "," : "";
 
-        if(idx == 0) {
-            return String.format("step%s AS (select %s %s from %s where _time BETWEEN from_unixtime(%s) and from_unixtime(%s) + interval '1' day %s\n group by 1 %s)",
-                    idx, dimensionColumn, CONNECTOR_FIELD, funnelStep.collection, startTs, endTs,
+        if (idx == 0) {
+            return String.format("step%s AS (select %s %s from %s where _time BETWEEN cast('%s' as date) and cast('%s' as date) + interval '1' day %s group by 1 %s)",
+                    idx, dimensionColumn, connectorField, funnelStep.collection, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
                             "select %7$s %2$s.%9$s from %2$s join %3$s on (%2$s.%9$s = %3$s.%9$s) " +
-                            "where _time BETWEEN from_unixtime(%5$s) and from_unixtime(%6$s) + interval '1' day %4$s group by 1 %8$s)",
-                    "step"+idx, funnelStep.collection, "step"+(idx-1), filterExp, startTs,
-                    endTs, dimensionColumn.isEmpty() ? "" : funnelStep.collection+"."+dimensionColumn,
+                            "where _time BETWEEN cast('%5$s' as date) and cast('%6$s' as date) + interval '1' day %4$s group by 1 %8$s)",
+                    "step" + idx, funnelStep.collection, "step" + (idx - 1), filterExp, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
+                    dimensionColumn.isEmpty() ? "" : funnelStep.collection + "." + dimensionColumn,
                     dimension.isPresent() ? ", 2" : "",
-                    CONNECTOR_FIELD);
+                    connectorField);
         }
     }
 }

@@ -86,12 +86,11 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
-        String query;
         String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time") + "-1";
 
         String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.time";
 
-        query = format("with first_action as (\n" +
+        String query = format("with first_action as (\n" +
                         "  %s\n" +
                         "), \n" +
                         "returning_action as (\n" +
@@ -99,19 +98,13 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                         ") \n" +
                         "select %s, cast(null as bigint) as lead, count(*) count from first_action data group by 1 union all\n" +
                         "select %s, %s, count(*) \n" +
-                        "from first_action data join returning_action on (data.%s = returning_action.%s AND data.time < returning_action.time) \n" +
+                        "from first_action data join returning_action on (data.time < returning_action.time AND data.%s = returning_action.%s) \n" +
                         "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn,
                 dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD,
                 timeSubtraction, MAXIMUM_LEAD);
 
         return executor.executeRawQuery(query);
-    }
-
-    private String getPreCalculatedTable(String project, Optional<String> collection, String schema, String timePredicate) {
-        return String.format("select date as time, _user from %s where date %s",
-                executor.formatTableReference(project, QualifiedName.of(schema,
-                        collection.isPresent() ? "_users_daily_" + collection : "_users_daily")), timePredicate);
     }
 
     private String generateQuery(String project,
@@ -126,10 +119,10 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
 
         if (!retentionAction.isPresent()) {
-            if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily"))) {
-                return getPreCalculatedTable(project, Optional.empty(), "continuous", timePredicate);
-            } else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily"))) {
-                return getPreCalculatedTable(project, Optional.empty(), "materialized", timePredicate);
+            Optional<String> preComputedTable = getPreComputedTable(project, timePredicate, dimension);
+
+            if (preComputedTable.isPresent()) {
+                return preComputedTable.get();
             }
 
             return metastore.getCollectionNames(project).stream()
@@ -139,15 +132,34 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         } else {
             String collection = retentionAction.get().collection();
 
-            if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily_" + collection))) {
-                return getPreCalculatedTable(project, Optional.of(collection), "continuous", timePredicate);
-            } else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals("_users_daily"))) {
-                return getPreCalculatedTable(project, Optional.of(collection), "materialized", timePredicate);
+            Optional<String> preComputedTable = getPreComputedTable(project, timePredicate,
+                    dimension.isPresent() ? dimension.map(dim -> collection + "_" + dim) : Optional.of(collection));
+
+            if (preComputedTable.isPresent()) {
+                return preComputedTable.get();
             }
 
             return getTableSubQuery(project, collection, connectorField,
                     timeColumn, dimension, timePredicate, retentionAction.get().filter());
         }
+    }
+
+    private Optional<String> getPreComputedTable(String project, String timePredicate, Optional<String> suffix) {
+        String tableName = "_users_daily" + (suffix.isPresent() ? "_" + suffix.get() : "");
+
+        if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals(tableName))) {
+            return Optional.of(generatePreCalculatedTableSql(project, suffix, "continuous", timePredicate));
+        } else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals(tableName))) {
+            return Optional.of(generatePreCalculatedTableSql(project, suffix, "materialized", timePredicate));
+        }
+
+        return Optional.empty();
+    }
+
+    private String generatePreCalculatedTableSql(String project, Optional<String> tableNameSuffix, String schema, String timePredicate) {
+        return String.format("select date as time, _user from %s where date %s",
+                executor.formatTableReference(project, QualifiedName.of(schema,
+                        tableNameSuffix.isPresent() ? "_users_daily_" + tableNameSuffix : "_users_daily")), timePredicate);
     }
 
     private String getTableSubQuery(String project, String collection, String connectorField, String timeColumn, Optional<String> dimension, String timePredicate, Optional<Expression> filter) {

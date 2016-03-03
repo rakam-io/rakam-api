@@ -42,7 +42,7 @@ public class RetentionAnalyzerModule extends RakamModule {
         tags.addBinding().toInstance(new Tag().name("retention")
                 .description("Retention Analyzer module").externalDocs(MetadataConfig.centralDocs));
 
-        binder.bind(RetentionAnalyzerListener.class).asEagerSingleton();
+//        binder.bind(RetentionAnalyzerListener.class).asEagerSingleton();
     }
 
     @Override

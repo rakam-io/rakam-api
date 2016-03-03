@@ -8,6 +8,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldType;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -39,12 +40,15 @@ public class PrestoUserService extends AbstractUserService {
     private final PrestoConfig prestoConfig;
     private final PrestoQueryExecutor executor;
     private final EventStore eventStore;
+    private final UserPluginConfig config;
 
     @Inject
     public PrestoUserService(UserStorage storage, EventStore eventStore, Metastore metastore,
+                             UserPluginConfig config,
                              PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
         super(storage);
         this.metastore = metastore;
+        this.config = config;
         this.prestoConfig = prestoConfig;
         this.executor = executor;
         this.eventStore = eventStore;
@@ -97,6 +101,9 @@ public class PrestoUserService extends AbstractUserService {
 
     @Override
     public void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt) {
+        if(!config.getEnableUserMapping()) {
+            throw new RakamException(HttpResponseStatus.NOT_IMPLEMENTED);
+        }
         GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
         properties.put(0, anonymousId);
         properties.put(1, user);

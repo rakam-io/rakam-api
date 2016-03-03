@@ -76,7 +76,7 @@ public class JDBCMetastore extends AbstractMetastore {
         };
         dbi = new DBI(dataSource);
 
-        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.MINUTES)
                 .build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
                     @Override
                     public List<SchemaField> load(ProjectCollection key) throws Exception {
@@ -92,7 +92,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     }
                 });
 
-        collectionCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
+        collectionCache = CacheBuilder.newBuilder().expireAfterWrite(20, TimeUnit.MINUTES).build(new CacheLoader<String, Set<String>>() {
             @Override
             public Set<String> load(String project) throws Exception {
                 try (Connection conn = prestoConnectionFactory.openConnection()) {
@@ -122,7 +122,7 @@ public class JDBCMetastore extends AbstractMetastore {
                     Set<String> writeKeyList = new HashSet<>();
 
                     Set<String>[] keys =
-                            Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
+                            Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<>()).toArray(Set[]::new);
 
                     PreparedStatement ps = handle.getConnection().prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = ?");
                     ps.setString(1, project);

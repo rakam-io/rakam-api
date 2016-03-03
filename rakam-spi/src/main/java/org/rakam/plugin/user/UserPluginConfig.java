@@ -13,7 +13,7 @@ public class UserPluginConfig {
     private boolean mailboxEnabled;
     private String mailBoxStorageModule;
     private String sessionColumn;
-    private boolean enableUserMapping = true;
+    private boolean enableUserMapping = false;
     private String identifierColumn;
     private boolean funnelAnalysisEnabled = true;
     private boolean retentionAnalysisEnabled = true;
