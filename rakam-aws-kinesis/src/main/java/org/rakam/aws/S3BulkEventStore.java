@@ -1,7 +1,7 @@
 package org.rakam.aws;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
@@ -39,7 +39,7 @@ public class S3BulkEventStore {
     private final AmazonS3Client s3Client;
     private final AWSConfig config;
     private final int conditionalMagicFieldsSize;
-    private final AmazonCloudWatchClient cloudWatchClient;
+    private final AmazonCloudWatchAsyncClient cloudWatchClient;
 
     public S3BulkEventStore(Metastore metastore, AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
@@ -50,7 +50,9 @@ public class S3BulkEventStore {
             s3Client.setEndpoint(config.getS3Endpoint());
         }
 
-        cloudWatchClient = new AmazonCloudWatchClient(config.getCredentials());
+        cloudWatchClient = new AmazonCloudWatchAsyncClient(config.getCredentials());
+        cloudWatchClient.setRegion(config.getAWSRegion());
+
         this.conditionalMagicFieldsSize = fieldDependency.dependentFields.size();
     }
 
@@ -113,16 +115,12 @@ public class S3BulkEventStore {
             }
             LOGGER.info("Stored batch file '%s', %d events in %d collection.", batchId, events.size(), map.size());
 
-            try {
-                cloudWatchClient.putMetricData(new PutMetricDataRequest()
-                        .withNamespace("bulk")
-                        .withMetricData(new MetricDatum()
-                                .withMetricName("events")
-                                .withValue(((Number) events.size()).doubleValue())
-                                .withDimensions(new Dimension().withName("id").withValue(batchId))));
-            } catch (Exception e) {
-                LOGGER.info("Unable to send data to Cloudwatch");
-            }
+            cloudWatchClient.putMetricDataAsync(new PutMetricDataRequest()
+                    .withNamespace("rakam-middleware-collection")
+                    .withMetricData(new MetricDatum()
+                            .withMetricName("bulk")
+                            .withValue(((Number) events.size()).doubleValue())
+                            .withDimensions(new Dimension().withName("project").withValue(project))));
 
         } catch (IOException | AmazonClientException e) {
             for (String uploadedFile : uploadedFiles) {
