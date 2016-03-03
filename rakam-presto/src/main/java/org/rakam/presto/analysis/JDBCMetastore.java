@@ -76,7 +76,7 @@ public class JDBCMetastore extends AbstractMetastore {
         };
         dbi = new DBI(dataSource);
 
-        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(3, TimeUnit.HOURS)
+        schemaCache = CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
                 .build(new CacheLoader<ProjectCollection, List<SchemaField>>() {
                     @Override
                     public List<SchemaField> load(ProjectCollection key) throws Exception {

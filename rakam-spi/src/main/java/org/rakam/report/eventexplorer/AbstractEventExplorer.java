@@ -1,7 +1,6 @@
 package org.rakam.report.eventexplorer;
 
 import com.facebook.presto.sql.tree.QualifiedName;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.QueryExecutor;
@@ -20,17 +19,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
+import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public abstract class AbstractEventExplorer implements EventExplorer {
-    private final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big.";
+    private final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
 
     private final QueryExecutor executor;
 
@@ -45,7 +46,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         this.timestampMapping = timestampMapping;
     }
 
-    private void checkReference(String refValue, LocalDate startDate, LocalDate endDate) {
+    private void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size) {
         switch (fromString(refValue.replace(" ", "_"))) {
             case HOUR_OF_DAY:
             case DAY_OF_MONTH:
@@ -55,20 +56,20 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             case DAY_OF_WEEK:
                 return;
             case HOUR:
-                if (startDate.atStartOfDay().until(endDate.atStartOfDay(), ChronoUnit.HOURS) > 3000)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
+                if (startDate.atStartOfDay().until(endDate.plus(1, DAYS).atStartOfDay(), ChronoUnit.HOURS) > 20000 / size)
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 break;
             case DAY:
-                if (startDate.until(endDate, ChronoUnit.DAYS) > 100)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
+                if (startDate.until(endDate.plus(1, DAYS), DAYS) > 20000 / size)
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 break;
             case MONTH:
-                if (startDate.until(endDate, ChronoUnit.MONTHS) > 100)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
+                if (startDate.until(endDate.plus(1, DAYS), ChronoUnit.MONTHS) > 20000 / size)
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 break;
             case YEAR:
-                if (startDate.until(endDate, ChronoUnit.YEARS) > 100)
-                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, HttpResponseStatus.BAD_REQUEST);
+                if (startDate.until(endDate.plus(1, DAYS), ChronoUnit.YEARS) > 20000 / size)
+                    throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 break;
         }
 
@@ -112,10 +113,10 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
     public CompletableFuture<QueryResult> analyze(String project, List<String> collections, EventExplorer.Measure measureType, EventExplorer.Reference grouping, EventExplorer.Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate) {
         if (grouping != null && grouping.type == REFERENCE) {
-            checkReference(grouping.value, startDate, endDate);
+            checkReference(grouping.value, startDate, endDate, collections.size());
         }
         if (segment != null && segment.type == REFERENCE) {
-            checkReference(segment.value, startDate, endDate);
+            checkReference(segment.value, startDate, endDate, collections.size());
         }
         StringBuilder selectBuilder = new StringBuilder();
         if (grouping != null) {
@@ -243,7 +244,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         if (collections.isPresent()) {
             for (String name : collections.get()) {
                 if (!collectionNames.contains(name)) {
-                    throw new RakamException(HttpResponseStatus.BAD_REQUEST);
+                    throw new RakamException(BAD_REQUEST);
                 }
             }
             collectionNames = collections.get();
@@ -252,14 +253,18 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }
 
+        if(dimension.isPresent()) {
+            checkReference(dimension.get(), startDate, endDate, collectionNames.size());
+        }
+
         String query;
         if (dimension.isPresent()) {
             Optional<TimestampTransformation> aggregationMethod = TimestampTransformation.fromPrettyName(dimension.get());
             if (!aggregationMethod.isPresent()) {
-                throw new RakamException(HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, sum(total) from (", format(timestampMapping.get(aggregationMethod.get()), "time"), aggregationMethod.get()) +
+            query = format("select collection, %s as %s, sum(total) from (", aggregationMethod.get() == DAY ? "time" : format(timestampMapping.get(aggregationMethod.get()), "time"), aggregationMethod.get()) +
                     collectionNames.stream()
                             .map(collection ->
                                     format("select cast('%s' as varchar) as collection, time, coalesce(total, 0) as total from continuous.\"%s\" ",
@@ -277,7 +282,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     .collect(Collectors.joining(" union all ")) + " order by 2 desc";
         }
 
-        return service.executeQuery(project, query, 5000).getResult();
+        return service.executeQuery(project, query, 20000).getResult();
     }
 
     @Override

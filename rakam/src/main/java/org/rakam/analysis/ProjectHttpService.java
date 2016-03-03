@@ -104,9 +104,7 @@ public class ProjectHttpService extends HttpService {
     public List<Collection> schema(@ApiParam(name = "project") String project,
                                    @ApiParam(name = "names", required = false) Set<String> names) {
         return metastore.getCollections(project).entrySet().stream()
-                // ignore system tables
                 .filter(entry -> names == null || names.contains(entry.getKey()))
-//                .filter(entry -> !entry.getKey().startsWith("_"))
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
     }
