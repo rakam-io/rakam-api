@@ -35,9 +35,7 @@ public class MaterializedViewHttpService extends HttpService {
 
     @Inject
     public MaterializedViewHttpService(MaterializedViewService service, QueryHttpService queryService) {
-        MaterializedViewService service1;
-        service1 = service;
-        this.service = service1;
+        this.service = service;
         this.queryService = queryService;
     }
 
@@ -101,8 +99,8 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/delete")
-    public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project", required = true) String project,
-                                                  @ApiParam(name = "name", required = true) String name) {
+    public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project") String project,
+                                                  @ApiParam(name = "table_name") String name) {
         return service.delete(project, name)
                 .thenApply(result -> JsonResponse.result(result.getError() == null));
     }
