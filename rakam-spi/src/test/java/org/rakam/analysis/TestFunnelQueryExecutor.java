@@ -61,7 +61,7 @@ public abstract class TestFunnelQueryExecutor {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME, of(new FunnelStep("test0", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
+                LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(query.getResult(), of(of("Step 1", 3L)));
@@ -73,7 +73,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
+                LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(query.getResult(), of(of("Step 1", 3L), of("Step 2", 3L), of("Step 3", 3L)));
@@ -85,7 +85,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null), new FunnelStep("test2", null)),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), true).getResult().join();
+                LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(ImmutableSet.copyOf(query.getResult()), ImmutableSet.of(
@@ -100,7 +100,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", null), new FunnelStep("test1", null)),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
+                LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(ImmutableSet.copyOf(query.getResult()),
@@ -113,7 +113,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", "teststr = 'test1'"), new FunnelStep("test1", "teststr = 'test1'")),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
-                LocalDate.ofEpochDay(SCALE_FACTOR), false).getResult().join();
+                LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(query.isFailed());
         assertEquals(query.getResult(), of(of("Step 1", "test1", 3L), of("Step 2", "test1", 3L)));
@@ -125,7 +125,7 @@ public abstract class TestFunnelQueryExecutor {
                 of(new FunnelStep("test0", null)),
                 Optional.empty(),
                 LocalDate.ofEpochDay(1000),
-                LocalDate.ofEpochDay(1001), false).getResult().join();
+                LocalDate.ofEpochDay(1001)).getResult().join();
 
         assertFalse(query.isFailed());
         System.out.println(query.getResult());

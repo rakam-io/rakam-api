@@ -40,7 +40,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, boolean groupOthers) {
+    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         if(dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
@@ -50,17 +50,17 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
 
         String query;
         if(dimension.isPresent()) {
-            if(groupOthers) {
+//            if(groupOthers) {
                 query =  IntStream.range(0, steps.size())
                         .mapToObj(i -> String.format("(SELECT step, CASE WHEN rank > 15 THEN 'Others' ELSE %s END, sum(count) FROM (select CAST('Step %d' as varchar) as step, %s, count(*) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s GROUP BY 2 ORDER BY 4 ASC) data GROUP BY 1, 2 ORDER BY 3 DESC)",
                                 dimension.get(), i+1, dimension.get(), i))
                         .collect(Collectors.joining(" UNION ALL "));
-            } else {
-                query = IntStream.range(0, steps.size())
-                        .mapToObj(i -> String.format("(SELECT cast('Step %d' as varchar) as step, %s, count(*) count from step%d GROUP BY 2 ORDER BY 3 DESC)",
-                                i + 1, dimension.get(), i))
-                        .collect(Collectors.joining(" UNION ALL "));
-            }
+//            } else {
+//                query = IntStream.range(0, steps.size())
+//                        .mapToObj(i -> String.format("(SELECT cast('Step %d' as varchar) as step, %s, count(*) count from step%d GROUP BY 2 ORDER BY 3 DESC)",
+//                                i + 1, dimension.get(), i))
+//                        .collect(Collectors.joining(" UNION ALL "));
+//            }
         } else {
             query = IntStream.range(0, steps.size())
                     .mapToObj(i -> String.format("(SELECT cast('Step %d' as varchar) as step, count(*) count FROM step%s)",

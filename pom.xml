@@ -214,6 +214,18 @@
             </dependency>
 
             <dependency>
+                <groupId>net.kencochrane.raven</groupId>
+                <artifactId>raven</artifactId>
+                <version>4.0</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-codec</groupId>
+                        <artifactId>commons-codec</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro</artifactId>
                 <version>1.7.7</version>

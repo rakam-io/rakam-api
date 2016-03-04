@@ -69,7 +69,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
-                        query.endDate, query.enableOtherGrouping));
+                        query.endDate));
     }
 
     @ApiOperation(value = "Execute query",
@@ -84,7 +84,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
-                        query.endDate, query.enableOtherGrouping).getResult();
+                        query.endDate).getResult();
     }
 
     private static class FunnelQuery implements ProjectItem {
@@ -93,17 +93,14 @@ public class FunnelAnalyzerHttpService extends HttpService {
         public final String dimension;
         public final LocalDate startDate;
         public final LocalDate endDate;
-        public final boolean enableOtherGrouping;
 
         @JsonCreator
         public FunnelQuery(@ApiParam(name="project") String project,
                            @ApiParam(name="steps") List<FunnelQueryExecutor.FunnelStep> steps,
                            @ApiParam(name="dimension", required = false) String dimension,
                            @ApiParam(name="startDate") LocalDate startDate,
-                           @ApiParam(name="endDate") LocalDate endDate,
-                           @ApiParam(name="enableOtherGrouping", required = false) Boolean enableOtherGrouping) {
+                           @ApiParam(name="endDate") LocalDate endDate) {
             this.project = project;
-            this.enableOtherGrouping = enableOtherGrouping == null ? false : enableOtherGrouping.booleanValue();
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;
             this.startDate = startDate;
