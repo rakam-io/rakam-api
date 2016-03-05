@@ -159,7 +159,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
     private String generatePreCalculatedTableSql(String project, Optional<String> tableNameSuffix, String schema, String timePredicate) {
         return String.format("select date as time, _user from %s where date %s",
                 executor.formatTableReference(project, QualifiedName.of(schema,
-                        tableNameSuffix.isPresent() ? "_users_daily_" + tableNameSuffix : "_users_daily")), timePredicate);
+                        "_users_daily" + (tableNameSuffix.isPresent() ? ("_" + tableNameSuffix.get()) : ""))), timePredicate);
     }
 
     private String getTableSubQuery(String project, String collection, String connectorField, String timeColumn, Optional<String> dimension, String timePredicate, Optional<Expression> filter) {
