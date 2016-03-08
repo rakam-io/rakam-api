@@ -64,7 +64,7 @@ public class ContinuousQueryHttpService extends HttpService {
                 return JsonResponse.error("Partition keys are not valid.");
             }
             try {
-                QueryResult f = service.create(report).join();
+                QueryResult f = service.create(report, false).join();
                 return JsonResponse.map(f);
             } catch (IllegalArgumentException e) {
                 return JsonResponse.error(e.getMessage());

@@ -9,6 +9,7 @@ import org.rakam.server.http.annotations.ApiParam;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.*;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -24,20 +25,23 @@ public class MaterializedView implements ProjectItem {
     public final Duration updateInterval;
     public final String incrementalField;
     public Instant lastUpdate;
+    public final Map<String, Object> options;
 
     @JsonCreator
     public MaterializedView(@ApiParam(name = "project", required = true) String project,
                             @ApiParam(name = "name", value="The name of the materialized view", required = true) String name,
                             @ApiParam(name = "table_name", value="The table name of the materialized view that can be used when querying", required = true) String tableName,
                             @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true) String query,
-                            @ApiParam(name = "update_interval", value="", required = false) Duration updateInterval,
-                            @ApiParam(name = "incremental_field", value="", required = false) String incrementalField) {
+                            @ApiParam(name = "update_interval", required = false) Duration updateInterval,
+                            @ApiParam(name = "incremental_field", required = false) String incrementalField,
+                            @ApiParam(name = "options", value="", required = false) Map<String, Object> options) {
         this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.query = checkNotNull(query, "query is required");
         this.incrementalField = incrementalField;
         this.updateInterval = updateInterval;
+        this.options = options;
         validateQuery();
     }
 

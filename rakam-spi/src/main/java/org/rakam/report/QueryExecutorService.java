@@ -7,16 +7,16 @@ import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.SchemaField;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.analysis.MaterializedViewService;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.util.AbstractMap;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +48,7 @@ public class QueryExecutorService {
         if (!projectExists(project)) {
             throw new IllegalArgumentException("Project is not valid");
         }
-        List<MaterializedView> materializedViews = new ArrayList<>();
+        Set<MaterializedView> materializedViews = new HashSet<>();
         String query;
 
         try {
@@ -178,20 +178,11 @@ public class QueryExecutorService {
     }
 
     public QueryExecution executeQuery(String project, String sqlQuery) {
-        if (!projectExists(project)) {
-            throw new IllegalArgumentException("Project is not valid");
-        }
-
-        List<MaterializedView> materializedViews = new ArrayList<>();
-        String query = buildQuery(project, sqlQuery, null, materializedViews);
-        return executor.executeRawQuery(query);
+        return executeQuery(project, sqlQuery, 10000);
     }
 
     public QueryExecution executeStatement(String project, String sqlQuery) {
-        List<MaterializedView> views = new ArrayList<>();
-        String query = buildStatement(project, sqlQuery, views);
-
-        return executor.executeRawStatement(query);
+        return executeQuery(project, sqlQuery);
     }
 
     private synchronized void updateProjectCache() {
@@ -213,7 +204,7 @@ public class QueryExecutorService {
         return true;
     }
 
-    public String buildQuery(String project, String query, Integer maxLimit, List<MaterializedView> materializedViews) {
+    public String buildQuery(String project, String query, Integer maxLimit, Set<MaterializedView> materializedViews) {
         StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {
@@ -242,7 +233,7 @@ public class QueryExecutorService {
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, List<MaterializedView> materializedViews) {
+    private Function<QualifiedName, String> tableNameMapper(String project, Set<MaterializedView> materializedViews) {
         return node -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
                 MaterializedView materializedView = queryMetadataStore.getMaterializedView(project, node.getSuffix());
@@ -252,7 +243,7 @@ public class QueryExecutorService {
         };
     }
 
-    private String buildStatement(String project, String query, List<MaterializedView> views) {
+    private String buildStatement(String project, String query, Set<MaterializedView> views) {
         StringBuilder builder = new StringBuilder();
         com.facebook.presto.sql.tree.Statement statement;
         synchronized (parser) {
@@ -266,7 +257,12 @@ public class QueryExecutorService {
 
     public CompletableFuture<List<SchemaField>> metadata(String project, String query) {
         StringBuilder builder = new StringBuilder();
-        Query queryStatement = (Query) parser.createStatement(checkNotNull(query, "query is required"));
+        Query queryStatement;
+        try {
+            queryStatement = (Query) parser.createStatement(checkNotNull(query, "query is required"));
+        } catch (Exception e) {
+            throw new RakamException("Unable to parse query: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+        }
 
         new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName))
                 .process(queryStatement, 1);

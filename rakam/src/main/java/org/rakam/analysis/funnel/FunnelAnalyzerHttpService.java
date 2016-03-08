@@ -59,6 +59,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
             produces = "text/event-stream",
             authorizations = @Authorization(value = "read_key")
     )
+
     @GET
     @IgnoreApi
     @IgnorePermissionCheck

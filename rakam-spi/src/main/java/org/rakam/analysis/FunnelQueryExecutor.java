@@ -32,20 +32,24 @@ public interface FunnelQueryExecutor {
 
     class FunnelStep {
         private static SqlParser parser = new SqlParser();
-        public final String collection;
-        public final String filterExpression;
+        private final String collection;
+        private final Optional<String> filterExpression;
 
         @JsonCreator
         public FunnelStep(@JsonProperty("collection") String collection,
-                          @JsonProperty("filterExpression") String filterExpression) {
+                          @JsonProperty("filterExpression") Optional<String> filterExpression) {
             checkCollection(collection);
             this.collection = collection;
             this.filterExpression = filterExpression;
         }
 
+        public String getCollection() {
+            return collection;
+        }
+
         @JsonIgnore
-        public synchronized Expression getExpression() {
-            return parser.createExpression(filterExpression);
+        public synchronized Optional<Expression> getExpression() {
+            return filterExpression.map(value -> parser.createExpression(value));
         }
     }
 }

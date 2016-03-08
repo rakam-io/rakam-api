@@ -54,7 +54,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
+import static org.rakam.analysis.metadata.Metastore.AccessKeyType.READ_KEY;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -81,7 +84,7 @@ public class QueryHttpService extends HttpService {
     public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
         return executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
             if(result.isFailed()) {
-                throw new RakamException(result.getError().toString(), HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
             return result;
         });
@@ -99,7 +102,7 @@ public class QueryHttpService extends HttpService {
                 executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit));
     }
 
-    public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executerFunction) {
+    public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executorFunction) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
@@ -108,7 +111,7 @@ public class QueryHttpService extends HttpService {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
         List<String> data = request.params().get("data");
         if (data == null || data.isEmpty()) {
-            response.send("result", encode(HttpServer.errorMessage("data query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
+            response.send("result", encode(HttpServer.errorMessage("data query parameter is required", BAD_REQUEST))).end();
             return;
         }
 
@@ -116,27 +119,26 @@ public class QueryHttpService extends HttpService {
         try {
             query = JsonHelper.readSafe(data.get(0), clazz);
         } catch (IOException e) {
-            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST))).end();
+            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }
 
         List<String> apiKey = request.params().get("api_key");
         if (apiKey == null || data.isEmpty()) {
-            response.send("result", encode(HttpServer.errorMessage("api key query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
+            response.send("result", encode(HttpServer.errorMessage("api key query parameter is required", BAD_REQUEST))).end();
             return;
         }
 
-        if (!metastore.checkPermission(query.project(), Metastore.AccessKeyType.READ_KEY, apiKey.get(0))) {
-            response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.UNAUTHORIZED.reasonPhrase(),
-                    HttpResponseStatus.UNAUTHORIZED))).end();
+        if (!metastore.checkPermission(query.project(), READ_KEY, apiKey.get(0))) {
+            response.send("result", encode(HttpServer.errorMessage(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED))).end();
             return;
         }
 
         QueryExecution execute;
         try {
-            execute = executerFunction.apply(query);
+            execute = executorFunction.apply(query);
         } catch (Exception e) {
-            response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST))).end();
+            response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }
 

@@ -147,6 +147,7 @@ public class PrestoQueryExecution implements QueryExecution {
                 return DATE;
             case StandardTypes.DOUBLE:
                 return DOUBLE;
+            case StandardTypes.VARBINARY:
             case StandardTypes.HYPER_LOG_LOG:
                 return BINARY;
             case StandardTypes.VARCHAR:

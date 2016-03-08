@@ -14,6 +14,8 @@
 package org.rakam.presto.analysis;
 
 import com.google.common.collect.ImmutableMap;
+import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
@@ -41,8 +43,10 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
             .build();
 
     @Inject
-    public PrestoEventExplorer(QueryExecutorService service, PrestoQueryExecutor executor, Metastore metastore) {
-        super(executor, service, metastore, timestampMapping);
+    public PrestoEventExplorer(QueryExecutorService service, ContinuousQueryService continuousQueryService,
+                               MaterializedViewService materializedViewService,
+                               PrestoQueryExecutor executor, Metastore metastore) {
+        super(executor, materializedViewService, continuousQueryService, service, metastore, timestampMapping);
     }
 
     @Override

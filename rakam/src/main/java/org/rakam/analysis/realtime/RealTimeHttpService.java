@@ -107,7 +107,7 @@ public class RealTimeHttpService extends HttpService {
                 sqlQuery,
                 ImmutableList.of(),
                 ImmutableMap.of("realtime", true, "aggregation", report.aggregation));
-        return service.create(query).thenApply(JsonResponse::map);
+        return service.create(query, false).thenApply(JsonResponse::map);
     }
 
     @JsonRequest

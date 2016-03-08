@@ -18,7 +18,7 @@ public abstract class ContinuousQueryService {
         this.database = database;
     }
 
-    public abstract CompletableFuture<QueryResult> create(ContinuousQuery report) throws AlreadyExistsException;
+    public abstract CompletableFuture<QueryResult> create(ContinuousQuery report, boolean replayHistoricalData) throws AlreadyExistsException;
 
     public abstract CompletableFuture<Boolean> delete(String project, String tableName);
 

@@ -16,6 +16,7 @@ import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -42,7 +43,9 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC());
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, queryExecutor, prestoConfig);
 
-        retentionQueryExecutor = new PrestoRetentionQueryExecutor(queryExecutor, metastore, materializedViewService, continuousQueryService);
+        QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService);
+
+        retentionQueryExecutor = new PrestoRetentionQueryExecutor(queryExecutorService, metastore, materializedViewService, continuousQueryService);
         testingPrestoEventStore = new TestingPrestoEventStore(queryExecutor, prestoConfig);
 
         // TODO: Presto throws "No node available" error, find a way to avoid this ugly hack.

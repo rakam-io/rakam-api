@@ -14,6 +14,8 @@
 package org.rakam.postgresql.report;
 
 import com.google.common.collect.ImmutableMap;
+import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
@@ -40,8 +42,9 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
             .build();
 
     @Inject
-    public PostgresqlEventExplorer(QueryExecutorService service, PostgresqlQueryExecutor executor, Metastore metastore) {
-        super(executor, service, metastore, timestampMapping);
+    public PostgresqlEventExplorer(QueryExecutorService service, MaterializedViewService materializedViewService,
+                                   ContinuousQueryService continuousQueryService, PostgresqlQueryExecutor executor, Metastore metastore) {
+        super(executor, materializedViewService, continuousQueryService, service, metastore, timestampMapping);
     }
 
     @Override

@@ -135,7 +135,7 @@ public class Recipe implements ProjectItem {
         }
 
         public MaterializedView createMaterializedView(String project) {
-            return new MaterializedView(project, name, table_name, query, updateInterval, incremental_field);
+            return new MaterializedView(project, name, table_name, query, updateInterval, incremental_field, ImmutableMap.of());
         }
     }
 

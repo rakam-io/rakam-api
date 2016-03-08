@@ -45,9 +45,9 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
 
         eventStore = new PostgresqlEventStore(dataSource, build);
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC());
-        eventExplorer = new PostgresqlEventExplorer(
-                new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService),
-                queryExecutor, metastore);
+//        eventExplorer = new PostgresqlEventExplorer(
+//                new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService),
+//                queryExecutor, metastore);
         super.setup();
     }
 

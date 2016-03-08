@@ -17,7 +17,7 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.AbstractRetentionQueryExecutor;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.report.QueryExecutorService;
 
 import javax.inject.Inject;
 
@@ -27,7 +27,7 @@ import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
 
     @Inject
-    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor,
+    public PostgresqlRetentionQueryExecutor(QueryExecutorService executor,
                                             Metastore metastore,
                                             MaterializedViewService materializedViewService,
                                             ContinuousQueryService continuousQueryService) {

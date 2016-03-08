@@ -2,6 +2,7 @@ package org.rakam.presto.plugin.user;
 
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.MaterializedView;
@@ -92,7 +93,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             throw new UnsupportedOperationException();
         }
 
-        materializedViewService.create(new MaterializedView(project, name, tableName, query, interval, null));
+        materializedViewService.create(new MaterializedView(project, name, tableName, query, interval, null, ImmutableMap.of()));
     }
 
     @Override

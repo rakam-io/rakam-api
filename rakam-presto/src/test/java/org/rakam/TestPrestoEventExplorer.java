@@ -51,10 +51,12 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
                 prestoQueryExecutor, prestoConfig);
         eventBus.register(new EventExplorerListener(continuousQueryService));
 
-        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, inMemoryQueryMetadataStore, metastore,
-                new PrestoMaterializedViewService(prestoQueryExecutor, inMemoryQueryMetadataStore, Clock.systemUTC()));
+        PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(prestoQueryExecutor, inMemoryQueryMetadataStore, Clock.systemUTC());
+        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor,
+                inMemoryQueryMetadataStore, metastore, materializedViewService);
 
-        eventExplorer = new PrestoEventExplorer(queryExecutorService, prestoQueryExecutor, metastore);
+        eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService,
+                materializedViewService, prestoQueryExecutor, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 
         super.setup();

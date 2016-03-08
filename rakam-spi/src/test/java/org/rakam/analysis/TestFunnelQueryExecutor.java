@@ -110,7 +110,7 @@ public abstract class TestFunnelQueryExecutor {
     @Test
     public void testFilter() throws Exception {
         QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
-                of(new FunnelStep("test0", "teststr = 'test1'"), new FunnelStep("test1", "teststr = 'test1'")),
+                of(new FunnelStep("test0", Optional.of("teststr = 'test1'")), new FunnelStep("test1", Optional.of("teststr = 'test1'"))),
                 Optional.of("teststr"),
                 LocalDate.ofEpochDay(0),
                 LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();

@@ -35,7 +35,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     }
 
     @Override
-    public CompletableFuture<QueryResult> create(ContinuousQuery report) {
+    public CompletableFuture<QueryResult> create(ContinuousQuery report, boolean replayHistoricalData) {
         StringBuilder builder = new StringBuilder();
 
         new QueryFormatter(builder, name ->
@@ -61,6 +61,11 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
                 } catch (AlreadyExistsException e) {
                     database.deleteContinuousQuery(report.project, report.tableName);
                     database.createContinuousQuery(report);
+                }
+
+                if(replayHistoricalData) {
+                    return executor.executeRawStatement(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
+                            report.project, report.tableName, builder.toString())).getResult().join();
                 }
 
                 return QueryResult.empty();

@@ -3,12 +3,20 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.UserStorage.Sorting;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -36,8 +44,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -57,17 +67,26 @@ public class UserHttpService extends HttpService {
     private final AbstractUserService service;
     private final Set<UserPropertyMapper> mappers;
     private final Metastore metastore;
+    private final ContinuousQueryService continuousQueryService;
+    private final MaterializedViewService materializedViewService;
+    private final QueryExecutor executor;
 
     @Inject
     public UserHttpService(UserPluginConfig config,
                            Set<UserPropertyMapper> mappers,
                            Metastore metastore,
+                           QueryExecutor executor,
+                           ContinuousQueryService continuousQueryService,
+                           MaterializedViewService materializedViewService,
                            AbstractUserService service) {
         this.service = service;
         this.config = config;
         this.metastore = metastore;
         this.sqlParser = new SqlParser();
         this.mappers = mappers;
+        this.executor = executor;
+        this.continuousQueryService = continuousQueryService;
+        this.materializedViewService = materializedViewService;
     }
 
     @JsonRequest
@@ -231,7 +250,7 @@ public class UserHttpService extends HttpService {
         if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
         }
-        if(!config.getEnableUserMapping()) {
+        if (!config.getEnableUserMapping()) {
             throw new RakamException("The feature is not supported", HttpResponseStatus.PRECONDITION_FAILED);
         }
         service.merge(project, user, anonymousId, createdAt, mergedAt);
@@ -337,6 +356,78 @@ public class UserHttpService extends HttpService {
 
         service.incrementProperty(project, user, property, value);
         return JsonResponse.success();
+    }
+
+    @ApiOperation(value = "Create pre-calculate rule",
+            authorizations = @Authorization(value = "master_key")
+    )
+    @POST
+    @JsonRequest
+    @Path("/pre_calculate")
+    public CompletableFuture<PreCalculatedTable> analyze(@ApiParam(name = "project") String project,
+                                                  @ApiParam(name = "collection", required = false) String collection,
+                                                  @ApiParam(name = "dimension", required = false) String dimension,
+                                                  @ApiParam(name = "replay_historical_data", required = false) Boolean replayHistoricalData,
+                                                  @ApiParam(name = "type") PreCalculationType type) {
+        String tableName = "_users_daily" +
+                Optional.ofNullable(collection).map(value -> "_" + value).orElse("") +
+                Optional.ofNullable(dimension).map(value -> "_by_" + value).orElse("");
+
+        String name = "Daily users who did " +
+                Optional.ofNullable(collection).map(value -> " event " + value).orElse(" at least one event") +
+                Optional.ofNullable(dimension).map(value -> " grouped by " + value).orElse("");
+
+        String table, dateColumn;
+        if (collection == null) {
+            table = metastore.getCollectionNames(project).stream().map(col -> String.format("SELECT cast(_time as date) as date, %s _user FROM %s",
+                    Optional.ofNullable(dimension).map(v -> v + ",").orElse(""), col)).collect(Collectors.joining(" UNION ALL "));
+            dateColumn = "date";
+        } else {
+            table = collection;
+            dateColumn = "cast(_time as date)";
+        }
+
+        String query = String.format("SELECT %s as date, %s _user FROM (%s) GROUP BY 1, 2 %s",
+                dateColumn,
+                Optional.ofNullable(dimension).map(v -> v + " as dimension,").orElse(""), table,
+                Optional.ofNullable(dimension).map(v -> ", 3").orElse(""));
+
+        switch (type) {
+            case CONTINUOUS_QUERY:
+                return continuousQueryService.create(new ContinuousQuery(project, name, tableName, query,
+                        ImmutableList.of("date"), ImmutableMap.of()), replayHistoricalData == null ? false: replayHistoricalData)
+                        .thenApply(v -> new PreCalculatedTable(name, tableName));
+            case MATERIALIZED_VIEW:
+                return materializedViewService.create(new MaterializedView(project, name, tableName, query,
+                        Duration.ofHours(1), "date", ImmutableMap.of()))
+                        .thenApply(v -> new PreCalculatedTable(name, tableName));
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
+    public static class PreCalculatedTable {
+        public final String name;
+        public final String tableName;
+
+        public PreCalculatedTable(String name, String tableName) {
+            this.name = name;
+            this.tableName = tableName;
+        }
+    }
+
+    public enum PreCalculationType {
+        MATERIALIZED_VIEW, CONTINUOUS_QUERY;
+
+        @JsonCreator
+        public static PreCalculationType get(String name) {
+            return valueOf(name.toUpperCase());
+        }
+
+        @JsonProperty
+        public String value() {
+            return name();
+        }
     }
 
     @JsonRequest

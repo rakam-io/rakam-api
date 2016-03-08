@@ -15,6 +15,7 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.rakam.report.QueryExecution;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 
@@ -29,8 +30,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 
 public interface EventExplorer {
-    CompletableFuture<QueryResult> analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate);
+
+    QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate);
+
     CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
+
     List<String> getExtraDimensions(String project);
 
     enum TimestampTransformation {

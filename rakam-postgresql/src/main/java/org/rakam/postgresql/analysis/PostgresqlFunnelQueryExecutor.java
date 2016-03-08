@@ -71,15 +71,15 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     private String convertFunnel(String project, String CONNECTOR_FIELD, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
-        String table = project + "." + funnelStep.collection;
+        String table = project + "." + funnelStep.getCollection();
         ZoneId utc = ZoneId.of("UTC");
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
-        String filterExp = funnelStep.filterExpression != null && !funnelStep.filterExpression.isEmpty() ?
-                "AND " + RakamSqlFormatter.formatExpression(funnelStep.getExpression(),
-                        name -> name.getParts().stream().map(RakamSqlFormatter.ExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
-                        name -> formatIdentifier("step"+idx) + "." + name.getParts().stream()
-                                .map(RakamSqlFormatter.ExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))) : "";
+        Optional<String> filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
+                name -> name.getParts().stream().map(RakamSqlFormatter.ExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
+                name -> formatIdentifier(funnelStep.getCollection()) + "." + name.getParts().stream()
+                        .map(RakamSqlFormatter.ExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))));
+
         String dimensionColumn = dimension.isPresent() ? dimension.get()+"," : "";
 
         if(idx == 0) {

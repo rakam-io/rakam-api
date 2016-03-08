@@ -24,6 +24,6 @@ public class EventExplorerListener {
                 "_total_" + event.collection,
                 String.format(QUERY, event.collection),
                 ImmutableList.of(), ImmutableMap.of());
-        continuousQueryService.create(report);
+        continuousQueryService.create(report, false);
     }
 }

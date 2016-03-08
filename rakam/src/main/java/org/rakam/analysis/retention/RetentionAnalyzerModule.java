@@ -70,7 +70,7 @@ public class RetentionAnalyzerModule extends RakamModule {
                     "_users_" + event.collection,
                     String.format(QUERY, event.collection),
                     ImmutableList.of("date"), ImmutableMap.of());
-            continuousQueryService.create(report);
+            continuousQueryService.create(report, false);
         }
     }
 }

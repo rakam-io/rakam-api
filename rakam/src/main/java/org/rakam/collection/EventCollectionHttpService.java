@@ -228,8 +228,6 @@ public class EventCollectionHttpService extends HttpService {
             try {
                 EventList events = jsonMapper.readValue(buff, EventList.class);
 
-                LOGGER.info("Parsed %d events", events.events.size());
-
                 Event.EventContext context = events.api;
                 if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
                     return;

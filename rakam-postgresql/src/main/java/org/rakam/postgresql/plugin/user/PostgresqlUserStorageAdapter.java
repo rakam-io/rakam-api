@@ -2,6 +2,7 @@ package org.rakam.postgresql.plugin.user;
 
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.analysis.MaterializedViewService;
@@ -100,6 +101,6 @@ public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage 
             builder.append(getEventFilterPredicate(project, eventFilter));
         }
 
-        materializedViewService.create(new MaterializedView(project, name, tableName, builder.toString(), interval, null));
+        materializedViewService.create(new MaterializedView(project, name, tableName, builder.toString(), interval, null, ImmutableMap.of()));
     }
 }

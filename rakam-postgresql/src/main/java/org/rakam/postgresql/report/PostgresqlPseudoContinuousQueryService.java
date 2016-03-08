@@ -6,10 +6,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.collection.SchemaField;
-import org.rakam.analysis.metadata.QueryMetadataStore;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.collection.SchemaField;
+import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
@@ -17,7 +17,7 @@ import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -35,8 +35,8 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     }
 
     @Override
-    public CompletableFuture<QueryResult> create(ContinuousQuery report) {
-        return executor.executeRawStatement(String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new ArrayList<>())))
+    public CompletableFuture<QueryResult> create(ContinuousQuery report, boolean replayHistoricalData) {
+        return executor.executeRawStatement(String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new HashSet<>())))
                 .getResult().thenApply(result -> {
                     if (!result.isFailed()) {
                         database.createContinuousQuery(report);
@@ -62,7 +62,7 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
         return database.getContinuousQueries(project).stream()
-                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("select * from " + executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")))
+                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " + executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")))
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
                     QueryResult join = entry.getValue().getResult().join();
                     if (join.isFailed()) {

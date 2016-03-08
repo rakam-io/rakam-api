@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -40,7 +41,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 r.getString("project"),
                 r.getString("name"), r.getString("table_name"), r.getString("query"),
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
-                r.getString("incremental_field"));
+                r.getString("incremental_field"), ImmutableMap.of());
         Long last_updated = r.getLong("last_updated");
         if(last_updated != null && last_updated != 0) {
             materializedView.lastUpdate = Instant.ofEpochSecond(last_updated);
@@ -85,6 +86,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     "  update_interval BIGINT," +
                     "  last_updated BIGINT," +
                     "  incremental_field TEXT," +
+                    "  options TEXT," +
                     "  PRIMARY KEY (project, table_name)" +
                     "  )")
                     .execute();
