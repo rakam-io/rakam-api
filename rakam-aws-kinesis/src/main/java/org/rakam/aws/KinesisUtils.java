@@ -29,9 +29,13 @@ import java.util.List;
 /**
  * Utilities to create and delete Amazon Kinesis streams.
  */
-public class KinesisUtils {
+public final class KinesisUtils {
 
     private static Logger LOG = Logger.get(KinesisUtils.class);
+
+    private KinesisUtils() throws InstantiationException{
+        throw new InstantiationException("The class is not created for instantiation");
+    }
 
     /**
      * Creates an Amazon Kinesis stream if it does not exist and waits for it to become available

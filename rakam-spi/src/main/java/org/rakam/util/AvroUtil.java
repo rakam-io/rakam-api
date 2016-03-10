@@ -26,7 +26,12 @@ import java.util.stream.Collectors;
 import static org.apache.avro.Schema.Type.NULL;
 
 
-public class AvroUtil {
+public final class AvroUtil {
+
+    private AvroUtil() throws InstantiationException {
+        throw new InstantiationException("The class is not created for instantiation");
+    }
+
     public static Schema convertAvroSchema(Collection<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()
                 .map(AvroUtil::generateAvroSchema).collect(Collectors.toList());

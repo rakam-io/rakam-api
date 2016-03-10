@@ -4,7 +4,12 @@ import org.rakam.collection.SchemaField;
 
 import java.util.List;
 
-public class SystemEvents {
+public final class SystemEvents {
+
+    private SystemEvents() throws InstantiationException {
+        throw new InstantiationException("The class is not created for instantiation");
+    }
+
     public static class ProjectCreatedEvent {
         public final String project;
 
