@@ -35,11 +35,9 @@ import static com.facebook.presto.sql.tree.LogicalBinaryExpression.Type.OR;
 public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean> {
 
     private final Function<String, Optional<String>> columnNameMapper;
-    private final boolean fetchDimension;
 
-    public PreComputedTableSubQueryVisitor(Function<String, Optional<String>> columnNameMapper, boolean fetchDimension) {
+    public PreComputedTableSubQueryVisitor(Function<String, Optional<String>> columnNameMapper) {
         this.columnNameMapper = columnNameMapper;
-        this.fetchDimension = fetchDimension;
     }
 
     @Override

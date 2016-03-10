@@ -14,10 +14,16 @@
 package org.rakam.analysis.eventexplorer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.collect.ImmutableMap;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryResult;
+import org.rakam.report.realtime.AggregationType;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -28,15 +34,19 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.rakam.util.ValidationUtil.checkArgument;
 
@@ -45,11 +55,16 @@ import static org.rakam.util.ValidationUtil.checkArgument;
 public class EventExplorerHttpService extends HttpService {
     private final EventExplorer eventExplorer;
     private final QueryHttpService queryService;
+    private final ContinuousQueryService continuousQueryService;
+    private final MaterializedViewService materializedViewService;
 
     @Inject
-    public EventExplorerHttpService(EventExplorer eventExplorer, QueryHttpService queryService) {
+    public EventExplorerHttpService(EventExplorer eventExplorer, ContinuousQueryService continuousQueryService,
+                                    MaterializedViewService materializedViewService, QueryHttpService queryService) {
         this.eventExplorer = eventExplorer;
         this.queryService = queryService;
+        this.continuousQueryService = continuousQueryService;
+        this.materializedViewService = materializedViewService;
     }
 
     @ApiOperation(value = "Event statistics",
@@ -88,6 +103,85 @@ public class EventExplorerHttpService extends HttpService {
                 analyzeRequest.measure, analyzeRequest.grouping,
                 analyzeRequest.segment, analyzeRequest.filterExpression,
                 analyzeRequest.startDate, analyzeRequest.endDate).getResult();
+    }
+
+    public static class PreCalculatedTable {
+        public final String name;
+        public final String tableName;
+
+        public PreCalculatedTable(String name, String tableName) {
+            this.name = name;
+            this.tableName = tableName;
+        }
+    }
+
+    @ApiOperation(value = "Create Pre-computed table",
+            authorizations = @Authorization(value = "master_key")
+    )
+    @JsonRequest
+    @Path("/pre_calculate")
+    public CompletableFuture<PreCalculatedTable> createPreComputedTable(@ParamBody EventExplorer.OLAPTable table) {
+        String metrics = table.measures.stream().map(column -> table.aggregations.stream()
+                .map(agg -> getAggregationColumn(agg, table.aggregations).map(e -> String.format(e, column) + " as " + column + "_" + agg.name().toLowerCase()))
+                .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))
+                .collect(Collectors.joining(", "));
+
+        String subQuery;
+        if (table.collections.size() == 1) {
+            subQuery = table.collections.iterator().next();
+        } else if (table.collections.size() > 1) {
+            subQuery = table.collections.stream().map(collection -> String.format("SELECT '%s' as collection, _time, %s, %s FROM %s",
+                    collection,
+                    table.dimensions.stream().collect(Collectors.joining(", ")),
+                    table.measures.stream().collect(Collectors.joining(", ")), collection))
+                    .collect(Collectors.joining(" UNION ALL "));
+        } else {
+            throw new RakamException("collections is empty", HttpResponseStatus.BAD_REQUEST);
+        }
+
+        String name = "Dimensions";
+
+        String query = String.format("SELECT %s CAST(_time AS DATE) as _time, %s, %s FROM (%s) GROUP BY 1, %s %s ORDER BY 1 ASC",
+                table.collections.size() != 1 ? ("collection,") : "",
+                table.dimensions.stream().collect(Collectors.joining(", ")), metrics, subQuery,
+                IntStream.range(0, table.dimensions.size()).mapToObj(i -> Integer.toString(i + 2)).collect(Collectors.joining(", ")),
+                table.collections.size() != 1 ? ("," + (table.dimensions.size() + 2)) : "");
+
+//        switch (table.tableType) {
+//            case CONTINUOUS_QUERY:
+//                return continuousQueryService.create(new ContinuousQuery(table.project, name, table.tableName, query,
+//                        ImmutableList.of("date"), ImmutableMap.of("olap_table", table)), table.replayHistoricalData == null ? false : table.replayHistoricalData)
+//                        .thenApply(v -> new PreCalculatedTable(name, table.tableName));
+//            case MATERIALIZED_VIEW:
+                return materializedViewService.create(new MaterializedView(table.project, name, table.tableName, query,
+                        Duration.ofHours(1), "date", ImmutableMap.of("olap_table", table)))
+                        .thenApply(v -> new PreCalculatedTable(name, table.tableName));
+//            default:
+//                throw new IllegalStateException();
+//        }
+    }
+
+    private Optional<String> getAggregationColumn(AggregationType agg, Set<AggregationType> aggregations) {
+        switch (agg) {
+            case AVERAGE:
+                aggregations.add(AggregationType.COUNT);
+                aggregations.add(AggregationType.SUM);
+                return Optional.empty();
+            case MAXIMUM:
+                return Optional.of("max(%s)");
+            case MINIMUM:
+                return Optional.of("min(%s)");
+            case COUNT:
+                return Optional.of("count(%s)");
+            case SUM:
+                return Optional.of("sum(%s)");
+            case COUNT_UNIQUE:
+                throw new UnsupportedOperationException("Not supported yet.");
+            case APPROXIMATE_UNIQUE:
+                return Optional.of(eventExplorer.getIntermediateForApproximateUniqueFunction());
+            default:
+                throw new IllegalArgumentException("aggregation type is not supported");
+        }
     }
 
     @ApiOperation(value = "Perform simple query on event data",

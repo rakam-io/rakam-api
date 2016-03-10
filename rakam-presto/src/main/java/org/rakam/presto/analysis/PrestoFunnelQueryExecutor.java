@@ -141,7 +141,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
 
                     calculatedUserSets.add(new CalculatedUserSet(Optional.of(collection), Optional.of(columnName)));
                     return Optional.empty();
-                }, dimension.isPresent()), false);
+                }), false);
 
 
                 if (dimension.isPresent()) {

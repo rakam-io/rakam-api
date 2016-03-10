@@ -41,8 +41,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
 
         EventBus eventBus = new EventBus();
 
-        metastore = new JDBCMetastore(metastoreDataSource, prestoConfig,
-                eventBus, new FieldDependencyBuilder().build());
+        metastore = new JDBCMetastore(metastoreDataSource, prestoConfig, eventBus, new FieldDependencyBuilder().build());
         metastore.setup();
 
         PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
@@ -56,7 +55,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
                 inMemoryQueryMetadataStore, metastore, materializedViewService);
 
         eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService,
-                materializedViewService, prestoQueryExecutor, metastore);
+                materializedViewService, metastore);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 
         super.setup();

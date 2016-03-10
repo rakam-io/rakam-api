@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -41,7 +40,8 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 r.getString("project"),
                 r.getString("name"), r.getString("table_name"), r.getString("query"),
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
-                r.getString("incremental_field"), ImmutableMap.of());
+                r.getString("incremental_field"),
+                r.getString("options") == null ? null : JsonHelper.read(r.getString("options"), Map.class));
         Long last_updated = r.getLong("last_updated");
         if(last_updated != null && last_updated != 0) {
             materializedView.lastUpdate = Instant.ofEpochSecond(last_updated);
@@ -62,7 +62,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             @Override
             public MaterializedView load(ProjectCollection key) throws Exception {
                 try (Handle handle = dbi.open()) {
-                    MaterializedView first = handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field from materialized_views WHERE project = :project AND table_name = :name")
+                    MaterializedView first = handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field, options from materialized_views WHERE project = :project AND table_name = :name")
                             .bind("project", key.project)
                             .bind("name", key.collection)
                             .map(materializedViewMapper).first();
@@ -109,13 +109,14 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public void createMaterializedView(MaterializedView materializedView) {
         try(Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental_field) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental_field)")
+                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental_field, options) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental_field, :options)")
                         .bind("project", materializedView.project)
                         .bind("name", materializedView.name)
                         .bind("table_name", materializedView.tableName)
                         .bind("query", materializedView.query)
                         .bind("update_interval", materializedView.updateInterval != null ? materializedView.updateInterval.toMillis() : null)
                         .bind("incremental_field", materializedView.incrementalField)
+                        .bind("options", JsonHelper.encode(materializedView.options))
                         .execute();
             } catch (Exception e) {
                 if (getMaterializedView(materializedView.project, materializedView.tableName) != null) {
@@ -224,7 +225,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public List<MaterializedView> getMaterializedViews(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field from materialized_views WHERE project = :project")
+            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field, options from materialized_views WHERE project = :project")
                     .bind("project", project).map(materializedViewMapper).list();
         }
     }

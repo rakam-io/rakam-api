@@ -43,10 +43,10 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
             .build();
 
     @Inject
-    public PrestoEventExplorer(QueryExecutorService service, ContinuousQueryService continuousQueryService,
+    public PrestoEventExplorer(QueryExecutorService executor, ContinuousQueryService continuousQueryService,
                                MaterializedViewService materializedViewService,
-                               PrestoQueryExecutor executor, Metastore metastore) {
-        super(executor, materializedViewService, continuousQueryService, service, metastore, timestampMapping);
+                               Metastore metastore) {
+        super(executor, materializedViewService, continuousQueryService, metastore, timestampMapping);
     }
 
     @Override
@@ -69,5 +69,15 @@ public class PrestoEventExplorer extends AbstractEventExplorer {
             default:
                 throw new IllegalArgumentException("aggregation type is not supported");
         }
+    }
+
+    @Override
+    public String getIntermediateForApproximateUniqueFunction() {
+        return "CAST(approx_set(%s) AS VARBINARY)";
+    }
+
+    @Override
+    public String getFinalForApproximateUniqueFunction() {
+        return "cardinality(CAST(%s AS HYPERLOGLOG))";
     }
 }

@@ -124,7 +124,6 @@
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-raptor</artifactId>
             <version>${presto.version}</version>
-            <scope>test</scope>
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>

@@ -43,8 +43,8 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
 
     @Inject
     public PostgresqlEventExplorer(QueryExecutorService service, MaterializedViewService materializedViewService,
-                                   ContinuousQueryService continuousQueryService, PostgresqlQueryExecutor executor, Metastore metastore) {
-        super(executor, materializedViewService, continuousQueryService, service, metastore, timestampMapping);
+                                   ContinuousQueryService continuousQueryService, Metastore metastore) {
+        super(service, materializedViewService, continuousQueryService, metastore, timestampMapping);
     }
 
     @Override

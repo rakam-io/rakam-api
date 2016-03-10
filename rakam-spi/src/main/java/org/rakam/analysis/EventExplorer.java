@@ -15,9 +15,11 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
+import org.rakam.server.http.annotations.ApiParam;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 
 public interface EventExplorer {
@@ -36,6 +39,14 @@ public interface EventExplorer {
     CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
 
     List<String> getExtraDimensions(String project);
+
+    default String getIntermediateForApproximateUniqueFunction() {
+        throw new UnsupportedOperationException();
+    }
+
+    default String getFinalForApproximateUniqueFunction() {
+        throw new UnsupportedOperationException();
+    }
 
     enum TimestampTransformation {
         HOUR_OF_DAY("Hour of day"), DAY_OF_MONTH("Day of month"),
@@ -108,6 +119,40 @@ public interface EventExplorer {
         @JsonProperty
         public String value() {
             return name();
+        }
+    }
+
+    class OLAPTable implements ProjectItem {
+        public final String project;
+        public final Set<String> collections;
+        public final Set<String> dimensions;
+        public final Set<AggregationType> aggregations;
+        public final Set<String> measures;
+        public final Boolean replayHistoricalData;
+        public final String tableName;
+
+        @JsonCreator
+        public OLAPTable(@ApiParam(name = "project") String project,
+                         @ApiParam(name = "collections") Set<String> collections,
+                         @ApiParam(name = "dimensions") Set<String> dimensions,
+                         @ApiParam(name = "aggregations") Set<AggregationType> aggregations,
+                         @ApiParam(name = "measures") Set<String> measures,
+                         @ApiParam(name = "replayHistoricalData", required = false) Boolean replayHistoricalData,
+                         @ApiParam(name = "tableName") String tableName) {
+            checkCollection(tableName);
+
+            this.project = project;
+            this.collections = collections;
+            this.dimensions = dimensions;
+            this.aggregations = aggregations;
+            this.measures = measures;
+            this.replayHistoricalData = replayHistoricalData;
+            this.tableName = tableName;
+        }
+
+        @Override
+        public String project() {
+            return project;
         }
     }
 }

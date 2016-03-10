@@ -174,7 +174,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
                     missingPreComputedTables.add(new CalculatedUserSet(collection, Optional.of(columnName)));
                     return Optional.empty();
-                }, dimensionRequired), false));
+                }), false));
             } catch (UnsupportedOperationException e) {
                 return Optional.empty();
             }
