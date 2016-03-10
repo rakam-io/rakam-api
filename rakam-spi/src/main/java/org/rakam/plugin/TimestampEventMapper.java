@@ -18,9 +18,9 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.FieldDependencyBuilder;
 
 import java.net.InetAddress;
 import java.time.Instant;
@@ -37,14 +37,10 @@ public class TimestampEventMapper implements EventMapper {
             long serverTime = Instant.now().getEpochSecond();
 
             properties.put("_time", serverTime * 1000);
-        } else {
-            if (time instanceof Number) {
-                // match server time and client time and get an estimate
-                if (event.api() != null && event.api().uploadTime != null) {
-                    long fixedTime = ((Number) time).longValue() + Instant.now().getEpochSecond() - event.api().uploadTime;
-                    properties.put("_time", fixedTime * 1000);
-                }
-            }
+        } else if (time instanceof Number && event.api() != null && event.api().uploadTime != null) {
+            // match server time and client time and get an estimate
+            long fixedTime = ((Number) time).longValue() + Instant.now().getEpochSecond() - event.api().uploadTime;
+            properties.put("_time", fixedTime * 1000);
         }
         return null;
     }

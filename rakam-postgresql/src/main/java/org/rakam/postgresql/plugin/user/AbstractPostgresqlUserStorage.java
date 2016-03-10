@@ -15,11 +15,11 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
+import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -303,10 +303,8 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             filters.addAll(getEventFilterPredicate(project, eventFilter));
         }
 
-        if (sortColumn != null) {
-            if (!metadata.stream().anyMatch(col -> col.getName().equals(sortColumn.column))) {
-                throw new IllegalArgumentException(format("sorting column does not exist: %s", sortColumn.column));
-            }
+        if (sortColumn != null && !metadata.stream().anyMatch(col -> col.getName().equals(sortColumn.column))) {
+            throw new IllegalArgumentException(format("sorting column does not exist: %s", sortColumn.column));
         }
 
         String orderBy = sortColumn == null ? "" : format(" ORDER BY %s %s", sortColumn.column, sortColumn.order);
