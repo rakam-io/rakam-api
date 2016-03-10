@@ -63,7 +63,7 @@ public class TestingPrestoEventStore implements EventStore {
     private void appendValue(StringBuilder builder, Object value, FieldType type) {
         switch (type) {
             case STRING:
-                builder.append("'").append(value).append("'");
+                builder.append('\'').append(value).append('\'');
                 break;
             case LONG:
                 builder.append(((Number) value).longValue());
@@ -86,13 +86,13 @@ public class TestingPrestoEventStore implements EventStore {
                     for (Object item : ((Collection) value)) {
                         appendValue(builder, item, type.getArrayElementType());
                     }
-                    builder.append("]");
+                    builder.append(']');
                 } else if (type.isMap()) {
                     builder.append("MAP(");
                     appendValue(builder, ((Map) value).keySet(), FieldType.ARRAY_STRING);
                     builder.append(", ");
                     appendValue(builder, ((Map) value).values(), type.getMapValueType().convertToArrayType());
-                    builder.append(")");
+                    builder.append(')');
                 }
         }
     }

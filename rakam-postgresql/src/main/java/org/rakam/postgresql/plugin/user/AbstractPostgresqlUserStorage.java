@@ -100,7 +100,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 Map.Entry<String, Object> next = stringIterator.next();
 
                 if(!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
-                    parametrizedValues.append("?");
+                    parametrizedValues.append('?');
                     cols.append(next.getKey());
                 }
 
@@ -109,15 +109,15 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
                     if(!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
                         cols.append(", ").append(next.getKey());
-                        parametrizedValues.append(", ").append("?");
+                        parametrizedValues.append(", ").append('?');
                     }
                 }
             }
 
-            parametrizedValues.append(", ").append("?");
+            parametrizedValues.append(", ").append('?');
             cols.append(", ").append("created_at");
 
-            parametrizedValues.append(", ").append("?");
+            parametrizedValues.append(", ").append('?');
             cols.append(", ").append(PRIMARY_KEY);
 
             PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + getUserTable(project, false) + " (" + cols +
@@ -441,12 +441,12 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         Iterator<Map.Entry<String, Object>> entries = properties.iterator();
         if (entries.hasNext()) {
             Map.Entry<String, Object> entry = entries.next();
-            builder.append("\"").append(entry.getKey())
+            builder.append('"').append(entry.getKey())
                     .append(onlyOnce ? "\"=coalesce(\"" + entry.getKey() + "\", ?)" : "\"=?");
 
             while (entries.hasNext()) {
                 entry = entries.next();
-                builder.append(" and ").append("\"").append(entry.getKey())
+                builder.append(" and ").append('"').append(entry.getKey())
                         .append(onlyOnce ? "\"=coalesce(\"" + entry.getKey() + "\", ?)" : "\"=?");
             }
         }

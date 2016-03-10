@@ -72,7 +72,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                     builder.append(", " + queue.poll());
                 }
             }
-            builder.append("]");
+            builder.append(']');
             response.send("data", builder.toString());
         }
     }
