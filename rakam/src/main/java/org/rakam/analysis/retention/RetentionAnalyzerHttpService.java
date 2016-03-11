@@ -106,7 +106,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                               @ApiParam(name = "returning_action") RetentionAction returningAction,
                               @ApiParam(name = "dimension") String dimension,
                               @ApiParam(name = "date_unit") DateUnit dateUnit,
-                              @ApiParam(name = "period") int period,
+                              @ApiParam(name = "period", required = false) Integer period,
                               @ApiParam(name = "startDate") LocalDate startDate,
                               @ApiParam(name = "endDate") LocalDate endDate) {
             this.project = project;
@@ -114,7 +114,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
             this.returningAction = returningAction;
             this.dateUnit = dateUnit;
             this.dimension = dimension;
-            this.period = period;
+            this.period = period == null ? 15 : period;
             this.startDate = startDate;
             this.endDate = endDate;
         }
