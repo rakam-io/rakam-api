@@ -22,10 +22,10 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
+import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractRetentionQueryExecutor implements RetentionQueryExecutor {
-    private final int MAXIMUM_LEAD = 15;
     private final QueryExecutorService executor;
     private final static String CONNECTOR_FIELD = "_user";
     private final Metastore metastore;
@@ -46,7 +46,9 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
 
     @Override
-    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, int period, LocalDate startDate, LocalDate endDate) {
+        checkArgument(period >= 0, "Period must be 0 or a positive value");
+
         String timeColumn;
 
         checkTableColumn(CONNECTOR_FIELD, "connector field");
@@ -76,7 +78,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         } else {
             throw new IllegalStateException();
         }
-        int range = Math.min(MAXIMUM_LEAD, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end)));
+        int range = Math.min(period, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end)));
 
         if (range < 0) {
             throw new IllegalArgumentException("startDate must be before endDate.");
@@ -109,7 +111,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                         "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn,
                 dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD,
-                timeSubtraction, MAXIMUM_LEAD);
+                timeSubtraction, period);
 
         return new DelegateQueryExecution(executor.executeQuery(project, query),
                 result -> {

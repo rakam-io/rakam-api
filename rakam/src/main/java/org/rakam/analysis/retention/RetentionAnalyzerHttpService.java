@@ -67,6 +67,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
                         Optional.ofNullable(query.dimension),
+                        query.period,
                         query.startDate,
                         query.endDate));
     }
@@ -83,6 +84,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
                         Optional.ofNullable(query.dimension),
+                        query.period,
                         query.startDate,
                         query.endDate).getResult();
     }
@@ -93,27 +95,26 @@ public class RetentionAnalyzerHttpService extends HttpService {
         private final RetentionAction returningAction;
         private final DateUnit dateUnit;
         private final String dimension;
+        private final int period;
         private final LocalDate startDate;
         private final LocalDate endDate;
 
         @JsonCreator
         public RetentionQuery(@ApiParam(name = "project") String project,
-
-                               @ApiParam(name = "connector_field") String connectorField,
-
-                               @ApiParam(name = "first_action") RetentionAction firstAction,
-
-                               @ApiParam(name = "returning_action") RetentionAction returningAction,
-
-                               @ApiParam(name = "dimension") String dimension,
-                               @ApiParam(name = "date_unit") DateUnit dateUnit,
-                               @ApiParam(name = "startDate") LocalDate startDate,
-                               @ApiParam(name = "endDate") LocalDate endDate) {
+                              @ApiParam(name = "connector_field") String connectorField,
+                              @ApiParam(name = "first_action") RetentionAction firstAction,
+                              @ApiParam(name = "returning_action") RetentionAction returningAction,
+                              @ApiParam(name = "dimension") String dimension,
+                              @ApiParam(name = "date_unit") DateUnit dateUnit,
+                              @ApiParam(name = "period") int period,
+                              @ApiParam(name = "startDate") LocalDate startDate,
+                              @ApiParam(name = "endDate") LocalDate endDate) {
             this.project = project;
             this.firstAction = firstAction;
             this.returningAction = returningAction;
             this.dateUnit = dateUnit;
             this.dimension = dimension;
+            this.period = period;
             this.startDate = startDate;
             this.endDate = endDate;
         }
