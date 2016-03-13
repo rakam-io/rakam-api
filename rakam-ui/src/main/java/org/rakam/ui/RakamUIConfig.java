@@ -25,7 +25,7 @@ public class RakamUIConfig {
     private CustomPageBackend customPageBackend = CustomPageBackend.JDBC;
     private File customPageBackendDirectory;
     private boolean enableUi = true;
-    private boolean hashPassword = false;
+    private boolean hashPassword;
     private String secretKey;
 
     @Config("ui.directory")
