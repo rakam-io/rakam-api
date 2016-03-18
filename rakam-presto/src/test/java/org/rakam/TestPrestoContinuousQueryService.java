@@ -1,36 +1,31 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
-import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestContinuousQueryService;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.event.TestingEnvironment;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
+import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeSuite;
 
 public class TestPrestoContinuousQueryService extends TestContinuousQueryService {
     private PrestoContinuousQueryService continuousQueryService;
-    private JDBCMetastore metastore;
+    private Metastore metastore;
     private TestingEnvironment testEnvironment;
-
-    @BeforeMethod
-    public void before() throws Exception {
-        metastore.clearCache();
-    }
 
     @BeforeSuite
     public void setUp() throws Exception {
         testEnvironment = new TestingEnvironment();
 
-        metastore = new JDBCMetastore(
+        metastore = new PrestoMetastore(testEnvironment.getPrestoMetastore(),
                 JDBCPoolDataSource.getOrCreateDataSource(testEnvironment.getPostgresqlConfig()),
-                testEnvironment.getPrestoConfig(), new EventBus(), new FieldDependencyBuilder().build());
+                new EventBus(), new FieldDependencyBuilder().build(), testEnvironment.getPrestoConfig());
+        metastore.setup();
         metastore.setup();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();

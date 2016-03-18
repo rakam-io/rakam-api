@@ -271,9 +271,9 @@ public class QueryHttpService extends HttpService {
             }
         };
 
-        List<GroupBy> groupBy = queryBody.getGroupBy().stream()
+        List<GroupBy> groupBy = queryBody.getGroupBy().map(value -> value.getGroupingElements().stream()
                 .map(item -> new GroupBy(mapper.apply(item), item.toString()))
-                .collect(Collectors.toList());
+                .collect(Collectors.toList())).orElse(ImmutableList.of());
 
         List<Ordering> orderBy = queryBody.getOrderBy().stream().map(item ->
                 new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))

@@ -10,10 +10,10 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.JDBCConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
-import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
+import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.report.QueryExecutorService;
@@ -24,7 +24,7 @@ import java.time.Clock;
 public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor {
 
     private TestingEnvironment testingEnvironment;
-    private JDBCMetastore metastore;
+    private Metastore metastore;
     private PrestoRetentionQueryExecutor retentionQueryExecutor;
     private TestingPrestoEventStore testingPrestoEventStore;
 
@@ -36,7 +36,9 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 
         JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
-        metastore = new JDBCMetastore(metastoreDataSource, prestoConfig, new EventBus(), new FieldDependencyBuilder().build());
+        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
+                metastoreDataSource,
+                new EventBus(), new FieldDependencyBuilder().build(), prestoConfig);
         metastore.setup();
 
         PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);

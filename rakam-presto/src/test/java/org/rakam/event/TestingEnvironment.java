@@ -55,8 +55,8 @@ public class TestingEnvironment {
                             .setStreamingConnector("rakam_raptor")
                             .setColdStorageConnector("rakam_raptor");
 
-                    metastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase).setUsername("sa").setPassword(""));
-                    metastore.getConnection().prepareStatement("select 1").execute();
+                    metastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase)
+                            .setUsername("sa").setPassword(""));
                 }
             }
             if (installMetadata) {
@@ -85,6 +85,10 @@ public class TestingEnvironment {
         } catch (Exception e) {
             throw propagate(e);
         }
+    }
+
+    public JDBCPoolDataSource getPrestoMetastore() {
+        return metastore;
     }
 
     public JDBCConfig getPostgresqlConfig() {

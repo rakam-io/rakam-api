@@ -25,4 +25,6 @@ public interface Metastore {
     List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws NotExistsException;
 
     void deleteProject(String project);
+
+    default void setup() {}
 }

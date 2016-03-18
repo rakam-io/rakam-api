@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.name.Named;
+import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -46,12 +47,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
+import static com.facebook.presto.spi.type.ParameterKind.TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PrestoMetastore extends AbstractMetastore {
+    private static final Logger LOGGER = Logger.get(PrestoMetastore.class);
 
     private final DBI dbi;
     private final MetadataDao dao;
@@ -84,6 +87,7 @@ public class PrestoMetastore extends AbstractMetastore {
     }
 
     @PostConstruct
+    @Override
     public void setup() {
         setupTables();
         super.checkExistingSchema();
@@ -101,7 +105,7 @@ public class PrestoMetastore extends AbstractMetastore {
 
     @Override
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) {
-        return getOrCreateCollectionFields(project, collection, fields, 5);
+        return getOrCreateCollectionFields(project, collection, fields, fields.size());
     }
 
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount) {
@@ -128,11 +132,15 @@ public class PrestoMetastore extends AbstractMetastore {
             if (queryEnd.isEmpty()) {
                 return currentFields;
             }
-            query = format("CREATE TABLE %s.\"%s\".\"%s\" (%s) WITH (temporal_column = '_time') ", prestoConfig.getColdStorageConnector(), project, collection, queryEnd);
+            String properties = fields.stream().anyMatch(f -> f.getName().equals("_time") && f.getType() == FieldType.DATE) ?
+                    "WITH(temporal_column = '_time')" : "";
+
+            query = format("CREATE TABLE %s.\"%s\".\"%s\" (%s) %s ",
+                    prestoConfig.getColdStorageConnector(), project, collection, queryEnd, properties);
             QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(query, defaultSession)).getResult().join();
             if (join.isFailed()) {
                 if (join.getError().message.contains("exists") || join.getError().message.equals("Failed to perform metadata operation")) {
-                    if(tryCount > 0) {
+                    if (tryCount > 0) {
                         return getOrCreateCollectionFields(project, collection, fields, tryCount--);
                     } else {
                         throw new RakamException(String.format("Failed to add new fields to collection %s.%s: %s",
@@ -140,11 +148,11 @@ public class PrestoMetastore extends AbstractMetastore {
                                 INTERNAL_SERVER_ERROR);
                     }
                 } else {
-                    throw new IllegalStateException("Error while executing query: " + join.getError());
+                    throw new IllegalStateException(join.getError().message);
                 }
             }
 
-            lastFields = schemaFields;
+            lastFields = fields.stream().collect(Collectors.toList());
         } else {
             List<SchemaField> newFields = new ArrayList<>();
 
@@ -158,7 +166,7 @@ public class PrestoMetastore extends AbstractMetastore {
                         QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(q, defaultSession)).getResult().join();
                         if (join.isFailed()) {
                             if (!join.getError().message.contains("exists")) {
-                                throw new IllegalStateException("Error while executing query: " + join.getError());
+                                throw new IllegalStateException(join.getError().message);
                             }
                         }
                     });
@@ -182,7 +190,9 @@ public class PrestoMetastore extends AbstractMetastore {
             TypeSignature typeSignature = column.getDataType().getTypeSignature();
 
             return new SchemaField(column.getColumnName(), PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
-                    typeSignature.getParameters().isEmpty() ? null : typeSignature.getParameters().get(0).getTypeSignature().getBase()));
+                    typeSignature.getParameters().stream()
+                            .filter(param -> param.getKind() == TYPE)
+                            .map(param -> param.getTypeSignature().getBase()).iterator()));
         }).collect(Collectors.toList());
     }
 
@@ -190,9 +200,19 @@ public class PrestoMetastore extends AbstractMetastore {
     public void deleteProject(String project) {
         checkProject(project);
 
-        try (Handle handle = dbi.open()) {
+        try (Handle handle = reportDbi.open()) {
             handle.createStatement("delete from project where name = :project")
                     .bind("project", project).execute();
+        }
+
+        for(String collectionName : getCollectionNames(project)) {
+            String query = String.format("DROP TABLE %s.%s.%s", prestoConfig.getColdStorageConnector(), project, collectionName);
+
+            QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(query, defaultSession)).getResult().join();
+
+            if(join.isFailed()) {
+                LOGGER.error("Error while deleting table %s.%s : %s", project, collectionName, join.getError().toString());
+            }
         }
 
         super.onCreateProject(project);
@@ -202,12 +222,14 @@ public class PrestoMetastore extends AbstractMetastore {
     public Map<String, List<SchemaField>> getCollections(String project) {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
-            if(tableColumn.getTable().getTableName().startsWith(PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX)) {
+            if (tableColumn.getTable().getTableName().startsWith(PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX)) {
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();
             FieldType fieldType = PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
-                    typeSignature.getParameters().isEmpty() ? null : typeSignature.getParameters().get(0).getTypeSignature().getBase());
+                    typeSignature.getParameters().stream()
+                            .filter(param -> param.getKind() == TYPE)
+                            .map(param -> param.getTypeSignature().getBase()).iterator());
             SchemaField column = new SchemaField(tableColumn.getColumnName(), fieldType);
 
             map.computeIfAbsent(tableColumn.getTable().getTableName(), key -> new ArrayList()).add(column);

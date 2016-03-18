@@ -1,5 +1,6 @@
 package org.rakam;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
@@ -40,11 +41,15 @@ public class EventBuilder {
             fields = cache;
         }
 
-        GenericData.Record record = new GenericData.Record(AvroUtil.convertAvroSchema(fields));
-        properties.forEach((key, value) -> record.put(key, cast(value,
-                record.getSchema().getField(key).schema().getTypes().get(1).getType())));
+        try {
+            GenericData.Record record = new GenericData.Record(AvroUtil.convertAvroSchema(fields));
+            properties.forEach((key, value) -> record.put(key, cast(value,
+                    record.getSchema().getField(key).schema().getTypes().get(1).getType())));
 
-        return new Event(project, collection, new Event.EventContext(null, null, null, null), fields, record);
+            return new Event(project, collection, new Event.EventContext(null, null, null, null), fields, record);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     public void cleanCache() {

@@ -10,7 +10,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>43</version>
+        <version>48</version>
     </parent>
 
     <name>rakam-root</name>

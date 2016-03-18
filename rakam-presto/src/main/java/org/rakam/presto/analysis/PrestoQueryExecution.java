@@ -1,5 +1,6 @@
 package org.rakam.presto.analysis;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.base.Preconditions;
 import com.facebook.presto.jdbc.internal.client.ClientTypeSignatureParameter;
 import com.facebook.presto.jdbc.internal.client.ErrorLocation;
 import com.facebook.presto.jdbc.internal.client.QueryResults;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -95,8 +97,9 @@ public class PrestoQueryExecution implements QueryExecution {
                             .map(c -> {
                                 List<ClientTypeSignatureParameter> arguments = c.getTypeSignature().getArguments();
                                 return new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature().getRawType(),
-                                        arguments.isEmpty() || arguments.get(0).getKind() != TYPE ? null :
-                                                arguments.get(0).getTypeSignature().getRawType()));
+                                        arguments.stream()
+                                                .filter(argument -> argument.getKind() == TYPE)
+                                                .map(argument -> argument.getTypeSignature().getRawType()).iterator()));
                             })
                             .collect(Collectors.toList());
                 }
@@ -142,7 +145,7 @@ public class PrestoQueryExecution implements QueryExecution {
         });
     }
 
-    public static FieldType fromPrestoType(String rawType, String parameter) {
+    public static FieldType fromPrestoType(String rawType, Iterator<String> parameter) {
         switch (rawType) {
             case StandardTypes.BIGINT:
                 return LONG;
@@ -164,9 +167,11 @@ public class PrestoQueryExecution implements QueryExecution {
             case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
                 return TIMESTAMP;
             case StandardTypes.ARRAY:
-                return fromPrestoType(parameter, null).convertToArrayType();
+                return fromPrestoType(parameter.next(), null).convertToArrayType();
             case StandardTypes.MAP:
-                return fromPrestoType(parameter, null).convertToMapValueType();
+                Preconditions.checkArgument(parameter.next().equals(StandardTypes.VARCHAR),
+                        "The first parameter of MAP must be STRING");
+                return fromPrestoType(parameter.next(), null).convertToMapValueType();
             default:
                 return BINARY;
         }

@@ -3,10 +3,11 @@ package org.rakam.event;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.presto.analysis.JDBCMetastore;
+import org.rakam.presto.analysis.PrestoMetastore;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -22,21 +23,21 @@ import static org.rakam.collection.FieldType.STRING;
 import static org.testng.Assert.*;
 
 public class TestJdbcMetastore extends TestingEnvironment {
-    private JDBCMetastore metastore;
+    private AbstractMetastore metastore;
     private static final String PROJECT_NAME = TestJdbcMetastore.class.getName().replace(".", "_").toLowerCase();
 
     @BeforeMethod
     public void setUpMethod() throws Exception {
         JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(getPostgresqlConfig());
 
-        metastore = new JDBCMetastore(metastoreDataSource, getPrestoConfig(),
-                new EventBus(), new FieldDependencyBuilder().build());
+        metastore = new PrestoMetastore(super.getPrestoMetastore(),
+                metastoreDataSource,
+                new EventBus(), new FieldDependencyBuilder().build(), super.getPrestoConfig());
         metastore.setup();
     }
 
     @AfterMethod
     public void tearDownMethod() throws Exception {
-        metastore.clearCache();
         metastore.deleteProject(PROJECT_NAME);
     }
 
@@ -106,7 +107,6 @@ public class TestJdbcMetastore extends TestingEnvironment {
 
         for (int i = 0; i < 100; i++) {
             assertEquals(metastore.getCollection(PROJECT_NAME, "testcollection"), builder.build());
-            metastore.clearCache();
         }
     }
 
@@ -130,7 +130,7 @@ public class TestJdbcMetastore extends TestingEnvironment {
                 ImmutableSet.of(new SchemaField("test", LONG), new SchemaField("test", LONG)));
     }
 
-    @Test(expectedExceptions = IllegalStateException.class, expectedExceptionsMessageRegExp = "Query failed \\(\\#[0-9_A-Za-z]+\\)\\: Multiple entries with same key: test\\=raptor\\:test\\:2\\:bigint and test\\=raptor\\:test\\:1\\:varchar")
+    @Test(expectedExceptions = IllegalStateException.class, expectedExceptionsMessageRegExp = "Multiple entries with same key: test\\=rakam_raptor\\:test\\:2\\:bigint and test\\=rakam_raptor\\:test\\:1\\:varchar")
     public void testInvalidDuplicateFieldNames() throws Exception {
         metastore.createProject(PROJECT_NAME);
 
