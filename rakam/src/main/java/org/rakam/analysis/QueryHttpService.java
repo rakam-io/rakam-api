@@ -2,8 +2,8 @@ package org.rakam.analysis;
 
 import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.LongLiteral;
+import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
@@ -15,10 +15,10 @@ import com.facebook.presto.sql.tree.Union;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
+import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.ProjectItem;
@@ -57,7 +57,6 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
-import static org.rakam.analysis.metadata.Metastore.AccessKeyType.READ_KEY;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -65,14 +64,15 @@ import static org.rakam.util.JsonHelper.jsonObject;
 @Api(value = "/query", nickname = "query", description = "Query module", tags = {"event"})
 @Produces({"application/json"})
 public class QueryHttpService extends HttpService {
+    private static final Logger LOGGER = Logger.get(QueryHttpService.class);
     private final QueryExecutorService executorService;
-    private final Metastore metastore;
+    private final ApiKeyService apiKeyService;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public QueryHttpService(Metastore metastore, QueryExecutorService executorService) {
+    public QueryHttpService(ApiKeyService apiKeyService, QueryExecutorService executorService) {
         this.executorService = executorService;
-        this.metastore = metastore;
+        this.apiKeyService = apiKeyService;
     }
 
 
@@ -129,7 +129,7 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        if (!metastore.checkPermission(query.project(), READ_KEY, apiKey.get(0))) {
+        if (!apiKeyService.checkPermission(query.project(), ApiKeyService.AccessKeyType.READ_KEY, apiKey.get(0))) {
             response.send("result", encode(HttpServer.errorMessage(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED))).end();
             return;
         }
@@ -138,6 +138,7 @@ public class QueryHttpService extends HttpService {
         try {
             execute = executorFunction.apply(query);
         } catch (Exception e) {
+            LOGGER.error(e, "Error while executing query");
             response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }
@@ -260,7 +261,7 @@ public class QueryHttpService extends HttpService {
     }
 
     private ResponseQuery parseQuerySpecification(QuerySpecification queryBody) {
-        Function<Expression, Integer> mapper = item -> {
+        Function<Node, Integer> mapper = item -> {
             if (item instanceof QualifiedNameReference) {
                 return findSelectIndex(queryBody.getSelect().getSelectItems(), item.toString()).orElse(null);
             } else if (item instanceof LongLiteral) {

@@ -28,6 +28,7 @@ import org.rakam.plugin.EventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -108,6 +109,13 @@ public class KafkaEventStore implements EventStore, LeaderSelectorListener {
         } catch (FailedToSendMessageException e) {
             throw new RuntimeException("Couldn't send event to Kafka", e);
         }
+    }
+
+    @Override
+    public int[] storeBatch(List<Event> events) {
+        // TODO: implement this
+        events.forEach(this::store);
+        return EventStore.SUCCESSFUL_BATCH;
     }
 
     @Override

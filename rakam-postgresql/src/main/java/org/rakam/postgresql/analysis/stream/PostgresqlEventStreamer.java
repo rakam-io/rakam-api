@@ -2,6 +2,7 @@ package org.rakam.postgresql.analysis.stream;
 
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.ExpressionUtil;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
@@ -142,7 +143,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
     private String createSqlExpression(CollectionStreamQuery collection) {
         if(collection.getFilter()!=null) {
-            return sqlParser.createExpression(collection.getFilter()).accept(new ExpressionFormatter.Formatter() {
+            return ExpressionUtil.accept(sqlParser.createExpression(collection.getFilter()), new ExpressionFormatter.Formatter() {
                 @Override
                 protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean context) {
                     List<String> parts = new ArrayList<>();

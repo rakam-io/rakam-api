@@ -43,7 +43,7 @@ import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZ
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
     private final PrestoConfig prestoConfig;
-    private final JettyHttpClient httpClient = new JettyHttpClient(
+    private static final JettyHttpClient httpClient = new JettyHttpClient(
             new HttpClientConfig()
                     .setConnectTimeout(new Duration(10, TimeUnit.SECONDS))
                     .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
@@ -63,8 +63,9 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 "default",
                 TimeZone.getTimeZone(UTC).getID(),
                 Locale.ENGLISH,
-                ImmutableMap.of(),
-                false);
+                ImmutableMap.<String, String>of(),
+                null,
+                false, new Duration(1, TimeUnit.MINUTES));
     }
 
     public PrestoQueryExecution executeRawQuery(String query) {
@@ -81,7 +82,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 TimeZone.getDefault().getID(),
                 Locale.ENGLISH,
                 sessionProperties,
-                false)));
+                null, false, new Duration(1, TimeUnit.MINUTES))));
     }
 
     @Override
@@ -147,7 +148,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
         }
     }
 
-    private StatementClient startQuery(String query, ClientSession session) {
+    public static StatementClient startQuery(String query, ClientSession session) {
         return new StatementClient(httpClient, jsonCodec(QueryResults.class), session, query);
     }
 

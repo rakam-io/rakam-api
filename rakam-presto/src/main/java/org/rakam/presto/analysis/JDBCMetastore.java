@@ -12,26 +12,23 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.metadata.AbstractMetastore;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.util.CryptUtil;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.tweak.ConnectionFactory;
-import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -57,7 +54,6 @@ public class JDBCMetastore extends AbstractMetastore {
     private final DBI dbi;
     private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
     private final LoadingCache<String, Set<String>> collectionCache;
-    private final LoadingCache<String, List<Set<String>>> apiKeyCache;
     private final ConnectionFactory prestoConnectionFactory;
     private final PrestoConfig config;
     private static final Map<String, FieldType> REVERSE_TYPE_MAP = Arrays.asList(FieldType.values()).stream()
@@ -112,48 +108,6 @@ public class JDBCMetastore extends AbstractMetastore {
             }
         });
 
-        apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>() {
-            @Override
-            public List<Set<String>> load(String project) throws Exception {
-                try (Handle handle = dbi.open()) {
-
-                    Set<String> masterKeyList = new HashSet<>();
-                    Set<String> readKeyList = new HashSet<>();
-                    Set<String> writeKeyList = new HashSet<>();
-
-                    Set<String>[] keys =
-                            Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<>()).toArray(Set[]::new);
-
-                    PreparedStatement ps = handle.getConnection().prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = ?");
-                    ps.setString(1, project);
-                    ResultSet resultSet = ps.executeQuery();
-                    while (resultSet.next()) {
-                        String apiKey;
-
-                        apiKey = resultSet.getString(1);
-                        if (apiKey != null) {
-                            masterKeyList.add(apiKey);
-                        }
-                        apiKey = resultSet.getString(2);
-                        if (apiKey != null) {
-                            readKeyList.add(apiKey);
-                        }
-                        apiKey = resultSet.getString(3);
-                        if (apiKey != null) {
-                            writeKeyList.add(apiKey);
-                        }
-                    }
-
-                    keys[AccessKeyType.MASTER_KEY.ordinal()] = Collections.unmodifiableSet(masterKeyList);
-                    keys[AccessKeyType.READ_KEY.ordinal()] = Collections.unmodifiableSet(readKeyList);
-                    keys[AccessKeyType.WRITE_KEY.ordinal()] = Collections.unmodifiableSet(writeKeyList);
-
-                    return Collections.unmodifiableList(Arrays.asList(keys));
-                }
-            }
-        });
-
-
     }
 
     @PostConstruct
@@ -164,14 +118,6 @@ public class JDBCMetastore extends AbstractMetastore {
 
     private void setupTables() {
         dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS api_key (" +
-                    "  id SERIAL PRIMARY KEY,\n" +
-                    "  project TEXT NOT NULL,\n" +
-                    "  read_key TEXT NOT NULL,\n" +
-                    "  write_key TEXT NOT NULL,\n" +
-                    "  master_key TEXT NOT NULL,\n" +
-                    "  created_at TIMESTAMP default current_timestamp NOT NULL\n" +
-                    "  )").execute();
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
                     "  name TEXT NOT NULL,\n" +
                     "  PRIMARY KEY (name))")
@@ -202,35 +148,6 @@ public class JDBCMetastore extends AbstractMetastore {
             return collectionCache.get(project);
         } catch (ExecutionException e) {
             throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public ProjectApiKeys createApiKeys(String project) {
-        String masterKey = CryptUtil.generateRandomKey(64);
-        String readKey = CryptUtil.generateRandomKey(64);
-        String writeKey = CryptUtil.generateRandomKey(64);
-
-        int id;
-        try (Handle handle = dbi.open()) {
-            id = handle.createStatement("INSERT INTO api_key (project, master_key, read_key, write_key) VALUES (:project, :master_key, :read_key, :write_key)")
-                    .bind("project", project)
-                    .bind("master_key", masterKey)
-                    .bind("read_key", readKey)
-                    .bind("write_key", writeKey)
-                    .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
-        }
-
-        return new ProjectApiKeys(id, project, masterKey, readKey, writeKey);
-    }
-
-    @Override
-    public void revokeApiKeys(String project, int id) {
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM api_key WHERE project = :project AND id = :id")
-                    .bind("project", project)
-                    .bind("id", id)
-                    .execute();
         }
     }
 
@@ -355,44 +272,8 @@ public class JDBCMetastore extends AbstractMetastore {
     }
 
     @Override
-    public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
-        try {
-            boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
-            if (!exists) {
-                apiKeyCache.refresh(project);
-                return apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
-            }
-            return true;
-        } catch (ExecutionException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public List<ProjectApiKeys> getApiKeys(int[] ids) {
-        if (ids.length == 0) {
-            return ImmutableList.of();
-        }
-        try (Handle handle = dbi.open()) {
-            Connection conn = handle.getConnection();
-            PreparedStatement ps = conn.prepareStatement("select id, project, master_key, read_key, write_key from api_key where id = any(?)");
-            ps.setArray(1, conn.createArrayOf("int4", Arrays.stream(ids).boxed().toArray()));
-            ResultSet resultSet = ps.executeQuery();
-            ArrayList<ProjectApiKeys> list = new ArrayList<>();
-            while (resultSet.next()) {
-                list.add(new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
-            }
-            return list;
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
     public void deleteProject(String project) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("delete from api_key where project = :project")
-                    .bind("project", project).execute();
             handle.createStatement("delete from project where name = :project")
                     .bind("project", project).execute();
         }
@@ -401,7 +282,7 @@ public class JDBCMetastore extends AbstractMetastore {
         try (Connection connection = prestoConnectionFactory.openConnection()) {
             Statement statement = connection.createStatement();
 
-            while(!collectionNames.isEmpty()) {
+            while (!collectionNames.isEmpty()) {
                 for (String collectionName : collectionNames) {
                     statement.execute(String.format("drop table %s.%s.%s",
                             config.getColdStorageConnector(), project, collectionName));
@@ -438,8 +319,8 @@ public class JDBCMetastore extends AbstractMetastore {
                 if (type.isArray()) {
                     return "ARRAY<" + toSql(type.getArrayElementType()) + ">";
                 }
-                if(type.isMap()) {
-                    return "MAP<VARCHAR, "+ toSql(type.getMapValueType()) +">";
+                if (type.isMap()) {
+                    return "MAP<VARCHAR, " + toSql(type.getMapValueType()) + ">";
                 }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }
@@ -448,7 +329,6 @@ public class JDBCMetastore extends AbstractMetastore {
     @VisibleForTesting
     public void clearCache() {
         collectionCache.cleanUp();
-        apiKeyCache.cleanUp();
         schemaCache.cleanUp();
     }
 

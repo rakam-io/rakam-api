@@ -181,7 +181,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public void deleteContinuousQuery(String project, String tableName) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM reports WHERE continuous_queries project = :project AND table_name = :name")
+            handle.createStatement("DELETE FROM continuous_queries WHERE project = :project AND table_name = :name")
                     .bind("project", project)
                     .bind("name", tableName).execute();
         }

@@ -28,7 +28,8 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 
 public interface FunnelQueryExecutor {
 
-    QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
+    QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension,
+                         LocalDate startDate, LocalDate endDate, int windowValue, WindowType windowType);
 
     class FunnelStep {
         private static SqlParser parser = new SqlParser();
@@ -40,7 +41,7 @@ public interface FunnelQueryExecutor {
                           @JsonProperty("filterExpression") Optional<String> filterExpression) {
             checkCollection(collection);
             this.collection = collection;
-            this.filterExpression = filterExpression;
+            this.filterExpression = filterExpression == null ? Optional.<String>empty() : filterExpression;
         }
 
         public String getCollection() {
@@ -50,6 +51,20 @@ public interface FunnelQueryExecutor {
         @JsonIgnore
         public synchronized Optional<Expression> getExpression() {
             return filterExpression.map(value -> parser.createExpression(value));
+        }
+    }
+
+    enum WindowType {
+        DAY, WEEK, MONTH;
+
+        @JsonCreator
+        public static WindowType get(String name) {
+            return valueOf(name.toUpperCase());
+        }
+
+        @JsonProperty
+        public String value() {
+            return name();
         }
     }
 }

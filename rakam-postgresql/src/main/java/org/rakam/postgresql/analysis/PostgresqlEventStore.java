@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 @Singleton
 public class PostgresqlEventStore implements EventStore {
@@ -40,7 +41,7 @@ public class PostgresqlEventStore implements EventStore {
     @Override
     public void store(org.rakam.collection.Event event) {
         GenericRecord record = event.properties();
-        try(Connection connection = connectionPool.getConnection()) {
+        try (Connection connection = connectionPool.getConnection()) {
             PreparedStatement ps = connection.prepareStatement(getQuery(event));
             bindParam(connection, ps, event.schema(), record);
             ps.executeUpdate();
@@ -50,8 +51,8 @@ public class PostgresqlEventStore implements EventStore {
     }
 
     @Override
-    public void storeBatch(List<Event> events) {
-        try(Connection connection = connectionPool.getConnection()) {
+    public int[] storeBatch(List<Event> events) {
+        try (Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
             for (Event event : events) {
                 GenericRecord record = event.properties();
@@ -62,8 +63,10 @@ public class PostgresqlEventStore implements EventStore {
             }
             connection.commit();
             connection.setAutoCommit(true);
+            return EventStore.SUCCESSFUL_BATCH;
         } catch (SQLException e) {
             Throwables.propagate(e);
+            return IntStream.range(0, events.size()).toArray();
         }
     }
 
@@ -73,44 +76,43 @@ public class PostgresqlEventStore implements EventStore {
             SchemaField field = fields.get(i);
             value = record.get(i);
 
-            if(value == null) {
-                ps.setNull(i+1, 0);
+            if (value == null) {
+                ps.setNull(i + 1, 0);
                 continue;
             }
 
             FieldType type = field.getType();
             switch (type) {
                 case STRING:
-                    ps.setString(i+1, (String) value);
+                    ps.setString(i + 1, (String) value);
                     break;
                 case LONG:
-                    ps.setLong(i+1, ((Number) value).longValue());
+                    ps.setLong(i + 1, ((Number) value).longValue());
                     break;
                 case DOUBLE:
-                    ps.setDouble(i+1, ((Number) value).doubleValue());
+                    ps.setDouble(i + 1, ((Number) value).doubleValue());
                     break;
                 case TIMESTAMP:
-                    ps.setTimestamp(i+1, new Timestamp(((Number) value).longValue()));
+                    ps.setTimestamp(i + 1, new Timestamp(((Number) value).longValue()));
                     break;
                 case TIME:
-                    ps.setTime(i+1, Time.valueOf(LocalTime.ofSecondOfDay(((Number) value).intValue())));
+                    ps.setTime(i + 1, Time.valueOf(LocalTime.ofSecondOfDay(((Number) value).intValue())));
                     break;
                 case DATE:
-                    ps.setDate(i+1, Date.valueOf(LocalDate.ofEpochDay(((Number) value).intValue())));
+                    ps.setDate(i + 1, Date.valueOf(LocalDate.ofEpochDay(((Number) value).intValue())));
                     break;
                 case BOOLEAN:
-                    ps.setBoolean(i+1, (Boolean) value);
+                    ps.setBoolean(i + 1, (Boolean) value);
                     break;
                 default:
-                    if(type.isArray()) {
+                    if (type.isArray()) {
                         String typeName = toPostgresqlPrimitiveTypeName(type.getArrayElementType());
-                        ps.setArray(i+1, connection.createArrayOf(typeName, ((List) value).toArray()));
-                    } else
-                    if(type.isMap()) {
+                        ps.setArray(i + 1, connection.createArrayOf(typeName, ((List) value).toArray()));
+                    } else if (type.isMap()) {
                         PGobject jsonObject = new PGobject();
                         jsonObject.setType("jsonb");
                         jsonObject.setValue(JsonHelper.encode(value));
-                        ps.setObject(i+1, jsonObject);
+                        ps.setObject(i + 1, jsonObject);
                     } else {
                         throw new UnsupportedOperationException();
                     }
@@ -131,7 +133,7 @@ public class PostgresqlEventStore implements EventStore {
         List<Schema.Field> fields = schema.getFields();
 
         Schema.Field f = fields.get(0);
-        if(!sourceFields.contains(f.name())) {
+        if (!sourceFields.contains(f.name())) {
             query.append(" (\"").append(f.name());
             params.append('?');
         }
@@ -139,7 +141,7 @@ public class PostgresqlEventStore implements EventStore {
         for (int i = 1; i < fields.size(); i++) {
             Schema.Field field = fields.get(i);
 
-            if(!sourceFields.contains(field.name())) {
+            if (!sourceFields.contains(field.name())) {
                 query.append("\", \"").append(field.name());
                 params.append(", ?");
             }

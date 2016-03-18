@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.netty.util.CharsetUtil;
-import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -99,7 +99,7 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/create-api-keys")
-    public Metastore.ProjectApiKeys createApiKeys(@ApiParam(name = "project") String project, @CookieParam(name = "session") String session) {
+    public ApiKeyService.ProjectApiKeys createApiKeys(@ApiParam(name = "project") String project, @CookieParam(name = "session") String session) {
         return service.createApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project);
     }
 

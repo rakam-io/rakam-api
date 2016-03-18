@@ -9,8 +9,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.util.IgnorePermissionCheck;
-import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
@@ -22,6 +21,7 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
@@ -42,13 +42,13 @@ import static org.rakam.util.JsonHelper.encode;
 public class EventStreamHttpService extends HttpService {
     private final EventStream stream;
     private final SqlParser sqlParser;
-    private final Metastore metastore;
+    private final ApiKeyService apiKeyService;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public EventStreamHttpService(EventStream stream, Metastore metastore) {
+    public EventStreamHttpService(EventStream stream, ApiKeyService apiKeyService) {
         this.stream = stream;
-        this.metastore = metastore;
+        this.apiKeyService = apiKeyService;
         this.sqlParser = new SqlParser();
     }
 
@@ -86,7 +86,7 @@ public class EventStreamHttpService extends HttpService {
         }
         List<String> api_key = request.params().get("api_key");
         if (api_key == null || api_key.isEmpty() ||
-                !metastore.checkPermission(query.project, Metastore.AccessKeyType.READ_KEY, api_key.get(0))) {
+                !apiKeyService.checkPermission(query.project, org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY, api_key.get(0))) {
             response.send("result", HttpResponseStatus.UNAUTHORIZED.reasonPhrase()).end();
             return;
         }

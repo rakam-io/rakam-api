@@ -3,12 +3,12 @@ package org.rakam.presto.analysis;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.util.AlreadyExistsException;
 import org.rakam.analysis.ContinuousQueryService;
-import org.rakam.collection.SchemaField;
 import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryResult;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
@@ -46,7 +46,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
 
         PrestoQueryExecution prestoQueryExecution;
-        if(!report.partitionKeys.isEmpty()) {
+        if (!report.partitionKeys.isEmpty()) {
             ImmutableMap<String, String> sessionParameter = ImmutableMap.of(config.getStreamingConnector() + ".partition_keys",
                     Joiner.on("|").join(report.partitionKeys));
             prestoQueryExecution = executor.executeRawQuery(prestoQuery, sessionParameter);
@@ -63,14 +63,14 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
                     database.createContinuousQuery(report);
                 }
 
-                if(replayHistoricalData) {
+                if (replayHistoricalData) {
                     return executor.executeRawStatement(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
                             report.project, report.tableName, builder.toString())).getResult().join();
                 }
 
                 return QueryResult.empty();
             } else {
-                if(result.getError().message.contains("already exists")) {
+                if (result.getError().message.contains("already exists")) {
                     throw new AlreadyExistsException("Continuous query", HttpResponseStatus.BAD_REQUEST);
                 }
             }
@@ -82,7 +82,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     public CompletableFuture<Boolean> delete(String project, String tableName) {
         String prestoQuery = format("drop table %s.\"%s\".\"%s\"", config.getStreamingConnector(), project, tableName);
         return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
-            if(result.getError() == null) {
+            if (result.getError() == null) {
                 database.deleteContinuousQuery(project, tableName);
                 return true;
             }
@@ -106,7 +106,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         ImmutableMap.Builder<String, List<SchemaField>> builder = ImmutableMap.builder();
         for (SimpleImmutableEntry<String, CompletableFuture<QueryResult>> entry : collect) {
             QueryResult join = entry.getValue().join();
-            if(join.isFailed()) {
+            if (join.isFailed()) {
                 continue;
             }
             builder.put(entry.getKey(), join.getMetadata());

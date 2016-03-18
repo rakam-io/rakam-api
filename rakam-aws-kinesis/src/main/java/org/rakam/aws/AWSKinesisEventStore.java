@@ -4,6 +4,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
+import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import io.airlift.log.Logger;
 import org.apache.avro.generic.FilteredRecordWriter;
@@ -19,6 +20,7 @@ import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
@@ -52,7 +54,7 @@ public class AWSKinesisEventStore implements EventStore {
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
     }
 
-    public void storeBatchInline(List<Event> events, int offset, int limit) {
+    public int[] storeBatchInline(List<Event> events, int offset, int limit) {
         PutRecordsRequestEntry[] records = new PutRecordsRequestEntry[limit];
 
         for (int i = 0; i < limit; i++) {
@@ -68,6 +70,10 @@ public class AWSKinesisEventStore implements EventStore {
                     .withRecords(records)
                     .withStreamName(config.getEventStoreStreamName()));
             if (putRecordsResult.getFailedRecordCount() > 0) {
+                int[] failedRecordIndexes = new int[putRecordsResult.getFailedRecordCount()];
+                for (PutRecordsResultEntry resultEntry : putRecordsResult.getRecords()) {
+                    resultEntry.getErrorCode();
+                }
 //                    String reasons = putRecordsResult.getRecords().stream().collect(Collectors.groupingBy(e -> e.getErrorCode())).entrySet()
 //                            .stream().map(e -> e.getValue().size() + " items for " + e.getKey()).collect(Collectors.joining(", "));
 //
@@ -78,11 +84,15 @@ public class AWSKinesisEventStore implements EventStore {
 //
 //                    throw new IllegalStateException("Failed to put records to Kinesis: "+reasons);
 
-                LOGGER.error("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), putRecordsResult.getRecords());
+                LOGGER.warn("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), putRecordsResult.getRecords());
+                return failedRecordIndexes;
+            } else {
+                return EventStore.SUCCESSFUL_BATCH;
             }
         } catch (ResourceNotFoundException e) {
             try {
                 createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+                return storeBatchInline(events, offset, limit);
             } catch (Exception e1) {
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
             }
@@ -90,22 +100,35 @@ public class AWSKinesisEventStore implements EventStore {
     }
 
     @Override
-    public void storeBatch(List<Event> events) {
+    public int[] storeBatch(List<Event> events) {
         if(events.size() >= BULK_THRESHOLD) {
+            // bulk upload uses a technique similar to transactions so it either stores all events or none of them.
             bulkClient.upload(events.get(0).project(), events);
+            return EventStore.SUCCESSFUL_BATCH;
         } else {
-
             if (events.size() > BATCH_SIZE) {
+                ArrayList<Integer> errors = null;
                 int cursor = 0;
 
                 while (cursor < events.size()) {
                     int loopSize = Math.min(BATCH_SIZE, events.size() - cursor);
 
-                    storeBatchInline(events, cursor, loopSize);
+                    int[] errorIndexes = storeBatchInline(events, cursor, loopSize);
+                    if(errorIndexes.length > 0) {
+                        if(errors == null) {
+                            errors = new ArrayList<>(errorIndexes.length);
+                        }
+
+                        for (int errorIndex : errorIndexes) {
+                            errors.add(errorIndex+cursor);
+                        }
+                    }
                     cursor += loopSize;
                 }
+
+                return errors == null ? EventStore.SUCCESSFUL_BATCH : errors.stream().mapToInt(Integer::intValue).toArray();
             } else {
-                storeBatchInline(events, 0, events.size());
+                return storeBatchInline(events, 0, events.size());
             }
         }
     }

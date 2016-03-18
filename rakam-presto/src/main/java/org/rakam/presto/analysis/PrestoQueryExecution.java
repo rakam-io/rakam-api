@@ -1,6 +1,6 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.jdbc.internal.client.ClientTypeSignature;
+import com.facebook.presto.jdbc.internal.client.ClientTypeSignatureParameter;
 import com.facebook.presto.jdbc.internal.client.ErrorLocation;
 import com.facebook.presto.jdbc.internal.client.QueryResults;
 import com.facebook.presto.jdbc.internal.client.StatementClient;
@@ -32,6 +32,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.jdbc.internal.spi.type.ParameterKind.TYPE;
 import static java.time.ZoneOffset.UTC;
 import static org.rakam.collection.FieldType.*;
 
@@ -91,7 +92,12 @@ public class PrestoQueryExecution implements QueryExecution {
 
                 if(columns == null) {
                     columns = result.getColumns().stream()
-                            .map(c -> new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature())))
+                            .map(c -> {
+                                List<ClientTypeSignatureParameter> arguments = c.getTypeSignature().getArguments();
+                                return new SchemaField(c.getName(), fromPrestoType(c.getTypeSignature().getRawType(),
+                                        arguments.isEmpty() || arguments.get(0).getKind() != TYPE ? null :
+                                                arguments.get(0).getTypeSignature().getRawType()));
+                            })
                             .collect(Collectors.toList());
                 }
 
@@ -136,9 +142,8 @@ public class PrestoQueryExecution implements QueryExecution {
         });
     }
 
-    public static FieldType fromPrestoType(ClientTypeSignature prestoType) {
-
-        switch (prestoType.getRawType()) {
+    public static FieldType fromPrestoType(String rawType, String parameter) {
+        switch (rawType) {
             case StandardTypes.BIGINT:
                 return LONG;
             case StandardTypes.BOOLEAN:
@@ -159,11 +164,11 @@ public class PrestoQueryExecution implements QueryExecution {
             case StandardTypes.TIMESTAMP_WITH_TIME_ZONE:
                 return TIMESTAMP;
             case StandardTypes.ARRAY:
-                return fromPrestoType(prestoType.getTypeArguments().get(0)).convertToArrayType();
+                return fromPrestoType(parameter, null).convertToArrayType();
             case StandardTypes.MAP:
-                return fromPrestoType(prestoType.getTypeArguments().get(0)).convertToMapValueType();
+                return fromPrestoType(parameter, null).convertToMapValueType();
             default:
-                throw new UnsupportedOperationException();
+                return BINARY;
         }
     }
 

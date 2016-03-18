@@ -6,9 +6,9 @@ import java.util.List;
 
 
 public interface EventStore {
+    int[] SUCCESSFUL_BATCH = new int[0];
+
     void store(Event event);
 
-    default void storeBatch(List<Event> events) {
-        events.forEach(this::store);
-    }
+    int[] storeBatch(List<Event> events);
 }

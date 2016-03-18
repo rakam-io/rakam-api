@@ -3,7 +3,6 @@ package org.rakam.event;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -70,47 +69,11 @@ public class TestJdbcMetastore extends TestingEnvironment {
     }
 
     @Test
-    public void testCreateApiKeys() throws Exception {
-        metastore.createProject(PROJECT_NAME);
-
-        Metastore.ProjectApiKeys testing = metastore.createApiKeys(PROJECT_NAME);
-
-        assertTrue(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.READ_KEY, testing.readKey));
-        assertTrue(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.WRITE_KEY, testing.writeKey));
-        assertTrue(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.MASTER_KEY, testing.masterKey));
-
-        assertFalse(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.READ_KEY, "invalidKey"));
-        assertFalse(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.WRITE_KEY, "invalidKey"));
-        assertFalse(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.MASTER_KEY, "invalidKey"));
-    }
-
-    @Test
-    public void testRevokeApiKeys() throws Exception {
-        metastore.createProject(PROJECT_NAME);
-
-        Metastore.ProjectApiKeys testing = metastore.createApiKeys(PROJECT_NAME);
-
-        metastore.revokeApiKeys(PROJECT_NAME, testing.id);
-
-        assertFalse(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.READ_KEY, testing.readKey));
-        assertFalse(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.WRITE_KEY, testing.writeKey));
-        assertFalse(metastore.checkPermission(PROJECT_NAME, Metastore.AccessKeyType.MASTER_KEY, testing.masterKey));
-    }
-
-    @Test
     public void testDeleteProject() throws Exception {
         metastore.createProject(PROJECT_NAME);
         metastore.deleteProject(PROJECT_NAME);
 
         assertFalse(metastore.getProjects().contains(PROJECT_NAME));
-    }
-
-    @Test
-    public void testGetApiKeys() throws Exception {
-        metastore.createProject(PROJECT_NAME);
-
-        Metastore.ProjectApiKeys testing = metastore.createApiKeys(PROJECT_NAME);
-        assertEquals(ImmutableSet.copyOf(metastore.getApiKeys(new int[]{testing.id})), ImmutableSet.of(testing));
     }
 
     @Test

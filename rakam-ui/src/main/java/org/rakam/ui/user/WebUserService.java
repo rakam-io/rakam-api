@@ -12,9 +12,10 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.lambdaworks.crypto.SCryptUtil;
 import io.airlift.log.Logger;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.analysis.metadata.Metastore.ProjectApiKeys;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.report.EmailClientConfig;
 import org.rakam.ui.RakamUIConfig;
@@ -59,6 +60,7 @@ public class WebUserService {
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$");
     private final RakamUIConfig config;
     private final EncryptionConfig encryptionConfig;
+    private final ApiKeyService apiKeyService;
     private MailSender mailSender;
     private final EmailClientConfig mailConfig;
 
@@ -94,12 +96,14 @@ public class WebUserService {
     @Inject
     public WebUserService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
                           Metastore metastore,
+                          ApiKeyService apiKeyService,
                           RakamUIConfig config,
                           EncryptionConfig encryptionConfig,
                           EmailClientConfig mailConfig) {
         dbi = new DBI(dataSource);
         this.metastore = metastore;
         this.config = config;
+        this.apiKeyService = apiKeyService;
         this.encryptionConfig = encryptionConfig;
         this.mailConfig = mailConfig;
     }
@@ -200,7 +204,7 @@ public class WebUserService {
             throw new RakamException("Project already exists", BAD_REQUEST);
         }
         metastore.createProject(project);
-        final ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+        final ProjectApiKeys apiKeys = apiKeyService.createApiKeys(project);
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO web_user_project " +
                     "(id, user_id, project, has_read_permission, has_write_permission, is_admin) " +
@@ -223,7 +227,7 @@ public class WebUserService {
                     .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).list();
         }
         for (Integer integer : integers) {
-            metastore.revokeApiKeys(project, integer);
+            apiKeyService.revokeApiKeys(project, integer);
         }
     }
 
@@ -353,7 +357,7 @@ public class WebUserService {
             }
         }
 
-        final ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+        final ProjectApiKeys apiKeys = apiKeyService.createApiKeys(project);
 
         try (Handle handle = dbi.open()) {
             int affectedRows = handle.createStatement("UPDATE web_user_project SET has_read_permission = :read, " +
@@ -391,7 +395,7 @@ public class WebUserService {
                 throw new RakamException(UNAUTHORIZED);
             }
 
-            final ProjectApiKeys apiKeys = metastore.createApiKeys(project);
+            final ProjectApiKeys apiKeys = apiKeyService.createApiKeys(project);
 
             handle.createStatement("INSERT INTO web_user_project " +
                     "(id, user_id, project, has_read_permission, has_write_permission, is_admin) " +
@@ -494,7 +498,7 @@ public class WebUserService {
 
         Map<String, List<ProjectApiKeys>> projects = Maps.newHashMap();
 
-        final List<ProjectApiKeys> apiKeys = metastore
+        final List<ProjectApiKeys> apiKeys = apiKeyService
                 .getApiKeys(permissions.stream().mapToInt(row -> row.id).toArray());
 
         for (ProjectApiKeys apiKey : apiKeys) {
@@ -525,7 +529,7 @@ public class WebUserService {
                 throw new RakamException(UNAUTHORIZED);
             }
 
-            metastore.revokeApiKeys(project, id);
+            apiKeyService.revokeApiKeys(project, id);
 
             handle.createStatement("DELETE FROM web_user_project " +
                     "WHERE id = :id AND project = :project AND user_id = :user_id")

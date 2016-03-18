@@ -14,6 +14,12 @@ public class InMemoryEventStore implements EventStore {
         events.add(event);
     }
 
+    @Override
+    public int[] storeBatch(List<Event> events) {
+        events.addAll(events);
+        return EventStore.SUCCESSFUL_BATCH;
+    }
+
     public List<Event> getEvents() {
         return events;
     }

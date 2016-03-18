@@ -5,15 +5,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.EventBuilder;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.collection.Event;
-import org.rakam.collection.FieldType;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.EventCollectionHttpService.EventList;
 import org.rakam.collection.EventDeserializer;
 import org.rakam.collection.EventListDeserializer;
 import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.testng.annotations.AfterMethod;
@@ -28,15 +29,17 @@ import static org.testng.Assert.assertEquals;
 
 public class TestEventJsonParser {
     private ObjectMapper mapper;
-    private Metastore.ProjectApiKeys apiKeys;
+    private ApiKeyService.ProjectApiKeys apiKeys;
     private EventBuilder eventBuilder;
     private InMemoryMetastore metastore;
     private EventDeserializer eventDeserializer;
+    private InMemoryApiKeyService apiKeyService;
 
     @BeforeSuite
     public void setUp() throws Exception {
         FieldDependencyBuilder.FieldDependency fieldDependency = new FieldDependencyBuilder().build();
-        metastore = new InMemoryMetastore();
+        apiKeyService = new InMemoryApiKeyService();
+        metastore = new InMemoryMetastore(apiKeyService);
 
         eventDeserializer = new EventDeserializer(metastore, fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(metastore, fieldDependency);
@@ -58,7 +61,7 @@ public class TestEventJsonParser {
     @BeforeMethod
     public void setupMethod() throws Exception {
         metastore.createProject("test");
-        apiKeys = metastore.createApiKeys("test");
+        apiKeys = apiKeyService.createApiKeys("test");
     }
 
     @Test

@@ -35,7 +35,7 @@ public class TestingPrestoEventStore implements EventStore {
     }
 
     @Override
-    public void storeBatch(List<Event> events) {
+    public int[] storeBatch(List<Event> events) {
         for (Map.Entry<String, List<Event>> collection : events.stream().collect(Collectors.groupingBy(e -> e.collection())).entrySet()) {
             queryExecutor.executeRawStatement(String.format("INSERT INTO %s.%s.%s VALUES %s",
                     config.getColdStorageConnector(), events.get(0).project(),
@@ -43,6 +43,7 @@ public class TestingPrestoEventStore implements EventStore {
                     collection.getValue().stream().map(e -> buildValues(e.properties(), e.schema())).collect(Collectors.joining(", "))))
                     .getResult().join();
         }
+        return EventStore.SUCCESSFUL_BATCH;
     }
 
     private String buildValues(GenericRecord properties, List<SchemaField> schema) {

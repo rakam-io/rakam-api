@@ -13,10 +13,11 @@
  */
 package org.rakam.presto.analysis;
 
+import com.facebook.presto.sql.RakamExpressionFormatter;
 import com.facebook.presto.sql.RakamSqlFormatter;
-import com.facebook.presto.sql.RakamSqlFormatter.ExpressionFormatter;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.ExpressionUtil;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.CalculatedUserSet;
@@ -54,7 +55,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, int windowValue, WindowType windowType) {
         if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
@@ -62,18 +63,18 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         Set<CalculatedUserSet> calculatedUserSets = new HashSet<>();
 
         String stepQueries = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(calculatedUserSets, project, CONNECTOR_FIELD, i, steps.get(i), dimension, startDate, endDate))
+                .mapToObj(i -> convertFunnel(calculatedUserSets, project, CONNECTOR_FIELD, i, windowValue, windowType, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
 
         String query;
         if (dimension.isPresent()) {
             query = IntStream.range(0, steps.size())
-                    .mapToObj(i -> String.format("(SELECT step, (CASE WHEN rank > 15 THEN 'Others' ELSE cast(dimension as varchar) END) as %s, sum(count) FROM (select 'Step %d' as step, dimension, count(distinct _user) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s GROUP BY 2 ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
-                            dimension.get(), i + 1, i))
+                    .mapToObj(i -> String.format("(SELECT step, (CASE WHEN rank > 15 THEN 'Others' ELSE cast(dimension as varchar) END) as %s, sum(count) FROM (select 'Step %d' as step, dimension, cardinality(merge_sets(%s_set)) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s %s ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
+                            dimension.get(), i + 1, CONNECTOR_FIELD, i, dimension.map(v -> "GROUP BY 2").orElse("")))
                     .collect(Collectors.joining(" UNION ALL "));
         } else {
             query = IntStream.range(0, steps.size())
-                    .mapToObj(i -> String.format("(SELECT 'Step %d' as step, count(distinct %s) count FROM step%d)",
+                    .mapToObj(i -> String.format("(SELECT 'Step %d' as step, coalesce(cardinality(merge_sets(%s_set)), 0) count FROM step%d)",
                             i + 1, CONNECTOR_FIELD, i))
                     .collect(Collectors.joining(" UNION ALL "));
         }
@@ -88,7 +89,8 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     private String convertFunnel(Set<CalculatedUserSet> calculatedUserSets, String project,
                                  String connectorField,
                                  int idx,
-                                 FunnelStep funnelStep,
+                                 int windowDays,
+                                 WindowType windowType, FunnelStep funnelStep,
                                  Optional<String> dimension,
                                  LocalDate startDate, LocalDate endDate) {
         String timePredicate = String.format("BETWEEN cast('%s' as date) and cast('%s' as date) + interval '1' day",
@@ -96,10 +98,10 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
 
         Optional<String> joinPreviousStep = idx == 0 ?
                 Optional.empty() :
-                Optional.of(String.format("JOIN step%d on (step%d.date >= step%d.date %s AND step%d.%s = step%d.%s)",
-                        idx - 1, idx, idx - 1,
+                Optional.of(String.format("JOIN step%d on (step%d.date >= step%d.date AND step%d.date - interval '%d' %s < step%d.date %s) GROUP BY 1 %s",
+                        idx - 1, idx, idx - 1, idx, windowDays, windowType.name().toLowerCase(), idx - 1,
                         dimension.map(value -> String.format("AND step%d.dimension = step%d.dimension", idx, idx - 1)).orElse(""),
-                        idx, connectorField, idx - 1, connectorField));
+                        dimension.map(value -> ",2").orElse("")));
 
         Optional<String> preComputedTable = getPreComputedTable(calculatedUserSets, project, funnelStep.getCollection(), connectorField,
                 joinPreviousStep, timePredicate, dimension, funnelStep.getExpression(), idx);
@@ -108,16 +110,19 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
             return String.format("step%s AS (%s)", idx, preComputedTable.get());
         } else {
             Optional<String> filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
-                    name -> name.getParts().stream().map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
+                    name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
                     name -> funnelStep.getCollection() + "." + name.getParts().stream()
-                            .map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))));
+                            .map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))));
 
-            return String.format("step%d AS (select step%d.* FROM (%s) step%d %s)",
-                    idx, idx,
-                    String.format("SELECT cast(_time as date) as date, %s %s from %s where _time %s %s group by 1, 2 %s",
-                            dimension.map(value -> value + " as dimension,").orElse(""), connectorField,
+            String merged = String.format("step%d.date, %s intersection(merge_sets(step%d.\"%s_set\"), merge_sets(step%d.\"%s_set\")) as %s_set",
+                    idx, dimension.map(v -> "step" + idx + ".dimension, ").orElse(""), idx, connectorField, idx - 1, connectorField, connectorField);
+            return String.format("step%d AS (select %s FROM (%s) step%d %s)",
+                    idx, idx == 0 ? ("step" + idx + ".*") : merged,
+                    String.format("SELECT cast(_time as date) as date, %s set(%s) as %s_set from %s where _time %s %s group by 1 %s",
+                            dimension.map(value -> value + " as dimension,").orElse(""),
+                            connectorField, connectorField,
                             funnelStep.getCollection(),
-                            timePredicate, filterExp.orElse(""), dimension.map(value -> ", 3").orElse("")),
+                            timePredicate, filterExp.orElse(""), dimension.map(value -> ", 2").orElse("")),
                     idx,
                     joinPreviousStep.orElse(""));
         }
@@ -131,7 +136,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
 
         if (filterExpression.isPresent()) {
             try {
-                String query = filterExpression.get().accept(new PreComputedTableSubQueryVisitor(columnName -> {
+                String query = ExpressionUtil.accept(filterExpression.get(), new PreComputedTableSubQueryVisitor(columnName -> {
                     String tableRef = tableNameForCollection + "_by_" + columnName;
                     if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals(tableRef))) {
                         return Optional.of("continuous." + tableRef);
@@ -147,7 +152,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                 if (dimension.isPresent()) {
                     final boolean[] referenced = {false};
 
-                    filterExpression.get().accept(new DefaultExpressionTraversalVisitor<Void, Void>() {
+                    ExpressionUtil.accept(filterExpression.get(), new DefaultExpressionTraversalVisitor<Void, Void>() {
                         @Override
                         protected Void visitQualifiedNameReference(QualifiedNameReference node, Void context) {
                             if (node.getName().toString().equals(dimension.get())) {
@@ -169,8 +174,8 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                         return Optional.empty();
                     }
 
-                    return Optional.of("SELECT data.date, data.dimension, data._user FROM " + schema.get() + "." + tableName + " data " +
-                            "JOIN (" + query + ") filter ON (filter.date = data.date AND filter._user = data._user)");
+                    return Optional.of("SELECT data.date, data.dimension, data." + CONNECTOR_FIELD + "_set FROM " + schema.get() + "." + tableName + " data " +
+                            "JOIN (" + query + ") filter ON (filter.date = data.date)");
                 } else {
                     return Optional.of(query);
                 }
@@ -205,7 +210,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     private String generatePreCalculatedTableSql(String table, String schema, String connectorField, String dimensionColumn, Optional<String> joinPart, String timePredicate, int stepIdx) {
-        return String.format("select step%d.%s, step%d.%s from %s.%s as step%d %s where step%d.date %s",
+        return String.format("select step%d.%s, step%d.%s_set from %s.%s as step%d %s where step%d.date %s",
                 stepIdx, dimensionColumn, stepIdx, connectorField, schema, table, stepIdx, joinPart.orElse(""), stepIdx, timePredicate);
     }
 }

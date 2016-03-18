@@ -22,11 +22,10 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpServer;
@@ -34,6 +33,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -58,12 +58,12 @@ import static java.lang.String.format;
 public class UserUtilHttpService extends HttpService {
     private final SqlParser sqlParser = new SqlParser();
     private final AbstractUserService service;
-    private final Metastore metastore;
+    private final ApiKeyService apiKeyService;
 
     @Inject
-    public UserUtilHttpService(Metastore metastore, AbstractUserService service) {
+    public UserUtilHttpService(ApiKeyService apiKeyService, AbstractUserService service) {
         this.service = service;
-        this.metastore = metastore;
+        this.apiKeyService = apiKeyService;
     }
 
     public static class FilterQuery {
@@ -107,7 +107,7 @@ public class UserUtilHttpService extends HttpService {
             return;
         }
 
-        if(!metastore.checkPermission(read.filterQuery.project, Metastore.AccessKeyType.READ_KEY, read.filterQuery.apiKey)) {
+        if(!apiKeyService.checkPermission(read.filterQuery.project, ApiKeyService.AccessKeyType.READ_KEY, read.filterQuery.apiKey)) {
             HttpServer.returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
         }
 

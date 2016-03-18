@@ -1,10 +1,12 @@
 package org.rakam.event;
 
+import com.facebook.presto.rakam.RakamRaptorPlugin;
 import com.facebook.presto.raptor.RaptorPlugin;
 import com.facebook.presto.server.testing.TestingPrestoServer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.JDBCConfig;
 import org.rakam.presto.analysis.PrestoConfig;
 
@@ -20,6 +22,7 @@ public class TestingEnvironment {
     private static TestingPrestoServer testingPrestoServer;
     private static TestingPostgreSqlServer testingPostgresqlServer;
     private static JDBCConfig postgresqlConfig;
+    private JDBCPoolDataSource metastore;
 
     public TestingEnvironment() {
         this(true);
@@ -31,25 +34,29 @@ public class TestingEnvironment {
                 synchronized (TestingEnvironment.class) {
                     testingPrestoServer = new TestingPrestoServer();
 
-                    RaptorPlugin plugin = new RaptorPlugin() {
+                    String metadataDatabase = Files.createTempDir().getAbsolutePath();
+                    RaptorPlugin plugin = new RakamRaptorPlugin() {
                         @Override
                         public void setOptionalConfig(Map<String, String> optionalConfig) {
                             ImmutableMap<String, String> configs = ImmutableMap.of(
                                     "storage.data-directory", Files.createTempDir().getAbsolutePath(),
                                     "metadata.db.type", "h2",
-                                    "metadata.db.filename", Files.createTempDir().getAbsolutePath());
+                                    "metadata.db.filename", metadataDatabase);
 
                             super.setOptionalConfig(ImmutableMap.<String, String>builder().putAll(optionalConfig).putAll(configs).build());
                         }
                     };
 
                     testingPrestoServer.installPlugin(plugin);
-                    testingPrestoServer.createCatalog("raptor", "raptor");
+                    testingPrestoServer.createCatalog("rakam_raptor", "rakam_raptor");
 
                     prestoConfig = new PrestoConfig()
                             .setAddress(URI.create("http://" + testingPrestoServer.getAddress().toString()))
-                            .setStreamingConnector("raptor")
-                            .setColdStorageConnector("raptor");
+                            .setStreamingConnector("rakam_raptor")
+                            .setColdStorageConnector("rakam_raptor");
+
+                    metastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase).setUsername("sa").setPassword(""));
+                    metastore.getConnection().prepareStatement("select 1").execute();
                 }
             }
             if (installMetadata) {

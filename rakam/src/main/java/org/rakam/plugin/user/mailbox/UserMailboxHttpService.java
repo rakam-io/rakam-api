@@ -2,9 +2,8 @@ package org.rakam.plugin.user.mailbox;
 
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.util.IgnorePermissionCheck;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -18,6 +17,7 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
@@ -39,13 +39,13 @@ public class UserMailboxHttpService extends HttpService {
     private final UserMailboxStorage storage;
     private final MailBoxWebSocketService webSocketService;
     private final UserPluginConfig config;
-    private final Metastore metastore;
+    private final ApiKeyService apiKeyService;
 
     @Inject
-    public UserMailboxHttpService(Metastore metastore, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
+    public UserMailboxHttpService(ApiKeyService apiKeyService, UserPluginConfig config, UserMailboxStorage storage, MailBoxWebSocketService webSocketService) {
         this.storage = storage;
         this.config = config;
-        this.metastore = metastore;
+        this.apiKeyService = apiKeyService;
         this.webSocketService = webSocketService;
     }
 
@@ -90,7 +90,7 @@ public class UserMailboxHttpService extends HttpService {
         }
 
         List<String> api_key = request.params().get("api_key");
-        if(api_key == null || api_key.isEmpty() || !metastore.checkPermission(project.get(0), Metastore.AccessKeyType.READ_KEY, api_key.get(0))) {
+        if(api_key == null || api_key.isEmpty() || !apiKeyService.checkPermission(project.get(0), org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY, api_key.get(0))) {
             response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.UNAUTHORIZED.reasonPhrase(),
                     HttpResponseStatus.UNAUTHORIZED))).end();
             return;

@@ -1,7 +1,6 @@
 package org.rakam.analysis.abtesting;
 
-import org.rakam.analysis.metadata.Metastore;
-import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -11,6 +10,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
@@ -22,19 +22,18 @@ import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
-import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
 
 @Path("/ab-testing")
 @Api(value = "/ab-testing", nickname = "abTesting", description = "A/B Testing module", tags = {"ab-testing"})
 public class ABTestingHttpService extends HttpService {
 
     private final ABTestingMetastore metadata;
-    private final Metastore metastore;
+    private final ApiKeyService apiKeyService;
 
     @Inject
-    public ABTestingHttpService(Metastore metastore, ABTestingMetastore metadata) {
+    public ABTestingHttpService(ApiKeyService apiKeyService, ABTestingMetastore metadata) {
         this.metadata = metadata;
-        this.metastore = metastore;
+        this.apiKeyService = apiKeyService;
     }
 
     @JsonRequest
@@ -71,7 +70,7 @@ public class ABTestingHttpService extends HttpService {
 
         // since this endpoint is created for clients to read the ab-testing rule,
         // the permission is WRITE_KEY
-        if(!metastore.checkPermission(project.get(0), WRITE_KEY, api_key.get(0))) {
+        if(!apiKeyService.checkPermission(project.get(0), ApiKeyService.AccessKeyType.WRITE_KEY, api_key.get(0))) {
             request.response("\"unauthorized\"", UNAUTHORIZED).end();
             return;
         }

@@ -1,6 +1,6 @@
 package org.rakam.ui.user;
 
-import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 
 import java.util.List;
 import java.util.Map;
@@ -9,9 +9,9 @@ public class WebUser {
     public final int id;
     public final String email;
     public final String name;
-    public final Map<String, List<Metastore.ProjectApiKeys>> projects;
+    public final Map<String, List<ProjectApiKeys>> projects;
 
-    public WebUser(int id, String email, String name, Map<String, List<Metastore.ProjectApiKeys>> projects) {
+    public WebUser(int id, String email, String name, Map<String, List<ProjectApiKeys>> projects) {
         this.id = id;
         this.email = email;
         this.name = name;

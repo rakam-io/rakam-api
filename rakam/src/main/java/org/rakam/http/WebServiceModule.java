@@ -18,7 +18,7 @@ import io.swagger.models.auth.In;
 import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.ServiceStarter;
-import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
 import org.rakam.server.http.HttpService;
@@ -37,7 +37,7 @@ import java.util.Arrays;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
-import static org.rakam.analysis.metadata.Metastore.AccessKeyType.*;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
 @Singleton
 public class WebServiceModule extends AbstractModule {
@@ -45,15 +45,15 @@ public class WebServiceModule extends AbstractModule {
     private final Set<HttpService> httpServices;
     private final HttpServerConfig config;
     private final Set<Tag> tags;
-    private final Metastore metastore;
+    private final ApiKeyService apiKeyService;
 
     @Inject
-    public WebServiceModule(Set<HttpService> httpServices, Set<Tag> tags, Metastore metastore, Set<WebSocketService> webSocketServices, HttpServerConfig config) {
+    public WebServiceModule(Set<HttpService> httpServices, Set<Tag> tags, ApiKeyService apiKeyService, Set<WebSocketService> webSocketServices, HttpServerConfig config) {
         this.httpServices = httpServices;
         this.webSocketServices = webSocketServices;
         this.config = config;
         this.tags = tags;
-        this.metastore = metastore;
+        this.apiKeyService = apiKeyService;
     }
 
     @Override
@@ -93,15 +93,15 @@ public class WebServiceModule extends AbstractModule {
                 .setProxyProtocol(config.getProxyProtocol())
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
                 .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"), method -> method.isAnnotationPresent(AllowCookie.class))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, MASTER_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, MASTER_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, WRITE_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, WRITE_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(metastore, READ_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, READ_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, READ_KEY), method -> test(method, READ_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, WRITE_KEY), method -> test(method, WRITE_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(metastore, MASTER_KEY), method -> test(method, MASTER_KEY))
+                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
+                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
+                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, MASTER_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, MASTER_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, WRITE_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, WRITE_KEY))
+                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, READ_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, READ_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
+                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
                 .build();
 
         HostAndPort address = config.getAddress();
@@ -116,7 +116,7 @@ public class WebServiceModule extends AbstractModule {
     }
 
 
-    public static boolean test(Method method, Metastore.AccessKeyType key) {
+    public static boolean test(Method method, org.rakam.analysis.ApiKeyService.AccessKeyType key) {
         if(method.isAnnotationPresent(IgnorePermissionCheck.class)) {
             return false;
         }

@@ -1,6 +1,7 @@
 package org.rakam.report;
 
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.ExpressionUtil;
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.CalculatedUserSet;
 import org.rakam.analysis.ContinuousQueryService;
@@ -105,13 +106,12 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                         "returning_action as (\n" +
                         "  %s\n" +
                         ") \n" +
-                        "select %s, cast(null as bigint) as lead, count(*) count from first_action data group by 1 union all\n" +
-                        "select %s, %s, count(*) \n" +
-                        "from first_action data join returning_action on (data.date < returning_action.date AND data.%s = returning_action.%s) \n" +
-                        "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
+                        "select %s, cast(null as bigint) as lead, cardinality(%s_set) count from first_action data union all\n" +
+                        "select %s, %s, cardinality_intersection(data.%s_set, returning_action.%s_set) \n" +
+                        "from first_action data join returning_action on (data.date < returning_action.date AND data.date + interval '%d' day > returning_action.date) \n" +
+                        "ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn,
-                dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD,
-                timeSubtraction, period);
+                CONNECTOR_FIELD, dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD, period);
 
         return new DelegateQueryExecution(executor.executeQuery(project, query),
                 result -> {
@@ -140,10 +140,13 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                 return preComputedTable.get();
             }
 
-            return String.format("select * from (%s) group by 1,2 %s", metastore.getCollectionNames(project).stream()
-                    .map(collection -> getTableSubQuery(collection, connectorField,
-                            timeColumn, dimension, timePredicate, Optional.empty()))
-                    .collect(Collectors.joining(" union all ")), dimension.isPresent() ? ", 3" : "");
+            return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
+                    dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
+                    metastore.getCollections(project).entrySet().stream()
+                            .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
+                            .map(collection -> getTableSubQuery(collection.getKey(), connectorField,
+                                    timeColumn, dimension, timePredicate, Optional.empty()))
+                            .collect(Collectors.joining(" union all ")), dimension.isPresent() ? ", 2" : "");
         } else {
             String collection = retentionAction.get().collection();
 
@@ -154,8 +157,10 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                 return preComputedTable.get();
             }
 
-            return String.format("select * from (%s) group by 1,2 %s", getTableSubQuery(collection, connectorField,
-                    timeColumn, dimension, timePredicate, retentionAction.get().filter()), dimension.isPresent() ? ", 3" : "");
+            return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
+                    dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
+                    getTableSubQuery(collection, connectorField,
+                            timeColumn, dimension, timePredicate, retentionAction.get().filter()), dimension.isPresent() ? ", 2" : "");
         }
     }
 
@@ -167,7 +172,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         if (filter.isPresent()) {
             try {
                 String preComputedTablePrefix = tableName + "_by_";
-                return Optional.of(filter.get().accept(new PreComputedTableSubQueryVisitor(columnName -> {
+                return Optional.of(ExpressionUtil.accept(filter.get(), new PreComputedTableSubQueryVisitor(columnName -> {
                     if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals(preComputedTablePrefix + columnName))) {
                         return Optional.of("continuous." + preComputedTablePrefix + columnName);
                     } else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals(preComputedTablePrefix + columnName))) {
@@ -193,22 +198,23 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
     }
 
     private String generatePreCalculatedTableSql(Optional<String> tableNameSuffix, String schema, String timePredicate, String timeColumn, boolean dimensionRequired) {
-        return String.format("select %s as date, %s _user from %s where date %s",
+        return String.format("select %s as date, %s _user_set from %s where date %s",
                 String.format(timeColumn, "date"),
                 dimensionRequired ? "dimension, " : "",
                 schema + "." + tableNameSuffix.orElse(""), timePredicate);
     }
 
     private String getTableSubQuery(String collection, String connectorField, String timeColumn, Optional<String> dimension, String timePredicate, Optional<Expression> filter) {
-        return format("select %s, %s as date %s from %s where _time %s %s",
-                connectorField,
+        return format("select %s as date, %s %s from %s where _time %s %s",
                 String.format(timeColumn, "_time"),
-                dimension.isPresent() ? ", " + checkTableColumn(dimension.get(), "dimension") + " as dimension" : "",
+                dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
+                connectorField,
                 collection,
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();
-                }) : "");
+                }) : "",
+                dimension.map(v -> ",2").orElse(""));
     }
 
 }

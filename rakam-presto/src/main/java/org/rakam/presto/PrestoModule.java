@@ -7,36 +7,38 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
-import org.rakam.config.MetadataConfig;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
-import org.rakam.presto.analysis.JDBCMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.presto.analysis.PrestoMaterializedViewService;
-import org.rakam.presto.analysis.PrestoUserService;
+import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.config.JDBCConfig;
+import org.rakam.config.MetadataConfig;
+import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.user.AbstractUserService;
+import org.rakam.plugin.user.UserPluginConfig;
+import org.rakam.postgresql.analysis.PostgresqlApiKeyService;
+import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
+import org.rakam.presto.analysis.PrestoMaterializedViewService;
+import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
-import org.rakam.report.QueryExecutor;
-import org.rakam.util.ConditionalModule;
-import org.rakam.analysis.ContinuousQueryService;
-import org.rakam.report.eventexplorer.EventExplorerConfig;
-import org.rakam.plugin.EventMapper;
-import org.rakam.config.JDBCConfig;
-import org.rakam.analysis.MaterializedViewService;
-import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
-import org.rakam.plugin.TimestampEventMapper;
-import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
+import org.rakam.presto.analysis.PrestoUserService;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
+import org.rakam.report.QueryExecutor;
+import org.rakam.report.eventexplorer.EventExplorerConfig;
+import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
 
@@ -54,14 +56,12 @@ public class PrestoModule extends RakamModule {
         binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
+        bindJDBCConfig(binder, "presto.metastore.jdbc");
 
-        JDBCConfig config = buildConfigObject(JDBCConfig.class, "presto.metastore.jdbc");
-        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(config);
-        binder.bind(JDBCPoolDataSource.class)
-                .annotatedWith(Names.named("presto.metastore.jdbc"))
-                .toInstance(dataSource);
+        JDBCPoolDataSource dataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
+        binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(dataSource));
 
-        binder.bind(Metastore.class).to(JDBCMetastore.class);
+        binder.bind(Metastore.class).to(PrestoMetastore.class);
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {
             binder.bind(AbstractPostgresqlUserStorage.class).to(PrestoExternalUserStorageAdapter.class)
                     .in(Scopes.SINGLETON);
@@ -98,6 +98,15 @@ public class PrestoModule extends RakamModule {
     @Override
     public String description() {
         return "Rakam backend for high-throughput systems.";
+    }
+
+    private JDBCPoolDataSource bindJDBCConfig(Binder binder, String config) {
+        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(
+                buildConfigObject(JDBCConfig.class, config));
+        binder.bind(JDBCPoolDataSource.class)
+                .annotatedWith(Names.named(config))
+                .toInstance(dataSource);
+        return dataSource;
     }
 
     public static class UserMergeTableHook {

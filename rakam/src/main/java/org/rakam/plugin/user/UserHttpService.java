@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
@@ -51,9 +52,10 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
-import static org.rakam.analysis.metadata.Metastore.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")
@@ -70,11 +72,13 @@ public class UserHttpService extends HttpService {
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
     private final QueryExecutor executor;
+    private final ApiKeyService apiKeyService;
 
     @Inject
     public UserHttpService(UserPluginConfig config,
                            Set<UserPropertyMapper> mappers,
                            Metastore metastore,
+                           ApiKeyService apiKeyService,
                            QueryExecutor executor,
                            ContinuousQueryService continuousQueryService,
                            MaterializedViewService materializedViewService,
@@ -82,6 +86,7 @@ public class UserHttpService extends HttpService {
         this.service = service;
         this.config = config;
         this.metastore = metastore;
+        this.apiKeyService = apiKeyService;
         this.sqlParser = new SqlParser();
         this.mappers = mappers;
         this.executor = executor;
@@ -96,7 +101,7 @@ public class UserHttpService extends HttpService {
     @Path("/create")
     @IgnorePermissionCheck
     public String create(@ParamBody User user) {
-        if (!metastore.checkPermission(user.project, WRITE_KEY, user.api.writeKey)) {
+        if (!apiKeyService.checkPermission(user.project, WRITE_KEY, user.api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
         }
 
@@ -116,7 +121,7 @@ public class UserHttpService extends HttpService {
     public List<String> batchCreate(@ApiParam(name = "project") String project,
                                     @ApiParam(name = "users") List<User> users) {
         for (User user : users) {
-            if (!metastore.checkPermission(user.project, WRITE_KEY, user.api.writeKey)) {
+            if (!apiKeyService.checkPermission(user.project, WRITE_KEY, user.api.writeKey)) {
                 throw new RakamException(UNAUTHORIZED);
             }
         }
@@ -247,7 +252,7 @@ public class UserHttpService extends HttpService {
                              @ApiParam(name = "created_at") Instant createdAt,
                              @ApiParam(name = "merged_at") Instant mergedAt) {
         // TODO: what if a user sends real user ids instead of its previous anonymous id?
-        if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
+        if (!apiKeyService.checkPermission(project, WRITE_KEY, api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
         }
         if (!config.getEnableUserMapping()) {
@@ -274,7 +279,7 @@ public class UserHttpService extends HttpService {
                 return;
             }
 
-            if (!metastore.checkPermission(req.project, WRITE_KEY, req.api.writeKey)) {
+            if (!apiKeyService.checkPermission(req.project, WRITE_KEY, req.api.writeKey)) {
                 returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
                 return;
             }
@@ -322,7 +327,7 @@ public class UserHttpService extends HttpService {
                 return;
             }
 
-            if (!metastore.checkPermission(req.project, WRITE_KEY, req.api.writeKey)) {
+            if (!apiKeyService.checkPermission(req.project, WRITE_KEY, req.api.writeKey)) {
                 returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
                 return;
             }
@@ -350,7 +355,7 @@ public class UserHttpService extends HttpService {
                                           @ApiParam(name = "user") String user,
                                           @ApiParam(name = "property") String property,
                                           @ApiParam("value") double value) {
-        if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
+        if (!apiKeyService.checkPermission(project, WRITE_KEY, api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
         }
 
@@ -387,16 +392,21 @@ public class UserHttpService extends HttpService {
             dateColumn = "cast(_time as date)";
         }
 
-        String query = String.format("SELECT %s as date, %s _user FROM (%s) GROUP BY 1, 2 %s",
+        String query = String.format("SELECT %s as date, %s set(_user) _user_set FROM (%s) GROUP BY 1 %s",
                 dateColumn,
                 Optional.ofNullable(dimension).map(v -> v + " as dimension,").orElse(""), table,
-                Optional.ofNullable(dimension).map(v -> ", 3").orElse(""));
+                Optional.ofNullable(dimension).map(v -> ", 2").orElse(""));
 
         switch (type) {
             case CONTINUOUS_QUERY:
                 return continuousQueryService.create(new ContinuousQuery(project, name, tableName, query,
                         ImmutableList.of("date"), ImmutableMap.of()), replayHistoricalData == null ? false: replayHistoricalData)
-                        .thenApply(v -> new PreCalculatedTable(name, tableName));
+                        .thenApply(v -> {
+                            if(v.isFailed()) {
+                                throw new RakamException("Failed to create continuous query: " + JsonHelper.encode(v.getError()), INTERNAL_SERVER_ERROR);
+                            }
+                            return new PreCalculatedTable(name, tableName);
+                        });
             case MATERIALIZED_VIEW:
                 return materializedViewService.create(new MaterializedView(project, name, tableName, query,
                         Duration.ofHours(1), "date", ImmutableMap.of()))
@@ -442,7 +452,7 @@ public class UserHttpService extends HttpService {
                                       @ApiParam(name = "api") User.UserContext api,
                                       @ApiParam(name = "user") String user,
                                       @ApiParam(name = "property") List<String> properties) {
-        if (!metastore.checkPermission(project, WRITE_KEY, api.writeKey)) {
+        if (!apiKeyService.checkPermission(project, WRITE_KEY, api.writeKey)) {
             throw new RakamException(UNAUTHORIZED);
         }
         service.unsetProperties(project, user, properties);

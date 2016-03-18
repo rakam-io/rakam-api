@@ -1,7 +1,8 @@
 package org.rakam.http;
 
 import io.netty.handler.codec.http.HttpHeaders;
-import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.ApiKeyService.AccessKeyType;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.RequestPreprocessor;
 import org.rakam.util.RakamException;
@@ -11,11 +12,11 @@ import static org.rakam.util.ValidationUtil.checkProject;
 
 class ProjectRawAuthPreprocessor implements RequestPreprocessor<RakamHttpRequest> {
 
-    private final Metastore metastore;
-    private final Metastore.AccessKeyType key;
+    private final ApiKeyService apiKeyService;
+    private final AccessKeyType key;
 
-    public ProjectRawAuthPreprocessor(Metastore metastore, Metastore.AccessKeyType key) {
-        this.metastore = metastore;
+    public ProjectRawAuthPreprocessor(ApiKeyService apiKeyService, AccessKeyType key) {
+        this.apiKeyService = apiKeyService;
         this.key = key;
     }
 
@@ -24,7 +25,7 @@ class ProjectRawAuthPreprocessor implements RequestPreprocessor<RakamHttpRequest
         String project = headers.get("project");
         String api_key = headers.get("api_key");
         checkProject(project);
-        if(project == null || api_key == null || !metastore.checkPermission(project, key, api_key))
+        if(project == null || api_key == null || !apiKeyService.checkPermission(project, key, api_key))
             throw new RakamException(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
     }
 }

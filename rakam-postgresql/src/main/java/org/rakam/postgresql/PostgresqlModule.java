@@ -15,6 +15,8 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.postgresql.analysis.PostgresqlApiKeyService;
 import org.rakam.postgresql.analysis.PostgresqlConfig;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
@@ -57,11 +59,13 @@ public class PostgresqlModule extends RakamModule {
     protected void setup(Binder binder) {
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
 
+        JDBCPoolDataSource orCreateDataSource = JDBCPoolDataSource.getOrCreateDataSource(config);
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("store.adapter.postgresql"))
-                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
+                .toInstance(orCreateDataSource);
 
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).in(Scopes.SINGLETON);
+        binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
         // TODO: implement postgresql specific materialized view service
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
@@ -79,7 +83,7 @@ public class PostgresqlModule extends RakamModule {
         if(getConfig("report.metadata.store") == null) {
             binder.bind(JDBCPoolDataSource.class)
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
-                    .toInstance(JDBCPoolDataSource.getOrCreateDataSource(config));
+                    .toInstance(orCreateDataSource);
 
             binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class).in(Scopes.SINGLETON);
         }

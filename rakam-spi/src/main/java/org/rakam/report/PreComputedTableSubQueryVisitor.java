@@ -52,15 +52,15 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
                 Expression setExpression = isNotNull == node.getRight() ? node.getLeft() : node.getRight();
 
                 String excludeQuery = process(new IsNullPredicate(((IsNotNullPredicate) isNotNull).getValue()), negate);
-                return "SELECT l.time, l.dimension, l._user FROM (" + process(setExpression, negate) + ") l LEFT JOIN (" + excludeQuery + ") r ON (r.time = l.time AND r._user = l._user AND l.dimension = r.dimension) WHERE r.time IS NULL";
+                return "SELECT l.date, l.dimension, l._user_set FROM (" + process(setExpression, negate) + ") l LEFT JOIN (" + excludeQuery + ") r ON (r.date = l.date AND l.dimension = r.dimension) WHERE r.date IS NULL";
             }
             String right = process(node.getRight(), negate);
             String left = process(node.getLeft(), negate);
 
             // TODO: use INTERSECT when it's implemented in Presto.
-            return "SELECT l.time, l.dimension, l._user FROM (" + left + ") l JOIN (" + right + ") r ON (r.time = l.time AND r._user = l._user)";
+            return "SELECT l.date, l.dimension, l._user_set FROM (" + left + ") l JOIN (" + right + ") r ON (r.date = l.date)";
         } else if (type == OR) {
-            return "SELECT DISTINCT time, dimension, _user FROM (" + process(node.getLeft(), negate) +
+            return "SELECT date, dimension, _user_set FROM (" + process(node.getLeft(), negate) +
                     " UNION ALL " + process(node.getRight(), negate) + ")";
         } else {
             throw new IllegalStateException();
@@ -80,7 +80,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
         if (negate) {
             predicate = String.format("not(%s)", predicate);
         }
-        return "SELECT date, dimension, _user FROM " + left + " WHERE dimension " + predicate;
+        return "SELECT date, dimension, _user_set FROM " + left + " WHERE dimension " + predicate;
     }
 
     @Override
@@ -90,7 +90,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
 
     @Override
     protected String visitLikePredicate(LikePredicate node, Boolean negate) {
-        return "SELECT date, dimension, _user FROM " + process(node.getValue(), negate) +
+        return "SELECT date, dimension, _user_set FROM " + process(node.getValue(), negate) +
                 " WHERE dimension LIKE " + process(node.getPattern(), negate);
     }
 
@@ -100,7 +100,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
             return visitIsNullPredicate(new IsNullPredicate(node.getValue()), !negate);
         }
         String column = process(node.getValue(), negate);
-        return "SELECT date, dimension, _user FROM " + column + " WHERE dimension is not null";
+        return "SELECT date, dimension, _user_set FROM " + column + " WHERE dimension is not null";
     }
 
     @Override
@@ -108,7 +108,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
         if (negate) {
             return visitIsNullPredicate(new IsNullPredicate(node.getValue()), !negate);
         }
-        return "SELECT date, dimension, _user FROM " + process(node.getValue(), negate) + " WHERE dimension is null";
+        return "SELECT date, dimension, _user_set FROM " + process(node.getValue(), negate) + " WHERE dimension is null";
     }
 
     @Override
@@ -117,7 +117,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
         if (negate) {
             predicate = String.format("NOT ", predicate);
         }
-        return "SELECT date, dimension, _user FROM " + process(node.getValue(), negate) + " WHERE dimension " + predicate;
+        return "SELECT date, dimension, _user_set FROM " + process(node.getValue(), negate) + " WHERE dimension " + predicate;
     }
 
     @Override
@@ -126,7 +126,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
         if (negate) {
             predicate = String.format("not(%s)", predicate);
         }
-        return "SELECT date, dimension, _user FROM " + process(node.getValue(), negate) + " WHERE dimension " + predicate;
+        return "SELECT date, dimension, _user_set FROM " + process(node.getValue(), negate) + " WHERE dimension " + predicate;
     }
 
     @Override

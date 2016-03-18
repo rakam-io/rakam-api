@@ -1,7 +1,7 @@
 package org.rakam.analysis;
 
+import com.facebook.presto.sql.RakamExpressionFormatter;
 import com.facebook.presto.sql.RakamSqlFormatter;
-import com.facebook.presto.sql.RakamSqlFormatter.ExpressionFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Statement;
@@ -21,7 +21,7 @@ public class TestQueryFormatter {
                 name -> {
                     throw new UnsupportedOperationException();
                 },
-                name -> "\"dummy\"." + name.getParts().stream().map(ExpressionFormatter::formatIdentifier)
+                name -> "\"dummy\"." + name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier)
                         .collect(Collectors.joining("."))));
     }
 
@@ -85,8 +85,8 @@ public class TestQueryFormatter {
                 "FROM\n" +
                 "  \"schema\".\"testcollection\"\n" +
                 "))", RakamSqlFormatter.formatExpression(expression,
-                name -> "\"schema\"." + name.getParts().stream().map(ExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
-                name -> name.getParts().stream().map(ExpressionFormatter::formatIdentifier)
+                name -> "\"schema\"." + name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
+                name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier)
                         .collect(Collectors.joining("."))));
     }
 }
