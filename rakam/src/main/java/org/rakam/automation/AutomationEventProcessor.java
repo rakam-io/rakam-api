@@ -2,7 +2,6 @@ package org.rakam.automation;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
@@ -50,7 +49,7 @@ public class AutomationEventProcessor implements EventProcessor {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         final List<AutomationRule> automationRules = service.list(event.project());
         if (automationRules == null) {
             return null;
@@ -147,7 +146,7 @@ public class AutomationEventProcessor implements EventProcessor {
 
             }
 
-            response.headers().set(PROPERTY_ACTION_KEY, builder.toString());
+            responseHeaders.set(PROPERTY_ACTION_KEY, builder.toString());
         }
 
         return  stateChanged ? ImmutableList.of(new DefaultCookie(PROPERTY_KEY, encodeState(newStates == null ? value : newStates))) : null;

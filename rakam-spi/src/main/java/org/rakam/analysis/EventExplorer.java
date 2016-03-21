@@ -15,11 +15,13 @@ package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.util.RakamException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -128,7 +130,6 @@ public interface EventExplorer {
         public final Set<String> dimensions;
         public final Set<AggregationType> aggregations;
         public final Set<String> measures;
-        public final Boolean replayHistoricalData;
         public final String tableName;
 
         @JsonCreator
@@ -137,16 +138,17 @@ public interface EventExplorer {
                          @ApiParam(name = "dimensions") Set<String> dimensions,
                          @ApiParam(name = "aggregations") Set<AggregationType> aggregations,
                          @ApiParam(name = "measures") Set<String> measures,
-                         @ApiParam(name = "replayHistoricalData", required = false) Boolean replayHistoricalData,
                          @ApiParam(name = "tableName") String tableName) {
             checkCollection(tableName);
+            if(measures.isEmpty()) {
+                throw new RakamException("There must be at least one measure", HttpResponseStatus.BAD_REQUEST);
+            }
 
             this.project = project;
             this.collections = collections;
             this.dimensions = dimensions;
             this.aggregations = aggregations;
             this.measures = measures;
-            this.replayHistoricalData = replayHistoricalData;
             this.tableName = tableName;
         }
 

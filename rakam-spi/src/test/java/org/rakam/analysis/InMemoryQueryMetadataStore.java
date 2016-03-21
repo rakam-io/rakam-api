@@ -4,6 +4,7 @@ import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,7 +40,7 @@ public class InMemoryQueryMetadataStore implements QueryMetadataStore {
     }
 
     @Override
-    public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Boolean> releaseLock) {
+    public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Instant> releaseLock) {
         throw new UnsupportedOperationException();
     }
 

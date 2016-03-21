@@ -121,7 +121,7 @@ public class MaterializedViewHttpService extends HttpService {
     public void update(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
                 query -> {
-                    QueryExecution execution = service.lockAndUpdateView(service.get(query.project, query.name));
+                    QueryExecution execution = service.lockAndUpdateView(service.get(query.project, query.name)).queryExecution;
                     if (execution == null) {
                         QueryResult result = QueryResult.errorResult(new QueryError("There is another process that updates materialized view", null, null, null, null));
                         return QueryExecution.completedQueryExecution(null, result);

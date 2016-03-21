@@ -12,8 +12,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
-import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,12 +26,10 @@ public abstract class MaterializedViewService {
     public final static SqlParser sqlParser = new SqlParser();
     private final QueryMetadataStore database;
     private final QueryExecutor queryExecutor;
-    private final Clock clock;
 
-    public MaterializedViewService(QueryMetadataStore database, QueryExecutor queryExecutor, Clock clock) {
+    public MaterializedViewService(QueryMetadataStore database, QueryExecutor queryExecutor) {
         this.database = database;
         this.queryExecutor = queryExecutor;
-        this.clock = clock;
     }
 
     public abstract CompletableFuture<Void> create(MaterializedView materializedView);
@@ -68,7 +64,17 @@ public abstract class MaterializedViewService {
         return metadata(project, database.getMaterializedView(project, tableName).query);
     }
 
-    public abstract QueryExecution lockAndUpdateView(MaterializedView materializedView);
+    public static class MaterializedViewExecution {
+        public final QueryExecution queryExecution;
+        public final String computeQuery;
+
+        public MaterializedViewExecution(QueryExecution queryExecution, String computeQuery) {
+            this.queryExecution = queryExecution;
+            this.computeQuery = computeQuery;
+        }
+    }
+
+    public abstract MaterializedViewExecution lockAndUpdateView(MaterializedView materializedView);
 
     public List<MaterializedView> list(String project) {
         return database.getMaterializedViews(project);
@@ -96,9 +102,5 @@ public abstract class MaterializedViewService {
             }
         });
         return f;
-    }
-
-    public boolean needsUpdate(MaterializedView m) {
-        return m.lastUpdate == null || m.lastUpdate.until(clock.instant(), ChronoUnit.MILLIS) > m.updateInterval.toMillis();
     }
 }

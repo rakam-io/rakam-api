@@ -42,8 +42,7 @@ public abstract class TestContinuousQueryService {
 
     @Test
     public void testSchema() throws Exception {
-        ContinuousQuery report = new ContinuousQuery(PROJECT_NAME, "test",
-                "streamtest", "select count(*) as count from test",
+        ContinuousQuery report = new ContinuousQuery(PROJECT_NAME, "test", "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());
         getContinuousQueryService().create(report, false).join();
 

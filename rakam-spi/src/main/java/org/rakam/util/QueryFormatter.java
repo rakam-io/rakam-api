@@ -13,6 +13,7 @@ import com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -20,10 +21,18 @@ public class QueryFormatter
         extends RakamSqlFormatter.Formatter
 {
     private final StringBuilder builder;
-    private final Function<QualifiedName, String> tableNameMapper;
+    private final BiFunction<QualifiedName, StringBuilder, String> tableNameMapper;
     private final List<String> queryWithTables;
 
     public QueryFormatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper)
+    {
+        super(builder, tableNameMapper);
+        this.builder = builder;
+        this.queryWithTables = new ArrayList<>();
+        this.tableNameMapper = (key, ctx) -> tableNameMapper.apply(key);
+    }
+
+    public QueryFormatter(StringBuilder builder, BiFunction<QualifiedName, StringBuilder, String> tableNameMapper)
     {
         super(builder, tableNameMapper);
         this.builder = builder;
@@ -53,14 +62,14 @@ public class QueryFormatter
             builder.append(node.getName().toString());
             return null;
         }
-        builder.append(tableNameMapper.apply(node.getName()));
+        builder.append(tableNameMapper.apply(node.getName(), builder));
         return null;
     }
 
     @Override
     protected Void visitDropTable(DropTable node, Integer indent) {
         builder.append("DROP TABLE ")
-                .append(tableNameMapper.apply(node.getTableName()));
+                .append(tableNameMapper.apply(node.getTableName(), builder));
         return null;
     }
 

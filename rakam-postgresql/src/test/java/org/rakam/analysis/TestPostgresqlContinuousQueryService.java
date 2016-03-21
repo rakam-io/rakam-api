@@ -30,7 +30,7 @@ public class TestPostgresqlContinuousQueryService extends TestContinuousQuerySer
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, queryMetadataStore);
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore,
-                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore, Clock.systemUTC()));
+                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore), Clock.systemUTC());
         continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
     }
 

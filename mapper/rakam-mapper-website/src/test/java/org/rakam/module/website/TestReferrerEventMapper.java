@@ -53,7 +53,7 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost());
 
         assertEquals("Google", event.getAttribute("referrer_source"));
         assertEquals("test", event.getAttribute("referrer_term"));
@@ -82,7 +82,7 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
         for (SchemaField field : fields) {
@@ -110,7 +110,7 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
         assertNull(event.getAttribute("referrer_source"));
@@ -139,7 +139,7 @@ public class TestReferrerEventMapper {
         Event event = new Event("testproject", "testcollection", null, properties);
 
         List<Cookie> resp = mapper.map(event, new DefaultHttpHeaders().set("Referrer", "https://google.com/?q=test"),
-                InetAddress.getLocalHost(), null);
+                InetAddress.getLocalHost());
 
         assertNull(resp);
         for (SchemaField field : fields) {
@@ -168,7 +168,7 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
         assertNull(event.getAttribute("referrer_source"));

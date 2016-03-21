@@ -11,15 +11,14 @@ import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.model.ConnectionTypeResponse;
 import com.maxmind.geoip2.model.IspResponse;
 import io.airlift.log.Logger;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
 
@@ -109,7 +108,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse _) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;

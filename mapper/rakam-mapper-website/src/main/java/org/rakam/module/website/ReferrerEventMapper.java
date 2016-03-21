@@ -5,15 +5,14 @@ import com.google.common.collect.ImmutableList;
 import com.snowplowanalytics.refererparser.CorruptYamlException;
 import com.snowplowanalytics.refererparser.Parser;
 import com.snowplowanalytics.refererparser.Referer;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
 
@@ -76,7 +75,7 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
         Object referrer = event.properties().get("_referrer");
         Object host = event.properties().get("_host");
         mapInternal(extraProperties, referrer, host, event.properties());

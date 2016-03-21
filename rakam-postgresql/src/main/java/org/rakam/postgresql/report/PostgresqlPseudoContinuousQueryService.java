@@ -17,7 +17,7 @@ import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -36,7 +36,7 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
     @Override
     public CompletableFuture<QueryResult> create(ContinuousQuery report, boolean replayHistoricalData) {
-        return executor.executeRawStatement(String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new HashSet<>())))
+        return executor.executeRawStatement(String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new HashMap<>())))
                 .getResult().thenApply(result -> {
                     if (!result.isFailed()) {
                         database.createContinuousQuery(report);

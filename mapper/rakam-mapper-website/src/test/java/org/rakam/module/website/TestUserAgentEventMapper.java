@@ -55,7 +55,7 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost());
 
         assertEquals("Chrome", event.getAttribute("user_agent_family"));
         assertEquals(new Long(47), event.getAttribute("user_agent_version"));
@@ -86,7 +86,7 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
         for (SchemaField field : fields) {
@@ -114,7 +114,7 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
         assertEquals("Other", event.getAttribute("user_agent_family"));
@@ -145,7 +145,7 @@ public class TestUserAgentEventMapper {
         Event event = new Event("testproject", "testcollection", null, properties);
 
         List<Cookie> resp = mapper.map(event, new DefaultHttpHeaders().set("User-Agent", USER_AGENT),
-                InetAddress.getLocalHost(), null);
+                InetAddress.getLocalHost());
 
         assertNull(resp);
         for (SchemaField field : fields) {

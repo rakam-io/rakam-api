@@ -8,6 +8,7 @@ import com.facebook.presto.sql.tree.QuerySpecification;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
@@ -15,17 +16,20 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
-import java.util.AbstractMap;
-import java.util.HashSet;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
 public class QueryExecutorService {
     private final SqlParser parser = new SqlParser();
@@ -34,21 +38,23 @@ public class QueryExecutorService {
     private final QueryMetadataStore queryMetadataStore;
     private final MaterializedViewService materializedViewService;
     private final Metastore metastore;
+    private final Clock clock;
     private volatile Set<String> projectCache;
 
     @Inject
-    public QueryExecutorService(QueryExecutor executor, QueryMetadataStore queryMetadataStore, Metastore metastore, MaterializedViewService materializedViewService) {
+    public QueryExecutorService(QueryExecutor executor, QueryMetadataStore queryMetadataStore, Metastore metastore, MaterializedViewService materializedViewService, Clock clock) {
         this.executor = executor;
         this.queryMetadataStore = queryMetadataStore;
         this.materializedViewService = materializedViewService;
         this.metastore = metastore;
+        this.clock = clock;
     }
 
     public QueryExecution executeQuery(String project, String sqlQuery, int limit) {
         if (!projectExists(project)) {
             throw new IllegalArgumentException("Project is not valid");
         }
-        Set<MaterializedView> materializedViews = new HashSet<>();
+        HashMap<MaterializedView, List<Integer>> materializedViews = new HashMap<>();
         String query;
 
         try {
@@ -59,19 +65,29 @@ public class QueryExecutorService {
 
         long startTime = System.currentTimeMillis();
 
-        List<Map.Entry<MaterializedView, QueryExecution>> queryExecutions = materializedViews.stream()
-                .filter(m -> materializedViewService.needsUpdate(m))
-                .map(m -> new AbstractMap.SimpleImmutableEntry<>(m, materializedViewService.lockAndUpdateView(m)))
+        List<MaterializedViewReference> queryExecutions = materializedViews.entrySet().stream()
+//                .filter(m -> m.getKey().needsUpdate(clock))
+                .map(m -> new MaterializedViewReference(m.getKey(), m.getValue(), materializedViewService.lockAndUpdateView(m.getKey())))
                 // there may be processes updating this materialized views
-                .filter(m -> m.getValue() != null)
+                .filter(m -> m.execution != null)
                 .collect(Collectors.toList());
 
-        if(queryExecutions.isEmpty()) {
-            QueryExecution execution = executor.executeRawQuery(query);
-            if(materializedViews.isEmpty()) {
+        for (MaterializedViewReference queryExecution : queryExecutions) {
+            for (Integer referenceIndex : queryExecution.referenceIndexes) {
+                query = query.substring(0, referenceIndex) +
+                        queryExecution.execution.computeQuery +
+                        query.substring(referenceIndex);
+            }
+        }
+
+        String finalQuery = query;
+
+        if (queryExecutions.isEmpty()) {
+            QueryExecution execution = executor.executeRawQuery(finalQuery);
+            if (materializedViews.isEmpty()) {
                 return execution;
             } else {
-                Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate != null ? v.lastUpdate.toEpochMilli() : -1));
+                Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().name, v -> v.getKey().lastUpdate != null ? v.getKey().lastUpdate.toEpochMilli() : -1));
                 return new DelegateQueryExecution(execution, result -> {
                     result.setProperty("materializedViews", collect);
                     return result;
@@ -79,39 +95,39 @@ public class QueryExecutorService {
             }
         } else {
             CompletableFuture<QueryExecution> mergedQueries = CompletableFuture.allOf(queryExecutions.stream()
-                    .filter(e -> e.getValue() != null)
-                    .map(e -> e.getValue().getResult())
+                    .filter(e -> e.execution != null)
+                    .map(e -> e.execution.queryExecution.getResult())
                     .toArray(CompletableFuture[]::new)).thenApply((r) -> {
 
-                for (Map.Entry<MaterializedView, QueryExecution> queryExecution : queryExecutions) {
-                    QueryResult result = queryExecution.getValue().getResult().join();
+                for (MaterializedViewReference queryExecution : queryExecutions) {
+                    QueryResult result = queryExecution.execution.queryExecution.getResult().join();
                     if (result.isFailed()) {
-                        return new DelegateQueryExecution(queryExecution.getValue(),
+                        return new DelegateQueryExecution(queryExecution.execution.queryExecution,
                                 materializedQueryUpdateResult -> {
                                     QueryError error = materializedQueryUpdateResult.getError();
-                                    String message = String.format("Error while updating materialized table '%s': %s", queryExecution.getKey().tableName, error.message);
+                                    String message = String.format("Error while updating materialized table '%s': %s", queryExecution.view.tableName, error.message);
                                     return QueryResult.errorResult(new QueryError(message, error.sqlState, error.errorCode, error.errorLine, error.charPositionInLine));
                                 });
                     }
                 }
 
-                return executor.executeRawQuery(query);
+                return executor.executeRawQuery(finalQuery);
             });
 
             return new QueryExecution() {
                 @Override
                 public QueryStats currentStats() {
                     QueryStats currentStats = null;
-                    for (Map.Entry<MaterializedView, QueryExecution> queryExecution : queryExecutions) {
-                        QueryStats queryStats = queryExecution.getValue().currentStats();
-                        if(currentStats == null) {
+                    for (MaterializedViewReference queryExecution : queryExecutions) {
+                        QueryStats queryStats = queryExecution.execution.queryExecution.currentStats();
+                        if (currentStats == null) {
                             currentStats = queryStats;
                         } else {
                             currentStats = merge(currentStats, queryStats);
                         }
                     }
 
-                    if(mergedQueries.isDone()) {
+                    if (mergedQueries.isDone()) {
                         currentStats = merge(currentStats, mergedQueries.join().currentStats());
                     }
 
@@ -119,20 +135,20 @@ public class QueryExecutorService {
                 }
 
                 private QueryStats merge(QueryStats currentStats, QueryStats stats) {
-                    return new QueryStats(currentStats.percentage+stats.percentage,
+                    return new QueryStats(currentStats.percentage + stats.percentage,
                             currentStats.state.equals(stats.state) ? currentStats.state : QueryStats.State.RUNNING,
                             Math.max(currentStats.node, stats.node),
-                            stats.processedRows+currentStats.processedRows,
-                            stats.processedBytes+currentStats.processedBytes,
-                            stats.userTime+currentStats.userTime,
-                            stats.cpuTime+currentStats.cpuTime,
-                            stats.wallTime+currentStats.wallTime
+                            stats.processedRows + currentStats.processedRows,
+                            stats.processedBytes + currentStats.processedBytes,
+                            stats.userTime + currentStats.userTime,
+                            stats.cpuTime + currentStats.cpuTime,
+                            stats.wallTime + currentStats.wallTime
                     );
                 }
 
                 @Override
                 public boolean isFinished() {
-                    if(mergedQueries.isDone()) {
+                    if (mergedQueries.isDone()) {
                         QueryExecution join = mergedQueries.join();
                         return join == null || join.isFinished();
                     } else {
@@ -149,9 +165,9 @@ public class QueryExecutorService {
                         } else {
                             r.getResult().thenAccept(result -> {
                                 if (!result.isFailed()) {
-                                    Map<String, Long> collect = materializedViews.stream().collect(Collectors.toMap(v -> v.name, v -> v.lastUpdate.toEpochMilli()));
+                                    Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().name, v -> v.getKey().lastUpdate.toEpochMilli()));
                                     result.setProperty("materializedViews", collect);
-                                    result.setProperty(QueryResult.EXECUTION_TIME, System.currentTimeMillis() - startTime);
+                                    result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
                                 }
 
                                 future.complete(result);
@@ -163,13 +179,13 @@ public class QueryExecutorService {
 
                 @Override
                 public String getQuery() {
-                    return query;
+                    return finalQuery;
                 }
 
                 @Override
                 public void kill() {
-                    for (Map.Entry<MaterializedView, QueryExecution> queryExecution : queryExecutions) {
-                        queryExecution.getValue().kill();
+                    for (MaterializedViewReference queryExecution : queryExecutions) {
+                        queryExecution.execution.queryExecution.kill();
                     }
                     mergedQueries.thenAccept(q -> q.kill());
                 }
@@ -204,7 +220,7 @@ public class QueryExecutorService {
         return true;
     }
 
-    public String buildQuery(String project, String query, Integer maxLimit, Set<MaterializedView> materializedViews) {
+    public String buildQuery(String project, String query, Integer maxLimit, HashMap<MaterializedView, List<Integer>> materializedViews) {
         StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {
@@ -215,14 +231,14 @@ public class QueryExecutorService {
 
         if (maxLimit != null) {
             Integer limit = null;
-            if(statement.getLimit().isPresent()) {
+            if (statement.getLimit().isPresent()) {
                 limit = Integer.parseInt(statement.getLimit().get());
             }
-            if(statement.getQueryBody() instanceof QuerySpecification && ((QuerySpecification) statement.getQueryBody()).getLimit().isPresent()) {
+            if (statement.getQueryBody() instanceof QuerySpecification && ((QuerySpecification) statement.getQueryBody()).getLimit().isPresent()) {
                 limit = Integer.parseInt(((QuerySpecification) statement.getQueryBody()).getLimit().get());
             }
-            if(limit != null) {
-                if(limit > maxLimit) {
+            if (limit != null) {
+                if (limit > maxLimit) {
                     throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
                 }
             } else {
@@ -233,26 +249,20 @@ public class QueryExecutorService {
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Set<MaterializedView> materializedViews) {
-        return node -> {
+    private BiFunction<QualifiedName, StringBuilder, String> tableNameMapper(String project, HashMap<MaterializedView, List<Integer>> materializedViews) {
+        return (node, ctx) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
-                MaterializedView materializedView = queryMetadataStore.getMaterializedView(project, node.getSuffix());
-                materializedViews.add(materializedView);
+                MaterializedView materializedView;
+                try {
+                    materializedView = queryMetadataStore.getMaterializedView(project, node.getSuffix());
+                } catch (Exception e) {
+                    throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
+                }
+                materializedViews.computeIfAbsent(materializedView, (key) -> new ArrayList<>()).add(ctx.length());
+                return "";
             }
             return executor.formatTableReference(project, node);
         };
-    }
-
-    private String buildStatement(String project, String query, Set<MaterializedView> views) {
-        StringBuilder builder = new StringBuilder();
-        com.facebook.presto.sql.tree.Statement statement;
-        synchronized (parser) {
-            statement = parser.createStatement(query);
-        }
-
-        new QueryFormatter(builder, tableNameMapper(project, views)).process(statement, 1);
-
-        return builder.toString();
     }
 
     public CompletableFuture<List<SchemaField>> metadata(String project, String query) {
@@ -261,7 +271,7 @@ public class QueryExecutorService {
         try {
             queryStatement = (Query) parser.createStatement(checkNotNull(query, "query is required"));
         } catch (Exception e) {
-            throw new RakamException("Unable to parse query: "+e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException("Unable to parse query: " + e.getMessage(), BAD_REQUEST);
         }
 
         new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName))
@@ -278,5 +288,17 @@ public class QueryExecutorService {
             }
         });
         return f;
+    }
+
+    public static class MaterializedViewReference {
+        public final MaterializedView view;
+        public final List<Integer> referenceIndexes;
+        public final MaterializedViewExecution execution;
+
+        public MaterializedViewReference(MaterializedView view, List<Integer> referenceIndexes, MaterializedViewExecution execution) {
+            this.view = view;
+            this.referenceIndexes = referenceIndexes;
+            this.execution = execution;
+        }
     }
 }

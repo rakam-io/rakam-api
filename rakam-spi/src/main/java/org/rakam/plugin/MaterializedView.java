@@ -7,8 +7,10 @@ import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.server.http.annotations.ApiParam;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.*;
@@ -61,6 +63,10 @@ public class MaterializedView implements ProjectItem {
                 "table_name must only contain alphanumeric characters and _");
         if(this.incrementalField != null)
             checkTableColumn(this.incrementalField, "incremental field is invalid");
+    }
+
+    public boolean needsUpdate(Clock clock) {
+        return lastUpdate == null || lastUpdate.until(clock.instant(), ChronoUnit.MILLIS) > updateInterval.toMillis();
     }
 
     @Override

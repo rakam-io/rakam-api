@@ -64,14 +64,15 @@ public abstract class TestRetentionQueryExecutor {
                 .getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(of(
+        assertEquals(result.getResult(), of(
                 asList(LocalDate.parse("1970-01-01"), null, 1L),
                 asList(LocalDate.parse("1970-01-01"), 0L, 1L),
                 asList(LocalDate.parse("1970-01-01"), 2L, 1L),
                 asList(LocalDate.parse("1970-01-02"), null, 1L),
                 asList(LocalDate.parse("1970-01-02"), 0L, 1L),
                 asList(LocalDate.parse("1970-01-03"), null, 1L),
-                asList(LocalDate.parse("1970-01-03"), 0L, 1L)), result.getResult());
+                asList(LocalDate.parse("1970-01-03"), 0L, 1L)));
+
     }
 
     @Test
@@ -85,9 +86,12 @@ public abstract class TestRetentionQueryExecutor {
         assertFalse(result.isFailed());
         assertEquals(result.getResult(), of(
                 asList(LocalDate.parse("1970-01-01"), null, 1L),
+                asList(LocalDate.parse("1970-01-01"), 0L, 1L),
                 asList(LocalDate.parse("1970-01-01"), 2L, 1L),
                 asList(LocalDate.parse("1970-01-02"), null, 1L),
-                asList(LocalDate.parse("1970-01-03"), null, 1L)));
+                asList(LocalDate.parse("1970-01-02"), 0L, 1L),
+                asList(LocalDate.parse("1970-01-03"), null, 1L),
+                asList(LocalDate.parse("1970-01-03"), 0L, 1L)));
     }
 
     @Test
@@ -102,8 +106,10 @@ public abstract class TestRetentionQueryExecutor {
         assertFalse(result.isFailed());
         assertEquals(result.getResult(), of(
                 asList(LocalDate.parse("1970-01-01"), null, 1L),
+                asList(LocalDate.parse("1970-01-01"), 0L, 1L),
                 asList(LocalDate.parse("1970-01-01"), 2L, 1L),
-                asList(LocalDate.parse("1970-01-03"), null, 1L)));
+                asList(LocalDate.parse("1970-01-03"), null, 1L),
+                asList(LocalDate.parse("1970-01-03"), 0L, 1L)));
     }
 
     @Test
@@ -117,8 +123,10 @@ public abstract class TestRetentionQueryExecutor {
         assertFalse(result.isFailed());
         assertEquals(result.getResult(), of(
                 asList("test0", null, 1L),
+                asList("test0", 0L, 1L),
                 asList("test0", 2L, 1L),
-                asList("test1", null, 1L)));
+                asList("test1", null, 1L),
+                asList("test1", 0L, 1L)));
     }
 
     @Test
@@ -139,7 +147,7 @@ public abstract class TestRetentionQueryExecutor {
         QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
                 Optional.empty(),
                 Optional.empty(),
-                WEEK, Optional.of("teststr"),
+                WEEK, Optional.empty(),
                 15, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR))
                 .getResult().join();
 
@@ -154,7 +162,7 @@ public abstract class TestRetentionQueryExecutor {
         QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
                 Optional.empty(),
                 Optional.empty(),
-                MONTH, Optional.of("teststr"),
+                MONTH, Optional.empty(),
                 15, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR))
                 .getResult().join();
 

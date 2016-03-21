@@ -7,6 +7,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
+import org.rakam.report.QueryResult;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,17 +38,21 @@ public class TestingPrestoEventStore implements EventStore {
     @Override
     public int[] storeBatch(List<Event> events) {
         for (Map.Entry<String, List<Event>> collection : events.stream().collect(Collectors.groupingBy(e -> e.collection())).entrySet()) {
-            queryExecutor.executeRawStatement(String.format("INSERT INTO %s.%s.%s VALUES %s",
+            QueryResult join = queryExecutor.executeRawStatement(String.format("INSERT INTO %s.%s.%s (%s)",
                     config.getColdStorageConnector(), events.get(0).project(),
                     collection.getKey(),
-                    collection.getValue().stream().map(e -> buildValues(e.properties(), e.schema())).collect(Collectors.joining(", "))))
+                    collection.getValue().stream().map(e -> buildValues(e.properties(), e.schema())).collect(Collectors.joining(" union all "))))
                     .getResult().join();
+            if(join.isFailed()) {
+                throw new IllegalStateException(join.getError().message);
+            }
+
         }
         return EventStore.SUCCESSFUL_BATCH;
     }
 
     private String buildValues(GenericRecord properties, List<SchemaField> schema) {
-        StringBuilder builder = new StringBuilder("(");
+        StringBuilder builder = new StringBuilder("select ");
         int size = properties.getSchema().getFields().size();
 
         if (size > 0) {
@@ -58,7 +63,7 @@ public class TestingPrestoEventStore implements EventStore {
             }
         }
 
-        return builder.append(")").toString();
+        return builder.toString();
     }
 
     private void appendValue(StringBuilder builder, Object value, FieldType type) {

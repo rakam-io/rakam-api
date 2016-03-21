@@ -17,6 +17,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -28,8 +29,8 @@ public class PrestoQueryMetadata extends JDBCQueryMetadata {
     private final PrestoConfig config;
 
     @Inject
-    public PrestoQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, PrestoQueryExecutor executor) {
-        super(dataSource);
+    public PrestoQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, PrestoQueryExecutor executor, Clock clock) {
+        super(dataSource, clock);
         this.executor = executor;
         this.config = config;
 

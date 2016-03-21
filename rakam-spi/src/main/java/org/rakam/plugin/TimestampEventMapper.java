@@ -13,7 +13,6 @@
  */
 package org.rakam.plugin;
 
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
@@ -30,7 +29,7 @@ import static com.google.common.collect.ImmutableList.of;
 
 public class TimestampEventMapper implements EventMapper {
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
         GenericRecord properties = event.properties();
         Object time = properties.get("_time");
         if (time == null) {

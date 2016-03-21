@@ -13,7 +13,7 @@ import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-import java.time.Clock;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
@@ -26,8 +26,8 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
     private final QueryMetadataStore database;
 
     @Inject
-    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database, Clock clock) {
-        super(database, queryExecutor, clock);
+    public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database) {
+        super(database, queryExecutor);
         this.queryExecutor = queryExecutor;
         this.database = database;
     }
@@ -46,8 +46,8 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
                 materializedView.project, PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
-        if(result.isFailed()) {
-            throw new RakamException("Couldn't created table: "+result.getError().toString(), UNAUTHORIZED);
+        if (result.isFailed()) {
+            throw new RakamException("Couldn't created table: " + result.getError().toString(), UNAUTHORIZED);
         }
         database.createMaterializedView(materializedView);
         return CompletableFuture.completedFuture(null);
@@ -62,16 +62,19 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
     }
 
     @Override
-    public QueryExecution lockAndUpdateView(MaterializedView materializedView) {
-        CompletableFuture<Boolean> f = new CompletableFuture<>();
+    public MaterializedViewExecution lockAndUpdateView(MaterializedView materializedView) {
+        CompletableFuture<Instant> f = new CompletableFuture<>();
         boolean availableForUpdating = database.updateMaterializedView(materializedView, f);
-        if(availableForUpdating) {
-            QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW \"%s\".\"%s%s\"", materializedView.project,
-                    PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName));
-            return new DelegateQueryExecution(execution, result -> {
-                f.complete(!result.isFailed());
+        if (availableForUpdating) {
+            String reference = String.format("\"%s\".\"%s%s\"", materializedView.project,
+                    PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName);
+
+            QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW " + reference));
+            DelegateQueryExecution delegateQueryExecution = new DelegateQueryExecution(execution, result -> {
+                f.complete(!result.isFailed() ? Instant.now() : null);
                 return result;
             });
+            return new MaterializedViewExecution(delegateQueryExecution, reference);
         }
         return null;
     }

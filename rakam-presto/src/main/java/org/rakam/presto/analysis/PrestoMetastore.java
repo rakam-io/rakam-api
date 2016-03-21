@@ -12,7 +12,6 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -165,13 +164,16 @@ public class PrestoMetastore extends AbstractMetastore {
                                 f.getName(), toSql(f.getType()));
                         QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(q, defaultSession)).getResult().join();
                         if (join.isFailed()) {
-                            if (!join.getError().message.contains("exists")) {
+                            // FIXME: Presto Raptor connector has a bug when new columns are added concurrently.
+                            if (join.getError().message.equals("Failed to perform metadata operation")) {
+                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 1);
+                            } else if (!join.getError().message.contains("exists")) {
                                 throw new IllegalStateException(join.getError().message);
                             }
                         }
                     });
 
-            lastFields = ImmutableList.<SchemaField>builder().addAll(schemaFields).addAll(newFields).build();
+            lastFields = getCollection(project, collection);
         }
 
         super.onCreateCollection(project, collection, schemaFields);
@@ -196,6 +198,7 @@ public class PrestoMetastore extends AbstractMetastore {
         }).collect(Collectors.toList());
     }
 
+
     @Override
     public void deleteProject(String project) {
         checkProject(project);
@@ -205,12 +208,12 @@ public class PrestoMetastore extends AbstractMetastore {
                     .bind("project", project).execute();
         }
 
-        for(String collectionName : getCollectionNames(project)) {
+        for (String collectionName : getCollectionNames(project)) {
             String query = String.format("DROP TABLE %s.%s.%s", prestoConfig.getColdStorageConnector(), project, collectionName);
 
             QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(query, defaultSession)).getResult().join();
 
-            if(join.isFailed()) {
+            if (join.isFailed()) {
                 LOGGER.error("Error while deleting table %s.%s : %s", project, collectionName, join.getError().toString());
             }
         }
@@ -292,7 +295,7 @@ public class PrestoMetastore extends AbstractMetastore {
         }
     }
 
-    private static class SignatureReferenceTypeManager implements TypeManager {
+    public static class SignatureReferenceTypeManager implements TypeManager {
         @Override
         public Type getType(TypeSignature typeSignature) {
             return new SignatureReferenceType(typeSignature, Object.class);

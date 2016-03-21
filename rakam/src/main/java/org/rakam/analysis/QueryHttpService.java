@@ -137,9 +137,12 @@ public class QueryHttpService extends HttpService {
         QueryExecution execute;
         try {
             execute = executorFunction.apply(query);
+        } catch (RakamException e) {
+            response.send("result", encode(HttpServer.errorMessage("Couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
+            return;
         } catch (Exception e) {
             LOGGER.error(e, "Error while executing query");
-            response.send("result", encode(HttpServer.errorMessage("couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
+            response.send("result", encode(HttpServer.errorMessage("Couldn't execute query: Internal error", BAD_REQUEST))).end();
             return;
         }
 

@@ -96,22 +96,25 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension,
                 startDate, endDate, missingPreComputedTables);
 
-        String timeSubtraction = diffTimestamps(dateUnit, "data.date", "returning_action.date") + "-1";
+        String timeSubtraction = diffTimestamps(dateUnit, "data.date", "returning_action.date");
 
         String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.date";
 
+        String mergeSetAggregation = dimension.map(v -> "merge_sets").orElse("");
         String query = format("with first_action as (\n" +
                         "  %s\n" +
                         "), \n" +
                         "returning_action as (\n" +
                         "  %s\n" +
                         ") \n" +
-                        "select %s, cast(null as bigint) as lead, cardinality(%s_set) count from first_action data union all\n" +
-                        "select %s, %s, cardinality_intersection(data.%s_set, returning_action.%s_set) \n" +
-                        "from first_action data join returning_action on (data.date < returning_action.date AND data.date + interval '%d' day > returning_action.date) \n" +
-                        "ORDER BY 1, 2 NULLS FIRST",
-                firstActionQuery, returningActionQuery, dimensionColumn,
-                CONNECTOR_FIELD, dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD, period);
+                        "select %s, cast(null as bigint) as lead, cardinality(%s(%s_set)) count from first_action data %s union all\n" +
+                        "SELECT * FROM (select %s, %s, cardinality_intersection(%s(data.%s_set), %s(returning_action.%s_set)) count \n" +
+                        "from first_action data join returning_action on (data.date <= returning_action.date AND data.date + interval '%d' day > returning_action.date) \n" +
+                        "%s) WHERE count > 0 ORDER BY 1, 2 NULLS FIRST",
+                firstActionQuery, returningActionQuery, dimensionColumn, mergeSetAggregation,
+                CONNECTOR_FIELD, dimension.map(v -> "GROUP BY 1").orElse(""), dimensionColumn, timeSubtraction, mergeSetAggregation, CONNECTOR_FIELD,
+                mergeSetAggregation, CONNECTOR_FIELD, period,
+                dimension.map(v -> "GROUP BY 1, 2").orElse(""));
 
         return new DelegateQueryExecution(executor.executeQuery(project, query),
                 result -> {

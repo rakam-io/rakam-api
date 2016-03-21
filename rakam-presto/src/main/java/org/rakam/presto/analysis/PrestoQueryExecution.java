@@ -1,6 +1,5 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.hadoop.$internal.com.google.common.base.Preconditions;
 import com.facebook.presto.jdbc.internal.client.ClientTypeSignatureParameter;
 import com.facebook.presto.jdbc.internal.client.ErrorLocation;
 import com.facebook.presto.jdbc.internal.client.QueryResults;
@@ -9,6 +8,7 @@ import com.facebook.presto.jdbc.internal.client.StatementStats;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
 import com.facebook.presto.jdbc.internal.guava.util.concurrent.ThreadFactoryBuilder;
 import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import org.rakam.collection.FieldType;

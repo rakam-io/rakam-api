@@ -13,14 +13,16 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public class RakamExpressionFormatter extends com.facebook.presto.sql.ExpressionFormatter.Formatter {
 
-    private final Function<QualifiedName, String> tableNameMapper;
+    private final BiFunction<QualifiedName, StringBuilder, String> tableNameMapper;
     private final Optional<Function<QualifiedName, String>> columnNameMapper;
 
-    public RakamExpressionFormatter(Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper) {
+    public RakamExpressionFormatter(BiFunction<QualifiedName, StringBuilder, String> tableNameMapper,
+                                    Optional<Function<QualifiedName, String>> columnNameMapper) {
         this.tableNameMapper = tableNameMapper;
         this.columnNameMapper = columnNameMapper;
     }

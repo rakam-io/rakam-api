@@ -46,8 +46,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
+import static org.rakam.report.realtime.AggregationType.COUNT;
+import static org.rakam.report.realtime.AggregationType.SUM;
 import static org.rakam.util.ValidationUtil.checkArgument;
 
 @Path("/event-explorer")
@@ -127,13 +128,14 @@ public class EventExplorerHttpService extends HttpService {
                 .collect(Collectors.joining(", "));
 
         String subQuery;
+        String dimensions = table.dimensions.stream().collect(Collectors.joining(", "));
         if (table.collections.size() == 1) {
             subQuery = table.collections.iterator().next();
         } else if (table.collections.size() > 1) {
-            subQuery = table.collections.stream().map(collection -> String.format("SELECT '%s' as collection, _time, %s, %s FROM %s",
+            subQuery = table.collections.stream().map(collection -> String.format("SELECT '%s' as collection, _time %s %s FROM %s",
                     collection,
-                    table.dimensions.stream().collect(Collectors.joining(", ")),
-                    table.measures.stream().collect(Collectors.joining(", ")), collection))
+                    dimensions.isEmpty() ? "" : ", "+dimensions,
+                    table.measures.isEmpty() ? "" : ", "+table.measures.stream().collect(Collectors.joining(", ")), collection))
                     .collect(Collectors.joining(" UNION ALL "));
         } else {
             throw new RakamException("collections is empty", HttpResponseStatus.BAD_REQUEST);
@@ -141,31 +143,22 @@ public class EventExplorerHttpService extends HttpService {
 
         String name = "Dimensions";
 
-        String query = String.format("SELECT %s CAST(_time AS DATE) as _time, %s, %s FROM (%s) GROUP BY 1, %s %s ORDER BY 1 ASC",
+        String query = String.format("SELECT %s CAST(_time AS DATE) as _time, %s %s FROM (%s) GROUP BY CUBE (_time %s %s) ORDER BY 1 ASC",
                 table.collections.size() != 1 ? ("collection,") : "",
-                table.dimensions.stream().collect(Collectors.joining(", ")), metrics, subQuery,
-                IntStream.range(0, table.dimensions.size()).mapToObj(i -> Integer.toString(i + 2)).collect(Collectors.joining(", ")),
-                table.collections.size() != 1 ? ("," + (table.dimensions.size() + 2)) : "");
+                !dimensions.isEmpty() ? (dimensions + ",") : "",
+                metrics, subQuery,
+                table.collections.size() == 1 ? "" : ", collection", dimensions.isEmpty() ? "" : "," + dimensions);
 
-//        switch (table.tableType) {
-//            case CONTINUOUS_QUERY:
-//                return continuousQueryService.create(new ContinuousQuery(table.project, name, table.tableName, query,
-//                        ImmutableList.of("date"), ImmutableMap.of("olap_table", table)), table.replayHistoricalData == null ? false : table.replayHistoricalData)
-//                        .thenApply(v -> new PreCalculatedTable(name, table.tableName));
-//            case MATERIALIZED_VIEW:
-                return materializedViewService.create(new MaterializedView(table.project, name, table.tableName, query,
-                        Duration.ofHours(1), "date", ImmutableMap.of("olap_table", table)))
-                        .thenApply(v -> new PreCalculatedTable(name, table.tableName));
-//            default:
-//                throw new IllegalStateException();
-//        }
+        return materializedViewService.create(new MaterializedView(table.project, name, table.tableName, query,
+                Duration.ofHours(1), null, ImmutableMap.of("olap_table", table)))
+                .thenApply(v -> new PreCalculatedTable(name, table.tableName));
     }
 
     private Optional<String> getAggregationColumn(AggregationType agg, Set<AggregationType> aggregations) {
         switch (agg) {
             case AVERAGE:
-                aggregations.add(AggregationType.COUNT);
-                aggregations.add(AggregationType.SUM);
+                aggregations.add(COUNT);
+                aggregations.add(SUM);
                 return Optional.empty();
             case MAXIMUM:
                 return Optional.of("max(%s)");

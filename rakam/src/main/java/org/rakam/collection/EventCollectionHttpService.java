@@ -9,7 +9,11 @@ import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
@@ -29,6 +33,7 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -51,6 +56,7 @@ import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 @Path("/event")
 @Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
@@ -66,7 +72,7 @@ public class EventCollectionHttpService extends HttpService {
     private final Set<EventProcessor> eventProcessors;
 
     @Inject
-    public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,EventDeserializer deserializer, EventListDeserializer eventListDeserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Metastore metastore) {
+    public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService, EventDeserializer deserializer, EventListDeserializer eventListDeserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Metastore metastore) {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
         this.eventProcessors = eventProcessors;
@@ -86,12 +92,12 @@ public class EventCollectionHttpService extends HttpService {
         });
     }
 
-    private List<Cookie> mapEvent(Event event, HttpHeaders headers, InetAddress remoteAddress, DefaultFullHttpResponse response) {
+    private List<Cookie> mapEvent(Event event, HttpHeaders requestHeaders, InetAddress remoteAddress, HttpHeaders responseHeaders) {
         List<Cookie> responseAttachment = null;
         for (EventMapper mapper : eventMappers) {
             try {
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
-                final List<Cookie> map = mapper.map(event, headers, remoteAddress, response);
+                final List<Cookie> map = mapper.map(event, requestHeaders, remoteAddress);
                 if (map != null) {
                     if (responseAttachment == null) {
                         responseAttachment = new ArrayList<>();
@@ -106,7 +112,7 @@ public class EventCollectionHttpService extends HttpService {
 
         for (EventProcessor eventProcessor : eventProcessors) {
             try {
-                final List<Cookie> map = eventProcessor.map(event, headers, remoteAddress, response);
+                final List<Cookie> map = eventProcessor.map(event, requestHeaders, remoteAddress, responseHeaders);
                 if (map != null) {
                     if (responseAttachment == null) {
                         responseAttachment = new ArrayList<>();
@@ -134,7 +140,7 @@ public class EventCollectionHttpService extends HttpService {
         HttpHeaders headers = request.headers();
 
         request.bodyHandler(buff -> {
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
 
             final List<Cookie> cookies;
 
@@ -154,13 +160,14 @@ public class EventCollectionHttpService extends HttpService {
 
                 if (!validateProjectPermission(event.project(), context.writeKey)) {
                     ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
-                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, UNAUTHORIZED, byteBuf);
+                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf);
                     errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
                     request.response(errResponse).end();
                     return;
                 }
 
-                cookies = mapEvent(event, headers, getRemoteAddress(socketAddress), response);
+
+                cookies = mapEvent(event, headers, getRemoteAddress(socketAddress), response.trailingHeaders());
 
                 eventStore.store(event);
             } catch (JsonMappingException e) {
@@ -176,7 +183,7 @@ public class EventCollectionHttpService extends HttpService {
                 LOGGER.error(e, "Error while collecting event");
 
                 ByteBuf byteBuf = Unpooled.wrappedBuffer("\"internal server error\"".getBytes(CharsetUtil.UTF_8));
-                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
+                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
                 errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
                 request.response(errResponse).end();
                 return;
@@ -224,9 +231,9 @@ public class EventCollectionHttpService extends HttpService {
 
         request.bodyHandler(buff -> {
             List<Cookie> entries = null;
+            int[] errorIndexes;
 
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
-
+            DefaultHttpHeaders responseHeaders;
             try {
                 EventList events = jsonMapper.readValue(buff, EventList.class);
 
@@ -237,7 +244,7 @@ public class EventCollectionHttpService extends HttpService {
 
                 if (!validateProjectPermission(events.project, context.writeKey)) {
                     ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
-                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, UNAUTHORIZED, byteBuf);
+                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf);
                     errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
                     request.response(errResponse).end();
                     return;
@@ -245,8 +252,10 @@ public class EventCollectionHttpService extends HttpService {
 
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
+                responseHeaders = new DefaultHttpHeaders();
+
                 for (Event event : events.events) {
-                    List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, response);
+                    List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, responseHeaders);
                     if (mapperEntries != null) {
                         if (entries == null) {
                             entries = new ArrayList<>();
@@ -256,10 +265,11 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 try {
-                    int[] ints = eventStore.storeBatch(events.events);
+                    errorIndexes = eventStore.storeBatch(events.events);
                 } catch (Exception e) {
                     LOGGER.error(e, "error while storing event.");
                     request.response("0", BAD_REQUEST).end();
+                    return;
                 }
 
             } catch (JsonMappingException e) {
@@ -279,23 +289,27 @@ public class EventCollectionHttpService extends HttpService {
                 LOGGER.error(e, "Error while collecting event");
 
                 ByteBuf byteBuf = Unpooled.wrappedBuffer("0".getBytes(CharsetUtil.UTF_8));
-                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
+                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
                 errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
                 request.response(errResponse).end();
                 return;
             }
 
             if (entries != null) {
-                response.headers().add(HttpHeaders.Names.SET_COOKIE,
+                responseHeaders.add(HttpHeaders.Names.SET_COOKIE,
                         ServerCookieEncoder.STRICT.encode(entries));
             }
 
-            String headerList = getHeaderList(response.headers().iterator());
+            String headerList = getHeaderList(responseHeaders.iterator());
             if (headerList != null) {
-                response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
+                responseHeaders.set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
 
-            response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+            responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+
+            HeaderDefaultFullHttpResponse response = new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                    Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
+                    responseHeaders);
 
             request.response(response).end();
         });
@@ -324,7 +338,7 @@ public class EventCollectionHttpService extends HttpService {
             md = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
             ByteBuf byteBuf = Unpooled.wrappedBuffer("0".getBytes(CharsetUtil.UTF_8));
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
             response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             request.response(response).end();
             return false;
@@ -332,7 +346,7 @@ public class EventCollectionHttpService extends HttpService {
 
         if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF_8))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
             ByteBuf byteBuf = Unpooled.wrappedBuffer("\"checksum is invalid\"".getBytes(CharsetUtil.UTF_8));
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, BAD_REQUEST, byteBuf);
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST, byteBuf);
             response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             request.response(response).end();
             return false;
@@ -353,6 +367,84 @@ public class EventCollectionHttpService extends HttpService {
             this.project = checkNotNull(project, "project parameter is null");
             this.events = checkNotNull(events, "events parameter is null");
             this.api = checkNotNull(api, "api is null");
+        }
+    }
+
+    public static final class HeaderDefaultFullHttpResponse extends DefaultHttpResponse implements FullHttpResponse {
+        private final ByteBuf content;
+        private final HttpHeaders trailingHeaders;
+
+        public HeaderDefaultFullHttpResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content, HttpHeaders headers) {
+            super(version, status);
+            trailingHeaders = headers;
+            this.content = content;
+        }
+
+        @Override
+        public HttpHeaders trailingHeaders() {
+            return trailingHeaders;
+        }
+
+        @Override
+        public ByteBuf content() {
+            return content;
+        }
+
+        @Override
+        public int refCnt() {
+            return content.refCnt();
+        }
+
+        @Override
+        public FullHttpResponse retain() {
+            content.retain();
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse retain(int increment) {
+            content.retain(increment);
+            return this;
+        }
+
+        @Override
+        public boolean release() {
+            return content.release();
+        }
+
+        @Override
+        public boolean release(int decrement) {
+            return content.release(decrement);
+        }
+
+        @Override
+        public FullHttpResponse setProtocolVersion(HttpVersion version) {
+            super.setProtocolVersion(version);
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse setStatus(HttpResponseStatus status) {
+            super.setStatus(status);
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse copy() {
+            DefaultFullHttpResponse copy = new DefaultFullHttpResponse(
+                    getProtocolVersion(), getStatus(), content().copy(), true);
+            copy.headers().set(headers());
+            copy.trailingHeaders().set(trailingHeaders());
+            return copy;
+        }
+
+        @Override
+        public FullHttpResponse duplicate() {
+            DefaultFullHttpResponse duplicate = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(),
+                    content().duplicate(), true);
+            duplicate.headers().set(headers());
+            duplicate.trailingHeaders().set(trailingHeaders());
+            return duplicate;
         }
     }
 }

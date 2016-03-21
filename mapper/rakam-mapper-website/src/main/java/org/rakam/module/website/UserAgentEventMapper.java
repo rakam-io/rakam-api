@@ -2,15 +2,14 @@ package org.rakam.module.website;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
 import ua_parser.CachingParser;
@@ -39,7 +38,7 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, DefaultFullHttpResponse response) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
         GenericRecord properties = event.properties();
         mapInternal(extraProperties, properties, properties.get("_user_agent"));
         return null;

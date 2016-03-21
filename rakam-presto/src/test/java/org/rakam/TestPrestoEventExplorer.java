@@ -15,12 +15,14 @@ import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
+import org.rakam.presto.analysis.PrestoQueryExecution;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.eventexplorer.EventExplorerListener;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
+import java.util.Map;
 
 public class TestPrestoEventExplorer extends TestEventExplorer {
 
@@ -46,15 +48,22 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
                 eventBus, new FieldDependencyBuilder().build(), prestoConfig);
         metastore.setup();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
+        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore) {
+            @Override
+            public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties) {
+                // ignore session parameter in tests
+                return super.executeRawQuery(query);
+            }
+        };
 
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore,
                 prestoQueryExecutor, prestoConfig);
         eventBus.register(new EventExplorerListener(continuousQueryService));
 
-        PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(prestoQueryExecutor, inMemoryQueryMetadataStore, Clock.systemUTC());
+        PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
+                prestoQueryExecutor, inMemoryQueryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor,
-                inMemoryQueryMetadataStore, metastore, materializedViewService);
+                inMemoryQueryMetadataStore, metastore, materializedViewService,  Clock.systemUTC());
 
         eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService,
                 materializedViewService, metastore);

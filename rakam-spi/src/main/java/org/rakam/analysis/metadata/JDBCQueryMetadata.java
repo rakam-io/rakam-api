@@ -18,8 +18,10 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.skife.jdbi.v2.util.LongMapper;
 
 import javax.inject.Inject;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 public class JDBCQueryMetadata implements QueryMetadataStore {
     private final DBI dbi;
     private final LoadingCache<ProjectCollection, MaterializedView> materializedViewCache;
+    private final Clock clock;
 
     ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
         Long update_interval = r.getLong("update_interval");
@@ -55,8 +58,9 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             JsonHelper.read(r.getString(7), Map.class));
 
     @Inject
-    public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, Clock clock) {
         dbi = new DBI(dataSource);
+        this.clock = clock;
 
         materializedViewCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, MaterializedView>() {
             @Override
@@ -127,34 +131,34 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     @Override
-    public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Boolean> releaseLock) {
-        int rows;
-        try(Handle handle = dbi.open()) {
-            rows = handle.createStatement("UPDATE materialized_views SET last_updated = -1 WHERE project = :project AND table_name = :table_name AND (last_updated IS NULL OR last_updated != -1)")
+    public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Instant> releaseLock) {
+
+        Handle handle = dbi.open();
+        long lastUpdated = handle.createQuery("SELECT last_updated FROM materialized_views WHERE project = :project AND table_name = :table_name FOR UPDATE")
                     .bind("project", view.project)
                     .bind("table_name", view.tableName)
-                    .execute();
+                    .map(LongMapper.FIRST).first();
+
+        view.lastUpdate = Instant.ofEpochSecond(lastUpdated);
+        if(!view.needsUpdate(clock)) {
+            return false;
         }
 
         releaseLock.whenComplete((success, ex) -> {
-
-            Long lastUpdate;
-            if(Boolean.TRUE.equals(success)) {
-                view.lastUpdate = Instant.now();
-                lastUpdate = view.lastUpdate.getEpochSecond();
-            } else {
-                lastUpdate = view.lastUpdate != null ? view.lastUpdate.getEpochSecond() : null;
-            }
-            try(Handle handle = dbi.open()) {
+            if(success != null) {
+                view.lastUpdate = success;
+                long lastUpdate = view.lastUpdate.getEpochSecond();
                 handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated WHERE project = :project AND table_name = :table_name")
                         .bind("project", view.project)
                         .bind("table_name", view.tableName)
                         .bind("last_updated", lastUpdate)
                         .execute();
             }
+
+            handle.close();
         });
 
-        return rows == 1;
+        return true;
     }
 
     @Override

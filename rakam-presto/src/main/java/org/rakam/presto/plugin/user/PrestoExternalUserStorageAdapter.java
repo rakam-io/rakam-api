@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
@@ -19,6 +20,7 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -34,6 +36,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     private final UserPluginConfig config;
     private final MaterializedViewService materializedViewService;
     private final PrestoConfig prestoConfig;
+    private final Metastore metastore;
 
     @Inject
     public PrestoExternalUserStorageAdapter(MaterializedViewService materializedViewService,
@@ -49,6 +52,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         this.materializedViewService = materializedViewService;
         queryExecutor.executeRawStatement("CREATE SCHEMA IF NOT EXISTS users").getResult().join();
         metastore.getProjects().forEach(this::createProject);
+        this.metastore = metastore;
     }
 
     @Override
@@ -69,11 +73,21 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                     eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection))))
                             .collect(Collectors.joining(" union all ")));
         } else {
-            query = String.format("select distinct _user as %s from %s",
-                    config.getIdentifierColumn(),
-                    executor.formatTableReference(project, QualifiedName.of("_all")));
-        }
+            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> c.getValue().stream().anyMatch(a -> a.getName().equals("_user")))
+                    .collect(Collectors.toList());
 
+            String sharedColumns = collections.get(0).getValue().stream()
+                    .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
+                    .map(f -> f.getName())
+                    .collect(Collectors.joining(", "));
+
+            query = String.format("select distinct _user as %s from (%s)",
+                    config.getIdentifierColumn(),
+                    collections.stream().map(c -> String.format("select %s from %s", sharedColumns,
+                            executor.formatTableReference(project, QualifiedName.of(c.getKey())))).collect(Collectors.joining(" union all ")));
+        }
+//
 //        if(sortColumn == null) {
 //            sortColumn = new Sorting("_user", Ordering.asc);
 //        }

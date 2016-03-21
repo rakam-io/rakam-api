@@ -80,7 +80,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
     @Override
     public CompletableFuture<Boolean> delete(String project, String tableName) {
-        String prestoQuery = format("drop table %s.\"%s\".\"%s\"", config.getStreamingConnector(), project, tableName);
+        String prestoQuery = format("drop view %s.\"%s\".\"%s\"", config.getStreamingConnector(), project, tableName);
         return executor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
             if (result.getError() == null) {
                 database.deleteContinuousQuery(project, tableName);

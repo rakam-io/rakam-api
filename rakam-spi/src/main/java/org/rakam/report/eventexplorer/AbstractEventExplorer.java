@@ -108,7 +108,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             case COLUMN:
                 return ref.value;
             case REFERENCE:
-                return "time";
+                return "_time";
             default:
                 throw new IllegalArgumentException("Unknown reference type: " + ref.value);
         }
@@ -202,12 +202,12 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         String computeQuery;
         if (preComputedTable.isPresent()) {
-            computeQuery = String.format("SELECT %s %s %s as value FROM %s WHERE collection IN (%s) AND %s %s %s",
+            computeQuery = String.format("SELECT %s %s %s as value FROM %s WHERE %s %s %s %s",
                     grouping != null ? (getColumnValue(grouping) + " as " + getColumnReference(grouping) + "_group ,") : "",
                     segment != null ? (getColumnValue(segment) + " as " + getColumnReference(segment) + "_segment ,") : "",
                     String.format(getFinalForAggregationFunction(measureType), measureType.column + "_" + measureType.aggregation.name().toLowerCase()),
                     preComputedTable.get().getValue(),
-                    collections.stream().map(c -> "'" + c + "'").collect(Collectors.joining(",")),
+                    collections.size() > 1 ? String.format("collection IN (%s) AND", collections.stream().map(c -> "'" + c + "'").collect(Collectors.joining(","))) : "",
                     timeFilter,
                     filterExpression != null ? (" AND " + filterExpression) : "",
                     groupBy);
@@ -235,7 +235,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                 select.isEmpty() ? select : select + ",",
                                 measureColumn,
                                 QualifiedName.of(collection), where))
-                        .collect(Collectors.joining(" union all ")) + ")";
+                        .collect(Collectors.joining(" union all "));
 
                 computeQuery = format("select %s %s as value from (%s) as data %s",
                         select.isEmpty() ? "" : selectPart + ",",
@@ -386,18 +386,18 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                 throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, sum(total) from (", aggregationMethod.get() == HOUR ? "time" : format(timestampMapping.get(aggregationMethod.get()), "time"), aggregationMethod.get()) +
+            query = format("select collection, %s as %s, sum(total) from (", aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"), aggregationMethod.get()) +
                     collectionNames.stream()
                             .map(collection ->
-                                    format("select cast('%s' as varchar) as collection, time, coalesce(total, 0) as total from continuous.\"%s\" ",
+                                    format("select cast('%s' as varchar) as collection, _time, coalesce(total, 0) as total from continuous.\"%s\" ",
                                             collection,
                                             "_total_" + collection))
                             .collect(Collectors.joining(" union all ")) +
-                    format(") as data where \"time\" between date '%s' and date '%s' + interval '1' day group by 1, 2 order by 2 desc", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+                    format(") as data where \"_time\" between date '%s' and date '%s' + interval '1' day group by 1, 2 order by 2 desc", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
                     .map(collection ->
-                            format("select cast('%s' as varchar) as collection, coalesce(sum(total), 0) as total from continuous.\"%s\" where time between date '%s' and date '%s' + interval '1' day",
+                            format("select cast('%s' as varchar) as collection, coalesce(sum(total), 0) as total from continuous.\"%s\" where _time between date '%s' and date '%s' + interval '1' day",
                                     collection,
                                     "_total_" + collection,
                                     startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
