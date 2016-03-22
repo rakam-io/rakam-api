@@ -22,7 +22,6 @@ import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -53,13 +52,11 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema")
-    public CompletableFuture<List<MaterializedViewSchema>> schema(@ApiParam(name = "project") String project,
+    public List<MaterializedViewSchema> schema(@ApiParam(name = "project") String project,
                                                                   @ApiParam(name = "names", required = false) List<String> tableNames) {
-        CompletableFuture<Map<String, List<SchemaField>>> schemas = service.getSchemas(project, Optional.ofNullable(tableNames));
-
-        return schemas.thenApply(schema -> schema.entrySet().stream()
+        return service.getSchemas(project, Optional.ofNullable(tableNames)).entrySet().stream()
                 .map(entry -> new MaterializedViewSchema(entry.getKey(), entry.getValue()))
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
     }
 
     public static class MaterializedViewSchema {

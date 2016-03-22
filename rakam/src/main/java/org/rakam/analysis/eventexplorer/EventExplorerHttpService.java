@@ -134,8 +134,8 @@ public class EventExplorerHttpService extends HttpService {
         } else if (table.collections.size() > 1) {
             subQuery = table.collections.stream().map(collection -> String.format("SELECT '%s' as collection, _time %s %s FROM %s",
                     collection,
-                    dimensions.isEmpty() ? "" : ", "+dimensions,
-                    table.measures.isEmpty() ? "" : ", "+table.measures.stream().collect(Collectors.joining(", ")), collection))
+                    dimensions.isEmpty() ? "" : ", " + dimensions,
+                    table.measures.isEmpty() ? "" : ", " + table.measures.stream().collect(Collectors.joining(", ")), collection))
                     .collect(Collectors.joining(" UNION ALL "));
         } else {
             throw new RakamException("collections is empty", HttpResponseStatus.BAD_REQUEST);
@@ -143,10 +143,13 @@ public class EventExplorerHttpService extends HttpService {
 
         String name = "Dimensions";
 
-        String query = String.format("SELECT %s CAST(_time AS DATE) as _time, %s %s FROM (%s) GROUP BY CUBE (_time %s %s) ORDER BY 1 ASC",
-                table.collections.size() != 1 ? ("collection,") : "",
-                !dimensions.isEmpty() ? (dimensions + ",") : "",
-                metrics, subQuery,
+        String dimensionColumns = !dimensions.isEmpty() ? (dimensions + ",") : "";
+        String collectionColumn = table.collections.size() != 1 ? ("collection,") : "";
+        String query = String.format("SELECT %s _time, %s %s FROM (SELECT %s CAST(_time AS DATE) as _time, %s %s FROM (%s)) GROUP BY CUBE (_time %s %s) ORDER BY 1 ASC",
+                collectionColumn, dimensionColumns, metrics,
+                collectionColumn, dimensionColumns, table.measures.stream().collect(Collectors.joining(", ")),
+
+                subQuery,
                 table.collections.size() == 1 ? "" : ", collection", dimensions.isEmpty() ? "" : "," + dimensions);
 
         return materializedViewService.create(new MaterializedView(table.project, name, table.tableName, query,

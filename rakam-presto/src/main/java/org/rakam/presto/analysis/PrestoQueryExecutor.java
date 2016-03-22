@@ -31,6 +31,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
@@ -49,13 +50,14 @@ public class PrestoQueryExecutor implements QueryExecutor {
                     .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
             ImmutableSet.of(new UserAgentRequestFilter("rakam")));
     private final Metastore metastore;
-    private final ClientSession defaultSession;
+    private AtomicReference<ClientSession> defaultSession;
+    public static PrestoQueryExecution.TransactionHook NO_OP_TRANSACTION_HOOK = new NoopTransactionHook();
 
     @Inject
     public PrestoQueryExecutor(PrestoConfig prestoConfig, Metastore metastore) {
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;
-        this.defaultSession = new ClientSession(
+        this.defaultSession = new AtomicReference<>(new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
@@ -65,11 +67,11 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 Locale.ENGLISH,
                 ImmutableMap.<String, String>of(),
                 null,
-                false, new Duration(1, TimeUnit.MINUTES));
+                false, new Duration(1, TimeUnit.MINUTES)));
     }
 
     public PrestoQueryExecution executeRawQuery(String query) {
-        return new PrestoQueryExecution(startQuery(query, defaultSession));
+        return new PrestoQueryExecution(startQuery(query, defaultSession.get()), NO_OP_TRANSACTION_HOOK);
     }
 
     public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties) {
@@ -82,7 +84,17 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 TimeZone.getDefault().getID(),
                 Locale.ENGLISH,
                 sessionProperties,
-                null, false, new Duration(1, TimeUnit.MINUTES))));
+                null, false, new Duration(1, TimeUnit.MINUTES))), new PrestoQueryExecution.TransactionHook() {
+            @Override
+            public void onClear() {
+
+            }
+
+            @Override
+            public void setTransaction(String transactionId) {
+
+            }
+        });
     }
 
     @Override
@@ -184,6 +196,17 @@ public class PrestoQueryExecutor implements QueryExecutor {
         }
     }
 
+    public static class NoopTransactionHook implements PrestoQueryExecution.TransactionHook {
 
+        @Override
+        public void onClear() {
+
+        }
+
+        @Override
+        public void setTransaction(String transactionId) {
+
+        }
+    }
 
 }

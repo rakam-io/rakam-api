@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -58,29 +59,38 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     protected final QueryExecutor queryExecutor;
     private final DBI dbi;
     private static final double FILL_FACTOR = 0.75;
+    private final PrestoMetastore metastore;
     private long maxShardRows = 1_000_000;
     private DataSize maxShardSize = new DataSize(256, MEGABYTE);
 
     @Inject
     public PrestoMaterializedViewService(@Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
                                          QueryExecutor queryExecutor,
+                                         PrestoMetastore metastore,
                                          QueryMetadataStore database) {
         super(database, queryExecutor);
         this.database = database;
         this.queryExecutor = queryExecutor;
+        this.metastore = metastore;
         dbi = new DBI(prestoMetastoreDataSource);
     }
 
-//    public List<SchemaField> getMaterializedViewSchema(String project, String collection) {
-//        return dao.listTableColumns(project, PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX + collection).stream().map(column -> {
-//            TypeSignature typeSignature = column.getDataType().getTypeSignature();
-//
-//            return new SchemaField(column.getColumnName(), PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
-//                    typeSignature.getParameters().stream()
-//                            .filter(param -> param.getKind() == TYPE)
-//                            .map(param -> param.getTypeSignature().getBase()).iterator()));
-//        }).collect(Collectors.toList());
-//    }
+    @Override
+    public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names) {
+        Map<String, List<SchemaField>> views = metastore.getTables(project,
+                tableColumn -> tableColumn.getTable().getTableName().startsWith(MATERIALIZED_VIEW_PREFIX));
+        if(names.isPresent()) {
+            return views.entrySet().stream().filter(e -> names.get().contains(e.getKey()))
+                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+        } else {
+            return views;
+        }
+    }
+
+    @Override
+    public List<SchemaField> getSchema(String project, String tableName) {
+        return super.getSchema(project, tableName);
+    }
 
     @Override
     public CompletableFuture<Void> create(MaterializedView materializedView) {
@@ -136,11 +146,6 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                 return;
             }
         });
-    }
-
-    @Override
-    protected CompletableFuture<List<SchemaField>> metadata(String project, String query) {
-        return super.metadata(project, query);
     }
 
     @Override

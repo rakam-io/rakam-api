@@ -27,7 +27,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
     private FunnelQueryExecutor funnelQueryExecutor;
     private TestingPrestoEventStore testingPrestoEventStore;
     private TestingEnvironment testingEnvironment;
-    private Metastore metastore;
+    private PrestoMetastore metastore;
 
     @BeforeSuite
     @Override
@@ -52,7 +52,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         eventBus.register(new EventExplorerListener(continuousQueryService));
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
-                prestoQueryExecutor, inMemoryQueryMetadataStore);
+                prestoQueryExecutor, metastore, inMemoryQueryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, inMemoryQueryMetadataStore, metastore,
                 materializedViewService, Clock.systemUTC());
 

@@ -36,7 +36,7 @@ public abstract class MaterializedViewService {
 
     public abstract CompletableFuture<QueryResult> delete(String project, String name);
 
-    public CompletableFuture<Map<String, List<SchemaField>>> getSchemas(String project, Optional<List<String>> names) {
+    public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names) {
         Map<String, CompletableFuture<List<SchemaField>>> futures = new HashMap<>();
 
         List<MaterializedView> materializedViews;
@@ -57,11 +57,11 @@ public abstract class MaterializedViewService {
                 futures.entrySet().stream().collect(Collectors.toMap(key -> key.getKey(), key -> {
                     CompletableFuture<List<SchemaField>> value = key.getValue();
                     return value.join();
-                })));
+                }))).join();
     }
 
-    public CompletableFuture<List<SchemaField>> getSchema(String project, String tableName) {
-        return metadata(project, database.getMaterializedView(project, tableName).query);
+    public List<SchemaField> getSchema(String project, String tableName) {
+        return metadata(project, database.getMaterializedView(project, tableName).query).join();
     }
 
     public static class MaterializedViewExecution {

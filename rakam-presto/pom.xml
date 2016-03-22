@@ -135,9 +135,8 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.roaringbitmap</groupId>
-            <artifactId>RoaringBitmap</artifactId>
-            <version>[0.5,)</version>
+            <groupId>io.airlift</groupId>
+            <artifactId>units</artifactId>
         </dependency>
         <dependency>
             <groupId>com.facebook.presto</groupId>

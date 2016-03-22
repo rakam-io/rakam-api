@@ -29,7 +29,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
     private EventExplorer eventExplorer;
     private TestingPrestoEventStore testingPrestoEventStore;
     private TestingEnvironment testingEnvironment;
-    private Metastore metastore;
+    private PrestoMetastore metastore;
 
     @BeforeSuite
     @Override
@@ -61,7 +61,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
         eventBus.register(new EventExplorerListener(continuousQueryService));
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
-                prestoQueryExecutor, inMemoryQueryMetadataStore);
+                prestoQueryExecutor, metastore, inMemoryQueryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor,
                 inMemoryQueryMetadataStore, metastore, materializedViewService,  Clock.systemUTC());
 

@@ -24,7 +24,7 @@ import java.time.Clock;
 public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor {
 
     private TestingEnvironment testingEnvironment;
-    private Metastore metastore;
+    private PrestoMetastore metastore;
     private PrestoRetentionQueryExecutor retentionQueryExecutor;
     private TestingPrestoEventStore testingPrestoEventStore;
 
@@ -43,7 +43,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
 
         PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
-                queryExecutor, queryMetadataStore);
+                queryExecutor, metastore, queryMetadataStore);
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, queryExecutor, prestoConfig);
 
         QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService, Clock.systemUTC());

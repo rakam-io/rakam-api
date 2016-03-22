@@ -87,7 +87,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                     collections.stream().map(c -> String.format("select %s from %s", sharedColumns,
                             executor.formatTableReference(project, QualifiedName.of(c.getKey())))).collect(Collectors.joining(" union all ")));
         }
-//
+
 //        if(sortColumn == null) {
 //            sortColumn = new Sorting("_user", Ordering.asc);
 //        }

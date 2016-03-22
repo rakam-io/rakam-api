@@ -1,5 +1,6 @@
 package org.rakam.presto.analysis;
 
+import com.facebook.presto.jdbc.internal.client.ClientSession;
 import com.facebook.presto.jdbc.internal.client.ClientTypeSignatureParameter;
 import com.facebook.presto.jdbc.internal.client.ErrorLocation;
 import com.facebook.presto.jdbc.internal.client.QueryResults;
@@ -32,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.spi.type.ParameterKind.TYPE;
@@ -47,7 +49,9 @@ public class PrestoQueryExecution implements QueryExecution {
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("presto-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
+    private static AtomicReference<ClientSession> defaultSession;
     private final List<List<Object>> data = Lists.newArrayList();
+    private final TransactionHook transactionHook;
     private List<SchemaField> columns;
 
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
@@ -57,9 +61,10 @@ public class PrestoQueryExecution implements QueryExecution {
     private final StatementClient client;
     private final Instant startTime;
 
-    public PrestoQueryExecution(StatementClient client) {
+    public PrestoQueryExecution(StatementClient client, TransactionHook transactionIdConsumer) {
         this.client = client;
         this.startTime = Instant.now();
+        this.transactionHook = transactionIdConsumer;
 
         QUERY_EXECUTOR.execute(new Runnable() {
             @Override
@@ -78,6 +83,11 @@ public class PrestoQueryExecution implements QueryExecution {
                             errorLocation != null ? errorLocation.getColumnNumber() : null);
                     result.complete(QueryResult.errorResult(queryError));
                 } else {
+                    if(client.isClearTransactionId()) {
+                        transactionHook.onClear();
+                    }
+                    transactionHook.setTransaction(client.getStartedtransactionId());
+
                     transformAndAdd(client.finalResults());
 
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
@@ -211,5 +221,8 @@ public class PrestoQueryExecution implements QueryExecution {
         client.close();
     }
 
-
+    public interface TransactionHook {
+        void onClear();
+        void setTransaction(String transactionId);
+    }
 }

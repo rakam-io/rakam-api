@@ -1,5 +1,6 @@
 package org.rakam.presto.analysis;
 
+import com.facebook.presto.spi.type.TypeSignature;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -10,15 +11,18 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.QueryFormatter;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static org.rakam.presto.analysis.PrestoQueryExecution.fromPrestoType;
 
 public class PrestoContinuousQueryService extends ContinuousQueryService {
 
@@ -92,26 +96,27 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
-        List<SimpleImmutableEntry<String, CompletableFuture<QueryResult>>> collect = database.getContinuousQueries(project).stream()
-                .map(query -> {
-                    // TODO: use jdbc metadata
-                    PrestoQueryExecution prestoQueryExecution = executor.executeRawQuery(format("select * from %s.\"%s\".\"%s\" limit 0",
-                            config.getStreamingConnector(), project, query.tableName));
-                    return new SimpleImmutableEntry<>(query.tableName, prestoQueryExecution
-                            .getResult());
-                }).collect(Collectors.toList());
+        QueryResult result = executor.executeRawQuery(String.format("select table_name, column_name, data_type from %s.information_schema.columns \n" +
+                        "where table_schema = '%s' order by table_name, ordinal_position",
+                config.getStreamingConnector(), project)).getResult().join();
 
-        CompletableFuture.allOf(collect.stream().map(c -> c.getValue()).toArray(CompletableFuture[]::new)).join();
-
-        ImmutableMap.Builder<String, List<SchemaField>> builder = ImmutableMap.builder();
-        for (SimpleImmutableEntry<String, CompletableFuture<QueryResult>> entry : collect) {
-            QueryResult join = entry.getValue().join();
-            if (join.isFailed()) {
-                continue;
-            }
-            builder.put(entry.getKey(), join.getMetadata());
+        if (result.isFailed()) {
+            throw new RakamException("Error while fetching metadata: "+result.getError().message, INTERNAL_SERVER_ERROR);
         }
-        return builder.build();
+
+        HashMap<String, List<SchemaField>> map = new HashMap<>();
+        for (List<Object> column : result.getResult()) {
+            String tableName = (String) column.get(0);
+            String columnName = (String) column.get(1);
+            TypeSignature dataType = TypeSignature.parseTypeSignature((String) column.get(2));
+
+            SchemaField field = new SchemaField(columnName, fromPrestoType(dataType.getBase(),
+                    dataType.getParameters().stream().map(e -> e.getTypeSignature().getBase()).iterator()));
+
+            map.computeIfAbsent(tableName, (key) -> new ArrayList<>()).add(field);
+        }
+
+        return map;
     }
 
     @Override

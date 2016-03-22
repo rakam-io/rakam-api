@@ -213,7 +213,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             handle.createStatement("DELETE FROM materialized_views WHERE project = :project AND table_name = :name")
                     .bind("project", project)
                     .bind("name", tableName).execute();
-            materializedViewCache.refresh(new ProjectCollection(project, tableName));
         }
     }
 

@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
@@ -202,14 +203,23 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         String computeQuery;
         if (preComputedTable.isPresent()) {
-            computeQuery = String.format("SELECT %s %s %s as value FROM %s WHERE %s %s %s %s",
+            String filters = preComputedTable.get().getKey().dimensions.stream()
+                    .filter(dim -> (grouping == null || grouping.type == REFERENCE && !grouping.value.equals(dim) &&
+                            (segment == null || segment.type == REFERENCE && !segment.value.equals(dim))))
+                    .map(dim -> String.format("%s is null", dim))
+                    .collect(Collectors.joining(" and "));
+
+            computeQuery = format("SELECT %s %s %s as value FROM %s WHERE %s %s",
                     grouping != null ? (getColumnValue(grouping) + " as " + getColumnReference(grouping) + "_group ,") : "",
                     segment != null ? (getColumnValue(segment) + " as " + getColumnReference(segment) + "_segment ,") : "",
-                    String.format(getFinalForAggregationFunction(measureType), measureType.column + "_" + measureType.aggregation.name().toLowerCase()),
+                    format(getFinalForAggregationFunction(measureType), measureType.column + "_" + measureType.aggregation.name().toLowerCase()),
                     preComputedTable.get().getValue(),
-                    collections.size() > 1 ? String.format("collection IN (%s) AND", collections.stream().map(c -> "'" + c + "'").collect(Collectors.joining(","))) : "",
-                    timeFilter,
-                    filterExpression != null ? (" AND " + filterExpression) : "",
+                    Stream.of(
+                            collections.size() > 1 ? format("collection IN (%s)", collections.stream().map(c -> "'" + c + "'").collect(Collectors.joining(","))) : "",
+                            filters,
+                            filterExpression,
+                            timeFilter
+                    ).filter(e -> e != null && !e.isEmpty()).collect(Collectors.joining(" AND ")),
                     groupBy);
         } else {
             String where = timeFilter + (filterExpression == null ? "" : (" AND " + filterExpression));
@@ -307,7 +317,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         String table = preComputedTable.map(e -> e.getValue()).orElse(null);
 
         return new DelegateQueryExecution(executor.executeQuery(project, query), result -> {
-            if(table != null) {
+            if (table != null) {
                 result.setProperty("olapTable", table);
             }
             return result;

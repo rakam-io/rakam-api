@@ -21,7 +21,9 @@ import org.rakam.util.KByteArrayOutputStream;
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
@@ -47,7 +49,7 @@ public class AWSKinesisEventStore implements EventStore {
                                 FieldDependencyBuilder.FieldDependency fieldDependency) {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
-        if(config.getKinesisEndpoint() != null) {
+        if (config.getKinesisEndpoint() != null) {
             kinesis.setEndpoint(config.getKinesisEndpoint());
         }
         this.config = config;
@@ -71,20 +73,19 @@ public class AWSKinesisEventStore implements EventStore {
                     .withStreamName(config.getEventStoreStreamName()));
             if (putRecordsResult.getFailedRecordCount() > 0) {
                 int[] failedRecordIndexes = new int[putRecordsResult.getFailedRecordCount()];
-                for (PutRecordsResultEntry resultEntry : putRecordsResult.getRecords()) {
-                    resultEntry.getErrorCode();
-                }
-//                    String reasons = putRecordsResult.getRecords().stream().collect(Collectors.groupingBy(e -> e.getErrorCode())).entrySet()
-//                            .stream().map(e -> e.getValue().size() + " items for " + e.getKey()).collect(Collectors.joining(", "));
-//
-//                    if(putRecordsResult.getRecords().stream().anyMatch(a -> a.getErrorCode().equals("ProvisionedThroughputExceededException"))) {
-//                        kinesis.describeStream(config.getEventStoreStreamName()).getStreamDescription().getStreamName();
-//                        kinesis.splitShard();;
-//                    }
-//
-//                    throw new IllegalStateException("Failed to put records to Kinesis: "+reasons);
+                int idx = 0;
 
-                LOGGER.warn("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), putRecordsResult.getRecords());
+                Map<String, Integer> errors = new HashMap<>();
+
+                List<PutRecordsResultEntry> recordsResponse = putRecordsResult.getRecords();
+                for (int i = 0; i < recordsResponse.size(); i++) {
+                    if (recordsResponse.get(i).getErrorCode() != null) {
+                        failedRecordIndexes[idx++] = i;
+                        errors.compute(recordsResponse.get(i).getErrorMessage(), (k, v) -> v == null ? 1 : v++);
+                    }
+                }
+
+                LOGGER.warn("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), errors.toString());
                 return failedRecordIndexes;
             } else {
                 return EventStore.SUCCESSFUL_BATCH;
@@ -101,7 +102,7 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Override
     public int[] storeBatch(List<Event> events) {
-        if(events.size() >= BULK_THRESHOLD) {
+        if (events.size() >= BULK_THRESHOLD) {
             // bulk upload uses a technique similar to transactions so it either stores all events or none of them.
             bulkClient.upload(events.get(0).project(), events);
             return EventStore.SUCCESSFUL_BATCH;
@@ -114,13 +115,13 @@ public class AWSKinesisEventStore implements EventStore {
                     int loopSize = Math.min(BATCH_SIZE, events.size() - cursor);
 
                     int[] errorIndexes = storeBatchInline(events, cursor, loopSize);
-                    if(errorIndexes.length > 0) {
-                        if(errors == null) {
+                    if (errorIndexes.length > 0) {
+                        if (errors == null) {
                             errors = new ArrayList<>(errorIndexes.length);
                         }
 
                         for (int errorIndex : errorIndexes) {
-                            errors.add(errorIndex+cursor);
+                            errors.add(errorIndex + cursor);
                         }
                     }
                     cursor += loopSize;
