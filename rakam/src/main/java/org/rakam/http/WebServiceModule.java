@@ -1,11 +1,13 @@
 package org.rakam.http;
 
+import com.facebook.presto.hadoop.$internal.io.netty.channel.epoll.Epoll;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Contact;
 import io.swagger.models.Info;
@@ -75,11 +77,11 @@ public class WebServiceModule extends AbstractModule {
                 .securityDefinition("master_key", new ApiKeyAuthDefinition().in(In.HEADER).name("master_key"));
 
         EventLoopGroup eventExecutors;
-//        if (Os.supportsEpoll()) {
-//            eventExecutors = new EpollEventLoopGroup();
-//        } else {
+        if (Epoll.isAvailable()) {
+            eventExecutors = new EpollEventLoopGroup();
+        } else {
             eventExecutors = new NioEventLoopGroup();
-//        }
+        }
 
         HttpServer httpServer =  new HttpServerBuilder()
                 .setHttpServices(httpServices)
