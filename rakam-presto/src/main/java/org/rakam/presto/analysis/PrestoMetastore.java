@@ -233,6 +233,7 @@ public class PrestoMetastore extends AbstractMetastore {
     @Override
     public Set<String> getCollectionNames(String project) {
         return dao.listTables(project).stream()
+                .filter(e -> !e.getTableName().startsWith(MATERIALIZED_VIEW_PREFIX))
                 .map(a -> a.getTableName()).collect(Collectors.toSet());
     }
 

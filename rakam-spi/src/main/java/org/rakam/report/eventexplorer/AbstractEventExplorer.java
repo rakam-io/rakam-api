@@ -389,6 +389,11 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             checkReference(dimension.get(), startDate, endDate, collectionNames.size());
         }
 
+        String timePredicate = format("\"week\" between date_trunc('week', date '%s') and date_trunc('week', date '%s') and \n" +
+                        "\"_time\" between date '%s' and date '%s' + interval '1' day",
+                startDate.format(ISO_DATE), endDate.format(ISO_DATE),
+                startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+
         String query;
         if (dimension.isPresent()) {
             Optional<TimestampTransformation> aggregationMethod = TimestampTransformation.fromPrettyName(dimension.get());
@@ -399,18 +404,22 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             query = format("select collection, %s as %s, sum(total) from (", aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"), aggregationMethod.get()) +
                     collectionNames.stream()
                             .map(collection ->
-                                    format("select cast('%s' as varchar) as collection, _time, coalesce(total, 0) as total from continuous.\"%s\" ",
+                                    format("select cast('%s' as varchar) as collection, week, _time, coalesce(total, 0) as total from continuous.\"%s\" ",
                                             collection,
                                             "_total_" + collection))
                             .collect(Collectors.joining(" union all ")) +
-                    format(") as data where \"_time\" between date '%s' and date '%s' + interval '1' day group by 1, 2 order by 2 desc", startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+                    format(") as data where %s group by 1, 2 order by 2 desc",
+                            timePredicate,
+                            startDate.format(ISO_DATE), endDate.format(ISO_DATE),
+                            startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         } else {
             query = collectionNames.stream()
                     .map(collection ->
-                            format("select cast('%s' as varchar) as collection, coalesce(sum(total), 0) as total from continuous.\"%s\" where _time between date '%s' and date '%s' + interval '1' day",
+                            format("select cast('%s' as varchar) as collection, coalesce(sum(total), 0) as total \n" +
+                                            " from continuous.\"%s\" where %s",
                                     collection,
                                     "_total_" + collection,
-                                    startDate.format(ISO_DATE), endDate.format(ISO_DATE)))
+                                    timePredicate))
                     .collect(Collectors.joining(" union all ")) + " order by 2 desc";
         }
 
