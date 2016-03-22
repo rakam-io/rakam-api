@@ -6,7 +6,6 @@ import com.google.common.net.HostAndPort;
 import com.google.inject.AbstractModule;
 import com.google.inject.Singleton;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Contact;
 import io.swagger.models.Info;
@@ -26,7 +25,6 @@ import org.rakam.server.http.WebSocketService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.util.Os;
 import org.rakam.util.AllowCookie;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
@@ -77,11 +75,11 @@ public class WebServiceModule extends AbstractModule {
                 .securityDefinition("master_key", new ApiKeyAuthDefinition().in(In.HEADER).name("master_key"));
 
         EventLoopGroup eventExecutors;
-        if (Os.supportsEpoll()) {
-            eventExecutors = new EpollEventLoopGroup();
-        } else {
+//        if (Os.supportsEpoll()) {
+//            eventExecutors = new EpollEventLoopGroup();
+//        } else {
             eventExecutors = new NioEventLoopGroup();
-        }
+//        }
 
         HttpServer httpServer =  new HttpServerBuilder()
                 .setHttpServices(httpServices)
