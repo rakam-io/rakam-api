@@ -219,12 +219,12 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(value = "Collect multiple events", request = EventList.class, response = Integer[].class,
+    @ApiOperation(value = "Collect multiple events", request = EventList.class, response = Integer.class,
             authorizations = @Authorization(value = "write_key")
     )
     @IgnorePermissionCheck
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+            @ApiResponse(code = 400, message = "Project does not exist."), @ApiResponse(code = 409, message = "The content is partially updated.")})
     @Path("/batch")
     public void batchEvents(RakamHttpRequest request) {
         HttpHeaders headers = request.headers();
@@ -307,9 +307,16 @@ public class EventCollectionHttpService extends HttpService {
 
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
 
-            HeaderDefaultFullHttpResponse response = new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                    Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
-                    responseHeaders);
+            HeaderDefaultFullHttpResponse response;
+            if(errorIndexes.length == 0) {
+                response = new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                        Unpooled.wrappedBuffer(OK_MESSAGE),
+                        responseHeaders);
+            } else {
+                response = new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
+                        Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
+                        responseHeaders);
+            }
 
             request.response(response).end();
         });

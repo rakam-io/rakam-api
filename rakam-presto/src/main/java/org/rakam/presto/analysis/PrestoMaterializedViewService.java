@@ -81,7 +81,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                 tableColumn -> tableColumn.getTable().getTableName().startsWith(MATERIALIZED_VIEW_PREFIX));
         if(names.isPresent()) {
             return views.entrySet().stream().filter(e -> names.get().contains(e.getKey()))
-                    .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue()));
+                    .collect(Collectors.toMap(e -> e.getKey().substring(MATERIALIZED_VIEW_PREFIX.length()), e -> e.getValue()));
         } else {
             return views;
         }
