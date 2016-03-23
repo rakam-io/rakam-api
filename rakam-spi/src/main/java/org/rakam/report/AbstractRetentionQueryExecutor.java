@@ -1,7 +1,6 @@
 package org.rakam.report;
 
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.ExpressionUtil;
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.CalculatedUserSet;
 import org.rakam.analysis.ContinuousQueryService;
@@ -175,7 +174,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         if (filter.isPresent()) {
             try {
                 String preComputedTablePrefix = tableName + "_by_";
-                return Optional.of(ExpressionUtil.accept(filter.get(), new PreComputedTableSubQueryVisitor(columnName -> {
+                return Optional.of(new PreComputedTableSubQueryVisitor(columnName -> {
                     if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals(preComputedTablePrefix + columnName))) {
                         return Optional.of("continuous." + preComputedTablePrefix + columnName);
                     } else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals(preComputedTablePrefix + columnName))) {
@@ -184,7 +183,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
 
                     missingPreComputedTables.add(new CalculatedUserSet(collection, Optional.of(columnName)));
                     return Optional.empty();
-                }), false));
+                }).process(filter.get(), false));
             } catch (UnsupportedOperationException e) {
                 return Optional.empty();
             }

@@ -3,7 +3,6 @@ package org.rakam.report.eventexplorer;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.ExpressionUtil;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import org.rakam.analysis.ContinuousQueryService;
@@ -327,7 +326,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private boolean testFilterExpressionForPerComputedTable(Expression filterExp, OLAPTable options) {
         final boolean[] columnExists = {true};
 
-        ExpressionUtil.accept(filterExp, new DefaultExpressionTraversalVisitor<Void, Void>() {
+        new DefaultExpressionTraversalVisitor<Void, Void>() {
             @Override
             protected Void visitQualifiedNameReference(QualifiedNameReference node, Void context) {
                 if (node.getName().getParts().size() != 1) {
@@ -340,7 +339,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
                 return null;
             }
-        }, null);
+        }.process(filterExp, null);
 
         return columnExists[0];
     }

@@ -2,7 +2,6 @@ package org.rakam.postgresql.analysis.stream;
 
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.ExpressionUtil;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
@@ -39,14 +38,14 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
     public PostgresqlEventStreamer(PGConnection conn, String project, List<CollectionStreamQuery> collections, StreamResponse response) {
         this.conn = conn;
-        this.ticket = "rakam_stream_"+UUID.randomUUID().toString().substring(0, 8);
+        this.ticket = "rakam_stream_" + UUID.randomUUID().toString().substring(0, 8);
         this.response = response;
         this.collections = collections;
         this.project = project;
         this.open = true;
         this.sqlParser = new SqlParser();
 
-        if(createProcedures()) {
+        if (createProcedures()) {
             listener = (processId, channelName, payload) -> {
                 // the payload is the json string that contains event attributes
                 queue.add(payload);
@@ -63,11 +62,11 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
     @Override
     public void sync() {
-        if(!open) {
+        if (!open) {
             response.send("error", "stream is closed").end();
         } else {
             StringBuilder builder = new StringBuilder("[");
-            if(!queue.isEmpty()) {
+            if (!queue.isEmpty()) {
                 builder.append(queue.poll());
                 for (int i = 1; i < queue.size(); i++) {
                     builder.append(", " + queue.poll());
@@ -80,13 +79,13 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
     @Override
     public synchronized void shutdown() {
-        if(!open) {
+        if (!open) {
             return;
         }
         conn.removeNotificationListener(listener);
 
         try (Statement statement = conn.createStatement()) {
-            statement.execute("UNLISTEN "+ticket);
+            statement.execute("UNLISTEN " + ticket);
             for (CollectionStreamQuery collection : collections) {
                 statement.execute(format("DROP TRIGGER IF EXISTS %s ON %1$s.%2$s",
                         getProcedureName(collection.getCollection()),
@@ -142,8 +141,8 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     }
 
     private String createSqlExpression(CollectionStreamQuery collection) {
-        if(collection.getFilter()!=null) {
-            return ExpressionUtil.accept(sqlParser.createExpression(collection.getFilter()), new ExpressionFormatter.Formatter() {
+        if (collection.getFilter() != null) {
+            return new ExpressionFormatter.Formatter() {
                 @Override
                 protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean context) {
                     List<String> parts = new ArrayList<>();
@@ -154,8 +153,8 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                             .collect(Collectors.toList()));
                     return Joiner.on('.').join(parts);
                 }
-            }, true);
-        }else {
+            }.process(sqlParser.createExpression(collection.getFilter()), true);
+        } else {
             // to small hack to simplify the code.
             return "TRUE";
         }
