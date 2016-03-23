@@ -19,7 +19,6 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -67,16 +66,16 @@ public class EventCollectionHttpService extends HttpService {
 
     private final EventStore eventStore;
     private final Set<EventMapper> eventMappers;
-    private final Metastore metastore;
     private final ApiKeyService apiKeyService;
     private final Set<EventProcessor> eventProcessors;
 
     @Inject
-    public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService, EventDeserializer deserializer, EventListDeserializer eventListDeserializer, Set<EventMapper> mappers, Set<EventProcessor> eventProcessors, Metastore metastore) {
+    public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
+                                      EventDeserializer deserializer, EventListDeserializer eventListDeserializer,
+                                      Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
         this.eventProcessors = eventProcessors;
-        this.metastore = metastore;
         this.apiKeyService = apiKeyService;
 
         SimpleModule module = new SimpleModule();
