@@ -106,16 +106,13 @@ public class PrestoQueryExecutor implements QueryExecutor {
     public String formatTableReference(String project, QualifiedName node) {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();
-            if(prefix.equals("continuous")) {
-                return prestoConfig.getStreamingConnector() + ".\"" + project + "\".\"" +node.getSuffix() + '"';
-            } else
-            if(prefix.equals("materialized")) {
-                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\""+ MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
-            } else
-            if(prefix.equals("user")) {
-                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\""+ MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
-            } else
-            if(!prefix.equals("collection")) {
+            if (prefix.equals("continuous")) {
+                return prestoConfig.getStreamingConnector() + ".\"" + project + "\".\"" + node.getSuffix() + '"';
+            } else if (prefix.equals("materialized")) {
+                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
+            } else if (prefix.equals("user")) {
+                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
+            } else if (!prefix.equals("collection")) {
                 throw new IllegalArgumentException("Schema does not exist: " + prefix);
             }
         }
@@ -125,13 +122,13 @@ public class PrestoQueryExecutor implements QueryExecutor {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
                     .filter(c -> !c.getKey().startsWith("_"))
                     .collect(Collectors.toList());
-            if(!collections.isEmpty()) {
+            if (!collections.isEmpty()) {
                 String sharedColumns = collections.get(0).getValue().stream()
                         .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
                         .map(f -> f.getName())
                         .collect(Collectors.joining(", "));
 
-                return "(" +collections.stream().map(Map.Entry::getKey)
+                return "(" + collections.stream().map(Map.Entry::getKey)
                         .map(collection -> format("select '%s' as collection, %s from %s",
                                 collection,
                                 sharedColumns.isEmpty() ? "1" : sharedColumns,
@@ -149,12 +146,12 @@ public class PrestoQueryExecutor implements QueryExecutor {
     private String getTableReference(String project, QualifiedName node) {
         QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
         String hotStorageConnector = prestoConfig.getHotStorageConnector();
-        String table = '"'+project + "\".\"" + node.getSuffix() + '\"';
+        String table = '"' + project + "\".\"" + node.getSuffix() + '\"';
 
         if (hotStorageConnector != null) {
             return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
                     "select * from " + hotStorageConnector + "." + table + ")" +
-                    " as " + node.getSuffix()+")";
+                    " as " + node.getSuffix() + ")";
         } else {
             return prefix.getSuffix() + "." + table;
         }
@@ -164,8 +161,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
         return new StatementClient(httpClient, jsonCodec(QueryResults.class), session, query);
     }
 
-    private static HostAndPort getSystemSocksProxy()
-    {
+    private static HostAndPort getSystemSocksProxy() {
         URI uri = URI.create("socket://0.0.0.0:80");
         for (Proxy proxy : ProxySelector.getDefault().select(uri)) {
             if (proxy.type() == Proxy.Type.SOCKS &&
@@ -178,18 +174,15 @@ public class PrestoQueryExecutor implements QueryExecutor {
     }
 
     static class UserAgentRequestFilter
-            implements HttpRequestFilter
-    {
+            implements HttpRequestFilter {
         private final String userAgent;
 
-        public UserAgentRequestFilter(String userAgent)
-        {
+        public UserAgentRequestFilter(String userAgent) {
             this.userAgent = checkNotNull(userAgent, "userAgent is null");
         }
 
         @Override
-        public Request filterRequest(Request request)
-        {
+        public Request filterRequest(Request request) {
             return fromRequest(request)
                     .addHeader(HttpHeaders.USER_AGENT, userAgent)
                     .build();
