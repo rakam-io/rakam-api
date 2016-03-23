@@ -44,6 +44,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -77,19 +78,18 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
 
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names) {
-        Map<String, List<SchemaField>> views = metastore.getTables(project,
-                tableColumn -> tableColumn.getTable().getTableName().startsWith(MATERIALIZED_VIEW_PREFIX));
+        Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getTables(project,
+                tableColumn -> tableColumn.getTable().getTableName().startsWith(MATERIALIZED_VIEW_PREFIX)).entrySet().stream();
         if(names.isPresent()) {
-            return views.entrySet().stream().filter(e -> names.get().contains(e.getKey()))
-                    .collect(Collectors.toMap(e -> e.getKey().substring(MATERIALIZED_VIEW_PREFIX.length()), e -> e.getValue()));
-        } else {
-            return views;
+            views = views.filter(e -> names.get().contains(e.getKey()));
         }
+
+        return views.collect(Collectors.toMap(e -> e.getKey().substring(MATERIALIZED_VIEW_PREFIX.length()), e -> e.getValue()));
     }
 
     @Override
     public List<SchemaField> getSchema(String project, String tableName) {
-        return super.getSchema(project, tableName);
+        return metastore.getCollection(project, MATERIALIZED_VIEW_PREFIX + tableName);
     }
 
     @Override

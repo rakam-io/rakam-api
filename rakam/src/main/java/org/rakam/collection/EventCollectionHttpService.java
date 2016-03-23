@@ -63,6 +63,7 @@ public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper = new ObjectMapper();
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
+    private final byte[] NOT_OK_MESSAGE = "0".getBytes(UTF_8);
 
     private final EventStore eventStore;
     private final Set<EventMapper> eventMappers;
@@ -232,7 +233,9 @@ public class EventCollectionHttpService extends HttpService {
             List<Cookie> entries = null;
             int[] errorIndexes;
 
-            DefaultHttpHeaders responseHeaders;
+            DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
+            responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+
             try {
                 EventList events = jsonMapper.readValue(buff, EventList.class);
 
@@ -243,15 +246,11 @@ public class EventCollectionHttpService extends HttpService {
 
                 if (!validateProjectPermission(events.project, context.writeKey)) {
                     ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
-                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf);
-                    errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-                    request.response(errResponse).end();
+                    request.response(new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf, responseHeaders)).end();
                     return;
                 }
 
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
-
-                responseHeaders = new DefaultHttpHeaders();
 
                 for (Event event : events.events) {
                     List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, responseHeaders);
@@ -267,7 +266,8 @@ public class EventCollectionHttpService extends HttpService {
                     errorIndexes = eventStore.storeBatch(events.events);
                 } catch (Exception e) {
                     LOGGER.error(e, "error while storing event.");
-                    request.response("0", BAD_REQUEST).end();
+                    request.response(new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                            Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders)).end();
                     return;
                 }
 
@@ -304,7 +304,6 @@ public class EventCollectionHttpService extends HttpService {
                 responseHeaders.set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
 
-            responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
 
             HeaderDefaultFullHttpResponse response;
             if(errorIndexes.length == 0) {
@@ -388,6 +387,11 @@ public class EventCollectionHttpService extends HttpService {
 
         @Override
         public HttpHeaders trailingHeaders() {
+            return trailingHeaders;
+        }
+
+        @Override
+        public HttpHeaders headers() {
             return trailingHeaders;
         }
 
