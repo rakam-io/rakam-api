@@ -5,6 +5,7 @@ import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.DefaultTraversalVisitor;
+import com.facebook.presto.sql.tree.DereferenceExpression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Select;
@@ -106,7 +107,8 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                     }
                     if (selectItem instanceof SingleColumn) {
                         SingleColumn selectColumn = (SingleColumn) selectItem;
-                        if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)) {
+                        if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)
+                                && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
                             throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
                         } else {
                             if (materializedView.incrementalField != null) {

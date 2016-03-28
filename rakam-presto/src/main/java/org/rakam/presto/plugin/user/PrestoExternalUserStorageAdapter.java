@@ -3,6 +3,7 @@ package org.rakam.presto.plugin.user;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -14,6 +15,7 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.time.Duration;
@@ -102,9 +104,10 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
         String query;
         if (filterExpression == null) {
-            query = String.format("select distinct _user as id from (%s)", eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
+            query = String.format("select distinct _user as id from (%s)",
+                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
         } else {
-            throw new UnsupportedOperationException();
+            throw new RakamException("User segment must use event filters", HttpResponseStatus.BAD_GATEWAY);
         }
 
         materializedViewService.create(new MaterializedView(project, name, tableName, query, interval, null, ImmutableMap.of()));
