@@ -6,7 +6,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
@@ -29,6 +28,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 
 @Singleton
@@ -71,7 +72,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                             .bind("name", key.collection)
                             .map(materializedViewMapper).first();
                     if(first == null) {
-                        throw new NotExistsException("materialized view", HttpResponseStatus.BAD_REQUEST);
+                        throw new NotExistsException("materialized view", BAD_REQUEST);
                     }
                     return first;
                 }
@@ -124,7 +125,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                         .execute();
             } catch (Exception e) {
                 if (getMaterializedView(materializedView.project, materializedView.tableName) != null) {
-                    throw new AlreadyExistsException("Materialized view", HttpResponseStatus.BAD_REQUEST);
+                    throw new AlreadyExistsException("Materialized view", BAD_REQUEST);
                 }
             }
         }
@@ -174,10 +175,15 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                         .bind("options", JsonHelper.encode(report.options))
                         .execute();
             } catch (Exception e) {
-                if (getContinuousQuery(report.project, report.tableName) != null) {
-                    throw new AlreadyExistsException("Continuous query", HttpResponseStatus.BAD_REQUEST);
+                ContinuousQuery continuousQuery = null;
+                try {
+                    getContinuousQuery(report.project, report.tableName);
+                } catch (NotExistsException e1) {
                 }
-                throw new RakamException(e.getCause().getMessage(), HttpResponseStatus.BAD_REQUEST);
+                if (continuousQuery != null) {
+                    throw new AlreadyExistsException("Continuous query", BAD_REQUEST);
+                }
+                throw new RakamException(e.getCause().getMessage(), BAD_REQUEST);
             }
         }
     }
@@ -202,8 +208,12 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public ContinuousQuery getContinuousQuery(String project, String tableName) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options FROM continuous_queries WHERE project = :project AND table_name = :name")
+            ContinuousQuery first = handle.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options FROM continuous_queries WHERE project = :project AND table_name = :name")
                     .bind("project", project).bind("name", tableName).map(continuousQueryMapper).first();
+            if(first == null) {
+                throw new RakamException(String.format("Continuous query table continuous.%s is not found", tableName), BAD_REQUEST);
+            }
+            return first;
         }
     }
 

@@ -57,6 +57,7 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -83,7 +84,7 @@ public class QueryHttpService extends HttpService {
     @JsonRequest
     public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
         return executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
-            if(result.isFailed()) {
+            if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
             return result;
@@ -103,6 +104,10 @@ public class QueryHttpService extends HttpService {
     }
 
     public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executorFunction) {
+        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY);
+    }
+
+    public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
@@ -129,7 +134,7 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        if (!apiKeyService.checkPermission(query.project(), ApiKeyService.AccessKeyType.READ_KEY, apiKey.get(0))) {
+        if (!apiKeyService.checkPermission(query.project(), keyType, apiKey.get(0))) {
             response.send("result", encode(HttpServer.errorMessage(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED))).end();
             return;
         }
@@ -162,6 +167,7 @@ public class QueryHttpService extends HttpService {
             if (response.isClosed()) {
                 query.kill();
             } else if (ex != null) {
+                LOGGER.error(ex, "Error while executing query");
                 response.send("result", encode(jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())

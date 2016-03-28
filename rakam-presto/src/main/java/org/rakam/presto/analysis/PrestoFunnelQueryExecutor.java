@@ -177,7 +177,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                 } else {
                     return Optional.of(query);
                 }
-            } catch (Exception e) {
+            } catch (UnsupportedOperationException e) {
                 return Optional.empty();
             }
         }

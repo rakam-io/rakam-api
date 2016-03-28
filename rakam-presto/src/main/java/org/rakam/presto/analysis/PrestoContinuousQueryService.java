@@ -3,11 +3,11 @@ package org.rakam.presto.analysis;
 import com.facebook.presto.spi.type.TypeSignature;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
+import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.QueryFormatter;
@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoQueryExecution.fromPrestoType;
@@ -39,47 +40,51 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     }
 
     @Override
-    public CompletableFuture<QueryResult> create(ContinuousQuery report, boolean replayHistoricalData) {
+    public QueryExecution create(ContinuousQuery report, boolean replayHistoricalData) {
         StringBuilder builder = new StringBuilder();
 
-        new QueryFormatter(builder, name ->
-                executor.formatTableReference(report.project, name)).process(report.getQuery(), 1);
+        new QueryFormatter(builder, name -> {
+            if (name.getSuffix().equals("_all") && name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
+                return String.format("_all.%s", report.project());
+            }
+            return executor.formatTableReference(report.project, name);
+        }).process(report.getQuery(), 1);
 
         String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
                 report.project, report.tableName, builder.toString());
-
 
         PrestoQueryExecution prestoQueryExecution;
         if (!report.partitionKeys.isEmpty()) {
             ImmutableMap<String, String> sessionParameter = ImmutableMap.of(config.getStreamingConnector() + ".partition_keys",
                     Joiner.on("|").join(report.partitionKeys));
-            prestoQueryExecution = executor.executeRawQuery(prestoQuery, sessionParameter);
+            prestoQueryExecution = executor.executeRawQuery(prestoQuery, sessionParameter, config.getStreamingConnector());
         } else {
-            prestoQueryExecution = executor.executeRawQuery(prestoQuery);
+            prestoQueryExecution = executor.executeRawQuery(prestoQuery, ImmutableMap.of(), config.getStreamingConnector());
         }
 
-        return prestoQueryExecution.getResult().thenApply(result -> {
-            if (result.getError() == null) {
-                try {
-                    database.createContinuousQuery(report);
-                } catch (AlreadyExistsException e) {
-                    database.deleteContinuousQuery(report.project, report.tableName);
-                    database.createContinuousQuery(report);
-                }
+        QueryResult result = prestoQueryExecution.getResult().join();
 
-                if (replayHistoricalData) {
-                    return executor.executeRawStatement(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
-                            report.project, report.tableName, builder.toString())).getResult().join();
-                }
-
-                return QueryResult.empty();
-            } else {
-                if (result.getError().message.contains("already exists")) {
-                    throw new AlreadyExistsException("Continuous query", HttpResponseStatus.BAD_REQUEST);
-                }
+        if (result.getError() == null) {
+            try {
+                database.createContinuousQuery(report);
+            } catch (AlreadyExistsException e) {
+                database.deleteContinuousQuery(report.project, report.tableName);
+                database.createContinuousQuery(report);
             }
-            return result;
-        });
+
+            if (replayHistoricalData) {
+                return executor.executeRawQuery(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
+                        report.project, report.tableName, builder.toString()), ImmutableMap.of(), config.getStreamingConnector());
+            }
+
+            return prestoQueryExecution;
+        } else {
+            if (result.getError().message.contains("already exists")) {
+                throw new AlreadyExistsException("Continuous query", BAD_REQUEST);
+            }
+
+            throw new RakamException("Error while creating continuous query: " + result.getError().message, INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
@@ -89,8 +94,9 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
             if (result.getError() == null) {
                 database.deleteContinuousQuery(project, tableName);
                 return true;
+            } else {
+                throw new RakamException("Error while deleting continuous query:" + result.getError().message, BAD_REQUEST);
             }
-            return false;
         });
     }
 
@@ -101,7 +107,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
                 config.getStreamingConnector(), project)).getResult().join();
 
         if (result.isFailed()) {
-            throw new RakamException("Error while fetching metadata: "+result.getError().message, INTERNAL_SERVER_ERROR);
+            throw new RakamException("Error while fetching metadata: " + result.getError().message, INTERNAL_SERVER_ERROR);
         }
 
         HashMap<String, List<SchemaField>> map = new HashMap<>();

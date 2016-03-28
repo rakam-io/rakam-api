@@ -50,7 +50,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
 
         PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore) {
             @Override
-            public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties) {
+            public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog) {
                 // ignore session parameter in tests
                 return super.executeRawQuery(query);
             }

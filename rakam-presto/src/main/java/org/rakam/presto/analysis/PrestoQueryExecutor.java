@@ -1,18 +1,7 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.jdbc.internal.airlift.http.client.HttpClientConfig;
-import com.facebook.presto.jdbc.internal.airlift.http.client.HttpRequestFilter;
-import com.facebook.presto.jdbc.internal.airlift.http.client.Request;
-import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyHttpClient;
-import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyIoPool;
-import com.facebook.presto.jdbc.internal.airlift.http.client.jetty.JettyIoPoolConfig;
 import com.facebook.presto.jdbc.internal.airlift.units.Duration;
 import com.facebook.presto.jdbc.internal.client.ClientSession;
-import com.facebook.presto.jdbc.internal.client.QueryResults;
-import com.facebook.presto.jdbc.internal.client.StatementClient;
-import com.facebook.presto.jdbc.internal.guava.collect.ImmutableSet;
-import com.facebook.presto.jdbc.internal.guava.net.HostAndPort;
-import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
@@ -20,23 +9,17 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.net.ProxySelector;
-import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
-import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
-import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
@@ -44,20 +27,15 @@ import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZ
 @Singleton
 public class PrestoQueryExecutor implements QueryExecutor {
     private final PrestoConfig prestoConfig;
-    private static final JettyHttpClient httpClient = new JettyHttpClient(
-            new HttpClientConfig()
-                    .setConnectTimeout(new Duration(10, TimeUnit.SECONDS))
-                    .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
-            ImmutableSet.of(new UserAgentRequestFilter("rakam")));
+
     private final Metastore metastore;
-    private AtomicReference<ClientSession> defaultSession;
-    public static PrestoQueryExecution.TransactionHook NO_OP_TRANSACTION_HOOK = new NoopTransactionHook();
+    private ClientSession defaultSession;
 
     @Inject
     public PrestoQueryExecutor(PrestoConfig prestoConfig, Metastore metastore) {
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;
-        this.defaultSession = new AtomicReference<>(new ClientSession(
+        this.defaultSession = new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
@@ -65,36 +43,34 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 "default",
                 TimeZone.getTimeZone(UTC).getID(),
                 Locale.ENGLISH,
-                ImmutableMap.<String, String>of(),
+                ImmutableMap.of(),
                 null,
-                false, new Duration(1, TimeUnit.MINUTES)));
+                false, new Duration(1, TimeUnit.MINUTES));
     }
+
+//    @PostConstruct
+//    public void startTransaction() {
+//        QueryResult query = new PrestoQueryExecution(defaultSession, "START TRANSACTION READ ONLY").getResult().join();
+//        if (query.isFailed()) {
+//            throw new IllegalStateException("Unable to start Presto transaction: " + query.getError().message);
+//        }
+//    }
 
     public PrestoQueryExecution executeRawQuery(String query) {
-        return new PrestoQueryExecution(startQuery(query, defaultSession.get()), NO_OP_TRANSACTION_HOOK);
+        return new PrestoQueryExecution(defaultSession, query);
     }
 
-    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties) {
-        return new PrestoQueryExecution(startQuery(query, new ClientSession(
+    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog) {
+        return new PrestoQueryExecution(new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
-                prestoConfig.getColdStorageConnector(),
+                catalog,
                 "default",
                 TimeZone.getDefault().getID(),
                 Locale.ENGLISH,
                 sessionProperties,
-                null, false, new Duration(1, TimeUnit.MINUTES))), new PrestoQueryExecution.TransactionHook() {
-            @Override
-            public void onClear() {
-
-            }
-
-            @Override
-            public void setTransaction(String transactionId) {
-
-            }
-        });
+                null, false, new Duration(1, TimeUnit.MINUTES)), query);
     }
 
     @Override
@@ -113,12 +89,12 @@ public class PrestoQueryExecutor implements QueryExecutor {
             } else if (prefix.equals("user")) {
                 return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
             } else if (!prefix.equals("collection")) {
-                throw new IllegalArgumentException("Schema does not exist: " + prefix);
+                throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
             }
         }
 
         // special prefix for all columns
-        if (node.getSuffix().equals("_all")) {
+        if (node.getSuffix().equals("_all") && !node.getPrefix().isPresent()) {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
                     .filter(c -> !c.getKey().startsWith("_"))
                     .collect(Collectors.toList());
@@ -154,51 +130,6 @@ public class PrestoQueryExecutor implements QueryExecutor {
                     " as " + node.getSuffix() + ")";
         } else {
             return prefix.getSuffix() + "." + table;
-        }
-    }
-
-    public static StatementClient startQuery(String query, ClientSession session) {
-        return new StatementClient(httpClient, jsonCodec(QueryResults.class), session, query);
-    }
-
-    private static HostAndPort getSystemSocksProxy() {
-        URI uri = URI.create("socket://0.0.0.0:80");
-        for (Proxy proxy : ProxySelector.getDefault().select(uri)) {
-            if (proxy.type() == Proxy.Type.SOCKS &&
-                    proxy.address() instanceof InetSocketAddress) {
-                InetSocketAddress address = (InetSocketAddress) proxy.address();
-                return HostAndPort.fromParts(address.getHostString(), address.getPort());
-            }
-        }
-        return null;
-    }
-
-    static class UserAgentRequestFilter
-            implements HttpRequestFilter {
-        private final String userAgent;
-
-        public UserAgentRequestFilter(String userAgent) {
-            this.userAgent = checkNotNull(userAgent, "userAgent is null");
-        }
-
-        @Override
-        public Request filterRequest(Request request) {
-            return fromRequest(request)
-                    .addHeader(HttpHeaders.USER_AGENT, userAgent)
-                    .build();
-        }
-    }
-
-    public static class NoopTransactionHook implements PrestoQueryExecution.TransactionHook {
-
-        @Override
-        public void onClear() {
-
-        }
-
-        @Override
-        public void setTransaction(String transactionId) {
-
         }
     }
 

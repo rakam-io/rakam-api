@@ -6,6 +6,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.ui.report.Report;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -70,11 +71,13 @@ public class JDBCReportMetadata {
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();
         } catch (UnableToExecuteStatementException e) {
-            if (get(null, userId, report.project(), report.slug) != null) {
-                throw new AlreadyExistsException(String.format("Report '%s'", report.slug), HttpResponseStatus.BAD_REQUEST);
-            } else {
+            try {
+                get(null, userId, report.project(), report.slug);
+            } catch (NotExistsException ex) {
                 throw e;
             }
+
+            throw new AlreadyExistsException(String.format("Report '%s'", report.slug), HttpResponseStatus.BAD_REQUEST);
         }
     }
 
@@ -82,14 +85,14 @@ public class JDBCReportMetadata {
         try (Handle handle = dbi.open()) {
             Report report = handle.createQuery("SELECT r.project, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
                     " JOIN web_user_project permission ON (permission.user_id = :user AND permission.project = :project)" +
-                    " WHERE r.project = :project AND r.slug = :slug AND permission.user_id = :requestedUser AND" +
+                    " WHERE r.project = :project AND r.slug = :slug AND permission.user_id = :user AND" +
                     " (permission.is_admin OR r.shared OR r.user_id = :requestedUser)")
                     .bind("project", project)
                     .bind("user", userId)
                     .bind("requestedUser", requestedUserId)
                     .bind("slug", slug).map(mapper).first();
             if(report == null) {
-                throw new RakamException("report is not exists.", HttpResponseStatus.NOT_FOUND);
+                throw new NotExistsException("Report", HttpResponseStatus.NOT_FOUND);
             }
             return report;
         }

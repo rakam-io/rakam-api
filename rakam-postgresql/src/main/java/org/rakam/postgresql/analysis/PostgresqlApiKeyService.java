@@ -5,9 +5,11 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.CryptUtil;
+import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
 import java.sql.Connection;
@@ -98,6 +100,12 @@ public class PostgresqlApiKeyService implements ApiKeyService {
     @Override
     public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
         try {
+            if(apiKey == null) {
+                throw new RakamException("Api key is missing", HttpResponseStatus.FORBIDDEN);
+            }
+            if(project == null) {
+                throw new RakamException("Project id is missing", HttpResponseStatus.FORBIDDEN);
+            }
             boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
             if (!exists) {
                 apiKeyCache.refresh(project);

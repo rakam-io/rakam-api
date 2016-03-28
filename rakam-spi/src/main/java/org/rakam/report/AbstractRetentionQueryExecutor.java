@@ -7,13 +7,16 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -95,6 +98,10 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension,
                 startDate, endDate, missingPreComputedTables);
 
+        if(firstActionQuery == null || returningActionQuery == null){
+            return QueryExecution.completedQueryExecution("", QueryResult.empty());
+        }
+
         String timeSubtraction = diffTimestamps(dateUnit, "data.date", "returning_action.date");
 
         String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.date";
@@ -142,9 +149,14 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                 return preComputedTable.get();
             }
 
+            Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+            if(collections.size() == 0) {
+                return null;
+            }
+
             return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
                     dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
-                    metastore.getCollections(project).entrySet().stream()
+                    collections.entrySet().stream()
                             .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
                             .map(collection -> getTableSubQuery(collection.getKey(), connectorField,
                                     timeColumn, dimension, timePredicate, Optional.empty()))

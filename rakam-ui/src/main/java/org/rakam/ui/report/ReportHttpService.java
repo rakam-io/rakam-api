@@ -1,5 +1,11 @@
 package org.rakam.ui.report;
 
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.util.CharsetUtil;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -13,6 +19,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.JDBCReportMetadata;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -58,12 +65,27 @@ public class ReportHttpService extends HttpService {
             Optional<Integer> user = request.cookies().stream().filter(a -> a.name().equals("session")).findFirst()
                     .map(cookie -> extractUserFromCookie(cookie.value(), encryptionConfig.getSecretKey()));
 
+            JsonResponse response;
+            HttpResponseStatus status;
             if (!user.isPresent()) {
-                request.response(encode(JsonResponse.error("Unauthorized")), UNAUTHORIZED).end();
+                response = JsonResponse.error("Unauthorized");
+                status = UNAUTHORIZED;
             } else {
-                metadata.save(user.get(), report);
-                request.response(encode(JsonResponse.success()), OK).end();
+                try {
+                    metadata.save(user.get(), report);
+
+                    response = JsonResponse.success();
+                    status = OK;
+                } catch (RakamException e) {
+                    response = JsonResponse.error(e.getMessage());
+                    status = e.getStatusCode();
+                }
             }
+
+            FullHttpResponse resp = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status,
+                    Unpooled.wrappedBuffer(encode(response).getBytes(CharsetUtil.UTF_8)));
+            resp.headers().set("Content-Type", "application/json");
+            request.response(resp).end();
         });
     }
 

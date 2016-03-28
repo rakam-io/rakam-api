@@ -10,8 +10,8 @@ import org.rakam.plugin.SystemEvents;
 import javax.inject.Inject;
 
 public class EventExplorerListener {
-    private static final String QUERY = "select date_trunc('week', cast(_time as date)) as week, date_trunc('hour', _time) as _time, " +
-            "count(*) as total from \"%s\" group by 1, 2";
+    private static final String QUERY = "select date_trunc('week', cast(_time as date)) as week, collection, date_trunc('hour', _time) as _time,\n" +
+            " count(*) as total from _all group by 1, 2, 3";
     private final ContinuousQueryService continuousQueryService;
 
     @Inject
@@ -20,11 +20,9 @@ public class EventExplorerListener {
     }
 
     @Subscribe
-    public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-        ContinuousQuery report = new ContinuousQuery(event.project, "Total count of "+event.collection,
-                "_total_" + event.collection,
-                String.format(QUERY, event.collection),
-                ImmutableList.of("week"), ImmutableMap.of());
+    public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+        ContinuousQuery report = new ContinuousQuery(event.project, "Event metrics",
+                "_event_explorer_metrics", QUERY, ImmutableList.of("week"), ImmutableMap.of());
         continuousQueryService.create(report, false);
     }
 }

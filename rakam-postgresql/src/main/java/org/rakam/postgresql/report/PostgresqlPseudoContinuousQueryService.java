@@ -35,8 +35,9 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     }
 
     @Override
-    public CompletableFuture<QueryResult> create(ContinuousQuery report, boolean replayHistoricalData) {
-        return executor.executeRawStatement(String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new HashMap<>())))
+    public QueryExecution create(ContinuousQuery report, boolean replayHistoricalData) {
+        String format = String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new HashMap<>()));
+        return QueryExecution.completedQueryExecution(format, executor.executeRawStatement(format)
                 .getResult().thenApply(result -> {
                     if (!result.isFailed()) {
                         database.createContinuousQuery(report);
@@ -44,7 +45,7 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
                         throw new RakamException(result.getError().toString(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
                     }
                     return result;
-                });
+                }).join());
     }
 
     @Override

@@ -12,6 +12,7 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.Map;
 
+import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.testng.Assert.assertEquals;
 
 public abstract class TestRealtimeModule {
@@ -19,7 +20,7 @@ public abstract class TestRealtimeModule {
     @Test
     public void testCreate() throws Exception {
         RealTimeHttpService service = new RealTimeHttpService(getContinuousQueryService(), getQueryExecutor(), new RealTimeConfig(), getTimestampToEpochFunction());
-        RealTimeReport report = new RealTimeReport("test", "test", AggregationType.COUNT, "test", ImmutableList.of("testcollection"), null, null, null);
+        RealTimeReport report = new RealTimeReport("test", "test", ImmutableList.of(new RealTimeReport.Measure("test", COUNT)), "test", ImmutableList.of("testcollection"), null, null);
         service.create(report);
 
         List<ContinuousQuery> list = service.list("test");
@@ -31,22 +32,22 @@ public abstract class TestRealtimeModule {
         Map<String, Object> options = list.get(0).options;
 
         assertEquals(true, options.get("realtime"));
-        assertEquals(AggregationType.COUNT, AggregationType.valueOf(options.get("aggregation").toString()));
+        assertEquals(COUNT, AggregationType.valueOf(options.get("aggregation").toString()));
     }
 
     @Test
     public void testGet() throws Exception {
         RealTimeHttpService service = new RealTimeHttpService(getContinuousQueryService(), getQueryExecutor(), new RealTimeConfig(), getTimestampToEpochFunction());
-        RealTimeReport report = new RealTimeReport("test", "test", AggregationType.COUNT, "test", ImmutableList.of("testcollection"), null, null, null);
+        RealTimeReport report = new RealTimeReport("test", "test", ImmutableList.of(new RealTimeReport.Measure("test", COUNT)), "test", ImmutableList.of("testcollection"), null, null);
         service.create(report);
 
-        RealTimeQueryResult result = service.get("test", "test", null, ImmutableList.of(), true, null, null).join();
+        RealTimeQueryResult result = service.get("test", "test", null, new RealTimeReport.Measure("test", COUNT), ImmutableList.of(), true, null, null).join();
     }
 
     @Test
     public void testDelete() throws Exception {
         RealTimeHttpService service = new RealTimeHttpService(getContinuousQueryService(), getQueryExecutor(), new RealTimeConfig(), getTimestampToEpochFunction());
-        RealTimeReport report = new RealTimeReport("test", "test", AggregationType.COUNT, "test", ImmutableList.of("testcollection"), null, null, null);
+        RealTimeReport report = new RealTimeReport("test", "test", ImmutableList.of(new RealTimeReport.Measure("test", COUNT)), "test", ImmutableList.of("testcollection"), null, null);
         service.create(report);
         service.delete("test", "test");
 

@@ -368,24 +368,13 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     @Override
     public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         checkProject(project);
-        Set<String> collectionNames = metastore.getCollectionNames(project).stream()
-                .filter(c -> !c.startsWith("_"))
-                .collect(Collectors.toSet());
 
-        if (collections.isPresent()) {
-            for (String name : collections.get()) {
-                if (!collectionNames.contains(name)) {
-                    throw new RakamException(BAD_REQUEST);
-                }
-            }
-            collectionNames = collections.get();
-        }
-        if (collectionNames.isEmpty()) {
+        if (collections.isPresent() && collections.get().isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }
 
         if (dimension.isPresent()) {
-            checkReference(dimension.get(), startDate, endDate, collectionNames.size());
+            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
         String timePredicate = format("\"week\" between date_trunc('week', date '%s') and date_trunc('week', date '%s') and \n" +
@@ -400,26 +389,12 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                 throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, sum(total) from (", aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"), aggregationMethod.get()) +
-                    collectionNames.stream()
-                            .map(collection ->
-                                    format("select cast('%s' as varchar) as collection, week, _time, coalesce(total, 0) as total from continuous.\"%s\" ",
-                                            collection,
-                                            "_total_" + collection))
-                            .collect(Collectors.joining(" union all ")) +
-                    format(") as data where %s group by 1, 2 order by 2 desc",
-                            timePredicate,
-                            startDate.format(ISO_DATE), endDate.format(ISO_DATE),
-                            startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+            query = format("select collection, %s as %s, sum(total) from continuous._event_explorer_metrics where %s group by 1, 2 order by 2 desc",
+                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"),
+                    aggregationMethod.get(), timePredicate);
         } else {
-            query = collectionNames.stream()
-                    .map(collection ->
-                            format("select cast('%s' as varchar) as collection, coalesce(sum(total), 0) as total \n" +
-                                            " from continuous.\"%s\" where %s",
-                                    collection,
-                                    "_total_" + collection,
-                                    timePredicate))
-                    .collect(Collectors.joining(" union all ")) + " order by 2 desc";
+            query = String.format("select collection, coalesce(sum(total), 0) as total \n" +
+                                            " from continuous._event_explorer_metrics where %s", timePredicate);
         }
 
         return executor.executeQuery(project, query, 20000).getResult();

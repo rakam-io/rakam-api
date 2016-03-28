@@ -109,7 +109,7 @@ public class RecipeHandler {
 
         recipe.getContinuousQueryBuilders().stream()
                 .map(builder -> builder.createContinuousQuery(project))
-                .forEach(continuousQuery -> continuousQueryService.create(continuousQuery, false).whenComplete((res, ex) -> {
+                .forEach(continuousQuery -> continuousQueryService.create(continuousQuery, false).getResult().whenComplete((res, ex) -> {
                     if(ex != null) {
                         if(ex instanceof AlreadyExistsException) {
                             if(overrideExisting) {

@@ -52,7 +52,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
-import static org.rakam.presto.analysis.PrestoQueryExecutor.NO_OP_TRANSACTION_HOOK;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PrestoMetastore extends AbstractMetastore {
@@ -139,7 +138,7 @@ public class PrestoMetastore extends AbstractMetastore {
 
             query = format("CREATE TABLE %s.\"%s\".\"%s\" (%s) %s ",
                     prestoConfig.getColdStorageConnector(), project, collection, queryEnd, properties);
-            QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(query, defaultSession), NO_OP_TRANSACTION_HOOK).getResult().join();
+            QueryResult join = new PrestoQueryExecution(defaultSession, query).getResult().join();
             if (join.isFailed()) {
                 if (join.getError().message.contains("exists") || join.getError().message.equals("Failed to perform metadata operation")) {
                     if (tryCount > 0) {
@@ -165,7 +164,7 @@ public class PrestoMetastore extends AbstractMetastore {
                         String q = format("ALTER TABLE %s.\"%s\".\"%s\" ADD COLUMN \"%s\" %s",
                                 prestoConfig.getColdStorageConnector(), project, collection,
                                 f.getName(), toSql(f.getType()));
-                        QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(q, defaultSession), NO_OP_TRANSACTION_HOOK).getResult().join();
+                        QueryResult join = new PrestoQueryExecution(defaultSession, q).getResult().join();
                         if (join.isFailed()) {
                             // FIXME: Presto Raptor connector has a bug when new columns are added concurrently.
                             if (join.getError().message.equals("Failed to perform metadata operation")) {
@@ -214,7 +213,7 @@ public class PrestoMetastore extends AbstractMetastore {
         for (String collectionName : getCollectionNames(project)) {
             String query = String.format("DROP TABLE %s.%s.%s", prestoConfig.getColdStorageConnector(), project, collectionName);
 
-            QueryResult join = new PrestoQueryExecution(PrestoQueryExecutor.startQuery(query, defaultSession), NO_OP_TRANSACTION_HOOK).getResult().join();
+            QueryResult join = new PrestoQueryExecution(defaultSession, query).getResult().join();
 
             if (join.isFailed()) {
                 LOGGER.error("Error while deleting table %s.%s : %s", project, collectionName, join.getError().toString());

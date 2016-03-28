@@ -8,13 +8,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
 import io.airlift.units.Duration;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.TimestampToEpochFunction;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.report.realtime.RealTimeReport;
-import org.rakam.plugin.ContinuousQuery;
-import org.rakam.analysis.ContinuousQueryService;
-import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -46,10 +47,10 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
-@Api(value = "/realtime", nickname = "realtime", description = "Realtime module", tags = "realtime",
-        authorizations = @Authorization(value = "read_key"))
+@Api(value = "/realtime", nickname = "realtime", description = "Realtime module", tags = "realtime")
 @Path("/realtime")
 public class RealTimeHttpService extends HttpService {
     private final ContinuousQueryService service;
@@ -82,19 +83,16 @@ public class RealTimeHttpService extends HttpService {
      * @return a future that contains the operation status
      */
     @JsonRequest
-    @ApiOperation(value = "Create report",  authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @ApiOperation(value = "Create report", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
     public CompletableFuture<JsonResponse> create(@ParamBody RealTimeReport report) {
-        if (report.aggregation == AggregationType.AVERAGE) {
-            throw new RakamException("Average aggregation is not supported in realtime service.", BAD_REQUEST);
-        }
-
         String sqlQuery = new StringBuilder().append("select ")
                 .append(format("(cast(" + timestampToEpochFunction + "(_time) as bigint) / %d) as _time, ", slide.roundTo(TimeUnit.SECONDS)))
-                .append(createFinalSelect(report.aggregation, report.measure, report.dimensions))
-                .append(" FROM (" + report.collections.stream().map(col -> "(SELECT " + createSelect(report.measure, report.dimensions) + " FROM " + col + ") as data").collect(Collectors.joining(" UNION ALL ")) + ")")
+                .append(createFinalSelect(report.measures, report.dimensions))
+                .append(" FROM (" + report.collections.stream().map(col -> String.format("(SELECT %s FROM %s) as data",
+                        Stream.of("_time", report.dimensions.stream().collect(Collectors.joining(", ")),
+                                report.measures.stream().map(e -> e.column).distinct().collect(Collectors.joining(", "))).filter(e -> !e.isEmpty()).collect(Collectors.joining(", ")), col
+                )).collect(Collectors.joining(" UNION ALL ")) + ")")
                 .append(report.filter == null ? "" : " where " + report.filter)
                 .append(" group by 1 ")
                 .append(report.dimensions != null ?
@@ -106,8 +104,8 @@ public class RealTimeHttpService extends HttpService {
                 report.table_name,
                 sqlQuery,
                 ImmutableList.of(),
-                ImmutableMap.of("realtime", true, "aggregation", report.aggregation));
-        return service.create(query, false).thenApply(JsonResponse::map);
+                ImmutableMap.of("realtime", true, "aggregation", report.measures));
+        return service.create(query, false).getResult().thenApply(JsonResponse::map);
     }
 
     @JsonRequest
@@ -131,6 +129,7 @@ public class RealTimeHttpService extends HttpService {
     public CompletableFuture<RealTimeQueryResult> get(@ApiParam(name = "project") String project,
                                                       @ApiParam(name = "table_name") String tableName,
                                                       @ApiParam(name = "filter", required = false) String filter,
+                                                      @ApiParam(name = "measure") RealTimeReport.Measure measure,
                                                       @ApiParam(name = "dimensions", required = false) List<String> dimensions,
                                                       @ApiParam(name = "aggregate", required = false) Boolean aggregate,
                                                       @ApiParam(name = "date_start", required = false) Instant dateStart,
@@ -148,22 +147,6 @@ public class RealTimeHttpService extends HttpService {
 
         boolean noDimension = dimensions == null || dimensions.isEmpty();
 
-        ContinuousQuery continuousQuery = service.get(project, tableName);
-        if (continuousQuery == null) {
-            CompletableFuture<RealTimeQueryResult> f = new CompletableFuture<>();
-            f.completeExceptionally(new RakamException("Couldn't found rule", BAD_REQUEST));
-            return f;
-        }
-
-        String aggregation = (String) continuousQuery.options.get("aggregation");
-        if (!TRUE.equals(continuousQuery.options.get("realtime")) || aggregation == null) {
-            CompletableFuture<RealTimeQueryResult> f = new CompletableFuture<>();
-            f.completeExceptionally(new RakamException("Invalid rule.", BAD_REQUEST));
-            return f;
-        }
-
-        AggregationType sourceAggregation = AggregationType.valueOf(aggregation);
-
         long last_update = Instant.now().toEpochMilli() - slide.toMillis();
         long previousWindow = (dateStart == null ? (last_update - window.toMillis()) : dateStart.toEpochMilli()) / (slide.toMillis());
         long currentWindow = (dateEnd == null ? last_update : dateEnd.toEpochMilli()) / slide.toMillis();
@@ -172,8 +155,8 @@ public class RealTimeHttpService extends HttpService {
         String sqlQuery = format("select %s, %s %s from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol + " * " + slide.toMillis(),
                 !noDimension ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
-                String.format(combineFunction(sourceAggregation), "value"),
-                executor.formatTableReference(continuousQuery.project, QualifiedName.of("continuous", continuousQuery.tableName)),
+                String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column, "measure column is not valid") + "_" + measure.aggregation.name().toLowerCase()),
+                executor.formatTableReference(project, QualifiedName.of("continuous", tableName)),
                 format("_time >= %d", previousWindow) +
                         (dateEnd == null ? "" :
                                 format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
@@ -258,42 +241,45 @@ public class RealTimeHttpService extends HttpService {
 
     }
 
-    private String createSelect(String measure, List<String> dimensions) {
-        if (measure == null) {
-            measure = "1";
-        }
-        String collect = dimensions.stream().collect(Collectors.joining(", "));
-        return "_time, " + measure + (collect.isEmpty() ? "" : "," + collect);
-    }
-
-    private String createFinalSelect(AggregationType aggType, String measure, List<String> dimensions) {
-
-        if (measure == null) {
-            if (aggType != AggregationType.COUNT)
-                throw new IllegalArgumentException("either measure.expression or measure.field must be specified.");
-            else {
-                measure = "*";
-            }
-        }
-
+    private String createFinalSelect(List<RealTimeReport.Measure> measures, List<String> dimensions) {
         StringBuilder builder = new StringBuilder();
         if (dimensions != null && !dimensions.isEmpty())
             builder.append(" " + dimensions.stream().collect(Collectors.joining(", ")) + ", ");
 
-        switch (aggType) {
-            case MAXIMUM:
-                return builder.append(format("max(%s) as value", measure)).toString();
-            case MINIMUM:
-                return builder.append(format("min(%s) as value", measure)).toString();
-            case COUNT:
-                return builder.append(format("count(%s) as value", measure)).toString();
-            case SUM:
-                return builder.append(format("sum(%s) as value", measure)).toString();
-            case APPROXIMATE_UNIQUE:
-                return builder.append(format("approx_set(%s) as value", measure)).toString();
-            default:
-                throw new IllegalArgumentException("aggregation type couldn't found.");
+        for (int i = 0; i < measures.size(); i++) {
+            if (measures.get(i).aggregation == AggregationType.AVERAGE) {
+                throw new RakamException("Average aggregation is not supported in realtime service.", BAD_REQUEST);
+            }
+
+            String format;
+            switch (measures.get(i).aggregation) {
+                case MAXIMUM:
+                    format = "max(%s)";
+                    break;
+                case MINIMUM:
+                    format = "min(%s)";
+                    break;
+                case COUNT:
+                    format = "count(%s)";
+                    break;
+                case SUM:
+                    format = "sum(%s)";
+                    break;
+                case APPROXIMATE_UNIQUE:
+                    format = "approx_set(%s)";
+                    break;
+                default:
+                    throw new IllegalArgumentException("aggregation type couldn't found.");
+            }
+
+            builder.append(String.format(format + " as %s_%s ", measures.get(i).column,
+                    measures.get(i).column, measures.get(i).aggregation.name().toLowerCase()));
+            if (i < measures.size() - 1) {
+                builder.append(", ");
+            }
         }
+
+        return builder.toString();
     }
 
     private String combineFunction(AggregationType aggregationType) {

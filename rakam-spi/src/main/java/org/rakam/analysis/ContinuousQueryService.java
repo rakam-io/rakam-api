@@ -3,7 +3,7 @@ package org.rakam.analysis;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.report.QueryResult;
+import org.rakam.report.QueryExecution;
 import org.rakam.util.AlreadyExistsException;
 
 import java.util.List;
@@ -18,7 +18,7 @@ public abstract class ContinuousQueryService {
         this.database = database;
     }
 
-    public abstract CompletableFuture<QueryResult> create(ContinuousQuery report, boolean replayHistoricalData) throws AlreadyExistsException;
+    public abstract QueryExecution create(ContinuousQuery report, boolean replayHistoricalData) throws AlreadyExistsException;
 
     public abstract CompletableFuture<Boolean> delete(String project, String tableName);
 

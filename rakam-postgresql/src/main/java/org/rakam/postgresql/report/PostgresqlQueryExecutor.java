@@ -4,14 +4,12 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.util.QueryFormatter;
-import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.sql.Connection;
@@ -66,9 +64,6 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     return project + "." + name.getSuffix();
                 case "continuous":
                     final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, name.getSuffix());
-                    if(report == null) {
-                        throw new RakamException(String.format("Continuous query table %s is not found", name.getSuffix()), HttpResponseStatus.BAD_REQUEST);
-                    }
                     StringBuilder builder = new StringBuilder();
 
                     new QueryFormatter(builder,

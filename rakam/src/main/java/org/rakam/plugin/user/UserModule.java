@@ -3,23 +3,27 @@ package org.rakam.plugin.user;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
+import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.config.MetadataConfig;
+import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
-import org.rakam.report.EmailClientConfig;
-import org.rakam.util.ConditionalModule;
-import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.report.EmailClientConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
+import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -44,6 +48,7 @@ public class UserModule extends RakamModule {
         webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
 
         binder.bind(UserStorageListener.class).asEagerSingleton();
+        binder.bind(UserCollectionFieldListener.class).asEagerSingleton();
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
         bindConfig(binder).to(EmailClientConfig.class);
 
@@ -113,6 +118,26 @@ public class UserModule extends RakamModule {
             }
             if(storage.isPresent()) {
                 storage.get().createProject(event.project);
+            }
+        }
+    }
+
+    public static class UserCollectionFieldListener {
+        private final Metastore metastore;
+
+        @Inject
+        public UserCollectionFieldListener(Metastore metastore) {
+            this.metastore = metastore;
+        }
+
+        @Subscribe
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+            if (!event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
+                FieldType userFieldType = metastore.getCollections(event.project).entrySet()
+                        .stream()
+                        .flatMap(e -> e.getValue().stream()).filter(e -> e.getName().equals("_user"))
+                        .filter(e -> e.getName().equals("_user")).findAny().map(f -> f.getType()).orElse(FieldType.STRING);
+                metastore.getOrCreateCollectionFieldList(event.project, event.collection, ImmutableSet.of(new SchemaField("_user", userFieldType)));
             }
         }
     }

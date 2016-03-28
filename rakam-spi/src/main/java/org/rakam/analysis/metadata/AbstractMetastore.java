@@ -3,11 +3,12 @@ package org.rakam.analysis.metadata;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.util.NotExistsException;
 
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -84,7 +85,9 @@ public abstract class AbstractMetastore implements Metastore {
     }
 
     @Override
-    public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
+    public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fieldList) throws NotExistsException {
+        HashSet<SchemaField> fields = new HashSet<  >(fieldList);
+
         Iterator<SchemaField> it = fields.iterator();
         while(it.hasNext()) {
             if(sourceFields.contains(it.next())){
