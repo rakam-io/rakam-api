@@ -38,14 +38,12 @@ public class JDBCReportMetadata {
         dbi = new DBI(dataSource);
     }
 
-    public List<Report> getReports(Integer userId, String project) {
+    public List<Report> getReports(Integer requestedUserId, String project) {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT reports.project, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.shared, reports.user_id FROM reports " +
-                    " JOIN web_user_project permission ON (permission.user_id = :user AND permission.project = :project)" +
-                    " WHERE reports.project = :project AND (permission.is_admin OR reports.shared OR reports.user_id = :user) " +
+                    " WHERE reports.project = :project " +
                     " ORDER BY reports.created_at")
                     .bind("project", project)
-                    .bind("user", userId)
                     .map(mapper)
                     .list();
         }

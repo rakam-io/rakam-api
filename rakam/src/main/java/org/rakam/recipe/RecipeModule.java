@@ -21,6 +21,7 @@ import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.server.http.HttpService;
+import org.rakam.ui.DashboardService;
 import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.ui.customreport.JDBCCustomReportMetadata;
 import org.rakam.ui.JDBCReportMetadata;
@@ -139,11 +140,16 @@ public class RecipeModule extends RakamModule {
         private final RecipeHandler installer;
 
         @Inject
-        public RecipeLoader(Recipe recipe, Metastore metastore, ContinuousQueryService continuousQueryService, MaterializedViewService materializedViewService, JDBCCustomReportMetadata customReportMetadata,
-                            CustomPageDatabase customPageDatabase, JDBCReportMetadata reportMetadata) {
+        public RecipeLoader(Recipe recipe, Metastore metastore,
+                            ContinuousQueryService continuousQueryService,
+                            MaterializedViewService materializedViewService,
+                            JDBCCustomReportMetadata customReportMetadata,
+                            CustomPageDatabase customPageDatabase,
+                            DashboardService dashboardBuilder,
+                            JDBCReportMetadata reportMetadata) {
             this.recipe = recipe;
             this.installer = new RecipeHandler(metastore, continuousQueryService, materializedViewService, customReportMetadata,
-                    customPageDatabase, reportMetadata);
+                    customPageDatabase, dashboardBuilder, reportMetadata);
         }
 
         @Subscribe

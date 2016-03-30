@@ -17,13 +17,12 @@ import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -54,7 +53,7 @@ public class QueryExecutorService {
         if (!projectExists(project)) {
             throw new IllegalArgumentException("Project is not valid");
         }
-        HashMap<MaterializedView, List<Integer>> materializedViews = new HashMap<>();
+        HashMap<MaterializedView, MaterializedViewExecution> materializedViews = new HashMap<>();
         String query;
 
         try {
@@ -65,25 +64,13 @@ public class QueryExecutorService {
 
         long startTime = System.currentTimeMillis();
 
-        List<MaterializedViewReference> queryExecutions = materializedViews.entrySet().stream()
-//                .filter(m -> m.getKey().needsUpdate(clock))
-                .map(m -> new MaterializedViewReference(m.getKey(), m.getValue(), materializedViewService.lockAndUpdateView(m.getKey())))
-                // there may be processes updating this materialized views
-                .filter(m -> m.execution != null)
+        List<MaterializedViewExecution> queryExecutions = materializedViews.values().stream()
+                .filter(m -> m.queryExecution != null)
                 .collect(Collectors.toList());
 
-        for (MaterializedViewReference queryExecution : queryExecutions) {
-            for (Integer referenceIndex : queryExecution.referenceIndexes) {
-                query = query.substring(0, referenceIndex) +
-                        queryExecution.execution.computeQuery +
-                        query.substring(referenceIndex);
-            }
-        }
-
-        String finalQuery = query;
 
         if (queryExecutions.isEmpty()) {
-            QueryExecution execution = executor.executeRawQuery(finalQuery);
+            QueryExecution execution = executor.executeRawQuery(query);
             if (materializedViews.isEmpty()) {
                 return execution;
             } else {
@@ -95,31 +82,31 @@ public class QueryExecutorService {
             }
         } else {
             CompletableFuture<QueryExecution> mergedQueries = CompletableFuture.allOf(queryExecutions.stream()
-                    .filter(e -> e.execution != null)
-                    .map(e -> e.execution.queryExecution.getResult())
+                    .filter(e -> e.queryExecution != null)
+                    .map(e -> e.queryExecution.getResult())
                     .toArray(CompletableFuture[]::new)).thenApply((r) -> {
 
-                for (MaterializedViewReference queryExecution : queryExecutions) {
-                    QueryResult result = queryExecution.execution.queryExecution.getResult().join();
+                for (MaterializedViewExecution queryExecution : queryExecutions) {
+                    QueryResult result = queryExecution.queryExecution.getResult().join();
                     if (result.isFailed()) {
-                        return new DelegateQueryExecution(queryExecution.execution.queryExecution,
+                        return new DelegateQueryExecution(queryExecution.queryExecution,
                                 materializedQueryUpdateResult -> {
                                     QueryError error = materializedQueryUpdateResult.getError();
-                                    String message = String.format("Error while updating materialized table '%s': %s", queryExecution.view.tableName, error.message);
+                                    String message = String.format("Error while updating materialized table '%s': %s", queryExecution.computeQuery, error.message);
                                     return QueryResult.errorResult(new QueryError(message, error.sqlState, error.errorCode, error.errorLine, error.charPositionInLine));
                                 });
                     }
                 }
 
-                return executor.executeRawQuery(finalQuery);
+                return executor.executeRawQuery(query);
             });
 
             return new QueryExecution() {
                 @Override
                 public QueryStats currentStats() {
                     QueryStats currentStats = null;
-                    for (MaterializedViewReference queryExecution : queryExecutions) {
-                        QueryStats queryStats = queryExecution.execution.queryExecution.currentStats();
+                    for (MaterializedViewExecution queryExecution : queryExecutions) {
+                        QueryStats queryStats = queryExecution.queryExecution.currentStats();
                         if (currentStats == null) {
                             currentStats = queryStats;
                         } else {
@@ -179,13 +166,13 @@ public class QueryExecutorService {
 
                 @Override
                 public String getQuery() {
-                    return finalQuery;
+                    return query;
                 }
 
                 @Override
                 public void kill() {
-                    for (MaterializedViewReference queryExecution : queryExecutions) {
-                        queryExecution.execution.queryExecution.kill();
+                    for (MaterializedViewExecution queryExecution : queryExecutions) {
+                        queryExecution.queryExecution.kill();
                     }
                     mergedQueries.thenAccept(q -> q.kill());
                 }
@@ -220,14 +207,17 @@ public class QueryExecutorService {
         return true;
     }
 
-    public String buildQuery(String project, String query, Integer maxLimit, HashMap<MaterializedView, List<Integer>> materializedViews) {
+    public String buildQuery(String project, String query, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews) {
         StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {
             statement = (Query) parser.createStatement(query);
         }
 
-        new QueryFormatter(builder, tableNameMapper(project, materializedViews)).process(statement, 1);
+        // TODO: use fake StringBuilder for performance
+        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, true)).process(statement, 1);
+
+        new QueryFormatter(builder, tableNameMapper(project, materializedViews, false)).process(statement, 1);
 
         if (maxLimit != null) {
             Integer limit = null;
@@ -249,8 +239,8 @@ public class QueryExecutorService {
         return builder.toString();
     }
 
-    private BiFunction<QualifiedName, StringBuilder, String> tableNameMapper(String project, HashMap<MaterializedView, List<Integer>> materializedViews) {
-        return (node, ctx) -> {
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, boolean fetchReference) {
+        return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
                 MaterializedView materializedView;
                 try {
@@ -258,8 +248,12 @@ public class QueryExecutorService {
                 } catch (Exception e) {
                     throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
                 }
-                materializedViews.computeIfAbsent(materializedView, (key) -> new ArrayList<>()).add(ctx.length());
-                return "";
+                if (fetchReference) {
+                    materializedViews.computeIfAbsent(materializedView, (key) -> materializedViewService.lockAndUpdateView(materializedView));
+                    return "";
+                } else {
+                    return materializedViews.get(materializedView).computeQuery;
+                }
             }
             return executor.formatTableReference(project, node);
         };
@@ -288,17 +282,5 @@ public class QueryExecutorService {
             }
         });
         return f;
-    }
-
-    public static class MaterializedViewReference {
-        public final MaterializedView view;
-        public final List<Integer> referenceIndexes;
-        public final MaterializedViewExecution execution;
-
-        public MaterializedViewReference(MaterializedView view, List<Integer> referenceIndexes, MaterializedViewExecution execution) {
-            this.view = view;
-            this.referenceIndexes = referenceIndexes;
-            this.execution = execution;
-        }
     }
 }

@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.name.Named;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -24,6 +25,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.skife.jdbi.v2.DBI;
@@ -53,10 +55,18 @@ public class DashboardService extends HttpService {
                             @ApiParam(name="name") String name,
                             @ApiParam(name="options", required = false) Map<String, Object> options) {
         try(Handle handle = dbi.open()) {
-            int id = handle.createQuery("INSERT INTO dashboard (project, name, options) VALUES (:project, :name, :options) RETURNING id")
-                    .bind("project", project)
-                    .bind("options", JsonHelper.encode(options))
-                    .bind("name", name).map(IntegerMapper.FIRST).first();
+            int id;
+            try {
+                id = handle.createQuery("INSERT INTO dashboard (project, name, options) VALUES (:project, :name, :options) RETURNING id")
+                        .bind("project", project)
+                        .bind("options", JsonHelper.encode(options))
+                        .bind("name", name).map(IntegerMapper.FIRST).first();
+            } catch (Exception e) {
+                if (get(project, name) != null) {
+                    throw new AlreadyExistsException("Dashboard", HttpResponseStatus.BAD_REQUEST);
+                }
+                throw e;
+            }
             return new Dashboard(id, name, options);
         }
     }
@@ -116,13 +126,13 @@ public class DashboardService extends HttpService {
     }
 
     public static class DashboardItem {
-        public final int id;
+        public final Integer id;
         public final JsonNode data;
         public final String directive;
         public final String name;
 
         @JsonCreator
-        public DashboardItem(@JsonProperty("id") int id,
+        public DashboardItem(@JsonProperty("id") Integer id,
                              @JsonProperty("name") String name,
                              @JsonProperty("directive") String directive,
                              @JsonProperty("data") JsonNode data) {
@@ -214,10 +224,25 @@ public class DashboardService extends HttpService {
                                             @ApiParam(name = "dashboard") int dashboard,
                                             @ApiParam(name = "id") int id) {
         try(Handle handle = dbi.open()) {
+            // todo check permission
             handle.createStatement("DELETE FROM dashboard_items WHERE dashboard = :dashboard AND id = :id")
                     .bind("project", project)
                     .bind("dashboard", dashboard)
                     .bind("id", id).execute();
+        }
+        return JsonResponse.success();
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Delete dashboard item", authorizations = @Authorization(value = "read_key"))
+    @Path("/delete")
+    public JsonResponse delete(@ApiParam(name = "project") String project, @ApiParam(name = "dashboard") int dashboard) {
+        try(Handle handle = dbi.open()) {
+            // todo check permission
+            handle.createStatement("DELETE FROM dashboard_items WHERE dashboard = :dashboard")
+                    .bind("dashboard", dashboard).execute();
+            handle.createStatement("DELETE FROM dashboard WHERE id = :id")
+                    .bind("id", dashboard).execute();
         }
         return JsonResponse.success();
     }

@@ -70,7 +70,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.facebook.presto.sql.ExpressionFormatter.*;
@@ -90,23 +89,12 @@ public final class RakamSqlFormatter {
         return builder.toString();
     }
 
-    public static String formatSql(Node root, BiFunction<QualifiedName, StringBuilder, String> tableNameMapper) {
-        StringBuilder builder = new StringBuilder();
-        new Formatter(builder, tableNameMapper).process(root, 0);
-        return builder.toString();
-    }
-
     public static class Formatter
             extends AstVisitor<Void, Integer> {
         private final StringBuilder builder;
-        private final BiFunction<QualifiedName, StringBuilder, String> tableNameMapper;
+        private final Function<QualifiedName, String> tableNameMapper;
 
         public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper) {
-            this.builder = builder;
-            this.tableNameMapper = (name, ctx) -> tableNameMapper.apply(name);
-        }
-
-        public Formatter(StringBuilder builder, BiFunction<QualifiedName, StringBuilder, String> tableNameMapper) {
             this.builder = builder;
             this.tableNameMapper = tableNameMapper;
         }
@@ -261,7 +249,7 @@ public final class RakamSqlFormatter {
 
         @Override
         protected Void visitTable(Table node, Integer indent) {
-            builder.append(tableNameMapper.apply(node.getName(), builder));
+            builder.append(tableNameMapper.apply(node.getName()));
             return null;
         }
 
@@ -715,15 +703,11 @@ public final class RakamSqlFormatter {
     }
 
     public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper) {
-        return new RakamExpressionFormatter((name, ctx) -> tableNameMapper.apply(name), Optional.empty()).process(expression, false);
-    }
-
-    public static String formatExpression(Expression expression, BiFunction<QualifiedName, StringBuilder, String> tableNameMapper) {
         return new RakamExpressionFormatter(tableNameMapper, Optional.empty()).process(expression, false);
     }
 
     public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper) {
-        return new RakamExpressionFormatter((name, ctx) -> tableNameMapper.apply(name), Optional.of(columnNameMapper)).process(expression, false);
+        return new RakamExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper)).process(expression, false);
     }
 
 }

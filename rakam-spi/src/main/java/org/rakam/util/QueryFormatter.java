@@ -32,14 +32,6 @@ public class QueryFormatter
         this.tableNameMapper = (key, ctx) -> tableNameMapper.apply(key);
     }
 
-    public QueryFormatter(StringBuilder builder, BiFunction<QualifiedName, StringBuilder, String> tableNameMapper)
-    {
-        super(builder, tableNameMapper);
-        this.builder = builder;
-        this.queryWithTables = new ArrayList<>();
-        this.tableNameMapper = tableNameMapper;
-    }
-
     public static String format(Statement query, Function<QualifiedName, String> tableNameMapper) {
         StringBuilder builder = new StringBuilder();
         new QueryFormatter(builder, tableNameMapper).process(query, 1);

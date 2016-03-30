@@ -3,14 +3,15 @@ package org.rakam.recipe;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import org.rakam.util.AlreadyExistsException;
-import org.rakam.collection.SchemaField;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.ui.page.CustomPageDatabase;
-import org.rakam.ui.customreport.JDBCCustomReportMetadata;
+import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
+import org.rakam.ui.DashboardService;
 import org.rakam.ui.JDBCReportMetadata;
+import org.rakam.ui.customreport.JDBCCustomReportMetadata;
+import org.rakam.ui.page.CustomPageDatabase;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -27,12 +28,14 @@ public class RecipeHandler {
     private final JDBCReportMetadata reportMetadata;
     private final JDBCCustomReportMetadata customReportMetadata;
     private final CustomPageDatabase customPageDatabase;
+    private final DashboardService dashboardService;
 
     @Inject
     public RecipeHandler(Metastore metastore, ContinuousQueryService continuousQueryService,
                          MaterializedViewService materializedViewService,
                          JDBCCustomReportMetadata customReportMetadata,
                          CustomPageDatabase customPageDatabase,
+                         DashboardService dashboardService,
                          JDBCReportMetadata reportMetadata) {
         this.metastore = metastore;
         this.materializedViewService = materializedViewService;
@@ -40,6 +43,7 @@ public class RecipeHandler {
         this.customReportMetadata = customReportMetadata;
         this.customPageDatabase = customPageDatabase;
         this.reportMetadata = reportMetadata;
+        this.dashboardService = dashboardService;
     }
 
     public Recipe export(String project) {
@@ -71,8 +75,12 @@ public class RecipeHandler {
                 .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, customPageDatabase.get(r.project(), r.slug)))
                 .collect(Collectors.toList());
 
+        List<Recipe.DashboardBuilder> dashboards = dashboardService.list(project).stream()
+                .map(a -> new Recipe.DashboardBuilder(a.name, dashboardService.get(project, a.name)))
+                .collect(Collectors.toList());
+
         return new Recipe(Recipe.Strategy.SPECIFIC, project, collections, materializedViews,
-                continuousQueryBuilders, customReports, customPages, reports);
+                continuousQueryBuilders, customReports, customPages, dashboards, reports);
     }
 
     public void install(Recipe recipe, String project, boolean overrideExisting) {
@@ -80,7 +88,7 @@ public class RecipeHandler {
     }
 
     public void install(Recipe recipe, boolean overrideExisting) {
-        if(recipe.getProject() != null) {
+        if (recipe.getProject() != null) {
             installInternal(recipe, recipe.getProject(), overrideExisting);
         } else {
             throw new IllegalArgumentException("project is null");
@@ -96,23 +104,23 @@ public class RecipeHandler {
                     .filter(f -> fields.stream().anyMatch(field -> field.getName().equals(f.getName()) && !f.getType().equals(field.getType())))
                     .collect(Collectors.toList());
 
-            if(!collisions.isEmpty()) {
+            if (!collisions.isEmpty()) {
                 String errMessage = collisions.stream().map(f -> {
                     SchemaField existingField = fields.stream().filter(field -> field.getName().equals(f.getName())).findAny().get();
                     return String.format("Recipe: [%s : %s], Collection: [%s, %s]", f.getName(), f.getType(),
                             existingField.getName(), existingField.getType());
                 }).collect(Collectors.joining(", "));
                 String message = overrideExisting ? "Overriding collection fields is not possible." : "Collision in collection fields.";
-                throw new RakamException(message + " " +errMessage, BAD_REQUEST);
+                throw new RakamException(message + " " + errMessage, BAD_REQUEST);
             }
         });
 
         recipe.getContinuousQueryBuilders().stream()
                 .map(builder -> builder.createContinuousQuery(project))
                 .forEach(continuousQuery -> continuousQueryService.create(continuousQuery, false).getResult().whenComplete((res, ex) -> {
-                    if(ex != null) {
-                        if(ex instanceof AlreadyExistsException) {
-                            if(overrideExisting) {
+                    if (ex != null) {
+                        if (ex instanceof AlreadyExistsException) {
+                            if (overrideExisting) {
                                 continuousQueryService.delete(project, continuousQuery.tableName);
                                 continuousQueryService.create(continuousQuery, false);
                             } else {
@@ -126,9 +134,9 @@ public class RecipeHandler {
         recipe.getMaterializedViewBuilders().stream()
                 .map(builder -> builder.createMaterializedView(project))
                 .forEach(materializedView -> materializedViewService.create(materializedView).whenComplete((res, ex) -> {
-                    if(ex != null) {
-                        if(ex instanceof AlreadyExistsException) {
-                            if(overrideExisting) {
+                    if (ex != null) {
+                        if (ex instanceof AlreadyExistsException) {
+                            if (overrideExisting) {
                                 materializedViewService.delete(project, materializedView.tableName);
                                 materializedViewService.create(materializedView);
                             } else {
@@ -145,11 +153,27 @@ public class RecipeHandler {
                     try {
                         reportMetadata.save(null, report);
                     } catch (AlreadyExistsException e) {
-                        if(overrideExisting) {
+                        if (overrideExisting) {
                             reportMetadata.update(null, report);
                         } else {
                             throw Throwables.propagate(e);
                         }
+                    }
+                });
+
+        recipe.getDashboards().stream()
+                .forEach(report -> {
+                    int dashboard;
+                    try {
+                        dashboard = dashboardService.create(project, report.name, ImmutableMap.of()).id;
+                    } catch (AlreadyExistsException e) {
+                        dashboard = dashboardService.list(project).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
+                        dashboardService.delete(project, dashboard);
+                        dashboard = dashboardService.create(project, report.name, ImmutableMap.of()).id;
+                    }
+
+                    for (DashboardService.DashboardItem item : report.items) {
+                        dashboardService.addToDashboard(project, dashboard, item.name, item.directive, item.data);
                     }
                 });
 

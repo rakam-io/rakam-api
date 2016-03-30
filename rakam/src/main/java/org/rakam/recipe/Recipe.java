@@ -10,8 +10,10 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.ProjectItem;
-import org.rakam.ui.page.CustomPageDatabase;
+import org.rakam.ui.DashboardService;
+import org.rakam.ui.DashboardService.DashboardItem;
 import org.rakam.ui.customreport.CustomReport;
+import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.ui.report.Report;
 
 import javax.inject.Inject;
@@ -31,6 +33,7 @@ public class Recipe implements ProjectItem {
     private final List<ReportBuilder> reports;
     private final List<CustomReportBuilder> customReports;
     private final List<CustomPageBuilder> customPages;
+    private final List<DashboardBuilder> dashboards;
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
@@ -40,6 +43,7 @@ public class Recipe implements ProjectItem {
                   @JsonProperty("continuous_queries") List<ContinuousQueryBuilder> continuousQueries,
                   @JsonProperty("custom_reports") List<CustomReportBuilder> customReports,
                   @JsonProperty("custom_pages") List<CustomPageBuilder> customPages,
+                  @JsonProperty("dashboards") List<DashboardBuilder> dashboards,
                   @JsonProperty("reports") List<ReportBuilder> reports) {
         if (strategy != Strategy.SPECIFIC && project != null) {
             throw new IllegalArgumentException("'project' parameter can be used when 'strategy' is 'specific'");
@@ -52,6 +56,7 @@ public class Recipe implements ProjectItem {
         this.materializedViews = materializedQueries == null ? ImmutableList.of() : ImmutableList.copyOf(materializedQueries);
         this.continuousQueries = continuousQueries == null ? ImmutableList.of() : ImmutableList.copyOf(continuousQueries);
         this.reports = reports == null ? ImmutableList.of() : ImmutableList.copyOf(reports);
+        this.dashboards = dashboards == null ? ImmutableList.of() : ImmutableList.copyOf(dashboards);
     }
 
     @JsonProperty("strategy")
@@ -87,6 +92,11 @@ public class Recipe implements ProjectItem {
     @JsonProperty("continuous_queries")
     public List<ContinuousQueryBuilder> getContinuousQueryBuilders() {
         return continuousQueries;
+    }
+
+    @JsonProperty("dashboards")
+    public List<DashboardBuilder> getDashboards() {
+        return dashboards;
     }
 
     @JsonProperty("reports")
@@ -232,6 +242,19 @@ public class Recipe implements ProjectItem {
 
         public CustomPageDatabase.Page createCustomPage(String project) {
             return new CustomPageDatabase.Page(project, name, slug, category, files);
+        }
+    }
+
+    public static class DashboardBuilder {
+        public final String name;
+        public final List<DashboardItem> items;
+
+        @JsonCreator
+        public DashboardBuilder(
+                @JsonProperty("name") String name,
+                @JsonProperty("items") List<DashboardItem> items) {
+            this.name = name;
+            this.items = items;
         }
     }
 
