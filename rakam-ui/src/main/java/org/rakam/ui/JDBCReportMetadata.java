@@ -27,7 +27,7 @@ public class JDBCReportMetadata {
         if(r.getMetaData().getColumnCount() >= 7) {
             report.setPermission(r.getBoolean(7));
         }
-        if(r.getMetaData().getColumnCount() == 8) {
+        if(r.getMetaData().getColumnCount() == 8 && r.getObject(8) != null) {
             report.setUserId(r.getInt(8));
         }
         return report;
@@ -79,12 +79,12 @@ public class JDBCReportMetadata {
         }
     }
 
-    public Report get(Integer requestedUserId, int userId, String project, String slug) {
+    public Report get(Integer requestedUserId, Integer userId, String project, String slug) {
         try (Handle handle = dbi.open()) {
             Report report = handle.createQuery("SELECT r.project, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
-                    " JOIN web_user_project permission ON (permission.user_id = :user AND permission.project = :project)" +
-                    " WHERE r.project = :project AND r.slug = :slug AND permission.user_id = :user AND" +
-                    " (permission.is_admin OR r.shared OR r.user_id = :requestedUser)")
+                    " LEFT JOIN web_user_project permission ON (permission.user_id = :user AND permission.project = :project)" +
+                    " WHERE r.project = :project AND r.slug = :slug AND (:user IS NULL OR " +
+                    "(permission.user_id = :user AND (permission.is_admin OR r.shared OR r.user_id = :requestedUser)))")
                     .bind("project", project)
                     .bind("user", userId)
                     .bind("requestedUser", requestedUserId)

@@ -106,7 +106,7 @@ public class ReportHttpService extends HttpService {
     @Path("/get")
     public Report get(@ApiParam(name = "project", value = "Project id") String project,
                       @ApiParam(name = "slug", value = "Report name") String slug,
-                      @ApiParam(name = "user_id", value = "Report user id") Integer userId,
+                      @ApiParam(name = "user_id", required = false, value = "Report user id") Integer userId,
                       @CookieParam(name = "session") String session) {
         return metadata.get(extractUserFromCookie(session, encryptionConfig.getSecretKey()), userId, project, slug);
     }
