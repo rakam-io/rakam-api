@@ -20,7 +20,6 @@ import org.rakam.util.ProjectCollection;
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -277,10 +276,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
 
     @Override
     public void deleteProject(String project) {
+        checkProject(project);
         try (Connection conn = connectionPool.getConnection()) {
-            PreparedStatement statement = conn.prepareStatement("delete from api_key where project = ?");
-            statement.setString(1, project);
-            statement.execute();
+            conn.createStatement().execute("DROP SCHEMA "+project+" CASCADE");
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

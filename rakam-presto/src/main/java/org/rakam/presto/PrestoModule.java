@@ -38,6 +38,7 @@ import org.rakam.presto.analysis.PrestoUserService;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
+import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
@@ -70,6 +71,7 @@ public class PrestoModule extends RakamModule {
         }
 
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
+            binder.bind(EventExplorerListener.class).asEagerSingleton();
             binder.bind(EventExplorer.class).to(PrestoEventExplorer.class);
         }
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);

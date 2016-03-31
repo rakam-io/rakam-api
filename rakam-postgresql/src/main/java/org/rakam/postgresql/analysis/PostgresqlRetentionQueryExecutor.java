@@ -13,7 +13,6 @@
  */
 package org.rakam.postgresql.analysis;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
@@ -28,6 +27,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -97,8 +97,8 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
-        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, ImmutableSet.of());
-        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, ImmutableSet.of());
+        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, new HashSet<>());
+        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, new HashSet<>());
 
         String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time") + "-1";
 

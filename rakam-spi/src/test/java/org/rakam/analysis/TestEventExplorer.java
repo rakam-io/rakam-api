@@ -106,7 +106,7 @@ public abstract class TestEventExplorer {
     }
 
     @Test
-    public void testExtraDimensionsForStaticstics() throws Exception {
+    public void testExtraDimensionsForStatistics() throws Exception {
         List<String> dimensions = getEventExplorer().getExtraDimensions("test");
         for (String dimension : dimensions) {
             QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,

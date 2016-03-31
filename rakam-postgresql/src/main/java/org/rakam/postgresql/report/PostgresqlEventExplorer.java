@@ -16,15 +16,25 @@ package org.rakam.postgresql.report;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.metadata.Metastore;
-import org.rakam.report.realtime.AggregationType;
-import org.rakam.report.eventexplorer.AbstractEventExplorer;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.report.QueryResult;
+import org.rakam.report.eventexplorer.AbstractEventExplorer;
+import org.rakam.report.realtime.AggregationType;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import java.time.LocalDate;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.String.format;
+import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlEventExplorer extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
@@ -40,11 +50,49 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
             .put(MONTH, "date_trunc('month', %s)")
             .put(YEAR, "date_trunc('year', %s)")
             .build();
+    private final QueryExecutorService executorService;
 
     @Inject
     public PostgresqlEventExplorer(QueryExecutorService service, MaterializedViewService materializedViewService,
-                                   ContinuousQueryService continuousQueryService, Metastore metastore) {
-        super(service, materializedViewService, continuousQueryService, metastore, timestampMapping);
+                                   ContinuousQueryService continuousQueryService) {
+        super(service, materializedViewService, continuousQueryService, timestampMapping);
+        this.executorService = service;
+    }
+
+    @Override
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+        checkProject(project);
+
+        if (collections.isPresent() && collections.get().isEmpty()) {
+            return CompletableFuture.completedFuture(QueryResult.empty());
+        }
+
+        if (dimension.isPresent()) {
+            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
+        }
+
+        String timePredicate = format("\"_time\" between date '%s' and date '%s' + interval '1' day",
+                startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+        String collectionQuery = collections.map(v -> "(" + v.stream()
+                .map(col -> String.format("SELECT _time, cast('%s' as text) as collection FROM %s", col, col)).collect(Collectors.joining(", ")) + ")")
+                .orElse("_all");
+
+        String query;
+        if (dimension.isPresent()) {
+            Optional<TimestampTransformation> aggregationMethod = TimestampTransformation.fromPrettyName(dimension.get());
+            if (!aggregationMethod.isPresent()) {
+                throw new RakamException(BAD_REQUEST);
+            }
+
+            query = format("select collection, %s as %s, count(*) from %s as data where %s group by 1, 2 order by 2 desc",
+                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"),
+                    aggregationMethod.get(), collectionQuery, timePredicate);
+        } else {
+            query = String.format("select collection, count(*) total \n" +
+                    " from %s as data where %s group by 1", collectionQuery, timePredicate);
+        }
+
+        return executorService.executeQuery(project, query, 20000).getResult();
     }
 
     @Override

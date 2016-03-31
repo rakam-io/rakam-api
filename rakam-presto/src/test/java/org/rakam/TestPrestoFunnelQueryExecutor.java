@@ -17,7 +17,7 @@ import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecutorService;
-import org.rakam.report.eventexplorer.EventExplorerListener;
+import org.rakam.presto.plugin.EventExplorerListener;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;

@@ -18,7 +18,7 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecution;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecutorService;
-import org.rakam.report.eventexplorer.EventExplorerListener;
+import org.rakam.presto.plugin.EventExplorerListener;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -65,8 +65,7 @@ public class TestPrestoEventExplorer extends TestEventExplorer {
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor,
                 inMemoryQueryMetadataStore, metastore, materializedViewService,  Clock.systemUTC());
 
-        eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService,
-                materializedViewService, metastore);
+        eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService, materializedViewService);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
 
         super.setup();

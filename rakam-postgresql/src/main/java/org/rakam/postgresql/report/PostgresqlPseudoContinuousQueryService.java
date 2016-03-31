@@ -36,7 +36,8 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
     @Override
     public QueryExecution create(ContinuousQuery report, boolean replayHistoricalData) {
-        String format = String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, service.buildQuery(report.project(), report.query, null, new HashMap<>()));
+        String query = service.buildQuery(report.project(), report.query, null, new HashMap<>());
+        String format = String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, query);
         return QueryExecution.completedQueryExecution(format, executor.executeRawStatement(format)
                 .getResult().thenApply(result -> {
                     if (!result.isFailed()) {

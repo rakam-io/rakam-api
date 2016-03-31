@@ -12,7 +12,6 @@ import org.rakam.postgresql.report.PostgresqlEventExplorer;
 import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutorService;
-import org.rakam.report.eventexplorer.EventExplorerListener;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -39,7 +38,6 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore,
                 new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore),  Clock.systemUTC());
         PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
-        eventBus.register(new EventExplorerListener(continuousQueryService));
 
         metastore = new PostgresqlMetastore(dataSource, eventBus, build);
 
@@ -48,8 +46,7 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
         eventExplorer = new PostgresqlEventExplorer(
                 new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService, Clock.systemUTC()),
                 materializedViewService,
-                continuousQueryService,
-                metastore);
+                continuousQueryService);
         super.setup();
     }
 

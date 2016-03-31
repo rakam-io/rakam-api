@@ -1,4 +1,4 @@
-package org.rakam.report.eventexplorer;
+package org.rakam.presto.plugin;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;

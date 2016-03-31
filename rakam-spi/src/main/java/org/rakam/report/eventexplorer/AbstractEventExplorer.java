@@ -8,7 +8,6 @@ import com.facebook.presto.sql.tree.QualifiedNameReference;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
@@ -46,7 +45,6 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private static SqlParser sqlParser = new SqlParser();
     private final QueryExecutorService executor;
 
-    private final Metastore metastore;
     private final Map<EventExplorer.TimestampTransformation, String> timestampMapping;
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
@@ -54,16 +52,14 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     public AbstractEventExplorer(QueryExecutorService executor,
                                  MaterializedViewService materializedViewService,
                                  ContinuousQueryService continuousQueryService,
-                                 Metastore metastore,
                                  Map<TimestampTransformation, String> timestampMapping) {
         this.executor = executor;
-        this.metastore = metastore;
         this.timestampMapping = timestampMapping;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
     }
 
-    private void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size) {
+    protected void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size) {
         switch (fromString(refValue.replace(" ", "_"))) {
             case HOUR_OF_DAY:
             case DAY_OF_MONTH:

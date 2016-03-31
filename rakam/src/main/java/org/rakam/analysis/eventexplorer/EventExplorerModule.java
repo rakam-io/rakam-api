@@ -7,7 +7,6 @@ import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;
-import org.rakam.report.eventexplorer.EventExplorerListener;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 
@@ -21,8 +20,6 @@ public class EventExplorerModule extends RakamModule {
 
         Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
         timeMapper.permitDuplicates().addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
-
-        binder.bind(EventExplorerListener.class).asEagerSingleton();
     }
 
     @Override
