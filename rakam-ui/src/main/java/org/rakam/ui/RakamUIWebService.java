@@ -1,5 +1,6 @@
 package org.rakam.ui;
 
+import com.google.common.collect.ImmutableMap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.DefaultFileRegion;
@@ -10,30 +11,40 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
+import net.kencochrane.raven.jul.SentryHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
 import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.util.JsonHelper;
 
 import javax.activation.MimetypesFileTypeMap;
 import javax.inject.Inject;
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
+import java.util.logging.LogManager;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpMethod.GET;
@@ -45,7 +56,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 public class RakamUIWebService extends HttpService {
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
-    public static final int HTTP_CACHE_SECONDS = 60*60*24;
+    public static final int HTTP_CACHE_SECONDS = 60 * 60 * 24;
     private final File directory;
     private final ActiveModuleList activeModules;
 
@@ -56,14 +67,41 @@ public class RakamUIWebService extends HttpService {
     }
 
     @Path("/favicon.ico")
-    @javax.ws.rs.GET
+    @GET
     @IgnorePermissionCheck
     public void favicon(RakamHttpRequest request) {
         sendFile(request, new File(directory.getPath(), "favicon.ico"));
     }
 
+    @Path("/check-sentry")
+    @GET
+    @IgnorePermissionCheck
+    public void checkSentry(RakamHttpRequest request) {
+        LogManager manager = LogManager.getLogManager();
+        String dsnInternal = manager.getProperty(SentryHandler.class.getCanonicalName() + ".dsn");
+        String tagsString = manager.getProperty(SentryHandler.class.getCanonicalName() + ".tags");
+        String dsnPublic = Optional.ofNullable(dsnInternal).map(urlString -> {
+            try {
+                URL url = new URL(urlString);
+                String[] userPass = url.getUserInfo().split(":", 2);
+                // Use public DNS
+                return url.getProtocol() + "://" + (userPass.length > 0 ? userPass[0] : "" + url) +
+                        "@" + url.getHost() + url.getPath() + "?" + url.getQuery();
+            } catch (MalformedURLException e) {
+                return null;
+            }
+        }).orElse(null);
+
+        Map<String, String> tags = Optional.ofNullable(tagsString).map(str ->
+                Arrays.stream(str.split(",")).map(val -> val.split(":")).collect(Collectors.toMap(a -> a[0], a -> a[1])))
+                .orElse(null);
+        tags.remove("type");
+
+        request.response(JsonHelper.encode(ImmutableMap.of("tags", tags, "dsn", dsnPublic)), OK).end();
+    }
+
     @Path("/ui/active-modules")
-    @javax.ws.rs.GET
+    @GET
     @ApiOperation(value = "List installed modules for ui",
             authorizations = @Authorization(value = "master_key")
     )
@@ -141,7 +179,7 @@ public class RakamUIWebService extends HttpService {
     }
 
     @Path("/*")
-    @javax.ws.rs.GET
+    @GET
     @IgnorePermissionCheck
     public void main(RakamHttpRequest request) {
         if (!request.getDecoderResult().isSuccess()) {
@@ -158,7 +196,7 @@ public class RakamUIWebService extends HttpService {
 
         int idx = uri.indexOf("/static/");
         File file;
-        if(idx > -1) {
+        if (idx > -1) {
             final String path = sanitizeUri(uri);
             if (path == null) {
                 sendError(request, FORBIDDEN);

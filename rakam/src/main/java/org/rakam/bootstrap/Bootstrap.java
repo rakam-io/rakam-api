@@ -54,79 +54,9 @@ public class Bootstrap
 
     private boolean initialized;
 
-    public Bootstrap(Module... modules)
-    {
-        this(ImmutableList.copyOf(modules));
-    }
-
     public Bootstrap(Iterable<? extends Module> modules)
     {
         this.modules = ImmutableSet.copyOf(modules);
-    }
-
-    @Beta
-    public Bootstrap setRequiredConfigurationProperty(String key, String value)
-    {
-        if (this.requiredConfigurationProperties == null) {
-            this.requiredConfigurationProperties = new TreeMap<>();
-        }
-        this.requiredConfigurationProperties.put(key, value);
-        return this;
-    }
-
-    @Beta
-    public Bootstrap setRequiredConfigurationProperties(Map<String, String> requiredConfigurationProperties)
-    {
-        if (this.requiredConfigurationProperties == null) {
-            this.requiredConfigurationProperties = new TreeMap<>();
-        }
-        this.requiredConfigurationProperties.putAll(requiredConfigurationProperties);
-        return this;
-    }
-
-    @Beta
-    public Bootstrap setOptionalConfigurationProperty(String key, String value)
-    {
-        if (this.optionalConfigurationProperties == null) {
-            this.optionalConfigurationProperties = new TreeMap<>();
-        }
-        this.optionalConfigurationProperties.put(key, value);
-        return this;
-    }
-
-    @Beta
-    public Bootstrap setOptionalConfigurationProperties(Map<String, String> optionalConfigurationProperties)
-    {
-        if (this.optionalConfigurationProperties == null) {
-            this.optionalConfigurationProperties = new TreeMap<>();
-        }
-        this.optionalConfigurationProperties.putAll(optionalConfigurationProperties);
-        return this;
-    }
-
-    @Beta
-    public Bootstrap doNotInitializeLogging()
-    {
-        this.initializeLogging = false;
-        return this;
-    }
-
-    public Bootstrap quiet()
-    {
-        this.quiet = true;
-        return this;
-    }
-
-    public Bootstrap strictConfig()
-    {
-        this.strictConfig = true;
-        return this;
-    }
-
-    public Bootstrap requireExplicitBindings(boolean requireExplicitBindings)
-    {
-        this.requireExplicitBindings = requireExplicitBindings;
-        return this;
     }
 
     public Injector initialize()
@@ -338,5 +268,70 @@ public class Bootstrap
             }
         }
         return columnPrinter;
+    }
+
+    @Beta
+    public Bootstrap setRequiredConfigurationProperty(String key, String value)
+    {
+        if (this.requiredConfigurationProperties == null) {
+            this.requiredConfigurationProperties = new TreeMap<>();
+        }
+        this.requiredConfigurationProperties.put(key, value);
+        return this;
+    }
+
+    @Beta
+    public Bootstrap setRequiredConfigurationProperties(Map<String, String> requiredConfigurationProperties)
+    {
+        if (this.requiredConfigurationProperties == null) {
+            this.requiredConfigurationProperties = new TreeMap<>();
+        }
+        this.requiredConfigurationProperties.putAll(requiredConfigurationProperties);
+        return this;
+    }
+
+    @Beta
+    public Bootstrap setOptionalConfigurationProperty(String key, String value)
+    {
+        if (this.optionalConfigurationProperties == null) {
+            this.optionalConfigurationProperties = new TreeMap<>();
+        }
+        this.optionalConfigurationProperties.put(key, value);
+        return this;
+    }
+
+    @Beta
+    public Bootstrap setOptionalConfigurationProperties(Map<String, String> optionalConfigurationProperties)
+    {
+        if (this.optionalConfigurationProperties == null) {
+            this.optionalConfigurationProperties = new TreeMap<>();
+        }
+        this.optionalConfigurationProperties.putAll(optionalConfigurationProperties);
+        return this;
+    }
+
+    @Beta
+    public Bootstrap doNotInitializeLogging()
+    {
+        this.initializeLogging = false;
+        return this;
+    }
+
+    public Bootstrap quiet()
+    {
+        this.quiet = true;
+        return this;
+    }
+
+    public Bootstrap strictConfig()
+    {
+        this.strictConfig = true;
+        return this;
+    }
+
+    public Bootstrap requireExplicitBindings(boolean requireExplicitBindings)
+    {
+        this.requireExplicitBindings = requireExplicitBindings;
+        return this;
     }
 }
