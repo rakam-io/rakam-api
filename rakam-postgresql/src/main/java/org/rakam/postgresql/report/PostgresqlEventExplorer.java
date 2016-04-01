@@ -74,22 +74,22 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
         String timePredicate = format("\"_time\" between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_DATE), endDate.format(ISO_DATE));
         String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> String.format("SELECT _time, cast('%s' as text) as collection FROM %s", col, col)).collect(Collectors.joining(", ")) + ")")
+                .map(col -> String.format("SELECT _time, cast('%s' as text) as collection FROM %s", col, col)).collect(Collectors.joining(", ")) + ") data")
                 .orElse("_all");
 
         String query;
         if (dimension.isPresent()) {
-            Optional<TimestampTransformation> aggregationMethod = TimestampTransformation.fromPrettyName(dimension.get());
+            Optional<TimestampTransformation> aggregationMethod = fromPrettyName(dimension.get());
             if (!aggregationMethod.isPresent()) {
                 throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, count(*) from %s as data where %s group by 1, 2 order by 2 desc",
-                    aggregationMethod.get() == HOUR ? "_time" : format(timestampMapping.get(aggregationMethod.get()), "_time"),
+            query = format("select collection, %s as %s, count(*) from %s where %s group by 1, 2 order by 2 desc",
+                    format(timestampMapping.get(aggregationMethod.get()), "_time"),
                     aggregationMethod.get(), collectionQuery, timePredicate);
         } else {
             query = String.format("select collection, count(*) total \n" +
-                    " from %s as data where %s group by 1", collectionQuery, timePredicate);
+                    " from %s where %s group by 1", collectionQuery, timePredicate);
         }
 
         return executorService.executeQuery(project, query, 20000).getResult();

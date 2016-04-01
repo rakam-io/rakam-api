@@ -41,7 +41,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, int windowDays, WindowType windowType) {
+    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, int windowDays, WindowType windowType) {
         if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
@@ -69,10 +69,10 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         ZoneId utc = ZoneId.of("UTC");
         long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
-        Optional<String> filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
+        String filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
                 name -> formatIdentifier(funnelStep.getCollection()) + "." + name.getParts().stream()
-                        .map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))));
+                        .map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")))).orElse("");
 
         String dimensionColumn = dimension.isPresent() ? dimension.get() + "," : "";
 

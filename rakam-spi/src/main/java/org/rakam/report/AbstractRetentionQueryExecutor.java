@@ -34,13 +34,13 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
     }
 
     protected String generateQuery(String project,
-                                 Optional<RetentionAction> retentionAction,
-                                 String connectorField,
-                                 String timeColumn,
-                                 Optional<String> dimension,
-                                 LocalDate startDate,
-                                 LocalDate endDate,
-                                 Set<CalculatedUserSet> missingPreComputedTables) {
+                                   Optional<RetentionAction> retentionAction,
+                                   String connectorField,
+                                   String timeColumn,
+                                   Optional<String> dimension,
+                                   LocalDate startDate,
+                                   LocalDate endDate,
+                                   Set<CalculatedUserSet> missingPreComputedTables) {
 
         String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
@@ -54,7 +54,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
             }
 
             Map<String, List<SchemaField>> collections = metastore.getCollections(project);
-            if(collections.size() == 0) {
+            if (collections.size() == 0) {
                 return null;
             }
 

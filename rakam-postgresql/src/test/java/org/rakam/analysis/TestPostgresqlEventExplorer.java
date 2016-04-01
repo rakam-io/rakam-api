@@ -30,16 +30,16 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, queryMetadataStore);
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         EventBus eventBus = new EventBus();
 
+        metastore = new PostgresqlMetastore(dataSource, eventBus, build);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, queryMetadataStore);
+
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore,
                 new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore),  Clock.systemUTC());
         PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
-
-        metastore = new PostgresqlMetastore(dataSource, eventBus, build);
 
         eventStore = new PostgresqlEventStore(dataSource, build);
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);

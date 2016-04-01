@@ -25,6 +25,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.of;
 import static com.google.common.collect.ImmutableSet.copyOf;
+import static java.time.Instant.parse;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 import static org.testng.Assert.*;
@@ -69,11 +70,11 @@ public abstract class TestEventExplorer {
             .put(MONTH_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
             .put(QUARTER_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
             .put(DAY_OF_WEEK, ImmutableSet.of(of("test", 4L, 100L)))
-            .put(HOUR, ImmutableSet.of(of("test", Instant.parse("1970-01-01T00:00:00Z"), 36L), of("test", Instant.parse("1970-01-01T01:00:00Z"), 36L), of("test", Instant.parse("1970-01-01T02:00:00Z"), 28L)))
+            .put(HOUR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 36L), of("test", parse("1970-01-01T01:00:00Z"), 36L), of("test", parse("1970-01-01T02:00:00Z"), 28L)))
             .put(DAY, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L)))
-            .put(WEEK, ImmutableSet.of(of("test", Instant.parse("1969-12-29T00:00:00Z"), 100L)))
-            .put(MONTH, ImmutableSet.of(of("test", Instant.parse("1970-01-01T00:00:00Z"), 100L)))
-            .put(YEAR, ImmutableSet.of(of("test", Instant.parse("1970-01-01T00:00:00Z"), 100L))).build();
+            .put(WEEK, ImmutableSet.of(of("test", parse("1969-12-29T00:00:00Z"), 100L)))
+            .put(MONTH, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L)))
+            .put(YEAR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L))).build();
 
     @Test
     public void testTotalStatistics() throws Exception {
@@ -131,7 +132,8 @@ public abstract class TestEventExplorer {
                 LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(101)).join();
 
         assertFalse(test.isFailed());
-        assertEquals(test.getResult(), of(of("test", 0L)));
+//        assertEquals(test.getResult(), of(of("test", 0L)));
+        assertEquals(test.getResult(), of());
     }
 
     @Test
@@ -311,11 +313,11 @@ public abstract class TestEventExplorer {
                 .put(MONTH_OF_YEAR, ImmutableSet.of(of(1L, 100L)))
                 .put(QUARTER_OF_YEAR, ImmutableSet. of(of(1L, 100L)))
                 .put(DAY_OF_WEEK, ImmutableSet.of(of(4L, 100L)))
-                .put(HOUR, ImmutableSet.of(of(Instant.parse("1970-01-01T00:00:00Z"), 36L), of(Instant.parse("1970-01-01T01:00:00Z"), 36L), of(Instant.parse("1970-01-01T02:00:00Z"), 28L)))
+                .put(HOUR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), 36L), of(parse("1970-01-01T01:00:00Z"), 36L), of(parse("1970-01-01T02:00:00Z"), 28L)))
                 .put(DAY, ImmutableSet.of(of(LocalDate.parse("1970-01-01"), 100L)))
-                .put(WEEK, ImmutableSet.of(of(Instant.parse("1969-12-29T00:00:00Z"), 100L)))
-                .put(MONTH, ImmutableSet.of(of(Instant.parse("1970-01-01T00:00:00Z"), 100L)))
-                .put(YEAR, ImmutableSet.of(of(Instant.parse("1970-01-01T00:00:00Z"), 100L)))
+                .put(WEEK, ImmutableSet.of(of(parse("1969-12-29T00:00:00Z"), 100L)))
+                .put(MONTH, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), 100L)))
+                .put(YEAR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), 100L)))
                 .build();
 
         List<String> dimensions = getEventExplorer().getExtraDimensions("test");
