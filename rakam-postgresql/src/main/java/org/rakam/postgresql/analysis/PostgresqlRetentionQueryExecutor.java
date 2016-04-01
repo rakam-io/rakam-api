@@ -27,11 +27,12 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.util.ValidationUtil.checkArgument;
@@ -40,14 +41,15 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
 
     private final QueryExecutor executor;
+    private final Metastore metastore;
 
     @Inject
     public PostgresqlRetentionQueryExecutor(QueryExecutor executor,
                                             Metastore metastore,
                                             MaterializedViewService materializedViewService,
                                             ContinuousQueryService continuousQueryService) {
-        super(metastore, materializedViewService, continuousQueryService);
         this.executor = executor;
+        this.metastore = metastore;
     }
 
     public String diffTimestamps(DateUnit dateUnit, String start, String end) {
@@ -89,8 +91,8 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
-        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, new HashSet<>());
-        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, new HashSet<>());
+        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
+        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
         String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time") + "-1";
 
@@ -112,5 +114,29 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
 
         return executor.executeRawQuery(query);
     }
-}
 
+    private String generateQuery(String project,
+                                 Optional<RetentionAction> retentionAction,
+                                 String connectorField,
+                                 String timeColumn,
+                                 Optional<String> dimension,
+                                 LocalDate startDate,
+                                 LocalDate endDate) {
+
+        String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
+                startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
+
+        if (!retentionAction.isPresent()) {
+
+            return metastore.getCollectionNames(project).stream()
+                    .map(collection -> getTableSubQuery(collection, connectorField, timeColumn,
+                            dimension, timePredicate, Optional.empty()))
+                    .collect(Collectors.joining(" union all "));
+        } else {
+            String collection = retentionAction.get().collection();
+
+            return getTableSubQuery(collection, connectorField,
+                    timeColumn, dimension, timePredicate, retentionAction.get().filter());
+        }
+    }
+}
