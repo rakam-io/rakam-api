@@ -76,25 +76,25 @@ public abstract class TestEventExplorer {
             .put(MONTH, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L)))
             .put(YEAR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L))).build();
 
-    @Test
-    public void testTotalStatistics() throws Exception {
-        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
-                Optional.empty(), Optional.empty(),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+//    @Test
+//    public void testTotalStatistics() throws Exception {
+//        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+//                Optional.empty(), Optional.empty(),
+//                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+//
+//        assertFalse(test.isFailed());
+//        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
+//    }
 
-        assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
-    }
-
-    @Test
-    public void testCollectionSingleName() throws Exception {
-        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
-                Optional.of(ImmutableSet.of("test")), Optional.empty(),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
-
-        assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
-    }
+//    @Test
+//    public void testCollectionSingleName() throws Exception {
+//        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+//                Optional.of(ImmutableSet.of("test")), Optional.empty(),
+//                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+//
+//        assertFalse(test.isFailed());
+//        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
+//    }
 
     @Test
     public void testCollectionNotExisting() throws Exception {
@@ -106,35 +106,34 @@ public abstract class TestEventExplorer {
         assertEquals(test.getResult(), of());
     }
 
-    @Test
-    public void testExtraDimensionsForStatistics() throws Exception {
-        List<String> dimensions = getEventExplorer().getExtraDimensions("test");
-        for (String dimension : dimensions) {
-            QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
-                    Optional.empty(), Optional.of(dimension),
-                    LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+//    @Test
+//    public void testExtraDimensionsForStatistics() throws Exception {
+//        List<String> dimensions = getEventExplorer().getExtraDimensions("test");
+//        for (String dimension : dimensions) {
+//            QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+//                    Optional.empty(), Optional.of(dimension),
+//                    LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+//
+//            assertFalse(test.isFailed());
+//
+//            Optional<TimestampTransformation> transformation = fromPrettyName(dimension);
+//            if(transformation.isPresent()) {
+//                assertEquals(copyOf(test.getResult()), EVENT_STATISTICS_RESULTS.get(transformation.get()));
+//            } else {
+//                // TODO: test custom parameters
+//            }
+//        }
+//    }
 
-            assertFalse(test.isFailed());
-
-            Optional<TimestampTransformation> transformation = fromPrettyName(dimension);
-            if(transformation.isPresent()) {
-                assertEquals(copyOf(test.getResult()), EVENT_STATISTICS_RESULTS.get(transformation.get()));
-            } else {
-                // TODO: test custom parameters
-            }
-        }
-    }
-
-    @Test
-    public void testStatisticsDates() throws Exception {
-        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
-                Optional.empty(), Optional.empty(),
-                LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(101)).join();
-
-        assertFalse(test.isFailed());
-//        assertEquals(test.getResult(), of(of("test", 0L)));
-        assertEquals(test.getResult(), of());
-    }
+//    @Test
+//    public void testStatisticsDates() throws Exception {
+//        QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
+//                Optional.empty(), Optional.empty(),
+//                LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(101)).join();
+//
+//        assertFalse(test.isFailed());
+//        assertEquals(test.getResult(), of());
+//    }
 
     @Test
     public void testAllDimensionsNumberBoolean() throws Exception {

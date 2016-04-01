@@ -1,20 +1,29 @@
 package org.rakam.event;
 
 import com.facebook.presto.rakam.RakamRaptorPlugin;
+import com.facebook.presto.rakam.stream.StreamPlugin;
+import com.facebook.presto.rakam.stream.metadata.ForMetadata;
 import com.facebook.presto.raptor.RaptorPlugin;
 import com.facebook.presto.server.testing.TestingPrestoServer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
+import com.google.inject.Binder;
+import com.google.inject.Module;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.JDBCConfig;
 import org.rakam.presto.analysis.PrestoConfig;
+import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.IDBI;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 
 import static com.google.common.base.Throwables.propagate;
+import static java.lang.String.format;
 
 public class TestingEnvironment {
 
@@ -47,12 +56,41 @@ public class TestingEnvironment {
                         }
                     };
 
+                    Module metastoreModule = new Module() {
+
+                        @Override
+                        public void configure(Binder binder) {
+
+                        }
+
+                        @Provides
+                        @Singleton
+                        @ForMetadata
+                        public IDBI getDataSource() {
+                            return new DBI(format("jdbc:h2:mem:test%s;DB_CLOSE_DELAY=-1;mode=MySQL", System.nanoTime()));
+                        }
+                    };
+
+                    StreamPlugin streamPlugin = new StreamPlugin("streaming", metastoreModule) {
+                        @Override
+                        public void setOptionalConfig(Map<String, String> optionalConfig) {
+                            super.setOptionalConfig(ImmutableMap.<String, String>builder().putAll(optionalConfig).putAll(ImmutableMap
+                                    .of("target.connector_id", "rakam_raptor",
+                                        "backup.provider", "file",
+                                        "backup.directory", Files.createTempDir().getAbsolutePath(),
+                                        "storage.directory", Files.createTempDir().getAbsolutePath(),
+                                        "backup.timeout", "1m")).build());
+                        }
+                    };
+
                     testingPrestoServer.installPlugin(plugin);
+                    testingPrestoServer.installPlugin(streamPlugin);
                     testingPrestoServer.createCatalog("rakam_raptor", "rakam_raptor");
+                    testingPrestoServer.createCatalog("streaming", "streaming");
 
                     prestoConfig = new PrestoConfig()
                             .setAddress(URI.create("http://" + testingPrestoServer.getAddress().toString()))
-                            .setStreamingConnector("rakam_raptor")
+                            .setStreamingConnector("streaming")
                             .setColdStorageConnector("rakam_raptor");
 
                     metastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase)

@@ -7,11 +7,13 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
+import org.rakam.report.QueryResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 public abstract class TestContinuousQueryService {
     private static final String PROJECT_NAME = TestContinuousQueryService.class.getName().replace(".", "_").toLowerCase().toLowerCase();
@@ -27,16 +29,17 @@ public abstract class TestContinuousQueryService {
 
     @AfterMethod
     public void afterMethod() throws Exception {
+        getContinuousQueryService().delete(PROJECT_NAME, "streamtest").join();
         getMetastore().deleteProject(PROJECT_NAME);
-        getContinuousQueryService().delete(PROJECT_NAME, "streamtest");
     }
 
     @Test
     public void testCreate() {
         ContinuousQuery report = new ContinuousQuery(PROJECT_NAME, "test", "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());
-        getContinuousQueryService().create(report, false).getResult().join();
+        QueryResult join = getContinuousQueryService().create(report, false).getResult().join();
 
+        assertFalse(join.isFailed());
         assertEquals(getContinuousQueryService().get(PROJECT_NAME, "streamtest"), report);
     }
 
@@ -44,7 +47,9 @@ public abstract class TestContinuousQueryService {
     public void testSchema() throws Exception {
         ContinuousQuery report = new ContinuousQuery(PROJECT_NAME, "test", "streamtest", "select count(*) as count from test",
                 ImmutableList.of(), ImmutableMap.of());
-        getContinuousQueryService().create(report, false).getResult().join();
+
+        QueryResult join = getContinuousQueryService().create(report, false).getResult().join();
+        assertFalse(join.isFailed());
 
         assertEquals(getContinuousQueryService().getSchemas(PROJECT_NAME),
                 ImmutableMap.of("streamtest", ImmutableList.of(new SchemaField("count", FieldType.LONG))));

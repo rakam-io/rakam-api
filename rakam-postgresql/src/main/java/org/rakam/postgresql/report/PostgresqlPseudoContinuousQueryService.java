@@ -20,8 +20,10 @@ import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryService {
     private final PostgresqlQueryExecutor executor;
@@ -63,8 +65,10 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
 
     @Override
     public Map<String, List<SchemaField>> getSchemas(String project) {
-        return database.getContinuousQueries(project).stream()
-                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " + executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")))
+        Stream<Entry<ContinuousQuery, QueryExecution>> continuous = database.getContinuousQueries(project).stream()
+                .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " +
+                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")));
+        return continuous
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
                     QueryResult join = entry.getValue().getResult().join();
                     if (join.isFailed()) {

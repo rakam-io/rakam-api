@@ -135,6 +135,17 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-rakam-streaming</artifactId>
+            <version>0.142</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jdbi</groupId>
+                    <artifactId>jdbi</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>units</artifactId>
         </dependency>

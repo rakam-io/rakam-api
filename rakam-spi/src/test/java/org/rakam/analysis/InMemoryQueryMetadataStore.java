@@ -1,22 +1,28 @@
 package org.rakam.analysis;
 
+import com.google.common.collect.ImmutableList;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.util.AlreadyExistsException;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class InMemoryQueryMetadataStore implements QueryMetadataStore {
-    private final List<ContinuousQuery> continuousQueries = new ArrayList<>();
-    private final List<MaterializedView> materializedViews = new ArrayList<>();
+    private final Set<ContinuousQuery> continuousQueries = new HashSet<>();
+    private final Set<MaterializedView> materializedViews = new HashSet<>();
 
     @Override
     public void createMaterializedView(MaterializedView materializedView) {
+        if(materializedViews.contains(materializedView)) {
+            throw new AlreadyExistsException("Materialized view", HttpResponseStatus.BAD_REQUEST);
+        }
         materializedViews.add(materializedView);
     }
 
@@ -46,6 +52,9 @@ public class InMemoryQueryMetadataStore implements QueryMetadataStore {
 
     @Override
     public void createContinuousQuery(ContinuousQuery report) {
+        if(continuousQueries.contains(report)) {
+            throw new AlreadyExistsException("Continuous query", HttpResponseStatus.BAD_REQUEST);
+        }
         continuousQueries.add(report);
     }
 
@@ -70,6 +79,6 @@ public class InMemoryQueryMetadataStore implements QueryMetadataStore {
 
     @Override
     public List<ContinuousQuery> getAllContinuousQueries() {
-        return Collections.unmodifiableList(continuousQueries);
+        return ImmutableList.copyOf(continuousQueries);
     }
 }

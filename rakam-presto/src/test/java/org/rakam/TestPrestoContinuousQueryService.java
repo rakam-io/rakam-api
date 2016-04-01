@@ -26,7 +26,6 @@ public class TestPrestoContinuousQueryService extends TestContinuousQueryService
                 JDBCPoolDataSource.getOrCreateDataSource(testEnvironment.getPostgresqlConfig()),
                 new EventBus(), new FieldDependencyBuilder().build(), testEnvironment.getPrestoConfig());
         metastore.setup();
-        metastore.setup();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 

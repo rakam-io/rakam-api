@@ -90,7 +90,7 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
         String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
-        String timeSubtraction = diffTimestamps(dateUnit, "data.date", "returning_action.date") + "-2";
+        String timeSubtraction = diffTimestamps(dateUnit, "data.date", "returning_action.date") + "-1";
 
         String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.date";
 
@@ -100,12 +100,12 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
                         "returning_action as (\n" +
                         "  %s\n" +
                         ") \n" +
-                        "select %s, cast(null as bigint) as lead, count(*) count from first_action data group by 1 union all\n" +
-                        "select %s, %s, count(*) \n" +
+                        "select %s, cast(null as bigint) as lead, count(distinct data.%s) count from first_action data group by 1 union all\n" +
+                        "select %s, %s, count(distinct returning_action.%s) \n" +
                         "from first_action data join returning_action on (data.date < returning_action.date AND data.%s = returning_action.%s) \n" +
                         "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
-                firstActionQuery, returningActionQuery, dimensionColumn,
-                dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD,
+                firstActionQuery, returningActionQuery, dimensionColumn, CONNECTOR_FIELD,
+                dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD, CONNECTOR_FIELD,
                 timeSubtraction, period);
 
         return executor.executeQuery(project, query);

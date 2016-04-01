@@ -109,7 +109,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension,
                 startDate, endDate, missingPreComputedTables);
 
-        if(firstActionQuery == null || returningActionQuery == null){
+        if (firstActionQuery == null || returningActionQuery == null) {
             return QueryExecution.completedQueryExecution("", QueryResult.empty());
         }
 
@@ -136,6 +136,12 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         return new DelegateQueryExecution(executor.executeQuery(project, query),
                 result -> {
                     result.setProperty("calculatedUserSets", missingPreComputedTables);
+                    if (!result.isFailed()) {
+                        List<List<Object>> results = result.getResult().stream()
+                                .filter(rows -> !rows.get(2).equals(0L))
+                                .collect(Collectors.toList());
+                        return new QueryResult(result.getMetadata(), results, result.getProperties());
+                    }
                     return result;
                 });
     }
