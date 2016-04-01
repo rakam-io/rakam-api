@@ -34,6 +34,7 @@ import java.util.Optional;
 import static java.lang.String.format;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
+import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
@@ -60,19 +61,10 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
 
     @Override
     public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, int period, LocalDate startDate, LocalDate endDate) {
-        String timeColumn;
-
+        checkArgument(period >= 0, "Period must be 0 or a positive value");
         checkTableColumn(CONNECTOR_FIELD, "connector field");
 
-        if (dateUnit == DateUnit.DAY) {
-            timeColumn = format("cast(_time as date)");
-        } else if (dateUnit == WEEK) {
-            timeColumn = format("cast(date_trunc('week', _time) as date)");
-        } else if (dateUnit == MONTH) {
-            timeColumn = format("cast(date_trunc('month', _time) as date)");
-        } else {
-            throw new UnsupportedOperationException();
-        }
+        String timeColumn = getTimeExpression(dateUnit);
 
         LocalDate start;
         LocalDate end;

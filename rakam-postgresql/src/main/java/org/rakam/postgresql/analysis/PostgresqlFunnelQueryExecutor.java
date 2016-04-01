@@ -71,7 +71,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
         String filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
-                name -> formatIdentifier(funnelStep.getCollection()) + "." + name.getParts().stream()
+                name -> formatIdentifier("step" + idx) + "." + name.getParts().stream()
                         .map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")))).orElse("");
 
         String dimensionColumn = dimension.isPresent() ? dimension.get() + "," : "";
