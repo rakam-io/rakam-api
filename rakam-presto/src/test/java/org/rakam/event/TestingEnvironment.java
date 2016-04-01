@@ -83,6 +83,7 @@ public class TestingEnvironment {
                         }
                     };
 
+
                     testingPrestoServer.installPlugin(plugin);
                     testingPrestoServer.installPlugin(streamPlugin);
                     testingPrestoServer.createCatalog("rakam_raptor", "rakam_raptor");
