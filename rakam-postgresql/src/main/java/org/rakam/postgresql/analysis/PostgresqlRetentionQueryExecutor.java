@@ -14,12 +14,10 @@
 package org.rakam.postgresql.analysis;
 
 import com.google.common.primitives.Ints;
-import org.rakam.analysis.ContinuousQueryService;
-import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 
 import javax.inject.Inject;
@@ -40,14 +38,12 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
 
-    private final QueryExecutor executor;
+    private final QueryExecutorService executor;
     private final Metastore metastore;
 
     @Inject
-    public PostgresqlRetentionQueryExecutor(QueryExecutor executor,
-                                            Metastore metastore,
-                                            MaterializedViewService materializedViewService,
-                                            ContinuousQueryService continuousQueryService) {
+    public PostgresqlRetentionQueryExecutor(QueryExecutorService executor,
+                                            Metastore metastore) {
         this.executor = executor;
         this.metastore = metastore;
     }
@@ -94,9 +90,9 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
         String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
-        String timeSubtraction = diffTimestamps(dateUnit, "data.time", "returning_action.time") + "-1";
+        String timeSubtraction = diffTimestamps(dateUnit, "data.date", "returning_action.date") + "-2";
 
-        String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.time";
+        String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.date";
 
         String query = format("with first_action as (\n" +
                         "  %s\n" +
@@ -106,13 +102,13 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
                         ") \n" +
                         "select %s, cast(null as bigint) as lead, count(*) count from first_action data group by 1 union all\n" +
                         "select %s, %s, count(*) \n" +
-                        "from first_action data join returning_action on (data.time < returning_action.time AND data.%s = returning_action.%s) \n" +
+                        "from first_action data join returning_action on (data.date < returning_action.date AND data.%s = returning_action.%s) \n" +
                         "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn,
                 dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD,
                 timeSubtraction, period);
 
-        return executor.executeRawQuery(query);
+        return executor.executeQuery(project, query);
     }
 
     private String generateQuery(String project,

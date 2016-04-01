@@ -9,7 +9,6 @@ import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.analysis.PostgresqlRetentionQueryExecutor;
-import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
@@ -38,9 +37,8 @@ public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExec
 
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService,  Clock.systemUTC());
-        ContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, queryExecutorService, queryExecutor);
 
-        retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(queryExecutor, metastore, materializedViewService, continuousQueryService);
+        retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(queryExecutorService, metastore);
         super.setup();
     }
 
