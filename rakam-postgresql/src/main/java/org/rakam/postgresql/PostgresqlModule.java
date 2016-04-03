@@ -59,7 +59,7 @@ public class PostgresqlModule extends RakamModule {
     protected void setup(Binder binder) {
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
 
-        JDBCPoolDataSource orCreateDataSource = JDBCPoolDataSource.getOrCreateDataSource(config);
+        JDBCPoolDataSource orCreateDataSource = JDBCPoolDataSource.getOrCreateDataSource(config, "set time zone 'UTC'");
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("store.adapter.postgresql"))
                 .toInstance(orCreateDataSource);

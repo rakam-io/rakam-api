@@ -6,6 +6,7 @@ import com.google.common.eventbus.Subscribe;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.report.QueryResult;
 
 import javax.inject.Inject;
 
@@ -23,6 +24,9 @@ public class EventExplorerListener {
     public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
         ContinuousQuery report = new ContinuousQuery(event.project, "Event metrics",
                 "_event_explorer_metrics", QUERY, ImmutableList.of("week"), ImmutableMap.of());
-        continuousQueryService.create(report, false);
+        QueryResult join = continuousQueryService.create(report, false).getResult().join();
+        if(join.isFailed()) {
+            throw new IllegalStateException(join.toString());
+        }
     }
 }

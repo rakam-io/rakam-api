@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
+import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
 
 public class PostgresqlMaterializedViewService extends MaterializedViewService {
     private final SqlParser parser = new SqlParser();
@@ -45,7 +46,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         new QueryFormatter(builder, name -> queryExecutor.formatTableReference(materializedView.project, name)).process(statement, 1);
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
-                materializedView.project, PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
+                materializedView.project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
         if (result.isFailed()) {
             throw new RakamException("Couldn't created table: " + result.getError().toString(), UNAUTHORIZED);
         }
@@ -58,7 +59,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
         return queryExecutor.executeRawStatement(format("DROP MATERIALIZED VIEW \"%s\".\"%s%s\"",
-                materializedView.project, PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName)).getResult();
+                materializedView.project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName)).getResult();
     }
 
     @Override
@@ -67,7 +68,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         boolean availableForUpdating = database.updateMaterializedView(materializedView, f);
         if (availableForUpdating) {
             String reference = String.format("\"%s\".\"%s%s\"", materializedView.project,
-                    PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX, materializedView.tableName);
+                    MATERIALIZED_VIEW_PREFIX, materializedView.tableName);
 
             QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW " + reference));
             DelegateQueryExecution delegateQueryExecution = new DelegateQueryExecution(execution, result -> {

@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static java.lang.String.format;
+import static org.rakam.postgresql.analysis.PostgresqlEventStore.UTC_CALENDAR;
 import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
@@ -136,13 +137,13 @@ public class PostgresqlQueryExecution implements QueryExecution {
                             object = resultSet.getBoolean(i+1);
                             break;
                         case TIMESTAMP:
-                            object = resultSet.getTimestamp(i+1).toInstant();
+                            object = resultSet.getTimestamp(i+1, UTC_CALENDAR).toInstant();
                             break;
                         case DATE:
-                            object = resultSet.getDate(i+1).toLocalDate();
+                            object = resultSet.getDate(i+1, UTC_CALENDAR).toLocalDate();
                             break;
                         case TIME:
-                            object = resultSet.getTime(i+1).toLocalTime();
+                            object = resultSet.getTime(i+1, UTC_CALENDAR).toLocalTime();
                             break;
                         case BINARY:
                             try {

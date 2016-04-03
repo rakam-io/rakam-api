@@ -8,6 +8,7 @@ import com.facebook.presto.sql.tree.DefaultTraversalVisitor;
 import com.facebook.presto.sql.tree.DereferenceExpression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
+import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
@@ -15,6 +16,7 @@ import com.facebook.presto.sql.tree.Statement;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.inject.name.Named;
+import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -56,6 +58,7 @@ import static java.util.Collections.nCopies;
 public class PrestoMaterializedViewService extends MaterializedViewService {
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
     public final static SqlParser sqlParser = new SqlParser();
+    private final static Logger LOGGER = Logger.get(PrestoMaterializedViewService.class);
 
     protected final QueryMetadataStore database;
     protected final QueryExecutor queryExecutor;
@@ -81,7 +84,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names) {
         Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getTables(project,
                 tableColumn -> tableColumn.getTable().getTableName().startsWith(MATERIALIZED_VIEW_PREFIX)).entrySet().stream();
-        if(names.isPresent()) {
+        if (names.isPresent()) {
             views = views.filter(e -> names.get().contains(e.getKey()));
         }
 
@@ -95,8 +98,6 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
 
     @Override
     public CompletableFuture<Void> create(MaterializedView materializedView) {
-        final boolean[] incrementalFieldExists = {false};
-
         Statement statement = sqlParser.createStatement(materializedView.query);
         statement.accept(new DefaultTraversalVisitor<Void, Void>() {
             @Override
@@ -111,12 +112,6 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                                 && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
                             throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
                         } else {
-                            if (materializedView.incrementalField != null) {
-                                if (incrementalFieldExists[0]) {
-                                    throw new RakamException("Incremental field must be referenced only once", BAD_REQUEST);
-                                }
-                                incrementalFieldExists[0] = true;
-                            }
                             continue;
                         }
                     }
@@ -127,16 +122,12 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             }
         }, null);
 
-        if (materializedView.incrementalField != null && !incrementalFieldExists[0]) {
-            throw new RakamException("Incremental field must be referenced in query.", BAD_REQUEST);
-        }
-
         StringBuilder builder = new StringBuilder();
         new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(materializedView.project, qualifiedName))
                 .process(statement, 1);
 
         QueryExecution execution = queryExecutor
-                .executeRawQuery(String.format("create table %s as %s limit 0",
+                .executeRawQuery(format("create table %s as %s limit 0",
                         queryExecutor.formatTableReference(materializedView.project,
                                 QualifiedName.of("materialized", materializedView.tableName)), builder.toString()));
 
@@ -168,97 +159,111 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     public MaterializedViewExecution lockAndUpdateView(MaterializedView materializedView) {
         CompletableFuture<Instant> f = new CompletableFuture<>();
 
-        Statement queryStatement = sqlParser.createStatement(materializedView.query);
-
-        List<String> referencedCollections = new ArrayList<>();
-
-        RakamSqlFormatter.formatSql(queryStatement, name -> {
-            if (name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
-                referencedCollections.add(name.getSuffix());
-            }
-            return null;
-        });
-
-        String materializedTableReference = queryExecutor.formatTableReference(materializedView.project,
+        String tableName = queryExecutor.formatTableReference(materializedView.project,
                 QualifiedName.of("materialized", materializedView.tableName));
+        Query statement;
+        synchronized (sqlParser) {
+            statement = (Query) sqlParser.createStatement(materializedView.query);
+        }
 
-        Map<String, List<UUID>> shardsNeedsToBeProcessed = new HashMap<>();
-        Map<String, List<UUID>> shardsWillBeProcessed = new HashMap<>();
-        Instant lastUpdated = null;
-        Instant now = Instant.now();
+        if (!materializedView.incremental) {
+            QueryResult join = queryExecutor.executeRawQuery(format("DELETE FROM %s", tableName)).getResult().join();
+            if (join.isFailed()) {
+                throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
+            }
+            StringBuilder builder = new StringBuilder();
+            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(materializedView.project, name)).process(statement, 1);
+            QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()));
+            return new MaterializedViewExecution(execution, tableName);
+        } else {
+            List<String> referencedCollections = new ArrayList<>();
 
-        try (Connection connection = dbi.open().getConnection()) {
-            String sql = String.format(
-                    "select tables.table_name, shard_uuid, create_time, (compressed_size >= %f or row_count >= %f or create_time <= now() - interval 1 day) as status \n" +
-                            "from shards join tables on (tables.table_id = shards.table_id) \n" +
-                            "where tables.schema_name = ? and tables.table_name in (%s) \n" +
-                            (materializedView.lastUpdate != null ? " and create_time > ?" : "") +
-                            " order by create_time",
-                    FILL_FACTOR * maxShardSize.toBytes(),
-                    FILL_FACTOR * maxShardRows,
-                    Joiner.on(",").join(nCopies(referencedCollections.size(), "?")));
-
-            try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setString(1, materializedView.project);
-
-                for (int i = 0; i < referencedCollections.size(); i++) {
-                    statement.setString(i + 2, referencedCollections.get(i));
+            RakamSqlFormatter.formatSql(statement, name -> {
+                if (name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
+                    referencedCollections.add(name.getSuffix());
                 }
+                return null;
+            });
 
-                if (materializedView.lastUpdate != null) {
-                    statement.setTimestamp(referencedCollections.size() + 2, Timestamp.from(materializedView.lastUpdate));
-                }
+            String materializedTableReference = tableName;
 
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    boolean switched = false;
-                    while (resultSet.next()) {
-                        String tableName = resultSet.getString(1);
-                        UUID shardUuid = UuidUtil.uuidFromBytes(resultSet.getBytes(2));
+            Map<String, List<UUID>> shardsNeedsToBeProcessed = new HashMap<>();
+            Map<String, List<UUID>> shardsWillBeProcessed = new HashMap<>();
+            Instant lastUpdated = null;
+            Instant now = Instant.now();
 
-                        if (!resultSet.getBoolean(4)) {
-                            if (!switched) {
-                                lastUpdated = resultSet.getTimestamp(3).toInstant();
+            try (Connection connection = dbi.open().getConnection()) {
+                String sql = format(
+                        "select tables.table_name, shard_uuid, create_time, (compressed_size >= %f or row_count >= %f or create_time <= now() - interval 1 day) as status \n" +
+                                "from shards join tables on (tables.table_id = shards.table_id) \n" +
+                                "where tables.schema_name = ? and tables.table_name in (%s) \n" +
+                                (materializedView.lastUpdate != null ? " and create_time > ?" : "") +
+                                " order by create_time",
+                        FILL_FACTOR * maxShardSize.toBytes(),
+                        FILL_FACTOR * maxShardRows,
+                        Joiner.on(",").join(nCopies(referencedCollections.size(), "?")));
+
+                try (PreparedStatement st = connection.prepareStatement(sql)) {
+                    st.setString(1, materializedView.project);
+
+                    for (int i = 0; i < referencedCollections.size(); i++) {
+                        st.setString(i + 2, referencedCollections.get(i));
+                    }
+
+                    if (materializedView.lastUpdate != null) {
+                        st.setTimestamp(referencedCollections.size() + 2, Timestamp.from(materializedView.lastUpdate));
+                    }
+
+                    try (ResultSet resultSet = st.executeQuery()) {
+                        boolean switched = false;
+                        while (resultSet.next()) {
+                            UUID shardUuid = UuidUtil.uuidFromBytes(resultSet.getBytes(2));
+
+                            if (!resultSet.getBoolean(4)) {
+                                if (!switched) {
+                                    lastUpdated = resultSet.getTimestamp(3).toInstant();
+                                }
+                                switched = true;
+
                             }
-                            switched = true;
-
+                            (switched ? shardsWillBeProcessed : shardsNeedsToBeProcessed)
+                                    .computeIfAbsent(resultSet.getString(1), (key) -> new ArrayList<>()).add(shardUuid);
                         }
-                        (switched ? shardsWillBeProcessed : shardsNeedsToBeProcessed)
-                                .computeIfAbsent(tableName, (key) -> new ArrayList<>()).add(shardUuid);
                     }
                 }
+            } catch (SQLException e) {
+                throw Throwables.propagate(e);
             }
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
+
+            if (lastUpdated == null && shardsWillBeProcessed.isEmpty()) {
+                lastUpdated = now;
+            }
+
+            QueryExecution queryExecution;
+            if (!shardsNeedsToBeProcessed.isEmpty() && database.updateMaterializedView(materializedView, f)) {
+                String query = RakamSqlFormatter.formatSql(statement,
+                        new ShardPredicateTableNameMapper(shardsNeedsToBeProcessed, materializedView));
+
+                queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query));
+                final Instant finalLastUpdated = lastUpdated;
+                queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? finalLastUpdated : null));
+            } else {
+                queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
+                f.complete(lastUpdated);
+            }
+
+            String reference;
+            if (shardsWillBeProcessed.isEmpty()) {
+                reference = materializedTableReference;
+            } else {
+                String query = RakamSqlFormatter.formatSql(statement,
+                        new ShardPredicateTableNameMapper(shardsWillBeProcessed, materializedView));
+
+                reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
+            }
+
+            return new MaterializedViewExecution(queryExecution, reference);
         }
-
-        if (lastUpdated == null && shardsWillBeProcessed.isEmpty()) {
-            lastUpdated = now;
-        }
-
-        QueryExecution queryExecution;
-        if (!shardsNeedsToBeProcessed.isEmpty() && database.updateMaterializedView(materializedView, f)) {
-            String query = RakamSqlFormatter.formatSql(queryStatement,
-                    new ShardPredicateTableNameMapper(shardsNeedsToBeProcessed, materializedView));
-
-            queryExecution = queryExecutor.executeRawStatement(String.format("INSERT INTO %s %s", materializedTableReference, query));
-            final Instant finalLastUpdated = lastUpdated;
-            queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? finalLastUpdated : null));
-        } else {
-            queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
-            f.complete(lastUpdated);
-        }
-
-        String reference;
-        if (shardsWillBeProcessed.isEmpty()) {
-            reference = materializedTableReference;
-        } else {
-            String query = RakamSqlFormatter.formatSql(queryStatement,
-                    new ShardPredicateTableNameMapper(shardsWillBeProcessed, materializedView));
-
-            reference = String.format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
-        }
-
-        return new MaterializedViewExecution(queryExecution, reference);
     }
 
     private class ShardPredicateTableNameMapper implements Function<QualifiedName, String> {
@@ -277,10 +282,10 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             if (uuids == null || uuids.isEmpty()) {
                 predicate = "is null";
             } else {
-                predicate = String.format("in (%s)",
+                predicate = format("in (%s)",
                         uuids.stream().map(uuid -> "'" + uuid.toString() + "'").collect(Collectors.joining(", ")));
             }
-            return String.format("(SELECT * FROM %s WHERE \"$shard_uuid\" %s)",
+            return format("(SELECT * FROM %s WHERE \"$shard_uuid\" %s)",
                     queryExecutor.formatTableReference(materializedView.project, name),
                     predicate);
         }

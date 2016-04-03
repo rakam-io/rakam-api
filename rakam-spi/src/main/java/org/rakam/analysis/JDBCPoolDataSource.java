@@ -12,6 +12,7 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -23,7 +24,7 @@ public class JDBCPoolDataSource implements DataSource {
     private final HikariDataSource dataSource;
     private final JDBCConfig config;
 
-    private JDBCPoolDataSource(JDBCConfig config) {
+    private JDBCPoolDataSource(JDBCConfig config, Optional<String> initialString) {
         this.config = config;
         checkArgument(config.getUrl() != null, "JDBC url is required");
 
@@ -47,6 +48,9 @@ public class JDBCPoolDataSource implements DataSource {
 
         hikariConfig.setAutoCommit(true);
         hikariConfig.setPoolName("generic-jdbc-query-executor");
+        if(initialString.isPresent()) {
+            hikariConfig.setConnectionInitSql(initialString.get());
+        }
         dataSource = new HikariDataSource(hikariConfig);
     }
 
@@ -65,9 +69,14 @@ public class JDBCPoolDataSource implements DataSource {
         }
     }
 
+    public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config, String initialQuery) {
+        return pools.computeIfAbsent(config,
+                key -> new JDBCPoolDataSource(config, Optional.of(initialQuery)));
+    }
+
     public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config) {
         return pools.computeIfAbsent(config,
-                key -> new JDBCPoolDataSource(config));
+                key -> new JDBCPoolDataSource(config, Optional.empty()));
     }
 
     @Override

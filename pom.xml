@@ -35,6 +35,12 @@
             <name>bintray</name>
             <url>http://dl.bintray.com/buremba/maven</url>
         </repository>
+
+        <repository>
+            <id>dynamodb-local</id>
+            <name>DynamoDB Local Release Repository</name>
+            <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/release</url>
+        </repository>
     </repositories>
 
     <licenses>
@@ -161,6 +167,11 @@
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>configuration</artifactId>
+                <version>${air.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>discovery</artifactId>
                 <version>${air.version}</version>
             </dependency>
             <dependency>
@@ -400,6 +411,80 @@
                 <artifactId>auto-service</artifactId>
                 <version>1.0-rc2</version>
                 <optional>true</optional>
+            </dependency>
+
+            <dependency>
+                <groupId>com.almworks.sqlite4java</groupId>
+                <artifactId>sqlite4java</artifactId>
+                <version>1.0.392</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>DynamoDBLocal</artifactId>
+                <version>1.10.5.1</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.amazonaws</groupId>
+                        <artifactId>aws-java-sdk-core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.commons</groupId>
+                        <artifactId>commons-lang3</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.antlr</groupId>
+                        <artifactId>antlr4-runtime</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.amazonaws</groupId>
+                        <artifactId>aws-java-sdk-dynamodb</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.amazonaws</groupId>
+                        <artifactId>aws-java-sdk-kms</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.amazonaws</groupId>
+                        <artifactId>aws-java-sdk-s3</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-databind</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mockito</groupId>
+                        <artifactId>mockito-core</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>com.facebook.presto</groupId>
+                <artifactId>presto-rakam-streaming</artifactId>
+                <version>0.142</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.jdbi</groupId>
+                        <artifactId>jdbi</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>junit</groupId>
+                        <artifactId>junit</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>

@@ -29,7 +29,7 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
         testingPostgresqlServer = new TestingEnvironment();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
-        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
+        JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig(), "set time zone 'UTC'");
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         EventBus eventBus = new EventBus();

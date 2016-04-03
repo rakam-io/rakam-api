@@ -44,7 +44,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 r.getString("project"),
                 r.getString("name"), r.getString("table_name"), r.getString("query"),
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
-                r.getString("incremental_field"),
+                r.getBoolean("incremental"),
                 r.getString("options") == null ? null : JsonHelper.read(r.getString("options"), Map.class));
         Long last_updated = r.getLong("last_updated");
         if(last_updated != null && last_updated != 0) {
@@ -120,7 +120,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                         .bind("table_name", materializedView.tableName)
                         .bind("query", materializedView.query)
                         .bind("update_interval", materializedView.updateInterval != null ? materializedView.updateInterval.toMillis() : null)
-                        .bind("incremental_field", materializedView.incrementalField)
+                        .bind("incremental", materializedView.incremental)
                         .bind("options", JsonHelper.encode(materializedView.options))
                         .execute();
             } catch (Exception e) {

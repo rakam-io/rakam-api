@@ -10,7 +10,6 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.plugin.ProjectItem;
-import org.rakam.ui.DashboardService;
 import org.rakam.ui.DashboardService.DashboardItem;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.page.CustomPageDatabase;
@@ -132,20 +131,20 @@ public class Recipe implements ProjectItem {
         public final String name;
         public final String table_name;
         public final String query;
-        public final String incremental_field;
+        public final boolean incremental;
         public final Duration updateInterval;
 
         @Inject
-        public MaterializedViewBuilder(@JsonProperty("name") String name, @JsonProperty("table_name") String table_name, @JsonProperty("query") String query, @JsonProperty("update_interval") Duration updateInterval, @JsonProperty("incremental_field") String incremental_field) {
+        public MaterializedViewBuilder(@JsonProperty("name") String name, @JsonProperty("table_name") String table_name, @JsonProperty("query") String query, @JsonProperty("update_interval") Duration updateInterval, @JsonProperty("incremental") Boolean incremental) {
             this.name = name;
             this.table_name = table_name;
             this.query = query;
-            this.incremental_field = incremental_field;
+            this.incremental = incremental;
             this.updateInterval = updateInterval;
         }
 
         public MaterializedView createMaterializedView(String project) {
-            return new MaterializedView(project, name, table_name, query, updateInterval, incremental_field, ImmutableMap.of());
+            return new MaterializedView(project, name, table_name, query, updateInterval, incremental, ImmutableMap.of());
         }
     }
 

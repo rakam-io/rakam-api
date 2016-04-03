@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 
@@ -90,7 +91,7 @@ public interface EventExplorer {
         @JsonCreator
         public Measure(@JsonProperty("column") String column,
                        @JsonProperty("aggregation") AggregationType aggregation) {
-            if(column == null && aggregation != AggregationType.COUNT) {
+            if(column == null && aggregation != COUNT) {
                 throw new IllegalArgumentException("measure column is required if aggregation is not COUNT");
             }
             this.column = column;

@@ -39,7 +39,7 @@ import static org.rakam.util.ValidationUtil.checkProject;
 public class PostgresqlEventExplorer extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
-            .put(HOUR_OF_DAY, "cast(extract(hour from %s) as bigint)")
+            .put(HOUR_OF_DAY, "cast(extract(hour FROM %s) as bigint)")
             .put(DAY_OF_MONTH, "cast(extract(day FROM %s) as bigint)")
             .put(WEEK_OF_YEAR, "cast(extract(doy FROM %s) as bigint)")
             .put(MONTH_OF_YEAR, "cast(extract(month FROM %s) as bigint)")

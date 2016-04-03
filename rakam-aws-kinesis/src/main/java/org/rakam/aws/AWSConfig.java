@@ -22,13 +22,15 @@ public class AWSConfig {
     }
 
     @Config("event.store.kinesis.stream")
-    public void setEventStoreStreamName(String eventStoreStreamName) {
+    public AWSConfig setEventStoreStreamName(String eventStoreStreamName) {
         this.eventStoreStreamName = eventStoreStreamName;
+        return this;
     }
 
     @Config("event.store.bulk.s3-bucket")
-    public void setEventStoreBulkS3Bucket(String eventStoreBulkS3Bucket) {
+    public AWSConfig setEventStoreBulkS3Bucket(String eventStoreBulkS3Bucket) {
         this.eventStoreBulkS3Bucket = eventStoreBulkS3Bucket;
+        return this;
     }
 
     public String getEventStoreBulkS3Bucket() {

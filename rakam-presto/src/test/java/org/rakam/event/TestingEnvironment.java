@@ -1,5 +1,6 @@
 package org.rakam.event;
 
+import com.amazonaws.services.dynamodbv2.local.server.DynamoDBProxyServer;
 import com.facebook.presto.rakam.RakamRaptorPlugin;
 import com.facebook.presto.rakam.stream.StreamPlugin;
 import com.facebook.presto.rakam.stream.metadata.ForMetadata;
@@ -18,11 +19,17 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.IDBI;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static com.google.common.base.Throwables.propagate;
+import static com.google.common.collect.ImmutableList.of;
+import static java.lang.ProcessBuilder.Redirect.INHERIT;
 import static java.lang.String.format;
 
 public class TestingEnvironment {
@@ -31,7 +38,11 @@ public class TestingEnvironment {
     private static TestingPrestoServer testingPrestoServer;
     private static TestingPostgreSqlServer testingPostgresqlServer;
     private static JDBCConfig postgresqlConfig;
-    private JDBCPoolDataSource metastore;
+    private static int kinesisPort;
+    private static JDBCPoolDataSource metastore;
+    private static Process kinesisProcess;
+    DynamoDBProxyServer dynamoDBServer;
+    private Process dynamodbServer;
 
     public TestingEnvironment() {
         this(true);
@@ -71,15 +82,36 @@ public class TestingEnvironment {
                         }
                     };
 
+
+                    kinesisPort = startKinesis();
+                    int dynamodbPort = createDynamodb();
+
                     StreamPlugin streamPlugin = new StreamPlugin("streaming", metastoreModule) {
                         @Override
                         public void setOptionalConfig(Map<String, String> optionalConfig) {
-                            super.setOptionalConfig(ImmutableMap.<String, String>builder().putAll(optionalConfig).putAll(ImmutableMap
-                                    .of("target.connector_id", "rakam_raptor",
-                                        "backup.provider", "file",
-                                        "backup.directory", Files.createTempDir().getAbsolutePath(),
-                                        "storage.directory", Files.createTempDir().getAbsolutePath(),
-                                        "backup.timeout", "1m")).build());
+                            ImmutableMap.Builder<String, String> build = ImmutableMap.<String, String>builder()
+                                    .put("target.connector_id", "rakam_raptor")
+                                    .put("backup.provider", "file")
+                                    .put("http-server.http.port", Integer.toString(ThreadLocalRandom.current().nextInt(1000, 10000)))
+                                    .put("backup.directory", Files.createTempDir().getAbsolutePath())
+                                    .put("storage.directory", Files.createTempDir().getAbsolutePath())
+                                    .put("backup.timeout", "1m")
+                                    .put("stream.source", "kinesis")
+                                    .put("kinesis.stream", "rakam-events")
+                                    .put("aws.kinesis-endpoint", "http://127.0.0.1:" + kinesisPort)
+                                    .put("aws.dynamodb-endpoint", "http://127.0.0.1:" + dynamodbPort)
+                                    .put("aws.secret-access-key", "AKIAIBZAIKH65T3ESNBQ")
+                                    .put("aws.access-key", "JVKUio6AZTZ9oQgpbTlVeRcyhTo7zivi3oHa1IYg")
+                                    .put("aws.region", "eu-central-1")
+                                    .put("aws.enable-cloudwatch", "false")
+                                    .put("middleware.max-flush-records", "1")
+                                    .put("stream.max-flush-records", "1");
+
+                            ImmutableMap<String, String> b = build.build();
+                            optionalConfig.entrySet().stream()
+                                    .filter(f -> !b.containsKey(f.getKey()))
+                                    .forEach(build::put);
+                            super.setOptionalConfig(build.build());
                         }
                     };
 
@@ -146,5 +178,54 @@ public class TestingEnvironment {
         if (testingPostgresqlServer != null) {
             testingPostgresqlServer.close();
         }
+        if (kinesisProcess != null) {
+            kinesisProcess.destroy();
+        }
+        if (dynamoDBServer != null) {
+            dynamodbServer.destroy();
+        }
+    }
+
+    private int startKinesis() throws Exception {
+        Path mainDir = new File(System.getProperty("user.dir"), "rakam-presto/.test/kinesalite").toPath();
+
+        String nodePath = mainDir
+                .resolve("node/node")
+                .toFile().getAbsolutePath();
+
+        String kinesalitePath = mainDir
+                .resolve("node_modules/.bin/kinesalite")
+                .toFile().getAbsolutePath();
+
+        int kinesisPort = randomPort();
+        kinesisProcess = new ProcessBuilder(of(nodePath, kinesalitePath, "--port", Integer.toString(kinesisPort)))
+                .redirectErrorStream(true)
+                .redirectOutput(INHERIT)
+                .start();
+        return kinesisPort;
+    }
+
+    public int createDynamodb() throws Exception {
+        int randomPort = randomPort();
+        Path mainDir = new File(System.getProperty("user.dir"), "rakam-presto/.test/dynamodb").toPath();
+
+        dynamodbServer = new ProcessBuilder(of("java", format("-Djava.library.path=%s",
+                mainDir.resolve("DynamoDBLocal_lib").toFile().getAbsolutePath()),
+                "-jar", mainDir.resolve("DynamoDBLocal.jar").toFile().getAbsolutePath(),
+                "-inMemory", "--port", Integer.toString(randomPort)))
+                .start();
+
+        return randomPort;
+    }
+
+    private static int randomPort()
+            throws IOException {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        }
+    }
+
+    public int getKinesisPort() {
+        return kinesisPort;
     }
 }

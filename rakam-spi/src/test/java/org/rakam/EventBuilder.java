@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
+
 public class EventBuilder {
     private final Metastore metastore;
     private final String project;
@@ -95,7 +97,10 @@ public class EventBuilder {
         if(value instanceof String) {
             return FieldType.STRING;
         }
-        if(value instanceof Number) {
+        if(value instanceof Long) {
+            return FieldType.LONG;
+        }
+        if(value instanceof Double) {
             return FieldType.DOUBLE;
         }
         if(value instanceof Boolean) {
@@ -129,6 +134,6 @@ public class EventBuilder {
             return FieldType.DATE;
         }
 
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException(format("Undefined type: %s", value.getClass()));
     }
 }

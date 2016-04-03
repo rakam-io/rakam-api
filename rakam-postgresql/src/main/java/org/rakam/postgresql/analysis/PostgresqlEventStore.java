@@ -23,14 +23,18 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.IntStream;
 
 @Singleton
 public class PostgresqlEventStore implements EventStore {
     private final Set<String> sourceFields;
     private final JDBCPoolDataSource connectionPool;
+    public static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone(ZoneId.of("UTC")));
 
     @Inject
     public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, FieldDependencyBuilder.FieldDependency fieldDependency) {
@@ -93,13 +97,13 @@ public class PostgresqlEventStore implements EventStore {
                     ps.setDouble(i + 1, ((Number) value).doubleValue());
                     break;
                 case TIMESTAMP:
-                    ps.setTimestamp(i + 1, new Timestamp(((Number) value).longValue()));
+                    ps.setTimestamp(i + 1, new Timestamp(((Number) value).longValue()), UTC_CALENDAR);
                     break;
                 case TIME:
-                    ps.setTime(i + 1, Time.valueOf(LocalTime.ofSecondOfDay(((Number) value).intValue())));
+                    ps.setTime(i + 1, Time.valueOf(LocalTime.ofSecondOfDay(((Number) value).intValue())), UTC_CALENDAR);
                     break;
                 case DATE:
-                    ps.setDate(i + 1, Date.valueOf(LocalDate.ofEpochDay(((Number) value).intValue())));
+                    ps.setDate(i + 1, Date.valueOf(LocalDate.ofEpochDay(((Number) value).intValue())), UTC_CALENDAR);
                     break;
                 case BOOLEAN:
                     ps.setBoolean(i + 1, (Boolean) value);

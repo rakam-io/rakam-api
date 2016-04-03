@@ -343,7 +343,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private String getFinalForAggregationFunction(Measure aggregation) {
         switch (aggregation.aggregation) {
             case AVERAGE:
-                return "sum(%1$s) / count(%1$s)";
+                return "cast(sum(%1$s) as double) / count(%1$s)";
             case MAXIMUM:
                 return "max(%s)";
             case MINIMUM:
@@ -390,7 +390,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     aggregationMethod.get(), timePredicate);
         } else {
             query = String.format("select collection, coalesce(sum(total), 0) as total \n" +
-                                            " from continuous._event_explorer_metrics where %s", timePredicate);
+                                            " from continuous._event_explorer_metrics where %s group by 1", timePredicate);
         }
 
         return executor.executeQuery(project, query, 20000).getResult();
