@@ -37,6 +37,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -167,6 +168,9 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         }
 
         if (!materializedView.incremental) {
+            if (!materializedView.needsUpdate(Clock.systemUTC())) {
+                return new MaterializedViewExecution(null, tableName);
+            }
             QueryResult join = queryExecutor.executeRawQuery(format("DELETE FROM %s", tableName)).getResult().join();
             if (join.isFailed()) {
                 throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);

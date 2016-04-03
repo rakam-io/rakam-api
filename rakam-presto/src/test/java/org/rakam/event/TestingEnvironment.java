@@ -187,7 +187,7 @@ public class TestingEnvironment {
     }
 
     private int startKinesis() throws Exception {
-        Path mainDir = new File(System.getProperty("user.dir"), "rakam-presto/.test/kinesalite").toPath();
+        Path mainDir = new File(System.getProperty("user.dir"), ".test/kinesalite").toPath();
 
         String nodePath = mainDir
                 .resolve("node/node")
@@ -207,7 +207,7 @@ public class TestingEnvironment {
 
     public int createDynamodb() throws Exception {
         int randomPort = randomPort();
-        Path mainDir = new File(System.getProperty("user.dir"), "rakam-presto/.test/dynamodb").toPath();
+        Path mainDir = new File(System.getProperty("user.dir"), ".test/dynamodb").toPath();
 
         dynamodbServer = new ProcessBuilder(of("java", format("-Djava.library.path=%s",
                 mainDir.resolve("DynamoDBLocal_lib").toFile().getAbsolutePath()),
