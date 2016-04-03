@@ -10,7 +10,7 @@ WORKDIR /var/app
 RUN git clone https://github.com/buremba/rakam-ui.git
 RUN cd rakam-ui && npm install --unsafe-perm
 
-RUN git clone https://github.com/buremba/rakam.git
+RUN git clone https://github.com/rakam-io/rakam.git
 RUN cd rakam && mvn install -DskipTests && cd rakam/target && tar -zxvf *-bundle.tar.gz
 
 RUN echo 'org.rakam=INFO\n\

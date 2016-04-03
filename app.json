@@ -2,7 +2,7 @@
   "name": "Rakam",
   "description": "Your analytics service",
   "website": "http://getrakam.com",
-  "repository": "https://github.com/buremba/rakam",
+  "repository": "https://github.com/rakam-io/rakam",
   "logo": "https://cdn0.iconfinder.com/data/icons/news-and-magazine/512/statistic-128.png",
   "success_url": "/",
   "keywords": [

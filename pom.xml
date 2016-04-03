@@ -15,7 +15,7 @@
 
     <name>rakam-root</name>
     <description>Rakam</description>
-    <url>https://github.com/buremba/rakam</url>
+    <url>https://github.com/rakam-io/rakam</url>
 
     <inceptionYear>2014</inceptionYear>
 
@@ -594,9 +594,9 @@
     </build>
 
     <scm>
-        <connection>scm:git:https://github.com/buremba/rakam.git</connection>
-        <developerConnection>scm:git:git@github.com:buremba/rakam.git</developerConnection>
-        <url>https://github.com/buremba/rakam</url>
+        <connection>scm:git:https://github.com/rakam-io/rakam.git</connection>
+        <developerConnection>scm:git:git@github.com:rakam-io/rakam.git</developerConnection>
+        <url>https://github.com/rakam-io/rakam</url>
         <tag>HEAD</tag>
     </scm>
 
