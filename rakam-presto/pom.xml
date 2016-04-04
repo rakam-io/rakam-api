@@ -185,7 +185,7 @@
                         <configuration>
                             <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.zip</url>
                             <unpack>true</unpack>
-                            <outputDirectory>${basedir}/.test/dynamodb</outputDirectory>
+                            <outputDirectory>${air.main.basedir}/.test/dynamodb</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
@@ -196,7 +196,7 @@
                 <version>0.0.23</version>
 
                 <configuration>
-                    <workingDirectory>${basedir}/.test/kinesalite</workingDirectory>
+                    <workingDirectory>${air.main.basedir}/.test/kinesalite</workingDirectory>
                 </configuration>
 
                 <executions>

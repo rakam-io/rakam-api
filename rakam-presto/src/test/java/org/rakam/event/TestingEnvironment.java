@@ -31,6 +31,7 @@ import static com.google.common.base.Throwables.propagate;
 import static com.google.common.collect.ImmutableList.of;
 import static java.lang.ProcessBuilder.Redirect.INHERIT;
 import static java.lang.String.format;
+import static java.lang.System.getProperty;
 
 public class TestingEnvironment {
 
@@ -187,7 +188,7 @@ public class TestingEnvironment {
     }
 
     private int startKinesis() throws Exception {
-        Path mainDir = new File(System.getProperty("user.dir"), ".test/kinesalite").toPath();
+        Path mainDir = new File(getProperty("user.dir"), ".test/kinesalite").toPath();
 
         String nodePath = mainDir
                 .resolve("node/node")
@@ -207,7 +208,7 @@ public class TestingEnvironment {
 
     public int createDynamodb() throws Exception {
         int randomPort = randomPort();
-        Path mainDir = new File(System.getProperty("user.dir"), ".test/dynamodb").toPath();
+        Path mainDir = new File(getProperty("user.dir"), ".test/dynamodb").toPath();
 
         dynamodbServer = new ProcessBuilder(of("java", format("-Djava.library.path=%s",
                 mainDir.resolve("DynamoDBLocal_lib").toFile().getAbsolutePath()),
