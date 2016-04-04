@@ -40,6 +40,10 @@ class ActiveModuleListBuilder {
         @JsonProperty
         public final boolean funnelAnalysisEnabled;
         @JsonProperty
+        public final boolean automationEnabled;
+        @JsonProperty
+        public final boolean abTestingEnabled;
+        @JsonProperty
         public final boolean retentionAnalysisEnabled;
         @JsonProperty
         public final boolean eventExplorer;
@@ -54,6 +58,8 @@ class ActiveModuleListBuilder {
             this.userStorage = userPluginConfig.getStorageModule() != null;
             this.userMailbox = userStorageMailbox;
             this.funnelAnalysisEnabled = userPluginConfig.isFunnelAnalysisEnabled();
+            this.automationEnabled = userPluginConfig.getAutomationEnabled();
+            this.abTestingEnabled = userPluginConfig.getAbTestingEnabled();
             this.retentionAnalysisEnabled = userPluginConfig.isRetentionAnalysisEnabled();
             this.eventExplorer = eventExplorerConfig.isEventExplorerEnabled();
             this.realtime = realtimeConfig.isRealtimeModuleEnabled();

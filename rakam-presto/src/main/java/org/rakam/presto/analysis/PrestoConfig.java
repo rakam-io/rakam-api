@@ -77,7 +77,7 @@ public class PrestoConfig {
         return hotStorageConnectorName;
     }
 
-    public String getMiddlewareConnector() {
+    public String getBulkConnector() {
         return bulkConnector;
     }
 }

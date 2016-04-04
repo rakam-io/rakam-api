@@ -6,7 +6,6 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
@@ -121,10 +120,10 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Override
     public void commit(String project, String collection) {
+
         executor.executeRawQuery(format("INSERT INTO %s.%s.%s SELECT * FROM %s.%s.%s",
                 prestoConfig.getColdStorageConnector(), project, collection,
-                prestoConfig.getMiddlewareConnector(), project, collection),
-                ImmutableMap.of("commit", "true"), null);
+                prestoConfig.getBulkConnector(), project, collection));
     }
 
     @Override

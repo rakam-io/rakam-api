@@ -18,6 +18,8 @@ public class UserPluginConfig {
     private boolean funnelAnalysisEnabled = true;
     private boolean retentionAnalysisEnabled = true;
     private Iterable<String> actions;
+    private boolean automationEnabled;
+    private boolean abTestingEnabled;
 
     @Config("plugin.user.storage.identifier_column")
     public UserPluginConfig setIdentifierColumn(String colName) {
@@ -73,6 +75,22 @@ public class UserPluginConfig {
 
     public boolean isFunnelAnalysisEnabled() {
         return funnelAnalysisEnabled;
+    }
+
+    @Config("automation.enabled")
+    public void setAutomationEnabled(boolean automationEnabled) {
+        this.automationEnabled = automationEnabled;
+    }
+    public boolean getAutomationEnabled() {
+        return automationEnabled;
+    }
+
+    @Config("event.ab-testing.enabled")
+    public void setAbTestingEnabled(boolean abTestingEnabled) {
+        this.abTestingEnabled = abTestingEnabled;
+    }
+    public boolean getAbTestingEnabled() {
+        return abTestingEnabled;
     }
 
     @Config("user.retention-analysis.enabled")
