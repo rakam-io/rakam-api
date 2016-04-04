@@ -118,6 +118,10 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-parser</artifactId>
+        </dependency>
+        <dependency>
             <artifactId>aws-java-sdk-kinesis</artifactId>
             <groupId>com.amazonaws</groupId>
             <version>${aws.library}</version>
