@@ -1,1 +1,2 @@
-rakam/rakam/target/*.tar.gz
+rakam/target/rakam-0.4-SNAPSHOT-bundle.tar.gz
+rakam-ui/src/main/resources/rakam-ui-master/node_modules
