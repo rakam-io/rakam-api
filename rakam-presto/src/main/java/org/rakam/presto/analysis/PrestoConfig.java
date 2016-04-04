@@ -10,6 +10,7 @@ public class PrestoConfig {
     private String hotStorageConnectorName;
     private String streamingConnector = "streaming";
     private String userConnector = "user";
+    private String bulkConnector = "middleware";
 
     @Config("presto.address")
     public PrestoConfig setAddress(URI address)
@@ -24,6 +25,14 @@ public class PrestoConfig {
     {
 
         this.userConnector = userConnector;
+        return this;
+    }
+
+    @Config("presto.bulk_connector")
+    public PrestoConfig setBulkConnector(String bulkConnector)
+    {
+
+        this.bulkConnector = bulkConnector;
         return this;
     }
 
@@ -66,5 +75,9 @@ public class PrestoConfig {
 
     public String getHotStorageConnector() {
         return hotStorageConnectorName;
+    }
+
+    public String getMiddlewareConnector() {
+        return bulkConnector;
     }
 }

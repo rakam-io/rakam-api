@@ -27,6 +27,7 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
     private EventExplorer eventExplorer;
     private TestingEnvironment testingEnvironment;
     private PrestoMetastore metastore;
+    private PrestoQueryExecutor prestoQueryExecutor;
 
     @BeforeSuite
     @Override
@@ -44,7 +45,7 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
                 new EventBus(), build, prestoConfig);
         metastore.setup();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
+        prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
 
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore,
                 prestoQueryExecutor, prestoConfig);
@@ -60,6 +61,10 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
         new EventExplorerListener(continuousQueryService).onCreateProject(new SystemEvents.ProjectCreatedEvent(PROJECT_NAME));
         // todo find a better way of handling this
         Thread.sleep(20000);
+    }
+
+    public PrestoQueryExecutor getPrestoQueryExecutor() {
+        return prestoQueryExecutor;
     }
 
     public abstract void setupInline();

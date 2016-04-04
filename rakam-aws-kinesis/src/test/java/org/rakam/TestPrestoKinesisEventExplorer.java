@@ -11,6 +11,8 @@ public class TestPrestoKinesisEventExplorer extends TestPrestoEventExplorer {
     @Override
     public void setupInline() {
         testingPrestoEventStore = new AWSKinesisEventStore(getAWSConfig(), getMetastore(),
+                getPrestoQueryExecutor(),
+                getEnvironment().getPrestoConfig(),
                 new FieldDependencyBuilder().build());
     }
 
@@ -20,8 +22,8 @@ public class TestPrestoKinesisEventExplorer extends TestPrestoEventExplorer {
 
     private AWSConfig getAWSConfig() {
         int kinesisPort = super.getEnvironment().getKinesisPort();
-        return new AWSConfig().setAccessKey("AKIAJCEXDCBIXXJ6QV5Q")
-                .setSecretAccessKey("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")
+        return new AWSConfig().setAccessKey("")
+                .setSecretAccessKey("")
                 .setRegion("eu-central-1")
                 .setKinesisEndpoint(kinesisPort == 0 ? null : "http://127.0.0.1:" + kinesisPort)
                 .setEventStoreStreamName("rakam-events");

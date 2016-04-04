@@ -48,14 +48,6 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 false, new Duration(1, TimeUnit.MINUTES));
     }
 
-//    @PostConstruct
-//    public void startTransaction() {
-//        QueryResult query = new PrestoQueryExecution(defaultSession, "START TRANSACTION READ ONLY").getResult().join();
-//        if (query.isFailed()) {
-//            throw new IllegalStateException("Unable to start Presto transaction: " + query.getError().message);
-//        }
-//    }
-
     public PrestoQueryExecution executeRawQuery(String query) {
         return new PrestoQueryExecution(defaultSession, query);
     }
@@ -65,7 +57,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
-                catalog,
+                catalog == null ? "default" : catalog,
                 "default",
                 TimeZone.getDefault().getID(),
                 Locale.ENGLISH,

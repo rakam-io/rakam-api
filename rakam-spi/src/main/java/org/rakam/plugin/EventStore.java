@@ -11,4 +11,12 @@ public interface EventStore {
     void store(Event event);
 
     int[] storeBatch(List<Event> events);
+
+    default void storeBulk(List<Event> events, boolean commit) {
+        throw new UnsupportedOperationException();
+    }
+
+    default void commit(String project, String collection) {
+        throw new UnsupportedOperationException();
+    }
 }

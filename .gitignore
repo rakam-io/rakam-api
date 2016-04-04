@@ -33,4 +33,4 @@ project/plugins/project/
 
 rakam-ui/src/main/resources/rakam-ui/rakam-ui-master/*
 git.properties
-.test/*
+rakam-presto/.test/*

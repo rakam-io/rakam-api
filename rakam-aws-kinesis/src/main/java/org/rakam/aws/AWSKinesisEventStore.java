@@ -6,6 +6,7 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
@@ -16,6 +17,8 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
+import org.rakam.presto.analysis.PrestoConfig;
+import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
@@ -25,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.lang.String.format;
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
 public class AWSKinesisEventStore implements EventStore {
@@ -33,8 +37,9 @@ public class AWSKinesisEventStore implements EventStore {
     private final AmazonKinesisClient kinesis;
     private final AWSConfig config;
     private static final int BATCH_SIZE = 500;
-    private static final int BULK_THRESHOLD = 50000;
     private final S3BulkEventStore bulkClient;
+    private final PrestoQueryExecutor executor;
+    private final PrestoConfig prestoConfig;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
@@ -46,6 +51,8 @@ public class AWSKinesisEventStore implements EventStore {
     @Inject
     public AWSKinesisEventStore(AWSConfig config,
                                 Metastore metastore,
+                                PrestoQueryExecutor executor,
+                                PrestoConfig prestoConfig,
                                 FieldDependencyBuilder.FieldDependency fieldDependency) {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
@@ -53,6 +60,8 @@ public class AWSKinesisEventStore implements EventStore {
             kinesis.setEndpoint(config.getKinesisEndpoint());
         }
         this.config = config;
+        this.executor = executor;
+        this.prestoConfig = prestoConfig;
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
     }
 
@@ -101,12 +110,26 @@ public class AWSKinesisEventStore implements EventStore {
     }
 
     @Override
+    public void storeBulk(List<Event> events, boolean commit) {
+        String project = events.get(0).project();
+        bulkClient.upload(project, events);
+        if(commit) {
+            events.stream().map(e -> e.collection()).distinct().parallel()
+                    .forEach(collection -> commit(project, collection));
+        }
+    }
+
+    @Override
+    public void commit(String project, String collection) {
+        executor.executeRawQuery(format("INSERT INTO %s.%s.%s SELECT * FROM %s.%s.%s",
+                prestoConfig.getColdStorageConnector(), project, collection,
+                prestoConfig.getMiddlewareConnector(), project, collection),
+                ImmutableMap.of("commit", "true"), null);
+    }
+
+    @Override
     public int[] storeBatch(List<Event> events) {
-        if (events.size() >= BULK_THRESHOLD) {
-            // bulk upload uses a technique similar to transactions so it either stores all events or none of them.
-            bulkClient.upload(events.get(0).project(), events);
-            return EventStore.SUCCESSFUL_BATCH;
-        } else {
+
             if (events.size() > BATCH_SIZE) {
                 ArrayList<Integer> errors = null;
                 int cursor = 0;
@@ -131,7 +154,6 @@ public class AWSKinesisEventStore implements EventStore {
             } else {
                 return storeBatchInline(events, 0, events.size());
             }
-        }
     }
 
     @Override
