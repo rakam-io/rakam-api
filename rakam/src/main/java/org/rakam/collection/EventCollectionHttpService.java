@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -219,6 +220,30 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
+    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class,
+            authorizations = @Authorization(value = "write_key")
+    )
+    @IgnorePermissionCheck
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist."), @ApiResponse(code = 409, message = "The content is partially updated.")})
+    @Path("/bulk")
+    public void bulkEvents(RakamHttpRequest request) {
+        storeEvents(request, (events, responseHeaders) -> {
+            try {
+                eventStore.storeBulk(events, false);
+            } catch (Exception e) {
+                LOGGER.error(e, "error while storing event.");
+                return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                        Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
+            }
+
+            return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                    Unpooled.wrappedBuffer(OK_MESSAGE),
+                    responseHeaders);
+        });
+    }
+
+    @POST
     @ApiOperation(value = "Collect multiple events", request = EventList.class, response = Integer.class,
             authorizations = @Authorization(value = "write_key")
     )
@@ -227,15 +252,39 @@ public class EventCollectionHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."), @ApiResponse(code = 409, message = "The content is partially updated.")})
     @Path("/batch")
     public void batchEvents(RakamHttpRequest request) {
+        storeEvents(request, (events, responseHeaders) -> {
+            int[] errorIndexes;
+
+            try {
+                errorIndexes = eventStore.storeBatch(events);
+            } catch (Exception e) {
+                LOGGER.error(e, "error while storing event.");
+                return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                        Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
+            }
+
+            if(errorIndexes.length == 0) {
+                return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                        Unpooled.wrappedBuffer(OK_MESSAGE),
+                        responseHeaders);
+            } else {
+                return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
+                        Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
+                        responseHeaders);
+            }
+        });
+    }
+
+    public void storeEvents(RakamHttpRequest request, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction) {
         HttpHeaders headers = request.headers();
 
         request.bodyHandler(buff -> {
             List<Cookie> entries = null;
-            int[] errorIndexes;
 
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
 
+            FullHttpResponse response;
             try {
                 EventList events = jsonMapper.readValue(buff, EventList.class);
 
@@ -262,14 +311,7 @@ public class EventCollectionHttpService extends HttpService {
                     }
                 }
 
-                try {
-                    errorIndexes = eventStore.storeBatch(events.events);
-                } catch (Exception e) {
-                    LOGGER.error(e, "error while storing event.");
-                    request.response(new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
-                            Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders)).end();
-                    return;
-                }
+                response = responseFunction.apply(events.events, responseHeaders);
 
             } catch (JsonMappingException e) {
                 if (e.getCause() != null) {
@@ -302,18 +344,6 @@ public class EventCollectionHttpService extends HttpService {
             String headerList = getHeaderList(responseHeaders.iterator());
             if (headerList != null) {
                 responseHeaders.set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
-            }
-
-
-            HeaderDefaultFullHttpResponse response;
-            if(errorIndexes.length == 0) {
-                response = new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                        Unpooled.wrappedBuffer(OK_MESSAGE),
-                        responseHeaders);
-            } else {
-                response = new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
-                        Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
-                        responseHeaders);
             }
 
             request.response(response).end();

@@ -6,28 +6,40 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.google.common.base.Throwables;
+import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.util.KByteArrayOutputStream;
+import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static java.lang.String.format;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 
 public class AWSKinesisEventStore implements EventStore {
@@ -39,6 +51,8 @@ public class AWSKinesisEventStore implements EventStore {
     private final S3BulkEventStore bulkClient;
     private final PrestoQueryExecutor executor;
     private final PrestoConfig prestoConfig;
+    private final JDBCPoolDataSource dataSource;
+    private final QueryMetadataStore queryMetadataStore;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
@@ -51,6 +65,8 @@ public class AWSKinesisEventStore implements EventStore {
     public AWSKinesisEventStore(AWSConfig config,
                                 Metastore metastore,
                                 PrestoQueryExecutor executor,
+                                QueryMetadataStore queryMetadataStore,
+                                @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
                                 PrestoConfig prestoConfig,
                                 FieldDependencyBuilder.FieldDependency fieldDependency) {
         kinesis = new AmazonKinesisClient(config.getCredentials());
@@ -60,7 +76,9 @@ public class AWSKinesisEventStore implements EventStore {
         }
         this.config = config;
         this.executor = executor;
+        this.dataSource = dataSource;
         this.prestoConfig = prestoConfig;
+        this.queryMetadataStore = queryMetadataStore;
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
     }
 
@@ -112,7 +130,7 @@ public class AWSKinesisEventStore implements EventStore {
     public void storeBulk(List<Event> events, boolean commit) {
         String project = events.get(0).project();
         bulkClient.upload(project, events);
-        if(commit) {
+        if (commit) {
             events.stream().map(e -> e.collection()).distinct().parallel()
                     .forEach(collection -> commit(project, collection));
         }
@@ -120,39 +138,63 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Override
     public void commit(String project, String collection) {
+        try (Connection conn = dataSource.getConnection()) {
+            Statement statement = conn.createStatement();
+            statement.execute(format("SELECT * FROM middleware_transaction WHERE project = ? FOR UPDATE", project, collection));
 
-        executor.executeRawQuery(format("INSERT INTO %s.%s.%s SELECT * FROM %s.%s.%s",
-                prestoConfig.getColdStorageConnector(), project, collection,
-                prestoConfig.getBulkConnector(), project, collection));
+            String middlewareTable = format("%s.%s.%s",
+                    prestoConfig.getBulkConnector(), project, collection);
+
+            Instant now = Instant.now();
+            executor.executeRawStatement(format("INSERT INTO %s.%s.%s SELECT * FROM %s WHERE \"$created_at\" <= timestamp '%s'",
+                    prestoConfig.getColdStorageConnector(), project, collection, middlewareTable, now.atZone(ZoneId.of("UTC")).format(ISO_LOCAL_DATE))).getResult().thenRun(() -> {
+                for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
+                    String query = QueryFormatter.format(continuousQuery.getQuery(), name -> {
+                        if (name.getPrefix().map(e -> e.equals("collection")).orElse(true) && name.getSuffix().equals(collection)) {
+                            return middlewareTable;
+                        } else if (!name.getPrefix().isPresent() && name.getSuffix().equals("_all")) {
+                            return middlewareTable;
+                        }
+                        return executor.formatTableReference(project, name);
+                    });
+
+                    executor.executeRawStatement(format("CREATE OR REPLACE VIEW %s.%s.%s AS %s",
+                            prestoConfig.getStreamingConnector(), project, collection, query))
+                            .getResult().join();
+                }
+            });
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
     public int[] storeBatch(List<Event> events) {
 
-            if (events.size() > BATCH_SIZE) {
-                ArrayList<Integer> errors = null;
-                int cursor = 0;
+        if (events.size() > BATCH_SIZE) {
+            ArrayList<Integer> errors = null;
+            int cursor = 0;
 
-                while (cursor < events.size()) {
-                    int loopSize = Math.min(BATCH_SIZE, events.size() - cursor);
+            while (cursor < events.size()) {
+                int loopSize = Math.min(BATCH_SIZE, events.size() - cursor);
 
-                    int[] errorIndexes = storeBatchInline(events, cursor, loopSize);
-                    if (errorIndexes.length > 0) {
-                        if (errors == null) {
-                            errors = new ArrayList<>(errorIndexes.length);
-                        }
-
-                        for (int errorIndex : errorIndexes) {
-                            errors.add(errorIndex + cursor);
-                        }
+                int[] errorIndexes = storeBatchInline(events, cursor, loopSize);
+                if (errorIndexes.length > 0) {
+                    if (errors == null) {
+                        errors = new ArrayList<>(errorIndexes.length);
                     }
-                    cursor += loopSize;
-                }
 
-                return errors == null ? EventStore.SUCCESSFUL_BATCH : errors.stream().mapToInt(Integer::intValue).toArray();
-            } else {
-                return storeBatchInline(events, 0, events.size());
+                    for (int errorIndex : errorIndexes) {
+                        errors.add(errorIndex + cursor);
+                    }
+                }
+                cursor += loopSize;
             }
+
+            return errors == null ? EventStore.SUCCESSFUL_BATCH : errors.stream().mapToInt(Integer::intValue).toArray();
+        } else {
+            return storeBatchInline(events, 0, events.size());
+        }
     }
 
     @Override

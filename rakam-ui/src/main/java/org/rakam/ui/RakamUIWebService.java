@@ -58,6 +58,7 @@ public class RakamUIWebService extends HttpService {
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     public static final int HTTP_CACHE_SECONDS = 60 * 60 * 24;
     private final File directory;
+    private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
     private final ActiveModuleList activeModules;
 
     @Inject
@@ -209,9 +210,6 @@ public class RakamUIWebService extends HttpService {
 
         sendFile(request, file);
     }
-
-
-    private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
 
     private String sanitizeUri(String uri) {
         try {

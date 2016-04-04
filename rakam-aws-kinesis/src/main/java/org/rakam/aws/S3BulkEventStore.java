@@ -6,6 +6,7 @@ import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.google.common.base.Throwables;
 import io.airlift.log.Logger;
@@ -25,11 +26,13 @@ import org.rakam.collection.SchemaField;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 
@@ -54,6 +57,16 @@ public class S3BulkEventStore {
         cloudWatchClient.setRegion(config.getAWSRegion());
 
         this.conditionalMagicFieldsSize = fieldDependency.dependentFields.size();
+    }
+
+    public void remove(String project, String collection, Instant createdUntil) {
+        List<DeleteObjectsRequest.KeyVersion> keys = s3Client.listObjects(config.getEventStoreBulkS3Bucket(), project + "/" + collection + "/").getObjectSummaries()
+                .stream()
+                .filter(e -> e.getLastModified().toInstant().isBefore(createdUntil))
+                .map(e -> new DeleteObjectsRequest.KeyVersion(e.getKey()))
+                .collect(Collectors.toList());
+
+        s3Client.deleteObjects(new DeleteObjectsRequest(config.getEventStoreBulkS3Bucket()).withKeys(keys));
     }
 
     public void upload(String project, List<Event> events) {

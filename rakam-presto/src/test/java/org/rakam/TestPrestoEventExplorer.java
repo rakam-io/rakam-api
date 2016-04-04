@@ -28,6 +28,8 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
     private TestingEnvironment testingEnvironment;
     private PrestoMetastore metastore;
     private PrestoQueryExecutor prestoQueryExecutor;
+    private InMemoryQueryMetadataStore queryMetadataStore;
+    private JDBCPoolDataSource metastoreDataSource;
 
     @BeforeSuite
     @Override
@@ -36,8 +38,8 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
 
-        JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
-        InMemoryQueryMetadataStore inMemoryQueryMetadataStore = new InMemoryQueryMetadataStore();
+        metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
+        queryMetadataStore = new InMemoryQueryMetadataStore();
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
@@ -47,13 +49,13 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
 
         prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
 
-        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore,
+        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore,
                 prestoQueryExecutor, prestoConfig);
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
-                prestoQueryExecutor, metastore, inMemoryQueryMetadataStore);
+                prestoQueryExecutor, metastore, queryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor,
-                inMemoryQueryMetadataStore, metastore, materializedViewService,  Clock.systemUTC());
+                queryMetadataStore, metastore, materializedViewService,  Clock.systemUTC());
 
         eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService, materializedViewService);
         setupInline();
@@ -65,6 +67,14 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
 
     public PrestoQueryExecutor getPrestoQueryExecutor() {
         return prestoQueryExecutor;
+    }
+
+    public InMemoryQueryMetadataStore getQueryMetadataStore() {
+        return queryMetadataStore;
+    }
+
+    public JDBCPoolDataSource getMetastoreDataSource() {
+        return metastoreDataSource;
     }
 
     public abstract void setupInline();
