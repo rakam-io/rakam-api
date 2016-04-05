@@ -1,6 +1,5 @@
 package org.rakam.collection;
 
-import com.facebook.presto.hadoop.$internal.com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.Version;
@@ -9,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
