@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -64,6 +65,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/event")
 @Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
@@ -77,13 +81,16 @@ public class EventCollectionHttpService extends HttpService {
     private final Set<EventMapper> eventMappers;
     private final ApiKeyService apiKeyService;
     private final Set<EventProcessor> eventProcessors;
+    private final Metastore metastore;
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
                                       EventDeserializer deserializer, EventListDeserializer eventListDeserializer,
+                                      Metastore metastore,
                                       Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
+        this.metastore = metastore;
         this.eventProcessors = eventProcessors;
         this.apiKeyService = apiKeyService;
 
@@ -223,7 +230,7 @@ public class EventCollectionHttpService extends HttpService {
             return false;
         }
 
-        return apiKeyService.checkPermission(project, ApiKeyService.AccessKeyType.WRITE_KEY, writeKey);
+        return apiKeyService.checkPermission(project, WRITE_KEY, writeKey);
     }
 
     @POST
@@ -243,9 +250,16 @@ public class EventCollectionHttpService extends HttpService {
                     } else if (contentType.equals("application/avro")) {
 
                     } else if (contentType.equals("text/csv")) {
-                        request.params().get("project");
-                        request.params().get("collection");
-                        request.params().get("api_key");
+                        String project = getParam(request.params(), "project");
+                        String collection = getParam(request.params(), "collection");
+                        String api_key = getParam(request.params(), "api_key");
+                        checkProject(project);
+                        checkCollection(collection);
+                        if (apiKeyService.checkPermission(project, WRITE_KEY, api_key)) {
+                            throw new RakamException(FORBIDDEN);
+                        }
+
+//                        metastore.getCollection(project, collection).forEach();
 
                         CsvSchema schema = CsvSchema.builder()
                                 .addColumn("firstName")
@@ -253,9 +267,16 @@ public class EventCollectionHttpService extends HttpService {
                                 .addColumn("age", CsvSchema.ColumnType.NUMBER)
                                 .build();
 
-                        CsvSchema bootstrapSchema = schema.withHeader();
                         CsvMapper mapper = new CsvMapper();
-//                        mapper.readerFo.with(bootstrapSchema).readValue(json);
+//                        CsvSchema schema = CsvSchema.emptySchema().withHeader(); // use first row as header; otherwise defaults are fine
+//                        MappingIterator<Map<String,String>> it = mapper.readerFor(Map.class)
+//                                .with(schema)
+//                                .readValues(csvFile);
+//                        while (it.hasNext()) {
+//                            Map<String,String> rowAsMap = it.next();
+//                             access by column name, as defined in the header row...
+//                        }
+
                     }
 
                     throw new RakamException("Unsupported content type: "+contentType, BAD_REQUEST);
@@ -273,6 +294,15 @@ public class EventCollectionHttpService extends HttpService {
                             Unpooled.wrappedBuffer(OK_MESSAGE),
                             responseHeaders);
                 });
+    }
+
+    private String getParam(Map<String, List<String>> params, String param) {
+        List<String> strings = params.get(param);
+        if(strings == null || strings.size() == 0) {
+            throw new RakamException(String.format("%s query parameter is required", param), BAD_REQUEST);
+        }
+
+        return strings.get(params.size() - 1);
     }
 
     @POST

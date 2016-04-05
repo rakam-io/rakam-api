@@ -282,7 +282,7 @@ public class EventDeserializer extends JsonDeserializer<Event> {
         return avroSchema;
     }
 
-    private Object getValueOfMagicField(JsonParser jp) throws IOException {
+    public static Object getValueOfMagicField(JsonParser jp) throws IOException {
         switch (jp.getCurrentToken()) {
             case VALUE_TRUE:
                 return Boolean.TRUE;
@@ -308,8 +308,6 @@ public class EventDeserializer extends JsonDeserializer<Event> {
 
         switch (type) {
             case STRING:
-                // TODO: is it a good idea to cast the value automatically?
-//                if (t == JsonToken.VALUE_STRING)
                 return jp.getValueAsString();
             case BOOLEAN:
                 return jp.getValueAsBoolean();
