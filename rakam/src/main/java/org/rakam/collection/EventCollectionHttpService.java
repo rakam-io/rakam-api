@@ -5,9 +5,9 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
-import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
@@ -23,7 +23,6 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -73,7 +72,8 @@ import static org.rakam.util.ValidationUtil.checkProject;
 @Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
 public class EventCollectionHttpService extends HttpService {
     final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
-    private final ObjectMapper jsonMapper = new ObjectMapper();
+    private final ObjectMapper jsonMapper;
+    private final ObjectMapper csvMapper;
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
     private final byte[] NOT_OK_MESSAGE = "0".getBytes(UTF_8);
 
@@ -81,19 +81,21 @@ public class EventCollectionHttpService extends HttpService {
     private final Set<EventMapper> eventMappers;
     private final ApiKeyService apiKeyService;
     private final Set<EventProcessor> eventProcessors;
-    private final Metastore metastore;
+    private final CsvEventDeserializer csvEventDeserializer;
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
-                                      EventDeserializer deserializer, EventListDeserializer eventListDeserializer,
-                                      Metastore metastore,
+                                      EventDeserializer deserializer,
+                                      EventListDeserializer eventListDeserializer,
+                                      CsvEventDeserializer csvEventDeserializer,
                                       Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
-        this.metastore = metastore;
+        this.csvEventDeserializer = csvEventDeserializer;
         this.eventProcessors = eventProcessors;
         this.apiKeyService = apiKeyService;
 
+        jsonMapper = new ObjectMapper();
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Event.class, deserializer);
         module.addDeserializer(EventList.class, eventListDeserializer);
@@ -105,6 +107,9 @@ public class EventCollectionHttpService extends HttpService {
                 context.insertAnnotationIntrospector(new SwaggerJacksonAnnotationIntrospector());
             }
         });
+
+        csvMapper = new CsvMapper();
+        csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
 
     private List<Cookie> mapEvent(Event event, HttpHeaders requestHeaders, InetAddress remoteAddress, HttpHeaders responseHeaders) {
@@ -259,27 +264,14 @@ public class EventCollectionHttpService extends HttpService {
                             throw new RakamException(FORBIDDEN);
                         }
 
-//                        metastore.getCollection(project, collection).forEach();
-
-                        CsvSchema schema = CsvSchema.builder()
-                                .addColumn("firstName")
-                                .addColumn("lastName")
-                                .addColumn("age", CsvSchema.ColumnType.NUMBER)
-                                .build();
-
-                        CsvMapper mapper = new CsvMapper();
-//                        CsvSchema schema = CsvSchema.emptySchema().withHeader(); // use first row as header; otherwise defaults are fine
-//                        MappingIterator<Map<String,String>> it = mapper.readerFor(Map.class)
-//                                .with(schema)
-//                                .readValues(csvFile);
-//                        while (it.hasNext()) {
-//                            Map<String,String> rowAsMap = it.next();
-//                             access by column name, as defined in the header row...
-//                        }
-
+                        return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
+                                        .withSharedAttribute("project", project)
+                                        .withSharedAttribute("collection", collection)
+                                        .withSharedAttribute("api_key", api_key)
+                        ).readValue(buff);
                     }
 
-                    throw new RakamException("Unsupported content type: "+contentType, BAD_REQUEST);
+                    throw new RakamException("Unsupported content type: " + contentType, BAD_REQUEST);
                 },
                 (events, responseHeaders) -> {
                     try {
@@ -298,7 +290,7 @@ public class EventCollectionHttpService extends HttpService {
 
     private String getParam(Map<String, List<String>> params, String param) {
         List<String> strings = params.get(param);
-        if(strings == null || strings.size() == 0) {
+        if (strings == null || strings.size() == 0) {
             throw new RakamException(String.format("%s query parameter is required", param), BAD_REQUEST);
         }
 
