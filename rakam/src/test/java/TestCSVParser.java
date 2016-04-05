@@ -48,6 +48,7 @@ public class TestCSVParser {
         EventList o = mapper.reader(EventList.class).with(ContextAttributes.getEmpty()
                         .withSharedAttribute("project", "project")
                         .withSharedAttribute("collection", "collection")
+                        .withSharedAttribute("api_key", "api_key")
         ).readValue(csv);
 
         System.out.println(o);
@@ -103,7 +104,9 @@ public class TestCSVParser {
         }
 
         public List<SchemaField> readHeader(CsvParser jp, String project, String collection) throws IOException {
-            CsvSchema.Builder builder = CsvSchema.builder();
+            jp.enable(CsvParser.Feature.WRAP_AS_ARRAY);
+
+            CsvSchema.Builder builder = CsvSchema.builder().setSkipFirstDataRow(true).setUseHeader(false);
             jp.nextToken();
 
             ArrayList<SchemaField> list = new ArrayList<>();
