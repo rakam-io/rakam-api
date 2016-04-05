@@ -95,9 +95,8 @@ public class CsvEventDeserializer extends JsonDeserializer<EventCollectionHttpSe
         List<String> columns = new ArrayList<>();
 
         Set<SchemaField> newFields = new HashSet<>();
-        String name;
         while (jp.nextToken() == VALUE_STRING) {
-            name = jp.getValueAsString().trim().toLowerCase();
+            String name = jp.getValueAsString().trim().toLowerCase();
             checkTableColumn(name, "Field name");
 
             Optional<SchemaField> existingField = fields.stream().filter(f -> f.getName().equals(name)).findAny();
