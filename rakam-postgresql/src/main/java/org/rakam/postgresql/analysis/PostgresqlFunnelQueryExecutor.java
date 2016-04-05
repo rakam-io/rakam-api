@@ -23,13 +23,13 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 
 public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     private final PostgresqlQueryExecutor executor;
@@ -61,14 +61,13 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
                             i + 1, i))
                     .collect(Collectors.joining(" UNION ALL "));
         }
-        return executor.executeRawQuery("WITH \n" + ctes + " " + query);
+        String query1 = "WITH \n" + ctes + " " + query;
+        System.out.println(query1);
+        return executor.executeRawQuery(query1);
     }
 
     private String convertFunnel(String project, String CONNECTOR_FIELD, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
         String table = project + "." + funnelStep.getCollection();
-        ZoneId utc = ZoneId.of("UTC");
-        long startTs = startDate.atStartOfDay().atZone(utc).toEpochSecond();
-        long endTs = endDate.atStartOfDay().atZone(utc).toEpochSecond();
         String filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
                 name -> formatIdentifier("step" + idx) + "." + name.getParts().stream()
@@ -77,15 +76,15 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         String dimensionColumn = dimension.isPresent() ? dimension.get() + "," : "";
 
         if (idx == 0) {
-            return String.format("step0 AS (select %s %s from %s step0 where _time BETWEEN to_timestamp(%s) and to_timestamp(%s) %s\n group by 1 %s)",
-                    dimensionColumn, CONNECTOR_FIELD, table, startTs, endTs,
+            return String.format("step0 AS (select %s %s from %s step0 where _time BETWEEN timestamp '%s' and timestamp '%s' %s\n group by 1 %s)",
+                    dimensionColumn, CONNECTOR_FIELD, table, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
                             "select %7$s %1$s.%9$s from %2$s %1$s join %3$s on (%1$s.%9$s = %3$s.%9$s) " +
-                            "where _time BETWEEN to_timestamp(%5$s) and to_timestamp(%6$s) %4$s group by 1 %8$s)",
-                    "step" + idx, table, "step" + (idx - 1), filterExp, startTs,
-                    endTs, dimensionColumn.isEmpty() ? "" : "step" + idx + "." + dimensionColumn,
+                            "where _time BETWEEN timestamp '%5$s' and timestamp '%6$s' %4$s group by 1 %8$s)",
+                    "step" + idx, table, "step" + (idx - 1), filterExp, startDate.format(ISO_LOCAL_DATE),
+                    endDate.format(ISO_LOCAL_DATE), dimensionColumn.isEmpty() ? "" : "step" + idx + "." + dimensionColumn,
                     dimension.isPresent() ? ", 2" : "",
                     CONNECTOR_FIELD);
         }

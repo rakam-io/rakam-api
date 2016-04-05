@@ -1,10 +1,14 @@
 package org.rakam.collection;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -22,6 +26,7 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
+import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
@@ -31,6 +36,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -50,6 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Charsets.UTF_8;
@@ -221,26 +228,60 @@ public class EventCollectionHttpService extends HttpService {
 
     @POST
     @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class,
-            authorizations = @Authorization(value = "write_key")
+            authorizations = @Authorization(value = "master_key")
     )
     @IgnorePermissionCheck
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."), @ApiResponse(code = 409, message = "The content is partially updated.")})
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request) {
-        storeEvents(request, (events, responseHeaders) -> {
-            try {
-                eventStore.storeBulk(events, false);
-            } catch (Exception e) {
-                LOGGER.error(e, "error while storing event.");
-                return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
-                        Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
-            }
+        storeEvents(request,
+                buff -> {
+                    String contentType = request.headers().get(CONTENT_TYPE);
+                    if (contentType.equals("application/json")) {
+                        return jsonMapper.readValue(buff, EventList.class);
+                    } else if (contentType.equals("application/avro")) {
 
-            return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                    Unpooled.wrappedBuffer(OK_MESSAGE),
-                    responseHeaders);
-        });
+                    } else if (contentType.equals("text/csv")) {
+                        request.params().get("project");
+                        request.params().get("collection");
+                        request.params().get("api_key");
+
+                        CsvSchema schema = CsvSchema.builder()
+                                .addColumn("firstName")
+                                .addColumn("lastName")
+                                .addColumn("age", CsvSchema.ColumnType.NUMBER)
+                                .build();
+
+                        CsvSchema bootstrapSchema = schema.withHeader();
+                        CsvMapper mapper = new CsvMapper();
+//                        mapper.readerFo.with(bootstrapSchema).readValue(json);
+                    }
+
+                    throw new RakamException("Unsupported content type: "+contentType, BAD_REQUEST);
+                },
+                (events, responseHeaders) -> {
+                    try {
+                        eventStore.storeBulk(events, !ImmutableList.of("false").equals(request.params().get("commit")));
+                    } catch (Exception e) {
+                        LOGGER.error(e, "error while storing event.");
+                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                                Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
+                    }
+
+                    return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                            Unpooled.wrappedBuffer(OK_MESSAGE),
+                            responseHeaders);
+                });
+    }
+
+    @POST
+    @ApiOperation(value = "Commit Bulk events", authorizations = @Authorization(value = "master_key"))
+    @JsonRequest
+    @Path("/bulk/commit")
+    public CompletableFuture<QueryResult> commitBulkEvents(@ApiParam(name = "project") String project,
+                                                           @ApiParam(name = "collection") String collection) {
+        return eventStore.commit(project, collection);
     }
 
     @POST
@@ -252,30 +293,31 @@ public class EventCollectionHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."), @ApiResponse(code = 409, message = "The content is partially updated.")})
     @Path("/batch")
     public void batchEvents(RakamHttpRequest request) {
-        storeEvents(request, (events, responseHeaders) -> {
-            int[] errorIndexes;
+        storeEvents(request, buff -> jsonMapper.readValue(buff, EventList.class),
+                (events, responseHeaders) -> {
+                    int[] errorIndexes;
 
-            try {
-                errorIndexes = eventStore.storeBatch(events);
-            } catch (Exception e) {
-                LOGGER.error(e, "error while storing event.");
-                return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
-                        Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
-            }
+                    try {
+                        errorIndexes = eventStore.storeBatch(events);
+                    } catch (Exception e) {
+                        LOGGER.error(e, "error while storing event.");
+                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                                Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
+                    }
 
-            if(errorIndexes.length == 0) {
-                return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                        Unpooled.wrappedBuffer(OK_MESSAGE),
-                        responseHeaders);
-            } else {
-                return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
-                        Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
-                        responseHeaders);
-            }
-        });
+                    if (errorIndexes.length == 0) {
+                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                                Unpooled.wrappedBuffer(OK_MESSAGE),
+                                responseHeaders);
+                    } else {
+                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
+                                Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
+                                responseHeaders);
+                    }
+                });
     }
 
-    public void storeEvents(RakamHttpRequest request, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction) {
+    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction) {
         HttpHeaders headers = request.headers();
 
         request.bodyHandler(buff -> {
@@ -286,7 +328,7 @@ public class EventCollectionHttpService extends HttpService {
 
             FullHttpResponse response;
             try {
-                EventList events = jsonMapper.readValue(buff, EventList.class);
+                EventList events = mapper.apply(buff);
 
                 Event.EventContext context = events.api;
                 if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
@@ -486,5 +528,9 @@ public class EventCollectionHttpService extends HttpService {
             duplicate.trailingHeaders().set(trailingHeaders());
             return duplicate;
         }
+    }
+
+    interface ThrowableFunction {
+        EventList apply(String buffer) throws IOException, JsonParseException, JsonMappingException;
     }
 }

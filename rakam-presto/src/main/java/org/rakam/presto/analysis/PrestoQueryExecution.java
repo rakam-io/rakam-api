@@ -76,6 +76,7 @@ public class PrestoQueryExecution implements QueryExecution {
     private final List<List<Object>> data = Lists.newArrayList();
     private static final com.facebook.presto.jdbc.internal.airlift.json.JsonCodec<QueryResults> QUERY_RESULTS_JSON_CODEC = jsonCodec(QueryResults.class);
     private List<SchemaField> columns;
+    private String transactionId;
 
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
     public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS");
@@ -125,6 +126,10 @@ public class PrestoQueryExecution implements QueryExecution {
             default:
                 return BINARY;
         }
+    }
+
+    public String getTransactionId() {
+        return transactionId;
     }
 
     @Override
@@ -194,6 +199,14 @@ public class PrestoQueryExecution implements QueryExecution {
         public void run() {
             while (client.isValid() && client.advance()) {
                 transformAndAdd(client.current());
+            }
+
+            // update transaction ID if necessary
+            if (client.isClearTransactionId()) {
+                transactionId = null;
+            }
+            if (client.getStartedtransactionId() != null) {
+                transactionId = client.getStartedtransactionId();
             }
 
             if (client.isFailed()) {

@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
-import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.util.RakamException;
 
@@ -19,6 +18,7 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.jdbc.internal.client.ClientSession.withTransactionId;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
@@ -48,8 +48,13 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 false, new Duration(1, TimeUnit.MINUTES));
     }
 
+    @Override
     public PrestoQueryExecution executeRawQuery(String query) {
         return new PrestoQueryExecution(defaultSession, query);
+    }
+
+    public PrestoQueryExecution executeRawQuery(String query, String transactionId) {
+        return new PrestoQueryExecution(withTransactionId(defaultSession, transactionId), query);
     }
 
     public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog) {
@@ -65,8 +70,12 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 null, false, new Duration(1, TimeUnit.MINUTES)), query);
     }
 
+    public PrestoQueryExecution executeRawStatement(String sqlQuery, String transactionId) {
+        return executeRawQuery(sqlQuery, transactionId);
+    }
+
     @Override
-    public QueryExecution executeRawStatement(String sqlQuery) {
+    public PrestoQueryExecution executeRawStatement(String sqlQuery) {
         return executeRawQuery(sqlQuery);
     }
 

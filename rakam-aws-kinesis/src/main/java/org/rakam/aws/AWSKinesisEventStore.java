@@ -6,15 +6,13 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import com.google.common.base.Throwables;
-import com.google.inject.name.Named;
+import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.Event;
@@ -22,21 +20,22 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
 import org.rakam.presto.analysis.PrestoConfig;
+import org.rakam.presto.analysis.PrestoQueryExecution;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
+import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryResult;
 import org.rakam.util.KByteArrayOutputStream;
 import org.rakam.util.QueryFormatter;
 
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
@@ -51,7 +50,6 @@ public class AWSKinesisEventStore implements EventStore {
     private final S3BulkEventStore bulkClient;
     private final PrestoQueryExecutor executor;
     private final PrestoConfig prestoConfig;
-    private final JDBCPoolDataSource dataSource;
     private final QueryMetadataStore queryMetadataStore;
 
     ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
@@ -66,7 +64,6 @@ public class AWSKinesisEventStore implements EventStore {
                                 Metastore metastore,
                                 PrestoQueryExecutor executor,
                                 QueryMetadataStore queryMetadataStore,
-                                @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
                                 PrestoConfig prestoConfig,
                                 FieldDependencyBuilder.FieldDependency fieldDependency) {
         kinesis = new AmazonKinesisClient(config.getCredentials());
@@ -76,7 +73,6 @@ public class AWSKinesisEventStore implements EventStore {
         }
         this.config = config;
         this.executor = executor;
-        this.dataSource = dataSource;
         this.prestoConfig = prestoConfig;
         this.queryMetadataStore = queryMetadataStore;
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
@@ -137,35 +133,40 @@ public class AWSKinesisEventStore implements EventStore {
     }
 
     @Override
-    public void commit(String project, String collection) {
-        try (Connection conn = dataSource.getConnection()) {
-            Statement statement = conn.createStatement();
-            statement.execute(format("SELECT * FROM middleware_transaction WHERE project = ? FOR UPDATE", project, collection));
+    public CompletableFuture<QueryResult> commit(String project, String collection) {
+        Instant now = Instant.now();
 
-            String middlewareTable = format("%s.%s.%s",
-                    prestoConfig.getBulkConnector(), project, collection);
+        String middlewareTable = format("SELECT * FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'",
+                prestoConfig.getBulkConnector(), project, collection, now.atZone(ZoneId.of("UTC")).format(ISO_LOCAL_DATE));
 
-            Instant now = Instant.now();
-            executor.executeRawStatement(format("INSERT INTO %s.%s.%s SELECT * FROM %s WHERE \"$created_at\" <= timestamp '%s'",
-                    prestoConfig.getColdStorageConnector(), project, collection, middlewareTable, now.atZone(ZoneId.of("UTC")).format(ISO_LOCAL_DATE))).getResult().thenRun(() -> {
-                for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
-                    String query = QueryFormatter.format(continuousQuery.getQuery(), name -> {
-                        if (name.getPrefix().map(e -> e.equals("collection")).orElse(true) && name.getSuffix().equals(collection)) {
-                            return middlewareTable;
-                        } else if (!name.getPrefix().isPresent() && name.getSuffix().equals("_all")) {
-                            return middlewareTable;
-                        }
-                        return executor.formatTableReference(project, name);
-                    });
+        PrestoQueryExecution execution = executor.executeRawStatement("START TRANSACTION ISOLATION LEVEL READ UNCOMMITTED, READ WRITE");
+        execution.getResult().join();
 
-                    executor.executeRawStatement(format("CREATE OR REPLACE VIEW %s.%s.%s AS %s",
-                            prestoConfig.getStreamingConnector(), project, collection, query))
-                            .getResult().join();
-                }
-            });
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
+        QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.%s.%s %s",
+                prestoConfig.getColdStorageConnector(), project, collection, middlewareTable), execution.getTransactionId());
+
+        return insertQuery.getResult().thenApply(result -> {
+            ImmutableList.Builder<CompletableFuture<QueryResult>> builder = ImmutableList.builder();
+            for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
+                String query = QueryFormatter.format(continuousQuery.getQuery(), name -> {
+                    if (name.getPrefix().map(e -> e.equals("collection")).orElse(true) && name.getSuffix().equals(collection)) {
+                        return middlewareTable;
+                    } else if (!name.getPrefix().isPresent() && name.getSuffix().equals("_all")) {
+                        return middlewareTable;
+                    }
+                    return executor.formatTableReference(project, name);
+                });
+
+                CompletableFuture<QueryResult> processQuery = executor.executeRawStatement(format("CREATE OR REPLACE VIEW %s.%s.%s AS %s",
+                        prestoConfig.getStreamingConnector(), project, collection, query), execution.getTransactionId())
+                        .getResult();
+                builder.add(processQuery);
+            }
+
+            ImmutableList<CompletableFuture<QueryResult>> futures = builder.build();
+            return CompletableFuture.allOf(futures.stream().toArray(CompletableFuture[]::new))
+                    .thenApply(aVoid -> executor.executeRawStatement("COMMIT", execution.getTransactionId()).getResult().join()).join();
+        });
     }
 
     @Override
