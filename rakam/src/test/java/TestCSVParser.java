@@ -14,6 +14,7 @@ import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService.EventList;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -28,7 +29,7 @@ import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
+import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static java.lang.String.format;
 import static org.rakam.collection.EventDeserializer.getValueOfMagicField;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
@@ -62,25 +63,29 @@ public class TestCSVParser {
 
         @Override
         public EventList deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
-            List<SchemaField> fields = readHeader((CsvParser) jp,
-                    (String) ctxt.getAttribute("project"),
-                    (String) ctxt.getAttribute("collection"));
+            String project = (String) ctxt.getAttribute("project");
+            String collection = (String) ctxt.getAttribute("collection");
+            String apiKey = (String) ctxt.getAttribute("api_key");
+
+            List<SchemaField> fields = readHeader((CsvParser) jp, project, collection);
 
             Schema schema = convertAvroSchema(fields);
-            GenericData.Record record = new GenericData.Record(schema);;
+            GenericData.Record record = new GenericData.Record(schema);
             int idx = 0;
 
+            List<Event> list = new ArrayList<>();
             while (true) {
                 JsonToken t = jp.nextToken();
 
                 if (t == null) {
-                    throw ctxt.mappingException("Unexpected end-of-input when binding data");
+                    break;
                 }
 
                 switch (t.id()) {
                     case JsonTokenId.ID_START_ARRAY:
                         idx = 0;
                         record = new GenericData.Record(schema);
+                        list.add(new Event(collection, record));
                         break;
                     case JsonTokenId.ID_END_ARRAY:
                         continue;
@@ -89,29 +94,29 @@ public class TestCSVParser {
                         break;
                     default:
                         record.put(idx, getValue(fields.get(idx).getType(), jp));
-                        throw new UnsupportedOperationException();
+                        break;
                 }
-
-                break;
             }
-            return null;
+
+            Event.EventContext context = new Event.EventContext(apiKey, null, null, null);
+            return new EventList(context, project, list);
         }
 
         public List<SchemaField> readHeader(CsvParser jp, String project, String collection) throws IOException {
             CsvSchema.Builder builder = CsvSchema.builder();
+            jp.nextToken();
 
             ArrayList<SchemaField> list = new ArrayList<>();
 
             String name;
-            while (jp.nextToken() == FIELD_NAME) {
-                jp.nextToken();
-
+            while (jp.nextToken() == VALUE_STRING) {
                 name = jp.getValueAsString().trim();
                 builder.addColumn(name);
                 list.add(new SchemaField(name, FieldType.STRING));
+
+                jp.nextToken();
             }
 
-            jp.nextToken();
             jp.setSchema(builder.build());
             return list;
         }
