@@ -5,6 +5,7 @@ import com.google.common.eventbus.EventBus;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 
@@ -26,7 +27,7 @@ public class InMemoryMetastore extends AbstractMetastore {
         this.apiKeyService = apiKeyService;
     }
 
-    public InMemoryMetastore(FieldDependencyBuilder.FieldDependency fieldDependency, ApiKeyService apiKeyService, EventBus eventBus) {
+    public InMemoryMetastore(FieldDependency fieldDependency, ApiKeyService apiKeyService, EventBus eventBus) {
         super(fieldDependency, eventBus);
         this.apiKeyService = apiKeyService;
     }

@@ -90,9 +90,9 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
         ImmutableList<SchemaField> list = ImmutableList.of(
-                new SchemaField("referrer_medium", FieldType.STRING),
-                new SchemaField("referrer_source", FieldType.STRING),
-                new SchemaField("referrer_term", FieldType.STRING)
+                new SchemaField("_referrer_medium", FieldType.STRING),
+                new SchemaField("_referrer_source", FieldType.STRING),
+                new SchemaField("_referrer_term", FieldType.STRING)
         );
         builder.addFields("_referrer", list);
         builder.addFields("_host", list);

@@ -1,8 +1,12 @@
 import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.google.common.eventbus.EventBus;
+import org.rakam.analysis.InMemoryApiKeyService;
+import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.collection.CsvEventDeserializer;
 import org.rakam.collection.EventCollectionHttpService.EventList;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.testng.annotations.Test;
 
 public class TestCSVParser {
@@ -10,7 +14,9 @@ public class TestCSVParser {
     public void testName() throws Exception {
         CsvMapper mapper = new CsvMapper();
 
-        mapper.registerModule(new SimpleModule().addDeserializer(EventList.class, new CsvEventDeserializer(null)));
+        FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
+        InMemoryMetastore metastore = new InMemoryMetastore(build, new InMemoryApiKeyService(), new EventBus());
+        mapper.registerModule(new SimpleModule().addDeserializer(EventList.class, new CsvEventDeserializer(metastore, build)));
         String csv = "Transaction_date,Product,Price,Payment_Type,Name,City,State,Country,Account_Created,Last_Login,Latitude,Longitude\n" +
                 "1/2/09 6:17,Product1,1200,Mastercard,carolina,Basildon,England,United Kingdom,1/2/09 6:00,1/2/09 6:08,51.5,-1.1166667\n" +
                 "1/2/09 4:53,Product1,1200,Visa,Betina,Parkville                   ,MO,United States,1/2/09 4:42,1/2/09 7:49,39.195,-94.68194\n" +

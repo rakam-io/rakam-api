@@ -45,15 +45,6 @@ public class Event {
         this.api = api;
     }
 
-    public Event(String collection,
-                 GenericRecord properties) {
-        this.collection = collection;
-        this.properties = properties;
-        this.project = null;
-        this.schema = null;
-        this.api = null;
-    }
-
     @JsonProperty
     public String project() {
         return project;

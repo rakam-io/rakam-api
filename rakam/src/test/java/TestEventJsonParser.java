@@ -10,7 +10,7 @@ import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService.EventList;
-import org.rakam.collection.EventDeserializer;
+import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.EventListDeserializer;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
@@ -32,7 +32,7 @@ public class TestEventJsonParser {
     private ApiKeyService.ProjectApiKeys apiKeys;
     private EventBuilder eventBuilder;
     private InMemoryMetastore metastore;
-    private EventDeserializer eventDeserializer;
+    private JsonEventDeserializer eventDeserializer;
     private InMemoryApiKeyService apiKeyService;
 
     @BeforeSuite
@@ -41,7 +41,7 @@ public class TestEventJsonParser {
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
 
-        eventDeserializer = new EventDeserializer(metastore, fieldDependency);
+        eventDeserializer = new JsonEventDeserializer(metastore, fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(metastore, fieldDependency);
 
         mapper = JsonHelper.getMapper();

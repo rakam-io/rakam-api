@@ -82,10 +82,12 @@ public class EventCollectionHttpService extends HttpService {
     private final ApiKeyService apiKeyService;
     private final Set<EventProcessor> eventProcessors;
     private final CsvEventDeserializer csvEventDeserializer;
+    private final AvroEventDeserializer avroEventDeserializer;
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
-                                      EventDeserializer deserializer,
+                                      JsonEventDeserializer deserializer,
+                                      AvroEventDeserializer avroEventDeserializer,
                                       EventListDeserializer eventListDeserializer,
                                       CsvEventDeserializer csvEventDeserializer,
                                       Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
@@ -108,6 +110,7 @@ public class EventCollectionHttpService extends HttpService {
             }
         });
 
+        this.avroEventDeserializer = avroEventDeserializer;
         csvMapper = new CsvMapper();
         csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
@@ -250,25 +253,29 @@ public class EventCollectionHttpService extends HttpService {
         storeEvents(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
-                    if (contentType.equals("application/json")) {
+                    if ("application/json".equals(contentType)) {
                         return jsonMapper.readValue(buff, EventList.class);
-                    } else if (contentType.equals("application/avro")) {
-
-                    } else if (contentType.equals("text/csv")) {
+                    } else {
                         String project = getParam(request.params(), "project");
                         String collection = getParam(request.params(), "collection");
                         String api_key = getParam(request.params(), "api_key");
+
                         checkProject(project);
                         checkCollection(collection);
-                        if (apiKeyService.checkPermission(project, WRITE_KEY, api_key)) {
+                        if (!apiKeyService.checkPermission(project, WRITE_KEY, api_key)) {
                             throw new RakamException(FORBIDDEN);
                         }
 
-                        return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
-                                        .withSharedAttribute("project", project)
-                                        .withSharedAttribute("collection", collection)
-                                        .withSharedAttribute("api_key", api_key)
-                        ).readValue(buff);
+                        if ("application/avro".equals(contentType)) {
+                            return avroEventDeserializer.deserialize(project, collection, api_key, buff);
+
+                        } else if ("text/csv".equals(contentType)) {
+                            return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
+                                            .withSharedAttribute("project", project)
+                                            .withSharedAttribute("collection", collection)
+                                            .withSharedAttribute("api_key", api_key)
+                            ).readValue(buff);
+                        }
                     }
 
                     throw new RakamException("Unsupported content type: " + contentType, BAD_REQUEST);
@@ -294,7 +301,7 @@ public class EventCollectionHttpService extends HttpService {
             throw new RakamException(String.format("%s query parameter is required", param), BAD_REQUEST);
         }
 
-        return strings.get(params.size() - 1);
+        return strings.get(strings.size() - 1);
     }
 
     @POST

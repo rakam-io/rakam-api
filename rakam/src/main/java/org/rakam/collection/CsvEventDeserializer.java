@@ -7,10 +7,12 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.util.AvroUtil;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -32,18 +34,22 @@ import java.util.stream.Collectors;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static java.lang.String.format;
 import static java.util.stream.IntStream.range;
-import static org.rakam.collection.EventDeserializer.getValueOfMagicField;
+import static org.apache.avro.Schema.Type.NULL;
+import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
 import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class CsvEventDeserializer extends JsonDeserializer<EventCollectionHttpService.EventList> {
 
     private final Metastore metastore;
+    private final Map<String, List<SchemaField>> conditionalMagicFields;
+    private final Set<SchemaField> constantFields;
 
     @Inject
-    public CsvEventDeserializer(Metastore metastore) {
+    public CsvEventDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
+        this.conditionalMagicFields = fieldDependency.dependentFields;
+        this.constantFields = fieldDependency.constantFields;
     }
 
     @Override
@@ -74,7 +80,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventCollectionHttpSe
                 case JsonTokenId.ID_START_ARRAY:
                     idx = 0;
                     record = new GenericData.Record(schema);
-                    list.add(new Event(collection, record));
+                    list.add(new Event(project, collection, null, record));
                     break;
                 case JsonTokenId.ID_END_ARRAY:
                     continue;
@@ -89,9 +95,26 @@ public class CsvEventDeserializer extends JsonDeserializer<EventCollectionHttpSe
         return new EventCollectionHttpService.EventList(context, project, list);
     }
 
+    public Schema convertAvroSchema(List<SchemaField> fields) {
+        List<Schema.Field> avroFields = fields.stream()
+                .map(AvroUtil::generateAvroSchema).collect(Collectors.toList());
+
+        Schema schema = Schema.createRecord("collection", null, null, false);
+
+        conditionalMagicFields.keySet().stream()
+                .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
+                .map(n -> new Schema.Field(n, Schema.create(NULL), "", null))
+                .forEach(x -> avroFields.add(x));
+
+        schema.setFields(avroFields);
+        return schema;
+    }
+
     public Map.Entry<List<SchemaField>, int[]> readHeader(CsvParser jp, String project, String collection) throws IOException {
         List<SchemaField> fields = metastore.getCollection(project, collection);
-
+        if (fields.isEmpty()) {
+            fields = ImmutableList.copyOf(constantFields);
+        }
         List<String> columns = new ArrayList<>();
 
         Set<SchemaField> newFields = new HashSet<>();

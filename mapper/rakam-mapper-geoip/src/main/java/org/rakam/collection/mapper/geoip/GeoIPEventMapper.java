@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
 
 public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
@@ -70,7 +71,8 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
                     if (config.getConnectionTypeDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.connection-type-database.url", attr));
                     }
-                    if (connectionTypeLookup == null) connectionTypeLookup = getReader(config.getConnectionTypeDatabaseUrl());
+                    if (connectionTypeLookup == null)
+                        connectionTypeLookup = getReader(config.getConnectionTypeDatabaseUrl());
                     continue;
                 }
                 throw new IllegalArgumentException("Attribute " + attr + " is not valid. Available attributes: " +
@@ -174,15 +176,15 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     @Override
     public void addFieldDependency(FieldDependencyBuilder builder) {
         List<SchemaField> fields = Arrays.stream(attributes)
-                .map(attr -> new SchemaField(attr, getType(attr)))
+                .map(attr -> new SchemaField("_" + attr, getType(attr)))
                 .collect(Collectors.toList());
 
         if (ispLookup != null) {
-            fields.add(new SchemaField("isp", FieldType.STRING));
+            fields.add(new SchemaField("_isp", STRING));
         }
 
         if (connectionTypeLookup != null) {
-            fields.add(new SchemaField("connection_type", FieldType.STRING));
+            fields.add(new SchemaField("_connection_type", STRING));
         }
 
         builder.addFields("_ip", fields);
@@ -194,7 +196,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
             case "region":
             case "city":
             case "timezone":
-                return FieldType.STRING;
+                return STRING;
             case "latitude":
             case "longitude":
                 return FieldType.DOUBLE;
@@ -246,22 +248,22 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         for (String attribute : attributes) {
             switch (attribute) {
                 case "country_code":
-                    properties.put("country_code", city.getCountry().getIsoCode());
+                    properties.put("_country_code", city.getCountry().getIsoCode());
                     break;
                 case "region":
-                    properties.put("region", city.getContinent().getName());
+                    properties.put("_region", city.getContinent().getName());
                     break;
                 case "city":
-                    properties.put("city", city.getCity().getName());
+                    properties.put("_city", city.getCity().getName());
                     break;
                 case "latitude":
-                    properties.put("latitude", city.getLocation().getLatitude());
+                    properties.put("_latitude", city.getLocation().getLatitude());
                     break;
                 case "longitude":
-                    properties.put("longitude", city.getLocation().getLongitude());
+                    properties.put("_longitude", city.getLocation().getLongitude());
                     break;
                 case "timezone":
-                    properties.put("timezone", city.getLocation().getTimeZone());
+                    properties.put("_timezone", city.getLocation().getTimeZone());
                     break;
             }
         }

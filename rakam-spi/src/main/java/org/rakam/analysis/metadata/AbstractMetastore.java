@@ -7,14 +7,19 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.util.NotExistsException;
+import org.rakam.util.RakamException;
 
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.String.format;
 
 public abstract class AbstractMetastore implements Metastore {
     private final FieldDependencyBuilder.FieldDependency moduleFields;
@@ -49,20 +54,20 @@ public abstract class AbstractMetastore implements Metastore {
                     Set<SchemaField> collect = moduleFields.constantFields.stream()
                             .filter(constant ->
                                     !fields.stream()
-                                            .anyMatch(existing -> check(project, constant, existing)))
+                                            .anyMatch(existing -> check(project, collection, constant, existing)))
                             .collect(Collectors.toSet());
 
                     moduleFields.dependentFields.entrySet().stream().map(Map.Entry::getValue)
                             .forEach(values ->
                                     values.stream().forEach(value ->
-                                            fields.stream().forEach(field -> check(project, field, value))));
+                                            fields.stream().forEach(field -> check(project, collection, field, value))));
 
                     fields.forEach(field -> moduleFields.dependentFields.getOrDefault(field.getName(), ImmutableList.of()).stream()
                             .filter(dependentField -> !fields.stream()
-                                    .anyMatch(existing -> check(project, existing, dependentField)))
+                                    .anyMatch(existing -> check(project, collection, existing, dependentField)))
                             .forEach(collect::add));
 
-                    if(!collect.isEmpty()) {
+                    if (!collect.isEmpty()) {
                         try {
                             getOrCreateCollectionFieldList(project, collection, collect);
                         } catch (NotExistsException e) {
@@ -72,12 +77,12 @@ public abstract class AbstractMetastore implements Metastore {
                 }));
     }
 
-    private boolean check(String project, SchemaField existing, SchemaField moduleField) {
-        if(existing.getName().equals(moduleField.getName())) {
+    private boolean check(String project, String collection, SchemaField existing, SchemaField moduleField) {
+        if (existing.getName().equals(moduleField.getName())) {
             if (!existing.getType().equals(moduleField.getType())) {
-                throw new IllegalStateException(String.format("Module field '%s' type does not match existing field in event of project %s. Existing type: %s, Module field type: %s. \n" +
+                throw new IllegalStateException(format("Module field '%s' type does not match existing field in event of project %s.%s. Existing type: %s, Module field type: %s. \n" +
                                 "Please change the schema manually of disable the module.",
-                        existing.getName(), project, existing.getType(), moduleField.getType()));
+                        existing.getName(), project, collection, existing.getType(), moduleField.getType()));
             }
             return true;
         }
@@ -86,12 +91,24 @@ public abstract class AbstractMetastore implements Metastore {
 
     @Override
     public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fieldList) throws NotExistsException {
-        HashSet<SchemaField> fields = new HashSet<  >(fieldList);
+        HashSet<SchemaField> fields = new HashSet<>(fieldList);
 
         Iterator<SchemaField> it = fields.iterator();
-        while(it.hasNext()) {
-            if(sourceFields.contains(it.next())){
+        while (it.hasNext()) {
+            SchemaField newField = it.next();
+            if (sourceFields.contains(newField)) {
                 it.remove();
+            }
+            if (newField.getName().startsWith("_")) {
+                for (Map.Entry<String, List<SchemaField>> entry : moduleFields.dependentFields.entrySet()) {
+                    Optional<SchemaField> collision = entry.getValue().stream()
+                            .filter(e -> e.getName().equals(newField.getName()) && !e.getType().equals(e.getType()))
+                            .findAny();
+                    if(collision.isPresent()) {
+                        throw new RakamException(format("Field %s.%s collides with one of the magic field with type %s", collection, newField.getName(), collision.get().getType()),
+                                BAD_REQUEST);
+                    }
+                }
             }
         }
         moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
@@ -109,12 +126,12 @@ public abstract class AbstractMetastore implements Metastore {
 
     private void addModuleField(Set<SchemaField> fields, SchemaField newField) {
         Iterator<SchemaField> iterator = fields.iterator();
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
             SchemaField field = iterator.next();
-            if(field.getName().equals(newField.getName())) {
-                if(field.getType().equals(newField.getType())) {
+            if (field.getName().equals(newField.getName())) {
+                if (field.getType().equals(newField.getType())) {
                     return;
-                }else {
+                } else {
                     iterator.remove();
                     break;
                 }
