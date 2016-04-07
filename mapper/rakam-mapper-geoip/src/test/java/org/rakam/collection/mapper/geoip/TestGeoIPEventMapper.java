@@ -3,14 +3,13 @@ package org.rakam.collection.mapper.geoip;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.rakam.collection.Event;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.SchemaField;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -22,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpHeaders.EMPTY_HEADERS;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.STRING;
 import static org.testng.Assert.*;
@@ -51,11 +51,11 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, address);
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
 
         assertTrue(resp == null);
 
-        assertEquals(event.getAttribute("isp"), "Level 3 Communications");
+        assertEquals(event.getAttribute("_isp"), "Level 3 Communications");
         GenericData.get().validate(properties.getSchema(), properties);
     }
 
@@ -69,12 +69,12 @@ public class TestGeoIPEventMapper {
 
         Record properties = new Record(Schema.createRecord(ImmutableList.of(
                 new Schema.Field("_ip", Schema.create(NULL), null, null),
-                new Schema.Field("connection_type", Schema.create(STRING), null, null))));
+                new Schema.Field("_connection_type", Schema.create(STRING), null, null))));
         props.forEach(properties::put);
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, address);
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
 
         assertTrue(resp == null);
 
@@ -99,16 +99,16 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, address);
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
 
         assertTrue(resp == null);
 
-        assertEquals(event.getAttribute("country_code"), "US");
-        assertEquals(event.getAttribute("city"), "Mountain View");
-        assertEquals(event.getAttribute("timezone"), "America/Los_Angeles");
-        assertEquals(event.getAttribute("latitude"), 37.3845);
-        assertEquals(event.getAttribute("region"), "North America");
-        assertEquals(event.getAttribute("longitude"), -122.0881);
+        assertEquals(event.getAttribute("_country_code"), "US");
+        assertEquals(event.getAttribute("_city"), "Mountain View");
+        assertEquals(event.getAttribute("_timezone"), "America/Los_Angeles");
+        assertEquals(event.getAttribute("_latitude"), 37.3845);
+        assertEquals(event.getAttribute("_region"), "North America");
+        assertEquals(event.getAttribute("_longitude"), -122.0881);
         GenericData.get().validate(properties.getSchema(), properties);
     }
 
@@ -131,7 +131,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertTrue(resp == null);
         for (SchemaField schemaField : ip) {
@@ -158,7 +158,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getByName("8.8.8.8"));
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getByName("8.8.8.8"));
 
         assertTrue(resp == null);
         for (SchemaField schemaField : ip) {
@@ -168,8 +168,6 @@ public class TestGeoIPEventMapper {
 
     @Test
     public void testFieldDependency() throws Exception {
-        Set<String> list = ImmutableSet.of("city", "region", "country_code", "latitude", "longitude", "timezone");
-
         GeoIPModuleConfig config = new GeoIPModuleConfig().setAttributes(list.stream().collect(Collectors.joining(",")));
         GeoIPEventMapper mapper = new GeoIPEventMapper(config);
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
@@ -182,11 +180,13 @@ public class TestGeoIPEventMapper {
         assertEquals(list, build.dependentFields.get("_ip").stream().map(SchemaField::getName).collect(Collectors.toSet()));
     }
 
+    private static Set<String> list = ImmutableSet.of(
+            "_city", "_region",
+            "_country_code", "_latitude",
+            "_longitude", "_timezone");
+
     @Test
     public void testFieldDependencyWithAll() throws Exception {
-
-        Set<String> list = ImmutableSet.of("city", "region", "country_code", "latitude", "longitude", "timezone");
-
         GeoIPModuleConfig config = new GeoIPModuleConfig()
                 .setAttributes(list.stream().collect(Collectors.joining(",")))
                 .setConnectionTypeDatabaseUrl("https://github.com/maxmind/MaxMind-DB/raw/master/test-data/GeoIP2-Connection-Type-Test.mmdb")
@@ -200,7 +200,7 @@ public class TestGeoIPEventMapper {
         assertEquals(0, build.constantFields.size());
         assertEquals(1, build.dependentFields.size());
 
-        assertEquals(ImmutableSet.builder().addAll(list).add("isp", "connection_type").build(),
+        assertEquals(ImmutableSet.builder().addAll(list).add("_isp", "_connection_type").build(),
                 build.dependentFields.get("_ip").stream().map(SchemaField::getName).collect(Collectors.toSet()));
     }
 }

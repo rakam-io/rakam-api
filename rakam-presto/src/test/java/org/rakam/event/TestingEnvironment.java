@@ -141,6 +141,8 @@ public class TestingEnvironment {
                                         () -> {
                                             try {
                                                 testingPostgresqlServer.close();
+                                                kinesisProcess.destroy();
+                                                dynamodbServer.destroy();
                                             } catch (IOException e) {
                                                 e.printStackTrace();
                                             }

@@ -11,7 +11,6 @@ import org.rakam.event.TestingEnvironment;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
 public class TestPrestoContinuousQueryService extends TestContinuousQueryService {
@@ -34,12 +33,6 @@ public class TestPrestoContinuousQueryService extends TestContinuousQueryService
 
         continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore,
                 prestoQueryExecutor, testEnvironment.getPrestoConfig());
-    }
-
-    @AfterSuite
-    public void destroy() throws Exception {
-        System.out.println("closing");
-        testEnvironment.close();
     }
 
     @Override

@@ -1,6 +1,5 @@
 package org.rakam;
 
-import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -18,7 +17,6 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.report.QueryExecutorService;
-import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -57,17 +55,6 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         Thread.sleep(1000);
         super.setup();
     }
-
-    @AfterSuite
-    public void destroy() {
-        System.out.println("closing");
-        try {
-            testingEnvironment.close();
-        } catch (Exception e) {
-            Throwables.propagate(e);
-        }
-    }
-
 
     @Override
     public EventStore getEventStore() {
