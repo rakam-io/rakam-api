@@ -93,7 +93,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                                  WindowType windowType, FunnelStep funnelStep,
                                  Optional<String> dimension,
                                  LocalDate startDate, LocalDate endDate) {
-        String timePredicate = format("BETWEEN cast('%s' as date) and cast('%s' as date) + interval '1' day",
+        String timePredicate = format("BETWEEN timestamp '%s' and timestamp '%s' + interval '1' day",
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
 
         Optional<String> joinPreviousStep = idx == 0 ?
