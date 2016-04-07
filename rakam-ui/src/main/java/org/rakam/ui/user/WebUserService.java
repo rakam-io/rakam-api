@@ -30,7 +30,6 @@ import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.mail.MessagingException;
-import javax.mail.internet.AddressException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -45,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.Charsets.UTF_8;
@@ -156,11 +156,7 @@ public class WebUserService {
             }
         }
 
-        try {
-            sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
-        } catch (Exception e) {
-            LOGGER.error(e, "Error while sending welcome mail");
-        }
+        sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
 
         return webuser;
     }
@@ -281,10 +277,10 @@ public class WebUserService {
             throw Throwables.propagate(e);
         }
 
-        sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes);
+        sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes).join();
     }
 
-    private void sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data) {
+    private CompletableFuture sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data) {
         StringWriter writer;
 
         writer = new StringWriter();
@@ -305,14 +301,14 @@ public class WebUserService {
             }
         }
 
-        try {
-            mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent));
-        } catch (AddressException e) {
-            throw new RakamException("Invalid mail", BAD_REQUEST);
-        } catch (MessagingException e) {
-            LOGGER.error(e, "Unable to send mail");
-            throw new RakamException("Unable to send mail", INTERNAL_SERVER_ERROR);
-        }
+        return CompletableFuture.runAsync(() -> {
+            try {
+                mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent));
+            } catch (MessagingException e) {
+                LOGGER.error(e, "Unable to send mail");
+                throw new RakamException("Unable to send mail", INTERNAL_SERVER_ERROR);
+            }
+        });
     }
 
     public static class UserAccess {

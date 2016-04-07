@@ -1,6 +1,6 @@
 package org.rakam;
 
-import com.facebook.presto.hadoop.$internal.com.google.common.base.Throwables;
+import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
@@ -17,8 +17,8 @@ import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.presto.plugin.EventExplorerListener;
+import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
