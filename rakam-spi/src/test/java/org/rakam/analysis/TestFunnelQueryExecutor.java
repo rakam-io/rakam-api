@@ -104,7 +104,8 @@ public abstract class TestFunnelQueryExecutor {
 
         assertFalse(query.isFailed());
         assertEquals(ImmutableSet.copyOf(query.getResult()),
-                ImmutableSet.of(of("Step 1", "test0", 3L), of("Step 1", "test1", 3L), of("Step 2", "test0", 3L), of("Step 2", "test1", 3L)));
+                ImmutableSet.of(of("Step 1", "test0", 3L), of("Step 1", "test1", 3L),
+                        of("Step 2", "test0", 3L), of("Step 2", "test1", 3L)));
     }
 
     @Test
