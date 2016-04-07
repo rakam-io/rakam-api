@@ -223,15 +223,14 @@
                                 <phase>install</phase>
                                 <goals><goal>clean</goal></goals>
                                 <configuration>
-                                    <excludeDefaultDirectories>true</excludeDefaultDirectories>
                                     <filesets>
                                         <fileset>
-                                            <excludes>
-                                            <exclude>${project.basedir}/src/main/resources/rakam-ui-master/node</exclude>
-                                            <exclude>${project.basedir}/src/main/resources/rakam-ui-master/node_modules</exclude>
-                                            <exclude>${project.basedir}/target</exclude>
-                                            <exclude>${project.basedir}/../rakam/target/*.tar.gz</exclude>
-                                            </excludes>
+                                            <followSymlinks>false</followSymlinks>
+                                            <directory>${basedir}</directory>
+                                            <includes>
+                                                <include>src/main/resources/rakam-ui-master/node/**</include>
+                                                <include>src/main/resources/rakam-ui-master/node_modules/**</include>
+                                            </includes>
                                         </fileset>
                                     </filesets>
                                 </configuration>
