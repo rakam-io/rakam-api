@@ -15,11 +15,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EventListDeserializer extends JsonDeserializer<EventCollectionHttpService.EventList> {
-    private final JsonEventDeserializer eventDeserializer;
+    private final JsonEventDeserializer2 eventDeserializer;
 
     @Inject
     public EventListDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
-        eventDeserializer = new JsonEventDeserializer(metastore, fieldDependency);
+        eventDeserializer = new JsonEventDeserializer2(metastore, fieldDependency);
     }
 
     @Override

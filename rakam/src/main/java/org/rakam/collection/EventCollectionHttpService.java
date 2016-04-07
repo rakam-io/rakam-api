@@ -94,7 +94,7 @@ public class EventCollectionHttpService extends HttpService {
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
-                                      JsonEventDeserializer deserializer,
+                                      JsonEventDeserializer2 deserializer,
                                       AvroEventDeserializer avroEventDeserializer,
                                       EventListDeserializer eventListDeserializer,
                                       CsvEventDeserializer csvEventDeserializer,

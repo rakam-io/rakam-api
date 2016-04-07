@@ -46,7 +46,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class JsonEventDeserializer extends JsonDeserializer<Event> {
+public class JsonEventDeserializer2 extends JsonDeserializer<Event> {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
 
     private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{4}\\-(0?[1-9]|1[012])\\-(0?[1-9]|[12][0-9]|3[01])$");
@@ -59,7 +59,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
     private final Set<SchemaField> constantFields;
 
     @Inject
-    public JsonEventDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
+    public JsonEventDeserializer2(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.constantFields = fieldDependency.constantFields;

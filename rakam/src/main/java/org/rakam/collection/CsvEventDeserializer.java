@@ -35,7 +35,7 @@ import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static java.lang.String.format;
 import static java.util.stream.IntStream.range;
 import static org.apache.avro.Schema.Type.NULL;
-import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
+import static org.rakam.collection.JsonEventDeserializer2.getValueOfMagicField;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
