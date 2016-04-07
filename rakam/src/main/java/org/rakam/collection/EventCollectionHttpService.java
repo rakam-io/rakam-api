@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -23,6 +25,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.ApiKeyService.AccessKeyType;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -47,6 +50,8 @@ import javax.ws.rs.Path;
 import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URL;
+import java.net.URLConnection;
 import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -61,9 +66,12 @@ import java.util.function.BiFunction;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.io.ByteStreams.toByteArray;
+import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -181,7 +189,7 @@ public class EventCollectionHttpService extends HttpService {
                     return;
                 }
 
-                if (!validateProjectPermission(event.project(), context.writeKey)) {
+                if (!validateProjectPermission(event.project(), context.writeKey, WRITE_KEY)) {
                     ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
                     DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf);
                     errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
@@ -233,12 +241,12 @@ public class EventCollectionHttpService extends HttpService {
         }
     }
 
-    private boolean validateProjectPermission(String project, String writeKey) {
-        if (writeKey == null) {
+    private boolean validateProjectPermission(String project, String apiKey, AccessKeyType type) {
+        if (apiKey == null) {
             return false;
         }
 
-        return apiKeyService.checkPermission(project, WRITE_KEY, writeKey);
+        return apiKeyService.checkPermission(project, type, apiKey);
     }
 
     @POST
@@ -262,12 +270,12 @@ public class EventCollectionHttpService extends HttpService {
 
                         checkProject(project);
                         checkCollection(collection);
-                        if (!apiKeyService.checkPermission(project, WRITE_KEY, api_key)) {
+                        if (!apiKeyService.checkPermission(project, MASTER_KEY, api_key)) {
                             throw new RakamException(FORBIDDEN);
                         }
 
                         if ("application/avro".equals(contentType)) {
-                            return avroEventDeserializer.deserialize(project, collection, api_key, buff);
+                            return avroEventDeserializer.deserialize(project, collection, api_key, Slices.utf8Slice(buff));
 
                         } else if ("text/csv".equals(contentType)) {
                             return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
@@ -292,7 +300,80 @@ public class EventCollectionHttpService extends HttpService {
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
                             Unpooled.wrappedBuffer(OK_MESSAGE),
                             responseHeaders);
-                });
+                }, MASTER_KEY);
+    }
+
+    public static class BulkEventRemote {
+        public final String project;
+        public final String collection;
+        public final String api_key;
+        public final URL url;
+
+        @JsonCreator
+        public BulkEventRemote(@ApiParam(name="project") String project,
+                               @ApiParam(name="collection") String collection,
+                               @ApiParam(name="api_key") String api_key,
+                               @ApiParam(name="url") URL url) {
+            this.project = project;
+            this.collection = collection;
+            this.api_key = api_key;
+            this.url = url;
+        }
+    }
+
+    @POST
+    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class,
+            authorizations = @Authorization(value = "master_key")
+    )
+    @IgnorePermissionCheck
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist."), @ApiResponse(code = 409, message = "The content is partially updated.")})
+    @Path("/bulk/remote")
+    public void bulkEventsRemote(RakamHttpRequest request) throws IOException {
+        storeEvents(request,
+                buff -> {
+                    BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
+                    checkProject(query.project);
+                    checkCollection(query.collection);
+                    if (!apiKeyService.checkPermission(query.project, MASTER_KEY, query.api_key)) {
+                        throw new RakamException(FORBIDDEN);
+                    }
+
+                    if(query.url.getPath().endsWith(".json")) {
+                        return jsonMapper.readValue(query.url, EventList.class);
+                    } else
+                    if(query.url.getPath().endsWith(".csv")) {
+                        return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
+                                        .withSharedAttribute("project", query.project)
+                                        .withSharedAttribute("collection", query.collection)
+                                        .withSharedAttribute("api_key", query.api_key)
+                        ).readValue(query.url);
+                    } else
+                    if(query.url.getPath().endsWith(".avro")) {
+                        URLConnection conn = query.url.openConnection();
+                        conn.setConnectTimeout(5000);
+                        conn.setReadTimeout(5000);
+                        conn.connect();
+
+                        Slice slice = wrappedBuffer(toByteArray(conn.getInputStream()));
+                        return avroEventDeserializer.deserialize(query.project, query.collection, query.api_key, slice);
+                    }
+
+                    throw new RakamException("Unsupported content type.", BAD_REQUEST);
+                },
+                (events, responseHeaders) -> {
+                    try {
+                        eventStore.storeBulk(events, !ImmutableList.of("false").equals(request.params().get("commit")));
+                    } catch (Exception e) {
+                        LOGGER.error(e, "error while storing event.");
+                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                                Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
+                    }
+
+                    return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                            Unpooled.wrappedBuffer(OK_MESSAGE),
+                            responseHeaders);
+                }, MASTER_KEY);
     }
 
     private String getParam(Map<String, List<String>> params, String param) {
@@ -343,10 +424,10 @@ public class EventCollectionHttpService extends HttpService {
                                 Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
                                 responseHeaders);
                     }
-                });
+                }, WRITE_KEY);
     }
 
-    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction) {
+    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction, AccessKeyType accessKeyType) {
         HttpHeaders headers = request.headers();
 
         request.bodyHandler(buff -> {
@@ -364,7 +445,7 @@ public class EventCollectionHttpService extends HttpService {
                     return;
                 }
 
-                if (!validateProjectPermission(events.project, context.writeKey)) {
+                if (!validateProjectPermission(events.project, context.writeKey, accessKeyType)) {
                     ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
                     request.response(new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf, responseHeaders)).end();
                     return;

@@ -113,6 +113,7 @@ public class S3BulkEventStore {
                         objectMetadata);
                 uploadedFiles.add(key);
             }
+
             LOGGER.debug("Stored batch file '%s', %d events in %d collection.", batchId, events.size(), map.size());
 
             cloudWatchClient.putMetricDataAsync(new PutMetricDataRequest()

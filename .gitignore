@@ -33,5 +33,5 @@ project/plugins/project/
 # Scala-IDE specific
 .scala_dependencies
 
-rakam-ui/src/main/resources/rakam-ui/rakam-ui-master/*
+rakam-ui/src/main/resources/rakam-ui-master
 git.properties
