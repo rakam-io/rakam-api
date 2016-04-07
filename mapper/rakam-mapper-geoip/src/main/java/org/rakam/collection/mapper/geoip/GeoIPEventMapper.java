@@ -216,7 +216,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
             return;
         }
 
-        properties.put("connection_type", connectionType.getConnectionType().name());
+        properties.put("_connection_type", connectionType.getConnectionType().name());
     }
 
     private void setIsp(InetAddress address, GenericRecord properties) {
@@ -230,7 +230,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
             return;
         }
 
-        properties.put("isp", isp.getIsp());
+        properties.put("_isp", isp.getIsp());
     }
 
     private void setGeoFields(InetAddress address, GenericRecord properties) {

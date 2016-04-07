@@ -29,10 +29,10 @@ import static org.testng.Assert.*;
 public class TestGeoIPEventMapper {
     @DataProvider(name = "google-ips")
     public static Object[][] hashEnabledValuesProvider() throws UnknownHostException {
-        return new Object[][] {
-                { ImmutableMap.of("_ip", "8.8.8.8"), InetAddress.getLocalHost() },
-                { ImmutableMap.of("_ip", true), InetAddress.getByName("8.8.8.8")  },
-                { ImmutableMap.of("_ip", "8.8.8.8"), InetAddress.getByName("8.8.8.8")  }
+        return new Object[][]{
+                {ImmutableMap.of("_ip", "8.8.8.8"), InetAddress.getLocalHost()},
+                {ImmutableMap.of("_ip", true), InetAddress.getByName("8.8.8.8")},
+                {ImmutableMap.of("_ip", "8.8.8.8"), InetAddress.getByName("8.8.8.8")}
         };
     }
 
@@ -46,7 +46,7 @@ public class TestGeoIPEventMapper {
 
         Record properties = new Record(Schema.createRecord(ImmutableList.of(
                 new Schema.Field("_ip", Schema.create(NULL), null, null),
-                new Schema.Field("isp", Schema.create(STRING), null, null))));
+                new Schema.Field("_isp", Schema.create(STRING), null, null))));
         props.forEach(properties::put);
 
         Event event = new Event("testproject", "testcollection", null, properties);
@@ -177,13 +177,15 @@ public class TestGeoIPEventMapper {
         assertEquals(0, build.constantFields.size());
         assertEquals(1, build.dependentFields.size());
 
-        assertEquals(list, build.dependentFields.get("_ip").stream().map(SchemaField::getName).collect(Collectors.toSet()));
+        assertEquals(list.stream().map(a -> "_" + a).collect(Collectors.toSet()),
+                build.dependentFields.get("_ip").stream().map(SchemaField::getName)
+                        .collect(Collectors.toSet()));
     }
 
     private static Set<String> list = ImmutableSet.of(
-            "_city", "_region",
-            "_country_code", "_latitude",
-            "_longitude", "_timezone");
+            "city", "region",
+            "country_code", "latitude",
+            "longitude", "timezone");
 
     @Test
     public void testFieldDependencyWithAll() throws Exception {
@@ -200,7 +202,7 @@ public class TestGeoIPEventMapper {
         assertEquals(0, build.constantFields.size());
         assertEquals(1, build.dependentFields.size());
 
-        assertEquals(ImmutableSet.builder().addAll(list).add("_isp", "_connection_type").build(),
+        assertEquals(ImmutableSet.builder().addAll(list.stream().map(e -> "_"+e).collect(Collectors.toList())).add("_isp", "_connection_type").build(),
                 build.dependentFields.get("_ip").stream().map(SchemaField::getName).collect(Collectors.toSet()));
     }
 }

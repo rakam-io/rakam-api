@@ -227,6 +227,7 @@
                                     <filesets>
                                         <fileset>
                                             <directory>${basedir}/src/main/resources/rakam-ui-master/node_modules</directory>
+                                            <directory>${basedir}/target</directory>
                                         </fileset>
                                     </filesets>
                                 </configuration>
