@@ -57,11 +57,11 @@ public class TestUserAgentEventMapper {
 
         List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost());
 
-        assertEquals("Chrome", event.getAttribute("user_agent_family"));
-        assertEquals(new Long(47), event.getAttribute("user_agent_version"));
-        assertEquals("Mac OS X", event.getAttribute("os"));
-        assertEquals(new Long(10), event.getAttribute("os_version"));
-        assertEquals("Other", event.getAttribute("device_family"));
+        assertEquals("Chrome", event.getAttribute("_user_agent_family"));
+        assertEquals(new Long(47), event.getAttribute("_user_agent_version"));
+        assertEquals("Mac OS X", event.getAttribute("_os"));
+        assertEquals(new Long(10), event.getAttribute("_os_version"));
+        assertEquals("Other", event.getAttribute("_device_family"));
         assertNull(resp);
         GenericData.get().validate(properties.getSchema(), properties);
     }
@@ -117,11 +117,11 @@ public class TestUserAgentEventMapper {
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
-        assertEquals("Other", event.getAttribute("user_agent_family"));
-        assertNull(event.getAttribute("user_agent_version"));
-        assertEquals("Other", event.getAttribute("os"));
-        assertNull(event.getAttribute("os_version"));
-        assertEquals("Other", event.getAttribute("device_family"));
+        assertEquals("Other", event.getAttribute("_user_agent_family"));
+        assertNull(event.getAttribute("_user_agent_version"));
+        assertEquals("Other", event.getAttribute("_os"));
+        assertNull(event.getAttribute("_os_version"));
+        assertEquals("Other", event.getAttribute("_device_family"));
     }
 
     @Test()

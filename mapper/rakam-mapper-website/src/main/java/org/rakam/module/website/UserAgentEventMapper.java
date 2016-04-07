@@ -64,27 +64,27 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
             }
 
             if(properties.get("user_agent_family") == null) {
-                properties.put("user_agent_family", parsed.userAgent.family);
+                properties.put("_user_agent_family", parsed.userAgent.family);
             }
 
-            if(parsed.userAgent != null && properties.get("user_agent_version") == null) {
+            if(parsed.userAgent != null && properties.get("_user_agent_version") == null) {
                 try {
-                    properties.put("user_agent_version", Long.parseLong(parsed.userAgent.major));
+                    properties.put("_user_agent_version", Long.parseLong(parsed.userAgent.major));
                 } catch (NumberFormatException e) {}
             }
 
-            if (parsed.device != null && properties.get("device_family") == null) {
-                properties.put("device_family", parsed.device.family);
+            if (parsed.device != null && properties.get("_device_family") == null) {
+                properties.put("_device_family", parsed.device.family);
             }
 
             if(parsed.os != null) {
-                if(properties.get("os") == null) {
-                    properties.put("os", parsed.os.family);
+                if(properties.get("_os") == null) {
+                    properties.put("_os", parsed.os.family);
                 }
 
-                if(parsed.os.major != null && properties.get("os_version") == null) {
+                if(parsed.os.major != null && properties.get("_os_version") == null) {
                     try {
-                        properties.put("os_version", Long.parseLong(parsed.os.major));
+                        properties.put("_os_version", Long.parseLong(parsed.os.major));
                     } catch (Exception e) {
                     }
                 }

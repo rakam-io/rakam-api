@@ -55,9 +55,9 @@ public class TestReferrerEventMapper {
 
         List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost());
 
-        assertEquals("Google", event.getAttribute("referrer_source"));
-        assertEquals("test", event.getAttribute("referrer_term"));
-        assertEquals("search", event.getAttribute("referrer_medium"));
+        assertEquals("Google", event.getAttribute("_referrer_source"));
+        assertEquals("test", event.getAttribute("_referrer_term"));
+        assertEquals("search", event.getAttribute("_referrer_medium"));
         assertNull(resp);
         GenericData.get().validate(properties.getSchema(), properties);
     }
@@ -113,9 +113,9 @@ public class TestReferrerEventMapper {
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
-        assertNull(event.getAttribute("referrer_source"));
-        assertNull(event.getAttribute("referrer_term"));
-        assertEquals("unknown", event.getAttribute("referrer_medium"));
+        assertNull(event.getAttribute("_referrer_source"));
+        assertNull(event.getAttribute("_referrer_term"));
+        assertEquals("unknown", event.getAttribute("_referrer_medium"));
     }
 
     @Test()
@@ -171,9 +171,9 @@ public class TestReferrerEventMapper {
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
         assertNull(resp);
-        assertNull(event.getAttribute("referrer_source"));
-        assertNull(event.getAttribute("referrer_term"));
-        assertEquals("internal", event.getAttribute("referrer_medium"));
+        assertNull(event.getAttribute("_referrer_source"));
+        assertNull(event.getAttribute("_referrer_term"));
+        assertEquals("internal", event.getAttribute("_referrer_medium"));
         GenericData.get().validate(properties.getSchema(), properties);
     }
 }

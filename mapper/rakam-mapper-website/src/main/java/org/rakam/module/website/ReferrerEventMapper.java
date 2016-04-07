@@ -61,15 +61,15 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
                 return;
             }
 
-            if (record.get("referrer_medium") == null) {
-                record.put("referrer_medium", parse.medium != null ? parse.medium.toString().toLowerCase() : null);
+            if (record.get("_referrer_medium") == null) {
+                record.put("_referrer_medium", parse.medium != null ? parse.medium.toString().toLowerCase() : null);
             }
-            if (record.get("referrer_source") == null) {
-                record.put("referrer_source", parse.source);
+            if (record.get("_referrer_source") == null) {
+                record.put("_referrer_source", parse.source);
             }
 
-            if (record.get("referrer_term") == null) {
-                record.put("referrer_term", parse.term);
+            if (record.get("_referrer_term") == null) {
+                record.put("_referrer_term", parse.term);
             }
         }
     }
