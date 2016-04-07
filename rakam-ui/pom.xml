@@ -229,6 +229,7 @@
                                             <directory>${project.basedir}/src/main/resources/rakam-ui-master/node</directory>
                                             <directory>${project.basedir}/src/main/resources/rakam-ui-master/node_modules</directory>
                                             <directory>${project.basedir}/target</directory>
+                                            <directory>${project.basedir}/../rakam/target/*.tar.gz</directory>
                                         </fileset>
                                     </filesets>
                                 </configuration>
