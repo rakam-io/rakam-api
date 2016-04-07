@@ -1,5 +1,6 @@
 package org.rakam;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
@@ -18,6 +19,7 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.presto.plugin.EventExplorerListener;
+import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -60,6 +62,18 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
         Thread.sleep(1000);
         super.setup();
+    }
+
+    @AfterSuite
+    @Override
+    public void destroy() {
+        super.destroy();
+        System.out.println("closing");
+        try {
+            testingEnvironment.close();
+        } catch (Exception e) {
+            Throwables.propagate(e);
+        }
     }
 
     @Override
