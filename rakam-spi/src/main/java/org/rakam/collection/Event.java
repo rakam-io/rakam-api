@@ -74,6 +74,41 @@ public class Event {
         return (T) properties().get(attr);
     }
 
+    @Override
+    public String toString() {
+        return "Event{" +
+                "project='" + project + '\'' +
+                ", collection='" + collection + '\'' +
+                ", schema=" + schema +
+                ", api=" + api +
+                ", properties=" + properties +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Event)) return false;
+
+        Event event = (Event) o;
+
+        if (!project.equals(event.project)) return false;
+        if (!collection.equals(event.collection)) return false;
+        if (schema != null ? !schema.equals(event.schema) : event.schema != null) return false;
+        if (api != null ? !api.equals(event.api) : event.api != null) return false;
+        return properties.equals(event.properties);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = project.hashCode();
+        result = 31 * result + collection.hashCode();
+        result = 31 * result + (schema != null ? schema.hashCode() : 0);
+        result = 31 * result + (api != null ? api.hashCode() : 0);
+        result = 31 * result + properties.hashCode();
+        return result;
+    }
 
     public static class EventContext {
         public final String writeKey;

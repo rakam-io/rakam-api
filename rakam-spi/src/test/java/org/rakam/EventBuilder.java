@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.rakam.collection.FieldType.*;
 
 public class EventBuilder {
     private final Metastore metastore;
@@ -95,16 +96,16 @@ public class EventBuilder {
 
     public static FieldType getType(Object value) {
         if(value instanceof String) {
-            return FieldType.STRING;
+            return STRING;
         }
         if(value instanceof Long) {
-            return FieldType.LONG;
+            return LONG;
         }
         if(value instanceof Double) {
-            return FieldType.DOUBLE;
+            return DOUBLE;
         }
         if(value instanceof Boolean) {
-            return FieldType.BOOLEAN;
+            return BOOLEAN;
         }
         if(value instanceof Map) {
             Iterator<Map.Entry> iterator = ((Map) value).entrySet().iterator();
@@ -127,11 +128,11 @@ public class EventBuilder {
         }
 
         if(value instanceof Instant) {
-            return FieldType.TIMESTAMP;
+            return TIMESTAMP;
         }
 
         if(value instanceof LocalDate) {
-            return FieldType.DATE;
+            return DATE;
         }
 
         throw new IllegalArgumentException(format("Undefined type: %s", value.getClass()));

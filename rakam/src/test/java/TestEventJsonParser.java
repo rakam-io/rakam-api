@@ -86,7 +86,7 @@ public class TestEventJsonParser {
     public void testPrimitiveTypes() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         ImmutableMap<String, Object> properties = ImmutableMap.of(
-                "test", 1,
+                "test", 1L,
                 "test1", false,
                 "test2", Instant.now(),
                 "test3", "test",
