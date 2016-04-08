@@ -21,6 +21,7 @@ import org.rakam.report.QueryExecutorService;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
+import java.time.ZoneId;
 
 public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
@@ -54,12 +55,13 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
                 prestoQueryExecutor, metastore, inMemoryQueryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, inMemoryQueryMetadataStore, metastore,
-                materializedViewService, Clock.systemUTC());
+                materializedViewService, Clock.system(ZoneId.of("UTC")));
 
         funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService, materializedViewService, continuousQueryService);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
         Thread.sleep(1000);
         super.setup();
+        Thread.sleep(10000);
     }
 
     @Override
