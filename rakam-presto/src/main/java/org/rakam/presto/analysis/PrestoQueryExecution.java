@@ -46,7 +46,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -68,8 +68,8 @@ public class PrestoQueryExecution implements QueryExecution {
 
     // doesn't seem to be a good way but presto client uses a synchronous http client
     // so it blocks the thread when executing queries
-    private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
-            new SynchronousQueue<>(), new ThreadFactoryBuilder()
+    private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 25, 120L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("presto-query-executor")
             .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e)).build());
 
