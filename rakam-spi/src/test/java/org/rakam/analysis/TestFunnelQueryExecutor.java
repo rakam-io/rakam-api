@@ -41,7 +41,6 @@ public abstract class TestFunnelQueryExecutor {
                             .put("_user", "test" + (i % 3))
                             .put("_time", Instant.ofEpochSecond(i * 100)).build())).collect(Collectors.toList());
 
-            System.out.println(events);
             getEventStore().storeBatch(events);
         }
     }

@@ -61,7 +61,6 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
         Thread.sleep(1000);
         super.setup();
-        Thread.sleep(10000);
     }
 
     @Override

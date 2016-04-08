@@ -62,7 +62,6 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
                     .collect(Collectors.joining(" UNION ALL "));
         }
         String query1 = "WITH \n" + ctes + " " + query;
-        System.out.println(query1);
         return executor.executeRawQuery(query1);
     }
 
