@@ -20,7 +20,7 @@ public class QueryResult {
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final QueryError error;
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
-    private Map<String, Object> properties = null;
+    private Map<String, Object> properties;
 
     private QueryResult(List<SchemaField> metadata, List<List<Object>> result, QueryError error, Map<String, Object> properties) {
         this.metadata = metadata;

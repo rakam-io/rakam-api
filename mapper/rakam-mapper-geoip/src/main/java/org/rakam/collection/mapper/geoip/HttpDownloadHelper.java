@@ -40,8 +40,8 @@ import java.util.Collection;
 public class HttpDownloadHelper {
     private static final Duration maxDuration = Duration.ofMinutes(2);
 
-    private boolean useTimestamp = false;
-    private boolean skipExisting = false;
+    private boolean useTimestamp;
+    private boolean skipExisting;
 
     public boolean download(URL source, Path dest, DownloadProgress progress) throws Exception {
         if (Files.exists(dest) && skipExisting) {
@@ -106,7 +106,7 @@ public class HttpDownloadHelper {
     }
 
     public static class VerboseProgress implements DownloadProgress {
-        private int dots = 0;
+        private int dots;
         PrintWriter writer;
 
         public VerboseProgress(PrintStream out) {
@@ -148,12 +148,12 @@ public class HttpDownloadHelper {
         private final long timestamp;
         private final DownloadProgress progress;
 
-        private boolean success = false;
-        private IOException ioexception = null;
-        private InputStream is = null;
-        private OutputStream os = null;
+        private boolean success;
+        private IOException ioexception;
+        private InputStream is;
+        private OutputStream os;
         private URLConnection connection;
-        private int redirections = 0;
+        private int redirections;
 
         GetThread(URL source, Path dest, boolean h, long t, DownloadProgress p) {
             this.source = source;
