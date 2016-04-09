@@ -14,9 +14,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import net.kencochrane.raven.jul.SentryHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.Authorization;
-import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 
@@ -59,11 +56,9 @@ public class RakamUIWebService extends HttpService {
     public static final int HTTP_CACHE_SECONDS = 60 * 60 * 24;
     private final File directory;
     private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
-    private final ActiveModuleList activeModules;
 
     @Inject
-    public RakamUIWebService(RakamUIConfig config, ActiveModuleListBuilder activeModuleListBuilder) {
-        activeModules = activeModuleListBuilder.build();
+    public RakamUIWebService(RakamUIConfig config) {
         directory = config.getUIDirectory();
     }
 
@@ -79,8 +74,9 @@ public class RakamUIWebService extends HttpService {
     @IgnorePermissionCheck
     public void checkSentry(RakamHttpRequest request) {
         LogManager manager = LogManager.getLogManager();
-        String dsnInternal = manager.getProperty(SentryHandler.class.getCanonicalName() + ".dsn");
-        String tagsString = manager.getProperty(SentryHandler.class.getCanonicalName() + ".tags");
+        String canonicalName = SentryHandler.class.getCanonicalName();
+        String dsnInternal = manager.getProperty(canonicalName + ".dsn");
+        String tagsString = manager.getProperty(canonicalName + ".tags");
         String dsnPublic = Optional.ofNullable(dsnInternal).map(urlString -> {
             try {
                 URL url = new URL(urlString);
@@ -99,16 +95,6 @@ public class RakamUIWebService extends HttpService {
         tags.remove("type");
 
         request.response(JsonHelper.encode(ImmutableMap.of("tags", tags, "dsn", dsnPublic)), OK).end();
-    }
-
-    @Path("/ui/active-modules")
-    @GET
-    @ApiOperation(value = "List installed modules for ui",
-            authorizations = @Authorization(value = "master_key")
-    )
-    @IgnorePermissionCheck
-    public ActiveModuleList modules() {
-        return activeModules;
     }
 
     private void sendFile(RakamHttpRequest request, File file) {

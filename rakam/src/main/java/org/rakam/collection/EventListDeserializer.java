@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class EventListDeserializer extends JsonDeserializer<EventCollectionHttpService.EventList> {
+public class EventListDeserializer extends JsonDeserializer<EventList> {
     private final JsonEventDeserializer eventDeserializer;
 
     @Inject
@@ -23,7 +23,7 @@ public class EventListDeserializer extends JsonDeserializer<EventCollectionHttpS
     }
 
     @Override
-    public EventCollectionHttpService.EventList deserialize(JsonParser jp, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+    public EventList deserialize(JsonParser jp, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
         JsonToken t = jp.getCurrentToken();
 
         if(t != JsonToken.START_OBJECT) {
@@ -79,6 +79,6 @@ public class EventListDeserializer extends JsonDeserializer<EventCollectionHttpS
             list.add(eventDeserializer.deserializeWithProject(jp, project));
         }
 
-        return new EventCollectionHttpService.EventList(context, project, list);
+        return new EventList(context, project, list);
     }
 }

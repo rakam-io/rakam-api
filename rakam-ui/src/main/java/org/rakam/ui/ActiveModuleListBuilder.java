@@ -10,7 +10,7 @@ import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 
 import javax.inject.Inject;
 
-class ActiveModuleListBuilder {
+public class ActiveModuleListBuilder {
     private final UserPluginConfig userPluginConfig;
     private final RealTimeConfig realtimeConfig;
     private final EventStreamConfig eventStreamConfig;

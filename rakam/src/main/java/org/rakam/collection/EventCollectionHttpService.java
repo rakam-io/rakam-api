@@ -1,7 +1,6 @@
 package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,11 +15,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
@@ -65,7 +61,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Charsets.UTF_8;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
@@ -270,9 +265,6 @@ public class EventCollectionHttpService extends HttpService {
 
                         checkProject(project);
                         checkCollection(collection);
-                        if (!apiKeyService.checkPermission(project, MASTER_KEY, api_key)) {
-                            throw new RakamException(FORBIDDEN);
-                        }
 
                         if ("application/avro".equals(contentType)) {
                             return avroEventDeserializer.deserialize(project, collection, api_key, Slices.utf8Slice(buff));
@@ -542,135 +534,7 @@ public class EventCollectionHttpService extends HttpService {
         return true;
     }
 
-    public static class EventList {
-        public final Event.EventContext api;
-        public final String project;
-        public final List<Event> events;
-
-        @JsonCreator
-        public EventList(@ApiParam(name = "api") Event.EventContext api,
-                         @ApiParam(name = "project") String project,
-                         @ApiParam(name = "events") List<Event> events) {
-            this.project = checkNotNull(project, "project parameter is null");
-            this.events = checkNotNull(events, "events parameter is null");
-            this.api = checkNotNull(api, "api is null");
-        }
-
-        @Override
-        public String toString() {
-            return "EventList{" +
-                    "api=" + api +
-                    ", project='" + project + '\'' +
-                    ", events=" + events +
-                    '}';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof EventList)) return false;
-
-            EventList eventList = (EventList) o;
-
-            if (!api.equals(eventList.api)) return false;
-            if (!project.equals(eventList.project)) return false;
-            return events.equals(eventList.events);
-
-        }
-
-        @Override
-        public int hashCode() {
-            int result = api.hashCode();
-            result = 31 * result + project.hashCode();
-            result = 31 * result + events.hashCode();
-            return result;
-        }
-    }
-
-    public static final class HeaderDefaultFullHttpResponse extends DefaultHttpResponse implements FullHttpResponse {
-        private final ByteBuf content;
-        private final HttpHeaders trailingHeaders;
-
-        public HeaderDefaultFullHttpResponse(HttpVersion version, HttpResponseStatus status, ByteBuf content, HttpHeaders headers) {
-            super(version, status);
-            trailingHeaders = headers;
-            this.content = content;
-        }
-
-        @Override
-        public HttpHeaders trailingHeaders() {
-            return trailingHeaders;
-        }
-
-        @Override
-        public HttpHeaders headers() {
-            return trailingHeaders;
-        }
-
-        @Override
-        public ByteBuf content() {
-            return content;
-        }
-
-        @Override
-        public int refCnt() {
-            return content.refCnt();
-        }
-
-        @Override
-        public FullHttpResponse retain() {
-            content.retain();
-            return this;
-        }
-
-        @Override
-        public FullHttpResponse retain(int increment) {
-            content.retain(increment);
-            return this;
-        }
-
-        @Override
-        public boolean release() {
-            return content.release();
-        }
-
-        @Override
-        public boolean release(int decrement) {
-            return content.release(decrement);
-        }
-
-        @Override
-        public FullHttpResponse setProtocolVersion(HttpVersion version) {
-            super.setProtocolVersion(version);
-            return this;
-        }
-
-        @Override
-        public FullHttpResponse setStatus(HttpResponseStatus status) {
-            super.setStatus(status);
-            return this;
-        }
-
-        @Override
-        public FullHttpResponse copy() {
-            DefaultFullHttpResponse copy = new DefaultFullHttpResponse(
-                    getProtocolVersion(), getStatus(), content().copy(), true);
-            copy.headers().set(headers());
-            copy.trailingHeaders().set(trailingHeaders());
-            return copy;
-        }
-
-        @Override
-        public FullHttpResponse duplicate() {
-            DefaultFullHttpResponse duplicate = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(),
-                    content().duplicate(), true);
-            duplicate.headers().set(headers());
-            duplicate.trailingHeaders().set(trailingHeaders());
-            return duplicate;
-        }
-    }
-
     interface ThrowableFunction {
-        EventList apply(String buffer) throws IOException, JsonParseException, JsonMappingException;
+        EventList apply(String buffer) throws IOException, JsonMappingException;
     }
 }

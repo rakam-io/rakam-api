@@ -39,7 +39,7 @@ import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class CsvEventDeserializer extends JsonDeserializer<EventCollectionHttpService.EventList> {
+public class CsvEventDeserializer extends JsonDeserializer<EventList> {
 
     private final Metastore metastore;
     private final Map<String, List<SchemaField>> conditionalMagicFields;
@@ -53,7 +53,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventCollectionHttpSe
     }
 
     @Override
-    public EventCollectionHttpService.EventList deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+    public EventList deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
         String project = (String) ctxt.getAttribute("project");
         String collection = (String) ctxt.getAttribute("collection");
         String apiKey = (String) ctxt.getAttribute("api_key");
@@ -92,7 +92,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventCollectionHttpSe
         }
 
         Event.EventContext context = new Event.EventContext(apiKey, null, null, null);
-        return new EventCollectionHttpService.EventList(context, project, list);
+        return new EventList(context, project, list);
     }
 
     public Schema convertAvroSchema(List<SchemaField> fields) {

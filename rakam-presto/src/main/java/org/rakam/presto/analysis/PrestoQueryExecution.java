@@ -48,7 +48,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
@@ -56,19 +55,20 @@ import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec
 import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
 import static com.facebook.presto.jdbc.internal.spi.type.ParameterKind.TYPE;
 import static java.time.ZoneOffset.UTC;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.collection.FieldType.*;
 
 public class PrestoQueryExecution implements QueryExecution {
     private final static Logger LOGGER = Logger.get(PrestoQueryExecution.class);
     private static final JettyHttpClient HTTP_CLIENT = new JettyHttpClient(
             new HttpClientConfig()
-                    .setConnectTimeout(new Duration(10, TimeUnit.SECONDS))
+                    .setConnectTimeout(new Duration(10, SECONDS))
                     .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
             ImmutableSet.of(new UserAgentRequestFilter("rakam")));
 
     // doesn't seem to be a good way but presto client uses a synchronous http client
     // so it blocks the thread when executing queries
-    private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 25, 120L, TimeUnit.SECONDS,
+    private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(2, 50, 120L, SECONDS,
             new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("presto-query-executor")
             .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e)).build());

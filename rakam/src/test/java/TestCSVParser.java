@@ -11,7 +11,7 @@ import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.CsvEventDeserializer;
 import org.rakam.collection.Event;
-import org.rakam.collection.EventCollectionHttpService.EventList;
+import org.rakam.collection.EventList;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.AvroUtil;

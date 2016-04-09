@@ -189,7 +189,7 @@ public class WebUserService {
             if (!SCryptUtil.check(oldPassword, hashedPass)) {
                 throw new RakamException("Password is wrong", BAD_REQUEST);
             }
-            handle.createStatement("UPDATE web_user SET password = :password WHERE id = :id AND password = :password")
+            handle.createStatement("UPDATE web_user SET password = :password WHERE id = :id")
                     .bind("id", id)
                     .bind("password", scrypt).execute();
         }

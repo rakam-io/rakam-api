@@ -9,7 +9,7 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.collection.Event;
-import org.rakam.collection.EventCollectionHttpService.EventList;
+import org.rakam.collection.EventList;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.EventListDeserializer;
 import org.rakam.collection.FieldDependencyBuilder;

@@ -11,6 +11,7 @@ public class TestPrestoKinesisEventExplorer extends TestPrestoEventExplorer {
     @Override
     public void setupInline() {
         testingPrestoEventStore = new AWSKinesisEventStore(getAWSConfig(), getMetastore(),
+                getMetastoreDataSource(),
                 getPrestoQueryExecutor(),  getQueryMetadataStore(),
                 getEnvironment().getPrestoConfig(),
                 new FieldDependencyBuilder().build());

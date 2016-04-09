@@ -8,7 +8,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.EventCollectionHttpService.EventList;
 import org.rakam.util.AvroUtil;
 
 import javax.inject.Inject;
