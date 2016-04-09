@@ -28,6 +28,8 @@ import java.util.List;
 import static com.google.common.collect.ImmutableList.of;
 
 public class TimestampEventMapper implements EventMapper {
+    private static final int HASHCODE = TimestampEventMapper.class.getName().hashCode();
+
     @Override
     public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
         GenericRecord properties = event.properties();
@@ -53,8 +55,6 @@ public class TimestampEventMapper implements EventMapper {
     public int hashCode() {
         return HASHCODE;
     }
-
-    private static final int HASHCODE = TimestampEventMapper.class.getName().hashCode();
 
     @Override
     public boolean equals(Object obj) {

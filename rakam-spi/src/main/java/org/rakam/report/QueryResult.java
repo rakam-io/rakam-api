@@ -13,6 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class QueryResult {
     private static final QueryResult EMPTY = new QueryResult(ImmutableList.of(), ImmutableList.of());
 
+    public static final String EXECUTION_TIME = "executionTimeInMillis";
+    public static final String TOTAL_RESULT = "totalResult";
+
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
     private final List<SchemaField> metadata;
     @JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
@@ -29,16 +32,16 @@ public class QueryResult {
         this.properties = properties;
     }
 
-    public static QueryResult empty() {
-        return EMPTY;
-    }
-
     public QueryResult(List<SchemaField> metadata, List<List<Object>> result) {
         this(metadata, result, null, null);
     }
 
     public QueryResult(List<SchemaField> metadata, List<List<Object>> result, Map<String, Object> properties) {
         this(metadata, result, null, properties);
+    }
+
+    public static QueryResult empty() {
+        return EMPTY;
     }
 
     public QueryError getError() {
@@ -107,6 +110,4 @@ public class QueryResult {
         return result1;
     }
 
-    public static final String EXECUTION_TIME = "executionTimeInMillis";
-    public static final String TOTAL_RESULT = "totalResult";
 }

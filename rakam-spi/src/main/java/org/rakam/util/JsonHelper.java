@@ -25,6 +25,8 @@ public class JsonHelper {
     private final static ObjectMapper mapper = new ObjectMapper();
     private final static ObjectMapper prettyMapper = new ObjectMapper();
 
+    private static final JsonNodeFactory jsonNodeFactory = new JsonNodeFactory(false);
+
     static {
         prettyMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
         mapper.registerModule(new JSR310Module());
@@ -45,8 +47,6 @@ public class JsonHelper {
 
     private JsonHelper() {
     }
-
-    private static final JsonNodeFactory jsonNodeFactory = new JsonNodeFactory(false);
 
     public static String encode(Object obj, boolean prettyPrint) {
         try {
