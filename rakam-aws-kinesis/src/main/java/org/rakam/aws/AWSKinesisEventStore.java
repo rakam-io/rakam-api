@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
@@ -166,14 +167,20 @@ public class AWSKinesisEventStore implements EventStore {
             return insertQuery.getResult().thenApply(result -> {
                 ImmutableList.Builder<CompletableFuture<QueryResult>> builder = ImmutableList.builder();
                 for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
+                    AtomicBoolean ref = new AtomicBoolean();
+
                     String query = QueryFormatter.format(continuousQuery.getQuery(), name -> {
-                        if (name.getPrefix().map(e -> e.equals("collection")).orElse(true) && name.getSuffix().equals(collection)) {
-                            return "(" + middlewareTable + ")";
-                        } else if (!name.getPrefix().isPresent() && name.getSuffix().equals("_all")) {
+                        if ((name.getPrefix().map(e -> e.equals("collection")).orElse(true) && name.getSuffix().equals(collection)) ||
+                                !name.getPrefix().isPresent() && name.getSuffix().equals("_all")) {
+                            ref.set(true);
                             return "(" + middlewareTable + ")";
                         }
                         return executor.formatTableReference(project, name);
                     });
+
+                    if(!ref.get()) {
+                        continue;
+                    }
 
                     CompletableFuture<QueryResult> processQuery = executor.executeRawStatement(format("CREATE OR REPLACE VIEW %s.%s.%s AS %s",
                             prestoConfig.getStreamingConnector(), project, continuousQuery.tableName, query))
