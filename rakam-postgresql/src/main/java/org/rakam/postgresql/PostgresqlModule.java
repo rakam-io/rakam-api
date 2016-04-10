@@ -54,6 +54,7 @@ import java.util.List;
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="postgresql")
 public class PostgresqlModule extends RakamModule {
+    private static Module asyncClientModule;
 
     @Override
     protected void setup(Binder binder) {
@@ -123,8 +124,6 @@ public class PostgresqlModule extends RakamModule {
     public String description() {
         return "Postgresql deployment type module";
     }
-
-    private static Module asyncClientModule;
 
     /*
         This module may be installed more than once, Guice will handle deduplication.

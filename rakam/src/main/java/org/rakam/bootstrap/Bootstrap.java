@@ -42,6 +42,11 @@ import static com.google.common.collect.Maps.fromProperties;
 
 public class Bootstrap
 {
+    private static final String PROPERTY_NAME_COLUMN = "PROPERTY";
+    private static final String DEFAULT_VALUE_COLUMN = "DEFAULT";
+    private static final String CURRENT_VALUE_COLUMN = "RUNTIME";
+    private static final String DESCRIPTION_COLUMN = "DESCRIPTION";
+
     private final Logger log = Logger.get(Bootstrap.class);
     private final Set<Module> modules;
 
@@ -224,11 +229,6 @@ public class Bootstrap
         }
 
     }
-
-    private static final String PROPERTY_NAME_COLUMN = "PROPERTY";
-    private static final String DEFAULT_VALUE_COLUMN = "DEFAULT";
-    private static final String CURRENT_VALUE_COLUMN = "RUNTIME";
-    private static final String DESCRIPTION_COLUMN = "DESCRIPTION";
 
     private void logConfiguration(ConfigurationFactory configurationFactory, Map<String, String> unusedProperties)
     {

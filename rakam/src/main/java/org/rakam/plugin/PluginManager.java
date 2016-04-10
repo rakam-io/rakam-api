@@ -20,6 +20,11 @@ import java.util.List;
 public class PluginManager {
     private static final File pluginsDirectory = new File(new File(System.getProperty("user.dir")), "plugins");
 
+    private static final int EXIT_CODE_OK = 0;
+    private static final int EXIT_CODE_CMD_USAGE = 64;
+    private static final int EXIT_CODE_IO_ERROR = 74;
+    private static final int EXIT_CODE_ERROR = 70;
+
     public static final class ACTION {
         public static final int NONE = 0;
         public static final int INSTALL = 1;
@@ -178,11 +183,6 @@ public class PluginManager {
             }
         }
     }
-
-    private static final int EXIT_CODE_OK = 0;
-    private static final int EXIT_CODE_CMD_USAGE = 64;
-    private static final int EXIT_CODE_IO_ERROR = 74;
-    private static final int EXIT_CODE_ERROR = 70;
 
     public static void main(String[] args) {
         try {

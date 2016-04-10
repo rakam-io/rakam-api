@@ -35,6 +35,19 @@ public abstract class TestEventExplorer {
     private static final int SCALE_FACTOR = 100;
     protected static final String PROJECT_NAME = TestEventExplorer.class.getName().replace(".", "_").toLowerCase();
 
+    private static final Map<TimestampTransformation, Set<List>> EVENT_STATISTICS_RESULTS = ImmutableMap.<TimestampTransformation, Set<List>>builder()
+            .put(HOUR_OF_DAY, ImmutableSet.of(of("test", 0L, 36L), of("test", 1L, 36L), of("test", 2L, 28L)))
+            .put(DAY_OF_MONTH, ImmutableSet.of(of("test", 1L, 100L)))
+            .put(WEEK_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
+            .put(MONTH_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
+            .put(QUARTER_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
+            .put(DAY_OF_WEEK, ImmutableSet.of(of("test", 4L, 100L)))
+            .put(HOUR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 36L), of("test", parse("1970-01-01T01:00:00Z"), 36L), of("test", parse("1970-01-01T02:00:00Z"), 28L)))
+            .put(DAY, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L)))
+            .put(WEEK, ImmutableSet.of(of("test", parse("1969-12-29T00:00:00Z"), 100L)))
+            .put(MONTH, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L)))
+            .put(YEAR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L))).build();
+
     @BeforeSuite
     public void setup() throws Exception {
         getMetastore().createProject(PROJECT_NAME);
@@ -63,19 +76,6 @@ public abstract class TestEventExplorer {
     public abstract Metastore getMetastore();
 
     public abstract EventExplorer getEventExplorer();
-
-    private static final Map<TimestampTransformation, Set<List>> EVENT_STATISTICS_RESULTS = ImmutableMap.<TimestampTransformation, Set<List>>builder()
-            .put(HOUR_OF_DAY, ImmutableSet.of(of("test", 0L, 36L), of("test", 1L, 36L), of("test", 2L, 28L)))
-            .put(DAY_OF_MONTH, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(WEEK_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(MONTH_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(QUARTER_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(DAY_OF_WEEK, ImmutableSet.of(of("test", 4L, 100L)))
-            .put(HOUR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 36L), of("test", parse("1970-01-01T01:00:00Z"), 36L), of("test", parse("1970-01-01T02:00:00Z"), 28L)))
-            .put(DAY, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L)))
-            .put(WEEK, ImmutableSet.of(of("test", parse("1969-12-29T00:00:00Z"), 100L)))
-            .put(MONTH, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L)))
-            .put(YEAR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 100L))).build();
 
     @Test
     public void testTotalStatistics() throws Exception {

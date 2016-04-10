@@ -28,12 +28,14 @@ import java.util.function.Consumer;
 import static java.lang.String.format;
 
 public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
-    final static Logger LOGGER = Logger.get(PostgresqlUserMailboxStorage.class);
+    private static final Logger LOGGER = Logger.get(PostgresqlUserMailboxStorage.class);
 
     private final PostgresqlQueryExecutor queryExecutor;
     private final static String USER_NOTIFICATION_SUFFIX = "_user_mailbox";
     private final static String USER_NOTIFICATION_ALL_SUFFIX = "_user_mailbox_all_listener";
     private final JDBCPoolDataSource dataSource;
+
+    AtomicLong lastMessage = new AtomicLong(Instant.now().getEpochSecond());
 
     @Inject
     public PostgresqlUserMailboxStorage(PostgresqlQueryExecutor queryExecutor, @Named("async-postgresql") JDBCPoolDataSource dataSource) {
@@ -161,8 +163,6 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
         }
 
     }
-
-    AtomicLong lastMessage = new AtomicLong(Instant.now().getEpochSecond());
 
     @Override
     public MessageListener listenAllUsers(String projectId, Consumer<Data> consumer) {

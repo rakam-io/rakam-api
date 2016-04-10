@@ -22,19 +22,6 @@ public class AutomationRule implements ProjectItem {
     @JsonProperty("custom_data")
     public final String customData;
 
-    public AutomationRule(int id, String project, boolean isActive, List<ScenarioStep> scenarios, List<SerializableAction> actions, String customData) {
-        this.id = id;
-        this.project = project;
-        this.isActive = isActive;
-        this.scenarios = scenarios;
-        this.actions = actions;
-        this.customData = customData;
-    }
-
-    public synchronized void setActive(boolean active) {
-        this.isActive = active;
-    }
-
     @JsonCreator
     public AutomationRule(@ApiParam(name = "project") String project,
                           @ApiParam(name = "is_active", required = false) Boolean isActive,
@@ -47,6 +34,19 @@ public class AutomationRule implements ProjectItem {
         this.isActive = isActive == null ? true : isActive.booleanValue();
         this.scenarios = scenarios;
         this.actions = actions;
+    }
+
+    public AutomationRule(int id, String project, boolean isActive, List<ScenarioStep> scenarios, List<SerializableAction> actions, String customData) {
+        this.id = id;
+        this.project = project;
+        this.isActive = isActive;
+        this.scenarios = scenarios;
+        this.actions = actions;
+        this.customData = customData;
+    }
+
+    public synchronized void setActive(boolean active) {
+        this.isActive = active;
     }
 
     @Override
