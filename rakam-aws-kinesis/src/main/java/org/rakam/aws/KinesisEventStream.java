@@ -56,7 +56,7 @@ public class KinesisEventStream implements EventStream {
         String ticket = httpClient.execute(request, StringResponseHandler.createStringResponseHandler()).getBody();
 
         return new EventStreamer() {
-            AtomicInteger failed = new AtomicInteger();
+            private AtomicInteger failed = new AtomicInteger();
 
             @Override
             public synchronized void sync() {

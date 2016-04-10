@@ -110,7 +110,7 @@ public class AutomationEventProcessor implements EventProcessor {
 
                     for (AutomationRule.SerializableAction action : automationRule.actions) {
                         Supplier<User> supplier = new Supplier<User>() {
-                            User user;
+                            private User user;
 
                             @Override
                             public User get() {

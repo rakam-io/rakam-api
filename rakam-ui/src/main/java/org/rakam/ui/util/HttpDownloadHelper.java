@@ -105,7 +105,7 @@ public class HttpDownloadHelper {
      */
     public static class VerboseProgress implements DownloadProgress {
         private int dots;
-        PrintWriter writer;
+        private PrintWriter writer;
 
         public VerboseProgress(PrintStream out) {
             this.writer = new PrintWriter(out);

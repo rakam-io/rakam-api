@@ -20,7 +20,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @Singleton
 public class KafkaSimpleConsumerManager {
 
-    final static Logger LOGGER = Logger.get(KafkaSimpleConsumerManager.class);
+    private final static Logger LOGGER = Logger.get(KafkaSimpleConsumerManager.class);
 
     private final LoadingCache<HostAndPort, SimpleConsumer> consumerCache;
 

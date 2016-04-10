@@ -27,11 +27,11 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 
 public class PostgresqlQueryExecutor implements QueryExecutor {
-    final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
+    private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final JDBCPoolDataSource connectionPool;
-    static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
+    protected static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
             new SynchronousQueue<>(), new ThreadFactoryBuilder()
             .setNameFormat("postgresql-query-executor")
             .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());

@@ -21,7 +21,7 @@ import java.util.List;
 public class ABTestingMetastore {
     private final DBI dbi;
 
-    ResultSetMapper<ABTestingReport> mapper = (index, r, ctx) -> {
+    private ResultSetMapper<ABTestingReport> mapper = (index, r, ctx) -> {
         List<Variant> variants = Arrays.asList(JsonHelper.read(r.getString(4), Variant[].class));
         Goal goals = Arrays.asList(JsonHelper.read(r.getString(7), Goal[].class)).get(0);
         return new ABTestingReport(r.getInt(1), r.getString(2), r.getString(3),

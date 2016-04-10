@@ -32,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
 @Path("/user/action/email")
 @Api(value = "/user/action/email", nickname = "userEmailAction", description = "Email action", tags = "user-action")
 public class UserEmailActionService extends UserActionService<UserEmailActionService.EmailActionConfig> {
-    final static Logger LOGGER = Logger.get(UserEmailActionService.class);
+    private final static Logger LOGGER = Logger.get(UserEmailActionService.class);
 
     private final MailSender mailSender;
     private final UserHttpService httpService;

@@ -41,14 +41,14 @@ import static java.lang.String.format;
 
 @Singleton
 public class KafkaEventStore implements EventStore, LeaderSelectorListener {
-    final static Logger LOGGER = Logger.get(KafkaEventStore.class);
-    final static String ZK_OFFSET_PATH = "/collectionOffsets";
+    private final static Logger LOGGER = Logger.get(KafkaEventStore.class);
+    private final static String ZK_OFFSET_PATH = "/collectionOffsets";
 
     private final Producer<byte[], byte[]> producer;
     private final Set<String> sourceFields;
-    ScheduledExecutorService executorService;
+    private ScheduledExecutorService executorService;
 
-    ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
+    private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
         protected KByteArrayOutputStream initialValue() {
             return new KByteArrayOutputStream(50000);

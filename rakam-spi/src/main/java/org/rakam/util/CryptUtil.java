@@ -13,7 +13,7 @@ import java.security.SecureRandom;
 import java.util.Random;
 
 public final class CryptUtil {
-    static final Random random = new SecureRandom();
+    private static final Random random = new SecureRandom();
 
     private CryptUtil() {}
 

@@ -401,10 +401,10 @@ public class PluginManager {
      */
     static class PluginHandle {
 
-        final String name;
-        final String version;
-        final String user;
-        final String repo;
+        private final String name;
+        private final String version;
+        private final String user;
+        private final String repo;
 
         PluginHandle(String name, String version, String user, String repo) {
             this.name = name;

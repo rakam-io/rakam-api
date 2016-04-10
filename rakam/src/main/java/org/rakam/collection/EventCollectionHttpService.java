@@ -74,7 +74,7 @@ import static org.rakam.util.ValidationUtil.checkProject;
 @Path("/event")
 @Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
 public class EventCollectionHttpService extends HttpService {
-    final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
+    private final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private final ObjectMapper jsonMapper;
     private final ObjectMapper csvMapper;
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
