@@ -83,6 +83,23 @@ public class TestEventJsonParser {
     }
 
     @Test
+    public void testSimpleWithoutProject() throws Exception {
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
+                "collection", "test",
+                "api", api,
+                "properties", ImmutableMap.of()));
+
+        Event event = mapper.readValue(bytes, Event.class);
+
+        assertEquals("test", event.project());
+        assertEquals("test", event.collection());
+        assertEquals(api, event.api());
+        assertEquals(eventBuilder
+                .createEvent("test", ImmutableMap.of()).properties(), event.properties());
+    }
+
+    @Test
     public void testPrimitiveTypes() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         ImmutableMap<String, Object> properties = ImmutableMap.of(
@@ -157,7 +174,7 @@ public class TestEventJsonParser {
                 .createEvent("test", properties).properties(), event.properties());
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "'project' and 'collection' fields must be located before 'properties' field.")
+    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "'collection' field must be located before 'properties' field.")
     public void testInvalidOrder() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
@@ -269,6 +286,31 @@ public class TestEventJsonParser {
                 "test2", false);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "project", "test",
+                "api", api,
+                "events", ImmutableList.of(
+                        ImmutableMap.of("collection", "test", "properties", props),
+                        ImmutableMap.of("collection", "test", "properties", props))));
+
+        EventList events = mapper.readValue(bytes, EventList.class);
+
+        assertEquals("test", events.project);
+        assertEquals(api, events.api);
+
+        for (Event event : events.events) {
+            assertEquals("test", event.collection());
+
+            assertEquals(eventBuilder.createEvent("test", props).properties(), event.properties());
+        }
+    }
+
+    @Test
+    public void testBatchWithoutProject() throws Exception {
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        ImmutableMap<String, Object> props = ImmutableMap.of(
+                "test0", "test",
+                "test1", ImmutableList.of("test"),
+                "test2", false);
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "api", api,
                 "events", ImmutableList.of(
                         ImmutableMap.of("collection", "test", "properties", props),

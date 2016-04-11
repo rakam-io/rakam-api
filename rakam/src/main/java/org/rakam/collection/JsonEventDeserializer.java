@@ -15,6 +15,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.NotExistsException;
 import org.rakam.analysis.metadata.Metastore;
@@ -80,7 +81,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
 
         String collection = null;
-        Event.EventContext api = null;
+        EventContext api = null;
 
         JsonToken t = jp.getCurrentToken();
         if (t == JsonToken.START_OBJECT) {
@@ -111,15 +112,12 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     collection = jp.getValueAsString().toLowerCase();
                     break;
                 case "api":
-                    api = jp.readValueAs(Event.EventContext.class);
+                    api = jp.readValueAs(EventContext.class);
                     break;
                 case "properties":
                     if (collection == null) {
                         throw new JsonMappingException("'collection' field must be located before 'properties' field.");
                     } else {
-                        if(api == null) {
-                            throw new JsonMappingException("'api' field must be located before 'properties' field.");
-                        }
                         if(project == null) {
                             project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
                         }
@@ -134,7 +132,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                             if (t == JsonToken.START_OBJECT) {
                                 throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                             } else {
-                                throw new RakamException("Error while deserializing event", INTERNAL_SERVER_ERROR);
+                                throw new RakamException("Error while de-serializing event", INTERNAL_SERVER_ERROR);
                             }
                         }
                     }

@@ -1,5 +1,6 @@
 package org.rakam.collection;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 
@@ -31,7 +33,7 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
     public EventList deserialize(JsonParser jp, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
         JsonToken t = jp.getCurrentToken();
 
-        if(t != JsonToken.START_OBJECT) {
+        if (t != JsonToken.START_OBJECT) {
             throw new IllegalArgumentException("body must be an object");
         }
 
@@ -42,44 +44,50 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
         String fieldName = jp.getCurrentName();
         jp.nextToken();
 
-        if(fieldName.equals("api")) {
+        if (fieldName.equals("api")) {
             context = jp.readValueAs(Event.EventContext.class);
-        } else
-        if(fieldName.equals("project")) {
+        } else if (fieldName.equals("project")) {
             project = jp.getValueAsString();
-        }
-
-        jp.nextToken();
-        fieldName = jp.getCurrentName();
-        jp.nextToken();
-
-        if(fieldName.equals("api")) {
-            context = jp.readValueAs(Event.EventContext.class);
-        } else
-        if(fieldName.equals("project")) {
-            project = jp.getValueAsString();
-        }
-
-        if(context == null) {
-            throw new RakamException("First two fields must be api and project", BAD_REQUEST);
-        }
-
-        jp.nextToken();
-        if (!"events".equals(jp.getCurrentName())) {
-            throw new RakamException("Third field must be events.", BAD_REQUEST);
         }
 
         t = jp.nextToken();
 
+        if (t != FIELD_NAME) {
+            throw new JsonParseException("", jp.getCurrentLocation());
+        }
+
+        if (!"events".equals(jp.getText())) {
+            jp.nextToken();
+            fieldName = jp.getCurrentName();
+            jp.nextToken();
+
+            if (fieldName.equals("api")) {
+                context = jp.readValueAs(Event.EventContext.class);
+            } else if (fieldName.equals("project")) {
+                project = jp.getValueAsString();
+            }
+
+            t = jp.nextToken();
+        }
+
+
+        if (context == null) {
+            throw new RakamException("First two fields must be api and project", BAD_REQUEST);
+        }
+
+        if (t != FIELD_NAME || !"events".equals(jp.getText())) {
+            throw new RakamException("The last field must be 'events'.", BAD_REQUEST);
+        }
+
         List<Event> list = new ArrayList<>();
 
-        if (t == JsonToken.START_ARRAY) {
+        if (jp.nextToken() == JsonToken.START_ARRAY) {
             t = jp.nextToken();
         } else {
             throw new RakamException("events field must be array", BAD_REQUEST);
         }
 
-        if(project == null) {
+        if (project == null) {
             project = apiKeyService.getProjectOfApiKey(context.writeKey, WRITE_KEY);
         }
 
