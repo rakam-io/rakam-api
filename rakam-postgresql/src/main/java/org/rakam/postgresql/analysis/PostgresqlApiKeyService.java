@@ -24,9 +24,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import static java.lang.String.format;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+
 public class PostgresqlApiKeyService implements ApiKeyService {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
     private final JDBCPoolDataSource connectionPool;
+    private final LoadingCache<ApiKey, String> apiKeyReverseCache;
 
     public PostgresqlApiKeyService(JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
@@ -36,6 +42,23 @@ public class PostgresqlApiKeyService implements ApiKeyService {
             public List<Set<String>> load(String project) throws Exception {
                 try (Connection conn = connectionPool.getConnection()) {
                     return getKeys(conn, project);
+                }
+            }
+        });
+
+        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, String>() {
+            @Override
+            public String load(ApiKey apiKey) throws Exception {
+                try(Connection conn = connectionPool.getConnection()) {
+                    PreparedStatement ps = conn.prepareStatement(format("SELECT project FROM public.api_key WHERE %s = ?", apiKey.type.name()));
+                    ps.setString(1, apiKey.key);
+                    ResultSet resultSet = ps.executeQuery();
+                    if (!resultSet.next()) {
+                        throw new RakamException("Api key is invalid", HttpResponseStatus.FORBIDDEN);
+                    }
+                    return resultSet.getString(1);
+                } catch (SQLException e) {
+                    throw  Throwables.propagate(e);
                 }
             }
         });
@@ -83,6 +106,11 @@ public class PostgresqlApiKeyService implements ApiKeyService {
         }
 
         return new ProjectApiKeys(id, project, masterKey, readKey, writeKey);
+    }
+
+    @Override
+    public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
+        return apiKeyReverseCache.getUnchecked(new ApiKey(apiKey, type));
     }
 
     @Override
@@ -173,14 +201,43 @@ public class PostgresqlApiKeyService implements ApiKeyService {
             }
         }
 
-        keys[AccessKeyType.MASTER_KEY.ordinal()] = Collections.unmodifiableSet(masterKeyList);
-        keys[AccessKeyType.READ_KEY.ordinal()] = Collections.unmodifiableSet(readKeyList);
-        keys[AccessKeyType.WRITE_KEY.ordinal()] = Collections.unmodifiableSet(writeKeyList);
+        keys[MASTER_KEY.ordinal()] = Collections.unmodifiableSet(masterKeyList);
+        keys[READ_KEY.ordinal()] = Collections.unmodifiableSet(readKeyList);
+        keys[WRITE_KEY.ordinal()] = Collections.unmodifiableSet(writeKeyList);
 
         return Collections.unmodifiableList(Arrays.asList(keys));
     }
 
     public void clearCache() {
         apiKeyCache.cleanUp();
+    }
+
+    public static final class ApiKey {
+        public final String key;
+        public final AccessKeyType type;
+
+        public ApiKey(String key, AccessKeyType type) {
+            this.key = key;
+            this.type = type;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ApiKey)) return false;
+
+            ApiKey apiKey = (ApiKey) o;
+
+            if (!key.equals(apiKey.key)) return false;
+            return type == apiKey.type;
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = key.hashCode();
+            result = 31 * result + type.hashCode();
+            return result;
+        }
     }
 }

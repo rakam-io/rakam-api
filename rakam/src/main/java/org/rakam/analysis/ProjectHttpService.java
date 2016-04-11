@@ -44,7 +44,7 @@ public class ProjectHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/create")
-    public JsonResponse createProject(@ApiParam(name="name") String name) {
+    public JsonResponse createProject(@ApiParam(name = "name") String name) {
         checkProject(name);
         metastore.createProject(name.toLowerCase(ENGLISH));
         return JsonResponse.success();
@@ -55,13 +55,13 @@ public class ProjectHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/delete")
-    public JsonResponse deleteProject(@ApiParam(name="project") String project) {
+    public JsonResponse deleteProject(@ApiParam(name = "project") String project) {
         checkProject(project);
         metastore.deleteProject(project.toLowerCase(ENGLISH));
 
         List<ContinuousQuery> list = continuousQueryService.list(project);
         for (ContinuousQuery continuousQuery : list) {
-            if(!continuousQueryService.delete(continuousQuery.project,
+            if (!continuousQueryService.delete(continuousQuery.project,
                     continuousQuery.tableName).join()) {
             }
         }
@@ -93,6 +93,19 @@ public class ProjectHttpService extends HttpService {
                                                @ApiParam(name = "collection") String collection,
                                                @ApiParam(name = "fields") Set<SchemaField> fields) {
         return metastore.getOrCreateCollectionFieldList(project, collection, fields);
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Add fields to collections by transforming other schemas",
+            authorizations = @Authorization(value = "master_key"))
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/schema/add/custom")
+    public List<SchemaField> addCustomFieldsToSchema(@ApiParam(name = "project") String project,
+                                                     @ApiParam(name = "collection") String collection,
+                                                     @ApiParam(name = "schema_type") SchemaConverter type,
+                                                     @ApiParam(name = "schema") String schema) {
+        return metastore.getOrCreateCollectionFieldList(project, collection, type.getMapper().apply(schema));
     }
 
     @JsonRequest

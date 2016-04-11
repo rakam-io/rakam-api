@@ -20,7 +20,7 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
@@ -35,10 +35,10 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.presto.analysis.PrestoUserService;
+import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
-import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
@@ -120,7 +120,7 @@ public class PrestoModule extends RakamModule {
         }
 
         @Subscribe
-        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+        public void onCreateProject(ProjectCreatedEvent event) {
             executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, created_at DATE, merged_at DATE)",
                     executor.formatTableReference(event.project, QualifiedName.of("_anonymous_id_mapping"))));
         }

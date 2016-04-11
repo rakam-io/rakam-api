@@ -9,7 +9,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.JDBCConfig;
 import org.rakam.event.TestingEnvironment;
-import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
@@ -60,7 +60,7 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
         eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService, materializedViewService);
         setupInline();
         super.setup();
-        new EventExplorerListener(continuousQueryService).onCreateProject(new SystemEvents.ProjectCreatedEvent(PROJECT_NAME));
+        new EventExplorerListener(continuousQueryService).onCreateProject(new ProjectCreatedEvent(PROJECT_NAME));
         // todo find a better way of handling this
         Thread.sleep(20000);
     }

@@ -97,7 +97,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
 
     public Schema convertAvroSchema(List<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()
-                .map(AvroUtil::generateAvroSchema).collect(Collectors.toList());
+                .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
         Schema schema = Schema.createRecord("collection", null, null, false);
 

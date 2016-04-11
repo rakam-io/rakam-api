@@ -5,8 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -14,12 +13,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+
 public class EventListDeserializer extends JsonDeserializer<EventList> {
     private final JsonEventDeserializer eventDeserializer;
+    private final ApiKeyService apiKeyService;
 
     @Inject
-    public EventListDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
-        eventDeserializer = new JsonEventDeserializer(metastore, fieldDependency);
+    public EventListDeserializer(ApiKeyService apiKeyService,
+                                 JsonEventDeserializer jsonEventDeserializer) {
+        eventDeserializer = jsonEventDeserializer;
+        this.apiKeyService = apiKeyService;
     }
 
     @Override
@@ -44,7 +49,6 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
             project = jp.getValueAsString();
         }
 
-
         jp.nextToken();
         fieldName = jp.getCurrentName();
         jp.nextToken();
@@ -56,13 +60,13 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
             project = jp.getValueAsString();
         }
 
-        if(project == null || context == null) {
-            throw new RakamException("First two fields must be api and project", HttpResponseStatus.BAD_REQUEST);
+        if(context == null) {
+            throw new RakamException("First two fields must be api and project", BAD_REQUEST);
         }
 
         jp.nextToken();
         if (!"events".equals(jp.getCurrentName())) {
-            throw new RakamException("Third field must be events.", HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException("Third field must be events.", BAD_REQUEST);
         }
 
         t = jp.nextToken();
@@ -72,7 +76,11 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
         if (t == JsonToken.START_ARRAY) {
             t = jp.nextToken();
         } else {
-            throw new RakamException("events field must be array", HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException("events field must be array", BAD_REQUEST);
+        }
+
+        if(project == null) {
+            project = apiKeyService.getProjectOfApiKey(context.writeKey, WRITE_KEY);
         }
 
         for (; t == JsonToken.START_OBJECT; t = jp.nextToken()) {

@@ -6,6 +6,7 @@ import com.google.common.eventbus.EventBus;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 
@@ -33,7 +34,7 @@ public abstract class AbstractMetastore implements Metastore {
     }
 
     protected void onCreateProject(String project) {
-        eventBus.post(new SystemEvents.ProjectCreatedEvent(project));
+        eventBus.post(new ProjectCreatedEvent(project));
     }
 
     protected void onDeleteProject(String project) {

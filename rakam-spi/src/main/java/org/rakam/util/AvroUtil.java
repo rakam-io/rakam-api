@@ -34,7 +34,7 @@ public final class AvroUtil {
 
     public static Schema convertAvroSchema(Collection<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()
-                .map(AvroUtil::generateAvroSchema).collect(Collectors.toList());
+                .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
         Schema schema = Schema.createRecord("collection", null, null, false);
         schema.setFields(avroFields);
@@ -42,12 +42,15 @@ public final class AvroUtil {
         return schema;
     }
 
-    public static Schema.Field generateAvroSchema(SchemaField field) {
-        Schema es = Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field.getType())));
-        return new Schema.Field(field.getName(), es, null, NullNode.getInstance());
+    public static Schema.Field generateAvroField(SchemaField field) {
+        return new Schema.Field(field.getName(), generateAvroSchema(field.getType()), null, NullNode.getInstance());
     }
 
-    public static Schema getAvroSchema(FieldType type) {
+    public static Schema generateAvroSchema(FieldType field) {
+        return Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field)));
+    }
+
+    private static Schema getAvroSchema(FieldType type) {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);

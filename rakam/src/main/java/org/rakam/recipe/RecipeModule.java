@@ -14,17 +14,17 @@ import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
 import io.swagger.jackson.SwaggerAnnotationIntrospector_;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.DashboardService;
-import org.rakam.ui.page.CustomPageDatabase;
-import org.rakam.ui.customreport.JDBCCustomReportMetadata;
 import org.rakam.ui.JDBCReportMetadata;
+import org.rakam.ui.customreport.JDBCCustomReportMetadata;
+import org.rakam.ui.page.CustomPageDatabase;
 
 import javax.inject.Inject;
 import java.io.FileInputStream;
@@ -153,7 +153,7 @@ public class RecipeModule extends RakamModule {
         }
 
         @Subscribe
-        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+        public void onCreateProject(ProjectCreatedEvent event) {
             installer.install(recipe, event.project, false);
         }
 

@@ -10,7 +10,6 @@ import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -62,6 +61,7 @@ import java.util.function.BiFunction;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.io.ByteStreams.toByteArray;
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -84,7 +84,6 @@ public class EventCollectionHttpService extends HttpService {
     private final Set<EventMapper> eventMappers;
     private final ApiKeyService apiKeyService;
     private final Set<EventProcessor> eventProcessors;
-    private final CsvEventDeserializer csvEventDeserializer;
     private final AvroEventDeserializer avroEventDeserializer;
 
     @Inject
@@ -96,7 +95,6 @@ public class EventCollectionHttpService extends HttpService {
                                       Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
-        this.csvEventDeserializer = csvEventDeserializer;
         this.eventProcessors = eventProcessors;
         this.apiKeyService = apiKeyService;
 
@@ -263,12 +261,15 @@ public class EventCollectionHttpService extends HttpService {
                         String collection = getParam(request.params(), "collection");
                         String api_key = getParam(request.params(), "api_key");
 
+                        if(project == null) {
+                            project = apiKeyService.getProjectOfApiKey(api_key, MASTER_KEY);
+                        }
+
                         checkProject(project);
                         checkCollection(collection);
 
                         if ("application/avro".equals(contentType)) {
-                            return avroEventDeserializer.deserialize(project, collection, api_key, Slices.utf8Slice(buff));
-
+                            return avroEventDeserializer.deserialize(project, collection, api_key, utf8Slice(buff));
                         } else if ("text/csv".equals(contentType)) {
                             return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
                                             .withSharedAttribute("project", project)
@@ -302,7 +303,7 @@ public class EventCollectionHttpService extends HttpService {
         public final URL url;
 
         @JsonCreator
-        public BulkEventRemote(@ApiParam(name="project") String project,
+        public BulkEventRemote(@ApiParam(name="project", required = false) String project,
                                @ApiParam(name="collection") String collection,
                                @ApiParam(name="api_key") String api_key,
                                @ApiParam(name="url") URL url) {
@@ -535,6 +536,6 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     interface ThrowableFunction {
-        EventList apply(String buffer) throws IOException, JsonMappingException;
+        EventList apply(String buffer) throws IOException;
     }
 }

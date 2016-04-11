@@ -3,9 +3,9 @@ package org.rakam.presto.plugin;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.analysis.ContinuousQueryService;
-import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.report.QueryResult;
 
 import javax.inject.Inject;
@@ -21,7 +21,7 @@ public class EventExplorerListener {
     }
 
     @Subscribe
-    public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+    public void onCreateProject(ProjectCreatedEvent event) {
         ContinuousQuery report = new ContinuousQuery(event.project, "Event metrics",
                 "_event_explorer_metrics", QUERY, ImmutableList.of("week"), ImmutableMap.of());
         QueryResult join = continuousQueryService.create(report, false).getResult().join();

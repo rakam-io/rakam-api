@@ -14,6 +14,8 @@ import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
+import org.rakam.analysis.ApiKeyService;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.NotExistsException;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.util.AvroUtil;
@@ -39,11 +41,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class JsonEventDeserializer extends JsonDeserializer<Event> {
@@ -55,13 +59,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
     private final Metastore metastore;
     private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(1, TimeUnit.HOURS).build();
+            .expireAfterAccess(5, TimeUnit.MINUTES).build();
     private final Set<SchemaField> constantFields;
+    private final ApiKeyService apiKeyService;
 
     @Inject
-    public JsonEventDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
+    public JsonEventDeserializer(Metastore metastore, ApiKeyService apiKeyService, FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
+        this.apiKeyService = apiKeyService;
         this.constantFields = fieldDependency.constantFields;
     }
 
@@ -74,7 +80,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
 
         String collection = null;
-        Event.EventContext context = null;
+        Event.EventContext api = null;
 
         JsonToken t = jp.getCurrentToken();
         if (t == JsonToken.START_OBJECT) {
@@ -87,7 +93,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
             switch (fieldName) {
                 case "project":
-                    if (t != JsonToken.VALUE_STRING) {
+                    if (t != VALUE_STRING) {
                         throw new RakamException("project parameter must be a string", BAD_REQUEST);
                     }
                     if (project != null) {
@@ -99,18 +105,24 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     }
                     break;
                 case "collection":
-                    if (t != JsonToken.VALUE_STRING) {
+                    if (t != VALUE_STRING) {
                         throw new RakamException("collection parameter must be a string", BAD_REQUEST);
                     }
                     collection = jp.getValueAsString().toLowerCase();
                     break;
                 case "api":
-                    context = jp.readValueAs(Event.EventContext.class);
+                    api = jp.readValueAs(Event.EventContext.class);
                     break;
                 case "properties":
-                    if (project == null || collection == null) {
-                        throw new JsonMappingException("'project' and 'collection' fields must be located before 'properties' field.");
+                    if (collection == null) {
+                        throw new JsonMappingException("'collection' field must be located before 'properties' field.");
                     } else {
+                        if(api == null) {
+                            throw new JsonMappingException("'api' field must be located before 'properties' field.");
+                        }
+                        if(project == null) {
+                            project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
+                        }
                         try {
                             properties = parseProperties(project, collection, jp);
                         } catch (NotExistsException e) {
@@ -134,12 +146,12 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         if (properties == null) {
             throw new JsonMappingException("properties is null");
         }
-        return new Event(project, collection, context, properties.getKey(), properties.getValue());
+        return new Event(project, collection, api, properties.getKey(), properties.getValue());
     }
 
     public Schema convertAvroSchema(List<SchemaField> fields) {
         List<Schema.Field> avroFields = fields.stream()
-                .map(AvroUtil::generateAvroSchema).collect(Collectors.toList());
+                .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
         Schema schema = Schema.createRecord("collection", null, null, false);
 
@@ -266,7 +278,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
                 .collect(toList());
         try {
-            avroFields.add(AvroUtil.generateAvroSchema(newField));
+            avroFields.add(AvroUtil.generateAvroField(newField));
         } catch (SchemaParseException e) {
             throw new RakamException("Couldn't create new column: " + e.getMessage(), BAD_REQUEST);
         }

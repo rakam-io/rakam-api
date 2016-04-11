@@ -11,6 +11,7 @@ import org.rakam.config.EncryptionConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.customreport.CustomPageHttpService;
 import org.rakam.ui.customreport.CustomReport;
@@ -94,7 +95,7 @@ public class RakamUIModule extends RakamModule {
         }
 
         @Subscribe
-        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+        public void onCreateProject(ProjectCreatedEvent event) {
             service.create(event.project, "Default", null);
         }
     }

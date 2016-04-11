@@ -4,10 +4,15 @@ import java.util.List;
 
 public interface ApiKeyService {
     ProjectApiKeys createApiKeys(String project);
+
+    String getProjectOfApiKey(String apiKey, AccessKeyType type);
+
     void revokeApiKeys(String project, int id);
+
     boolean checkPermission(String project, AccessKeyType type, String apiKey);
 
     List<ProjectApiKeys> getApiKeys(int[] ids);
+
     void revokeAllKeys(String project);
 
     class ProjectApiKeys {
@@ -23,6 +28,19 @@ public interface ApiKeyService {
             this.masterKey = masterKey;
             this.readKey = readKey;
             this.writeKey = writeKey;
+        }
+
+        public String getKey(AccessKeyType accessKeyType) {
+            switch (accessKeyType) {
+                case WRITE_KEY:
+                    return writeKey;
+                case MASTER_KEY:
+                    return masterKey;
+                case READ_KEY:
+                    return readKey;
+                default:
+                    throw new IllegalStateException();
+            }
         }
 
         @Override

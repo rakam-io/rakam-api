@@ -90,7 +90,8 @@ public class TestGeoIPEventMapper {
         mapper.addFieldDependency(builder);
 
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
-                .addAll(builder.build().dependentFields.get("_ip").stream().map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                .addAll(builder.build().dependentFields.get("_ip").stream()
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_ip", Schema.create(NULL), null, null))
                 .build();
 
@@ -122,7 +123,7 @@ public class TestGeoIPEventMapper {
 
         List<SchemaField> ip = builder.build().dependentFields.get("_ip");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
-                .addAll(ip.stream().map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                .addAll(ip.stream().map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_ip", Schema.create(NULL), null, null))
                 .build();
 
@@ -149,7 +150,7 @@ public class TestGeoIPEventMapper {
 
         List<SchemaField> ip = builder.build().dependentFields.get("_ip");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
-                .addAll(ip.stream().map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                .addAll(ip.stream().map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_ip", Schema.create(NULL), null, null))
                 .build();
 

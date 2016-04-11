@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,6 +25,18 @@ public class InMemoryApiKeyService implements ApiKeyService {
                 UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString());
         keys.add(projectApiKeys);
         return projectApiKeys;
+    }
+
+    @Override
+    public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
+        Optional<String> project = apiKeys.entrySet().stream()
+                .filter(e -> e.getValue().stream()
+                        .anyMatch(a -> a.getKey(type).equals(apiKey)))
+                .findAny().map(e -> e.getKey());
+        if(!project.isPresent()) {
+            throw new IllegalStateException();
+        }
+        return project.get();
     }
 
     @Override

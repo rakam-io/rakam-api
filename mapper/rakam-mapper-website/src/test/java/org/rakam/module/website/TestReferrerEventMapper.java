@@ -44,7 +44,7 @@ public class TestReferrerEventMapper {
 
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(builder.build().dependentFields.get("_referrer").stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_referrer", Schema.create(NULL), null, null))
                 .build();
 
@@ -73,7 +73,7 @@ public class TestReferrerEventMapper {
         List<SchemaField> fields = builder.build().dependentFields.get("_referrer");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_referrer", Schema.create(NULL), null, null))
                 .build();
 
@@ -101,7 +101,7 @@ public class TestReferrerEventMapper {
         List<SchemaField> fields = builder.build().dependentFields.get("_referrer");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_referrer", Schema.create(NULL), null, null))
                 .build();
 
@@ -129,7 +129,7 @@ public class TestReferrerEventMapper {
         List<SchemaField> fields = builder.build().dependentFields.get("_referrer");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_referrer", Schema.create(NULL), null, null))
                 .build();
 
@@ -158,7 +158,7 @@ public class TestReferrerEventMapper {
         List<SchemaField> fields = builder.build().dependentFields.get("_referrer");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_referrer", Schema.create(NULL), null, null), new Schema.Field("_host", Schema.create(NULL), null, null))
                 .build();
 

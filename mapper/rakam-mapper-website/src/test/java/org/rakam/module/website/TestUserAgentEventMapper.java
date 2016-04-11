@@ -46,7 +46,7 @@ public class TestUserAgentEventMapper {
 
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(builder.build().dependentFields.get("_user_agent").stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_user_agent", Schema.create(NULL), null, null))
                 .build();
 
@@ -77,7 +77,7 @@ public class TestUserAgentEventMapper {
         List<SchemaField> fields = builder.build().dependentFields.get("_user_agent");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_user_agent", Schema.create(NULL), null, null))
                 .build();
 
@@ -105,7 +105,7 @@ public class TestUserAgentEventMapper {
         List<SchemaField> fields = builder.build().dependentFields.get("_user_agent");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_user_agent", Schema.create(NULL), null, null))
                 .build();
 
@@ -135,7 +135,7 @@ public class TestUserAgentEventMapper {
         List<SchemaField> fields = builder.build().dependentFields.get("_user_agent");
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
-                        .map(AvroUtil::generateAvroSchema).collect(Collectors.toList()))
+                        .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
                 .add(new Schema.Field("_user_agent", Schema.create(NULL), null, null))
                 .build();
 
