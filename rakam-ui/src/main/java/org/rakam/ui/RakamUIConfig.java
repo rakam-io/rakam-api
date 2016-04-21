@@ -22,7 +22,7 @@ import java.util.Locale;
 
 public class RakamUIConfig {
     private File uiDirectory;
-    private CustomPageBackend customPageBackend = CustomPageBackend.JDBC;
+    private CustomPageBackend customPageBackend;
     private File customPageBackendDirectory;
     private boolean enableUi = true;
     private boolean hashPassword;

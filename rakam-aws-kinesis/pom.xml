@@ -256,7 +256,6 @@
                                     <!-- maven resolves 1.3 version objenesis even though there is no reference and i couldn't fix it.-->
                                     <ignoredUnusedDeclaredDependency>org.objenesis:objenesis</ignoredUnusedDeclaredDependency>
                                     <ignoredUnusedDeclaredDependency>joda-time:joda-time</ignoredUnusedDeclaredDependency>
-                                    <ignoredUnusedDeclaredDependency>org.glassfish.jersey.core:jersey-common</ignoredUnusedDeclaredDependency>
                                     <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
                                 </ignoredUnusedDeclaredDependencies>
                             </configuration>

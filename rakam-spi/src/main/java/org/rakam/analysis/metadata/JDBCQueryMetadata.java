@@ -67,7 +67,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             @Override
             public MaterializedView load(ProjectCollection key) throws Exception {
                 try (Handle handle = dbi.open()) {
-                    MaterializedView first = handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field, options from materialized_views WHERE project = :project AND table_name = :name")
+                    MaterializedView first = handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental, options from materialized_views WHERE project = :project AND table_name = :name")
                             .bind("project", key.project)
                             .bind("name", key.collection)
                             .map(materializedViewMapper).first();
@@ -90,7 +90,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     "  query TEXT NOT NULL," +
                     "  update_interval BIGINT," +
                     "  last_updated BIGINT," +
-                    "  incremental_field TEXT," +
+                    "  incremental BOOLEAN," +
                     "  options TEXT," +
                     "  PRIMARY KEY (project, table_name)" +
                     "  )")
@@ -114,7 +114,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public void createMaterializedView(MaterializedView materializedView) {
         try(Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental_field, options) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental_field, :options)")
+                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental, options) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental, :options)")
                         .bind("project", materializedView.project)
                         .bind("name", materializedView.name)
                         .bind("table_name", materializedView.tableName)
@@ -238,7 +238,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public List<MaterializedView> getMaterializedViews(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental_field, options from materialized_views WHERE project = :project")
+            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental, options from materialized_views WHERE project = :project")
                     .bind("project", project).map(materializedViewMapper).list();
         }
     }

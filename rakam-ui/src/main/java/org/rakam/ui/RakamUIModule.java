@@ -1,10 +1,11 @@
 package org.rakam.ui;
 
+import com.google.common.base.Optional;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
-import com.google.inject.binder.AnnotatedBindingBuilder;
 import com.google.inject.multibindings.Multibinder;
+import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
@@ -29,7 +30,6 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
 import javax.inject.Inject;
-
 import java.util.List;
 import java.util.Map;
 
@@ -44,14 +44,16 @@ public class RakamUIModule extends RakamModule {
 
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 
-        AnnotatedBindingBuilder<CustomPageDatabase> customPageDb = binder.bind(CustomPageDatabase.class);
-        switch (rakamUIConfig.getCustomPageBackend()) {
-            case FILE:
-                customPageDb.to(FileBackedCustomPageDatabase.class).in(Scopes.SINGLETON);
-                break;
-            case JDBC:
-                customPageDb.to(JDBCCustomPageDatabase.class).in(Scopes.SINGLETON);
-                break;
+        OptionalBinder<CustomPageDatabase> customPageDb = OptionalBinder.newOptionalBinder(binder, CustomPageDatabase.class);
+        if(rakamUIConfig.getCustomPageBackend() != null) {
+            switch (rakamUIConfig.getCustomPageBackend()) {
+                case FILE:
+                    customPageDb.setBinding().to(FileBackedCustomPageDatabase.class).in(Scopes.SINGLETON);
+                    break;
+                case JDBC:
+                    customPageDb.setBinding().to(JDBCCustomPageDatabase.class).in(Scopes.SINGLETON);
+                    break;
+            }
         }
 
         Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
@@ -96,7 +98,7 @@ public class RakamUIModule extends RakamModule {
 
         @Subscribe
         public void onCreateProject(ProjectCreatedEvent event) {
-            service.create(event.project, "Default", null);
+            service.create(event.project, "My dashboard", null);
         }
     }
 
@@ -109,12 +111,12 @@ public class RakamUIModule extends RakamModule {
 
         @Inject
         public ProjectDeleteEventListener(DashboardService dashboardService,
-                                          CustomPageDatabase customPageDatabase,
+                                          Optional<CustomPageDatabase> customPageDatabase,
                                           JDBCReportMetadata reportMetadata,
                                           JDBCCustomReportMetadata customReportMetadata) {
             this.reportMetadata = reportMetadata;
             this.customReportMetadata = customReportMetadata;
-            this.customPageDatabase = customPageDatabase;
+            this.customPageDatabase = customPageDatabase.orNull();
             this.dashboardService = dashboardService;
         }
 
@@ -123,8 +125,10 @@ public class RakamUIModule extends RakamModule {
             for (DashboardService.Dashboard dashboard : dashboardService.list(event.project)) {
                 dashboardService.delete(event.project, dashboard.name);
             }
-            for (CustomPageDatabase.Page page : customPageDatabase.list(event.project)) {
-                customPageDatabase.delete(event.project, page.slug);
+            if(customPageDatabase != null) {
+                for (CustomPageDatabase.Page page : customPageDatabase.list(event.project)) {
+                    customPageDatabase.delete(event.project, page.slug);
+                }
             }
             for (Report report : reportMetadata.getReports(null, event.project)) {
                 reportMetadata.delete(null, event.project, report.slug);

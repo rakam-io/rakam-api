@@ -16,6 +16,7 @@ import org.testng.annotations.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -109,8 +110,8 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testExtraDimensionsForStatistics() throws Exception {
-        List<String> dimensions = getEventExplorer().getExtraDimensions("test");
-        for (String dimension : dimensions) {
+        Collection<List<String>> dimensions = getEventExplorer().getExtraDimensions("test").values();
+        dimensions.stream().flatMap(e -> e.stream()).forEach(dimension -> {
             QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                     Optional.empty(), Optional.of(dimension),
                     LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
@@ -123,7 +124,7 @@ public abstract class TestEventExplorer {
             } else {
                 // TODO: test custom parameters
             }
-        }
+        });
     }
 
     @Test
@@ -320,9 +321,10 @@ public abstract class TestEventExplorer {
                 .put(YEAR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), 100L)))
                 .build();
 
-        List<String> dimensions = getEventExplorer().getExtraDimensions("test");
+        Map<String, List<String>> dimensions = getEventExplorer().getExtraDimensions("test");
 
-        for (String dimension : dimensions) {
+        getEventExplorer().getExtraDimensions("test").values().stream().flatMap(e -> e.stream())
+                .forEach(dimension -> {
             Optional<TimestampTransformation> trans = fromPrettyName(dimension);
 
             if(trans.isPresent()) {
@@ -337,8 +339,7 @@ public abstract class TestEventExplorer {
             } else {
                 // TODO: implement
             }
-
-        }
+        });
     }
 
     @Test

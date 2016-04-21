@@ -1,6 +1,8 @@
 package org.rakam.recipe;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.analysis.ContinuousQueryService;
@@ -27,14 +29,14 @@ public class RecipeHandler {
     private final MaterializedViewService materializedViewService;
     private final JDBCReportMetadata reportMetadata;
     private final JDBCCustomReportMetadata customReportMetadata;
-    private final CustomPageDatabase customPageDatabase;
+    private final Optional<CustomPageDatabase> customPageDatabase;
     private final DashboardService dashboardService;
 
     @Inject
     public RecipeHandler(Metastore metastore, ContinuousQueryService continuousQueryService,
                          MaterializedViewService materializedViewService,
                          JDBCCustomReportMetadata customReportMetadata,
-                         CustomPageDatabase customPageDatabase,
+                         Optional<CustomPageDatabase> customPageDatabase,
                          DashboardService dashboardService,
                          JDBCReportMetadata reportMetadata) {
         this.metastore = metastore;
@@ -70,10 +72,15 @@ public class RecipeHandler {
                 .map(r -> new Recipe.CustomReportBuilder(r.reportType, r.name, r.data))
                 .collect(Collectors.toList());
 
-        final List<Recipe.CustomPageBuilder> customPages = customPageDatabase
-                .list(project).stream()
-                .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, customPageDatabase.get(r.project(), r.slug)))
-                .collect(Collectors.toList());
+        final List<Recipe.CustomPageBuilder> customPages;
+        if(customPageDatabase.isPresent()) {
+            customPages = customPageDatabase.get()
+                    .list(project).stream()
+                    .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, customPageDatabase.get().get(r.project(), r.slug)))
+                    .collect(Collectors.toList());
+        } else {
+            customPages = ImmutableList.of();
+        }
 
         List<Recipe.DashboardBuilder> dashboards = dashboardService.list(project).stream()
                 .map(a -> new Recipe.DashboardBuilder(a.name, dashboardService.get(project, a.name)))
@@ -191,19 +198,24 @@ public class RecipeHandler {
                     }
                 });
 
-        recipe.getCustomPages().stream()
-                .map(reportBuilder -> reportBuilder.createCustomPage(project))
-                .forEach(customReport -> {
-                    try {
-                        customPageDatabase.save(null, customReport);
-                    } catch (AlreadyExistsException e) {
-                        if (overrideExisting) {
-                            customPageDatabase.delete(customReport.project(), customReport.slug);
-                            customPageDatabase.save(null, customReport);
-                        } else {
-                            throw Throwables.propagate(e);
+        if(customPageDatabase.isPresent()) {
+            recipe.getCustomPages().stream()
+                    .map(reportBuilder -> reportBuilder.createCustomPage(project))
+                    .forEach(customReport -> {
+                        try {
+                            customPageDatabase.get().save(null, customReport);
+                        } catch (AlreadyExistsException e) {
+                            if (overrideExisting) {
+                                customPageDatabase.get().delete(customReport.project(), customReport.slug);
+                                customPageDatabase.get().save(null, customReport);
+                            } else {
+                                throw Throwables.propagate(e);
+                            }
                         }
-                    }
-                });
+                    });
+        } else
+        if(recipe.getCustomPages().size() > 0) {
+            throw new RakamException("Custom page feature is not supported", BAD_REQUEST);
+        }
     }
 }

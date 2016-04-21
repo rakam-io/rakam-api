@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.service.AutoService;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -144,7 +145,7 @@ public class RecipeModule extends RakamModule {
                             ContinuousQueryService continuousQueryService,
                             MaterializedViewService materializedViewService,
                             JDBCCustomReportMetadata customReportMetadata,
-                            CustomPageDatabase customPageDatabase,
+                            Optional<CustomPageDatabase> customPageDatabase,
                             DashboardService dashboardBuilder,
                             JDBCReportMetadata reportMetadata) {
             this.recipe = recipe;

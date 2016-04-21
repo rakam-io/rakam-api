@@ -42,6 +42,7 @@ import javax.ws.rs.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -87,7 +88,7 @@ public class EventExplorerHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @Path("/extra_dimensions")
-    public List<String> getExtraDimensions(@ApiParam(name = "project", required = true) String project) {
+    public Map<String, List<String>> getExtraDimensions(@ApiParam(name = "project", required = true) String project) {
         return eventExplorer.getExtraDimensions(project);
     }
 
@@ -193,7 +194,9 @@ public class EventExplorerHttpService extends HttpService {
     public void analyze(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
-            checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
+            if(analyzeRequest.measure.column != null) {
+                checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
+            }
             return eventExplorer.analyze(analyzeRequest.project, analyzeRequest.collections,
                     analyzeRequest.measure, analyzeRequest.grouping,
                     analyzeRequest.segment, analyzeRequest.filterExpression,

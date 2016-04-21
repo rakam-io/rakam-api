@@ -69,13 +69,15 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         String query;
         if (dimension.isPresent()) {
             query = IntStream.range(0, steps.size())
-                    .mapToObj(i -> format("(SELECT step, (CASE WHEN rank > 15 THEN 'Others' ELSE cast(dimension as varchar) END) as %s, sum(count) FROM (select 'Step %d' as step, dimension, cardinality(merge_sets(%s_set)) count, row_number() OVER(ORDER BY 3 DESC) rank from step%s %s ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
-                            dimension.get(), i + 1, CONNECTOR_FIELD, i, dimension.map(v -> "GROUP BY 2").orElse("")))
+                    .mapToObj(i -> format("(SELECT step, (CASE WHEN rank > 15 THEN 'Others' ELSE cast(dimension as varchar) END) as %s," +
+                                    " sum(count) FROM (select '%s' as step, dimension, cardinality(merge_sets(%s_set)) count, row_number() OVER(ORDER BY 3 DESC) rank from " +
+                                    "step%s %s ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
+                            dimension.get(), steps.get(i).getCollection(), CONNECTOR_FIELD, i, dimension.map(v -> "GROUP BY 2").orElse("")))
                     .collect(Collectors.joining(" UNION ALL "));
         } else {
             query = IntStream.range(0, steps.size())
-                    .mapToObj(i -> format("(SELECT 'Step %d' as step, coalesce(cardinality(merge_sets(%s_set)), 0) count FROM step%d)",
-                            i + 1, CONNECTOR_FIELD, i))
+                    .mapToObj(i -> format("(SELECT '%s' as step, coalesce(cardinality(merge_sets(%s_set)), 0) count FROM step%d)",
+                            steps.get(i).getCollection(), CONNECTOR_FIELD, i))
                     .collect(Collectors.joining(" UNION ALL "));
         }
 

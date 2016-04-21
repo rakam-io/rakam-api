@@ -19,6 +19,8 @@ import org.rakam.util.RakamException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,7 +47,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private static SqlParser sqlParser = new SqlParser();
     private final QueryExecutorService executor;
 
-    private final Map<EventExplorer.TimestampTransformation, String> timestampMapping;
+    private final Map<TimestampTransformation, String> timestampMapping;
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
 
@@ -91,7 +93,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private String getColumnValue(Reference ref) {
         switch (ref.type) {
             case COLUMN:
-                return ref.value;
+                return "\""+ref.value+"\"";
             case REFERENCE:
                 return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "_time");
             default:
@@ -124,9 +126,13 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         }
     }
 
+    private final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
+
     @Override
-    public QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping,
-                                  Reference segment, String filterExpression, LocalDate startDate, LocalDate endDate) {
+    public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
+                                  Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate) {
+        Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
+
         if (grouping != null && grouping.type == REFERENCE) {
             checkReference(grouping.value, startDate, endDate, collections.size());
         }
@@ -145,8 +151,8 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
         Predicate<OLAPTable> groupedMetricsPredicate = options -> {
             if (options.collections.containsAll(collections)) {
-                if (options.aggregations.contains(measureType.aggregation)
-                        && options.measures.contains(measureType.column)
+                if (options.aggregations.contains(measure.aggregation)
+                        && options.measures.contains(measure.column)
                         && (grouping == null || (grouping.type == REFERENCE || (grouping.type == COLUMN && options.dimensions.contains(grouping.value))))
                         && (segment == null || (segment.type == REFERENCE || (segment.type == COLUMN && options.dimensions.contains(segment.value))))
                         && (filterExp == null || testFilterExpressionForPerComputedTable(filterExp, options))) {
@@ -170,18 +176,6 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                     .filter(table -> groupedMetricsPredicate.test(table)).findAny()
                     .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "continuous." + view.tableName));
         }
-
-        StringBuilder selectBuilder = new StringBuilder();
-        if (grouping != null) {
-            selectBuilder.append(getColumnValue(grouping) + " as " + getColumnReference(grouping) + "_group");
-            if (segment != null) {
-                selectBuilder.append(", ");
-            }
-        }
-        if (segment != null) {
-            selectBuilder.append(getColumnValue(segment) + " as " + getColumnReference(segment) + "_segment");
-        }
-        String select = selectBuilder.toString();
 
         String timeFilter = format(" _time between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
@@ -207,7 +201,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             computeQuery = format("SELECT %s %s %s as value FROM %s WHERE %s %s",
                     grouping != null ? (getColumnValue(grouping) + " as " + getColumnReference(grouping) + "_group ,") : "",
                     segment != null ? (getColumnValue(segment) + " as " + getColumnReference(segment) + "_segment ,") : "",
-                    format(getFinalForAggregationFunction(measureType), measureType.column + "_" + measureType.aggregation.name().toLowerCase()),
+                    format(getFinalForAggregationFunction(measure), measure.column + "_" + measure.aggregation.name().toLowerCase()),
                     preComputedTable.get().getValue(),
                     Stream.of(
                             collections.size() > 1 ? format("collection IN (%s)", collections.stream().map(c -> "'" + c + "'").collect(Collectors.joining(","))) : "",
@@ -219,12 +213,13 @@ public abstract class AbstractEventExplorer implements EventExplorer {
         } else {
             String where = timeFilter + (filterExpression == null ? "" : (" AND " + filterExpression));
 
-            String measureAgg = convertSqlFunction(measureType != null &&
-                    measureType.aggregation != null ? measureType.aggregation : COUNT);
-            String measureColumn = measureType != null &&
-                    measureType.column != null ? measureType.column : "*";
+            String measureAgg = convertSqlFunction(measure != null &&
+                    measure.aggregation != null ? measure.aggregation : COUNT);
+            String measureColumn = measure != null &&
+                    measure.column != null ? measure.column : "1";
 
             if (collections.size() == 1) {
+                String select = generateComputeQuery(grouping, segment, collections.get(0));
                 computeQuery = format("select %s %s as value from %s where %s %s",
                         select.isEmpty() ? select : select + ",",
                         format(measureAgg, measureColumn),
@@ -232,18 +227,22 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                         where, groupBy);
             } else {
                 String selectPart = (grouping == null ? "" : getColumnReference(grouping) + "_group") +
-                        (segment == null ? "" :
-                                (grouping == null ? "" : ", ") + getColumnReference(segment) + "_segment");
+                                (grouping == null ? "" : ", ") + getColumnReference(segment) + "_segment";
 
                 String queries = collections.size() == 1 ? collections.get(0) : collections.stream()
-                        .map(collection -> format("select %s %s from %s where %s",
-                                select.isEmpty() ? select : select + ",",
-                                measureColumn,
-                                QualifiedName.of(collection), where))
+                        .map(collection -> {
+                            String select = generateComputeQuery(grouping, segment, collection);
+
+                            String format = format("select %s %s from %s where %s",
+                                    select.isEmpty() ? select : select + ",",
+                                    measureColumn,
+                                    QualifiedName.of(collection), where);
+                            return format;
+                        })
                         .collect(Collectors.joining(" union all "));
 
                 computeQuery = format("select %s %s as value from (%s) as data %s",
-                        select.isEmpty() ? "" : selectPart + ",",
+                        selectPart.isEmpty() ? "" : selectPart + ",",
                         format(measureAgg, measureColumn),
                         queries,
                         groupBy);
@@ -252,10 +251,10 @@ public abstract class AbstractEventExplorer implements EventExplorer {
 
 
         String query = null;
-        Optional<AggregationType> intermediateAggregation = getIntermediateAggregation(measureType.aggregation);
+        Optional<AggregationType> intermediateAggregation = getIntermediateAggregation(measure.aggregation);
 
         if (intermediateAggregation.isPresent()) {
-            if (grouping != null && segment != null) {
+            if (grouping != null) {
                 if (grouping.type == COLUMN && segment.type == COLUMN) {
                     query = format(" SELECT " +
                                     " CASE WHEN group_rank > 15 THEN 'Others' ELSE cast(%s_group as varchar) END,\n" +
@@ -317,6 +316,20 @@ public abstract class AbstractEventExplorer implements EventExplorer {
             }
             return result;
         });
+    }
+
+    private String generateComputeQuery(Reference grouping, Reference segment, String collection) {
+        StringBuilder selectBuilder = new StringBuilder();
+        if (grouping != null) {
+            selectBuilder.append(getColumnValue(grouping) + " as " + getColumnReference(grouping) + "_group");
+            if (segment != null) {
+                selectBuilder.append(", ");
+            }
+        }
+        if (segment != null) {
+            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(segment) : "'"+collection+"'") + " as " + getColumnReference(segment) + "_segment");
+        }
+        return selectBuilder.toString();
     }
 
     private boolean testFilterExpressionForPerComputedTable(Expression filterExp, OLAPTable options) {
@@ -397,10 +410,13 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     }
 
     @Override
-    public List<String> getExtraDimensions(String project) {
-        return timestampMapping.keySet().stream()
-                .map(TimestampTransformation::getPrettyName)
-                .collect(Collectors.toList());
+    public Map<String, List<String>> getExtraDimensions(String project) {
+        Map<String, List<String>> builder = new HashMap<>();
+        for (TimestampTransformation transformation : timestampMapping.keySet()) {
+            builder.computeIfAbsent(transformation.getCategory(), k -> new ArrayList<>())
+                    .add(transformation.getPrettyName());
+        }
+        return builder;
     }
 
     public abstract String convertSqlFunction(AggregationType aggType);
