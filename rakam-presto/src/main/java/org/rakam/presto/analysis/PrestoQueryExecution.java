@@ -197,34 +197,38 @@ public class PrestoQueryExecution implements QueryExecution {
     private class QueryTracker implements Runnable {
         @Override
         public void run() {
-            while (client.isValid() && client.advance()) {
-                transformAndAdd(client.current());
-            }
+            try {
+                while (client.isValid() && client.advance()) {
+                    transformAndAdd(client.current());
+                }
 
-            // update transaction ID if necessary
-            if (client.isClearTransactionId()) {
-                transactionId = null;
-            }
-            if (client.getStartedtransactionId() != null) {
-                transactionId = client.getStartedtransactionId();
-            }
+                // update transaction ID if necessary
+                if (client.isClearTransactionId()) {
+                    transactionId = null;
+                }
+                if (client.getStartedtransactionId() != null) {
+                    transactionId = client.getStartedtransactionId();
+                }
 
-            if (client.isFailed()) {
-                com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
-                ErrorLocation errorLocation = error.getErrorLocation();
-                QueryError queryError = new QueryError(error.getFailureInfo().getMessage(),
-                        error.getSqlState(),
-                        error.getErrorCode(),
-                        errorLocation != null ? errorLocation.getLineNumber() : null,
-                        errorLocation != null ? errorLocation.getColumnNumber() : null);
-                result.complete(QueryResult.errorResult(queryError));
-            } else {
-                transformAndAdd(client.finalResults());
+                if (client.isFailed()) {
+                    com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
+                    ErrorLocation errorLocation = error.getErrorLocation();
+                    QueryError queryError = new QueryError(error.getFailureInfo().getMessage(),
+                            error.getSqlState(),
+                            error.getErrorCode(),
+                            errorLocation != null ? errorLocation.getLineNumber() : null,
+                            errorLocation != null ? errorLocation.getColumnNumber() : null);
+                    result.complete(QueryResult.errorResult(queryError));
+                } else {
+                    transformAndAdd(client.finalResults());
 
-                ImmutableMap<String, Object> stats = ImmutableMap.of(
-                        QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS));
+                    ImmutableMap<String, Object> stats = ImmutableMap.of(
+                            QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS));
 
-                result.complete(new QueryResult(columns, data, stats));
+                    result.complete(new QueryResult(columns, data, stats));
+                }
+            } catch (Exception e) {
+                result.complete(QueryResult.errorResult(QueryError.create(e.getMessage())));
             }
         }
 

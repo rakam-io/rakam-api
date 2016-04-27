@@ -59,7 +59,7 @@ public abstract class TestEventExplorer {
                 .put("teststr", "test" + i)
                 .put("testnumber", (double) i)
                 .put("testbool", i % 2 == 0)
-                .put("testmap", ImmutableMap.of("test"+i, (double) i))
+                .put("testmap", ImmutableMap.of("test" + i, (double) i))
                 .put("testarray", of((double) i))
                 .put("testdate", LocalDate.ofEpochDay(i))
                 .put("_time", Instant.ofEpochSecond(i * 100)).build())).collect(Collectors.toList());
@@ -119,7 +119,7 @@ public abstract class TestEventExplorer {
             assertFalse(test.isFailed());
 
             Optional<TimestampTransformation> transformation = fromPrettyName(dimension);
-            if(transformation.isPresent()) {
+            if (transformation.isPresent()) {
                 assertEquals(copyOf(test.getResult()), EVENT_STATISTICS_RESULTS.get(transformation.get()));
             } else {
                 // TODO: test custom parameters
@@ -194,7 +194,7 @@ public abstract class TestEventExplorer {
                 null,
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
-        assertFalse(test.isFailed());
+        assertFalse(test.isFailed(), test.isFailed() ? test.getError().message : null);
         assertEquals(test.getResult().get(0), of(100L));
     }
 
@@ -230,7 +230,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 49.0), of("false", 50.0)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 49.0), of("false", "test", 50.0)));
     }
 
     @Test
@@ -242,7 +242,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 98.0), of("false", 99.0)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 98.0), of("false", "test", 99.0)));
     }
 
     @Test
@@ -266,7 +266,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 50L), of("false", "test", 50L)));
     }
 
     @Test
@@ -278,7 +278,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 50L), of("false", "test", 50L)));
     }
 
     @Test
@@ -290,7 +290,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 0.0), of("false", 1.0)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 0.0), of("false", "test", 1.0)));
     }
 
     @Test
@@ -302,44 +302,42 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", 50L), of("false", 50L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 50L), of("false", "test", 50L)));
     }
 
     @Test
     public void testReferenceGrouping() throws Exception {
         Map<TimestampTransformation, Set> GROUPING = ImmutableMap.<TimestampTransformation, Set>builder()
-                .put(HOUR_OF_DAY, ImmutableSet.of(of(0L, 36L), of(1L, 36L), of(2L, 28L)))
-                .put(DAY_OF_MONTH, ImmutableSet.of(of(1L, 100L)))
-                .put(WEEK_OF_YEAR, ImmutableSet. of(of(1L, 100L)))
-                .put(MONTH_OF_YEAR, ImmutableSet.of(of(1L, 100L)))
-                .put(QUARTER_OF_YEAR, ImmutableSet. of(of(1L, 100L)))
-                .put(DAY_OF_WEEK, ImmutableSet.of(of(4L, 100L)))
-                .put(HOUR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), 36L), of(parse("1970-01-01T01:00:00Z"), 36L), of(parse("1970-01-01T02:00:00Z"), 28L)))
-                .put(DAY, ImmutableSet.of(of(LocalDate.parse("1970-01-01"), 100L)))
-                .put(WEEK, ImmutableSet.of(of(parse("1969-12-29T00:00:00Z"), 100L)))
-                .put(MONTH, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), 100L)))
-                .put(YEAR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), 100L)))
+                .put(HOUR_OF_DAY, ImmutableSet.of(of(0L, "test", 36L), of(1L, "test", 36L), of(2L, "test", 28L)))
+                .put(DAY_OF_MONTH, ImmutableSet.of(of(1L, "test", 100L)))
+                .put(WEEK_OF_YEAR, ImmutableSet.of(of(1L, "test", 100L)))
+                .put(MONTH_OF_YEAR, ImmutableSet.of(of(1L, "test", 100L)))
+                .put(QUARTER_OF_YEAR, ImmutableSet.of(of(1L, "test", 100L)))
+                .put(DAY_OF_WEEK, ImmutableSet.of(of(4L, "test", 100L)))
+                .put(HOUR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), "test", 36L), of(parse("1970-01-01T01:00:00Z"), "test", 36L), of(parse("1970-01-01T02:00:00Z"), "test", 28L)))
+                .put(DAY, ImmutableSet.of(of(LocalDate.parse("1970-01-01"), "test", 100L)))
+                .put(WEEK, ImmutableSet.of(of(parse("1969-12-29T00:00:00Z"), "test", 100L)))
+                .put(MONTH, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), "test", 100L)))
+                .put(YEAR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), "test", 100L)))
                 .build();
-
-        Map<String, List<String>> dimensions = getEventExplorer().getExtraDimensions("test");
 
         getEventExplorer().getExtraDimensions("test").values().stream().flatMap(e -> e.stream())
                 .forEach(dimension -> {
-            Optional<TimestampTransformation> trans = fromPrettyName(dimension);
+                    Optional<TimestampTransformation> trans = fromPrettyName(dimension);
 
-            if(trans.isPresent()) {
-                QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
-                        of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
-                        new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, trans.get().getPrettyName()),
-                        null,
-                        null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                    if (trans.isPresent()) {
+                        QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
+                                of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
+                                new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, trans.get().getPrettyName()),
+                                null,
+                                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
-                assertFalse(test.isFailed());
-                assertEquals(GROUPING.get(trans.get()), copyOf(test.getResult()));
-            } else {
-                // TODO: implement
-            }
-        });
+                        assertFalse(test.isFailed());
+                        assertEquals(copyOf(test.getResult()), GROUPING.get(trans.get()));
+                    } else {
+                        // TODO: implement
+                    }
+                });
     }
 
     @Test

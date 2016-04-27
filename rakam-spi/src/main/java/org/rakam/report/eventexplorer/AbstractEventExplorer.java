@@ -93,7 +93,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
     private String getColumnValue(Reference ref) {
         switch (ref.type) {
             case COLUMN:
-                return "\""+ref.value+"\"";
+                return ref.value;
             case REFERENCE:
                 return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "_time");
             default:
@@ -272,15 +272,17 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                             computeQuery);
                 }
             } else {
-                String columnValue = null;
+                String columnValue = null, suffix = null;
                 boolean reference;
 
                 if (segment != null) {
                     columnValue = getColumnValue(segment);
                     reference = segment.type == REFERENCE;
+                    suffix = "segment";
                 } else if (grouping != null) {
                     columnValue = getColumnValue(grouping);
                     reference = grouping.type == REFERENCE;
+                    suffix = "group";
                 } else {
                     reference = false;
                 }
@@ -290,7 +292,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                                     " CASE WHEN group_rank > 50 THEN 'Others' ELSE CAST(%s as varchar) END, %s FROM (\n" +
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                     "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
-                            columnValue + "_group",
+                            columnValue + "_" + suffix,
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             format(convertSqlFunction(intermediateAggregation.get()), "value"),
                             computeQuery);

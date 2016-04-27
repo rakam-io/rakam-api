@@ -27,6 +27,10 @@ public class QueryError {
         this.charPositionInLine = charPositionInLine;
     }
 
+    public static QueryError create(String message) {
+        return new QueryError(message, null, null, null, null);
+    }
+
     @Override
     public String toString() {
         return "QueryError{" +

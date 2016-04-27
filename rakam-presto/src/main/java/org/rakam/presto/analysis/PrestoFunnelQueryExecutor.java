@@ -81,7 +81,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                     .collect(Collectors.joining(" UNION ALL "));
         }
 
-        return new DelegateQueryExecution(executor.executeQuery(project, "WITH \n" + stepQueries + " " + query + " ORDER BY 1 ASC"),
+        return new DelegateQueryExecution(executor.executeQuery(project, "WITH \n" + stepQueries + " " + query),
                 result -> {
                     result.setProperty("calculatedUserSets", calculatedUserSets);
                     return result;
