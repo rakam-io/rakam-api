@@ -83,7 +83,7 @@ public class RakamUIWebService extends HttpService {
                 String[] userPass = url.getUserInfo().split(":", 2);
                 // Use public DNS
                 return url.getProtocol() + "://" + (userPass.length > 0 ? userPass[0] : "" + url) +
-                        "@" + url.getHost() + url.getPath() + "?" + url.getQuery();
+                        "@" + url.getHost() + url.getPath();
             } catch (MalformedURLException e) {
                 return null;
             }
@@ -91,12 +91,12 @@ public class RakamUIWebService extends HttpService {
 
         Map<String, String> tags = Optional.ofNullable(tagsString).map(str ->
                 Arrays.stream(str.split(",")).map(val -> val.split(":")).collect(Collectors.toMap(a -> a[0], a -> a[1])))
-                .orElse(null);
-        if(tags != null) {
+                .orElse(ImmutableMap.of());
+        if(!tags.isEmpty()) {
             tags.remove("type");
         }
 
-        request.response(JsonHelper.encode(ImmutableMap.of("tags", tags, "dsn", dsnPublic)), OK).end();
+        request.response(JsonHelper.encode(dsnPublic != null ? ImmutableMap.of("tags", tags, "dsn", dsnPublic) : ImmutableMap.of()), OK).end();
     }
 
     private void sendFile(RakamHttpRequest request, File file) {

@@ -13,7 +13,7 @@ import org.rakam.util.IgnorePermissionCheck;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
-public class RakamUIFallbackModule extends RakamModule {
+public class RakamWebUIFallbackModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         OptionalBinder.newOptionalBinder(binder, CustomPageDatabase.class);

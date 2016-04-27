@@ -1,2 +1,2 @@
 org.rakam.ui.RakamUIModule
-org.rakam.ui.RakamUIFallbackModule
+org.rakam.ui.RakamWebUIFallbackModule
