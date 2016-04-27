@@ -168,10 +168,10 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(test.getResult().size(), 51);
+        assertEquals(test.getResult().size(), 16);
 
-        assertEquals(test.getResult().get(0), ImmutableList.of("Others", 50L));
-        assertEquals(test.getResult().stream().mapToLong(a -> (Long) a.get(1)).sum(), 100L);
+        assertEquals(test.getResult().get(0), ImmutableList.of("Others", "test", 85L));
+        assertEquals(test.getResult().stream().mapToLong(a -> (Long) a.get(2)).sum(), 100L);
     }
 
     @Test
@@ -183,7 +183,7 @@ public abstract class TestEventExplorer {
                 "testbool", LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(test.getResult().get(0), of(50L));
+        assertEquals(test.getResult().get(0), of("test", 50L));
     }
 
     @Test
@@ -195,7 +195,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed(), test.isFailed() ? test.getError().message : null);
-        assertEquals(test.getResult().get(0), of(100L));
+        assertEquals(test.getResult().get(0), of("test", 100L));
     }
 
     @Test
@@ -207,7 +207,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(test.getResult().get(0), of(4950.0));
+        assertEquals(test.getResult().get(0), of("test", 4950.0));
     }
 
     @Test
