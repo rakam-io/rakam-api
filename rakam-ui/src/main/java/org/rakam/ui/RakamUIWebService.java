@@ -92,7 +92,9 @@ public class RakamUIWebService extends HttpService {
         Map<String, String> tags = Optional.ofNullable(tagsString).map(str ->
                 Arrays.stream(str.split(",")).map(val -> val.split(":")).collect(Collectors.toMap(a -> a[0], a -> a[1])))
                 .orElse(null);
-        tags.remove("type");
+        if(tags != null) {
+            tags.remove("type");
+        }
 
         request.response(JsonHelper.encode(ImmutableMap.of("tags", tags, "dsn", dsnPublic)), OK).end();
     }

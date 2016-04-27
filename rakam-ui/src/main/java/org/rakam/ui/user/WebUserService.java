@@ -156,7 +156,8 @@ public class WebUserService {
             }
         }
 
-        sendMail(welcomeTitleCompiler, welcomeTxtCompiler, welcomeHtmlCompiler, email, scopes);
+        sendMail(welcomeTitleCompiler, welcomeTxtCompiler,
+                welcomeHtmlCompiler, email, scopes);
 
         return webuser;
     }

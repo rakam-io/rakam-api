@@ -1,6 +1,7 @@
 package org.rakam.analysis;
 
 import org.rakam.bootstrap.SystemRegistry;
+import org.rakam.bootstrap.SystemRegistry.ModuleDescriptor;
 import org.rakam.collection.FieldType;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
@@ -35,7 +36,7 @@ public class AdminHttpService extends HttpService {
     )
     @GET
     @Path("/configurations")
-    public List<SystemRegistry.ModuleDescriptor> getConfigurations() {
+    public List<ModuleDescriptor> getConfigurations() {
         return systemRegistry.getModules();
     }
 

@@ -76,8 +76,8 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
                     .collect(Collectors.joining(" UNION ALL "));
         } else {
             query = IntStream.range(0, steps.size())
-                    .mapToObj(i -> format("(SELECT '%s' as step, coalesce(cardinality(merge_sets(%s_set)), 0) count FROM step%d)",
-                            steps.get(i).getCollection(), CONNECTOR_FIELD, i))
+                    .mapToObj(i -> format("(SELECT 'Step %d' as step, coalesce(cardinality(merge_sets(%s_set)), 0) count FROM step%d)",
+                            i + 1, CONNECTOR_FIELD, i))
                     .collect(Collectors.joining(" UNION ALL "));
         }
 
