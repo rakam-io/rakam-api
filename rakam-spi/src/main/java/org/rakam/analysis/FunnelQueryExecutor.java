@@ -29,7 +29,7 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 public interface FunnelQueryExecutor {
 
     QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension,
-                         LocalDate startDate, LocalDate endDate, int windowValue, WindowType windowType);
+                         LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window);
 
     class FunnelStep {
         private static SqlParser parser = new SqlParser();
@@ -65,6 +65,18 @@ public interface FunnelQueryExecutor {
         @JsonProperty
         public String value() {
             return name();
+        }
+    }
+
+    class FunnelWindow {
+        public final int value;
+        public final WindowType type;
+
+        @JsonCreator
+        public FunnelWindow(@JsonProperty("value") int value,
+                            @JsonProperty("type") WindowType type) {
+            this.value = value;
+            this.type = type;
         }
     }
 }

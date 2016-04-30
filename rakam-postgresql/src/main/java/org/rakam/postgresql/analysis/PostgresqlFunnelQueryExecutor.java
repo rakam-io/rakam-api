@@ -41,7 +41,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, int windowDays, WindowType windowType) {
+    public QueryExecution query(String project, List<FunnelQueryExecutor.FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window) {
         if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }

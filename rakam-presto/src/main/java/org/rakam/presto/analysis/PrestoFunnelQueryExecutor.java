@@ -55,7 +55,7 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     @Override
-    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, int windowValue, WindowType windowType) {
+    public QueryExecution query(String project, List<FunnelStep> steps, Optional<String> dimension, LocalDate startDate, LocalDate endDate, Optional<FunnelWindow> window) {
         if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
@@ -63,16 +63,16 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
         Set<CalculatedUserSet> calculatedUserSets = new HashSet<>();
 
         String stepQueries = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(calculatedUserSets, project, CONNECTOR_FIELD, i, windowValue, windowType, steps.get(i), dimension, startDate, endDate))
+                .mapToObj(i -> convertFunnel(calculatedUserSets, project, CONNECTOR_FIELD, i, window, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
 
         String query;
         if (dimension.isPresent()) {
             query = IntStream.range(0, steps.size())
                     .mapToObj(i -> format("(SELECT step, (CASE WHEN rank > 15 THEN 'Others' ELSE cast(dimension as varchar) END) as %s," +
-                                    " sum(count) FROM (select '%s' as step, dimension, cardinality(merge_sets(%s_set)) count, row_number() OVER(ORDER BY 3 DESC) rank from " +
+                                    " sum(count) FROM (select 'Step %d' as step, dimension, cardinality(merge_sets(%s_set)) count, row_number() OVER(ORDER BY 3 DESC) rank from " +
                                     "step%s %s ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
-                            dimension.get(), steps.get(i).getCollection(), CONNECTOR_FIELD, i, dimension.map(v -> "GROUP BY 2").orElse("")))
+                            dimension.get(), i+1, CONNECTOR_FIELD, i, dimension.map(v -> "GROUP BY 2").orElse("")))
                     .collect(Collectors.joining(" UNION ALL "));
         } else {
             query = IntStream.range(0, steps.size())
@@ -91,8 +91,8 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
     private String convertFunnel(Set<CalculatedUserSet> calculatedUserSets, String project,
                                  String connectorField,
                                  int idx,
-                                 int windowDays,
-                                 WindowType windowType, FunnelStep funnelStep,
+                                 Optional<FunnelWindow> window,
+                                 FunnelStep funnelStep,
                                  Optional<String> dimension,
                                  LocalDate startDate, LocalDate endDate) {
         String timePredicate = format("BETWEEN timestamp '%s' and timestamp '%s' + interval '1' day",
@@ -100,9 +100,10 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
 
         Optional<String> joinPreviousStep = idx == 0 ?
                 Optional.empty() :
-                Optional.of(format("JOIN step%d on (step%d.date >= step%d.date AND step%d.date - interval '%d' %s < step%d.date %s)",
-                        idx - 1, idx, idx - 1, idx, windowDays, windowType.name().toLowerCase(), idx - 1,
-                        dimension.map(value -> format("AND step%d.dimension = step%d.dimension", idx, idx - 1)).orElse("")));
+                Optional.of(format("JOIN step%d ON (step%d.date >= step%d.date %s %s)",
+                        idx - 1, idx, idx - 1,
+                        window.map(v -> String.format("AND step%d.date - interval '%d' %s < step%d.date", idx, v.value, v.type.name().toLowerCase(), idx - 1)).orElse(""),
+                                dimension.map(value -> format("AND step%d.dimension = step%d.dimension", idx, idx - 1)).orElse("")));
 
         Optional<String> preComputedTable = getPreComputedTable(calculatedUserSets, project, funnelStep.getCollection(), connectorField,
                 joinPreviousStep, timePredicate, dimension, funnelStep.getExpression(), idx);

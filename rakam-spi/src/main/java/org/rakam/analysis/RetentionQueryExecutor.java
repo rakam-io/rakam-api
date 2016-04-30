@@ -36,7 +36,7 @@ public interface RetentionQueryExecutor {
                          Optional<RetentionAction> returningAction,
                          DateUnit dateUnit,
                          Optional<String> dimension,
-                         int period,
+                         Optional<Integer> period,
                          LocalDate startDate,
                          LocalDate endDate);
 

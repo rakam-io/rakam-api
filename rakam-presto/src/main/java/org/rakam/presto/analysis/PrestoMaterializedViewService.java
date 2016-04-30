@@ -1,6 +1,5 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.raptor.util.UuidUtil;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
@@ -13,8 +12,6 @@ import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.Statement;
-import com.google.common.base.Joiner;
-import com.google.common.base.Throwables;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
@@ -32,21 +29,14 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 
 import javax.inject.Inject;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -54,7 +44,7 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
-import static java.util.Collections.nCopies;
+import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 
 public class PrestoMaterializedViewService extends MaterializedViewService {
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
@@ -191,62 +181,16 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
 
             String materializedTableReference = tableName;
 
-            Map<String, List<UUID>> shardsNeedsToBeProcessed = new HashMap<>();
-            Map<String, List<UUID>> shardsWillBeProcessed = new HashMap<>();
-            Instant lastUpdated = null;
+            Instant lastUpdated = materializedView.lastUpdate;
             Instant now = Instant.now();
-
-            try (Connection connection = dbi.open().getConnection()) {
-                String sql = format(
-                        "select tables.table_name, shard_uuid, create_time, (compressed_size >= %f or row_count >= %f or create_time <= now() - interval 1 day) as status \n" +
-                                "from shards join tables on (tables.table_id = shards.table_id) \n" +
-                                "where tables.schema_name = ? and tables.table_name in (%s) \n" +
-                                (materializedView.lastUpdate != null ? " and create_time > ?" : "") +
-                                " order by create_time",
-                        FILL_FACTOR * maxShardSize.toBytes(),
-                        FILL_FACTOR * maxShardRows,
-                        Joiner.on(",").join(nCopies(referencedCollections.size(), "?")));
-
-                try (PreparedStatement st = connection.prepareStatement(sql)) {
-                    st.setString(1, materializedView.project);
-
-                    for (int i = 0; i < referencedCollections.size(); i++) {
-                        st.setString(i + 2, referencedCollections.get(i));
-                    }
-
-                    if (materializedView.lastUpdate != null) {
-                        st.setTimestamp(referencedCollections.size() + 2, Timestamp.from(materializedView.lastUpdate));
-                    }
-
-                    try (ResultSet resultSet = st.executeQuery()) {
-                        boolean switched = false;
-                        while (resultSet.next()) {
-                            UUID shardUuid = UuidUtil.uuidFromBytes(resultSet.getBytes(2));
-
-                            if (!resultSet.getBoolean(4)) {
-                                if (!switched) {
-                                    lastUpdated = resultSet.getTimestamp(3).toInstant();
-                                }
-                                switched = true;
-
-                            }
-                            (switched ? shardsWillBeProcessed : shardsNeedsToBeProcessed)
-                                    .computeIfAbsent(resultSet.getString(1), (key) -> new ArrayList<>()).add(shardUuid);
-                        }
-                    }
-                }
-            } catch (SQLException e) {
-                throw Throwables.propagate(e);
-            }
-
-            if (lastUpdated == null && shardsWillBeProcessed.isEmpty()) {
-                lastUpdated = now;
-            }
+            boolean needsUpdate = Duration.between(now, lastUpdated).compareTo(materializedView.updateInterval) > 0;
 
             QueryExecution queryExecution;
-            if (!shardsNeedsToBeProcessed.isEmpty() && database.updateMaterializedView(materializedView, f)) {
+            if (needsUpdate && database.updateMaterializedView(materializedView, f)) {
                 String query = RakamSqlFormatter.formatSql(statement,
-                        new ShardPredicateTableNameMapper(shardsNeedsToBeProcessed, materializedView));
+                        name -> format("(SELECT * FROM %s WHERE \"$shard_time\" between timestamp '%s' and timestamp '%s')",
+                                queryExecutor.formatTableReference(materializedView.project, name),
+                                ISO_INSTANT.format(lastUpdated), ISO_INSTANT.format(now)));
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query));
                 final Instant finalLastUpdated = lastUpdated;
@@ -257,11 +201,13 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             }
 
             String reference;
-            if (shardsWillBeProcessed.isEmpty()) {
+            if (!needsUpdate) {
                 reference = materializedTableReference;
             } else {
                 String query = RakamSqlFormatter.formatSql(statement,
-                        new ShardPredicateTableNameMapper(shardsWillBeProcessed, materializedView));
+                        name -> format("(SELECT * FROM %s WHERE \"$shard_time\" > timestamp '%s'",
+                                queryExecutor.formatTableReference(materializedView.project, name),
+                                ISO_INSTANT.format(lastUpdated)));
 
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
             }
@@ -270,28 +216,4 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         }
     }
 
-    private class ShardPredicateTableNameMapper implements Function<QualifiedName, String> {
-        private final Map<String, List<UUID>> shards;
-        private final MaterializedView materializedView;
-
-        public ShardPredicateTableNameMapper(Map<String, List<UUID>> shards, MaterializedView materializedView) {
-            this.shards = shards;
-            this.materializedView = materializedView;
-        }
-
-        @Override
-        public String apply(QualifiedName name) {
-            List<UUID> uuids = shards.get(name.getSuffix());
-            String predicate;
-            if (uuids == null || uuids.isEmpty()) {
-                predicate = "is null";
-            } else {
-                predicate = format("in (%s)",
-                        uuids.stream().map(uuid -> "'" + uuid.toString() + "'").collect(Collectors.joining(", ")));
-            }
-            return format("(SELECT * FROM %s WHERE \"$shard_uuid\" %s)",
-                    queryExecutor.formatTableReference(materializedView.project, name),
-                    predicate);
-        }
-    }
 }

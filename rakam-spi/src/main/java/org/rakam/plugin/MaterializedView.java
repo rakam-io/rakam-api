@@ -40,7 +40,7 @@ public class MaterializedView implements ProjectItem {
         this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.query = checkNotNull(query, "query is required");
-        this.incremental = incremental;
+        this.incremental = incremental == null ? false : incremental;
         this.updateInterval = updateInterval;
         this.options = options;
         validateQuery();

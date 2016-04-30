@@ -58,8 +58,8 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
     }
 
     @Override
-    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, int period, LocalDate startDate, LocalDate endDate) {
-        checkArgument(period >= 0, "Period must be 0 or a positive value");
+    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, Optional<Integer> period, LocalDate startDate, LocalDate endDate) {
+        checkArgument(period.isPresent() && period.get() >= 0, "Period must be 0 or a positive value");
         checkTableColumn(CONNECTOR_FIELD, "connector field");
 
         String timeColumn = getTimeExpression(dateUnit);
@@ -77,13 +77,14 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
             start = startDate;
             end = endDate;
         }
-        int range = Math.min(period, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end)));
 
-        if (range < 0) {
+        Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end))));
+
+        if (range.isPresent() && range.get() < 0) {
             throw new IllegalArgumentException("startDate must be before endDate.");
         }
 
-        if (range == 0) {
+        if (range.isPresent() && range.get() == 0) {
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
@@ -91,7 +92,6 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
         String timeSubtraction = diffTimestamps(dateUnit, "data.date", "returning_action.date") + "-1";
-
         String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.date";
 
         String query = format("with first_action as (\n" +
@@ -106,7 +106,7 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
                         "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn, CONNECTOR_FIELD,
                 dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD, CONNECTOR_FIELD,
-                timeSubtraction, period);
+                range.map(v -> String.format("where %s < %d", timeSubtraction, v)).orElse(""));
 
         return executor.executeQuery(project, query);
     }

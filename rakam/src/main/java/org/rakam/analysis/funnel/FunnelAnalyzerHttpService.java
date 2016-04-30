@@ -71,7 +71,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
                         Optional.ofNullable(query.dimension),
                         query.startDate,
                         query.endDate,
-                        query.windowValue, query.windowType));
+                        Optional.ofNullable(query.window)));
     }
 
     @ApiOperation(value = "Execute query",
@@ -86,7 +86,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
-                        query.endDate, query.windowValue, query.windowType).getResult();
+                        query.endDate, Optional.ofNullable(query.window)).getResult();
     }
 
     private static class FunnelQuery implements ProjectItem {
@@ -94,8 +94,7 @@ public class FunnelAnalyzerHttpService extends HttpService {
         public final List<FunnelQueryExecutor.FunnelStep> steps;
         public final String dimension;
         public final LocalDate startDate;
-        public final int windowValue;
-        public final FunnelQueryExecutor.WindowType windowType;
+        public final FunnelQueryExecutor.FunnelWindow window;
         public final LocalDate endDate;
 
         @JsonCreator
@@ -103,16 +102,14 @@ public class FunnelAnalyzerHttpService extends HttpService {
                            @ApiParam(name = "steps") List<FunnelQueryExecutor.FunnelStep> steps,
                            @ApiParam(name = "dimension", required = false) String dimension,
                            @ApiParam(name = "startDate") LocalDate startDate,
-                           @ApiParam(name = "windowValue", required = false) Integer windowValue,
-                           @ApiParam(name = "windowType", required = false) FunnelQueryExecutor.WindowType windowType,
+                           @ApiParam(name = "window", required = false) FunnelQueryExecutor.FunnelWindow window,
                            @ApiParam(name = "endDate") LocalDate endDate) {
             this.project = project;
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;
-            this.windowValue = windowValue == null ? 30 : windowValue;
-            this.windowType = windowType == null ? FunnelQueryExecutor.WindowType.DAY : windowType;
+            this.window = window;
             checkState(!steps.isEmpty(), "steps field cannot be empty.");
         }
 

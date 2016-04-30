@@ -64,15 +64,15 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         this.continuousQueryService = continuousQueryService;
     }
 
-    public String diffTimestamps(DateUnit dateUnit, String start, String end) {
-        return String.format("date_diff('%s', %s, %s)",
-                dateUnit.name().toLowerCase(), start, end);
-    }
-
     @Override
-    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction,
-                                DateUnit dateUnit, Optional<String> dimension, int period, LocalDate startDate, LocalDate endDate) {
-        checkArgument(period >= 0, "Period must be 0 or a positive value");
+    public QueryExecution query(String project,
+                                Optional<RetentionAction> firstAction,
+                                Optional<RetentionAction> returningAction,
+                                DateUnit dateUnit,
+                                Optional<String> dimension,
+                                Optional<Integer> period,
+                                LocalDate startDate, LocalDate endDate) {
+        checkArgument(period.isPresent() && period.get() >= 0, "Period must be 0 or a positive value");
         checkTableColumn(CONNECTOR_FIELD, "connector field");
 
         String timeColumn = getTimeExpression(dateUnit);
@@ -92,13 +92,13 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         } else {
             throw new IllegalStateException();
         }
-        int range = Math.min(period, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end)));
+        Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end))));
 
-        if (range < 0) {
+        if (range.isPresent() && range.get() < 0) {
             throw new IllegalArgumentException("startDate must be before endDate.");
         }
 
-        if (range == 0) {
+        if (range.isPresent() && range.get() == 0) {
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
@@ -126,11 +126,12 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
                         ") \n" +
                         "select %s, cast(null as bigint) as lead, cardinality(%s(%s_set)) count from first_action data %s union all\n" +
                         "SELECT * FROM (select %s, %s - 1, cardinality_intersection(%s(data.%s_set), %s(returning_action.%s_set)) count \n" +
-                        "from first_action data join returning_action on (data.date < returning_action.date AND data.date + interval '%d' day >= returning_action.date) \n" +
+                        "from first_action data join returning_action on (data.date < returning_action.date %s) \n" +
                         "%s) ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn, mergeSetAggregation,
                 CONNECTOR_FIELD, dimension.map(v -> "GROUP BY 1").orElse(""), dimensionColumn, timeSubtraction, mergeSetAggregation, CONNECTOR_FIELD,
-                mergeSetAggregation, CONNECTOR_FIELD, period,
+                mergeSetAggregation, CONNECTOR_FIELD,
+                range.map(v -> String.format("AND data.date + interval '%d' day >= returning_action.date", v)).orElse(""),
                 dimension.map(v -> "GROUP BY 1, 2").orElse(""));
 
         return new DelegateQueryExecution(executor.executeQuery(project, query),
@@ -233,6 +234,11 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
                 String.format(timeColumn, "date"),
                 dimensionRequired ? "dimension, " : "",
                 schema + "." + tableNameSuffix.orElse(""), timePredicate);
+    }
+
+    private String diffTimestamps(DateUnit dateUnit, String start, String end) {
+        return String.format("date_diff('%s', %s, %s)",
+                dateUnit.name().toLowerCase(), start, end);
     }
 }
 

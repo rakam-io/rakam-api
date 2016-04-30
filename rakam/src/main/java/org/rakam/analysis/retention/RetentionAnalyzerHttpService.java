@@ -67,7 +67,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
                         Optional.ofNullable(query.dimension),
-                        query.period,
+                        Optional.ofNullable(query.period),
                         query.startDate,
                         query.endDate));
     }
@@ -84,7 +84,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
                         Optional.ofNullable(query.dimension),
-                        query.period,
+                        Optional.ofNullable(query.period),
                         query.startDate,
                         query.endDate).getResult();
     }
