@@ -103,7 +103,7 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
                         "select %s, cast(null as bigint) as lead, count(distinct data.%s) count from first_action data group by 1 union all\n" +
                         "select %s, %s, count(distinct returning_action.%s) \n" +
                         "from first_action data join returning_action on (data.date < returning_action.date AND data.%s = returning_action.%s) \n" +
-                        "where %s < %d group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
+                        "%s group by 1, 2 ORDER BY 1, 2 NULLS FIRST",
                 firstActionQuery, returningActionQuery, dimensionColumn, CONNECTOR_FIELD,
                 dimensionColumn, timeSubtraction, CONNECTOR_FIELD, CONNECTOR_FIELD, CONNECTOR_FIELD,
                 range.map(v -> String.format("where %s < %d", timeSubtraction, v)).orElse(""));
