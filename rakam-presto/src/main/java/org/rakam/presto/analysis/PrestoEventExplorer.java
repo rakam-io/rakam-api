@@ -28,12 +28,12 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 public class PrestoEventExplorer extends AbstractEventExplorer {
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
-            .put(HOUR_OF_DAY, "hour(%s)")
-            .put(DAY_OF_MONTH, "day(%s)")
-            .put(WEEK_OF_YEAR, "week(%s)")
-            .put(MONTH_OF_YEAR, "month(%s)")
-            .put(QUARTER_OF_YEAR, "quarter(%s)")
-            .put(DAY_OF_WEEK, "day_of_week(%s)")
+            .put(HOUR_OF_DAY, "lpad(cast(hour(%s) as varchar), 2, '0')||':00'")
+            .put(DAY_OF_MONTH, "cast(day(%s) as varchar)||'th day'")
+            .put(WEEK_OF_YEAR, "cast(week(%s) as varchar)||'th week'")
+            .put(MONTH_OF_YEAR, "date_format(%s, '%M')")
+            .put(QUARTER_OF_YEAR, "cast(quarter(%s) as varchar)||'th quarter'")
+            .put(DAY_OF_WEEK, "date_format(%s, '%W')")
             .put(HOUR, "date_trunc('hour', %s)")
             .put(DAY, "cast(%s as date)")
             .put(WEEK, "date_trunc('week', %s)")

@@ -223,7 +223,7 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>node</artifactId>
-            <version>0.124</version>
+            <version>${air.version}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

@@ -11,7 +11,7 @@ import org.rakam.report.QueryResult;
 import javax.inject.Inject;
 
 public class EventExplorerListener {
-    private static final String QUERY = "select date_trunc('week', cast(_time as date)) as week, collection, date_trunc('hour', _time) as _time,\n" +
+    private static final String QUERY = "select date_trunc('week', cast(_time as date)) as week, \"$collection\" as collection, date_trunc('hour', _time) as _time,\n" +
             " count(*) as total from _all group by 1, 2, 3";
     private final ContinuousQueryService continuousQueryService;
 

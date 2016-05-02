@@ -101,7 +101,6 @@ public class RetentionAnalyzerHttpService extends HttpService {
 
         @JsonCreator
         public RetentionQuery(@ApiParam(name = "project") String project,
-                              @ApiParam(name = "connector_field") String connectorField,
                               @ApiParam(name = "first_action") RetentionAction firstAction,
                               @ApiParam(name = "returning_action") RetentionAction returningAction,
                               @ApiParam(name = "dimension") String dimension,

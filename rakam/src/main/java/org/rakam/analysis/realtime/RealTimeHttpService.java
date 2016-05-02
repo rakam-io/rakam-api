@@ -153,7 +153,7 @@ public class RealTimeHttpService extends HttpService {
 
         Object timeCol = aggregate ? currentWindow : "_time";
         String sqlQuery = format("select %s, %s %s from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
-                timeCol + " * " + slide.toMillis(),
+                timeCol + " * cast(" + slide.toMillis()+" as bigint)",
                 !noDimension ? dimensions.stream().collect(Collectors.joining(", ")) + "," : "",
                 String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column, "measure column is not valid") + "_" + measure.aggregation.name().toLowerCase()),
                 executor.formatTableReference(project, QualifiedName.of("continuous", tableName)),
