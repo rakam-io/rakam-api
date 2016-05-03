@@ -5,19 +5,15 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.eventbus.Subscribe;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.ProjectItem;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.UserStorage.Sorting;
 import org.rakam.report.DelegateQueryExecution;
@@ -102,12 +98,10 @@ public class UserHttpService extends HttpService {
     @Path("/create")
     @IgnorePermissionCheck
     public String create(@ParamBody User user) {
-        if (!apiKeyService.checkPermission(user.project, WRITE_KEY, user.api.writeKey)) {
-            throw new RakamException(UNAUTHORIZED);
-        }
+        String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.writeKey : null, WRITE_KEY);
 
         try {
-            return service.create(user.project, user.id, user.properties);
+            return service.create(project, user.id, user.properties);
         } catch (Exception e) {
             throw new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }

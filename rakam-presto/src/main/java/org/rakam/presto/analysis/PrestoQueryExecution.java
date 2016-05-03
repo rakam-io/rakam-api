@@ -111,6 +111,10 @@ public class PrestoQueryExecution implements QueryExecution {
                 return BINARY;
             case StandardTypes.VARCHAR:
                 return STRING;
+            case StandardTypes.INTEGER:
+                return INTEGER;
+            case StandardTypes.DECIMAL:
+                return DECIMAL;
             case StandardTypes.TIME:
             case StandardTypes.TIME_WITH_TIME_ZONE:
                 return TIME;

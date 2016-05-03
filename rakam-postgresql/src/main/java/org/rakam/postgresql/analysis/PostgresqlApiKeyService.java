@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -25,9 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import static java.lang.String.format;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
 public class PostgresqlApiKeyService implements ApiKeyService {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
@@ -110,7 +109,11 @@ public class PostgresqlApiKeyService implements ApiKeyService {
 
     @Override
     public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
-        return apiKeyReverseCache.getUnchecked(new ApiKey(apiKey, type));
+        try {
+            return apiKeyReverseCache.getUnchecked(new ApiKey(apiKey, type));
+        } catch (UncheckedExecutionException e) {
+            throw Throwables.propagate(e.getCause());
+        }
     }
 
     @Override

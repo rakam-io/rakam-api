@@ -13,6 +13,7 @@ import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
+import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
@@ -78,6 +79,10 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
                     .filter(c -> c.getValue().stream().anyMatch(a -> a.getName().equals("_user")))
                     .collect(Collectors.toList());
+
+            if(collections.isEmpty()) {
+                return QueryExecution.completedQueryExecution(null, QueryResult.empty()).getResult();
+            }
 
             String sharedColumns = collections.get(0).getValue().stream()
                     .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
