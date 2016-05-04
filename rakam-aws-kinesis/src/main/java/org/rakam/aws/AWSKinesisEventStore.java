@@ -158,9 +158,6 @@ public class AWSKinesisEventStore implements EventStore {
             String middlewareTable = format("SELECT * FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'",
                     prestoConfig.getBulkConnector(), project, collection, now.atZone(ZoneId.of("UTC")).format(ISO_LOCAL_DATE));
 
-//        PrestoQueryExecution execution = executor.executeRawStatement("START TRANSACTION READ WRITE");
-//        execution.getResult().join();
-
             QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.%s.%s %s",
                     prestoConfig.getColdStorageConnector(), project, collection, middlewareTable));
 

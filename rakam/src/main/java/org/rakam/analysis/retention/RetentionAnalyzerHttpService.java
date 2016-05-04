@@ -113,7 +113,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
             this.returningAction = returningAction;
             this.dateUnit = dateUnit;
             this.dimension = dimension;
-            this.period = period == null ? 15 : period;
+            this.period = period;
             this.startDate = startDate;
             this.endDate = endDate;
         }
