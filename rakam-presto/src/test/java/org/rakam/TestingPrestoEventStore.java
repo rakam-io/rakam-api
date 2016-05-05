@@ -73,6 +73,10 @@ public class TestingPrestoEventStore implements EventStore {
                 break;
             case LONG:
                 builder.append(((Number) value).longValue());
+            case INTEGER:
+                builder.append(((Number) value).intValue());
+            case DECIMAL:
+                builder.append(((Number) value).doubleValue());
                 break;
             case DOUBLE:
                 builder.append(String.format("%.2f", ((Number) value).doubleValue()));

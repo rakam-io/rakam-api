@@ -250,6 +250,7 @@ public class UserUtilHttpService extends HttpService {
                 cell.setCellValue(field.toString());
                 break;
             case LONG:
+            case INTEGER:
             case DOUBLE:
                 cell.setCellValue(((Number) field).doubleValue());
                 break;
@@ -263,6 +264,7 @@ public class UserUtilHttpService extends HttpService {
             case STRING:
                 return Cell.CELL_TYPE_STRING;
             case LONG:
+            case INTEGER:
             case DOUBLE:
                 return Cell.CELL_TYPE_NUMERIC;
             case BOOLEAN:

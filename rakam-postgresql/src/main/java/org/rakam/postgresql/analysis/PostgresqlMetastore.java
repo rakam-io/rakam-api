@@ -287,6 +287,10 @@ public class PostgresqlMetastore extends AbstractMetastore {
 
     public static String toSql(FieldType type) {
         switch (type) {
+            case INTEGER:
+                return "INT";
+            case DECIMAL:
+                return "DECIMAL";
             case LONG:
                 return "BIGINT";
             case STRING:
@@ -335,14 +339,16 @@ public class PostgresqlMetastore extends AbstractMetastore {
 
     public static FieldType fromSql(int sqlType, String typeName, Function<String, FieldType> arrayTypeNameMapper) {
         switch (sqlType) {
-            case Types.DECIMAL:
             case Types.BIGINT:
-            case Types.TINYINT:
             case Types.NUMERIC:
-            case Types.INTEGER:
-            case Types.SMALLINT:
             case Types.REAL:
                 return FieldType.LONG;
+            case Types.TINYINT:
+            case Types.INTEGER:
+            case Types.SMALLINT:
+                return FieldType.INTEGER;
+            case Types.DECIMAL:
+                return FieldType.DECIMAL;
             case Types.BOOLEAN:
             case Types.BIT:
                 return FieldType.BOOLEAN;

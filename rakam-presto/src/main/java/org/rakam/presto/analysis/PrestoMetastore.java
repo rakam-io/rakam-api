@@ -340,6 +340,10 @@ public class PrestoMetastore extends AbstractMetastore {
 
     public static String toSql(FieldType type) {
         switch (type) {
+            case INTEGER:
+                return "INTEGER";
+            case DECIMAL:
+                return "DECIMAL";
             case LONG:
                 return "BIGINT";
             case STRING:

@@ -173,6 +173,10 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 return "double precision";
             case LONG:
                 return "bigint";
+            case INTEGER:
+                return "int";
+            case DECIMAL:
+                return "decimal";
             case TIMESTAMP:
                 return "timestamp";
             case TIME:
@@ -215,6 +219,8 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 return parseTimestamp(value);
             case LONG:
             case DOUBLE:
+            case INTEGER:
+            case DECIMAL:
                 return value instanceof Number ? value : null;
             case STRING:
                 return value instanceof String ? value : null;
@@ -518,7 +524,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             createColumn(project, property, 0);
         }
 
-        if (fieldType != FieldType.LONG || fieldType != FieldType.DOUBLE) {
+        if (!fieldType.isNumeric()) {
             throw new RakamException(String.format("The property the is %s and it can't be incremented.", fieldType.name()),
                     HttpResponseStatus.BAD_REQUEST);
         }

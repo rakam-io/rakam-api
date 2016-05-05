@@ -101,6 +101,9 @@ public class EventBuilder {
         if(value instanceof Long) {
             return LONG;
         }
+        if(value instanceof Integer) {
+            return INTEGER;
+        }
         if(value instanceof Double) {
             return DOUBLE;
         }

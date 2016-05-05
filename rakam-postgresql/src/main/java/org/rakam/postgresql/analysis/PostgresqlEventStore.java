@@ -15,6 +15,7 @@ import org.rakam.plugin.EventStore;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -92,6 +93,10 @@ public class PostgresqlEventStore implements EventStore {
                     break;
                 case LONG:
                     ps.setLong(i + 1, ((Number) value).longValue());
+                case INTEGER:
+                    ps.setInt(i + 1, ((Number) value).intValue());
+                case DECIMAL:
+                    ps.setBigDecimal(i + 1, new BigDecimal(((Number) value).doubleValue()));
                     break;
                 case DOUBLE:
                     ps.setDouble(i + 1, ((Number) value).doubleValue());
@@ -158,6 +163,10 @@ public class PostgresqlEventStore implements EventStore {
         switch (type) {
             case LONG:
                 return "int8";
+            case INTEGER:
+                return "int4";
+            case DECIMAL:
+                return "decimal";
             case STRING:
                 return "text";
             case BOOLEAN:

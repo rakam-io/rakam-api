@@ -155,6 +155,10 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
                 return jp.getValueAsBoolean();
             case LONG:
                 return jp.getValueAsLong();
+            case INTEGER:
+                return jp.getValueAsInt();
+            case DECIMAL:
+                return jp.getValueAsDouble();
             case TIME:
                 return (long) LocalTime.parse(jp.getValueAsString()).get(ChronoField.MILLI_OF_DAY);
             case DOUBLE:

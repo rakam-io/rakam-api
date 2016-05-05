@@ -59,6 +59,7 @@ public final class AvroUtil {
             case BOOLEAN:
                 return Schema.create(Schema.Type.BOOLEAN);
             case DATE:
+            case INTEGER:
                 return Schema.create(Schema.Type.INT);
             case LONG:
             case TIME:

@@ -322,7 +322,10 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             case BOOLEAN:
                 return jp.getValueAsBoolean();
             case LONG:
+            case DECIMAL:
                 return jp.getValueAsLong();
+            case INTEGER:
+                return jp.getValueAsInt();
             case TIME:
                 return (long) LocalTime.parse(jp.getValueAsString()).get(ChronoField.MILLI_OF_DAY);
             case DOUBLE:

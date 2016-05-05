@@ -130,6 +130,12 @@ public class PostgresqlQueryExecution implements QueryExecution {
                         case LONG:
                             object = resultSet.getLong(i+1);
                             break;
+                        case INTEGER:
+                            object = resultSet.getInt(i+1);
+                            break;
+                        case DECIMAL:
+                            object = resultSet.getBigDecimal(i+1).doubleValue();
+                            break;
                         case DOUBLE:
                             object = resultSet.getDouble(i+1);
                             break;

@@ -302,6 +302,10 @@ public class JDBCMetastore extends AbstractMetastore {
 
     public static String toSql(FieldType type) {
         switch (type) {
+            case INTEGER:
+                return "INT";
+            case DECIMAL:
+                return "DECIMAL";
             case LONG:
                 return "BIGINT";
             case STRING:

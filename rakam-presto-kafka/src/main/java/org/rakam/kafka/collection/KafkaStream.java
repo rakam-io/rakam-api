@@ -87,6 +87,8 @@ public class KafkaStream implements EventStream {
                             switch (field.getType()) {
                                 case LONG:
                                 case DOUBLE:
+                                case INTEGER:
+                                case DECIMAL:
                                 case BOOLEAN:
                                     return format("\"%1$s\": '||COALESCE(cast(%1$s as varchar), 'null')||'", field.getName());
                                 default:
