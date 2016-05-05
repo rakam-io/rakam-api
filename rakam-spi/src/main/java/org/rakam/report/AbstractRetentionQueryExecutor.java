@@ -17,7 +17,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                 String.format(timeColumn, "_time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
                 connectorField,
-                collection,
+                "\"" + collection + "\"",
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();

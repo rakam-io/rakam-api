@@ -95,7 +95,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
         private final RetentionAction returningAction;
         private final DateUnit dateUnit;
         private final String dimension;
-        private final int period;
+        private final Integer period;
         private final LocalDate startDate;
         private final LocalDate endDate;
 

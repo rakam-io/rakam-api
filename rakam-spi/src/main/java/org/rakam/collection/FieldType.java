@@ -23,6 +23,10 @@ public enum FieldType {
         return ordinal() > 19;
     }
 
+    public boolean isNumeric() {
+       return this == INTEGER || this == DECIMAL || this == DOUBLE || this == LONG;
+    }
+
     public FieldType getArrayElementType() {
         if(!isArray()) {
             throw new IllegalStateException("type is not array");

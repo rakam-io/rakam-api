@@ -28,13 +28,14 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.util.KByteArrayOutputStream;
 import org.rakam.util.QueryFormatter;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,9 +43,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
+import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 
 public class AWSKinesisEventStore implements EventStore {
     private final static Logger LOGGER = Logger.get(AWSKinesisEventStore.class);
@@ -136,7 +138,7 @@ public class AWSKinesisEventStore implements EventStore {
         bulkClient.upload(project, events);
         if (commit) {
             events.stream().map(e -> e.collection()).distinct().parallel()
-                    .forEach(collection -> commit(project, collection));
+                    .forEach(collection -> commit(project, collection).join());
         }
     }
 
@@ -144,24 +146,21 @@ public class AWSKinesisEventStore implements EventStore {
     public CompletableFuture<QueryResult> commit(String project, String collection) {
         Instant now = Instant.now();
 
-        try {
-            dataSource.getConnection();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
         try(Connection conn = dataSource.getConnection()) {
             String lockKey = "lock."+project+"."+collection;
 
-            conn.createStatement().execute(format("SELECT pg_advisory_lock(hashtext(%s))", lockKey));
+            conn.createStatement().execute(format("SELECT pg_advisory_lock(hashtext('%s'))", lockKey));
 
-            String middlewareTable = format("SELECT * FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'",
-                    prestoConfig.getBulkConnector(), project, collection, now.atZone(ZoneId.of("UTC")).format(ISO_LOCAL_DATE));
+            String middlewareTable = format("FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'",
+                    prestoConfig.getBulkConnector(), project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)));
 
-            QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.%s.%s %s",
+            QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.%s.%s SELECT * %s",
                     prestoConfig.getColdStorageConnector(), project, collection, middlewareTable));
 
             return insertQuery.getResult().thenApply(result -> {
+                if (result.isFailed()) {
+                    throw new RakamException("Unable to commit data", INTERNAL_SERVER_ERROR);
+                }
                 ImmutableList.Builder<CompletableFuture<QueryResult>> builder = ImmutableList.builder();
                 for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
                     AtomicBoolean ref = new AtomicBoolean();
@@ -170,12 +169,12 @@ public class AWSKinesisEventStore implements EventStore {
                         if ((name.getPrefix().map(e -> e.equals("collection")).orElse(true) && name.getSuffix().equals(collection)) ||
                                 !name.getPrefix().isPresent() && name.getSuffix().equals("_all")) {
                             ref.set(true);
-                            return "(" + middlewareTable + ")";
+                            return format("(SELECT '%s' as \"$collection\", * ", collection) + middlewareTable + ")";
                         }
                         return executor.formatTableReference(project, name);
                     });
 
-                    if(!ref.get()) {
+                    if (!ref.get()) {
                         continue;
                     }
 
@@ -187,8 +186,15 @@ public class AWSKinesisEventStore implements EventStore {
 
                 ImmutableList<CompletableFuture<QueryResult>> futures = builder.build();
                 return CompletableFuture.allOf(futures.stream().toArray(CompletableFuture[]::new))
-                        .thenApply(aVoid -> executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
-                                project, collection, now.atZone(ZoneId.of("UTC")).format(ISO_LOCAL_DATE))).getResult().join()).join();
+                        .thenApply(aVoid -> {
+                            for (CompletableFuture<QueryResult> future : futures) {
+                                if (future.join().isFailed()) {
+                                    return future.join();
+                                }
+                            }
+                            return executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
+                                    project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)))).getResult().join();
+                        }).join();
             });
 
         } catch (SQLException e) {

@@ -59,7 +59,7 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
 
     @Override
     public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, Optional<Integer> period, LocalDate startDate, LocalDate endDate) {
-        checkArgument(period.isPresent() && period.get() >= 0, "Period must be 0 or a positive value");
+        period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
         checkTableColumn(CONNECTOR_FIELD, "connector field");
 
         String timeColumn = getTimeExpression(dateUnit);

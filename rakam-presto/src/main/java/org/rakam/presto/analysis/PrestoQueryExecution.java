@@ -17,7 +17,6 @@ import com.facebook.presto.jdbc.internal.guava.collect.ImmutableSet;
 import com.facebook.presto.jdbc.internal.guava.collect.Lists;
 import com.facebook.presto.jdbc.internal.guava.net.HostAndPort;
 import com.facebook.presto.jdbc.internal.guava.net.HttpHeaders;
-import com.facebook.presto.jdbc.internal.guava.util.concurrent.ThreadFactoryBuilder;
 import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -46,8 +45,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
@@ -68,11 +66,7 @@ public class PrestoQueryExecution implements QueryExecution {
 
     // doesn't seem to be a good way but presto client uses a synchronous http client
     // so it blocks the thread when executing queries
-    private static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(2, 50, 120L, SECONDS,
-            new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
-            .setNameFormat("presto-query-executor")
-            .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e)).build());
-
+    private static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
     private final List<List<Object>> data = Lists.newArrayList();
     private static final com.facebook.presto.jdbc.internal.airlift.json.JsonCodec<QueryResults> QUERY_RESULTS_JSON_CODEC = jsonCodec(QueryResults.class);
     private List<SchemaField> columns;
