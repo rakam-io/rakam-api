@@ -58,7 +58,6 @@ public class WebServiceModule extends AbstractModule {
 
     @Override
     protected void configure() {
-
         Info info = new Info()
                 .title("Rakam API Documentation")
                 .version(ServiceStarter.RAKAM_VERSION)
@@ -69,7 +68,7 @@ public class WebServiceModule extends AbstractModule {
                         .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
 
         Swagger swagger = new Swagger().info(info)
-                .host("app.getrakam.com")
+                .host("app.rakam.io")
                 .basePath("/")
                 .tags(ImmutableList.copyOf(tags))
                 .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER).name("write_key"))
@@ -83,7 +82,7 @@ public class WebServiceModule extends AbstractModule {
             eventExecutors = new NioEventLoopGroup();
         }
 
-        HttpServer httpServer =  new HttpServerBuilder()
+        HttpServer httpServer = new HttpServerBuilder()
                 .setHttpServices(httpServices)
                 .setWebsockerServices(webSocketServices)
                 .setSwagger(swagger)
@@ -117,7 +116,7 @@ public class WebServiceModule extends AbstractModule {
 
 
     public static boolean test(Method method, org.rakam.analysis.ApiKeyService.AccessKeyType key) {
-        if(method.isAnnotationPresent(IgnorePermissionCheck.class)) {
+        if (method.isAnnotationPresent(IgnorePermissionCheck.class)) {
             return false;
         }
         final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
@@ -125,17 +124,17 @@ public class WebServiceModule extends AbstractModule {
                 new Authorization[0] :
                 Arrays.stream(annotation.authorizations()).filter(auth -> !auth.value().equals("")).toArray(value -> new Authorization[value]);
 
-        if(authorizations.length == 0) {
-            throw new IllegalStateException(method.toGenericString()+": The permission check component requires endpoints to have authorizations definition in @ApiOperation. " +
+        if (authorizations.length == 0) {
+            throw new IllegalStateException(method.toGenericString() + ": The permission check component requires endpoints to have authorizations definition in @ApiOperation. " +
                     "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
         }
 
-        if(annotation != null && !annotation.consumes().isEmpty() && !annotation.consumes().equals("application/json")) {
+        if (annotation != null && !annotation.consumes().isEmpty() && !annotation.consumes().equals("application/json")) {
             throw new IllegalStateException("The permission check component requires endpoint to consume application/json. " +
                     "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
         }
         Api clazzOperation = method.getDeclaringClass().getAnnotation(Api.class);
-        if(authorizations.length == 0 && (clazzOperation == null || clazzOperation.authorizations().length == 0)) {
+        if (authorizations.length == 0 && (clazzOperation == null || clazzOperation.authorizations().length == 0)) {
             throw new IllegalArgumentException(String.format("Authorization for method %s is not defined. " +
                     "You must use @IgnorePermissionCheck if the endpoint doesn't need permission check", method.toString()));
         }

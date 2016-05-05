@@ -200,7 +200,7 @@
         </dependency>
 
         <dependency>
-            <groupId>net.kencochrane.raven</groupId>
+            <groupId>com.getsentry.raven</groupId>
             <artifactId>raven</artifactId>
         </dependency>
 
@@ -316,7 +316,7 @@
                             <ignoredUnusedDeclaredDependencies>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip
                                 </ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>net.kencochrane.raven:raven
+                                <ignoredUnusedDeclaredDependency>com.getsentry.raven:raven
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-website
                                 </ignoredUnusedDeclaredDependency>

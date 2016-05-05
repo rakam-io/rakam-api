@@ -1,5 +1,6 @@
 package org.rakam.ui;
 
+import com.getsentry.raven.jul.SentryHandler;
 import com.google.common.collect.ImmutableMap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -11,7 +12,6 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
-import net.kencochrane.raven.jul.SentryHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.IgnorePermissionCheck;

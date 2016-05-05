@@ -259,19 +259,21 @@ public class EventCollectionHttpService extends HttpService {
         storeEvents(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
-                    if ("application/json".equals(contentType)) {
+                    if (contentType == null || "application/json".equals(contentType)) {
                         return jsonMapper.reader(EventList.class).with(ContextAttributes.getEmpty().withSharedAttribute("apiKey", MASTER_KEY))
                                 .readValue(buff);
                     } else {
-                        String project = getParam(request.params(), "project");
+                        List<String> projectParams = request.params().get("project");
                         String collection = getParam(request.params(), "collection");
                         String api_key = getParam(request.params(), "api_key");
+                        String project;
 
-                        if(project == null) {
+                        if (projectParams == null || projectParams.isEmpty()) {
                             project = apiKeyService.getProjectOfApiKey(api_key, MASTER_KEY);
+                        } else {
+                            project = projectParams.get(0);
                         }
 
-                        checkProject(project);
                         checkCollection(collection);
 
                         if ("application/avro".equals(contentType)) {
@@ -310,10 +312,10 @@ public class EventCollectionHttpService extends HttpService {
         public final URL url;
 
         @JsonCreator
-        public BulkEventRemote(@ApiParam(name="project", required = false) String project,
-                               @ApiParam(name="collection") String collection,
-                               @ApiParam(name="api_key") String api_key,
-                               @ApiParam(name="url") URL url) {
+        public BulkEventRemote(@ApiParam(name = "project", required = false) String project,
+                               @ApiParam(name = "collection") String collection,
+                               @ApiParam(name = "api_key") String api_key,
+                               @ApiParam(name = "url") URL url) {
             this.project = project;
             this.collection = collection;
             this.api_key = api_key;
@@ -339,17 +341,15 @@ public class EventCollectionHttpService extends HttpService {
                         throw new RakamException(FORBIDDEN);
                     }
 
-                    if(query.url.getPath().endsWith(".json")) {
+                    if (query.url.getPath().endsWith(".json")) {
                         return jsonMapper.readValue(query.url, EventList.class);
-                    } else
-                    if(query.url.getPath().endsWith(".csv")) {
+                    } else if (query.url.getPath().endsWith(".csv")) {
                         return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
                                         .withSharedAttribute("project", query.project)
                                         .withSharedAttribute("collection", query.collection)
                                         .withSharedAttribute("api_key", query.api_key)
                         ).readValue(query.url);
-                    } else
-                    if(query.url.getPath().endsWith(".avro")) {
+                    } else if (query.url.getPath().endsWith(".avro")) {
                         URLConnection conn = query.url.openConnection();
                         conn.setConnectTimeout(5000);
                         conn.setReadTimeout(5000);
@@ -391,7 +391,7 @@ public class EventCollectionHttpService extends HttpService {
     @Path("/bulk/commit")
     public CompletableFuture<QueryResult> commitBulkEvents(@ApiParam(name = "project") String project,
                                                            @ApiParam(name = "collection", required = false) String collection) {
-        if(collection != null) {
+        if (collection != null) {
             return eventStore.commit(project, collection);
         } else {
             Builder<CompletableFuture<QueryResult>> builder = ImmutableList.<CompletableFuture<QueryResult>>builder();
