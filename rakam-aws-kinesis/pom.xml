@@ -145,6 +145,10 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+        </dependency>
+        <dependency>
             <artifactId>aws-java-sdk-cloudwatch</artifactId>
             <groupId>com.amazonaws</groupId>
             <version>${aws.library}</version>
