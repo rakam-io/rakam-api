@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 
 public class PostgresqlEventStreamer implements EventStream.EventStreamer {
-    final static Logger LOGGER = Logger.get(PostgresqlEventStream.class);
+    private static final Logger LOGGER = Logger.get(PostgresqlEventStream.class);
 
     private final PGConnection conn;
     private boolean open;
@@ -33,7 +33,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     private final List<CollectionStreamQuery> collections;
     private final String project;
     private final SqlParser sqlParser;
-    PGNotificationListener listener;
+    private PGNotificationListener listener;
     private Queue<String> queue = new ConcurrentLinkedQueue<>();
 
     public PostgresqlEventStreamer(PGConnection conn, String project, List<CollectionStreamQuery> collections, StreamResponse response) {

@@ -36,7 +36,7 @@ import static org.rakam.util.ValidationUtil.checkProject;
 @ConditionalModule(config="plugin.user.enabled", value = "true")
 public class UserModule extends RakamModule {
 
-    Map<String, Class<? extends UserActionService>> actionList = ImmutableMap.<String, Class<? extends UserActionService>>builder()
+    private Map<String, Class<? extends UserActionService>> actionList = ImmutableMap.<String, Class<? extends UserActionService>>builder()
                     .put("email", UserEmailActionService.class)
                     .build();
 

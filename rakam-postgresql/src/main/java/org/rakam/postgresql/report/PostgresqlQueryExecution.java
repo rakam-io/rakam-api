@@ -32,7 +32,7 @@ import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
 public class PostgresqlQueryExecution implements QueryExecution {
-    final static Logger LOGGER = Logger.get(PostgresqlQueryExecution.class);
+    private final static Logger LOGGER = Logger.get(PostgresqlQueryExecution.class);
 
     private final CompletableFuture<QueryResult> result;
     private final String query;

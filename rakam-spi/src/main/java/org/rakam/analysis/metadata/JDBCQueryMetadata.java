@@ -38,7 +38,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     private final LoadingCache<ProjectCollection, MaterializedView> materializedViewCache;
     private final Clock clock;
 
-    ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
+    private ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
         Long update_interval = r.getLong("update_interval");
         MaterializedView materializedView = new MaterializedView(
                 r.getString("project"),
@@ -53,7 +53,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
         return materializedView;
     };
 
-    ResultSetMapper<ContinuousQuery> continuousQueryMapper = (index, r, ctx) ->
+    private ResultSetMapper<ContinuousQuery> continuousQueryMapper = (index, r, ctx) ->
             new ContinuousQuery(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
             JsonHelper.read(r.getString(6), List.class),
             JsonHelper.read(r.getString(7), Map.class));

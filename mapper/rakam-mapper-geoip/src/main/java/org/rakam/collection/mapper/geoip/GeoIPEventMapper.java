@@ -36,8 +36,8 @@ import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
 
 public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
-    final static Logger LOGGER = Logger.get(GeoIPEventMapper.class);
-    final static String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
+    private static final Logger LOGGER = Logger.get(GeoIPEventMapper.class);
+    private static final String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
 
     private final static List<String> CITY_DATABASE_ATTRIBUTES = ImmutableList
             .of("city", "region", "country_code", "latitude", "longitude", "timezone");

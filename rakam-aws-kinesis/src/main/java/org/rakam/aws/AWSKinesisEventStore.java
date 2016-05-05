@@ -60,7 +60,7 @@ public class AWSKinesisEventStore implements EventStore {
     private final QueryMetadataStore queryMetadataStore;
     private final JDBCPoolDataSource dataSource;
 
-    ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
+    private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
         @Override
         protected KByteArrayOutputStream initialValue() {
             return new KByteArrayOutputStream(1000000);
