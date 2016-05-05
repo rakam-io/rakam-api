@@ -151,15 +151,15 @@ public class AWSKinesisEventStore implements EventStore {
 
             conn.createStatement().execute(format("SELECT pg_advisory_lock(hashtext('%s'))", lockKey));
 
-            String middlewareTable = format("FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'",
+            String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" <= timestamp '%s'",
                     prestoConfig.getBulkConnector(), project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)));
 
-            QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.%s.%s SELECT * %s",
+            QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.\"%s\".\"%s\" SELECT * %s",
                     prestoConfig.getColdStorageConnector(), project, collection, middlewareTable));
 
             return insertQuery.getResult().thenApply(result -> {
                 if (result.isFailed()) {
-                    throw new RakamException("Unable to commit data", INTERNAL_SERVER_ERROR);
+                    throw new RakamException("Unable to commit data: "+result.getError().toString(), INTERNAL_SERVER_ERROR);
                 }
                 ImmutableList.Builder<CompletableFuture<QueryResult>> builder = ImmutableList.builder();
                 for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
@@ -178,7 +178,7 @@ public class AWSKinesisEventStore implements EventStore {
                         continue;
                     }
 
-                    CompletableFuture<QueryResult> processQuery = executor.executeRawStatement(format("CREATE OR REPLACE VIEW %s.%s.%s AS %s",
+                    CompletableFuture<QueryResult> processQuery = executor.executeRawStatement(format("CREATE OR REPLACE VIEW %s.\"%s\".\"%s\" AS %s",
                             prestoConfig.getStreamingConnector(), project, continuousQuery.tableName, query))
                             .getResult();
                     builder.add(processQuery);

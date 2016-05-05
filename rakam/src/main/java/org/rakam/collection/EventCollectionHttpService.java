@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList.Builder;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.netty.buffer.ByteBuf;
@@ -21,6 +22,7 @@ import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ApiKeyService.AccessKeyType;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
@@ -85,6 +87,7 @@ public class EventCollectionHttpService extends HttpService {
     private final ApiKeyService apiKeyService;
     private final Set<EventProcessor> eventProcessors;
     private final AvroEventDeserializer avroEventDeserializer;
+    private final Metastore metastore;
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
@@ -92,11 +95,13 @@ public class EventCollectionHttpService extends HttpService {
                                       AvroEventDeserializer avroEventDeserializer,
                                       EventListDeserializer eventListDeserializer,
                                       CsvEventDeserializer csvEventDeserializer,
+                                      Metastore metastore,
                                       Set<EventMapper> mappers, Set<EventProcessor> eventProcessors) {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
         this.eventProcessors = eventProcessors;
         this.apiKeyService = apiKeyService;
+        this.metastore = metastore;
 
         jsonMapper = new ObjectMapper();
         SimpleModule module = new SimpleModule();
@@ -255,7 +260,8 @@ public class EventCollectionHttpService extends HttpService {
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
                     if ("application/json".equals(contentType)) {
-                        return jsonMapper.readValue(buff, EventList.class);
+                        return jsonMapper.reader(EventList.class).with(ContextAttributes.getEmpty().withSharedAttribute("apiKey", MASTER_KEY))
+                                .readValue(buff);
                     } else {
                         String project = getParam(request.params(), "project");
                         String collection = getParam(request.params(), "collection");
@@ -271,11 +277,12 @@ public class EventCollectionHttpService extends HttpService {
                         if ("application/avro".equals(contentType)) {
                             return avroEventDeserializer.deserialize(project, collection, api_key, utf8Slice(buff));
                         } else if ("text/csv".equals(contentType)) {
-                            return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
-                                            .withSharedAttribute("project", project)
-                                            .withSharedAttribute("collection", collection)
-                                            .withSharedAttribute("api_key", api_key)
-                            ).readValue(buff);
+                            return csvMapper.reader(EventList.class)
+                                    .with(ContextAttributes.getEmpty()
+                                                    .withSharedAttribute("project", project)
+                                                    .withSharedAttribute("collection", collection)
+                                                    .withSharedAttribute("api_key", api_key)
+                                    ).readValue(buff);
                         }
                     }
 
@@ -383,8 +390,24 @@ public class EventCollectionHttpService extends HttpService {
     @JsonRequest
     @Path("/bulk/commit")
     public CompletableFuture<QueryResult> commitBulkEvents(@ApiParam(name = "project") String project,
-                                                           @ApiParam(name = "collection") String collection) {
-        return eventStore.commit(project, collection);
+                                                           @ApiParam(name = "collection", required = false) String collection) {
+        if(collection != null) {
+            return eventStore.commit(project, collection);
+        } else {
+            Builder<CompletableFuture<QueryResult>> builder = ImmutableList.<CompletableFuture<QueryResult>>builder();
+            for (String c : metastore.getCollectionNames(project)) {
+                builder.add(eventStore.commit(project, c));
+            }
+            ImmutableList<CompletableFuture<QueryResult>> build = builder.build();
+            return CompletableFuture.allOf(build.stream().toArray(CompletableFuture[]::new)).thenApply(Void -> {
+                for (CompletableFuture<QueryResult> future : build) {
+                    if (future.join().isFailed()) {
+                        return future.join();
+                    }
+                }
+                return QueryResult.empty();
+            });
+        }
     }
 
     @POST
