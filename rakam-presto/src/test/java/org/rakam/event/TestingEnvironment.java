@@ -59,10 +59,13 @@ public class TestingEnvironment {
                     RaptorPlugin plugin = new RakamRaptorPlugin() {
                         @Override
                         public void setOptionalConfig(Map<String, String> optionalConfig) {
-                            ImmutableMap<String, String> configs = ImmutableMap.of(
-                                    "storage.data-directory", Files.createTempDir().getAbsolutePath(),
-                                    "metadata.db.type", "h2",
-                                    "metadata.db.filename", metadataDatabase);
+                            ImmutableMap<String, String> configs = ImmutableMap.<String, String>builder()
+                                    .put("storage.data-directory", Files.createTempDir().getAbsolutePath())
+                                    .put("metadata.db.type", "h2")
+                                    .put("metadata.db.connections.wait", "10s")
+                                    .put("metadata.db.connections.max", "500")
+                                    .put("metadata.db.mvcc.enabled", "true")
+                                    .put("metadata.db.filename", metadataDatabase).build();
 
                             super.setOptionalConfig(ImmutableMap.<String, String>builder().putAll(optionalConfig).putAll(configs).build());
                         }
@@ -213,7 +216,7 @@ public class TestingEnvironment {
         Path mainDir = new File(getProperty("user.dir"), ".test/dynamodb").toPath();
 
         dynamodbServer = new ProcessBuilder(of("java", format("-Djava.library.path=%s",
-                mainDir.resolve("DynamoDBLocal_lib").toFile().getAbsolutePath()),
+                        mainDir.resolve("DynamoDBLocal_lib").toFile().getAbsolutePath()),
                 "-jar", mainDir.resolve("DynamoDBLocal.jar").toFile().getAbsolutePath(),
                 "-inMemory", "--port", Integer.toString(randomPort)))
                 .start();
