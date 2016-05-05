@@ -23,6 +23,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryResult;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
@@ -244,9 +246,15 @@ public class PrestoMetastore extends AbstractMetastore {
         checkProject(project);
 
         try (Handle handle = reportDbi.open()) {
-            handle.createStatement("INSERT INTO project (name) VALUES(:name)")
-                    .bind("name", project)
-                    .execute();
+            try {
+                handle.createStatement("INSERT INTO project (name) VALUES(:name)")
+                        .bind("name", project)
+                        .execute();
+            } catch (Exception e) {
+                if (getProjects().contains(project)) {
+                    throw new AlreadyExistsException("project", BAD_REQUEST);
+                }
+            }
         }
 
         super.onCreateProject(project);

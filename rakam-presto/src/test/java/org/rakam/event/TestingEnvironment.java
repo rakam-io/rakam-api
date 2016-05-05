@@ -72,10 +72,8 @@ public class TestingEnvironment {
                     };
 
                     Module metastoreModule = new Module() {
-
                         @Override
                         public void configure(Binder binder) {
-
                         }
 
                         @Provides
@@ -132,6 +130,8 @@ public class TestingEnvironment {
 
                     metastore = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase)
                             .setUsername("sa").setPassword(""));
+
+                    System.out.println(prestoConfig.getAddress());
                 }
             }
             if (installMetadata) {
