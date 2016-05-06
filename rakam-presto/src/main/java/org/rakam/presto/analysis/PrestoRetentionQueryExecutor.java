@@ -139,7 +139,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
                     result.setProperty("calculatedUserSets", missingPreComputedTables);
                     if (!result.isFailed()) {
                         List<List<Object>> results = result.getResult().stream()
-                                .filter(rows -> !rows.get(2).equals(0L))
+                                .filter(rows -> rows.get(2) != null && !rows.get(2).equals(0L))
                                 .collect(Collectors.toList());
                         return new QueryResult(result.getMetadata(), results, result.getProperties());
                     }
@@ -233,7 +233,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         return String.format("select %s as date, %s _user_set from %s where date %s",
                 String.format(timeColumn, "date"),
                 dimensionRequired ? "dimension, " : "",
-                "\"" + schema + "\"" + tableNameSuffix.map(e -> ".\"" + e + "\n").orElse(""), timePredicate);
+                "\"" + schema + "\"" + tableNameSuffix.map(e -> ".\"" + e + "\n").orElse("") + "\"", timePredicate);
     }
 
     private String diffTimestamps(DateUnit dateUnit, String start, String end) {
