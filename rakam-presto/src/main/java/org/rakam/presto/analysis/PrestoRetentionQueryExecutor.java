@@ -233,7 +233,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         return String.format("select %s as date, %s _user_set from %s where date %s",
                 String.format(timeColumn, "date"),
                 dimensionRequired ? "dimension, " : "",
-                "\"" + schema + "\"" + tableNameSuffix.map(e -> ".\"" + e + "\n").orElse("") + "\"", timePredicate);
+                "\"" + schema + "\"" + tableNameSuffix.map(e -> ".\"" + e + "\"").orElse(""), timePredicate);
     }
 
     private String diffTimestamps(DateUnit dateUnit, String start, String end) {
