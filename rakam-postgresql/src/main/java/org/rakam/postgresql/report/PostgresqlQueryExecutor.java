@@ -55,7 +55,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         }
     }
 
-
+    @Override
     public QueryExecution executeRawQuery(String query) {
         return new PostgresqlQueryExecution(connectionPool, query, false);
     }

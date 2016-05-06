@@ -53,7 +53,7 @@ public class PostgresqlApiKeyService implements ApiKeyService {
                     ps.setString(1, apiKey.key);
                     ResultSet resultSet = ps.executeQuery();
                     if (!resultSet.next()) {
-                        throw new RakamException("Api key is invalid", HttpResponseStatus.FORBIDDEN);
+                        throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
                     }
                     return resultSet.getString(1);
                 } catch (SQLException e) {

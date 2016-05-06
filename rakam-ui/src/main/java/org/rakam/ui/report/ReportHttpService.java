@@ -20,6 +20,7 @@ import org.rakam.ui.JDBCReportMetadata;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
+import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -36,7 +37,6 @@ import static org.rakam.util.JsonHelper.encode;
 @Api(value = "/report", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 @IgnoreApi
 public class ReportHttpService extends HttpService {
-
     private final JDBCReportMetadata metadata;
     private final EncryptionConfig encryptionConfig;
 
@@ -77,6 +77,7 @@ public class ReportHttpService extends HttpService {
                     response = JsonResponse.success();
                     status = OK;
                 } catch (RakamException e) {
+                    SentryUtil.logException(request, e);
                     response = JsonResponse.error(e.getMessage());
                     status = e.getStatusCode();
                 }

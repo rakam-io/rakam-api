@@ -70,10 +70,6 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 null, false, new Duration(1, TimeUnit.MINUTES)), query);
     }
 
-    public PrestoQueryExecution executeRawStatement(String sqlQuery, String transactionId) {
-        return executeRawQuery(sqlQuery, transactionId);
-    }
-
     @Override
     public PrestoQueryExecution executeRawStatement(String sqlQuery) {
         return executeRawQuery(sqlQuery);

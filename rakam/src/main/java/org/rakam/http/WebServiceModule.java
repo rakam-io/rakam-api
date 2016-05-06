@@ -30,6 +30,8 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.util.AllowCookie;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
+import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
 import java.lang.reflect.Method;
@@ -68,7 +70,7 @@ public class WebServiceModule extends AbstractModule {
                         .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
 
         Swagger swagger = new Swagger().info(info)
-                .host("app.rakam.io")
+                .host("api.rakam.io")
                 .basePath("/")
                 .tags(ImmutableList.copyOf(tags))
                 .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER).name("write_key"))
@@ -90,6 +92,11 @@ public class WebServiceModule extends AbstractModule {
                 .setMapper(JsonHelper.getMapper())
                 .setDebugMode(config.getDebug())
                 .setProxyProtocol(config.getProxyProtocol())
+                .setExceptionHandler((request, ex) -> {
+                    if(ex instanceof RakamException) {
+                        SentryUtil.logException(request, (RakamException) ex);
+                    }
+                })
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
                 .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"), method -> method.isAnnotationPresent(AllowCookie.class))
                 .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
@@ -113,7 +120,6 @@ public class WebServiceModule extends AbstractModule {
 
         binder().bind(HttpServer.class).toInstance(httpServer);
     }
-
 
     public static boolean test(Method method, org.rakam.analysis.ApiKeyService.AccessKeyType key) {
         if (method.isAnnotationPresent(IgnorePermissionCheck.class)) {

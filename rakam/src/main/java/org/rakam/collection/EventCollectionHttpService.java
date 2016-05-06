@@ -40,6 +40,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
 import javax.ws.rs.POST;
@@ -179,7 +180,7 @@ public class EventCollectionHttpService extends HttpService {
                 Event.EventContext context = event.api();
 
                 if (context == null) {
-                    request.response("\"api key is missing\"", UNAUTHORIZED).end();
+                    request.response("\"API key is missing\"", UNAUTHORIZED).end();
                     return;
                 }
 
@@ -188,7 +189,7 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 if (!validateProjectPermission(event.project(), context.writeKey, WRITE_KEY)) {
-                    ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
+                    ByteBuf byteBuf = Unpooled.wrappedBuffer("\"API key is invalid\"".getBytes(CharsetUtil.UTF_8));
                     DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf);
                     errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
                     request.response(errResponse).end();
@@ -206,6 +207,7 @@ public class EventCollectionHttpService extends HttpService {
                 request.response("\"json couldn't parsed\"", BAD_REQUEST).end();
                 return;
             } catch (RakamException e) {
+                SentryUtil.logException(request, e);
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (Exception e) {
@@ -462,7 +464,7 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 if (!validateProjectPermission(events.project, context.writeKey, accessKeyType)) {
-                    ByteBuf byteBuf = Unpooled.wrappedBuffer("\"api key is invalid\"".getBytes(CharsetUtil.UTF_8));
+                    ByteBuf byteBuf = Unpooled.wrappedBuffer("\"API key is invalid\"".getBytes(CharsetUtil.UTF_8));
                     request.response(new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf, responseHeaders)).end();
                     return;
                 }
@@ -489,9 +491,10 @@ public class EventCollectionHttpService extends HttpService {
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (IOException e) {
-                request.response("\"json couldn't parsed\"", BAD_REQUEST).end();
+                request.response("\"JSON couldn't parsed\"", BAD_REQUEST).end();
                 return;
             } catch (RakamException e) {
+                SentryUtil.logException(request, e);
                 request.response(e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (Exception e) {

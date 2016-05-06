@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
@@ -25,7 +24,6 @@ import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -39,6 +37,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -54,10 +53,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpHeaders.Names.ACCEPT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
+import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
@@ -108,7 +109,7 @@ public class QueryHttpService extends HttpService {
     }
 
     public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType) {
-        if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
+        if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
         }
@@ -116,7 +117,7 @@ public class QueryHttpService extends HttpService {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
         List<String> data = request.params().get("data");
         if (data == null || data.isEmpty()) {
-            response.send("result", encode(HttpServer.errorMessage("data query parameter is required", BAD_REQUEST))).end();
+            response.send("result", encode(errorMessage("data query parameter is required", BAD_REQUEST))).end();
             return;
         }
 
@@ -124,18 +125,22 @@ public class QueryHttpService extends HttpService {
         try {
             query = JsonHelper.readSafe(data.get(0), clazz);
         } catch (IOException e) {
-            response.send("result", encode(HttpServer.errorMessage("json couldn't parsed: " + e.getMessage(), BAD_REQUEST))).end();
+            response.send("result", encode(errorMessage("JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }
 
         List<String> apiKey = request.params().get("api_key");
         if (apiKey == null || data.isEmpty()) {
-            response.send("result", encode(HttpServer.errorMessage("api key query parameter is required", BAD_REQUEST))).end();
+            String message = "api_key query parameter is required";
+            SentryUtil.logException(request, new RakamException(message, BAD_REQUEST));
+            response.send("result", encode(errorMessage(message, BAD_REQUEST))).end();
             return;
         }
 
         if (!apiKeyService.checkPermission(query.project(), keyType, apiKey.get(0))) {
-            response.send("result", encode(HttpServer.errorMessage(UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED))).end();
+            String message = "Api key is invalid";
+            SentryUtil.logException(request, new RakamException(UNAUTHORIZED));
+            response.send("result", encode(errorMessage(message, UNAUTHORIZED))).end();
             return;
         }
 
@@ -143,11 +148,12 @@ public class QueryHttpService extends HttpService {
         try {
             execute = executorFunction.apply(query);
         } catch (RakamException e) {
-            response.send("result", encode(HttpServer.errorMessage("Couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
+            SentryUtil.logException(request, e);
+            response.send("result", encode(errorMessage("Couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         } catch (Exception e) {
             LOGGER.error(e, "Error while executing query");
-            response.send("result", encode(HttpServer.errorMessage("Couldn't execute query: Internal error", BAD_REQUEST))).end();
+            response.send("result", encode(errorMessage("Couldn't execute query: Internal error", BAD_REQUEST))).end();
             return;
         }
 

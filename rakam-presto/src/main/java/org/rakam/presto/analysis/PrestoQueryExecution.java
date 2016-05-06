@@ -29,6 +29,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.RakamException;
+import org.rakam.util.SentryUtil;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -73,8 +74,8 @@ public class PrestoQueryExecution implements QueryExecution {
     private String transactionId;
 
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
-    public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS");
-    public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-M-d H:m:s.SSS z");
+    public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS z");
 
     private StatementClient client;
     private final Instant startTime;
@@ -216,6 +217,7 @@ public class PrestoQueryExecution implements QueryExecution {
                             error.getErrorCode(),
                             errorLocation != null ? errorLocation.getLineNumber() : null,
                             errorLocation != null ? errorLocation.getColumnNumber() : null);
+                    SentryUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
                     result.complete(QueryResult.errorResult(queryError));
                 } else {
                     transformAndAdd(client.finalResults());
@@ -226,7 +228,9 @@ public class PrestoQueryExecution implements QueryExecution {
                     result.complete(new QueryResult(columns, data, stats));
                 }
             } catch (Exception e) {
-                result.complete(QueryResult.errorResult(QueryError.create(e.getMessage())));
+                QueryError queryError = QueryError.create(e.getMessage());
+                SentryUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
+                result.complete(QueryResult.errorResult(queryError));
             }
         }
 

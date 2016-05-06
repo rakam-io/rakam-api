@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
+import org.rakam.analysis.EventExplorer.OLAPTable;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.plugin.MaterializedView;
@@ -122,7 +123,7 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/pre_calculate")
-    public CompletableFuture<PreCalculatedTable> createPreComputedTable(@ParamBody EventExplorer.OLAPTable table) {
+    public CompletableFuture<PreCalculatedTable> createPreComputedTable(@ParamBody OLAPTable table) {
         String metrics = table.measures.stream().map(column -> table.aggregations.stream()
                 .map(agg -> getAggregationColumn(agg, table.aggregations).map(e -> String.format(e, column) + " as " + column + "_" + agg.name().toLowerCase()))
                 .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))

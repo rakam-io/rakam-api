@@ -13,6 +13,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.SentryUtil;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -63,6 +64,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
                 if (e instanceof SQLException) {
                     SQLException cause = (SQLException) e;
                     error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), null, null);
+                    SentryUtil.logQueryError(query, error, PostgresqlQueryExecutor.class);
                 } else {
                     LOGGER.error(e, "Internal query execution error");
                     error = new QueryError(e.getMessage(), null, null, null, null);

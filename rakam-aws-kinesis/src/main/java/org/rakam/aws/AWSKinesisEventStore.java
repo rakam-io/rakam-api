@@ -192,8 +192,9 @@ public class AWSKinesisEventStore implements EventStore {
                                     return future.join();
                                 }
                             }
-                            return executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
-                                    project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)))).getResult().join();
+                            return QueryResult.empty();
+//                            return executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
+//                                    project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)))).getResult().join();
                         }).join();
             });
 
