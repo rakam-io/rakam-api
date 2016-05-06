@@ -35,7 +35,6 @@ import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +45,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
-import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 
 public class AWSKinesisEventStore implements EventStore {
     private final static Logger LOGGER = Logger.get(AWSKinesisEventStore.class);
@@ -151,8 +149,8 @@ public class AWSKinesisEventStore implements EventStore {
 
             conn.createStatement().execute(format("SELECT pg_advisory_lock(hashtext('%s'))", lockKey));
 
-            String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" <= timestamp '%s'",
-                    prestoConfig.getBulkConnector(), project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)));
+            String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" > date '2016-05-05'",
+                    prestoConfig.getBulkConnector(), project, collection);
 
             QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.\"%s\".\"%s\" SELECT * %s",
                     prestoConfig.getColdStorageConnector(), project, collection, middlewareTable));
