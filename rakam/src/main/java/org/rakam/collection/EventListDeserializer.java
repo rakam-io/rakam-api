@@ -46,8 +46,6 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
 
         if (fieldName.equals("api")) {
             context = jp.readValueAs(Event.EventContext.class);
-        } else if (fieldName.equals("project")) {
-            project = jp.getValueAsString();
         }
 
         t = jp.nextToken();
@@ -63,8 +61,6 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
 
             if (fieldName.equals("api")) {
                 context = jp.readValueAs(Event.EventContext.class);
-            } else if (fieldName.equals("project")) {
-                project = jp.getValueAsString();
             }
         }
 

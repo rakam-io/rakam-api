@@ -68,7 +68,6 @@ public class TestEventJsonParser {
     public void testSimple() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", ImmutableMap.of()));
@@ -110,7 +109,6 @@ public class TestEventJsonParser {
                 "test4", LocalDate.now());
 
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", properties));
@@ -138,7 +136,6 @@ public class TestEventJsonParser {
                 "test1", ImmutableMap.of("a", 4.0, "b", 5.0, "c", 6.0, "d", 7.0),
                 "test2", false);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", properties));
@@ -159,7 +156,6 @@ public class TestEventJsonParser {
                 "test1", ImmutableList.of("test", "test"),
                 "test2", false);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", properties));
@@ -178,7 +174,6 @@ public class TestEventJsonParser {
     public void testInvalidOrder() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "properties", ImmutableMap.of("test0", "test",
                         "test1", ImmutableList.of("test", "test"),
                         "test2", false),
@@ -192,7 +187,6 @@ public class TestEventJsonParser {
     public void testInvalidField() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", ImmutableMap.of("test0", "test",
@@ -215,7 +209,6 @@ public class TestEventJsonParser {
     public void testInvalidArrayRecursiveType() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", ImmutableMap.of("test0", "test",
@@ -229,7 +222,6 @@ public class TestEventJsonParser {
     public void testInvalidMapRecursiveType() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", ImmutableMap.of("test0", "test",
@@ -244,7 +236,6 @@ public class TestEventJsonParser {
 
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", ImmutableMap.of("test1", ImmutableList.of(true, 10))));
@@ -262,7 +253,6 @@ public class TestEventJsonParser {
     public void testInvalidMap() throws Exception {
         Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "collection", "test",
                 "api", api,
                 "properties", ImmutableMap.of("test1", ImmutableMap.of("test", 1, "test2", "test"))));
@@ -285,7 +275,6 @@ public class TestEventJsonParser {
                 "test1", ImmutableList.of("test"),
                 "test2", false);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
                 "api", api,
                 "events", ImmutableList.of(
                         ImmutableMap.of("collection", "test", "properties", props),
@@ -327,17 +316,4 @@ public class TestEventJsonParser {
             assertEquals(eventBuilder.createEvent("test", props).properties(), event.properties());
         }
     }
-
-    @Test(expectedExceptions = RakamException.class, expectedExceptionsMessageRegExp = "project is already set")
-    public void testBatchProjectInEvent() throws Exception {
-        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
-                "project", "test",
-                "api", new Event.EventContext(apiKeys.writeKey, "1.0", null, null),
-                "events", ImmutableList.of(
-                        ImmutableMap.of("project", "test", "collection", "test", "properties", ImmutableMap.of()))));
-
-        mapper.readValue(bytes, EventList.class);
-    }
-
-    // TODO: test invalid json data
 }

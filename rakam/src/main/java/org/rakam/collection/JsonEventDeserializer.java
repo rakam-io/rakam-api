@@ -93,18 +93,6 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             t = jp.nextToken();
 
             switch (fieldName) {
-                case "project":
-                    if (t != VALUE_STRING) {
-                        throw new RakamException("project parameter must be a string", BAD_REQUEST);
-                    }
-                    if (project != null) {
-                        if (jp.getValueAsString() != null) {
-                            throw new RakamException("project is already set", BAD_REQUEST);
-                        }
-                    } else {
-                        project = jp.getValueAsString();
-                    }
-                    break;
                 case "collection":
                     if (t != VALUE_STRING) {
                         throw new RakamException("collection parameter must be a string", BAD_REQUEST);
