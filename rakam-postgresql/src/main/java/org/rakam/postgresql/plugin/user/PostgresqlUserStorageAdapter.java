@@ -101,6 +101,6 @@ public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage 
             builder.append(getEventFilterPredicate(project, eventFilter));
         }
 
-        materializedViewService.create(new MaterializedView(project, name, tableName, builder.toString(), interval, null, ImmutableMap.of()));
+        materializedViewService.create(project, new MaterializedView(name, tableName, builder.toString(), interval, null, ImmutableMap.of()));
     }
 }

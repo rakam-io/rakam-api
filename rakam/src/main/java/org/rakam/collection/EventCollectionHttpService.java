@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.netty.buffer.ByteBuf;
@@ -22,11 +21,13 @@ import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ApiKeyService.AccessKeyType;
+import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
-import org.rakam.report.QueryResult;
+import org.rakam.report.ChainQueryExecution;
+import org.rakam.report.QueryExecution;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
@@ -36,13 +37,15 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.xml.bind.DatatypeConverter;
@@ -54,12 +57,12 @@ import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Charsets.UTF_8;
@@ -71,8 +74,9 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.server.http.HttpServer.errorMessage;
+import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.ValidationUtil.checkCollection;
-import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/event")
 @Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
@@ -89,10 +93,12 @@ public class EventCollectionHttpService extends HttpService {
     private final Set<EventProcessor> eventProcessors;
     private final AvroEventDeserializer avroEventDeserializer;
     private final Metastore metastore;
+    private final QueryHttpService queryHttpService;
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
                                       JsonEventDeserializer deserializer,
+                                      QueryHttpService queryHttpService,
                                       AvroEventDeserializer avroEventDeserializer,
                                       EventListDeserializer eventListDeserializer,
                                       CsvEventDeserializer csvEventDeserializer,
@@ -102,6 +108,7 @@ public class EventCollectionHttpService extends HttpService {
         this.eventMappers = mappers;
         this.eventProcessors = eventProcessors;
         this.apiKeyService = apiKeyService;
+        this.queryHttpService = queryHttpService;
         this.metastore = metastore;
 
         jsonMapper = new ObjectMapper();
@@ -262,7 +269,8 @@ public class EventCollectionHttpService extends HttpService {
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
                     if (contentType == null || "application/json".equals(contentType)) {
-                        return jsonMapper.reader(EventList.class).with(ContextAttributes.getEmpty().withSharedAttribute("apiKey", MASTER_KEY))
+                        return jsonMapper.reader(EventList.class)
+                                .with(ContextAttributes.getEmpty().withSharedAttribute("apiKey", MASTER_KEY))
                                 .readValue(buff);
                     } else {
                         List<String> projectParams = request.params().get("project");
@@ -294,7 +302,7 @@ public class EventCollectionHttpService extends HttpService {
                 },
                 (events, responseHeaders) -> {
                     try {
-                        eventStore.storeBulk(events, !ImmutableList.of("false").equals(request.params().get("commit")));
+                        eventStore.storeBulk(events, false);
                     } catch (Exception e) {
                         LOGGER.error(e, "error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
@@ -308,17 +316,14 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     public static class BulkEventRemote {
-        public final String project;
         public final String collection;
         public final String api_key;
         public final URL url;
 
         @JsonCreator
-        public BulkEventRemote(@ApiParam(name = "project", required = false) String project,
-                               @ApiParam(name = "collection") String collection,
-                               @ApiParam(name = "api_key") String api_key,
-                               @ApiParam(name = "url") URL url) {
-            this.project = project;
+        public BulkEventRemote(@ApiParam("collection") String collection,
+                               @ApiParam("api_key") String api_key,
+                               @ApiParam("url") URL url) {
             this.collection = collection;
             this.api_key = api_key;
             this.url = url;
@@ -337,17 +342,15 @@ public class EventCollectionHttpService extends HttpService {
         storeEvents(request,
                 buff -> {
                     BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
-                    checkProject(query.project);
+                    String project = apiKeyService.getProjectOfApiKey(query.api_key, MASTER_KEY);
+
                     checkCollection(query.collection);
-                    if (!apiKeyService.checkPermission(query.project, MASTER_KEY, query.api_key)) {
-                        throw new RakamException(FORBIDDEN);
-                    }
 
                     if (query.url.getPath().endsWith(".json")) {
                         return jsonMapper.readValue(query.url, EventList.class);
                     } else if (query.url.getPath().endsWith(".csv")) {
                         return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
-                                        .withSharedAttribute("project", query.project)
+                                        .withSharedAttribute("project", project)
                                         .withSharedAttribute("collection", query.collection)
                                         .withSharedAttribute("api_key", query.api_key)
                         ).readValue(query.url);
@@ -358,7 +361,7 @@ public class EventCollectionHttpService extends HttpService {
                         conn.connect();
 
                         Slice slice = wrappedBuffer(toByteArray(conn.getInputStream()));
-                        return avroEventDeserializer.deserialize(query.project, query.collection, query.api_key, slice);
+                        return avroEventDeserializer.deserialize(project, query.collection, query.api_key, slice);
                     }
 
                     throw new RakamException("Unsupported content type.", BAD_REQUEST);
@@ -387,29 +390,59 @@ public class EventCollectionHttpService extends HttpService {
         return strings.get(strings.size() - 1);
     }
 
-    @POST
-    @ApiOperation(value = "Commit Bulk events", authorizations = @Authorization(value = "master_key"))
-    @JsonRequest
-    @Path("/bulk/commit")
-    public CompletableFuture<QueryResult> commitBulkEvents(@ApiParam(name = "project") String project,
-                                                           @ApiParam(name = "collection", required = false) String collection) {
-        if (collection != null) {
-            return eventStore.commit(project, collection);
-        } else {
-            Builder<CompletableFuture<QueryResult>> builder = ImmutableList.<CompletableFuture<QueryResult>>builder();
-            for (String c : metastore.getCollectionNames(project)) {
-                builder.add(eventStore.commit(project, c));
-            }
-            ImmutableList<CompletableFuture<QueryResult>> build = builder.build();
-            return CompletableFuture.allOf(build.stream().toArray(CompletableFuture[]::new)).thenApply(Void -> {
-                for (CompletableFuture<QueryResult> future : build) {
-                    if (future.join().isFailed()) {
-                        return future.join();
-                    }
-                }
-                return QueryResult.empty();
-            });
+    public static class CommitRequest {
+        public final List<String> collections;
+
+        @JsonCreator
+        public CommitRequest(@ApiParam("collections") List<String> collections) {
+            this.collections = collections;
         }
+    }
+
+    @GET
+    @Consumes("text/event-stream")
+    @IgnoreApi
+    @ApiOperation(value = "Commit Bulk events", request = CommitRequest.class, authorizations = @Authorization(value = "master_key"))
+    @Path("/bulk/commit")
+    public void commitBulkEvents(RakamHttpRequest request) {
+        RakamHttpRequest.StreamResponse response = request.streamResponse();
+
+        List<String> data = request.params().get("data");
+        if (data == null || data.isEmpty()) {
+            response.send("result", encode(errorMessage("data query parameter is required", BAD_REQUEST))).end();
+            return;
+        }
+
+        List<String> apiKey = request.params().get("api_key");
+        if (apiKey == null || data.isEmpty()) {
+            String message = "api_key query parameter is required";
+            response.send("result", encode(errorMessage(message, BAD_REQUEST))).end();
+            return;
+        }
+
+        String project;
+        try {
+            project = apiKeyService.getProjectOfApiKey(apiKey.get(0), MASTER_KEY);
+        } catch (RakamException e) {
+            response.send("result", encode(errorMessage(e.getMessage(), e.getStatusCode()))).end();
+            return;
+        }
+
+        CommitRequest commitRequest = JsonHelper.read(data.get(0), CommitRequest.class);
+
+        Collection<String> collections;
+        if (commitRequest.collections != null) {
+            collections = commitRequest.collections;
+        } else {
+            collections = metastore.getCollectionNames(project);
+        }
+
+        ImmutableList.Builder<QueryExecution> builder = ImmutableList.<QueryExecution>builder();
+        for (String collection : collections) {
+            builder.add(eventStore.commit(project, collection));
+        }
+
+        queryHttpService.handleServerSentQueryExecution(request, new ChainQueryExecution(builder.build(), null));
     }
 
     @POST
@@ -435,12 +468,10 @@ public class EventCollectionHttpService extends HttpService {
 
                     if (errorIndexes.length == 0) {
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                                Unpooled.wrappedBuffer(OK_MESSAGE),
-                                responseHeaders);
+                                Unpooled.wrappedBuffer(OK_MESSAGE), responseHeaders);
                     } else {
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
-                                Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)),
-                                responseHeaders);
+                                Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorIndexes)), responseHeaders);
                     }
                 }, WRITE_KEY);
     }
@@ -495,7 +526,7 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             } catch (RakamException e) {
                 SentryUtil.logException(request, e);
-                request.response(e.getMessage(), BAD_REQUEST).end();
+                request.response(e.getMessage(), e.getStatusCode()).end();
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
@@ -508,14 +539,15 @@ public class EventCollectionHttpService extends HttpService {
             }
 
             if (entries != null) {
-                responseHeaders.add(HttpHeaders.Names.SET_COOKIE,
-                        ServerCookieEncoder.STRICT.encode(entries));
+                responseHeaders.add(HttpHeaders.Names.SET_COOKIE, ServerCookieEncoder.STRICT.encode(entries));
             }
 
             String headerList = getHeaderList(responseHeaders.iterator());
             if (headerList != null) {
                 responseHeaders.set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
+
+            responseHeaders.add(CONTENT_TYPE, "application/json");
 
             request.response(response).end();
         });

@@ -3,7 +3,6 @@ package org.rakam.ui.report;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.Map;
@@ -12,8 +11,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 
-public class Report implements ProjectItem {
-    public final String project;
+public class Report {
     public final String slug;
     public final String category;
     public final String name;
@@ -27,15 +25,13 @@ public class Report implements ProjectItem {
     public Integer userId;
 
     @JsonCreator
-    public Report(@ApiParam(name = "project", required = true) String project,
-                  @ApiParam(name = "slug", value="Short name of the report") String slug,
-                  @ApiParam(name = "category", value="Category of the report", required = false) String category,
-                  @ApiParam(name = "name", value="The name of the report") String name,
-                  @ApiParam(name = "query", value="The sql query that will be executed") @JsonProperty("query") String query,
-                  @ApiParam(name = "options", value="Additional information about the materialized view", required = false) Map<String, Object> options,
-                  @ApiParam(name = "shared", value="Shared with other users") boolean shared)
+    public Report(@ApiParam(value="slug", description="Short name of the report") String slug,
+                  @ApiParam(value="category", description="Category of the report", required = false) String category,
+                  @ApiParam(value="name", description="The name of the report") String name,
+                  @ApiParam(value="query", description="The sql query that will be executed") @JsonProperty("query") String query,
+                  @ApiParam(value="options", description="Additional information about the materialized view", required = false) Map<String, Object> options,
+                  @ApiParam(value="shared", description="Shared with other users") boolean shared)
     {
-        this.project = checkNotNull(project, "project is required");
         this.name = checkNotNull(name, "name is required");
         this.slug = checkNotNull(slug, "slug is required");
         this.query = checkNotNull(query, "query is required");
@@ -49,11 +45,6 @@ public class Report implements ProjectItem {
 
     public void setPermission(boolean hasPermission) {
         this.hasPermission = hasPermission;
-    }
-
-    @Override
-    public String project() {
-        return project;
     }
 
     public void setUserId(int user) {

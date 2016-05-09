@@ -1,21 +1,23 @@
 package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+@JsonPropertyOrder({"project", "api", "events"})
 public class EventList {
     public final Event.EventContext api;
     public final String project;
     public final List<Event> events;
 
     @JsonCreator
-    public EventList(@ApiParam(name = "api") Event.EventContext api,
-                     @ApiParam(name = "project") String project,
-                     @ApiParam(name = "events") List<Event> events) {
+    public EventList(@ApiParam("api") Event.EventContext api,
+                     @ApiParam("project") String project,
+                     @ApiParam("events") List<Event> events) {
         this.project = checkNotNull(project, "project parameter is null");
         this.events = checkNotNull(events, "events parameter is null");
         this.api = checkNotNull(api, "api is null");

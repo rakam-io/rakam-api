@@ -15,6 +15,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
@@ -31,11 +32,13 @@ public class ProjectHttpService extends HttpService {
     private final Metastore metastore;
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
+    private final ApiKeyService apiKeyService;
 
     @Inject
-    public ProjectHttpService(Metastore metastore, MaterializedViewService materializedViewService, ContinuousQueryService continuousQueryService) {
+    public ProjectHttpService(Metastore metastore, MaterializedViewService materializedViewService, ApiKeyService apiKeyService, ContinuousQueryService continuousQueryService) {
         this.continuousQueryService = continuousQueryService;
         this.materializedViewService = materializedViewService;
+        this.apiKeyService = apiKeyService;
         this.metastore = metastore;
     }
 
@@ -44,7 +47,7 @@ public class ProjectHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/create")
-    public JsonResponse createProject(@ApiParam(name = "name") String name) {
+    public JsonResponse createProject(@ApiParam("name") String name) {
         checkProject(name);
         metastore.createProject(name.toLowerCase(ENGLISH));
         return JsonResponse.success();
@@ -55,21 +58,21 @@ public class ProjectHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/delete")
-    public JsonResponse deleteProject(@ApiParam(name = "project") String project) {
+    public JsonResponse deleteProject(@Named("project") String project) {
         checkProject(project);
         metastore.deleteProject(project.toLowerCase(ENGLISH));
 
         List<ContinuousQuery> list = continuousQueryService.list(project);
         for (ContinuousQuery continuousQuery : list) {
-            if (!continuousQueryService.delete(continuousQuery.project,
-                    continuousQuery.tableName).join()) {
-            }
+            continuousQueryService.delete(project, continuousQuery.tableName);
         }
 
         List<MaterializedView> views = materializedViewService.list(project);
         for (MaterializedView view : views) {
-            materializedViewService.delete(view.project, view.tableName);
+            materializedViewService.delete(project, view.tableName);
         }
+
+        apiKeyService.revokeAllKeys(project);
 
         return JsonResponse.success();
     }
@@ -89,9 +92,9 @@ public class ProjectHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema/add")
-    public List<SchemaField> addFieldsToSchema(@ApiParam(name = "project") String project,
-                                               @ApiParam(name = "collection") String collection,
-                                               @ApiParam(name = "fields") Set<SchemaField> fields) {
+    public List<SchemaField> addFieldsToSchema(@Named("project") String project,
+                                               @ApiParam("collection") String collection,
+                                               @ApiParam("fields") Set<SchemaField> fields) {
         return metastore.getOrCreateCollectionFieldList(project, collection, fields);
     }
 
@@ -101,10 +104,10 @@ public class ProjectHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema/add/custom")
-    public List<SchemaField> addCustomFieldsToSchema(@ApiParam(name = "project") String project,
-                                                     @ApiParam(name = "collection") String collection,
-                                                     @ApiParam(name = "schema_type") SchemaConverter type,
-                                                     @ApiParam(name = "schema") String schema) {
+    public List<SchemaField> addCustomFieldsToSchema(@Named("project") String project,
+                                                     @ApiParam("collection") String collection,
+                                                     @ApiParam("schema_type") SchemaConverter type,
+                                                     @ApiParam("schema") String schema) {
         return metastore.getOrCreateCollectionFieldList(project, collection, type.getMapper().apply(schema));
     }
 
@@ -114,8 +117,8 @@ public class ProjectHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema")
-    public List<Collection> schema(@ApiParam(name = "project") String project,
-                                   @ApiParam(name = "names", required = false) Set<String> names) {
+    public List<Collection> schema(@Named("project") String project,
+                                   @ApiParam(value = "names", required = false) Set<String> names) {
         return metastore.getCollections(project).entrySet().stream()
                 .filter(entry -> names == null || names.contains(entry.getKey()))
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()))
@@ -128,7 +131,7 @@ public class ProjectHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/collection")
-    public Set<String> collections(@ApiParam(name = "project") String project) {
+    public Set<String> collections(@Named("project") String project) {
         return metastore.getCollectionNames(project);
     }
 

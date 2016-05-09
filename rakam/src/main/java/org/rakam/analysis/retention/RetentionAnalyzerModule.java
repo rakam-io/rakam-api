@@ -66,11 +66,11 @@ public class RetentionAnalyzerModule extends RakamModule {
 
         @Subscribe
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            ContinuousQuery report = new ContinuousQuery(event.project, "Daily distinct users " + event.collection,
+            ContinuousQuery report = new ContinuousQuery("Daily distinct users " + event.collection,
                     "_users_" + event.collection,
                     String.format(QUERY, event.collection),
                     ImmutableList.of("date"), ImmutableMap.of());
-            continuousQueryService.create(report, false);
+            continuousQueryService.create(event.project, report, false);
         }
     }
 }

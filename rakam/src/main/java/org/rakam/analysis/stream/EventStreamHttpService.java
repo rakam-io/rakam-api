@@ -4,7 +4,6 @@ import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -17,6 +16,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
@@ -59,7 +59,7 @@ public class EventStreamHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key"),
             notes = "Subscribes the event stream.")
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/subscribe")
     @IgnorePermissionCheck
     @IgnoreApi
@@ -85,11 +85,13 @@ public class EventStreamHttpService extends HttpService {
             return;
         }
         List<String> api_key = request.params().get("api_key");
-        if (api_key == null || api_key.isEmpty() ||
-                !apiKeyService.checkPermission(query.project, org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY, api_key.get(0))) {
+
+        if (api_key == null || api_key.isEmpty()) {
             response.send("result", HttpResponseStatus.UNAUTHORIZED.reasonPhrase()).end();
             return;
         }
+
+        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), ApiKeyService.AccessKeyType.READ_KEY);
 
         List<CollectionStreamQuery> collect;
         try {
@@ -109,15 +111,15 @@ public class EventStreamHttpService extends HttpService {
             return;
         }
 
-        EventStream.EventStreamer subscribe = stream.subscribe(query.project, collect, query.columns,
+        EventStream.EventStreamer subscribe = stream.subscribe(project, collect, query.columns,
                 new StreamResponseAdapter(response));
 
         eventLoopGroup.schedule(new Runnable() {
             @Override
             public void run() {
-                if(response.isClosed()) {
+                if (response.isClosed()) {
                     subscribe.shutdown();
-                }else {
+                } else {
                     subscribe.sync();
                     eventLoopGroup.schedule(this, 3, TimeUnit.SECONDS);
                 }
@@ -131,15 +133,12 @@ public class EventStreamHttpService extends HttpService {
     }
 
     public static class StreamQuery {
-        public final String project;
         public final List<StreamQueryRequest> collections;
         public final List<String> columns;
 
         @JsonCreator
-        public StreamQuery(@JsonProperty("project") String project,
-                           @JsonProperty("collections") List<StreamQueryRequest> collections,
-                           @JsonProperty("columns") List<String> columns) {
-            this.project = project;
+        public StreamQuery(@ApiParam("collections") List<StreamQueryRequest> collections,
+                           @ApiParam("columns") List<String> columns) {
             this.collections = collections;
             this.columns = columns;
         }
@@ -150,8 +149,8 @@ public class EventStreamHttpService extends HttpService {
         public final String filter;
 
         @JsonCreator
-        public StreamQueryRequest(@JsonProperty("name") String name,
-                                  @JsonProperty("filter") String filter) {
+        public StreamQueryRequest(@ApiParam("name") String name,
+                                  @ApiParam("filter") String filter) {
             this.name = name;
             this.filter = filter;
         }

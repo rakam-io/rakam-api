@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -21,6 +22,9 @@ public abstract class AbstractUserService {
     }
 
     public String create(String project, String id, Map<String, Object> properties) {
+        if(id == null) {
+            id = UUID.randomUUID().toString();
+        }
         return storage.create(project, id, properties);
     }
 

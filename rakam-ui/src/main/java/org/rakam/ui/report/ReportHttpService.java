@@ -23,6 +23,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.util.Optional;
@@ -49,7 +50,7 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "List Reports", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
-    public Object list(@ApiParam(name = "project", value = "Project id", required = true) String project,
+    public Object list(@javax.inject.Named("project") String project,
                        @CookieParam(name = "session") String session) {
         int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
         return metadata.getReports(userId, project);
@@ -58,7 +59,7 @@ public class ReportHttpService extends HttpService {
     @ApiOperation(value = "Create Report", authorizations = @Authorization(value = "read_key"))
     @Path("/create")
     @POST
-    public void create(RakamHttpRequest request) {
+    public void create(@Named("project") String project, RakamHttpRequest request) {
         request.bodyHandler(body -> {
             Report report = JsonHelper.read(body, Report.class);
 
@@ -72,7 +73,7 @@ public class ReportHttpService extends HttpService {
                 status = UNAUTHORIZED;
             } else {
                 try {
-                    metadata.save(user.get(), report);
+                    metadata.save(user.get(), project, report);
 
                     response = JsonResponse.success();
                     status = OK;
@@ -93,8 +94,8 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
-    public JsonResponse delete(@ApiParam(name = "project", value = "Project id", required = true) String project,
-                               @ApiParam(name = "slug", value = "Slug", required = true) String slug,
+    public JsonResponse delete(@javax.inject.Named("project") String project,
+                               @ApiParam(value="slug", description = "Slug") String slug,
                                @CookieParam(name = "session") String session) {
         metadata.delete(extractUserFromCookie(session, encryptionConfig.getSecretKey()),
                 project, slug);
@@ -105,9 +106,9 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public Report get(@ApiParam(name = "project", value = "Project id") String project,
-                      @ApiParam(name = "slug", value = "Report name") String slug,
-                      @ApiParam(name = "user_id", required = false, value = "Report user id") Integer userId,
+    public Report get(@javax.inject.Named("project") String project,
+                      @ApiParam(value="slug", description = "Report name") String slug,
+                      @ApiParam(value="user_id", required = false, description = "Report user id") Integer userId,
                       @CookieParam(name = "session") String session) {
         return metadata.get(extractUserFromCookie(session, encryptionConfig.getSecretKey()), userId, project, slug);
     }
@@ -115,7 +116,7 @@ public class ReportHttpService extends HttpService {
     @ApiOperation(value = "Update report", authorizations = @Authorization(value = "read_key"))
     @POST
     @Path("/update")
-    public void update(RakamHttpRequest request) {
+    public void update(@Named("project") String project, RakamHttpRequest request) {
         request.bodyHandler(body -> {
             Report report = JsonHelper.read(body, Report.class);
 
@@ -125,7 +126,7 @@ public class ReportHttpService extends HttpService {
             if (!user.isPresent()) {
                 request.response(encode(JsonResponse.error("Unauthorized")), UNAUTHORIZED).end();
             } else {
-                metadata.update(user.get(), report);
+                metadata.update(user.get(), project, report);
                 request.response(encode(JsonResponse.success()), OK).end();
             }
         });

@@ -14,29 +14,20 @@
 package org.rakam.ui.customreport;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
 
-public class CustomReport implements ProjectItem {
+public class CustomReport {
     public final String reportType;
-    public final String project;
     public final String name;
     public final Object data;
 
     @JsonCreator
-    public CustomReport(@ApiParam(name="report_type") String reportType,
-                        @ApiParam(name="project") String project,
-                        @ApiParam(name="name") String name,
-                        @ApiParam(name="data") Object data) {
+    public CustomReport(@ApiParam("report_type") String reportType,
+                        @ApiParam("name") String name,
+                        @ApiParam("data") Object data) {
         this.reportType = reportType;
-        this.project = project;
         this.name = name;
         this.data = data;
-    }
-
-    @Override
-    public String project() {
-        return project;
     }
 }

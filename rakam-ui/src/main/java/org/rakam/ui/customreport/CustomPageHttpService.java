@@ -116,7 +116,7 @@ public class CustomPageHttpService extends HttpService {
     @POST
     @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"),
             response = JsonResponse.class, request = CustomPageDatabase.Page.class)
-    public void save(RakamHttpRequest request) {
+    public void save(@javax.inject.Named("project") String project, RakamHttpRequest request) {
         request.bodyHandler(body -> {
             CustomPageDatabase.Page report = JsonHelper.read(body, CustomPageDatabase.Page.class);
 
@@ -126,7 +126,7 @@ public class CustomPageHttpService extends HttpService {
             if (!user.isPresent()) {
                 request.response(encode(JsonResponse.error("Unauthorized")), UNAUTHORIZED).end();
             } else {
-                database.get().save(user.get(), report);
+                database.get().save(user.get(), project, report);
                 request.response(encode(JsonResponse.success()), OK).end();
             }
         });
@@ -135,8 +135,8 @@ public class CustomPageHttpService extends HttpService {
     @Path("/delete")
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public JsonResponse delete(@ApiParam(name = "project") String project,
-                               @ApiParam(name = "name") String name) {
+    public JsonResponse delete(@javax.inject.Named("project") String project,
+                               @ApiParam("name") String name) {
         if(!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
@@ -155,8 +155,8 @@ public class CustomPageHttpService extends HttpService {
     @Path("/get")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public Map<String, String> get(@ApiParam(name = "project") String project,
-                                   @ApiParam(name = "slug") String slug) {
+    public Map<String, String> get(@javax.inject.Named("project") String project,
+                                   @ApiParam("slug") String slug) {
         if(!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
@@ -198,7 +198,7 @@ public class CustomPageHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public List<CustomPageDatabase.Page> list(@ApiParam(name = "project") String project) {
+    public List<CustomPageDatabase.Page> list(@javax.inject.Named("project") String project) {
         if(!database.isPresent()) {
             return null;
         }

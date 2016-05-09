@@ -24,7 +24,7 @@ public class ABTestingMetastore {
     private ResultSetMapper<ABTestingReport> mapper = (index, r, ctx) -> {
         List<Variant> variants = Arrays.asList(JsonHelper.read(r.getString(4), Variant[].class));
         Goal goals = Arrays.asList(JsonHelper.read(r.getString(7), Goal[].class)).get(0);
-        return new ABTestingReport(r.getInt(1), r.getString(2), r.getString(3),
+        return new ABTestingReport(r.getInt(1), r.getString(3),
                 variants, r.getString(5), r.getString(6), goals, JsonHelper.read(r.getString(8)));
     };
 
@@ -53,7 +53,7 @@ public class ABTestingMetastore {
 
     public List<ABTestingReport> getReports(String project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, project, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project")
+            return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project")
                     .bind("project", project).map(mapper).list();
         }
     }
@@ -65,13 +65,13 @@ public class ABTestingMetastore {
         }
     }
 
-    public void save(ABTestingReport report) {
+    public void save(String project, ABTestingReport report) {
         if(report.id != -1) {
             throw new RakamException("Report already has an id.", HttpResponseStatus.BAD_REQUEST);
         }
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO ab_testing (project, name, variants, collection_name, connector_field, goals, options) VALUES (:project, :name, :variants, :collection_name, :goals, :options)")
-                    .bind("project", report.project)
+                    .bind("project", project)
                     .bind("name", report.name)
                     .bind("collection_name", report.collectionName)
                     .bind("variants", JsonHelper.encode(report.variants))
@@ -88,19 +88,19 @@ public class ABTestingMetastore {
 
     public ABTestingReport get(String project, int id) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project AND id = :id")
+            return handle.createQuery("SELECT id, name, variants, collection_name, connector_field, goals, options FROM ab_testing WHERE project = :project AND id = :id")
                     .bind("project", project)
                     .bind("id", id).map(mapper).first();
         }
     }
 
-    public ABTestingReport update(ABTestingReport report) {
+    public ABTestingReport update(String project, ABTestingReport report) {
         if(report.id == 1) {
             throw new RakamException("Report doesn't have an id.", HttpResponseStatus.BAD_REQUEST);
         }
         try(Handle handle = dbi.open()) {
             int execute = handle.createStatement("UPDATE reports SET name = :name, variants = :variants, collection_name = :collection_name, connector_field = :connector_field, goals = :goals, options = :options WHERE project = :project AND id = :id")
-                    .bind("project", report.project)
+                    .bind("project", project)
                     .bind("id", report.id)
                     .bind("variants", report.variants)
                     .bind("connector_field", report.connectorField)

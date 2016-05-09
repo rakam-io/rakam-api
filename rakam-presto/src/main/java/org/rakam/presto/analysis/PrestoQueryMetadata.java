@@ -19,7 +19,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 public class PrestoQueryMetadata extends JDBCQueryMetadata {
@@ -45,9 +47,9 @@ public class PrestoQueryMetadata extends JDBCQueryMetadata {
     }
 
     @Override
-    public void createContinuousQuery(ContinuousQuery report) {
+    public void createContinuousQuery(String project, ContinuousQuery report) {
         QueryResult join = executor.executeRawStatement(String.format("CREATE VIEW streaming.\"%s\".\"%s\" AS %s",
-                report.project(), report.tableName, report.query))
+                project, report.tableName, report.query))
                 .getResult().join();
         if (join.isFailed()) {
             throw new RakamException(join.getError().message, HttpResponseStatus.BAD_REQUEST);
@@ -70,7 +72,7 @@ public class PrestoQueryMetadata extends JDBCQueryMetadata {
             ArrayList<ContinuousQuery> continuousQueries = new ArrayList<>();
             ResultSet streaming = prestoMetadata.getTables("streaming", project, null, new String[]{"VIEW"});
             while(streaming.next()) {
-                continuousQueries.add(new ContinuousQuery(streaming.getString("table_schem"),
+                continuousQueries.add(new ContinuousQuery(
                         streaming.getString("table_name"),
                         streaming.getString("table_name"), "select 1",
                         ImmutableList.of(),
@@ -96,14 +98,14 @@ public class PrestoQueryMetadata extends JDBCQueryMetadata {
     }
 
     @Override
-    public List<ContinuousQuery> getAllContinuousQueries() {
+    public Map<String, Collection<ContinuousQuery>> getAllContinuousQueries() {
         try {
             ArrayList<ContinuousQuery> continuousQueries = new ArrayList<>();
             ResultSet streaming = prestoMetadata.getTables("streaming", null, null, new String[]{"VIEW"});
             while(streaming.next()) {
 //                continuousQueries.add(new ContinuousQuery(streaming.getString("table_schem"), streaming.getString("table_name"), streaming.getString("table_name"), "select 1", ImmutableList.of(), ImmutableList.of()));
             }
-            return continuousQueries;
+            return null;
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

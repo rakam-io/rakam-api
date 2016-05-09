@@ -72,7 +72,7 @@ public class KByteArrayOutputStream extends OutputStream {
         return buf.length - position;
     }
 
-    public ByteBuffer getBuffer(int startPosition, int endPosition) {
-        return ByteBuffer.wrap(buf, startPosition, endPosition);
+    public ByteBuffer getBuffer(int startPosition, int length) {
+        return ByteBuffer.wrap(buf, startPosition, length);
     }
 }

@@ -60,18 +60,18 @@ public class UserMailboxHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 404, message = "User does not exist.")})
-    public List<Message> get(@ApiParam(name = "project", value = "Project id", required = true) String project,
-                             @ApiParam(name = "user", value = "User id", required = true) String user,
-                             @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
-                             @ApiParam(name = "limit", value = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
-                             @ApiParam(name = "offset", value = "Message query result offset", required = false) Long offset) {
+    public List<Message> getMailbox(@javax.inject.Named("project") String project,
+                             @ApiParam(value = "user", description = "User id") String user,
+                             @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
+                             @ApiParam(value = "limit", description = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
+                             @ApiParam(value = "offset", description = "Message query result offset", required = false) Long offset) {
         return storage.getConversation(project, user, parent, firstNonNull(limit, 100), firstNonNull(offset, 0L));
     }
 
     @Path("/listen")
     @GET
     @ApiImplicitParams({
-            @ApiImplicitParam(name = "project", required = true, dataType = "string", paramType = "query"),
+            @ApiImplicitParam(name = "project", dataType = "string", paramType = "query"),
     })
     @ApiOperation(value = "Listen all mailboxes",
             consumes = "text/event-stream",
@@ -80,7 +80,7 @@ public class UserMailboxHttpService extends HttpService {
     )
     @IgnoreApi
     @IgnorePermissionCheck
-    public void listen(RakamHttpRequest request) {
+    public void listenMails(RakamHttpRequest request) {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
         List<String> project = request.params().get("project");
@@ -113,9 +113,9 @@ public class UserMailboxHttpService extends HttpService {
             @ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/mark_as_read")
     public JsonResponse markAsRead(
-            @ApiParam(name = "project", value = "Project id", required = true) String project,
-            @ApiParam(name = "user", value = "User id", required = true) String user,
-            @ApiParam(name = "message_ids", value = "The list of of message ids that will be marked as read", required = true) int[] message_ids) {
+            @javax.inject.Named("project") String project,
+            @ApiParam(value = "user", description = "User id") String user,
+            @ApiParam(value = "message_ids", description = "The list of of message ids that will be marked as read") int[] message_ids) {
         storage.markMessagesAsRead(project, user, message_ids);
         return JsonResponse.success();
     }
@@ -128,7 +128,7 @@ public class UserMailboxHttpService extends HttpService {
     )
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
-    public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@ApiParam(name = "project", value = "Project id", required = true) String project) {
+    public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@javax.inject.Named("project") String project) {
         Collection<Object> connectedUsers = webSocketService.getConnectedUsers(project);
         return CompletableFuture.completedFuture(connectedUsers.stream()
                 .map(id -> ImmutableMap.of(config.getIdentifierColumn(), id))

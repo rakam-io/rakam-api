@@ -23,7 +23,7 @@ public class JDBCReportMetadata {
 
     private ResultSetMapper<Report> mapper = (index, r, ctx) -> {
 //        update(new Report(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6).replace("default_value", "defaultValue").replace("type_settings", "typeSettings"), Map.class)));
-        Report report = new Report(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class), r.getBoolean(6));
+        Report report = new Report(r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class), r.getBoolean(6));
         if(r.getMetaData().getColumnCount() >= 7) {
             report.setPermission(r.getBoolean(7));
         }
@@ -56,10 +56,10 @@ public class JDBCReportMetadata {
         }
     }
 
-    public void save(Integer userId, Report report) {
+    public void save(Integer userId, String project, Report report) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO reports (project, slug, category, name, query, options, user_id) VALUES (:project, :slug, :category, :name, :query, :options, :user)")
-                    .bind("project", report.project)
+                    .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)
                     .bind("slug", report.slug)
@@ -70,7 +70,7 @@ public class JDBCReportMetadata {
                     .execute();
         } catch (UnableToExecuteStatementException e) {
             try {
-                get(null, userId, report.project(), report.slug);
+                get(null, userId, project, report.slug);
             } catch (NotExistsException ex) {
                 throw e;
             }
@@ -96,11 +96,11 @@ public class JDBCReportMetadata {
         }
     }
 
-    public Report update(Integer userId, Report report) {
+    public Report update(Integer userId, String project, Report report) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project = :project AND slug = :slug AND " +
                     "(SELECT p.is_admin OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project = :project) WHERE r.slug = :slug AND r.project = :project)")
-                    .bind("project", report.project)
+                    .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)
                     .bind("category", report.category)

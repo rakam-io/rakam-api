@@ -102,13 +102,13 @@ public class PrestoQueryExecutor implements QueryExecutor {
                         .collect(Collectors.joining(", "));
 
                 return "(" + collections.stream().map(Map.Entry::getKey)
-                        .map(collection -> format("select '%s' as collection, %s from %s",
+                        .map(collection -> format("select '%s' as \"$collection\", %s from %s",
                                 collection,
                                 sharedColumns.isEmpty() ? "1" : sharedColumns,
                                 getTableReference(project, QualifiedName.of(collection))))
                         .collect(Collectors.joining(" union all ")) + ") _all";
             } else {
-                return "(select null as collection, null as _user, null as _time limit 0) _all";
+                return "(select null as \"$collection\", null as _user, null as _time limit 0) _all";
             }
 
         } else {

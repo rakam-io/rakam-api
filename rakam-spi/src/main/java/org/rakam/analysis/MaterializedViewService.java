@@ -2,7 +2,6 @@ package org.rakam.analysis;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
@@ -20,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 
 public abstract class MaterializedViewService {
@@ -32,7 +32,7 @@ public abstract class MaterializedViewService {
         this.queryExecutor = queryExecutor;
     }
 
-    public abstract CompletableFuture<Void> create(MaterializedView materializedView);
+    public abstract CompletableFuture<Void> create(String project, MaterializedView materializedView);
 
     public abstract CompletableFuture<QueryResult> delete(String project, String name);
 
@@ -74,7 +74,7 @@ public abstract class MaterializedViewService {
         }
     }
 
-    public abstract MaterializedViewExecution lockAndUpdateView(MaterializedView materializedView);
+    public abstract MaterializedViewExecution lockAndUpdateView(String project, MaterializedView materializedView);
 
     public List<MaterializedView> list(String project) {
         return database.getMaterializedViews(project);
@@ -96,7 +96,7 @@ public abstract class MaterializedViewService {
         CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
-                f.completeExceptionally(new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR));
+                f.completeExceptionally(new RakamException(result.getError().message, INTERNAL_SERVER_ERROR));
             } else {
                 f.complete(result.getMetadata());
             }

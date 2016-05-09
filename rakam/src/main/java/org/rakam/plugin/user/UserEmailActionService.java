@@ -20,6 +20,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.StringTemplate;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.mail.MessagingException;
 import javax.mail.internet.AddressException;
 import javax.ws.rs.Path;
@@ -53,10 +54,10 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch")
-    public CompletableFuture<Long> batch(@ApiParam(name="project") String project,
-                                         @ApiParam(name = "filter", required = false) String filter,
-                                         @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                                         @ApiParam(name = "config") EmailActionConfig config) {
+    public CompletableFuture<Long> batch(@Named("project") String project,
+                                         @ApiParam(value = "filter", required = false) String filter,
+                                         @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                                         @ApiParam("config") EmailActionConfig config) {
         List<String> variables = new StringTemplate(config.content).getVariables();
         variables.add(config.columnName);
 
@@ -153,14 +154,14 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/single")
-    public CompletableFuture<Boolean> send(@ApiParam(name="project") String project,
-                                           @ApiParam(name="user") String userId,
-                                           @ApiParam(name="config") EmailActionConfig config) {
-        return httpService.getUser(project, userId).thenApply(user -> send(user, config));
+    public CompletableFuture<Boolean> send(@Named("project") String project,
+                                           @ApiParam("user") String userId,
+                                           @ApiParam("config") EmailActionConfig config) {
+        return httpService.getUser(project, userId).thenApply(user -> send(project, user, config));
     }
 
     @Override
-    public boolean send(User user, EmailActionConfig config) {
+    public boolean send(String project, User user, EmailActionConfig config) {
         Object email = user.properties.get(config.columnName);
 
         if(email != null && email instanceof String) {

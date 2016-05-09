@@ -233,7 +233,7 @@ public abstract class AbstractEventExplorer implements EventExplorer {
                         .map(collection -> {
                             String select = generateComputeQuery(grouping, segment, collection);
 
-                            String format = format("select %s %s from %s where %s",
+                            String format = format("select %s %s from \"%s\" where %s",
                                     select.isEmpty() ? select : select + ",",
                                     measureColumn,
                                     QualifiedName.of(collection), where);

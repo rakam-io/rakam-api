@@ -23,6 +23,10 @@ import javax.inject.Inject;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -41,22 +45,21 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     private ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
         Long update_interval = r.getLong("update_interval");
         MaterializedView materializedView = new MaterializedView(
-                r.getString("project"),
                 r.getString("name"), r.getString("table_name"), r.getString("query"),
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
                 r.getBoolean("incremental"),
                 r.getString("options") == null ? null : JsonHelper.read(r.getString("options"), Map.class));
         Long last_updated = r.getLong("last_updated");
-        if(last_updated != null && last_updated != 0) {
+        if (last_updated != null && last_updated != 0) {
             materializedView.lastUpdate = Instant.ofEpochSecond(last_updated);
         }
         return materializedView;
     };
 
     private ResultSetMapper<ContinuousQuery> continuousQueryMapper = (index, r, ctx) ->
-            new ContinuousQuery(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
-            JsonHelper.read(r.getString(6), List.class),
-            JsonHelper.read(r.getString(7), Map.class));
+            new ContinuousQuery(r.getString(1), r.getString(2), r.getString(3),
+                    JsonHelper.read(r.getString(4), List.class),
+                    JsonHelper.read(r.getString(5), Map.class));
 
     @Inject
     public JDBCQueryMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, Clock clock) {
@@ -71,7 +74,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                             .bind("project", key.project)
                             .bind("name", key.collection)
                             .map(materializedViewMapper).first();
-                    if(first == null) {
+                    if (first == null) {
                         throw new NotExistsException("materialized view", BAD_REQUEST);
                     }
                     return first;
@@ -82,7 +85,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     public void setup() {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS materialized_views (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
@@ -100,8 +103,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     "  name VARCHAR(255) NOT NULL," +
                     "  table_name VARCHAR(255)  NOT NULL," +
                     "  query TEXT NOT NULL," +
-                    // in order to support mysql, we use json string instead of array type.
-                    "  collections TEXT," +
                     "  partition_keys TEXT," +
                     "  options TEXT," +
                     "  PRIMARY KEY (project, table_name)" +
@@ -111,11 +112,11 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     @Override
-    public void createMaterializedView(MaterializedView materializedView) {
-        try(Handle handle = dbi.open()) {
+    public void createMaterializedView(String project, MaterializedView materializedView) {
+        try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental, options) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental, :options)")
-                        .bind("project", materializedView.project)
+                        .bind("project", project)
                         .bind("name", materializedView.name)
                         .bind("table_name", materializedView.tableName)
                         .bind("query", materializedView.query)
@@ -124,7 +125,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                         .bind("options", JsonHelper.encode(materializedView.options))
                         .execute();
             } catch (Exception e) {
-                if (getMaterializedView(materializedView.project, materializedView.tableName) != null) {
+                if (getMaterializedView(project, materializedView.tableName) != null) {
                     throw new AlreadyExistsException("Materialized view", BAD_REQUEST);
                 }
             }
@@ -132,25 +133,25 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     @Override
-    public boolean updateMaterializedView(MaterializedView view, CompletableFuture<Instant> releaseLock) {
+    public boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock) {
 
         Handle handle = dbi.open();
         long lastUpdated = handle.createQuery("SELECT last_updated FROM materialized_views WHERE project = :project AND table_name = :table_name FOR UPDATE")
-                    .bind("project", view.project)
-                    .bind("table_name", view.tableName)
-                    .map(LongMapper.FIRST).first();
+                .bind("project", project)
+                .bind("table_name", view.tableName)
+                .map(LongMapper.FIRST).first();
 
         view.lastUpdate = Instant.ofEpochSecond(lastUpdated);
-        if(!view.needsUpdate(clock)) {
+        if (!view.needsUpdate(clock)) {
             return false;
         }
 
         releaseLock.whenComplete((success, ex) -> {
-            if(success != null) {
+            if (success != null) {
                 view.lastUpdate = success;
                 long lastUpdate = view.lastUpdate.getEpochSecond();
                 handle.createStatement("UPDATE materialized_views SET last_updated = :last_updated WHERE project = :project AND table_name = :table_name")
-                        .bind("project", view.project)
+                        .bind("project", project)
                         .bind("table_name", view.tableName)
                         .bind("last_updated", lastUpdate)
                         .execute();
@@ -163,11 +164,11 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     }
 
     @Override
-    public void createContinuousQuery(ContinuousQuery report) {
-        try(Handle handle = dbi.open()) {
+    public void createContinuousQuery(String project, ContinuousQuery report) {
+        try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, partition_keys, options) VALUES (:project, :name, :tableName, :query, :partitionKeys, :options)")
-                        .bind("project", report.project)
+                        .bind("project", project)
                         .bind("name", report.name)
                         .bind("tableName", report.tableName)
                         .bind("query", report.query)
@@ -177,7 +178,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             } catch (Exception e) {
                 ContinuousQuery continuousQuery = null;
                 try {
-                    getContinuousQuery(report.project, report.tableName);
+                    getContinuousQuery(project, report.tableName);
                 } catch (NotExistsException e1) {
                 }
                 if (continuousQuery != null) {
@@ -190,7 +191,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public void deleteContinuousQuery(String project, String tableName) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM continuous_queries WHERE project = :project AND table_name = :name")
                     .bind("project", project)
                     .bind("name", tableName).execute();
@@ -199,18 +200,18 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public List<ContinuousQuery> getContinuousQueries(String project) {
-        try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options FROM continuous_queries WHERE project = :project")
+        try (Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT name, table_name, query,  partition_keys, options FROM continuous_queries WHERE project = :project")
                     .bind("project", project).map(continuousQueryMapper).list();
         }
     }
 
     @Override
     public ContinuousQuery getContinuousQuery(String project, String tableName) {
-        try(Handle handle = dbi.open()) {
-            ContinuousQuery first = handle.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options FROM continuous_queries WHERE project = :project AND table_name = :name")
+        try (Handle handle = dbi.open()) {
+            ContinuousQuery first = handle.createQuery("SELECT name, table_name, query, partition_keys, options FROM continuous_queries WHERE project = :project AND table_name = :name")
                     .bind("project", project).bind("name", tableName).map(continuousQueryMapper).first();
-            if(first == null) {
+            if (first == null) {
                 throw new RakamException(String.format("Continuous query table continuous.%s is not found", tableName), BAD_REQUEST);
             }
             return first;
@@ -219,7 +220,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public void deleteMaterializedView(String project, String tableName) {
-        try(Handle handle = dbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM materialized_views WHERE project = :project AND table_name = :name")
                     .bind("project", project)
                     .bind("name", tableName).execute();
@@ -237,23 +238,24 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public List<MaterializedView> getMaterializedViews(String project) {
-        try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, query, table_name, update_interval, last_updated, incremental, options from materialized_views WHERE project = :project")
+        try (Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT name, query, table_name, update_interval, last_updated, incremental, options from materialized_views WHERE project = :project")
                     .bind("project", project).map(materializedViewMapper).list();
         }
     }
 
     @Override
-    public List<ContinuousQuery> getAllContinuousQueries() {
-        try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, name, table_name, query, collections, partition_keys, options from continuous_queries")
+    public Map<String, Collection<ContinuousQuery>> getAllContinuousQueries() {
+        try (Handle handle = dbi.open()) {
+            HashMap<String, Collection<ContinuousQuery>> map = new HashMap<>();
+            handle.createQuery("SELECT project, name, table_name, query, partition_keys, options from continuous_queries")
                     .map((index, r, ctx) -> {
-                        return new ContinuousQuery(
-                                r.getString("project"),
+                        return new AbstractMap.SimpleImmutableEntry<>(r.getString("project"), new ContinuousQuery(
                                 r.getString("name"), r.getString("table_name"), r.getString("query"),
                                 JsonHelper.read(r.getString("partition_keys"), List.class),
-                                JsonHelper.read(r.getString("options"), Map.class));
-                    }).list();
+                                JsonHelper.read(r.getString("options"), Map.class)));
+                    }).list().forEach(e -> map.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));
+            return map;
         }
     }
 }

@@ -1,5 +1,6 @@
 package org.rakam.http;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
@@ -23,6 +24,8 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.IRequestParameter;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.WebSocketService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -39,7 +42,7 @@ import java.util.Arrays;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 
 @Singleton
 public class WebServiceModule extends AbstractModule {
@@ -93,21 +96,22 @@ public class WebServiceModule extends AbstractModule {
                 .setDebugMode(config.getDebug())
                 .setProxyProtocol(config.getProxyProtocol())
                 .setExceptionHandler((request, ex) -> {
-                    if(ex instanceof RakamException) {
+                    if (ex instanceof RakamException) {
                         SentryUtil.logException(request, (RakamException) ex);
                     }
                 })
+                .setCustomRequestParameters(ImmutableMap.of("project", new ProjectPermissionIRequestParameterFactory(apiKeyService)))
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
                 .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"), method -> method.isAnnotationPresent(AllowCookie.class))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
-                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, MASTER_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, MASTER_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, WRITE_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, WRITE_KEY))
-                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, READ_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, READ_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
-                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
+//                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
+//                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
+//                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
+//                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, MASTER_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, MASTER_KEY))
+//                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, WRITE_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, WRITE_KEY))
+//                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, READ_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, READ_KEY))
+//                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
+//                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
+//                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
                 .build();
 
         HostAndPort address = config.getAddress();
@@ -149,4 +153,64 @@ public class WebServiceModule extends AbstractModule {
                 (clazzOperation != null && Arrays.stream(clazzOperation.authorizations()).anyMatch(a -> key.getKey().equals(a.value())));
     }
 
+    public static class ProjectPermissionIRequestParameterFactory implements HttpServerBuilder.IRequestParameterFactory {
+
+        private final ApiKeyService service;
+
+        public ProjectPermissionIRequestParameterFactory(ApiKeyService service) {
+            this.service = service;
+        }
+
+        @Override
+        public IRequestParameter create(Method method) {
+            return new ProjectPermissionIRequestParameter(service, method);
+        }
+    }
+
+    private static class ProjectPermissionIRequestParameter implements IRequestParameter {
+
+        private final ApiKeyService.AccessKeyType type;
+        private final ApiKeyService apiKeyService;
+
+        public ProjectPermissionIRequestParameter(ApiKeyService apiKeyService, Method method) {
+            if (method.isAnnotationPresent(IgnorePermissionCheck.class)) {
+                throw new IllegalArgumentException("project named parameter cannot be applied if method has @IgnorePermissionCheck annotation");
+            }
+            final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
+            Authorization[] authorizations = annotation == null ?
+                    new Authorization[0] :
+                    Arrays.stream(annotation.authorizations()).filter(auth -> !auth.value().equals("")).toArray(value -> new Authorization[value]);
+
+            if (authorizations.length == 0) {
+                throw new IllegalStateException(method.toGenericString() + ": The permission check component requires endpoints to have authorizations definition in @ApiOperation. " +
+                        "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
+            }
+
+            if (annotation != null && !annotation.consumes().isEmpty() && !annotation.consumes().equals("application/json")) {
+                throw new IllegalStateException("The permission check component requires endpoint to consume application/json. " +
+                        "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
+            }
+            Api clazzOperation = method.getDeclaringClass().getAnnotation(Api.class);
+            if (authorizations.length == 0 && (clazzOperation == null || clazzOperation.authorizations().length == 0)) {
+                throw new IllegalArgumentException(String.format("Authorization for method %s is not defined. " +
+                        "You must use @IgnorePermissionCheck if the endpoint doesn't need permission check", method.toString()));
+            }
+
+            if(authorizations.length != 1) {
+                throw new IllegalArgumentException();
+            }
+
+            type = ApiKeyService.AccessKeyType.fromKey(authorizations[0].value());
+            this.apiKeyService = apiKeyService;
+        }
+
+        @Override
+        public Object extract(ObjectNode node, RakamHttpRequest request) {
+            String api_key = request.headers().get("api_key");
+            if(api_key == null) {
+                throw new RakamException("api_key header parameter is missing.", FORBIDDEN);
+            }
+            return apiKeyService.getProjectOfApiKey(api_key, type);
+        }
+    }
 }

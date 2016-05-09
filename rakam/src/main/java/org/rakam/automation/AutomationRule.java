@@ -5,16 +5,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.Event;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 
 import java.util.List;
 import java.util.function.Predicate;
 
-public class AutomationRule implements ProjectItem {
+public class AutomationRule {
     public final int id;
-    public final String project;
     @JsonProperty("is_active")
     public boolean isActive;
     public final List<ScenarioStep> scenarios;
@@ -23,22 +21,19 @@ public class AutomationRule implements ProjectItem {
     public final String customData;
 
     @JsonCreator
-    public AutomationRule(@ApiParam(name = "project") String project,
-                          @ApiParam(name = "is_active", required = false) Boolean isActive,
-                          @ApiParam(name = "scenarios") List<ScenarioStep> scenarios,
-                          @ApiParam(name = "actions") List<SerializableAction> actions,
-                          @ApiParam(name = "custom_data", required = false) String customData) {
+    public AutomationRule(@ApiParam(value = "is_active", required = false) Boolean isActive,
+                          @ApiParam("scenarios") List<ScenarioStep> scenarios,
+                          @ApiParam("actions") List<SerializableAction> actions,
+                          @ApiParam(value = "custom_data", required = false) String customData) {
         this.id = -1;
         this.customData = customData;
-        this.project = project;
         this.isActive = isActive == null ? true : isActive.booleanValue();
         this.scenarios = scenarios;
         this.actions = actions;
     }
 
-    public AutomationRule(int id, String project, boolean isActive, List<ScenarioStep> scenarios, List<SerializableAction> actions, String customData) {
+    public AutomationRule(int id, boolean isActive, List<ScenarioStep> scenarios, List<SerializableAction> actions, String customData) {
         this.id = id;
-        this.project = project;
         this.isActive = isActive;
         this.scenarios = scenarios;
         this.actions = actions;
@@ -47,11 +42,6 @@ public class AutomationRule implements ProjectItem {
 
     public synchronized void setActive(boolean active) {
         this.isActive = active;
-    }
-
-    @Override
-    public String project() {
-        return project;
     }
 
     public enum ThresholdAggregation {

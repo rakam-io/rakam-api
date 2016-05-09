@@ -24,8 +24,8 @@ public class SendEventAutomationAction implements AutomationAction<SendEventAuto
         this.eventStore = eventStore;
     }
 
-    public String process(Supplier<User> user, SendEventAction sendEventAction) {
-        new Event(user.get().project, sendEventAction.collection, null, null);
+    public String process(String project, Supplier<User> user, SendEventAction sendEventAction) {
+        new Event(project, sendEventAction.collection, null, null);
         return null;
     }
 

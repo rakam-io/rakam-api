@@ -22,13 +22,14 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.NotImplementedException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.Instant;
@@ -85,7 +86,7 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Create report", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public CompletableFuture<JsonResponse> create(@ParamBody RealTimeReport report) {
+    public CompletableFuture<JsonResponse> createTable(@Named("project") String project, @BodyParam RealTimeReport report) {
         String sqlQuery = new StringBuilder().append("select ")
                 .append(format("(cast(" + timestampToEpochFunction + "(_time) as bigint) / %d) as _time, ", slide.roundTo(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.measures, report.dimensions))
@@ -99,13 +100,13 @@ public class RealTimeHttpService extends HttpService {
                         IntStream.range(0, report.dimensions.size()).mapToObj(i -> ", " + (i + 2)).collect(Collectors.joining("")) : "")
                 .toString();
 
-        ContinuousQuery query = new ContinuousQuery(report.project,
+        ContinuousQuery query = new ContinuousQuery(
                 report.name,
                 report.table_name,
                 sqlQuery,
                 ImmutableList.of(),
                 ImmutableMap.of("realtime", true, "aggregation", report.measures));
-        return service.create(query, false).getResult().thenApply(JsonResponse::map);
+        return service.create(project, query, false).getResult().thenApply(JsonResponse::map);
     }
 
     @JsonRequest
@@ -113,7 +114,7 @@ public class RealTimeHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/list")
-    public List<ContinuousQuery> list(@ApiParam(name = "project") String project) {
+    public List<ContinuousQuery> listTables(@javax.inject.Named("project") String project) {
         return service.list(project).stream()
                 .filter(c -> TRUE.equals(c.options.get("realtime")))
                 .collect(Collectors.toList());
@@ -126,14 +127,14 @@ public class RealTimeHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
-    public CompletableFuture<RealTimeQueryResult> get(@ApiParam(name = "project") String project,
-                                                      @ApiParam(name = "table_name") String tableName,
-                                                      @ApiParam(name = "filter", required = false) String filter,
-                                                      @ApiParam(name = "measure") RealTimeReport.Measure measure,
-                                                      @ApiParam(name = "dimensions", required = false) List<String> dimensions,
-                                                      @ApiParam(name = "aggregate", required = false) Boolean aggregate,
-                                                      @ApiParam(name = "date_start", required = false) Instant dateStart,
-                                                      @ApiParam(name = "date_end", required = false) Instant dateEnd) {
+    public CompletableFuture<RealTimeQueryResult> queryTable(@javax.inject.Named("project") String project,
+                                                      @ApiParam("table_name") String tableName,
+                                                      @ApiParam(value = "filter", required = false) String filter,
+                                                      @ApiParam("measure") RealTimeReport.Measure measure,
+                                                      @ApiParam(value = "dimensions", required = false) List<String> dimensions,
+                                                      @ApiParam(value = "aggregate", required = false) Boolean aggregate,
+                                                      @ApiParam(value = "date_start", required = false) Instant dateStart,
+                                                      @ApiParam(value = "date_end", required = false) Instant dateEnd) {
         Expression expression;
         if (filter != null) {
             expression = sqlParser.createExpression(filter);
@@ -227,8 +228,8 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
-    public CompletableFuture<JsonResponse> delete(@ApiParam(name = "project") String project,
-                                                  @ApiParam(name = "table_name") String tableName) {
+    public CompletableFuture<JsonResponse> deleteTable(@javax.inject.Named("project") String project,
+                                                  @ApiParam("table_name") String tableName) {
 
         // TODO: Check if it's a real-time report.
         return service.delete(project, tableName).thenApply(result -> {

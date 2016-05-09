@@ -4,12 +4,14 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 
 public interface QueryMetadataStore {
-    void createMaterializedView(MaterializedView materializedView);
+    void createMaterializedView(String project, MaterializedView materializedView);
 
     void deleteMaterializedView(String project, String name);
 
@@ -17,9 +19,9 @@ public interface QueryMetadataStore {
 
     List<MaterializedView> getMaterializedViews(String project);
 
-    boolean updateMaterializedView(MaterializedView view, CompletableFuture<Instant> releaseLock);
+    boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock);
 
-    void createContinuousQuery(ContinuousQuery report);
+    void createContinuousQuery(String project, ContinuousQuery report);
 
     void deleteContinuousQuery(String project, String name);
 
@@ -27,5 +29,5 @@ public interface QueryMetadataStore {
 
     ContinuousQuery getContinuousQuery(String project, String tableNme);
 
-    List<ContinuousQuery> getAllContinuousQueries();
+    Map<String, Collection<ContinuousQuery>> getAllContinuousQueries();
 }

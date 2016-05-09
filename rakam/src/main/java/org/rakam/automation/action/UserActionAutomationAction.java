@@ -23,8 +23,8 @@ public class UserActionAutomationAction implements AutomationAction<UserActionAu
                 .collect(Collectors.toMap(UserActionService::getName, a -> a));
     }
 
-    public String process(Supplier<User> user, UserAction actionData) {
-        userActionServiceMap.get(actionData.actionName).send(user.get(), actionData.actionData);
+    public String process(String project, Supplier<User> user, UserAction actionData) {
+        userActionServiceMap.get(actionData.actionName).send(project, user.get(), actionData.actionData);
         return null;
     }
 

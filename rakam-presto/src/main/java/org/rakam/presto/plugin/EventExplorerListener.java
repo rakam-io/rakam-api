@@ -22,9 +22,9 @@ public class EventExplorerListener {
 
     @Subscribe
     public void onCreateProject(ProjectCreatedEvent event) {
-        ContinuousQuery report = new ContinuousQuery(event.project, "Event metrics",
+        ContinuousQuery report = new ContinuousQuery("Event metrics",
                 "_event_explorer_metrics", QUERY, ImmutableList.of("week"), ImmutableMap.of());
-        QueryResult join = continuousQueryService.create(report, false).getResult().join();
+        QueryResult join = continuousQueryService.create(event.project, report, false).getResult().join();
         if(join.isFailed()) {
             throw new IllegalStateException(join.toString());
         }

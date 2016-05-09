@@ -9,12 +9,13 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
@@ -36,18 +37,18 @@ public class ABTestingHttpService extends HttpService {
         this.apiKeyService = apiKeyService;
     }
 
-    @JsonRequest
+    @GET
     @ApiOperation(value = "List reports", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
-    public List<ABTestingReport> list(@ApiParam(name="project", value = "Project id", required = true) String project) {
+    public List<ABTestingReport> list(@Named("project") String project) {
         return metadata.getReports(project);
     }
 
     @JsonRequest
     @ApiOperation(value = "Create test", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public JsonResponse create(@ParamBody ABTestingReport report) {
-        metadata.save(report);
+    public JsonResponse create(@Named("project") String project, @BodyParam ABTestingReport report) {
+        metadata.save(project, report);
         return JsonResponse.success();
     }
 
@@ -82,8 +83,8 @@ public class ABTestingHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
-    public JsonResponse delete(@ApiParam(name="project") String project,
-                               @ApiParam(name="id") int id) {
+    public JsonResponse delete(@Named("project") String project,
+                               @ApiParam("id") int id) {
         metadata.delete(project, id);
         return JsonResponse.success();
     }
@@ -91,15 +92,14 @@ public class ABTestingHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Get report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public ABTestingReport get(@ApiParam(name="project") String project,
-                      @ApiParam(name="id") int id) {
+    public ABTestingReport get(@Named("project") String project, @ApiParam("id") int id) {
         return metadata.get(project, id);
     }
 
     @JsonRequest
     @ApiOperation(value = "Update report", authorizations = @Authorization(value = "master_key"))
     @Path("/update")
-    public ABTestingReport update(@ParamBody ABTestingReport report) {
-        return metadata.update(report);
+    public ABTestingReport update(@Named("project") String project, @BodyParam ABTestingReport report) {
+        return metadata.update(project, report);
     }
 }

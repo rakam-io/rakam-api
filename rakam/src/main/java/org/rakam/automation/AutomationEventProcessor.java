@@ -124,7 +124,7 @@ public class AutomationEventProcessor implements EventProcessor {
                             }
                         };
 
-                        action.getAction().process(supplier, action.value);
+                        action.getAction().process(event.project(), supplier, action.value);
                     }
                 }
             }

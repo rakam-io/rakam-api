@@ -10,9 +10,9 @@ import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
 
-@JsonPropertyOrder({ "project", "collection", "api", "properties" })
+@JsonPropertyOrder({"project", "collection", "api", "properties"})
 public class Event {
-    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnore
     private final String project;
     private final String collection;
     @JsonIgnore
@@ -22,10 +22,16 @@ public class Event {
     private final GenericRecord properties;
 
     @JsonCreator
-    public Event(@ApiParam(name="project") String project,
-                 @ApiParam(name="collection") String collection,
-                 @ApiParam(name="api") EventContext api,
-                 @ApiParam(name="properties") GenericRecord properties) {
+    public Event(@ApiParam("collection") String collection,
+                 @ApiParam("api") EventContext api,
+                 @ApiParam("properties") GenericRecord properties) {
+        this(null, collection, api, properties);
+    }
+
+    public Event(String project,
+                 String collection,
+                 EventContext api,
+                 GenericRecord properties) {
         this.project = project;
         this.collection = collection;
         this.properties = properties;
@@ -117,10 +123,10 @@ public class Event {
         public final String checksum;
 
         @JsonCreator
-        public EventContext(@ApiParam(name="writeKey") String writeKey,
-                            @ApiParam(name="apiVersion")  String apiVersion,
-                            @ApiParam(name="uploadTime") Long uploadTime,
-                            @ApiParam(name="checksum") String checksum) {
+        public EventContext(@ApiParam("writeKey") String writeKey,
+                            @ApiParam("apiVersion") String apiVersion,
+                            @ApiParam("uploadTime") Long uploadTime,
+                            @ApiParam("checksum") String checksum) {
             this.writeKey = writeKey;
             this.apiVersion = apiVersion;
             this.uploadTime = uploadTime;

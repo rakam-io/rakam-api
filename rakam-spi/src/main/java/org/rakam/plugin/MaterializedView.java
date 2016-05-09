@@ -16,10 +16,9 @@ import static com.google.common.base.Preconditions.*;
 import static java.time.temporal.ChronoUnit.MILLIS;
 
 
-public class MaterializedView implements ProjectItem {
+public class MaterializedView {
     private final static SqlParser SQL_PARSER = new SqlParser();
 
-    public final String project;
     public final String name;
     public final String tableName;
     public final String query;
@@ -29,14 +28,12 @@ public class MaterializedView implements ProjectItem {
     public final Map<String, Object> options;
 
     @JsonCreator
-    public MaterializedView(@ApiParam(name = "project", required = true) String project,
-                            @ApiParam(name = "name", value="The name of the materialized view", required = true) String name,
-                            @ApiParam(name = "table_name", value="The table name of the materialized view that can be used when querying", required = true) String tableName,
-                            @ApiParam(name = "query", value="The sql query that will be executed and materialized", required = true) String query,
-                            @ApiParam(name = "update_interval", required = false) Duration updateInterval,
-                            @ApiParam(name = "incremental", required = false) Boolean incremental,
-                            @ApiParam(name = "options", value="", required = false) Map<String, Object> options) {
-        this.project = checkNotNull(project, "project is required");
+    public MaterializedView(@ApiParam(value = "name", description="The name of the materialized view") String name,
+                            @ApiParam(value = "table_name", description="The table name of the materialized view that can be used when querying") String tableName,
+                            @ApiParam(value = "query", description="The sql query that will be executed and materialized") String query,
+                            @ApiParam(value = "update_interval", required = false) Duration updateInterval,
+                            @ApiParam(value = "incremental", required = false) Boolean incremental,
+                            @ApiParam(value = "options", description="", required = false) Map<String, Object> options) {
         this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.query = checkNotNull(query, "query is required");
@@ -67,11 +64,6 @@ public class MaterializedView implements ProjectItem {
     }
 
     @Override
-    public String project() {
-        return project;
-    }
-
-    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof MaterializedView)) return false;
@@ -79,7 +71,6 @@ public class MaterializedView implements ProjectItem {
         MaterializedView that = (MaterializedView) o;
 
         if (incremental != that.incremental) return false;
-        if (!project.equals(that.project)) return false;
         if (!name.equals(that.name)) return false;
         if (!tableName.equals(that.tableName)) return false;
         if (!query.equals(that.query)) return false;
@@ -89,8 +80,7 @@ public class MaterializedView implements ProjectItem {
 
     @Override
     public int hashCode() {
-        int result = project.hashCode();
-        result = 31 * result + name.hashCode();
+        int result = name.hashCode();
         result = 31 * result + tableName.hashCode();
         result = 31 * result + query.hashCode();
         result = 31 * result + (incremental ? 1 : 0);

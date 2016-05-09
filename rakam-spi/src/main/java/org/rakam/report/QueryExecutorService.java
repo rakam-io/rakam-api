@@ -84,11 +84,13 @@ public class QueryExecutorService {
                 });
             }
         } else {
-            CompletableFuture<QueryExecution> mergedQueries = CompletableFuture.allOf(queryExecutions.stream()
+            List<QueryExecution> executions = queryExecutions.stream()
                     .filter(e -> e.queryExecution != null)
-                    .map(e -> e.queryExecution.getResult())
-                    .toArray(CompletableFuture[]::new)).thenApply((r) -> {
+                    .map(e -> e.queryExecution)
+                    .collect(Collectors.toList());
 
+
+            return new DelegateQueryExecution(new ChainQueryExecution(executions, query, () -> {
                 for (MaterializedViewExecution queryExecution : queryExecutions) {
                     QueryResult result = queryExecution.queryExecution.getResult().join();
                     if (result.isFailed()) {
@@ -104,84 +106,15 @@ public class QueryExecutorService {
                 }
 
                 return executor.executeRawQuery(query);
+            }), result -> {
+                if (!result.isFailed()) {
+                    Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().name, v -> v.getKey().lastUpdate.toEpochMilli()));
+                    result.setProperty("materializedViews", collect);
+                    result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
+                }
+
+                return result;
             });
-
-            return new QueryExecution() {
-                @Override
-                public QueryStats currentStats() {
-                    QueryStats currentStats = null;
-                    for (MaterializedViewExecution queryExecution : queryExecutions) {
-                        QueryStats queryStats = queryExecution.queryExecution.currentStats();
-                        if (currentStats == null) {
-                            currentStats = queryStats;
-                        } else {
-                            currentStats = merge(currentStats, queryStats);
-                        }
-                    }
-
-                    if (mergedQueries.isDone()) {
-                        currentStats = merge(currentStats, mergedQueries.join().currentStats());
-                    }
-
-                    return currentStats;
-                }
-
-                private QueryStats merge(QueryStats currentStats, QueryStats stats) {
-                    return new QueryStats(currentStats.percentage + stats.percentage,
-                            currentStats.state.equals(stats.state) ? currentStats.state : QueryStats.State.RUNNING,
-                            Math.max(currentStats.node, stats.node),
-                            stats.processedRows + currentStats.processedRows,
-                            stats.processedBytes + currentStats.processedBytes,
-                            stats.userTime + currentStats.userTime,
-                            stats.cpuTime + currentStats.cpuTime,
-                            stats.wallTime + currentStats.wallTime
-                    );
-                }
-
-                @Override
-                public boolean isFinished() {
-                    if (mergedQueries.isDone()) {
-                        QueryExecution join = mergedQueries.join();
-                        return join == null || join.isFinished();
-                    } else {
-                        return false;
-                    }
-                }
-
-                @Override
-                public CompletableFuture<QueryResult> getResult() {
-                    CompletableFuture<QueryResult> future = new CompletableFuture<>();
-                    mergedQueries.thenAccept(r -> {
-                        if (r == null) {
-                            future.complete(null);
-                        } else {
-                            r.getResult().thenAccept(result -> {
-                                if (!result.isFailed()) {
-                                    Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().name, v -> v.getKey().lastUpdate.toEpochMilli()));
-                                    result.setProperty("materializedViews", collect);
-                                    result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
-                                }
-
-                                future.complete(result);
-                            });
-                        }
-                    });
-                    return future;
-                }
-
-                @Override
-                public String getQuery() {
-                    return query;
-                }
-
-                @Override
-                public void kill() {
-                    for (MaterializedViewExecution queryExecution : queryExecutions) {
-                        queryExecution.queryExecution.kill();
-                    }
-                    mergedQueries.thenAccept(q -> q.kill());
-                }
-            };
         }
     }
 
@@ -254,7 +187,7 @@ public class QueryExecutorService {
                     throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
                 }
                 if (fetchReference) {
-                    materializedViews.computeIfAbsent(materializedView, (key) -> materializedViewService.lockAndUpdateView(materializedView));
+                    materializedViews.computeIfAbsent(materializedView, (key) -> materializedViewService.lockAndUpdateView(project, materializedView));
                     return "";
                 } else {
                     return materializedViews.get(materializedView).computeQuery;
@@ -288,4 +221,6 @@ public class QueryExecutorService {
         });
         return f;
     }
+
+    ;
 }

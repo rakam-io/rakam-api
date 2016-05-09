@@ -18,7 +18,7 @@ public abstract class ContinuousQueryService {
         this.database = database;
     }
 
-    public abstract QueryExecution create(ContinuousQuery report, boolean replayHistoricalData) throws AlreadyExistsException;
+    public abstract QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData) throws AlreadyExistsException;
 
     public abstract CompletableFuture<Boolean> delete(String project, String tableName);
 
@@ -33,4 +33,6 @@ public abstract class ContinuousQueryService {
     public abstract Map<String, List<SchemaField>> getSchemas(String project);
 
     public abstract boolean test(String project, String query);
+
+    public abstract QueryExecution refresh(String project, String tableName);
 }

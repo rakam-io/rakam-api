@@ -6,10 +6,12 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
+import javax.inject.Named;
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
 
@@ -29,8 +31,8 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/add")
-    public JsonResponse addRule(@ParamBody AutomationRule rule) {
-        service.add(rule);
+    public JsonResponse addRule(@Named("project") String project, @BodyParam AutomationRule rule) {
+        service.add(project, rule);
         return JsonResponse.success();
     }
 
@@ -39,7 +41,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/remove")
-    public JsonResponse removeRule(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+    public JsonResponse removeRule(@Named("project") String project, @ApiParam("id") int id) {
         service.remove(project, id);
         return JsonResponse.success();
     }
@@ -49,7 +51,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/deactivate")
-    public JsonResponse deactivateRule(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+    public JsonResponse deactivateRule(@Named("project") String project, @ApiParam("id") int id) {
         service.deactivate(project, id);
         return JsonResponse.success();
     }
@@ -59,7 +61,7 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/activate")
-    public JsonResponse activateRule(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id) {
+    public JsonResponse activateRule(@Named("project") String project, @ApiParam("id") int id) {
         service.activate(project, id);
         return JsonResponse.success();
     }
@@ -67,9 +69,9 @@ public class AutomationHttpService extends HttpService {
     @ApiOperation(value = "List scenarios",
             authorizations = @Authorization(value = "read_key")
     )
-    @JsonRequest
+    @GET
     @Path("/list")
-    public List<AutomationRule> listRules(@ApiParam(name="project") String project) {
+    public List<AutomationRule> listRules(@Named("project") String project) {
         return service.list(project);
     }
 }

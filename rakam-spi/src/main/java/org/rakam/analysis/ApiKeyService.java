@@ -81,5 +81,14 @@ public interface ApiKeyService {
         public String getKey() {
             return key;
         }
+
+        public static AccessKeyType fromKey(String key) {
+            for (AccessKeyType accessKeyType : values()) {
+                if (accessKeyType.getKey().equals(key)) {
+                    return accessKeyType;
+                }
+            }
+            throw new IllegalArgumentException(key + " doesn't exist.");
+        }
     }
 }

@@ -9,7 +9,6 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.ui.DashboardService.DashboardItem;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.page.CustomPageDatabase;
@@ -23,7 +22,7 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class Recipe implements ProjectItem {
+public class Recipe {
     private final Strategy strategy;
     private final String project;
     private final Map<String, Collection> collections;
@@ -103,12 +102,6 @@ public class Recipe implements ProjectItem {
         return reports;
     }
 
-    @Override
-    @JsonIgnore
-    public String project() {
-        return project;
-    }
-
     public static class Collection {
         public final List<Map<String, SchemaFieldInfo>> columns;
 
@@ -144,7 +137,7 @@ public class Recipe implements ProjectItem {
         }
 
         public MaterializedView createMaterializedView(String project) {
-            return new MaterializedView(project, name, table_name, query, updateInterval, incremental, ImmutableMap.of());
+            return new MaterializedView(name, table_name, query, updateInterval, incremental, ImmutableMap.of());
         }
     }
 
@@ -169,7 +162,7 @@ public class Recipe implements ProjectItem {
         }
 
         public ContinuousQuery createContinuousQuery(String project) {
-            return new ContinuousQuery(project, name, tableName, query, partitionKeys, options);
+            return new ContinuousQuery(name, tableName, query, partitionKeys, options);
         }
     }
 
@@ -197,7 +190,7 @@ public class Recipe implements ProjectItem {
         }
 
         public Report createReport(String project) {
-            return new Report(project, slug, category, name, query, options, shared);
+            return new Report(slug, category, name, query, options, shared);
         }
     }
 
@@ -217,7 +210,7 @@ public class Recipe implements ProjectItem {
         }
 
         public CustomReport createCustomReport(String project) {
-            return new CustomReport(reportType, project, name, data);
+            return new CustomReport(reportType, name, data);
         }
     }
 
@@ -240,7 +233,7 @@ public class Recipe implements ProjectItem {
         }
 
         public CustomPageDatabase.Page createCustomPage(String project) {
-            return new CustomPageDatabase.Page(project, name, slug, category, files);
+            return new CustomPageDatabase.Page(name, slug, category, files);
         }
     }
 

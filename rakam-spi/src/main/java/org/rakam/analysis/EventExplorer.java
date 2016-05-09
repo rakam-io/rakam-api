@@ -16,7 +16,6 @@ package org.rakam.analysis;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
@@ -137,8 +136,7 @@ public interface EventExplorer {
         }
     }
 
-    class OLAPTable implements ProjectItem {
-        public final String project;
+    class OLAPTable {
         public final Set<String> collections;
         public final Set<String> dimensions;
         public final Set<AggregationType> aggregations;
@@ -146,28 +144,21 @@ public interface EventExplorer {
         public final String tableName;
 
         @JsonCreator
-        public OLAPTable(@ApiParam(name = "project") String project,
-                         @ApiParam(name = "collections") Set<String> collections,
-                         @ApiParam(name = "dimensions") Set<String> dimensions,
-                         @ApiParam(name = "aggregations") Set<AggregationType> aggregations,
-                         @ApiParam(name = "measures") Set<String> measures,
-                         @ApiParam(name = "tableName") String tableName) {
+        public OLAPTable(@ApiParam("collections") Set<String> collections,
+                         @ApiParam("dimensions") Set<String> dimensions,
+                         @ApiParam("aggregations") Set<AggregationType> aggregations,
+                         @ApiParam("measures") Set<String> measures,
+                         @ApiParam("tableName") String tableName) {
             checkCollection(tableName);
             if(measures.isEmpty()) {
                 throw new RakamException("There must be at least one measure", HttpResponseStatus.BAD_REQUEST);
             }
 
-            this.project = project;
             this.collections = collections;
             this.dimensions = dimensions;
             this.aggregations = aggregations;
             this.measures = measures;
             this.tableName = tableName;
-        }
-
-        @Override
-        public String project() {
-            return project;
         }
     }
 }

@@ -20,7 +20,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
@@ -32,14 +31,15 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -50,12 +50,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCEPT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 import static org.rakam.server.http.HttpServer.errorMessage;
@@ -83,8 +83,8 @@ public class QueryHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @JsonRequest
-    public CompletableFuture<QueryResult> execute(@ParamBody ExecuteQuery query) {
-        return executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
+    public CompletableFuture<QueryResult> execute(@Named("project") String project, @BodyParam ExecuteQuery query) {
+        return executorService.executeQuery(project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
@@ -100,15 +100,15 @@ public class QueryHttpService extends HttpService {
     )
     @Path("/execute")
     public void execute(RakamHttpRequest request) {
-        handleServerSentQueryExecution(request, ExecuteQuery.class, query ->
-                executorService.executeQuery(query.project, query.query, query.limit == null ? 5000 : query.limit));
+        handleServerSentQueryExecution(request, ExecuteQuery.class, (project, query) ->
+                executorService.executeQuery(project, query.query, query.limit == null ? 5000 : query.limit));
     }
 
-    public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executorFunction) {
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction) {
         handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY);
     }
 
-    public <T extends ProjectItem> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, Function<T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType) {
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType) {
         if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
@@ -137,16 +137,11 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        if (!apiKeyService.checkPermission(query.project(), keyType, apiKey.get(0))) {
-            String message = "Api key is invalid";
-            SentryUtil.logException(request, new RakamException(UNAUTHORIZED));
-            response.send("result", encode(errorMessage(message, UNAUTHORIZED))).end();
-            return;
-        }
+        String project = apiKeyService.getProjectOfApiKey(apiKey.get(0), keyType);
 
         QueryExecution execute;
         try {
-            execute = executorFunction.apply(query);
+            execute = executorFunction.apply(project, query);
         } catch (RakamException e) {
             SentryUtil.logException(request, e);
             response.send("result", encode(errorMessage("Couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
@@ -157,10 +152,11 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        handleServerSentQueryExecution(eventLoopGroup, response, execute);
+        handleServerSentQueryExecution(request, execute);
     }
 
-    private void handleServerSentQueryExecution(EventLoopGroup eventLoopGroup, RakamHttpRequest.StreamResponse response, QueryExecution query) {
+    public void handleServerSentQueryExecution(RakamHttpRequest request, QueryExecution query) {
+        RakamHttpRequest.StreamResponse response = request.streamResponse();
         if (query == null) {
             // TODO: custom message
             response.send("result", encode(jsonObject()
@@ -214,16 +210,13 @@ public class QueryHttpService extends HttpService {
         this.eventLoopGroup = eventLoopGroup;
     }
 
-    public static class ExecuteQuery implements ProjectItem {
-        public final String project;
+    public static class ExecuteQuery {
         public final String query;
         public final Integer limit;
 
         @JsonCreator
-        public ExecuteQuery(@ApiParam(name = "project") String project,
-                            @ApiParam(name = "query") String query,
-                            @ApiParam(name = "limit", required = false) Integer limit) {
-            this.project = requireNonNull(project, "project is empty");
+        public ExecuteQuery(@ApiParam("query") String query,
+                            @ApiParam(value = "limit", required = false) Integer limit) {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
             if (limit != null && limit > 5000) {
                 throw new IllegalArgumentException("maximum value of limit is 5000");
@@ -231,17 +224,12 @@ public class QueryHttpService extends HttpService {
             this.limit = limit;
 
         }
-
-        @Override
-        public String project() {
-            return project;
-        }
     }
 
     @JsonRequest
     @ApiOperation(value = "Explain query", authorizations = @Authorization(value = "read_key"))
     @Path("/explain")
-    public Object explain(@ApiParam(name = "query", value = "Query", required = true) String query) {
+    public Object explain(@ApiParam(value = "query", description = "Query") String query) {
         try {
             Query statement;
             statement = (Query) new SqlParser().createStatement(query);
@@ -271,7 +259,7 @@ public class QueryHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
-    public CompletableFuture<List<SchemaField>> metadata(@ApiParam(name = "project") String project, @ApiParam(name = "query") String query) {
+    public CompletableFuture<List<SchemaField>> metadata(@javax.inject.Named("project") String project, @ApiParam("query") String query) {
         return executorService.metadata(project, query);
     }
 

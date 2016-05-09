@@ -37,13 +37,13 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     }
 
     @Override
-    public QueryExecution create(ContinuousQuery report, boolean replayHistoricalData) {
-        String query = service.buildQuery(report.project(), report.query, null, new HashMap<>());
-        String format = String.format("CREATE VIEW \"%s\".\"%s\" AS %s", report.project(), report.tableName, query);
+    public QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData) {
+        String query = service.buildQuery(project, report.query, null, new HashMap<>());
+        String format = String.format("CREATE VIEW \"%s\".\"%s\" AS %s", project, report.tableName, query);
         return QueryExecution.completedQueryExecution(format, executor.executeRawStatement(format)
                 .getResult().thenApply(result -> {
                     if (!result.isFailed()) {
-                        database.createContinuousQuery(report);
+                        database.createContinuousQuery(project, report);
                     } else {
                         throw new RakamException(result.getError().toString(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
                     }
@@ -82,7 +82,7 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     public boolean test(String project, String query) {
         ContinuousQuery continuousQuery;
         try {
-            continuousQuery = new ContinuousQuery(project, "test", "test",
+            continuousQuery = new ContinuousQuery("test", "test",
                     query, ImmutableList.of(), ImmutableMap.of());
         } catch (ParsingException | IllegalArgumentException e) {
             throw new RakamException("Query is not valid: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);
@@ -100,5 +100,10 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
             throw new RakamException("Query error: " + result.getError().message, HttpResponseStatus.BAD_REQUEST);
         }
         return !result.isFailed();
+    }
+
+    @Override
+    public QueryExecution refresh(String project, String tableName) {
+        return QueryExecution.completedQueryExecution(null, QueryResult.empty());
     }
 }

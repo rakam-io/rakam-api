@@ -66,8 +66,6 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
             } else if (fieldName.equals("project")) {
                 project = jp.getValueAsString();
             }
-
-            t = jp.nextToken();
         }
 
 

@@ -22,7 +22,6 @@ import org.rakam.analysis.EventExplorer.OLAPTable;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.server.http.HttpService;
@@ -31,13 +30,14 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.time.Duration;
@@ -75,21 +75,21 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/statistics")
-    public CompletableFuture<QueryResult> getEventStatistics(@ApiParam(name = "project") String project,
-                                                             @ApiParam(name = "collections", required = false) Set<String> collections,
-                                                             @ApiParam(name = "dimension", required = false) String dimension,
-                                                             @ApiParam(name = "startDate") LocalDate startDate,
-                                                             @ApiParam(name = "endDate") LocalDate endDate) {
+    public CompletableFuture<QueryResult> getEventStatistics(@Named("project") String project,
+                                                             @ApiParam(value = "collections", required = false) Set<String> collections,
+                                                             @ApiParam(value = "dimension", required = false) String dimension,
+                                                             @ApiParam("startDate") LocalDate startDate,
+                                                             @ApiParam("endDate") LocalDate endDate) {
         return eventExplorer.getEventStatistics(project, Optional.ofNullable(collections), Optional.ofNullable(dimension), startDate, endDate);
     }
 
 
-    @JsonRequest
+    @GET
     @ApiOperation(value = "Event statistics",
             authorizations = @Authorization(value = "read_key")
     )
     @Path("/extra_dimensions")
-    public Map<String, List<String>> getExtraDimensions(@ApiParam(name = "project", required = true) String project) {
+    public Map<String, List<String>> getExtraDimensions(@Named("project") String project) {
         return eventExplorer.getExtraDimensions(project);
     }
 
@@ -98,21 +98,21 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyze(@ParamBody AnalyzeRequest analyzeRequest) {
+    public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @BodyParam AnalyzeRequest analyzeRequest) {
         checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
         checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
 
-        return eventExplorer.analyze(analyzeRequest.project, analyzeRequest.collections,
+        return eventExplorer.analyze(project, analyzeRequest.collections,
                 analyzeRequest.measure, analyzeRequest.grouping,
                 analyzeRequest.segment, analyzeRequest.filterExpression,
                 analyzeRequest.startDate, analyzeRequest.endDate).getResult();
     }
 
-    public static class PreCalculatedTable {
+    public static class PrecalculatedTable {
         public final String name;
         public final String tableName;
 
-        public PreCalculatedTable(String name, String tableName) {
+        public PrecalculatedTable(String name, String tableName) {
             this.name = name;
             this.tableName = tableName;
         }
@@ -123,7 +123,7 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/pre_calculate")
-    public CompletableFuture<PreCalculatedTable> createPreComputedTable(@ParamBody OLAPTable table) {
+    public CompletableFuture<PrecalculatedTable> createPrecomputedTable(@Named("project") String project, @BodyParam OLAPTable table) {
         String metrics = table.measures.stream().map(column -> table.aggregations.stream()
                 .map(agg -> getAggregationColumn(agg, table.aggregations).map(e -> String.format(e, column) + " as " + column + "_" + agg.name().toLowerCase()))
                 .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))
@@ -154,9 +154,9 @@ public class EventExplorerHttpService extends HttpService {
                 subQuery,
                 table.collections.size() == 1 ? "" : ", collection", dimensions.isEmpty() ? "" : "," + dimensions);
 
-        return materializedViewService.create(new MaterializedView(table.project, name, table.tableName, query,
+        return materializedViewService.create(project, new MaterializedView(project, table.tableName, query,
                 Duration.ofHours(1), null, ImmutableMap.of("olap_table", table)))
-                .thenApply(v -> new PreCalculatedTable(name, table.tableName));
+                .thenApply(v -> new PrecalculatedTable(name, table.tableName));
     }
 
     private Optional<String> getAggregationColumn(AggregationType agg, Set<AggregationType> aggregations) {
@@ -192,21 +192,21 @@ public class EventExplorerHttpService extends HttpService {
     @IgnoreApi
     @IgnorePermissionCheck
     @Path("/analyze")
-    public void analyze(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (analyzeRequest) -> {
+    public void analyzeEvents(RakamHttpRequest request) {
+        queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
             if(analyzeRequest.measure.column != null) {
                 checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
             }
-            return eventExplorer.analyze(analyzeRequest.project, analyzeRequest.collections,
+
+            return eventExplorer.analyze(project, analyzeRequest.collections,
                     analyzeRequest.measure, analyzeRequest.grouping,
                     analyzeRequest.segment, analyzeRequest.filterExpression,
                     analyzeRequest.startDate, analyzeRequest.endDate);
         });
     }
 
-    public static class AnalyzeRequest implements ProjectItem {
-        public final String project;
+    public static class AnalyzeRequest {
         public final EventExplorer.Measure measure;
         public final EventExplorer.Reference grouping;
         public final EventExplorer.Reference segment;
@@ -216,15 +216,13 @@ public class EventExplorerHttpService extends HttpService {
         public final List<String> collections;
 
         @JsonCreator
-        public AnalyzeRequest(@ApiParam(name = "project") String project,
-                              @ApiParam(name = "measure", required = false) EventExplorer.Measure measure,
-                              @ApiParam(name = "grouping", required = false) EventExplorer.Reference grouping,
-                              @ApiParam(name = "segment", required = false) EventExplorer.Reference segment,
-                              @ApiParam(name = "filterExpression", required = false) String filterExpression,
-                              @ApiParam(name = "startDate") LocalDate startDate,
-                              @ApiParam(name = "endDate") LocalDate endDate,
-                              @ApiParam(name = "collections") List<String> collections) {
-            this.project = project;
+        public AnalyzeRequest(@ApiParam(value = "measure", required = false) EventExplorer.Measure measure,
+                              @ApiParam(value = "grouping", required = false) EventExplorer.Reference grouping,
+                              @ApiParam(value = "segment", required = false) EventExplorer.Reference segment,
+                              @ApiParam(value = "filterExpression", required = false) String filterExpression,
+                              @ApiParam("startDate") LocalDate startDate,
+                              @ApiParam("endDate") LocalDate endDate,
+                              @ApiParam("collections") List<String> collections) {
             this.measure = measure;
             this.grouping = grouping;
             this.segment = segment;
@@ -232,11 +230,6 @@ public class EventExplorerHttpService extends HttpService {
             this.startDate = startDate;
             this.endDate = endDate;
             this.collections = collections;
-        }
-
-        @Override
-        public String project() {
-            return project;
         }
     }
 }

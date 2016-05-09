@@ -50,17 +50,17 @@ public class JDBCCustomReportMetadata {
         }
     }
 
-    public void save(Integer user, CustomReport report) {
+    public void save(Integer user, String project, CustomReport report) {
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO custom_reports (report_type, project, name, data, user_id) VALUES (:reportType, :project, :name, :data, :user)")
                     .bind("reportType", report.reportType)
-                    .bind("project", report.project)
+                    .bind("project", project)
                     .bind("name", report.name)
                     .bind("user", user)
                     .bind("data", JsonHelper.encode(report.data)).execute();
         } catch (Exception e) {
             // TODO move it to transaction
-            if (get(report.reportType, report.project, report.name) != null) {
+            if (get(report.reportType, project, report.name) != null) {
                 throw new AlreadyExistsException("Custom report", HttpResponseStatus.BAD_REQUEST);
             }
             throw e;
@@ -74,7 +74,7 @@ public class JDBCCustomReportMetadata {
                     .bind("project", project)
                     .bind("name", name)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(reportType, project, name, JsonHelper.read(resultSet.getString(1)));
+                        return new CustomReport(reportType, name, JsonHelper.read(resultSet.getString(1)));
                     }).first();
         }
     }
@@ -85,7 +85,7 @@ public class JDBCCustomReportMetadata {
                     .bind("reportType", reportType)
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(reportType, project, resultSet.getString(1), JsonHelper.read(resultSet.getString(2)));
+                        return new CustomReport(reportType, resultSet.getString(1), JsonHelper.read(resultSet.getString(2)));
                     }).list();
         }
     }
@@ -95,7 +95,7 @@ public class JDBCCustomReportMetadata {
             return handle.createQuery("SELECT report_type, name, data FROM custom_reports WHERE project = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
-                        return new CustomReport(resultSet.getString(1), project, resultSet.getString(2), JsonHelper.read(resultSet.getString(3)));
+                        return new CustomReport(resultSet.getString(1), resultSet.getString(2), JsonHelper.read(resultSet.getString(3)));
                     }).list().stream().collect(Collectors.groupingBy(customReport -> customReport.reportType));
         }
     }
@@ -109,12 +109,12 @@ public class JDBCCustomReportMetadata {
         }
     }
 
-    public void update(CustomReport report) {
+    public void update(String project, CustomReport report) {
         int execute;
         try(Handle handle = dbi.open()) {
             execute = handle.createStatement("UPDATE custom_reports SET data = :data WHERE report_type = :reportType AND name = :name AND project = :project")
                     .bind("reportType", report.reportType)
-                    .bind("project", report.project)
+                    .bind("project", project)
                     .bind("name", report.name)
                     .bind("data", JsonHelper.encode(report.data)).execute();
         }

@@ -13,7 +13,6 @@ import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.UserStorage.Sorting;
 import org.rakam.report.DelegateQueryExecution;
@@ -26,9 +25,9 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.AllowCookie;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
@@ -36,6 +35,7 @@ import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -97,7 +97,7 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
     @IgnorePermissionCheck
-    public String create(@ParamBody User user) {
+    public String createUser(@BodyParam User user) {
         String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.writeKey : null, WRITE_KEY);
 
         try {
@@ -108,19 +108,11 @@ public class UserHttpService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "Create new user")
+    @ApiOperation(value = "Create new users", authorizations = @Authorization(value = "write_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch/create")
-    @IgnorePermissionCheck
-    public List<String> batchCreate(@ApiParam(name = "project") String project,
-                                    @ApiParam(name = "users") List<User> users) {
-        for (User user : users) {
-            if (!apiKeyService.checkPermission(user.project, WRITE_KEY, user.api.writeKey)) {
-                throw new RakamException(UNAUTHORIZED);
-            }
-        }
-
+    public List<String> createUsers(@Named("project") String project, @ApiParam("users") List<User> users) {
         try {
             return service.batchCreate(project, users);
         } catch (Exception e) {
@@ -128,12 +120,12 @@ public class UserHttpService extends HttpService {
         }
     }
 
-    @JsonRequest
+    @GET
     @ApiOperation(value = "Get user storage metadata", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/metadata")
-    public MetadataResponse getMetadata(@ApiParam(name = "project", required = true) String project) {
+    public MetadataResponse getMetadata(@Named("project") String project) {
         return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
     }
 
@@ -152,13 +144,13 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/search")
-    public CompletableFuture<QueryResult> searchUsers(@ApiParam(name = "project") String project,
-                                                      @ApiParam(name = "columns", required = false) List<String> columns,
-                                                      @ApiParam(name = "filter", required = false) String filter,
-                                                      @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                                                      @ApiParam(name = "sorting", required = false) Sorting sorting,
-                                                      @ApiParam(name = "offset", required = false) String offset,
-                                                      @ApiParam(name = "limit", required = false) Integer limit) {
+    public CompletableFuture<QueryResult> searchUsers(@Named("project") String project,
+                                                      @ApiParam(value = "columns", required = false) List<String> columns,
+                                                      @ApiParam(value = "filter", required = false) String filter,
+                                                      @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                                                      @ApiParam(value = "sorting", required = false) Sorting sorting,
+                                                      @ApiParam(value = "offset", required = false) String offset,
+                                                      @ApiParam(value = "limit", required = false) Integer limit) {
         Expression expression;
         if (filter != null) {
             try {
@@ -185,10 +177,10 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/get_events")
-    public CompletableFuture<List<CollectionEvent>> getEvents(@ApiParam(name = "project", required = true) String project,
-                                                              @ApiParam(name = "user", required = true) String user,
-                                                              @ApiParam(name = "limit", required = false) Integer limit,
-                                                              @ApiParam(name = "offset", required = false) Instant offset) {
+    public CompletableFuture<List<CollectionEvent>> getEvents(@Named("project") String project,
+                                                              @ApiParam("user") String user,
+                                                              @ApiParam(value = "limit", required = false) Integer limit,
+                                                              @ApiParam(value = "offset", required = false) Instant offset) {
         return service.getEvents(project, user, limit == null ? 15 : limit, offset);
     }
 
@@ -199,12 +191,12 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/create_segment")
-    public JsonResponse createSegment(@ApiParam(name = "project") String project,
-                                      @ApiParam(name = "name") String name,
-                                      @ApiParam(name = "table_name") String tableName,
-                                      @ApiParam(name = "filter_expression", required = false) String filterExpression,
-                                      @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> eventFilters,
-                                      @ApiParam(name = "cache_eviction") Duration duration) {
+    public JsonResponse createSegment(@Named("project") String project,
+                                      @ApiParam("name") String name,
+                                      @ApiParam("table_name") String tableName,
+                                      @ApiParam(value = "filter_expression", required = false) String filterExpression,
+                                      @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> eventFilters,
+                                      @ApiParam("cache_eviction") Duration duration) {
         if (filterExpression == null && (eventFilters == null || eventFilters.isEmpty())) {
             throw new RakamException("At least one predicate is required", BAD_REQUEST);
         }
@@ -227,8 +219,8 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/get")
-    public CompletableFuture<org.rakam.plugin.user.User> getUser(@ApiParam(name = "project", required = true) String project,
-                                                                 @ApiParam(name = "user", required = true) String user) {
+    public CompletableFuture<org.rakam.plugin.user.User> getUser(@Named("project") String project,
+                                                                 @ApiParam("user") String user) {
         return service.getUser(project, user);
     }
 
@@ -239,17 +231,13 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/merge")
     @AllowCookie
-    @IgnorePermissionCheck()
-    public boolean mergeUser(@ApiParam(name = "project", required = true) String project,
-                             @ApiParam(name = "user", required = true) String user,
-                             @ApiParam(name = "api") User.UserContext api,
-                             @ApiParam(name = "anonymous_id") String anonymousId,
-                             @ApiParam(name = "created_at") Instant createdAt,
-                             @ApiParam(name = "merged_at") Instant mergedAt) {
+    public boolean mergeUser(@Named("project") String project,
+                             @ApiParam("user") String user,
+                             @ApiParam("api") User.UserContext api,
+                             @ApiParam("anonymous_id") String anonymousId,
+                             @ApiParam("created_at") Instant createdAt,
+                             @ApiParam("merged_at") Instant mergedAt) {
         // TODO: what if a user sends real user ids instead of its previous anonymous id?
-        if (!apiKeyService.checkPermission(project, WRITE_KEY, api.writeKey)) {
-            throw new RakamException(UNAUTHORIZED);
-        }
         if (!config.getEnableUserMapping()) {
             throw new RakamException("The feature is not supported", HttpResponseStatus.PRECONDITION_FAILED);
         }
@@ -274,27 +262,29 @@ public class UserHttpService extends HttpService {
                 return;
             }
 
-            if (!apiKeyService.checkPermission(req.project, WRITE_KEY, req.api.writeKey)) {
+            String project = apiKeyService.getProjectOfApiKey(req.api.writeKey, WRITE_KEY);
+
+            if (!apiKeyService.checkPermission(project, WRITE_KEY, req.api.writeKey)) {
                 returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
                 return;
             }
 
-            if (!mapProperties(req, request)) {
+            if (!mapProperties(project, req, request)) {
                 return;
             }
 
-            service.setUserProperties(req.project, req.user, req.properties);
+            service.setUserProperties(project, req.user, req.properties);
             request.response(OK_MESSAGE).end();
         });
     }
 
-    private boolean mapProperties(SetUserProperties req, RakamHttpRequest request) {
+    private boolean mapProperties(String project, SetUserProperties req, RakamHttpRequest request) {
         InetAddress socketAddress = ((InetSocketAddress) request.context().channel()
                 .remoteAddress()).getAddress();
 
         for (UserPropertyMapper mapper : mappers) {
             try {
-                mapper.map(req.project, req.properties, request.headers(), socketAddress);
+                mapper.map(project, req.properties, request.headers(), socketAddress);
             } catch (Exception e) {
                 LOGGER.error(e);
                 request.response("0", BAD_REQUEST).end();
@@ -322,38 +312,31 @@ public class UserHttpService extends HttpService {
                 return;
             }
 
-            if (!apiKeyService.checkPermission(req.project, WRITE_KEY, req.api.writeKey)) {
-                returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
-                return;
-            }
+            String project = apiKeyService.getProjectOfApiKey(req.api.writeKey, WRITE_KEY);
 
-            if (!mapProperties(req, request)) {
+            if (!mapProperties(project, req, request)) {
                 return;
             }
 
             // TODO: we may cache these values and reduce the db hit.
-            service.setUserPropertiesOnce(req.project, req.user, req.properties);
+            service.setUserPropertiesOnce(project, req.user, req.properties);
             request.response(OK_MESSAGE).end();
         });
     }
 
     @JsonRequest
-    @ApiOperation(value = "Set user property")
-    @IgnorePermissionCheck
+    @ApiOperation(value = "Set user property", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/increment_property")
+    @IgnorePermissionCheck
     @AllowCookie
-    public JsonResponse incrementProperty(@ApiParam(name = "project") String project,
-                                          @ApiParam(name = "api") User.UserContext api,
-                                          @ApiParam(name = "user") String user,
-                                          @ApiParam(name = "property") String property,
+    public JsonResponse incrementProperty(@ApiParam("api") User.UserContext api,
+                                          @ApiParam("user") String user,
+                                          @ApiParam("property") String property,
                                           @ApiParam("value") double value) {
-        if (!apiKeyService.checkPermission(project, WRITE_KEY, api.writeKey)) {
-            throw new RakamException(UNAUTHORIZED);
-        }
-
+        String project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
         service.incrementProperty(project, user, property, value);
         return JsonResponse.success();
     }
@@ -365,8 +348,8 @@ public class UserHttpService extends HttpService {
     @IgnoreApi
     @GET
     @Path("/pre_calculate")
-    public void execute(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, PreCalculateQuery.class, query -> {
+    public void precalculateUsers(RakamHttpRequest request) {
+        queryService.handleServerSentQueryExecution(request, PreCalculateQuery.class, (project, query) -> {
             String tableName = "_users_daily" +
                     Optional.ofNullable(query.collection).map(value -> "_" + value).orElse("") +
                     Optional.ofNullable(query.dimension).map(value -> "_by_" + value).orElse("");
@@ -378,7 +361,7 @@ public class UserHttpService extends HttpService {
             String table, dateColumn;
             if (query.collection == null) {
                 table = String.format("SELECT cast(_time as date) as date, %s _user FROM _all",
-                            Optional.ofNullable(query.dimension).map(v -> v + ",").orElse(""));
+                        Optional.ofNullable(query.dimension).map(v -> v + ",").orElse(""));
                 dateColumn = "date";
             } else {
                 table = query.collection;
@@ -390,8 +373,8 @@ public class UserHttpService extends HttpService {
                     Optional.ofNullable(query.dimension).map(v -> v + " as dimension,").orElse(""), table,
                     Optional.ofNullable(query.dimension).map(v -> ", 2").orElse(""));
 
-            return new DelegateQueryExecution(continuousQueryService.create(new ContinuousQuery(query.project, name, tableName, sqlQuery,
-                    ImmutableList.of("date"), ImmutableMap.of()), query.replayHistoricalData), result -> {
+            return new DelegateQueryExecution(continuousQueryService.create(project, new ContinuousQuery(name, tableName, sqlQuery,
+                    ImmutableList.of("date"), ImmutableMap.of()), true), result -> {
                 if (result.isFailed()) {
                     throw new RakamException("Failed to create continuous query: " + JsonHelper.encode(result.getError()), INTERNAL_SERVER_ERROR);
                 }
@@ -401,25 +384,18 @@ public class UserHttpService extends HttpService {
         }, MASTER_KEY);
     }
 
-    public static class PreCalculateQuery implements ProjectItem {
-        public final String project;
+    public static class PreCalculateQuery {
         public final String collection;
         public final String dimension;
-        public final boolean replayHistoricalData;
+//        public final boolean replayHistoricalData;
 
-        public PreCalculateQuery(@ApiParam(name = "project") String project,
-                                 @ApiParam(name = "collection", required = false) String collection,
-                                 @ApiParam(name = "dimension", required = false) String dimension,
-                                 @ApiParam(name = "replay_historical_data", required = false) Boolean replayHistoricalData) {
-            this.project = project;
+        public PreCalculateQuery(@ApiParam(value = "collection", required = false) String collection,
+                                 @ApiParam(value = "dimension", required = false) String dimension
+//                                 @ApiParam(value = "replay_historical_data", required = false) Boolean replayHistoricalData
+        ) {
             this.collection = collection;
             this.dimension = dimension;
-            this.replayHistoricalData = replayHistoricalData == null ? false : replayHistoricalData;
-        }
-
-        @Override
-        public String project() {
-            return project;
+//            this.replayHistoricalData = replayHistoricalData == null ? false : replayHistoricalData;
         }
     }
 
@@ -435,35 +411,28 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Unset user property")
-    @IgnorePermissionCheck
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/unset_properties")
     @AllowCookie
-    public JsonResponse unsetProperty(@ApiParam(name = "project") String project,
-                                      @ApiParam(name = "api") User.UserContext api,
-                                      @ApiParam(name = "user") String user,
-                                      @ApiParam(name = "property") List<String> properties) {
-        if (!apiKeyService.checkPermission(project, WRITE_KEY, api.writeKey)) {
-            throw new RakamException(UNAUTHORIZED);
-        }
+    public JsonResponse unsetProperty(@ApiParam("api") User.UserContext api,
+                                      @ApiParam("user") String user,
+                                      @ApiParam("property") List<String> properties) {
+        String project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
         service.unsetProperties(project, user, properties);
         return JsonResponse.success();
     }
 
     public static class SetUserProperties {
-        public final String project;
         public final String user;
         public final User.UserContext api;
         public final Map<String, Object> properties;
 
         @JsonCreator
-        public SetUserProperties(@ApiParam(name = "project") String project,
-                                 @ApiParam(name = "user") String user,
-                                 @ApiParam(name = "api") User.UserContext api,
-                                 @ApiParam(name = "properties") Map<String, Object> properties) {
-            this.project = project;
+        public SetUserProperties(@ApiParam("user") String user,
+                                 @ApiParam("api") User.UserContext api,
+                                 @ApiParam("properties") Map<String, Object> properties) {
             this.user = user;
             this.api = api;
             this.properties = properties;

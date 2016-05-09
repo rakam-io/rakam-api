@@ -67,19 +67,16 @@ public class UserUtilHttpService extends HttpService {
     }
 
     public static class FilterQuery {
-        public final String project;
         public final String apiKey;
         public final String filter;
         public final List<UserStorage.EventFilter> event_filter;
         public final UserStorage.Sorting sorting;
 
         @JsonCreator
-        public FilterQuery(@ApiParam(name = "project") String project,
-                           @ApiParam(name = "api_key") String apiKey,
-                           @ApiParam(name = "filter", required = false) String filter,
-                           @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                           @ApiParam(name = "sorting", required = false) UserStorage.Sorting sorting) {
-            this.project = project;
+        public FilterQuery(@ApiParam("api_key") String apiKey,
+                           @ApiParam(value = "filter", required = false) String filter,
+                           @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                           @ApiParam(value = "sorting", required = false) UserStorage.Sorting sorting) {
             this.apiKey = apiKey;
             this.filter = filter;
             this.event_filter = event_filter;
@@ -107,9 +104,7 @@ public class UserUtilHttpService extends HttpService {
             return;
         }
 
-        if(!apiKeyService.checkPermission(read.filterQuery.project, ApiKeyService.AccessKeyType.READ_KEY, read.filterQuery.apiKey)) {
-            HttpServer.returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
-        }
+        String project = apiKeyService.getProjectOfApiKey(read.filterQuery.apiKey,  ApiKeyService.AccessKeyType.READ_KEY);
 
         Expression expression;
         if (read.filterQuery.filter != null) {
@@ -125,7 +120,7 @@ public class UserUtilHttpService extends HttpService {
             expression = null;
         }
 
-        final CompletableFuture<QueryResult> search = service.filter(read.filterQuery.project, null, expression,
+        final CompletableFuture<QueryResult> search = service.filter(project, null, expression,
                 read.filterQuery.event_filter, read.filterQuery.sorting, 100000, null);
         final CompletableFuture<byte[]> stream;
         switch (read.exportFormat) {
@@ -162,8 +157,8 @@ public class UserUtilHttpService extends HttpService {
         public final ExportFormat exportFormat;
 
         @JsonCreator
-        public ExportQuery(@ApiParam(name="filter") FilterQuery filterQuery,
-                           @ApiParam(name="export_format") ExportFormat exportFormat) {
+        public ExportQuery(@ApiParam("filter") FilterQuery filterQuery,
+                           @ApiParam("export_format") ExportFormat exportFormat) {
             this.filterQuery = filterQuery;
             this.exportFormat = exportFormat;
         }

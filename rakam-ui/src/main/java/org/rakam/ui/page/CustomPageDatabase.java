@@ -14,7 +14,6 @@
 package org.rakam.ui.page;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.io.InputStream;
@@ -25,7 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 
 public interface CustomPageDatabase {
-    void save(Integer user, Page page);
+    void save(Integer user, String project, Page page);
 
     List<Page> list(String project);
 
@@ -35,37 +34,28 @@ public interface CustomPageDatabase {
 
     void delete(String project, String slug);
 
-    class Page implements ProjectItem {
-        public final String project;
+    class Page {
         public final String name;
         public final String slug;
         public final String category;
         public final Map<String, String> files;
 
         @JsonCreator
-        public Page(@ApiParam(name = "project") String project,
-                    @ApiParam(name = "name") String name,
-                    @ApiParam(name = "slug") String slug,
-                    @ApiParam(name = "category") String category,
-                    @ApiParam(name = "files") Map<String, String> files) {
-            this.project = project;
+        public Page(@ApiParam("name") String name,
+                    @ApiParam("slug") String slug,
+                    @ApiParam("category") String category,
+                    @ApiParam("files") Map<String, String> files) {
             this.name = name;
             this.slug = slug;
             this.category = category;
             this.files = checkNotNull(files);
         }
 
-        public Page(String project, String name, String slug, String category) {
-            this.project = project;
+        public Page(String name, String slug, String category) {
             this.name = name;
             this.slug = slug;
             this.category = category;
             this.files = null;
-        }
-
-        @Override
-        public String project() {
-            return project;
         }
     }
 }

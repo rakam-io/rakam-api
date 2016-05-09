@@ -34,7 +34,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
     }
 
     @Override
-    public CompletableFuture<Void> create(MaterializedView materializedView) {
+    public CompletableFuture<Void> create(String project, MaterializedView materializedView) {
         materializedView.validateQuery();
 
         StringBuilder builder = new StringBuilder();
@@ -43,14 +43,14 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             statement = (Query) parser.createStatement(materializedView.query);
         }
 
-        new QueryFormatter(builder, name -> queryExecutor.formatTableReference(materializedView.project, name)).process(statement, 1);
+        new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name)).process(statement, 1);
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
-                materializedView.project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
+                project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
         if (result.isFailed()) {
             throw new RakamException("Couldn't created table: " + result.getError().toString(), UNAUTHORIZED);
         }
-        database.createMaterializedView(materializedView);
+        database.createMaterializedView(project, materializedView);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -59,15 +59,15 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
         return queryExecutor.executeRawStatement(format("DROP MATERIALIZED VIEW \"%s\".\"%s%s\"",
-                materializedView.project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName)).getResult();
+                project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName)).getResult();
     }
 
     @Override
-    public MaterializedViewExecution lockAndUpdateView(MaterializedView materializedView) {
+    public MaterializedViewExecution lockAndUpdateView(String project, MaterializedView materializedView) {
         CompletableFuture<Instant> f = new CompletableFuture<>();
-        boolean availableForUpdating = database.updateMaterializedView(materializedView, f);
+        boolean availableForUpdating = database.updateMaterializedView(project, materializedView, f);
         if (availableForUpdating) {
-            String reference = String.format("\"%s\".\"%s%s\"", materializedView.project,
+            String reference = String.format("\"%s\".\"%s%s\"", project,
                     MATERIALIZED_VIEW_PREFIX, materializedView.tableName);
 
             QueryExecution execution = queryExecutor.executeRawStatement(format("REFRESH MATERIALIZED VIEW " + reference));

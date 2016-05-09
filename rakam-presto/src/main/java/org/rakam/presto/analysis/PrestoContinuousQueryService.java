@@ -1,6 +1,7 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.spi.type.TypeSignature;
+import com.facebook.presto.sql.tree.Query;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ContinuousQueryService;
@@ -39,19 +40,25 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         this.config = config;
     }
 
-    @Override
-    public QueryExecution create(ContinuousQuery report, boolean replayHistoricalData) {
+    public String build(String project, Query query) {
         StringBuilder builder = new StringBuilder();
 
         new QueryFormatter(builder, name -> {
             if (name.getSuffix().equals("_all") && name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
-                return String.format("_all.%s", report.project());
+                return String.format("_all.%s", project);
             }
-            return executor.formatTableReference(report.project, name);
-        }).process(report.getQuery(), 1);
+            return executor.formatTableReference(project, name);
+        }).process(query, 1);
 
+        return builder.toString();
+    }
+
+    @Override
+    public QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData) {
+
+        String query = build(project, report.getQuery());
         String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
-                report.project, report.tableName, builder.toString());
+                project, report.tableName, query);
 
         PrestoQueryExecution prestoQueryExecution;
         if (!report.partitionKeys.isEmpty()) {
@@ -66,16 +73,16 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
 
         if (result.getError() == null) {
             try {
-                database.createContinuousQuery(report);
+                database.createContinuousQuery(project, report);
             } catch (AlreadyExistsException e) {
-                database.deleteContinuousQuery(report.project, report.tableName);
-                database.createContinuousQuery(report);
+                database.deleteContinuousQuery(project, report.tableName);
+                database.createContinuousQuery(project, report);
             }
 
-            if (replayHistoricalData) {
-                return executor.executeRawQuery(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
-                        report.project, report.tableName, builder.toString()), ImmutableMap.of(), config.getStreamingConnector());
-            }
+//            if (replayHistoricalData) {
+//                return executor.executeRawQuery(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
+//                        project, report.tableName, query), ImmutableMap.of(), config.getStreamingConnector());
+//            }
 
             return prestoQueryExecution;
         } else {
@@ -128,6 +135,15 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
     @Override
     public boolean test(String project, String query) {
         return true;
+    }
+
+    @Override
+    public QueryExecution refresh(String project, String tableName) {
+        ContinuousQuery continuousQuery = get(project, tableName);
+        String query = build(project, continuousQuery.getQuery());
+
+        return executor.executeRawQuery(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
+                project, tableName, query), ImmutableMap.of(config.getStreamingConnector() + ".append", "false"), config.getStreamingConnector());
     }
 
 }

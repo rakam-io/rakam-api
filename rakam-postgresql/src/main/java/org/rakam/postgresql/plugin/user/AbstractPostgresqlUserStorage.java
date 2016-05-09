@@ -413,7 +413,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                         }
                     }
                 }
-                return new User(project, id, null, properties);
+                return new User(id, null, properties);
             } catch (SQLException e) {
                 throw Throwables.propagate(e);
             }

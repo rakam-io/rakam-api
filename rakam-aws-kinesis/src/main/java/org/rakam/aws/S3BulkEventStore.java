@@ -61,7 +61,7 @@ public class S3BulkEventStore {
 
         DynamicSliceOutput buffer = new DynamicSliceOutput(events.size() * 100);
 
-        HashMap<String, List<Event>> map = new HashMap<>();
+        Map<String, List<Event>> map = new HashMap<>();
         events.forEach(event -> map.computeIfAbsent(event.collection(),
                 (col) -> new ArrayList<>()).add(event));
 

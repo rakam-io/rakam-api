@@ -76,7 +76,7 @@ public class RecipeHandler {
         if(customPageDatabase.isPresent()) {
             customPages = customPageDatabase.get()
                     .list(project).stream()
-                    .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, customPageDatabase.get().get(r.project(), r.slug)))
+                    .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, customPageDatabase.get().get(project, r.slug)))
                     .collect(Collectors.toList());
         } else {
             customPages = ImmutableList.of();
@@ -124,12 +124,12 @@ public class RecipeHandler {
 
         recipe.getContinuousQueryBuilders().stream()
                 .map(builder -> builder.createContinuousQuery(project))
-                .forEach(continuousQuery -> continuousQueryService.create(continuousQuery, false).getResult().whenComplete((res, ex) -> {
+                .forEach(continuousQuery -> continuousQueryService.create(project, continuousQuery, false).getResult().whenComplete((res, ex) -> {
                     if (ex != null) {
                         if (ex instanceof AlreadyExistsException) {
                             if (overrideExisting) {
                                 continuousQueryService.delete(project, continuousQuery.tableName);
-                                continuousQueryService.create(continuousQuery, false);
+                                continuousQueryService.create(project, continuousQuery, false);
                             } else {
                                 throw Throwables.propagate(ex);
                             }
@@ -140,12 +140,12 @@ public class RecipeHandler {
 
         recipe.getMaterializedViewBuilders().stream()
                 .map(builder -> builder.createMaterializedView(project))
-                .forEach(materializedView -> materializedViewService.create(materializedView).whenComplete((res, ex) -> {
+                .forEach(materializedView -> materializedViewService.create(project, materializedView).whenComplete((res, ex) -> {
                     if (ex != null) {
                         if (ex instanceof AlreadyExistsException) {
                             if (overrideExisting) {
                                 materializedViewService.delete(project, materializedView.tableName);
-                                materializedViewService.create(materializedView);
+                                materializedViewService.create(project, materializedView);
                             } else {
                                 throw Throwables.propagate(ex);
                             }
@@ -158,10 +158,10 @@ public class RecipeHandler {
                 .map(reportBuilder -> reportBuilder.createReport(project))
                 .forEach(report -> {
                     try {
-                        reportMetadata.save(null, report);
+                        reportMetadata.save(null, project, report);
                     } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
-                            reportMetadata.update(null, report);
+                            reportMetadata.update(null, project, report);
                         } else {
                             throw Throwables.propagate(e);
                         }
@@ -188,10 +188,10 @@ public class RecipeHandler {
                 .map(reportBuilder -> reportBuilder.createCustomReport(project))
                 .forEach(customReport -> {
                     try {
-                        customReportMetadata.save(null, customReport);
+                        customReportMetadata.save(null, project, customReport);
                     } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
-                            customReportMetadata.update(customReport);
+                            customReportMetadata.update(project, customReport);
                         } else {
                             throw Throwables.propagate(e);
                         }
@@ -203,11 +203,11 @@ public class RecipeHandler {
                     .map(reportBuilder -> reportBuilder.createCustomPage(project))
                     .forEach(customReport -> {
                         try {
-                            customPageDatabase.get().save(null, customReport);
+                            customPageDatabase.get().save(null, project, customReport);
                         } catch (AlreadyExistsException e) {
                             if (overrideExisting) {
-                                customPageDatabase.get().delete(customReport.project(), customReport.slug);
-                                customPageDatabase.get().save(null, customReport);
+                                customPageDatabase.get().delete(project, customReport.slug);
+                                customPageDatabase.get().save(null, project, customReport);
                             } else {
                                 throw Throwables.propagate(e);
                             }

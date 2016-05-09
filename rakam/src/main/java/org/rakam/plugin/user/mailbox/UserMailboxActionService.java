@@ -9,6 +9,7 @@ import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserActionService;
 import org.rakam.plugin.user.UserStorage;
+import org.rakam.plugin.user.UserStorage.EventFilter;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -21,6 +22,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.StringTemplate;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.time.Instant;
@@ -49,10 +51,10 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch")
-    public CompletableFuture<Long> batchSendMessages(@ApiParam(name="project") String project,
-                                                     @ApiParam(name = "filter", required = false) String filter,
-                                                     @ApiParam(name = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                                                     @ApiParam(name = "config") MailAction config) {
+    public CompletableFuture<Long> batchSendMessages(@Named("project") String project,
+                                                     @ApiParam(value = "filter", required = false) String filter,
+                                                     @ApiParam(value = "event_filters", required = false) List<EventFilter> event_filter,
+                                                     @ApiParam("config") MailAction config) {
         List<String> variables = new StringTemplate(config.message).getVariables();
         variables.add(UserStorage.PRIMARY_KEY);
 
@@ -81,8 +83,8 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     }
 
     @Override
-    public boolean send(User user, MailAction config) {
-        mailboxStorage.send(user.project, config.fromUser, user.id, null, config.message, Instant.now());
+    public boolean send(String project, User user, MailAction config) {
+        mailboxStorage.send(project, config.fromUser, user.id, null, config.message, Instant.now());
         return true;
     }
 
@@ -92,9 +94,9 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
         public final Map<String, String> variables;
 
         @JsonCreator
-        public MailAction(@ApiParam(name="from_user") String fromUser,
-                          @ApiParam(name="message") String message,
-                          @ApiParam(name="variables") Map<String, String> variables) {
+        public MailAction(@ApiParam("from_user") String fromUser,
+                          @ApiParam("message") String message,
+                          @ApiParam("variables") Map<String, String> variables) {
             this.fromUser = fromUser;
             this.message = message;
             this.variables = variables;
@@ -140,12 +142,12 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 404, message = "User does not exist.")})
-    public Message send(@ApiParam(name = "project", value = "Project id", required = true) String project,
-                        @ApiParam(name = "from_user", required = true) String fromUser,
-                        @ApiParam(name = "to_user", required = true) String toUser,
-                        @ApiParam(name = "parent", value = "Parent message id", required = false) Integer parent,
-                        @ApiParam(name = "message", value = "The content of the message", required = false) String message,
-                        @ApiParam(name = "timestamp", value = "The timestamp of the message", required = true) long datetime) {
+    public Message sendMail(@Named("project") String project,
+                        @ApiParam("from_user") String fromUser,
+                        @ApiParam("to_user") String toUser,
+                        @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
+                        @ApiParam(value = "message", description = "The content of the message", required = false) String message,
+                        @ApiParam(value = "timestamp", description = "The timestamp of the message") long datetime) {
         try {
             return mailboxStorage.send(project, fromUser, toUser, parent, message, Instant.ofEpochMilli(datetime));
         } catch (Exception e) {

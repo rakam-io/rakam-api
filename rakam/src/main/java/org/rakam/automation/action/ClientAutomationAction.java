@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 
 public class ClientAutomationAction implements AutomationAction<ClientAutomationAction.Template> {
 
-    public String process(Supplier<User> user, Template data) {
+    public String process(String project, Supplier<User> user, Template data) {
         StringTemplate template = new StringTemplate(data.template);
         return template.format((query) -> {
             Object val = user.get().properties.get(query);

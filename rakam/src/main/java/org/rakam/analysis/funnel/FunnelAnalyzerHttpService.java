@@ -16,7 +16,6 @@ package org.rakam.analysis.funnel;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.QueryHttpService;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -24,12 +23,13 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.util.IgnorePermissionCheck;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -64,9 +64,9 @@ public class FunnelAnalyzerHttpService extends HttpService {
     @IgnoreApi
     @IgnorePermissionCheck
     @Path("/analyze")
-    public void analyze(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (query) ->
-                funnelQueryExecutor.query(query.project,
+    public void analyzeFunnel(RakamHttpRequest request) {
+        queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) ->
+                funnelQueryExecutor.query(project,
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
@@ -81,16 +81,15 @@ public class FunnelAnalyzerHttpService extends HttpService {
     @POST
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyze(@ParamBody FunnelQuery query) {
-         return funnelQueryExecutor.query(query.project,
+    public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") String project, @BodyParam FunnelQuery query) {
+         return funnelQueryExecutor.query(project,
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
                         query.endDate, Optional.ofNullable(query.window)).getResult();
     }
 
-    private static class FunnelQuery implements ProjectItem {
-        public final String project;
+    private static class FunnelQuery {
         public final List<FunnelQueryExecutor.FunnelStep> steps;
         public final String dimension;
         public final LocalDate startDate;
@@ -98,24 +97,17 @@ public class FunnelAnalyzerHttpService extends HttpService {
         public final LocalDate endDate;
 
         @JsonCreator
-        public FunnelQuery(@ApiParam(name = "project") String project,
-                           @ApiParam(name = "steps") List<FunnelQueryExecutor.FunnelStep> steps,
-                           @ApiParam(name = "dimension", required = false) String dimension,
-                           @ApiParam(name = "startDate") LocalDate startDate,
-                           @ApiParam(name = "window", required = false) FunnelQueryExecutor.FunnelWindow window,
-                           @ApiParam(name = "endDate") LocalDate endDate) {
-            this.project = project;
+        public FunnelQuery(@ApiParam("steps") List<FunnelQueryExecutor.FunnelStep> steps,
+                           @ApiParam(value = "dimension", required = false) String dimension,
+                           @ApiParam("startDate") LocalDate startDate,
+                           @ApiParam(value = "window", required = false) FunnelQueryExecutor.FunnelWindow window,
+                           @ApiParam("endDate") LocalDate endDate) {
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;
             this.window = window;
             checkState(!steps.isEmpty(), "steps field cannot be empty.");
-        }
-
-        @Override
-        public String project() {
-            return project;
         }
     }
 }

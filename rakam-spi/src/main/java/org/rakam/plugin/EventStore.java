@@ -1,10 +1,9 @@
 package org.rakam.plugin;
 
 import org.rakam.collection.Event;
-import org.rakam.report.QueryResult;
+import org.rakam.report.QueryExecution;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 
 public interface EventStore {
@@ -14,11 +13,11 @@ public interface EventStore {
 
     int[] storeBatch(List<Event> events);
 
-    default void storeBulk(List<Event> events, boolean commit) {
+    default QueryExecution storeBulk(List<Event> events, boolean commit) {
         throw new UnsupportedOperationException();
     }
 
-    default CompletableFuture<QueryResult> commit(String project, String collection) {
+    default QueryExecution commit(String project, String collection) {
         throw new UnsupportedOperationException();
     }
 }

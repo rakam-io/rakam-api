@@ -44,7 +44,7 @@ public class UserAutomationService {
                                             .findFirst().get();
                                     action.setAction(automationAction);
                                 }
-                                return new AutomationRule(resultSet.getInt(1), project,
+                                return new AutomationRule(resultSet.getInt(1),
                                         resultSet.getBoolean(2), Arrays.asList(JsonHelper.read(resultSet.getString(3), AutomationRule.ScenarioStep[].class)),
                                         actions,
                                         resultSet.getString(5));
@@ -110,7 +110,7 @@ public class UserAutomationService {
         }
     }
 
-    public void add(AutomationRule rule) {
+    public void add(String project, AutomationRule rule) {
         for (AutomationRule.SerializableAction action : rule.actions) {
             AutomationAction<?> automationAction = automationActions.stream()
                     .filter(a -> a.getClass().equals(action.type.getActionClass()))
@@ -131,12 +131,12 @@ public class UserAutomationService {
         }
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO automation_rules (project, is_active, event_filters, actions, custom_data) VALUES (:project, true, :event_filters, :actions, :custom_data)")
-                    .bind("project", rule.project)
+                    .bind("project", project)
                     .bind("event_filters", JsonHelper.encode(rule.scenarios))
                     .bind("custom_data", rule.customData)
                     .bind("actions", JsonHelper.encode(rule.actions)).execute();
         }
-        rules.refresh(rule.project);
+        rules.refresh(project);
     }
 
 

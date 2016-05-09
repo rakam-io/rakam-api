@@ -19,15 +19,15 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
 import org.rakam.ui.user.WebUserHttpService;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
-import javax.ws.rs.POST;
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
 import java.util.Optional;
@@ -53,23 +53,22 @@ public class CustomReportHttpService extends HttpService {
     @JsonRequest
     @Path("/list")
     @ApiOperation(value = "List reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public List<CustomReport> list(@ApiParam(name="report_type", required = true) String reportType,
-                                   @ApiParam(name="project", required = true) String project) {
+    public List<CustomReport> list(@ApiParam("report_type") String reportType,
+                                   @javax.inject.Named("project") String project) {
         return metadata.list(reportType, project);
     }
 
-    @JsonRequest
+    @GET
     @Path("/types")
     @ApiOperation(value = "List report types", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public List<String> types(@ApiParam(name="project", required = true) String project) {
+    public List<String> types(@javax.inject.Named("project") String project) {
         return metadata.types(project);
     }
 
     @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"),
             response = JsonResponse.class, request = CustomReport.class)
     @Path("/create")
-    @POST
-    public void create(RakamHttpRequest request) {
+    public void create(@javax.inject.Named("project") String project, RakamHttpRequest request) {
         request.bodyHandler(body -> {
             CustomReport report = JsonHelper.read(body, CustomReport.class);
 
@@ -79,7 +78,7 @@ public class CustomReportHttpService extends HttpService {
             if (!user.isPresent()) {
                 request.response(encode(JsonResponse.error("Unauthorized")), UNAUTHORIZED).end();
             } else {
-                metadata.save(user.get(), report);
+                metadata.save(user.get(), project, report);
                 request.response(encode(JsonResponse.success()), OK).end();
             }
         });
@@ -88,17 +87,17 @@ public class CustomReportHttpService extends HttpService {
     @JsonRequest
     @Path("/update")
     @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public JsonResponse update(@ParamBody CustomReport report) {
-        metadata.update(report);
+    public JsonResponse update(@javax.inject.Named("project") String project, @BodyParam CustomReport report) {
+        metadata.update(project, report);
         return JsonResponse.success();
     }
 
     @JsonRequest
     @Path("/delete")
     @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public JsonResponse delete(@ApiParam(name="report_type", required = true) String reportType,
-                               @ApiParam(name="project", value = "Project id", required = true) String project,
-                               @ApiParam(name="name", value = "Project name", required = true) String name) {
+    public JsonResponse delete(@javax.inject.Named("project") String project,
+                               @ApiParam("report_type") String reportType,
+                               @ApiParam("name") String name) {
         metadata.delete(reportType, project, name);
 
         return JsonResponse.success();
@@ -107,9 +106,9 @@ public class CustomReportHttpService extends HttpService {
     @JsonRequest
     @Path("/get")
     @ApiOperation(value = "Get reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public Object get(@ApiParam(name="report_type", required = true) String reportType,
-                      @ApiParam(name="project", value = "Project id", required = true) String project,
-                      @ApiParam(name="name", value = "Report name", required = true) String name) {
+    public Object get(@ApiParam("report_type") String reportType,
+                      @javax.inject.Named("project") String project,
+                      @ApiParam(value = "name") String name) {
         return metadata.get(reportType, project, name);
     }
 }

@@ -215,7 +215,7 @@ public class PrestoMetastore extends AbstractMetastore {
         }
 
         for (String collectionName : getCollectionNames(project)) {
-            String query = String.format("DROP TABLE %s.%s.%s", prestoConfig.getColdStorageConnector(), project, collectionName);
+            String query = String.format("DROP TABLE %s.\"%s\".\"%s\"", prestoConfig.getColdStorageConnector(), project, collectionName);
 
             QueryResult join = new PrestoQueryExecution(defaultSession, query).getResult().join();
 
@@ -224,7 +224,7 @@ public class PrestoMetastore extends AbstractMetastore {
             }
         }
 
-        super.onCreateProject(project);
+        super.onDeleteProject(project);
     }
 
     @Override

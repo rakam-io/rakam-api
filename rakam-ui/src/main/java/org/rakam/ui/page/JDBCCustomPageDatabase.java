@@ -39,10 +39,10 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
         dbi = new DBI(dataSource);
     }
 
-    public void save(Integer user, Page page) {
+    public void save(Integer user, String project, Page page) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO custom_page (project, name, slug, category, data, user_id) VALUES (:project, :name, :slug, :category, :data, :user)")
-                    .bind("project", page.project)
+                    .bind("project", project)
                     .bind("name", page.name)
                     .bind("slug", page.slug)
                     .bind("category", page.category)
@@ -50,7 +50,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
                     .bind("data", JsonHelper.encode(page.files)).execute();
         } catch (Exception e) {
             // TODO move it to transaction
-            if (get(page.project(), page.slug) != null) {
+            if (get(project, page.slug) != null) {
                 throw new AlreadyExistsException(String.format("Custom page %s", page.slug), BAD_REQUEST);
             }
             throw e;
@@ -62,7 +62,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
             return handle.createQuery("SELECT name, slug, category FROM custom_page WHERE project = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
-                        return new Page(project, resultSet.getString(1), resultSet.getString(2), resultSet.getString(3));
+                        return new Page(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3));
                     }).list();
         }
     }

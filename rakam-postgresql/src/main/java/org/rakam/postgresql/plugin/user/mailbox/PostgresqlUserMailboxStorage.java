@@ -57,7 +57,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
             ps.executeUpdate();
             ResultSet generatedKeys = ps.getGeneratedKeys();
             generatedKeys.next();
-            return new Message(project, generatedKeys.getInt(1), fromUser, toUser, message, parentId, false, date.toEpochMilli());
+            return new Message(generatedKeys.getInt(1), fromUser, toUser, message, parentId, false, date.toEpochMilli());
         } catch (SQLException e) {
             LOGGER.error(e, "Error while saving user message");
             throw Throwables.propagate(e);
@@ -222,7 +222,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
             ResultSet resultSet = ps.executeQuery();
             ImmutableList.Builder<Message> builder = ImmutableList.builder();
             while (resultSet.next()) {
-                builder.add(new Message(project, resultSet.getInt(1), resultSet.getObject(2), resultSet.getObject(6),
+                builder.add(new Message(resultSet.getInt(1), resultSet.getObject(2), resultSet.getObject(6),
                         resultSet.getString(3), parentId,
                         resultSet.getBoolean(4), resultSet.getTimestamp(5).toInstant().toEpochMilli()));
             }

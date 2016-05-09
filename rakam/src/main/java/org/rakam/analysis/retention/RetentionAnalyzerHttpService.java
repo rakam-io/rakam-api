@@ -14,12 +14,10 @@
 package org.rakam.analysis.retention;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
-import org.rakam.util.IgnorePermissionCheck;
-import org.rakam.plugin.ProjectItem;
-import org.rakam.analysis.QueryHttpService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -27,11 +25,13 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.ParamBody;
+import org.rakam.util.IgnorePermissionCheck;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -60,9 +60,9 @@ public class RetentionAnalyzerHttpService extends HttpService {
     @IgnoreApi
     @IgnorePermissionCheck
     @Path("/analyze")
-    public void execute(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (query) ->
-                retentionQueryExecutor.query(query.project,
+    public void analyzeRetention(RakamHttpRequest request) {
+        queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) ->
+                retentionQueryExecutor.query(project,
                         Optional.ofNullable(query.firstAction),
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
@@ -78,8 +78,8 @@ public class RetentionAnalyzerHttpService extends HttpService {
     @POST
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> execute(@ParamBody RetentionQuery query) {
-          return retentionQueryExecutor.query(query.project,
+    public CompletableFuture<QueryResult> analyzeRetention(@Named("project") String project, @BodyParam RetentionQuery query) {
+          return retentionQueryExecutor.query(project,
                         Optional.ofNullable(query.firstAction),
                         Optional.ofNullable(query.returningAction),
                         query.dateUnit,
@@ -89,8 +89,7 @@ public class RetentionAnalyzerHttpService extends HttpService {
                         query.endDate).getResult();
     }
 
-    private static class RetentionQuery implements ProjectItem {
-        private final String project;
+    private static class RetentionQuery {
         private final RetentionAction firstAction;
         private final RetentionAction returningAction;
         private final DateUnit dateUnit;
@@ -100,15 +99,13 @@ public class RetentionAnalyzerHttpService extends HttpService {
         private final LocalDate endDate;
 
         @JsonCreator
-        public RetentionQuery(@ApiParam(name = "project") String project,
-                              @ApiParam(name = "first_action") RetentionAction firstAction,
-                              @ApiParam(name = "returning_action") RetentionAction returningAction,
-                              @ApiParam(name = "dimension") String dimension,
-                              @ApiParam(name = "date_unit") DateUnit dateUnit,
-                              @ApiParam(name = "period", required = false) Integer period,
-                              @ApiParam(name = "startDate") LocalDate startDate,
-                              @ApiParam(name = "endDate") LocalDate endDate) {
-            this.project = project;
+        public RetentionQuery(@ApiParam("first_action") RetentionAction firstAction,
+                              @ApiParam("returning_action") RetentionAction returningAction,
+                              @ApiParam("dimension") String dimension,
+                              @ApiParam("date_unit") DateUnit dateUnit,
+                              @ApiParam(value = "period", required = false) Integer period,
+                              @ApiParam("startDate") LocalDate startDate,
+                              @ApiParam("endDate") LocalDate endDate) {
             this.firstAction = firstAction;
             this.returningAction = returningAction;
             this.dateUnit = dateUnit;
@@ -116,11 +113,6 @@ public class RetentionAnalyzerHttpService extends HttpService {
             this.period = period;
             this.startDate = startDate;
             this.endDate = endDate;
-        }
-
-        @Override
-        public String project() {
-            return project;
         }
     }
 }

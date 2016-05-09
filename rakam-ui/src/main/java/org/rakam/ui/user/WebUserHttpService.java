@@ -60,9 +60,9 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/register")
-    public Response register(@ApiParam(name = "email") String email,
-                             @ApiParam(name = "name") String name,
-                             @ApiParam(name = "password") String password) {
+    public Response register(@ApiParam("email") String email,
+                             @ApiParam("name") String name,
+                             @ApiParam("password") String password) {
         // TODO: implement captcha https://github.com/VividCortex/angular-recaptcha https://developers.google.com/recaptcha/docs/verify
         // keep a counter for ip in local nodes and use stickiness feature of load balancer
         final WebUser user = service.createUser(email, name, password);
@@ -72,8 +72,8 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/update/password")
-    public JsonResponse update(@ApiParam(name = "oldPassword") String oldPassword,
-                               @ApiParam(name = "newPassword") String newPassword,
+    public JsonResponse update(@ApiParam("oldPassword") String oldPassword,
+                               @ApiParam("newPassword") String newPassword,
                                @CookieParam(name = "session") String session) {
         service.updateUserPassword(extractUserFromCookie(session, encryptionConfig.getSecretKey()), oldPassword, newPassword);
         return JsonResponse.success();
@@ -82,7 +82,7 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/update/info")
-    public JsonResponse update(@ApiParam(name = "name") String name, @CookieParam(name = "session") String session) {
+    public JsonResponse update(@ApiParam("name") String name, @CookieParam(name = "session") String session) {
         service.updateUserInfo(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
         return JsonResponse.success();
     }
@@ -90,7 +90,7 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/create-project")
-    public UserApiKey createProject(@ApiParam(name = "name") String name,
+    public UserApiKey createProject(@ApiParam("name") String name,
                                     @CookieParam(name = "session") String session) {
         final UserApiKey newApiKey = service.createProject(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
         return newApiKey;
@@ -99,14 +99,14 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/create-api-keys")
-    public ApiKeyService.ProjectApiKeys createApiKeys(@ApiParam(name = "project") String project, @CookieParam(name = "session") String session) {
+    public ApiKeyService.ProjectApiKeys createApiKeys(@ApiParam("project") String project, @CookieParam(name = "session") String session) {
         return service.createApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project);
     }
 
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/revoke-api-keys")
-    public JsonResponse revokeApiKeys(@ApiParam(name = "project") String project, @ApiParam(name = "id") int id, @CookieParam(name = "session") String session) {
+    public JsonResponse revokeApiKeys(@ApiParam("project") String project, @ApiParam("id") int id, @CookieParam(name = "session") String session) {
         service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, id);
         return JsonResponse.success();
     }
@@ -117,7 +117,7 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @Path("/user-access")
     public Map<String, List<WebUserService.UserAccess>> getUserAccess(@CookieParam(name = "session") String session,
-                                                                      @ApiParam(name = "project", required = false) String project) {
+                                                                      @ApiParam(value = "project", required = false) String project) {
         return service.getUserAccessForAllProjects(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
     }
 
@@ -125,7 +125,7 @@ public class WebUserHttpService extends HttpService {
     @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
     @IgnorePermissionCheck
     @Path("/prepare-recover-password")
-    public JsonResponse prepareRecoverPassword(@ApiParam(name = "email") String email) {
+    public JsonResponse prepareRecoverPassword(@ApiParam("email") String email) {
         service.prepareRecoverPassword(email);
         return JsonResponse.success();
     }
@@ -134,9 +134,9 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/perform-recover-password")
-    public JsonResponse performRecoverPassword(@ApiParam(name = "key") String key,
-                                               @ApiParam(name = "hash") String hash,
-                                               @ApiParam(name = "password") String password) {
+    public JsonResponse performRecoverPassword(@ApiParam("key") String key,
+                                               @ApiParam("hash") String hash,
+                                               @ApiParam("password") String password) {
         service.performRecoverPassword(key, hash, password);
         return JsonResponse.success();
     }
@@ -146,8 +146,8 @@ public class WebUserHttpService extends HttpService {
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
     public JsonResponse revokeUserAccess(@CookieParam(name = "session") String session,
-                                         @ApiParam(name = "project") String project,
-                                         @ApiParam(name = "email") String email) {
+                                         @ApiParam("project") String project,
+                                         @ApiParam("email") String email) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
@@ -167,12 +167,12 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @Path("/give-user-access")
     public JsonResponse getUserAccess(@CookieParam(name = "session") String session,
-                                      @ApiParam(name = "project") String project,
-                                      @ApiParam(name = "email") String email,
-                                      @ApiParam(name = "scope_expression", required = false) String scopeExpression,
-                                      @ApiParam(name = "has_read_permission") boolean has_read_permission,
-                                      @ApiParam(name = "has_write_permission") boolean has_write_permission,
-                                      @ApiParam(name = "is_admin") boolean isAdmin) {
+                                      @ApiParam("project") String project,
+                                      @ApiParam("email") String email,
+                                      @ApiParam(value="scope_expression", required = false) String scopeExpression,
+                                      @ApiParam("has_read_permission") boolean has_read_permission,
+                                      @ApiParam("has_write_permission") boolean has_write_permission,
+                                      @ApiParam("is_admin") boolean isAdmin) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
@@ -253,8 +253,8 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/login")
-    public Response<WebUser> login(@ApiParam(name = "email") String email,
-                                   @ApiParam(name = "password") String password) {
+    public Response<WebUser> login(@ApiParam("email") String email,
+                                   @ApiParam("password") String password) {
         final Optional<WebUser> user = service.login(email, password);
 
         if (user.isPresent()) {

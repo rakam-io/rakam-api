@@ -9,10 +9,8 @@ public class Message {
     public final Integer parentId;
     public final boolean seen;
     public final long time;
-    public final String project;
 
-    public Message(String project, int id, Object from_user, Object to_user, String content, Integer parentId, boolean seen, long time) {
-        this.project = project;
+    public Message(int id, Object from_user, Object to_user, String content, Integer parentId, boolean seen, long time) {
         this.id = id;
         this.from_user = from_user;
         this.to_user = to_user;
