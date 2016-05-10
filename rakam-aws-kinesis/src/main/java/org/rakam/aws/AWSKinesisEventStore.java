@@ -163,7 +163,10 @@ public class AWSKinesisEventStore implements EventStore {
             QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.\"%s\".\"%s\" SELECT * %s",
                     prestoConfig.getColdStorageConnector(), project, collection, middlewareTable));
 
-            return new ChainQueryExecution(ImmutableList.of(insertQuery), null, () -> {
+            return new ChainQueryExecution(ImmutableList.of(insertQuery), null, (results) -> {
+                if(results.get(0).isFailed()) {
+                    return insertQuery;
+                }
                 ImmutableList.Builder<QueryExecution> builder = ImmutableList.builder();
                 for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
                     AtomicBoolean ref = new AtomicBoolean();
@@ -186,10 +189,9 @@ public class AWSKinesisEventStore implements EventStore {
                     builder.add(processQuery);
                 }
 
-                return new ChainQueryExecution(builder.build(), null, () -> executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
+                return new ChainQueryExecution(builder.build(), null, (viewUpdateResults) -> executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
                         project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)))));
             });
-
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }

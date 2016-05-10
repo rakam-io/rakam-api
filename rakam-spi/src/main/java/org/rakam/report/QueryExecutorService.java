@@ -90,7 +90,7 @@ public class QueryExecutorService {
                     .collect(Collectors.toList());
 
 
-            return new DelegateQueryExecution(new ChainQueryExecution(executions, query, () -> {
+            return new DelegateQueryExecution(new ChainQueryExecution(executions, query, (results) -> {
                 for (MaterializedViewExecution queryExecution : queryExecutions) {
                     QueryResult result = queryExecution.queryExecution.getResult().join();
                     if (result.isFailed()) {

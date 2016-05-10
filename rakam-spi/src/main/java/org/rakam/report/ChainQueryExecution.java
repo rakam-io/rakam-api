@@ -3,14 +3,15 @@ package org.rakam.report;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ChainQueryExecution implements QueryExecution {
     private final List<QueryExecution> executions;
     private final String query;
     private final Optional<CompletableFuture<QueryExecution>> chainedQuery;
 
-    public ChainQueryExecution(List<QueryExecution> executions, String query, Supplier<QueryExecution> chainedQuery) {
+    public ChainQueryExecution(List<QueryExecution> executions, String query, Function<List<QueryResult>, QueryExecution> chainedQuery) {
         this(executions, query, Optional.of(chainedQuery));
     }
 
@@ -18,13 +19,14 @@ public class ChainQueryExecution implements QueryExecution {
         this(executions, query, Optional.empty());
     }
 
-    public ChainQueryExecution(List<QueryExecution> executions, String query, Optional<Supplier<QueryExecution>> chainedQuery) {
+    public ChainQueryExecution(List<QueryExecution> executions, String query, Optional<Function<List<QueryResult>, QueryExecution>> chainedQuery) {
         this.executions = executions;
         this.query = query;
 
         this.chainedQuery = chainedQuery.map(q -> CompletableFuture
                 .allOf(executions.stream().map(e -> e.getResult())
-                        .toArray(CompletableFuture[]::new)).thenApply(r -> q.get()));
+                        .toArray(CompletableFuture[]::new)).thenApply(r -> q.apply(executions.stream().map(e -> e.getResult().join())
+                        .collect(Collectors.toList()))));
     }
 
     @Override
