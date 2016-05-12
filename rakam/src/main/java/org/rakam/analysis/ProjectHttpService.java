@@ -11,18 +11,23 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Locale.ENGLISH;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/project")
@@ -75,6 +80,33 @@ public class ProjectHttpService extends HttpService {
         apiKeyService.revokeAllKeys(project);
 
         return JsonResponse.success();
+    }
+
+    @ApiOperation(value = "Get project stats",
+            authorizations = @Authorization(value = "master_key")
+    )
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/stats")
+    public Map<String, Metastore.Stats> getStats(@BodyParam List<String> apiKeys) {
+        List<String> projects = new ArrayList<>();
+
+        for (String apiKey : apiKeys) {
+            String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
+            projects.add(project);
+        }
+
+        return metastore.getStats(projects);
+    }
+
+    public static class Project {
+        public final String project;
+        public final String apiKey;
+
+        public Project(String project, String apiKey) {
+            this.project = project;
+            this.apiKey = apiKey;
+        }
     }
 
     @ApiOperation(value = "List created projects",

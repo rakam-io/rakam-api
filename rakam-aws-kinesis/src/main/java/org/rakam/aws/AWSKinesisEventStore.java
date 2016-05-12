@@ -8,6 +8,7 @@ import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.apache.avro.generic.FilteredRecordWriter;
@@ -164,7 +165,7 @@ public class AWSKinesisEventStore implements EventStore {
                     prestoConfig.getColdStorageConnector(), project, collection, middlewareTable));
 
             return new ChainQueryExecution(ImmutableList.of(insertQuery), null, (results) -> {
-                if(results.get(0).isFailed()) {
+                if (results.get(0).isFailed()) {
                     return insertQuery;
                 }
                 ImmutableList.Builder<QueryExecution> builder = ImmutableList.builder();
@@ -184,8 +185,10 @@ public class AWSKinesisEventStore implements EventStore {
                         continue;
                     }
 
-                    PrestoQueryExecution processQuery = executor.executeRawStatement(format("CREATE OR REPLACE VIEW %s.\"%s\".\"%s\" AS %s",
-                            prestoConfig.getStreamingConnector(), project, continuousQuery.tableName, query));
+                    PrestoQueryExecution processQuery = executor.executeRawQuery(format("CREATE OR REPLACE VIEW %s.\"%s\".\"%s\" AS %s",
+                                    prestoConfig.getStreamingConnector(), project, continuousQuery.tableName, query),
+                            ImmutableMap.of(prestoConfig.getStreamingConnector() + ".append_data", "true"),
+                            prestoConfig.getStreamingConnector());
                     builder.add(processQuery);
                 }
 

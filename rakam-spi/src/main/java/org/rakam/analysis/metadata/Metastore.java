@@ -26,5 +26,22 @@ public interface Metastore {
 
     void deleteProject(String project);
 
+    Map<String, Stats> getStats(List<String> projects);
+
     default void setup() {}
+
+    class Stats {
+        public long allEvents;
+        public long monthlyEvents;
+        public long dailyEvents;
+
+        public Stats() {
+        }
+
+        public Stats(long allEvents, long monthlyEvents, long dailyEvents) {
+            this.allEvents = allEvents;
+            this.monthlyEvents = monthlyEvents;
+            this.dailyEvents = dailyEvents;
+        }
+    }
 }

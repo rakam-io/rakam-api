@@ -49,9 +49,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -195,13 +193,13 @@ public class PrestoMetastore extends AbstractMetastore {
         return dao.listTableColumns(project, collection).stream()
                 .filter(col -> !col.getColumnName().startsWith("$"))
                 .map(column -> {
-            TypeSignature typeSignature = column.getDataType().getTypeSignature();
+                    TypeSignature typeSignature = column.getDataType().getTypeSignature();
 
-            return new SchemaField(column.getColumnName(), PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
-                    typeSignature.getParameters().stream()
-                            .filter(param -> param.getKind() == TYPE)
-                            .map(param -> param.getTypeSignature().getBase()).iterator()));
-        }).collect(Collectors.toList());
+                    return new SchemaField(column.getColumnName(), PrestoQueryExecution.fromPrestoType(typeSignature.getBase(),
+                            typeSignature.getParameters().stream()
+                                    .filter(param -> param.getKind() == TYPE)
+                                    .map(param -> param.getTypeSignature().getBase()).iterator()));
+                }).collect(Collectors.toList());
     }
 
 
@@ -225,6 +223,37 @@ public class PrestoMetastore extends AbstractMetastore {
         }
 
         super.onDeleteProject(project);
+    }
+
+    @Override
+    public Map<String, Stats> getStats(List<String> projects) {
+        try (Handle handle = dbi.open()) {
+            Map<String, Stats> map = new HashMap<>();
+            for (String project : projects) {
+                map.put(project, new Stats());
+            }
+            handle.createQuery("select schema_name, (case " +
+                    "when date = CURDATE() then 'today' " +
+                    "when year(date) = YEAR(NOW()) and month(date) = MONTH(NOW()) then 'month' else 'total' end) " +
+                    "as date, " +
+                    "sum(row_count) as events " +
+                    "from (select tables.schema_name, cast(create_time as date) as date, sum(row_count) as row_count from tables " +
+                    "join shards on (shards.table_id = tables.table_id) where schema_name in (" +
+                    projects.stream().map(e -> "'" + e + "'").collect(Collectors.joining(", ")) + ") ) t group by 1, 2 ").map((i, resultSet, statementContext) -> {
+                Stats stats = map.get(resultSet.getString(1));
+                if (resultSet.getString(2).equals("today")) {
+                    stats.dailyEvents = resultSet.getLong(3);
+                } else if (resultSet.getString(2).equals("month")) {
+                    stats.monthlyEvents = resultSet.getLong(3);
+                } else if (resultSet.getString(2).equals("total")) {
+                    stats.allEvents = resultSet.getLong(3);
+                }
+                return null;
+            }).forEach(l -> {
+            });
+
+            return map;
+        }
     }
 
     @Override

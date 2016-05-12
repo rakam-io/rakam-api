@@ -140,4 +140,9 @@ public abstract class AbstractMetastore implements Metastore {
         }
         fields.add(newField);
     }
+
+    @Override
+    public Map<String, Stats> getStats(List<String> projects) {
+        return null;
+    }
 }
