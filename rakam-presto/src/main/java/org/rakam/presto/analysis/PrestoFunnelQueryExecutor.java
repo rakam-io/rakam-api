@@ -71,9 +71,9 @@ public class PrestoFunnelQueryExecutor implements FunnelQueryExecutor {
             query = IntStream.range(0, steps.size())
                     .mapToObj(i -> format("(SELECT step, (CASE WHEN rank > 15 THEN 'Others' ELSE cast(dimension as varchar) END) as %s," +
                                     " sum(count) FROM (select 'Step %d' as step, dimension, cardinality(merge_sets(%s_set)) count, row_number() OVER(ORDER BY 3 DESC) rank from " +
-                                    "step%s %s ORDER BY 4 ASC) GROUP BY 1, 2 ORDER BY 3 DESC)",
+                                    "step%s %s ORDER BY 4 ASC) GROUP BY 1, 2)",
                             dimension.get(), i+1, CONNECTOR_FIELD, i, dimension.map(v -> "GROUP BY 2").orElse("")))
-                    .collect(Collectors.joining(" UNION ALL "));
+                    .collect(Collectors.joining(" UNION ALL ")) + " ORDER BY 1 ASC";
         } else {
             query = IntStream.range(0, steps.size())
                     .mapToObj(i -> format("(SELECT 'Step %d' as step, coalesce(cardinality(merge_sets(%s_set)), 0) count FROM step%d)",

@@ -1,7 +1,9 @@
 package org.rakam.analysis.abtesting;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.abtesting.ABTestingReport.Goal;
 import org.rakam.analysis.abtesting.ABTestingReport.Variant;
 import org.rakam.util.JsonHelper;
@@ -27,9 +29,8 @@ public class ABTestingMetastore {
     };
 
     @Inject
-//    public ABTestingMetastore(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
-    public ABTestingMetastore() {
-        dbi = new DBI("");
+    public ABTestingMetastore(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+        dbi = new DBI(dataSource);
         setup();
     }
 
