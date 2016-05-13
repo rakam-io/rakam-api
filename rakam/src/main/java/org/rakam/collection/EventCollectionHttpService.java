@@ -28,6 +28,7 @@ import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.QueryExecution;
+import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
@@ -215,7 +216,7 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             } catch (RakamException e) {
                 SentryUtil.logException(request, e);
-                request.response(e.getMessage(), BAD_REQUEST).end();
+                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
@@ -519,14 +520,14 @@ public class EventCollectionHttpService extends HttpService {
                     request.response(e.getCause().getMessage(), BAD_REQUEST).end();
                     return;
                 }
-                request.response(e.getMessage(), BAD_REQUEST).end();
+                request.response("\""+e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (IOException e) {
-                request.response("\"JSON couldn't parsed\"", BAD_REQUEST).end();
+                HttpServer.returnError(request, "JSON couldn't parsed", BAD_REQUEST);
                 return;
             } catch (RakamException e) {
                 SentryUtil.logException(request, e);
-                request.response(e.getMessage(), e.getStatusCode()).end();
+                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");

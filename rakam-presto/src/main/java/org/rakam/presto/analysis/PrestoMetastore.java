@@ -97,7 +97,7 @@ public class PrestoMetastore extends AbstractMetastore {
     private void setupTables() {
         reportDbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
-                    "  name TEXT NOT NULL,\n" +
+                    "  name TEXT NOT NULL, \n" +
                     "  PRIMARY KEY (name))")
                     .execute();
             return null;
@@ -239,7 +239,7 @@ public class PrestoMetastore extends AbstractMetastore {
                     "sum(row_count) as events " +
                     "from (select tables.schema_name, cast(create_time as date) as date, sum(row_count) as row_count from tables " +
                     "join shards on (shards.table_id = tables.table_id) where schema_name in (" +
-                    projects.stream().map(e -> "'" + e + "'").collect(Collectors.joining(", ")) + ") ) t group by 1, 2 ").map((i, resultSet, statementContext) -> {
+                    projects.stream().map(e -> "'" + e + "'").collect(Collectors.joining(", ")) + ") group by 1,2   ) t group by 1, 2 ").map((i, resultSet, statementContext) -> {
                 Stats stats = map.get(resultSet.getString(1));
                 if (resultSet.getString(2).equals("today")) {
                     stats.dailyEvents = resultSet.getLong(3);
@@ -251,6 +251,11 @@ public class PrestoMetastore extends AbstractMetastore {
                 return null;
             }).forEach(l -> {
             });
+
+            for (Stats stats : map.values()) {
+                stats.allEvents += stats.monthlyEvents + stats.dailyEvents;
+                stats.monthlyEvents += stats.dailyEvents;
+            }
 
             return map;
         }

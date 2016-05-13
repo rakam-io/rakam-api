@@ -48,7 +48,7 @@ public class ProjectHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Create project",
-            authorizations = @Authorization(value = "master_key")
+            authorizations = @Authorization(value = "lock_key")
     )
     @JsonRequest
     @Path("/create")

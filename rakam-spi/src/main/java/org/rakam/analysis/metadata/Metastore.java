@@ -44,4 +44,14 @@ public interface Metastore {
             this.dailyEvents = dailyEvents;
         }
     }
+
+    final class Project {
+        public final String name;
+        public final String apiUrl;
+
+        public Project(String name, String apiUrl) {
+            this.name = name;
+            this.apiUrl = apiUrl;
+        }
+    }
 }

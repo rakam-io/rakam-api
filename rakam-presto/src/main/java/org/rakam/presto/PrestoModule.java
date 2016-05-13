@@ -24,7 +24,7 @@ import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.postgresql.analysis.PostgresqlApiKeyService;
+import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
@@ -59,8 +59,10 @@ public class PrestoModule extends RakamModule {
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
         bindJDBCConfig(binder, "presto.metastore.jdbc");
 
+        bindJDBCConfig(binder, "presto.metastore.jdbc");
+
         JDBCPoolDataSource dataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
-        binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(dataSource));
+        binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(dataSource));
 
         binder.bind(Metastore.class).to(PrestoMetastore.class);
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {

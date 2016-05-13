@@ -16,7 +16,7 @@ import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.ApiKeyService;
-import org.rakam.postgresql.analysis.PostgresqlApiKeyService;
+import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.analysis.PostgresqlConfig;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
@@ -66,7 +66,7 @@ public class PostgresqlModule extends RakamModule {
                 .toInstance(orCreateDataSource);
 
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).in(Scopes.SINGLETON);
-        binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
+        binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(orCreateDataSource));
         // TODO: implement postgresql specific materialized view service
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);

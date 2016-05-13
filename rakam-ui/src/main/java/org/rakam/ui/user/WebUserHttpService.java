@@ -1,6 +1,5 @@
 package org.rakam.ui.user;
 
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -34,6 +33,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -147,13 +147,16 @@ public class WebUserHttpService extends HttpService {
     @Path("/revoke-user-access")
     public JsonResponse revokeUserAccess(@CookieParam(name = "session") String session,
                                          @ApiParam("project") String project,
+                                         @ApiParam("api_url") String api_url,
                                          @ApiParam("email") String email) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
         }
-        boolean hasPermission = user.get().projects.getOrDefault(project, ImmutableList.of())
-                .stream().anyMatch(e -> e.masterKey != null);
+
+        boolean hasPermission = user.get().projects.stream().anyMatch(e -> e.name.equals(project) &&
+                Objects.equals(e.apiUrl, api_url) &&
+                e.apiKeys.stream().anyMatch(a -> a.masterKey != null));
 
         if (!hasPermission) {
             throw new RakamException(UNAUTHORIZED);
@@ -172,19 +175,22 @@ public class WebUserHttpService extends HttpService {
                                       @ApiParam(value="scope_expression", required = false) String scopeExpression,
                                       @ApiParam("has_read_permission") boolean has_read_permission,
                                       @ApiParam("has_write_permission") boolean has_write_permission,
+                                      @ApiParam("api_url") String api_url,
                                       @ApiParam("is_admin") boolean isAdmin) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
         }
-        boolean hasPermission = user.get().projects.getOrDefault(project, ImmutableList.of())
-                .stream().anyMatch(e -> e.masterKey != null);
+
+        boolean hasPermission = user.get().projects.stream().anyMatch(e -> e.name.equals(project) &&
+                Objects.equals(e.apiUrl, api_url) &&
+                e.apiKeys.stream().anyMatch(a -> a.masterKey != null));
 
         if (!hasPermission) {
             throw new RakamException(UNAUTHORIZED);
         }
 
-        service.giveAccessToUser(project, email, scopeExpression, has_read_permission, has_write_permission, isAdmin);
+        service.giveAccessToUser(project, api_url, null, email, scopeExpression, has_read_permission, has_write_permission, isAdmin);
         return JsonResponse.success();
     }
 

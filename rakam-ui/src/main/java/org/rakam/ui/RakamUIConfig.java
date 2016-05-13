@@ -26,7 +26,6 @@ public class RakamUIConfig {
     private File customPageBackendDirectory;
     private boolean enableUi = true;
     private boolean hashPassword;
-    private String secretKey;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -79,17 +78,5 @@ public class RakamUIConfig {
 
     public File getCustomPageBackendDirectory() {
         return customPageBackendDirectory;
-    }
-
-    public String getSecretKey() {
-        return secretKey;
-    }
-
-    @Config("secret-key")
-    @ConfigDescription("The secret key that will be used when encrypting sessions and passwords. " +
-            "Do not expose this key because if it's known, the sessions may be hijacked.")
-    public RakamUIConfig setSecretKey(String secretKey) {
-        this.secretKey = secretKey;
-        return this;
     }
 }

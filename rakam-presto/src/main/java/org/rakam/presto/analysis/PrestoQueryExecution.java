@@ -133,7 +133,14 @@ public class PrestoQueryExecution implements QueryExecution {
 
     @Override
     public QueryStats currentStats() {
-        StatementStats stats = client.current().getStats();
+
+        if(client.isFailed()) {
+            return new QueryStats(QueryStats.State.FAILED);
+        }
+
+        StatementStats stats = (!client.isValid() ? client.finalResults() : client.current())
+                .getStats();
+
         int totalSplits = stats.getTotalSplits();
         int percentage = totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits;
         return new QueryStats(percentage,

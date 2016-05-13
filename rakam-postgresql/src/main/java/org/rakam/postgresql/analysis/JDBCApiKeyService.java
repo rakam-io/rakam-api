@@ -28,12 +28,12 @@ import java.util.concurrent.ExecutionException;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
-public class PostgresqlApiKeyService implements ApiKeyService {
+public class JDBCApiKeyService implements ApiKeyService {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
     private final JDBCPoolDataSource connectionPool;
     private final LoadingCache<ApiKey, String> apiKeyReverseCache;
 
-    public PostgresqlApiKeyService(JDBCPoolDataSource connectionPool) {
+    public JDBCApiKeyService(JDBCPoolDataSource connectionPool) {
         this.connectionPool = connectionPool;
 
         apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>() {

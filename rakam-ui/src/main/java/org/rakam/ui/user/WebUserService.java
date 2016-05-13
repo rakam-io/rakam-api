@@ -4,6 +4,7 @@ import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -46,9 +47,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static java.lang.Boolean.TRUE;
 
 public class WebUserService {
     private final static Logger LOGGER = Logger.get(WebUserService.class);
@@ -132,7 +135,7 @@ public class WebUserService {
                         .bind("email", email)
                         .bind("name", name)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
-                webuser = new WebUser(id, email, name, ImmutableMap.of());
+                webuser = new WebUser(id, email, name, ImmutableList.of());
             } catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
                 if (existingUser != null) {
@@ -145,7 +148,7 @@ public class WebUserService {
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                         if (id > 0) {
-                            webuser = new WebUser(id, email, name, ImmutableMap.of());
+                            webuser = new WebUser(id, email, name, ImmutableList.of());
                         }
                     }
                 }
@@ -343,7 +346,7 @@ public class WebUserService {
         }
     }
 
-    public void giveAccessToUser(String project, String email, String scopePermission, boolean hasReadPermission, boolean hasWritePermission, boolean isAdmin) {
+    public void giveAccessToUser(String project, String apiUrl, String lockKey, String email, String scopePermission, boolean hasReadPermission, boolean hasWritePermission, boolean isAdmin) {
         Integer userId;
         try (Handle handle = dbi.open()) {
             userId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
@@ -368,14 +371,16 @@ public class WebUserService {
                     .bind("read", hasReadPermission).execute();
             if (affectedRows == 0) {
                 handle.createStatement("INSERT INTO web_user_project " +
-                        "(id, user_id, project, has_read_permission, has_write_permission, scope_expression, is_admin) " +
-                        "VALUES (:id, :userId, :project, :hasReadPermission, :hasWritePermission, :scopePermission, :isAdmin)")
+                        "(id, user_id, project, has_read_permission, has_write_permission, scope_expression, is_admin, api_url, lock_key) " +
+                        "VALUES (:id, :userId, :project, :hasReadPermission, :hasWritePermission, :scopePermission, :isAdmin, :apiUrl, :lockKey)")
                         .bind("id", apiKeys.id)
                         .bind("userId", userId)
                         .bind("hasReadPermission", hasReadPermission)
                         .bind("hasWritePermission", hasWritePermission)
                         .bind("scopePermission", scopePermission)
                         .bind("isAdmin", isAdmin)
+                        .bind("apiUrl", apiUrl)
+                        .bind("lockKey", lockKey)
                         .bind("project", project).execute();
             }
         }
@@ -415,7 +420,7 @@ public class WebUserService {
             password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
         }
 
-        List<ProjectPermission> projects;
+        List<ProjectDefinition> projects;
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
@@ -444,7 +449,7 @@ public class WebUserService {
         String name;
         String email;
 
-        List<ProjectPermission> projectPermissions;
+        List<ProjectDefinition> projectDefinitions;
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
@@ -457,61 +462,68 @@ public class WebUserService {
             email = (String) data.get("email");
             id = (int) data.get("id");
 
-            projectPermissions = getUserApiKeys(handle, id);
+            projectDefinitions = getUserApiKeys(handle, id);
         }
 
-        Map<String, List<ProjectApiKeys>> projects = transformPermissions(projectPermissions);
+        List<WebUser.Project> projects = transformPermissions(projectDefinitions);
 
         return Optional.of(new WebUser(id, email, name, projects));
     }
 
-    public static class ProjectPermission {
+    public static class ProjectDefinition {
         public final int id;
         public final String project;
         public final String scope_expression;
         public final boolean has_read_permission;
         public final boolean has_write_permission;
         public final boolean is_admin;
+        public final String api_url;
 
-        public ProjectPermission(int id, String project, String scope_expression, boolean has_read_permission, boolean has_write_permission, boolean is_admin) {
+        public ProjectDefinition(int id, String project, String scope_expression, boolean has_read_permission, boolean has_write_permission, boolean is_admin, String apiUrl) {
             this.id = id;
             this.project = project;
             this.scope_expression = scope_expression;
             this.has_read_permission = has_read_permission;
             this.has_write_permission = has_write_permission;
             this.is_admin = is_admin;
+            this.api_url = apiUrl;
         }
     }
 
-    private List<ProjectPermission> getUserApiKeys(Handle handle, int userId) {
-        return handle.createQuery("SELECT id, project, scope_expression, has_read_permission, has_write_permission, is_admin FROM web_user_project WHERE user_id = :userId")
+    private List<ProjectDefinition> getUserApiKeys(Handle handle, int userId) {
+        return handle.createQuery("SELECT id, project, scope_expression, has_read_permission, has_write_permission, is_admin, api_url FROM web_user_project WHERE user_id = :userId")
                 .bind("userId", userId)
                 .map((i, r, statementContext) ->
-                        new ProjectPermission(r.getInt(1), r.getString(2), r.getString(3), r.getBoolean(4), r.getBoolean(5), r.getBoolean(6)))
+                        new ProjectDefinition(r.getInt(1), r.getString(2), r.getString(3), r.getBoolean(4), r.getBoolean(5), r.getBoolean(6), r.getString(7)))
                 .list();
     }
 
-    private Map<String, List<ProjectApiKeys>> transformPermissions(List<ProjectPermission> permissions) {
+    private List<WebUser.Project> transformPermissions(List<ProjectDefinition> permissions) {
 
-        Map<String, List<ProjectApiKeys>> projects = Maps.newHashMap();
+        Map<Map.Entry<String, String>, List<ProjectApiKeys>> projects = Maps.newHashMap();
 
         final List<ProjectApiKeys> apiKeys = apiKeyService
                 .getApiKeys(permissions.stream().mapToInt(row -> row.id).toArray());
 
+        metastore.getProjects();
+
         for (ProjectApiKeys apiKey : apiKeys) {
-            final ProjectPermission keyProps = permissions.stream().filter(key -> key.id == apiKey.id).findAny().get();
+            final ProjectDefinition keyProps = permissions.stream().filter(key -> key.id == apiKey.id).findAny().get();
             if (keyProps.scope_expression != null) {
                 //TODO generate scoped key
                 throw new UnsupportedOperationException();
             }
 
-            String masterKey = Boolean.TRUE.equals(keyProps.is_admin) ? apiKey.masterKey : null;
-            String readKey = Boolean.TRUE.equals(keyProps.has_read_permission) ? apiKey.readKey : null;
-            String writeKey = Boolean.TRUE.equals(keyProps.has_write_permission) ? apiKey.writeKey : null;
-            projects.computeIfAbsent(apiKey.project, (k) -> Lists.newArrayList())
+            String masterKey = TRUE.equals(keyProps.is_admin) ? apiKey.masterKey : null;
+            String readKey = TRUE.equals(keyProps.has_read_permission) ? apiKey.readKey : null;
+            String writeKey = TRUE.equals(keyProps.has_write_permission) ? apiKey.writeKey : null;
+            projects.computeIfAbsent(new SimpleImmutableEntry<>(apiKey.project, keyProps.api_url), (k) -> Lists.newArrayList())
                     .add(new ProjectApiKeys(apiKey.id, apiKey.project, masterKey, readKey, writeKey));
         }
-        return projects;
+
+        return projects.entrySet().stream()
+                .map(e -> new WebUser.Project(e.getKey().getKey(), e.getKey().getValue(), e.getValue()))
+                .collect(Collectors.toList());
     }
 
 
