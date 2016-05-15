@@ -3,7 +3,6 @@ package org.rakam;
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -23,7 +22,6 @@ public class TestPrestoContinuousQueryService extends TestContinuousQueryService
         testEnvironment = new TestingEnvironment();
 
         metastore = new PrestoMetastore(testEnvironment.getPrestoMetastore(),
-                JDBCPoolDataSource.getOrCreateDataSource(testEnvironment.getPostgresqlConfig()),
                 new EventBus(), new FieldDependencyBuilder().build(), testEnvironment.getPrestoConfig());
         metastore.setup();
 

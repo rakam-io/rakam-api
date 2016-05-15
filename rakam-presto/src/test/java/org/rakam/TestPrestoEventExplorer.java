@@ -43,7 +43,6 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
-                metastoreDataSource,
                 new EventBus(), build, prestoConfig);
         metastore.setup();
 

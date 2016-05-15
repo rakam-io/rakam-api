@@ -32,6 +32,7 @@ import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.MetadataConfig;
+import org.rakam.config.ProjectConfig;
 import org.rakam.http.ForHttpServer;
 import org.rakam.http.HttpServerConfig;
 import org.rakam.http.WebServiceModule;
@@ -173,6 +174,7 @@ public final class ServiceStarter {
             Multibinder.newSetBinder(binder, WebSocketService.class);
 
             bindConfig(binder).to(HttpServerConfig.class);
+            bindConfig(binder).to(ProjectConfig.class);
 
             binder.bind(EventLoopGroup.class)
                     .annotatedWith(ForHttpServer.class)

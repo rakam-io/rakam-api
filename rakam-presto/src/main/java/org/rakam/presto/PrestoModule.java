@@ -15,7 +15,9 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
+import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
@@ -57,12 +59,19 @@ public class PrestoModule extends RakamModule {
         binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
-        bindJDBCConfig(binder, "presto.metastore.jdbc");
 
-        bindJDBCConfig(binder, "presto.metastore.jdbc");
+        JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
-        JDBCPoolDataSource dataSource = bindJDBCConfig(binder, "report.metadata.store.jdbc");
-        binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(dataSource));
+        binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));
+
+        // use same jdbc pool if report.metadata.store is not set explicitly.
+        if(getConfig("report.metadata.store") == null) {
+            binder.bind(JDBCPoolDataSource.class)
+                    .annotatedWith(Names.named("report.metadata.store.jdbc"))
+                    .toInstance(metadataDataSource);
+
+            binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class).in(Scopes.SINGLETON);
+        }
 
         binder.bind(Metastore.class).to(PrestoMetastore.class);
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {

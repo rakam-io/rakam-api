@@ -98,7 +98,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                     "  PRIMARY KEY (project, table_name)" +
                     "  )")
                     .execute();
-            handle.createStatement("CREATE TABLE IF NOT EXISTS continuous_queries (" +
+            handle.createStatement("CREATE TABLE IF NOT EXISTS continuous_query_metadata (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
                     "  table_name VARCHAR(255)  NOT NULL," +
@@ -167,7 +167,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public void createContinuousQuery(String project, ContinuousQuery report) {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO continuous_queries (project, name, table_name, query, partition_keys, options) VALUES (:project, :name, :tableName, :query, :partitionKeys, :options)")
+                handle.createStatement("INSERT INTO continuous_query_metadata (project, name, table_name, query, partition_keys, options) VALUES (:project, :name, :tableName, :query, :partitionKeys, :options)")
                         .bind("project", project)
                         .bind("name", report.name)
                         .bind("tableName", report.tableName)
@@ -192,7 +192,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public void deleteContinuousQuery(String project, String tableName) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM continuous_queries WHERE project = :project AND table_name = :name")
+            handle.createStatement("DELETE FROM continuous_query_metadata WHERE project = :project AND table_name = :name")
                     .bind("project", project)
                     .bind("name", tableName).execute();
         }
@@ -201,7 +201,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public List<ContinuousQuery> getContinuousQueries(String project) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, table_name, query,  partition_keys, options FROM continuous_queries WHERE project = :project")
+            return handle.createQuery("SELECT name, table_name, query,  partition_keys, options FROM continuous_query_metadata WHERE project = :project")
                     .bind("project", project).map(continuousQueryMapper).list();
         }
     }
@@ -209,7 +209,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public ContinuousQuery getContinuousQuery(String project, String tableName) {
         try (Handle handle = dbi.open()) {
-            ContinuousQuery first = handle.createQuery("SELECT name, table_name, query, partition_keys, options FROM continuous_queries WHERE project = :project AND table_name = :name")
+            ContinuousQuery first = handle.createQuery("SELECT name, table_name, query, partition_keys, options FROM continuous_query_metadata WHERE project = :project AND table_name = :name")
                     .bind("project", project).bind("name", tableName).map(continuousQueryMapper).first();
             if (first == null) {
                 throw new RakamException(String.format("Continuous query table continuous.%s is not found", tableName), BAD_REQUEST);
@@ -248,7 +248,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public Map<String, Collection<ContinuousQuery>> getAllContinuousQueries() {
         try (Handle handle = dbi.open()) {
             HashMap<String, Collection<ContinuousQuery>> map = new HashMap<>();
-            handle.createQuery("SELECT project, name, table_name, query, partition_keys, options from continuous_queries")
+            handle.createQuery("SELECT project, name, table_name, query, partition_keys, options from continuous_query_metadata")
                     .map((index, r, ctx) -> {
                         return new AbstractMap.SimpleImmutableEntry<>(r.getString("project"), new ContinuousQuery(
                                 r.getString("name"), r.getString("table_name"), r.getString("query"),

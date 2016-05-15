@@ -43,7 +43,7 @@ public class DashboardService extends HttpService {
     private final DBI dbi;
 
     @Inject
-    public DashboardService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public DashboardService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
     }
 

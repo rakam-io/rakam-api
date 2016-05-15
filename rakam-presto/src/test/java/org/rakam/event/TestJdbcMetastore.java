@@ -31,7 +31,6 @@ public class TestJdbcMetastore extends TestingEnvironment {
         JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(getPostgresqlConfig());
 
         metastore = new PrestoMetastore(super.getPrestoMetastore(),
-                metastoreDataSource,
                 new EventBus(), new FieldDependencyBuilder().build(), super.getPrestoConfig());
         metastore.setup();
     }

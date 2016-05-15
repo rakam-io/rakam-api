@@ -97,7 +97,7 @@ public class WebUserService {
     }
 
     @Inject
-    public WebUserService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+    public WebUserService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
                           Metastore metastore,
                           ApiKeyService apiKeyService,
                           RakamUIConfig config,

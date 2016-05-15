@@ -72,7 +72,7 @@ public class AWSKinesisEventStore implements EventStore {
     @Inject
     public AWSKinesisEventStore(AWSConfig config,
                                 Metastore metastore,
-                                @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+                                @Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource,
                                 PrestoQueryExecutor executor,
                                 QueryMetadataStore queryMetadataStore,
                                 PrestoConfig prestoConfig,
@@ -151,10 +151,12 @@ public class AWSKinesisEventStore implements EventStore {
     public QueryExecution commit(String project, String collection) {
         Instant now = Instant.now();
 
-        try (Connection conn = dataSource.getConnection()) {
-            String lockKey = "bulk." + project + "." + collection;
+        Connection conn;
+        try {
+            conn = dataSource.getConnection();
 
-            conn.createStatement().execute(format("SELECT pg_advisory_lock(hashtext('%s'))", lockKey));
+            String lockKey = "bulk." + project + "." + collection;
+            conn.createStatement().execute(format("SELECT GET_LOCK('%s')", lockKey));
 
             String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s'",
                     prestoConfig.getBulkConnector(), project, collection,
@@ -192,8 +194,24 @@ public class AWSKinesisEventStore implements EventStore {
                     builder.add(processQuery);
                 }
 
-                return new ChainQueryExecution(builder.build(), null, (viewUpdateResults) -> executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
-                        project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)))));
+                return new ChainQueryExecution(builder.build(), null, (viewUpdateResults) -> {
+                    Optional<QueryResult> result = viewUpdateResults.stream().filter(e -> e.isFailed()).findAny();
+
+                    QueryExecution e;
+                    if (result.isPresent()) {
+                        e = QueryExecution.completedQueryExecution(null, result.get());
+                    } else {
+                        e = executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
+                                project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC))));
+                    }
+
+                    try {
+                        conn.createStatement().execute(format("SELECT RELEASE_LOCK('%s')", lockKey));
+                    } catch (SQLException e1) {
+                    }
+
+                    return e;
+                });
             });
         } catch (SQLException e) {
             throw Throwables.propagate(e);

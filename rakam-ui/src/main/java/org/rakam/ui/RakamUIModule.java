@@ -7,8 +7,10 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
+import com.google.inject.name.Names;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
+import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
@@ -55,6 +57,10 @@ public class RakamUIModule extends RakamModule {
                     break;
             }
         }
+
+        binder.bind(JDBCPoolDataSource.class)
+                .annotatedWith(Names.named("ui.metadata.jdbc"))
+                .toInstance(JDBCPoolDataSource.getOrCreateDataSource(buildConfigObject(JDBCConfig.class, "ui.metadata.jdbc")));
 
         Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
         hooks.addBinding().to(DatabaseScript.class);
@@ -146,7 +152,7 @@ public class RakamUIModule extends RakamModule {
         private final RakamUIConfig config;
 
         @Inject
-        public DatabaseScript(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource, RakamUIConfig config) {
+        public DatabaseScript(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, RakamUIConfig config) {
             dbi = new DBI(dataSource);
             this.config = config;
         }

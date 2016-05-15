@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
@@ -48,8 +49,8 @@ public class JDBCApiKeyService implements ApiKeyService {
         apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, String>() {
             @Override
             public String load(ApiKey apiKey) throws Exception {
-                try(Connection conn = connectionPool.getConnection()) {
-                    PreparedStatement ps = conn.prepareStatement(format("SELECT project FROM public.api_key WHERE %s = ?", apiKey.type.name()));
+                try (Connection conn = connectionPool.getConnection()) {
+                    PreparedStatement ps = conn.prepareStatement(format("SELECT project FROM api_key WHERE %s = ?", apiKey.type.name()));
                     ps.setString(1, apiKey.key);
                     ResultSet resultSet = ps.executeQuery();
                     if (!resultSet.next()) {
@@ -57,7 +58,7 @@ public class JDBCApiKeyService implements ApiKeyService {
                     }
                     return resultSet.getString(1);
                 } catch (SQLException e) {
-                    throw  Throwables.propagate(e);
+                    throw Throwables.propagate(e);
                 }
             }
         });
@@ -68,12 +69,13 @@ public class JDBCApiKeyService implements ApiKeyService {
         try (Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
             statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
-                    "  id SERIAL PRIMARY KEY,\n" +
-                    "  project TEXT NOT NULL,\n" +
-                    "  read_key TEXT NOT NULL,\n" +
-                    "  write_key TEXT NOT NULL,\n" +
-                    "  master_key TEXT NOT NULL,\n" +
-                    "  created_at TIMESTAMP default current_timestamp NOT NULL\n" +
+                    "  id MEDIUMINT NOT NULL AUTO_INCREMENT,\n" +
+                    "  project VARCHAR(255) NOT NULL,\n" +
+                    "  read_key VARCHAR(255) NOT NULL,\n" +
+                    "  write_key VARCHAR(255) NOT NULL,\n" +
+                    "  master_key VARCHAR(255) NOT NULL,\n" +
+                    "  created_at TIMESTAMP default current_timestamp NOT NULL," +
+                    "PRIMARY KEY (id)\n" +
                     "  )");
         } catch (SQLException e) {
             Throwables.propagate(e);
@@ -89,7 +91,7 @@ public class JDBCApiKeyService implements ApiKeyService {
 
         int id;
         try (Connection connection = connectionPool.getConnection()) {
-            PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_key " +
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO api_key " +
                             "(master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, masterKey);
@@ -118,8 +120,8 @@ public class JDBCApiKeyService implements ApiKeyService {
 
     @Override
     public void revokeApiKeys(String project, int id) {
-        try(Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM public.api_key WHERE project = ? AND id = ?");
+        try (Connection conn = connectionPool.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ? AND id = ?");
             ps.setString(1, project);
             ps.setInt(2, id);
             ps.execute();
@@ -131,10 +133,10 @@ public class JDBCApiKeyService implements ApiKeyService {
     @Override
     public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
         try {
-            if(apiKey == null) {
+            if (apiKey == null) {
                 throw new RakamException("Api key is missing", HttpResponseStatus.FORBIDDEN);
             }
-            if(project == null) {
+            if (project == null) {
                 throw new RakamException("Project id is missing", HttpResponseStatus.FORBIDDEN);
             }
             boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
@@ -151,8 +153,12 @@ public class JDBCApiKeyService implements ApiKeyService {
     @Override
     public List<ProjectApiKeys> getApiKeys(int[] ids) {
         try (Connection conn = connectionPool.getConnection()) {
-            final PreparedStatement ps = conn.prepareStatement("select id, project, master_key, read_key, write_key from api_key where id = any(?)");
-            ps.setArray(1, conn.createArrayOf("integer", Arrays.stream(ids).mapToObj(i -> i).toArray()));
+
+            final PreparedStatement ps = conn.prepareStatement(String.format("select id, project, master_key, read_key, write_key from api_key where id in (%s)",
+                    Arrays.stream(ids).mapToObj(i -> "?").collect(Collectors.joining(", "))));
+            for (int i = 0; i < ids.length; i++) {
+                ps.setInt(i + 1, ids[i]);
+            }
             ps.execute();
             final ResultSet resultSet = ps.getResultSet();
             final List<ProjectApiKeys> list = Lists.newArrayList();
@@ -167,8 +173,8 @@ public class JDBCApiKeyService implements ApiKeyService {
 
     @Override
     public void revokeAllKeys(String project) {
-        try(Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM public.api_key WHERE project = ?");
+        try (Connection conn = connectionPool.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ?");
             ps.setString(1, project);
             ps.execute();
         } catch (SQLException e) {

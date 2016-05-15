@@ -59,20 +59,17 @@ public class PrestoMetastore extends AbstractMetastore {
 
     private final DBI dbi;
     private final MetadataDao dao;
-    private final DBI reportDbi;
     private final PrestoConfig prestoConfig;
     private final ClientSession defaultSession;
 
     @Inject
     public PrestoMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
-                           @Named("report.metadata.store.jdbc") JDBCPoolDataSource reportDataSource,
                            EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency,
                            PrestoConfig prestoConfig) {
         super(fieldDependency, eventBus);
         dbi = new DBI(prestoMetastoreDataSource);
         dbi.registerMapper(new TableColumn.Mapper(new SignatureReferenceTypeManager()));
         this.dao = onDemandDao(dbi, MetadataDao.class);
-        reportDbi = new DBI(reportDataSource);
         this.prestoConfig = prestoConfig;
         defaultSession = new ClientSession(
                 prestoConfig.getAddress(),
@@ -95,9 +92,9 @@ public class PrestoMetastore extends AbstractMetastore {
     }
 
     private void setupTables() {
-        reportDbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
+        dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
             handle.createStatement("CREATE TABLE IF NOT EXISTS project (" +
-                    "  name TEXT NOT NULL, \n" +
+                    "  name VARCHAR(255) NOT NULL, \n" +
                     "  PRIMARY KEY (name))")
                     .execute();
             return null;
@@ -207,7 +204,7 @@ public class PrestoMetastore extends AbstractMetastore {
     public void deleteProject(String project) {
         checkProject(project);
 
-        try (Handle handle = reportDbi.open()) {
+        try (Handle handle = dbi.open()) {
             handle.createStatement("delete from project where name = :project")
                     .bind("project", project).execute();
         }
@@ -227,6 +224,9 @@ public class PrestoMetastore extends AbstractMetastore {
 
     @Override
     public Map<String, Stats> getStats(List<String> projects) {
+        if(projects.isEmpty()) {
+            ImmutableMap.of();
+        }
         try (Handle handle = dbi.open()) {
             Map<String, Stats> map = new HashMap<>();
             for (String project : projects) {
@@ -279,7 +279,7 @@ public class PrestoMetastore extends AbstractMetastore {
     public void createProject(String project) {
         checkProject(project);
 
-        try (Handle handle = reportDbi.open()) {
+        try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO project (name) VALUES(:name)")
                         .bind("name", project)
@@ -296,7 +296,7 @@ public class PrestoMetastore extends AbstractMetastore {
 
     @Override
     public Set<String> getProjects() {
-        try (Handle handle = reportDbi.open()) {
+        try (Handle handle = dbi.open()) {
             return ImmutableSet.copyOf(
                     handle.createQuery("select name from project")
                             .map(StringMapper.FIRST).iterator());

@@ -35,7 +35,7 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
     private final DBI dbi;
 
     @Inject
-    public JDBCCustomPageDatabase(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public JDBCCustomPageDatabase(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
     }
 

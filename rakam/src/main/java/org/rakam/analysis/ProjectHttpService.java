@@ -1,7 +1,9 @@
 package org.rakam.analysis;
 
+import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.server.http.HttpService;
@@ -15,6 +17,7 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -23,9 +26,11 @@ import javax.ws.rs.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -38,24 +43,30 @@ public class ProjectHttpService extends HttpService {
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
     private final ApiKeyService apiKeyService;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public ProjectHttpService(Metastore metastore, MaterializedViewService materializedViewService, ApiKeyService apiKeyService, ContinuousQueryService continuousQueryService) {
+    public ProjectHttpService(Metastore metastore, ProjectConfig projectConfig,
+                              MaterializedViewService materializedViewService,
+                              ApiKeyService apiKeyService, ContinuousQueryService continuousQueryService) {
         this.continuousQueryService = continuousQueryService;
         this.materializedViewService = materializedViewService;
         this.apiKeyService = apiKeyService;
         this.metastore = metastore;
+        this.projectConfig = projectConfig;
     }
 
-    @ApiOperation(value = "Create project",
-            authorizations = @Authorization(value = "lock_key")
-    )
+    @ApiOperation(value = "Create project")
     @JsonRequest
     @Path("/create")
-    public JsonResponse createProject(@ApiParam("name") String name) {
+    public ProjectApiKeys createProject(@ApiParam("lock_key") String lockKey, @ApiParam("name") String name) {
+        if(!Objects.equals(projectConfig.getLockKey(), lockKey)) {
+            throw new RakamException("Lock key is invalid", FORBIDDEN);
+        }
+
         checkProject(name);
         metastore.createProject(name.toLowerCase(ENGLISH));
-        return JsonResponse.success();
+        return apiKeyService.createApiKeys(name);
     }
 
     @ApiOperation(value = "Delete project",

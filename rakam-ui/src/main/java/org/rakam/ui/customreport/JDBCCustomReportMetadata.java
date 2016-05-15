@@ -34,7 +34,7 @@ public class JDBCCustomReportMetadata {
     private final DBI dbi;
 
     @Inject
-    public JDBCCustomReportMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public JDBCCustomReportMetadata(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
         createIndexIfNotExists();
     }

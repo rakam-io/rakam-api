@@ -37,7 +37,6 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
 
         JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
         metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
-                metastoreDataSource,
                 new EventBus(), new FieldDependencyBuilder().build(), prestoConfig);
         metastore.setup();
 

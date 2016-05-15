@@ -34,7 +34,7 @@ public class JDBCReportMetadata {
     };
 
     @Inject
-    public JDBCReportMetadata(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public JDBCReportMetadata(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
     }
 

@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -35,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -201,7 +201,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             Runnable task;
             if (currentFields.isEmpty()) {
                 if (!getProjects().contains(project)) {
-                    throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
+                    throw new NotExistsException("project", UNAUTHORIZED);
                 }
                 String queryEnd = schemaFields.stream()
                         .map(f -> {
