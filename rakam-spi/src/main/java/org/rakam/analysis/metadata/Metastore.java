@@ -1,8 +1,9 @@
 package org.rakam.analysis.metadata;
 
-import org.rakam.util.NotExistsException;
 import org.rakam.collection.SchemaField;
+import org.rakam.util.NotExistsException;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,7 +27,7 @@ public interface Metastore {
 
     void deleteProject(String project);
 
-    Map<String, Stats> getStats(List<String> projects);
+    Map<String, Stats> getStats(Collection<String> projects);
 
     default void setup() {}
 

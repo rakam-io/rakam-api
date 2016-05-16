@@ -10,6 +10,7 @@ import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -142,7 +143,7 @@ public abstract class AbstractMetastore implements Metastore {
     }
 
     @Override
-    public Map<String, Stats> getStats(List<String> projects) {
+    public Map<String, Stats> getStats(Collection<String> projects) {
         return null;
     }
 }

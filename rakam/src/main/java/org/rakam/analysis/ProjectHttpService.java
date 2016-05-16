@@ -23,7 +23,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.util.Locale.ENGLISH;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/project")
@@ -93,21 +93,21 @@ public class ProjectHttpService extends HttpService {
         return JsonResponse.success();
     }
 
-    @ApiOperation(value = "Get project stats",
-            authorizations = @Authorization(value = "master_key")
-    )
+    @ApiOperation(value = "Get project stats")
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/stats")
     public Map<String, Metastore.Stats> getStats(@BodyParam List<String> apiKeys) {
-        List<String> projects = new ArrayList<>();
 
+        Map<String, String> keys = new LinkedHashMap<>();
         for (String apiKey : apiKeys) {
-            String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
-            projects.add(project);
+            String project = apiKeyService.getProjectOfApiKey(apiKey, READ_KEY);
+            keys.put(project, apiKey);
         }
 
-        return metastore.getStats(projects);
+        Map<String, Metastore.Stats> stats = metastore.getStats(keys.keySet());
+        return stats.entrySet().stream()
+                .collect(Collectors.toMap(e -> keys.get(e.getKey()), e -> e.getValue()));
     }
 
     public static class Project {

@@ -36,6 +36,7 @@ import javax.inject.Inject;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -223,9 +224,9 @@ public class PrestoMetastore extends AbstractMetastore {
     }
 
     @Override
-    public Map<String, Stats> getStats(List<String> projects) {
+    public Map<String, Stats> getStats(Collection<String> projects) {
         if(projects.isEmpty()) {
-            ImmutableMap.of();
+            return ImmutableMap.of();
         }
         try (Handle handle = dbi.open()) {
             Map<String, Stats> map = new HashMap<>();
