@@ -156,7 +156,7 @@ public class AWSKinesisEventStore implements EventStore {
             conn = dataSource.getConnection();
 
             String lockKey = "bulk." + project + "." + collection;
-            conn.createStatement().execute(format("SELECT GET_LOCK('%s')", lockKey));
+            conn.createStatement().execute(format("SELECT GET_LOCK('%s', -1)", lockKey));
 
             String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s'",
                     prestoConfig.getBulkConnector(), project, collection,
