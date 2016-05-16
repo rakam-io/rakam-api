@@ -158,7 +158,7 @@ public class AWSKinesisEventStore implements EventStore {
             String lockKey = "bulk." + project + "." + collection;
             conn.createStatement().execute(format("SELECT GET_LOCK('%s', -1)", lockKey));
 
-            String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s'",
+            String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s UTC'",
                     prestoConfig.getBulkConnector(), project, collection,
                     PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)));
 
@@ -201,7 +201,7 @@ public class AWSKinesisEventStore implements EventStore {
                     if (result.isPresent()) {
                         e = QueryExecution.completedQueryExecution(null, result.get());
                     } else {
-                        e = executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s'", prestoConfig.getBulkConnector(),
+                        e = executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s UTC'", prestoConfig.getBulkConnector(),
                                 project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC))));
                     }
 
