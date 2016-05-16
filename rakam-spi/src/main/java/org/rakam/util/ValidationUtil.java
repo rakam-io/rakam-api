@@ -1,8 +1,8 @@
 package org.rakam.util;
 
-import io.netty.handler.codec.http.HttpResponseStatus;
-
 import javax.annotation.Nullable;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 
 public final class ValidationUtil {
@@ -20,14 +20,14 @@ public final class ValidationUtil {
     public static void checkCollection(String collection) {
         checkArgument(collection != null, "collection is null");
         if(!collection.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
-            throw new IllegalArgumentException("Collection is not valid.");
+            throw new RakamException("Collection is not valid.", BAD_REQUEST);
         }
     }
 
     public static String checkTableColumn(String column, String type) {
         checkArgument(type != null, type+" is null");
         if(!column.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
-            throw new IllegalArgumentException(type+" is not valid.");
+            throw new RakamException(type+" is not valid.", BAD_REQUEST);
         }
         return column;
     }
@@ -35,9 +35,9 @@ public final class ValidationUtil {
     public static void checkArgument(boolean expression, @Nullable String errorMessage) {
         if (!expression) {
             if(errorMessage == null) {
-                throw new RakamException(HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException(BAD_REQUEST);
             } else {
-                throw new RakamException(errorMessage, HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException(errorMessage, BAD_REQUEST);
             }
         }
     }
