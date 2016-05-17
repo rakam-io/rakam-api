@@ -189,7 +189,7 @@ public class PrestoMetastore extends AbstractMetastore {
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
         return dao.listTableColumns(project, collection).stream()
-                .filter(col -> !col.getColumnName().startsWith("$"))
+                .filter(a -> !a.getColumnName().startsWith("$") && !a.getColumnName().equals("_shard_time"))
                 .map(column -> {
                     TypeSignature typeSignature = column.getDataType().getTypeSignature();
 
@@ -307,7 +307,7 @@ public class PrestoMetastore extends AbstractMetastore {
     public Map<String, List<SchemaField>> getTables(String project, Predicate<TableColumn> filter) {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
-            if (tableColumn.getColumnName().startsWith("$") || !filter.test(tableColumn)) {
+            if (tableColumn.getColumnName().startsWith("$") || tableColumn.getColumnName().equals("_shard_time") || !filter.test(tableColumn)) {
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();

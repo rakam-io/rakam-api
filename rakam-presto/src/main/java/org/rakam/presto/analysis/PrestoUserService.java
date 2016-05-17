@@ -3,6 +3,7 @@ package org.rakam.presto.analysis;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
@@ -44,10 +45,11 @@ public class PrestoUserService extends AbstractUserService {
     private final UserPluginConfig config;
 
     @Inject
-    public PrestoUserService(UserStorage storage, EventStore eventStore, Metastore metastore,
+    public PrestoUserService(UserStorage storage, ContinuousQueryService continuousQueryService,
+                             EventStore eventStore, Metastore metastore,
                              UserPluginConfig config,
                              PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
-        super(storage);
+        super(continuousQueryService, storage);
         this.metastore = metastore;
         this.config = config;
         this.prestoConfig = prestoConfig;

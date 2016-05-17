@@ -3,8 +3,6 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
@@ -12,10 +10,9 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
+import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
 import org.rakam.plugin.user.UserStorage.Sorting;
-import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -47,12 +44,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Charsets.UTF_8;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
@@ -349,64 +346,8 @@ public class UserHttpService extends HttpService {
     @GET
     @Path("/pre_calculate")
     public void precalculateUsers(RakamHttpRequest request) {
-        queryService.handleServerSentQueryExecution(request, PreCalculateQuery.class, (project, query) -> {
-            String tableName = "_users_daily" +
-                    Optional.ofNullable(query.collection).map(value -> "_" + value).orElse("") +
-                    Optional.ofNullable(query.dimension).map(value -> "_by_" + value).orElse("");
-
-            String name = "Daily users who did " +
-                    Optional.ofNullable(query.collection).map(value -> " event " + value).orElse(" at least one event") +
-                    Optional.ofNullable(query.dimension).map(value -> " grouped by " + value).orElse("");
-
-            String table, dateColumn;
-            if (query.collection == null) {
-                table = String.format("SELECT cast(_time as date) as date, %s _user FROM _all",
-                        Optional.ofNullable(query.dimension).map(v -> v + ",").orElse(""));
-                dateColumn = "date";
-            } else {
-                table = query.collection;
-                dateColumn = "cast(_time as date)";
-            }
-
-            String sqlQuery = String.format("SELECT %s as date, %s set(_user) _user_set FROM (%s) GROUP BY 1 %s",
-                    dateColumn,
-                    Optional.ofNullable(query.dimension).map(v -> v + " as dimension,").orElse(""), table,
-                    Optional.ofNullable(query.dimension).map(v -> ", 2").orElse(""));
-
-            return new DelegateQueryExecution(continuousQueryService.create(project, new ContinuousQuery(name, tableName, sqlQuery,
-                    ImmutableList.of("date"), ImmutableMap.of()), true), result -> {
-                if (result.isFailed()) {
-                    throw new RakamException("Failed to create continuous query: " + JsonHelper.encode(result.getError()), INTERNAL_SERVER_ERROR);
-                }
-                result.setProperty("preCalculated", new PreCalculatedTable(name, tableName));
-                return result;
-            });
-        }, MASTER_KEY);
-    }
-
-    public static class PreCalculateQuery {
-        public final String collection;
-        public final String dimension;
-//        public final boolean replayHistoricalData;
-
-        public PreCalculateQuery(@ApiParam(value = "collection", required = false) String collection,
-                                 @ApiParam(value = "dimension", required = false) String dimension
-//                                 @ApiParam(value = "replay_historical_data", required = false) Boolean replayHistoricalData
-        ) {
-            this.collection = collection;
-            this.dimension = dimension;
-//            this.replayHistoricalData = replayHistoricalData == null ? false : replayHistoricalData;
-        }
-    }
-
-    public static class PreCalculatedTable {
-        public final String name;
-        public final String tableName;
-
-        public PreCalculatedTable(String name, String tableName) {
-            this.name = name;
-            this.tableName = tableName;
-        }
+        queryService.handleServerSentQueryExecution(request, PreCalculateQuery.class,
+                service::precalculate, MASTER_KEY, false);
     }
 
     @JsonRequest

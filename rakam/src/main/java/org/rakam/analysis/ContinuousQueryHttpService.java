@@ -137,7 +137,7 @@ public class ContinuousQueryHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.") })
     @Path("/refresh")
     public void refreshQuery(RakamHttpRequest request, @javax.inject.Named("project") String project, @ApiParam("table_name") String tableName) {
-        queryHttpService.handleServerSentQueryExecution(request, service.refresh(project, tableName));
+        queryHttpService.handleServerSentQueryExecution(request, service.refresh(project, tableName), false);
     }
 
     @JsonRequest

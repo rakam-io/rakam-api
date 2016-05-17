@@ -443,7 +443,7 @@ public class EventCollectionHttpService extends HttpService {
             builder.add(eventStore.commit(project, collection));
         }
 
-        queryHttpService.handleServerSentQueryExecution(request, new ChainQueryExecution(builder.build(), null));
+        queryHttpService.handleServerSentQueryExecution(request, new ChainQueryExecution(builder.build(), null), false);
     }
 
     @POST

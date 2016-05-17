@@ -10,11 +10,13 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
+import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
@@ -30,6 +32,7 @@ import java.util.Map;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 import static java.lang.String.format;
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @AutoService(RakamModule.class)
@@ -49,6 +52,7 @@ public class UserModule extends RakamModule {
 
         binder.bind(UserStorageListener.class).asEagerSingleton();
         binder.bind(UserCollectionFieldListener.class).asEagerSingleton();
+        binder.bind(UserPrecomputationListener.class).asEagerSingleton();
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
         bindConfig(binder).to(EmailClientConfig.class);
 
@@ -136,9 +140,30 @@ public class UserModule extends RakamModule {
                 FieldType userFieldType = metastore.getCollections(event.project).entrySet()
                         .stream()
                         .flatMap(e -> e.getValue().stream()).filter(e -> e.getName().equals("_user"))
-                        .filter(e -> e.getName().equals("_user")).findAny().map(f -> f.getType()).orElse(FieldType.STRING);
+                        .filter(e -> e.getName().equals("_user")).findAny().map(f -> f.getType()).orElse(STRING);
                 metastore.getOrCreateCollectionFieldList(event.project, event.collection, ImmutableSet.of(new SchemaField("_user", userFieldType)));
             }
+        }
+    }
+
+    public static class UserPrecomputationListener {
+        private final QueryMetadataStore metastore;
+        private final AbstractUserService service;
+
+        @Inject
+        public UserPrecomputationListener(AbstractUserService service, QueryMetadataStore metastore) {
+            this.service = service;
+            this.metastore = metastore;
+        }
+
+        @Subscribe
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+            service.precalculate(event.project, new PreCalculateQuery(event.collection, null));
+        }
+
+        @Subscribe
+        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
+            service.precalculate(event.project, new PreCalculateQuery(null, null));
         }
     }
 }

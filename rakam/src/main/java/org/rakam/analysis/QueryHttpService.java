@@ -105,10 +105,14 @@ public class QueryHttpService extends HttpService {
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction) {
-        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY);
+        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true);
     }
 
-    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType) {
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, boolean killOnConnectionClose) {
+        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, false);
+    }
+
+    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose) {
         if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
             return;
@@ -152,10 +156,10 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        handleServerSentQueryExecution(request, execute);
+        handleServerSentQueryExecution(request, execute, killOnConnectionClose);
     }
 
-    public void handleServerSentQueryExecution(RakamHttpRequest request, QueryExecution query) {
+    public void handleServerSentQueryExecution(RakamHttpRequest request, QueryExecution query, boolean killOnConnectionClose) {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
         if (query == null) {
             // TODO: custom message
@@ -194,7 +198,7 @@ public class QueryHttpService extends HttpService {
         eventLoopGroup.schedule(new Runnable() {
             @Override
             public void run() {
-                if (response.isClosed()) {
+                if (response.isClosed() && killOnConnectionClose) {
                     query.kill();
                 } else if (!query.isFinished()) {
                     String encode = encode(query.currentStats());

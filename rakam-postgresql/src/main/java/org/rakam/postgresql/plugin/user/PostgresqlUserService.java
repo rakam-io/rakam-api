@@ -2,6 +2,7 @@ package org.rakam.postgresql.plugin.user;
 
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.base.Throwables;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
@@ -30,8 +31,8 @@ public class PostgresqlUserService extends AbstractUserService {
     private final PostgresqlQueryExecutor executor;
 
     @Inject
-    public PostgresqlUserService(UserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor) {
-        super(storage);
+    public PostgresqlUserService(UserStorage storage, ContinuousQueryService continuousQueryService, Metastore metastore, PostgresqlQueryExecutor executor) {
+        super(continuousQueryService, storage);
         this.metastore = metastore;
         this.executor = executor;
     }
