@@ -1,7 +1,9 @@
 package org.rakam.util;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.rakam.report.QueryResult;
+import org.rakam.server.http.annotations.ApiParam;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
@@ -13,7 +15,8 @@ public class JsonResponse {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public final String message;
 
-    private JsonResponse(boolean success, String message) {
+    @JsonCreator
+    private JsonResponse(@ApiParam("success") boolean success, @ApiParam("message") String message) {
         this.success = success;
         this.message = message;
     }

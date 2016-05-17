@@ -91,8 +91,10 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @Path("/create-project")
     public UserApiKey createProject(@ApiParam("name") String name,
+                                    @ApiParam("api_url") String apiUrl,
                                     @CookieParam(name = "session") String session) {
-        final UserApiKey newApiKey = service.createProject(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
+        int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+        final UserApiKey newApiKey = service.createProject(user, apiUrl, name);
         return newApiKey;
     }
 

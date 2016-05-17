@@ -1,5 +1,8 @@
 package org.rakam.analysis;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import org.rakam.server.http.annotations.ApiParam;
+
 import java.util.List;
 
 public interface ApiKeyService {
@@ -22,7 +25,12 @@ public interface ApiKeyService {
         public final String readKey;
         public final String writeKey;
 
-        public ProjectApiKeys(int id, String project, String masterKey, String readKey, String writeKey) {
+        @JsonCreator
+        public ProjectApiKeys(@ApiParam("id") int id,
+                              @ApiParam("project") String project,
+                              @ApiParam("masterKey") String masterKey,
+                              @ApiParam("readKey") String readKey,
+                              @ApiParam("writeKey") String writeKey) {
             this.id = id;
             this.project = project;
             this.masterKey = masterKey;

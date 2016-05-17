@@ -77,6 +77,7 @@ public class RakamUIModule extends RakamModule {
         httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(RakamUIWebService.class);
         httpServices.addBinding().to(UserUtilHttpService.class);
+        httpServices.addBinding().to(ClusterService.class);
     }
 
     @Override
@@ -174,13 +175,12 @@ public class RakamUIModule extends RakamModule {
                 handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (" +
                         "  id SERIAL PRIMARY KEY,\n" +
                         "  user_id INTEGER REFERENCES web_user(id),\n" +
+                        "  api_url TEXT,\n" +
                         "  project TEXT NOT NULL,\n" +
                         "  scope_expression TEXT,\n" +
                         "  has_read_permission BOOLEAN NOT NULL,\n" +
                         "  has_write_permission BOOLEAN NOT NULL,\n" +
-                        "  is_admin BOOLEAN DEFAULT false NOT NULL,\n" +
-                        "  api_url TEXT,\n" +
-                        "  lock_key TEXT\n" +
+                        "  is_admin BOOLEAN DEFAULT false NOT NULL\n" +
                         "  )")
                         .execute();
 
@@ -205,6 +205,14 @@ public class RakamUIModule extends RakamModule {
                         "  name VARCHAR(255) NOT NULL," +
                         "  data TEXT NOT NULL," +
                         "  PRIMARY KEY (report_type, project, name)" +
+                        "  )")
+                        .execute();
+
+                handle.createStatement("CREATE TABLE IF NOT EXISTS rakam_cluster (" +
+                        "  user_id INT REFERENCES web_user(id)," +
+                        "  api_url VARCHAR(255) NOT NULL," +
+                        "  lock_key VARCHAR(255)," +
+                        "  PRIMARY KEY (user_id, api_url)" +
                         "  )")
                         .execute();
 

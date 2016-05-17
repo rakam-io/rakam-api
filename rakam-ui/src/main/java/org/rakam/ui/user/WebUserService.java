@@ -19,9 +19,11 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.report.EmailClientConfig;
+import org.rakam.ui.ClusterService;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.CryptUtil;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
@@ -31,10 +33,15 @@ import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.mail.MessagingException;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -64,6 +71,7 @@ public class WebUserService {
     private final RakamUIConfig config;
     private final EncryptionConfig encryptionConfig;
     private final ApiKeyService apiKeyService;
+    private final ClusterService clusterService;
     private MailSender mailSender;
     private final EmailClientConfig mailConfig;
 
@@ -100,12 +108,14 @@ public class WebUserService {
     public WebUserService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
                           Metastore metastore,
                           ApiKeyService apiKeyService,
+                          ClusterService clusterService,
                           RakamUIConfig config,
                           EncryptionConfig encryptionConfig,
                           EmailClientConfig mailConfig) {
         dbi = new DBI(dataSource);
         this.metastore = metastore;
         this.config = config;
+        this.clusterService = clusterService;
         this.apiKeyService = apiKeyService;
         this.encryptionConfig = encryptionConfig;
         this.mailConfig = mailConfig;
@@ -199,12 +209,64 @@ public class WebUserService {
         }
     }
 
-    public WebUser.UserApiKey createProject(int user, String project) {
-        if (metastore.getProjects().contains(project)) {
-            throw new RakamException("Project already exists", BAD_REQUEST);
+    public WebUser.UserApiKey createProject(int user, String apiUrl, String project) {
+        String lockKey;
+        ProjectApiKeys apiKeys;
+
+        try (Handle handle = dbi.open()) {
+            lockKey = handle.createQuery("SELECT lock_key FROM rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
+                    .bind("userId", user).bind("apiUrl", apiUrl)
+                    .map(StringMapper.FIRST).first();
         }
-        metastore.createProject(project);
-        final ProjectApiKeys apiKeys = apiKeyService.createApiKeys(project);
+
+        try {
+            HttpURLConnection con = (HttpURLConnection) new URL(apiUrl + "/project/create")
+                    .openConnection();
+            con.setRequestMethod("POST");
+
+            con.setDoOutput(true);
+            DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+            HashMap<Object, Object> obj = new HashMap<>();
+            obj.put("lock_key", lockKey);
+            obj.put("name", project);
+            wr.write(JsonHelper.encodeAsBytes(obj));
+            wr.flush();
+            wr.close();
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(
+                    con.getResponseCode() == 200 ? con.getInputStream() : con.getErrorStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            if (con.getResponseCode() != 200) {
+                if(con.getResponseCode() == 403) {
+                    throw new RakamException("The lock key is not valid.", BAD_REQUEST);
+                }
+                if(con.getResponseCode() == 0) {
+                    throw new RakamException("The API is unreachable.", BAD_REQUEST);
+                }
+                if(con.getResponseCode() == 400) {
+                    Map<String, Object> message = JsonHelper.read(response.toString(), Map.class);
+                    throw new RakamException(message.get("error").toString(), BAD_REQUEST);
+                }
+
+                throw new RakamException("The API returned invalid status code " + con.getResponseCode(), BAD_REQUEST);
+            }
+
+            try {
+                apiKeys = JsonHelper.read(response.toString(), ProjectApiKeys.class);
+            } catch (Exception e) {
+                throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
+            }
+        } catch (IOException e) {
+            throw new RakamException("The API is unreachable.", BAD_REQUEST);
+        }
+
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO web_user_project " +
                     "(id, user_id, project, has_read_permission, has_write_permission, is_admin) " +
@@ -214,7 +276,8 @@ public class WebUserService {
                     .bind("project", project).execute();
         }
 
-        return new WebUser.UserApiKey(apiKeys.readKey, apiKeys.writeKey, apiKeys.masterKey);
+        return new WebUser.UserApiKey(apiKeys.readKey, apiKeys.writeKey,
+                apiKeys.masterKey);
     }
 
     public void revokeUserAccess(String project, String email) {

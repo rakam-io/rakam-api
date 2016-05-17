@@ -3,13 +3,17 @@ package org.rakam.analysis;
 import org.rakam.bootstrap.SystemRegistry;
 import org.rakam.bootstrap.SystemRegistry.ModuleDescriptor;
 import org.rakam.collection.FieldType;
+import org.rakam.config.ProjectConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
 import org.rakam.util.IgnorePermissionCheck;
+import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -17,6 +21,7 @@ import javax.ws.rs.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Path("/admin")
@@ -24,10 +29,12 @@ import java.util.stream.Collectors;
 public class AdminHttpService extends HttpService {
     private final SystemRegistry systemRegistry;
     private final ActiveModuleList activeModules;
+    private final ProjectConfig projectConfig;
 
     @Inject
-    public AdminHttpService(SystemRegistry systemRegistry, ActiveModuleListBuilder activeModuleListBuilder) {
+    public AdminHttpService(SystemRegistry systemRegistry, ProjectConfig projectConfig, ActiveModuleListBuilder activeModuleListBuilder) {
         this.systemRegistry = systemRegistry;
+        this.projectConfig = projectConfig;
         activeModules = activeModuleListBuilder.build();
     }
 
@@ -47,6 +54,15 @@ public class AdminHttpService extends HttpService {
     @Path("/types")
     public Map<String, String> getTypes() {
         return Arrays.stream(FieldType.values()).collect(Collectors.toMap(FieldType::name, FieldType::getPrettyName));
+    }
+
+    @ApiOperation(value = "Check lock key",
+            authorizations = @Authorization(value = "master_key")
+    )
+    @JsonRequest
+    @Path("/lock_key")
+    public JsonResponse checkLockKey(@ApiParam(value = "lock_key", required = false) String lockKey) {
+        return Objects.equals(lockKey, projectConfig.getLockKey()) ? JsonResponse.success() : JsonResponse.error("invalid");
     }
 
     @Path("/modules")
