@@ -55,15 +55,15 @@ public class ABTestingHttpService extends HttpService {
     @IgnoreApi
     public void data(RakamHttpRequest request) {
         Map<String, List<String>> params = request.params();
-        List<String> api_key = params.get("read_key");
-        if(api_key == null || api_key.isEmpty()) {
+        List<String> apiKey = params.get("read_key");
+        if(apiKey == null || apiKey.isEmpty()) {
             request.response("\"read_key is missing\"", BAD_REQUEST).end();
             return;
         }
 
         // since this endpoint is created for clients to read the ab-testing rule,
         // the permission is WRITE_KEY
-        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), ApiKeyService.AccessKeyType.WRITE_KEY);
+        String project = apiKeyService.getProjectOfApiKey(apiKey.get(0), ApiKeyService.AccessKeyType.WRITE_KEY);
 
         request.response(JsonHelper.encodeAsBytes(metadata.getReports(project)))
                 .end();

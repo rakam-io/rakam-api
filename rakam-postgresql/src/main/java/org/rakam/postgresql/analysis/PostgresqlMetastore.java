@@ -151,9 +151,9 @@ public class PostgresqlMetastore
         try (Connection connection = connectionPool.getConnection()) {
             ResultSet schemas = connection.getMetaData().getSchemas();
             while (schemas.next()) {
-                String table_schem = schemas.getString("table_schem");
-                if (!table_schem.equals("information_schema") && !table_schem.startsWith("pg_") && !table_schem.equals("public")) {
-                    builder.add(table_schem);
+                String tableSchem = schemas.getString("table_schem");
+                if (!tableSchem.equals("information_schema") && !tableSchem.startsWith("pg_") && !tableSchem.equals("public")) {
+                    builder.add(tableSchem);
                 }
             }
         }

@@ -53,14 +53,14 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
     @Path("/batch")
     public CompletableFuture<Long> batchSendMessages(@Named("project") String project,
                                                      @ApiParam(value = "filter", required = false) String filter,
-                                                     @ApiParam(value = "event_filters", required = false) List<EventFilter> event_filter,
+                                                     @ApiParam(value = "event_filters", required = false) List<EventFilter> eventFilters,
                                                      @ApiParam("config") MailAction config) {
         List<String> variables = new StringTemplate(config.message).getVariables();
         variables.add(UserStorage.PRIMARY_KEY);
 
         Expression expression = parseExpression(filter);
 
-        CompletableFuture<QueryResult> future = userService.searchUsers(project, variables, expression, event_filter, null, 100000, null);
+        CompletableFuture<QueryResult> future = userService.searchUsers(project, variables, expression, eventFilters, null, 100000, null);
         return batch(project, future, config);
     }
 

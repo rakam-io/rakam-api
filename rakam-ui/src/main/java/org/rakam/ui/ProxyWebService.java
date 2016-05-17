@@ -49,7 +49,7 @@ import java.util.List;
 
 @Path("/ui/proxy")
 public class ProxyWebService extends HttpService {
-    private final AttributeKey<RakamHttpRequest> CONNECTION_ATTR = AttributeKey.newInstance("CONNECTION_ATTR");
+    private final AttributeKey<RakamHttpRequest> connectionAttr = AttributeKey.newInstance("CONNECTION_ATTR");
 
     private Bootstrap bootstrap;
     private Bootstrap sslBootstrap;
@@ -116,7 +116,7 @@ public class ProxyWebService extends HttpService {
 
         Channel ch = (port == 443 ? sslBootstrap : bootstrap).connect(url.getHost(), port)
                 .sync().channel();
-        ch.attr(CONNECTION_ATTR).set(request);
+        ch.attr(connectionAttr).set(request);
 
         HttpRequest req = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, url.getRawPath());
         req.headers().set(HttpHeaders.Names.HOST, url.getHost());
@@ -133,7 +133,7 @@ public class ProxyWebService extends HttpService {
 
         @Override
         public void channelRead0(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
-            RakamHttpRequest rakamHttpRequest = ctx.channel().attr(CONNECTION_ATTR).get();
+            RakamHttpRequest rakamHttpRequest = ctx.channel().attr(connectionAttr).get();
             Channel channel = rakamHttpRequest.context().channel();
             FullHttpResponse resp = (FullHttpResponse) msg;
 

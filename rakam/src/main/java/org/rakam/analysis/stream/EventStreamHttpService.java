@@ -78,14 +78,14 @@ public class EventStreamHttpService extends HttpService {
             response.send("result", encode(errorMessage("json couldn't parsed", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
-        List<String> api_key = request.params().get("read_key");
+        List<String> apiKey = request.params().get("read_key");
 
-        if (api_key == null || api_key.isEmpty()) {
+        if (apiKey == null || apiKey.isEmpty()) {
             response.send("result", HttpResponseStatus.FORBIDDEN.reasonPhrase()).end();
             return;
         }
 
-        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), ApiKeyService.AccessKeyType.READ_KEY);
+        String project = apiKeyService.getProjectOfApiKey(apiKey.get(0), ApiKeyService.AccessKeyType.READ_KEY);
 
         List<CollectionStreamQuery> collect;
         try {

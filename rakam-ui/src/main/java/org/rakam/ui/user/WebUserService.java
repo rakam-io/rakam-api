@@ -472,7 +472,7 @@ public class WebUserService {
         @JsonProperty("email")
         public final String email;
         @JsonProperty("scope_expression")
-        public final String scope_expression;
+        public final String scopeExpression;
         @JsonProperty("read_key")
         public final boolean readKey;
         @JsonProperty("write_key")
@@ -480,10 +480,10 @@ public class WebUserService {
         @JsonProperty("master_key")
         public final boolean masterKey;
 
-        public UserAccess(int project, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey) {
+        public UserAccess(int project, String email, String scopeExpression, boolean readKey, boolean writeKey, boolean masterKey) {
             this.project = project;
             this.email = email;
-            this.scope_expression = scope_expression;
+            this.scopeExpression = scopeExpression;
             this.readKey = readKey;
             this.writeKey = writeKey;
             this.masterKey = masterKey;

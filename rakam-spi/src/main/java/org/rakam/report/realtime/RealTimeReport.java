@@ -12,7 +12,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class RealTimeReport {
     @NotNull public final String name;
-    @NotNull public final String table_name;
+    @NotNull public final String tableName;
     public final List<String> collections;
     public final String filter;
     public final List<Measure> measures;
@@ -26,7 +26,7 @@ public class RealTimeReport {
                           @ApiParam(value = "filter", required = false) String filter,
                           @ApiParam(value = "dimensions", required = false) List<String> dimensions) {
         this.name = checkNotNull(name, "name is required");
-        this.table_name = checkNotNull(tableName, "table_name is required");
+        this.tableName = checkNotNull(tableName, "table_name is required");
         this.collections = checkNotNull(collections, "collections is required");
         this.filter = filter;
         this.measures = checkNotNull(measures, "measures is required");;

@@ -78,8 +78,8 @@ import static org.rakam.server.http.HttpServer.returnError;
 public class UserHttpService
         extends HttpService
 {
-    private final static Logger LOGGER = Logger.get(UserHttpService.class);
-    private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
+    private static final Logger LOGGER = Logger.get(UserHttpService.class);
+    private final byte[] okMessage = "1".getBytes(UTF_8);
 
     private final UserPluginConfig config;
     private final static SqlParser sqlParser = new SqlParser();
@@ -169,7 +169,7 @@ public class UserHttpService
     public CompletableFuture<QueryResult> searchUsers(@Named("project") String project,
             @ApiParam(value = "columns", required = false) List<String> columns,
             @ApiParam(value = "filter", required = false) String filter,
-            @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+            @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> eventFilter,
             @ApiParam(value = "sorting", required = false) Sorting sorting,
             @ApiParam(value = "offset", required = false) String offset,
             @ApiParam(value = "limit", required = false) Integer limit)
@@ -178,7 +178,7 @@ public class UserHttpService
 
         limit = limit == null ? 100 : Math.min(5000, limit);
 
-        return service.searchUsers(project, columns, expression, event_filter, sorting, limit, offset);
+        return service.searchUsers(project, columns, expression, eventFilter, sorting, limit, offset);
     }
 
     @POST
@@ -273,7 +273,7 @@ public class UserHttpService
             InetAddress socketAddress = ((InetSocketAddress) request.context().channel()
                     .remoteAddress()).getAddress();
 
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(okMessage));
             List<Cookie> cookies = mapEvent(mapper ->
                     mapper.map(project, req, new HttpRequestParams(request), socketAddress));
 
@@ -343,7 +343,7 @@ public class UserHttpService
             }
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
-                    Unpooled.wrappedBuffer(OK_MESSAGE));
+                    Unpooled.wrappedBuffer(okMessage));
             setBrowser(request, response);
 
             try {
@@ -422,7 +422,7 @@ public class UserHttpService
 
             String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
 
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(okMessage));
             response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
 
             List<Cookie> cookies = mapProperties(project, req, request);
@@ -437,7 +437,7 @@ public class UserHttpService
 
             // TODO: we may cache these values and reduce the db hit.
             service.setUserPropertiesOnce(project, req.id, req.properties);
-            request.response(OK_MESSAGE).end();
+            request.response(okMessage).end();
         });
     }
 

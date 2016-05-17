@@ -85,9 +85,8 @@ public class UserMailboxHttpService extends HttpService {
             return;
         }
 
-        List<String> api_key = request.params().get("read_key");
-        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), ApiKeyService.AccessKeyType.READ_KEY);
-
+        List<String> readKey = request.params().get("read_key");
+        String project = apiKeyService.getProjectOfApiKey(readKey.get(0), ApiKeyService.AccessKeyType.READ_KEY);
 
         UserMailboxStorage.MessageListener update = storage.listenAllUsers(project,
                 data -> response.send("update", data.serialize()));
@@ -106,8 +105,8 @@ public class UserMailboxHttpService extends HttpService {
     public SuccessMessage markAsRead(
             @javax.inject.Named("project") String project,
             @ApiParam(value = "user", description = "User id") String user,
-            @ApiParam(value = "message_ids", description = "The list of of message ids that will be marked as read") int[] message_ids) {
-        storage.markMessagesAsRead(project, user, message_ids);
+            @ApiParam(value = "message_ids", description = "The list of of message ids that will be marked as read") int[] messageIds) {
+        storage.markMessagesAsRead(project, user, messageIds);
         return SuccessMessage.success();
     }
 

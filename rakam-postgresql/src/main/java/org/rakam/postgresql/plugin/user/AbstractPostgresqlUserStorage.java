@@ -495,7 +495,7 @@ public abstract class AbstractPostgresqlUserStorage
             QueryExecution totalResult = queryExecutor.executeRawQuery(builder.toString());
 
             CompletableFuture<QueryResult> result = new CompletableFuture<>();
-            CompletableFuture.allOf(dataResult, totalResult.getResult()).whenComplete((__, ex) -> {
+            CompletableFuture.allOf(dataResult, totalResult.getResult()).whenComplete((x, ex) -> {
                 QueryResult data = dataResult.join();
                 QueryResult totalResultData = totalResult.getResult().join();
                 if (ex == null && !data.isFailed() && !totalResultData.isFailed()) {
