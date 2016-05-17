@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 
-public class JDBCCustomReportMetadata {
+public class JDBCCustomReportMetadata implements CustomReportMetadata {
     private final DBI dbi;
 
     @Inject
@@ -50,6 +50,7 @@ public class JDBCCustomReportMetadata {
         }
     }
 
+    @Override
     public void save(Integer user, String project, CustomReport report) {
         try(Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO custom_reports (report_type, project, name, data, user_id) VALUES (:reportType, :project, :name, :data, :user)")
@@ -67,6 +68,7 @@ public class JDBCCustomReportMetadata {
         }
     }
 
+    @Override
     public CustomReport get(String reportType, String project, String name) {
         try(Handle handle = dbi.open()) {
             return handle.createQuery("SELECT data FROM custom_reports WHERE report_type = :reportType AND project = :project AND name = :name")
@@ -79,6 +81,7 @@ public class JDBCCustomReportMetadata {
         }
     }
 
+    @Override
     public List<CustomReport> list(String reportType, String project) {
         try(Handle handle = dbi.open()) {
             return handle.createQuery("SELECT name, data FROM custom_reports WHERE report_type = :reportType AND project = :project")

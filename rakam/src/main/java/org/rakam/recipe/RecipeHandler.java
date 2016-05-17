@@ -10,8 +10,8 @@ import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.ui.DashboardService;
-import org.rakam.ui.JDBCReportMetadata;
-import org.rakam.ui.customreport.JDBCCustomReportMetadata;
+import org.rakam.ui.ReportMetadata;
+import org.rakam.ui.customreport.CustomReportMetadata;
 import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
@@ -27,18 +27,18 @@ public class RecipeHandler {
     private final Metastore metastore;
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
-    private final JDBCReportMetadata reportMetadata;
-    private final JDBCCustomReportMetadata customReportMetadata;
+    private final Optional<ReportMetadata> reportMetadata;
+    private final Optional<CustomReportMetadata> customReportMetadata;
     private final Optional<CustomPageDatabase> customPageDatabase;
-    private final DashboardService dashboardService;
+    private final Optional<DashboardService> dashboardService;
 
     @Inject
     public RecipeHandler(Metastore metastore, ContinuousQueryService continuousQueryService,
                          MaterializedViewService materializedViewService,
-                         JDBCCustomReportMetadata customReportMetadata,
+                         Optional<CustomReportMetadata> customReportMetadata,
                          Optional<CustomPageDatabase> customPageDatabase,
-                         DashboardService dashboardService,
-                         JDBCReportMetadata reportMetadata) {
+                         Optional<DashboardService> dashboardService,
+                         Optional<ReportMetadata> reportMetadata) {
         this.metastore = metastore;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
@@ -62,15 +62,24 @@ public class RecipeHandler {
                 .map(m -> new Recipe.ContinuousQueryBuilder(m.name, m.tableName, m.query, m.partitionKeys, m.options))
                 .collect(Collectors.toList());
 
-        final List<Recipe.ReportBuilder> reports = reportMetadata
-                .getReports(null, project).stream()
-                .map(r -> new Recipe.ReportBuilder(r.slug, r.name, r.category, r.query, r.options, r.shared))
-                .collect(Collectors.toList());
+        final List<Recipe.ReportBuilder> reports;
+        if(reportMetadata.isPresent()) {
+            reports = reportMetadata.get()
+                    .getReports(null, project).stream()
+                    .map(r -> new Recipe.ReportBuilder(r.slug, r.name, r.category, r.query, r.options, r.shared))
+                    .collect(Collectors.toList());
+        } else {
+            reports = ImmutableList.of();
+        }
 
-        final List<Recipe.CustomReportBuilder> customReports = customReportMetadata
-                .list(project).entrySet().stream().flatMap(a -> a.getValue().stream())
-                .map(r -> new Recipe.CustomReportBuilder(r.reportType, r.name, r.data))
-                .collect(Collectors.toList());
+        final List<Recipe.CustomReportBuilder> customReports;
+        if(customReportMetadata.isPresent()) {
+            customReports = customReportMetadata.get().list(project).entrySet().stream().flatMap(a -> a.getValue().stream())
+                    .map(r -> new Recipe.CustomReportBuilder(r.reportType, r.name, r.data))
+                    .collect(Collectors.toList());
+        } else {
+            customReports = ImmutableList.of();
+        }
 
         final List<Recipe.CustomPageBuilder> customPages;
         if(customPageDatabase.isPresent()) {
@@ -82,9 +91,14 @@ public class RecipeHandler {
             customPages = ImmutableList.of();
         }
 
-        List<Recipe.DashboardBuilder> dashboards = dashboardService.list(project).stream()
-                .map(a -> new Recipe.DashboardBuilder(a.name, dashboardService.get(project, a.name)))
-                .collect(Collectors.toList());
+        List<Recipe.DashboardBuilder> dashboards;
+        if(dashboardService.isPresent()) {
+            dashboards = dashboardService.get().list(project).stream()
+                    .map(a -> new Recipe.DashboardBuilder(a.name, dashboardService.get().get(project, a.name)))
+                    .collect(Collectors.toList());
+        } else {
+            dashboards = ImmutableList.of();
+        }
 
         return new Recipe(Recipe.Strategy.SPECIFIC, project, collections, materializedViews,
                 continuousQueryBuilders, customReports, customPages, dashboards, reports);
@@ -158,10 +172,10 @@ public class RecipeHandler {
                 .map(reportBuilder -> reportBuilder.createReport(project))
                 .forEach(report -> {
                     try {
-                        reportMetadata.save(null, project, report);
+                        reportMetadata.get().save(null, project, report);
                     } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
-                            reportMetadata.update(null, project, report);
+                            reportMetadata.get().update(null, project, report);
                         } else {
                             throw Throwables.propagate(e);
                         }
@@ -172,15 +186,15 @@ public class RecipeHandler {
                 .forEach(report -> {
                     int dashboard;
                     try {
-                        dashboard = dashboardService.create(project, report.name, ImmutableMap.of()).id;
+                        dashboard = dashboardService.get().create(project, report.name, ImmutableMap.of()).id;
                     } catch (AlreadyExistsException e) {
-                        dashboard = dashboardService.list(project).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
-                        dashboardService.delete(project, dashboard);
-                        dashboard = dashboardService.create(project, report.name, ImmutableMap.of()).id;
+                        dashboard = dashboardService.get().list(project).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
+                        dashboardService.get().delete(project, dashboard);
+                        dashboard = dashboardService.get().create(project, report.name, ImmutableMap.of()).id;
                     }
 
                     for (DashboardService.DashboardItem item : report.items) {
-                        dashboardService.addToDashboard(project, dashboard, item.name, item.directive, item.data);
+                        dashboardService.get().addToDashboard(project, dashboard, item.name, item.directive, item.data);
                     }
                 });
 
@@ -188,10 +202,10 @@ public class RecipeHandler {
                 .map(reportBuilder -> reportBuilder.createCustomReport(project))
                 .forEach(customReport -> {
                     try {
-                        customReportMetadata.save(null, project, customReport);
+                        customReportMetadata.get().save(null, project, customReport);
                     } catch (AlreadyExistsException e) {
                         if (overrideExisting) {
-                            customReportMetadata.update(project, customReport);
+                            customReportMetadata.get().update(project, customReport);
                         } else {
                             throw Throwables.propagate(e);
                         }

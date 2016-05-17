@@ -23,8 +23,8 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.DashboardService;
-import org.rakam.ui.JDBCReportMetadata;
-import org.rakam.ui.customreport.JDBCCustomReportMetadata;
+import org.rakam.ui.ReportMetadata;
+import org.rakam.ui.customreport.CustomReportMetadata;
 import org.rakam.ui.page.CustomPageDatabase;
 
 import javax.inject.Inject;
@@ -144,10 +144,10 @@ public class RecipeModule extends RakamModule {
         public RecipeLoader(Recipe recipe, Metastore metastore,
                             ContinuousQueryService continuousQueryService,
                             MaterializedViewService materializedViewService,
-                            JDBCCustomReportMetadata customReportMetadata,
+                            Optional<CustomReportMetadata> customReportMetadata,
                             Optional<CustomPageDatabase> customPageDatabase,
-                            DashboardService dashboardBuilder,
-                            JDBCReportMetadata reportMetadata) {
+                            Optional<DashboardService> dashboardBuilder,
+                            Optional<ReportMetadata> reportMetadata) {
             this.recipe = recipe;
             this.installer = new RecipeHandler(metastore, continuousQueryService, materializedViewService, customReportMetadata,
                     customPageDatabase, dashboardBuilder, reportMetadata);

@@ -16,7 +16,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.ui.JDBCReportMetadata;
+import org.rakam.ui.ReportMetadata;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
@@ -38,11 +38,11 @@ import static org.rakam.util.JsonHelper.encode;
 @Api(value = "/report", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 @IgnoreApi
 public class ReportHttpService extends HttpService {
-    private final JDBCReportMetadata metadata;
+    private final ReportMetadata metadata;
     private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public ReportHttpService(JDBCReportMetadata metadata, EncryptionConfig encryptionConfig) {
+    public ReportHttpService(ReportMetadata metadata, EncryptionConfig encryptionConfig) {
         this.metadata = metadata;
         this.encryptionConfig = encryptionConfig;
     }

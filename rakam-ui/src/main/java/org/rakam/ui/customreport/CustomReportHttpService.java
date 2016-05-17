@@ -37,11 +37,11 @@ import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 @IgnoreApi
 public class CustomReportHttpService extends HttpService {
 
-    private final JDBCCustomReportMetadata metadata;
+    private final CustomReportMetadata metadata;
     private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public CustomReportHttpService(JDBCCustomReportMetadata metadata, EncryptionConfig encryptionConfig) {
+    public CustomReportHttpService(CustomReportMetadata metadata, EncryptionConfig encryptionConfig) {
         this.metadata = metadata;
         this.encryptionConfig = encryptionConfig;
     }

@@ -19,6 +19,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.ui.customreport.CustomPageHttpService;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.customreport.CustomReportHttpService;
+import org.rakam.ui.customreport.CustomReportMetadata;
 import org.rakam.ui.customreport.JDBCCustomReportMetadata;
 import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.ui.page.FileBackedCustomPageDatabase;
@@ -66,6 +67,8 @@ public class RakamUIModule extends RakamModule {
         hooks.addBinding().to(DatabaseScript.class);
 
         binder.bind(ProjectDeleteEventListener.class).asEagerSingleton();
+        binder.bind(ReportMetadata.class).to(JDBCReportMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(CustomReportMetadata.class).to(JDBCCustomReportMetadata.class).in(Scopes.SINGLETON);
         binder.bind(DefaultDashboardCreator.class).asEagerSingleton();
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
@@ -113,14 +116,14 @@ public class RakamUIModule extends RakamModule {
 
         private final DashboardService dashboardService;
         private final CustomPageDatabase customPageDatabase;
-        private final JDBCReportMetadata reportMetadata;
-        private final JDBCCustomReportMetadata customReportMetadata;
+        private final ReportMetadata reportMetadata;
+        private final CustomReportMetadata customReportMetadata;
 
         @Inject
         public ProjectDeleteEventListener(DashboardService dashboardService,
                                           Optional<CustomPageDatabase> customPageDatabase,
-                                          JDBCReportMetadata reportMetadata,
-                                          JDBCCustomReportMetadata customReportMetadata) {
+                                          ReportMetadata reportMetadata,
+                                          CustomReportMetadata customReportMetadata) {
             this.reportMetadata = reportMetadata;
             this.customReportMetadata = customReportMetadata;
             this.customPageDatabase = customPageDatabase.orNull();
