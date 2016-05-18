@@ -50,7 +50,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public void delete(Integer userId, String project, String slug) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM reports WHERE project = :project AND slug = :slug AND user_id = :user AND (SELECT p.is_admin OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project = :project) WHERE r.slug = :slug AND r.user_id = :user AND r.project = :project)")
+            handle.createStatement("DELETE FROM reports WHERE project = :project AND slug = :slug AND user_id = :user AND (SELECT p.masterKey is not null OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project = :project) WHERE r.slug = :slug AND r.user_id = :user AND r.project = :project)")
                     .bind("project", project).bind("slug", slug).bind("user", userId).execute();
         }
     }

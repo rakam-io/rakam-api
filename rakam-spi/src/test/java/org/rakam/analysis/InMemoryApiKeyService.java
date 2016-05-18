@@ -21,7 +21,7 @@ public class InMemoryApiKeyService implements ApiKeyService {
     public synchronized ProjectApiKeys createApiKeys(String project) {
         List<ProjectApiKeys> keys = apiKeys.computeIfAbsent(project, p -> new ArrayList<>());
 
-        ProjectApiKeys projectApiKeys = new ProjectApiKeys(apiKeyCounter.incrementAndGet(), project,
+        ProjectApiKeys projectApiKeys = new ProjectApiKeys(apiKeyCounter.incrementAndGet(),
                 UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString());
         keys.add(projectApiKeys);
         return projectApiKeys;

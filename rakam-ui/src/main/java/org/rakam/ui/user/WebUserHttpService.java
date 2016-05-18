@@ -94,8 +94,7 @@ public class WebUserHttpService extends HttpService {
                                     @ApiParam("api_url") String apiUrl,
                                     @CookieParam(name = "session") String session) {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-        final UserApiKey newApiKey = service.createProject(user, apiUrl, name);
-        return newApiKey;
+        return service.createProject(user, apiUrl, name);
     }
 
     @JsonRequest
