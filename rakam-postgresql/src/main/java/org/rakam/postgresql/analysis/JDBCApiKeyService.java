@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
@@ -24,14 +23,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
 public class JDBCApiKeyService implements ApiKeyService {
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
-    private final JDBCPoolDataSource connectionPool;
+    protected final JDBCPoolDataSource connectionPool;
     private final LoadingCache<ApiKey, String> apiKeyReverseCache;
 
     public JDBCApiKeyService(JDBCPoolDataSource connectionPool) {
@@ -89,7 +87,6 @@ public class JDBCApiKeyService implements ApiKeyService {
         String readKey = CryptUtil.generateRandomKey(64);
         String writeKey = CryptUtil.generateRandomKey(64);
 
-        int id;
         try (Connection connection = connectionPool.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO api_key " +
                             "(master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)",
@@ -101,12 +98,11 @@ public class JDBCApiKeyService implements ApiKeyService {
             ps.executeUpdate();
             final ResultSet generatedKeys = ps.getGeneratedKeys();
             generatedKeys.next();
-            id = generatedKeys.getInt(1);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
 
-        return new ProjectApiKeys(id, project, masterKey, readKey, writeKey);
+        return ProjectApiKeys.create(masterKey, readKey, writeKey);
     }
 
     @Override
@@ -119,11 +115,11 @@ public class JDBCApiKeyService implements ApiKeyService {
     }
 
     @Override
-    public void revokeApiKeys(String project, int id) {
+    public void revokeApiKeys(String project, String masterKey) {
         try (Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ? AND id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ? AND master_key = ?");
             ps.setString(1, project);
-            ps.setInt(2, id);
+            ps.setString(2, masterKey);
             ps.execute();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -146,27 +142,6 @@ public class JDBCApiKeyService implements ApiKeyService {
             }
             return true;
         } catch (ExecutionException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public List<ProjectApiKeys> getApiKeys(int[] ids) {
-        try (Connection conn = connectionPool.getConnection()) {
-
-            final PreparedStatement ps = conn.prepareStatement(String.format("select id, project, master_key, read_key, write_key from api_key where id in (%s)",
-                    Arrays.stream(ids).mapToObj(i -> "?").collect(Collectors.joining(", "))));
-            for (int i = 0; i < ids.length; i++) {
-                ps.setInt(i + 1, ids[i]);
-            }
-            ps.execute();
-            final ResultSet resultSet = ps.getResultSet();
-            final List<ProjectApiKeys> list = Lists.newArrayList();
-            while (resultSet.next()) {
-                list.add(new ProjectApiKeys(resultSet.getInt(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
-            }
-            return Collections.unmodifiableList(list);
-        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }

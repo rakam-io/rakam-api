@@ -7,6 +7,7 @@ import java.net.URISyntaxException;
 
 public class ProjectConfig {
     private String lockKey;
+    private String passphrase;
 
     @Config("lock-key")
     @ConfigDescription("A key that is required only for creating projects")
@@ -17,5 +18,15 @@ public class ProjectConfig {
 
     public String getLockKey() {
         return lockKey;
+    }
+
+    @Config("passphrase")
+    public ProjectConfig setPassphrase(String passphrase) throws URISyntaxException {
+        this.passphrase = passphrase;
+        return this;
+    }
+
+    public String getPassphrase() {
+        return passphrase;
     }
 }

@@ -66,7 +66,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testSimple() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
@@ -83,7 +83,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testSimpleWithoutProject() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
@@ -100,7 +100,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testPrimitiveTypes() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         ImmutableMap<String, Object> properties = ImmutableMap.of(
                 "test", 1L,
                 "test1", false,
@@ -131,7 +131,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testMapType() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         ImmutableMap<String, Object> properties = ImmutableMap.of("test0", "test",
                 "test1", ImmutableMap.of("a", 4.0, "b", 5.0, "c", 6.0, "d", 7.0),
                 "test2", false);
@@ -151,7 +151,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testArrayType() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         ImmutableMap<String, Object> properties = ImmutableMap.of("test0", "test",
                 "test1", ImmutableList.of("test", "test"),
                 "test2", false);
@@ -172,7 +172,7 @@ public class TestEventJsonParser {
 
     @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "'collection' field must be located before 'properties' field.")
     public void testInvalidOrder() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "properties", ImmutableMap.of("test0", "test",
                         "test1", ImmutableList.of("test", "test"),
@@ -185,7 +185,7 @@ public class TestEventJsonParser {
 
     @Test(expectedExceptions = RakamException.class)
     public void testInvalidField() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
@@ -207,7 +207,7 @@ public class TestEventJsonParser {
 
     @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Nested properties are not supported. \\(\'test1\\' field\\)")
     public void testInvalidArrayRecursiveType() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
@@ -220,7 +220,7 @@ public class TestEventJsonParser {
 
     @Test(expectedExceptions = RakamException.class, expectedExceptionsMessageRegExp = "Nested properties is not supported")
     public void testInvalidMapRecursiveType() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
@@ -234,7 +234,7 @@ public class TestEventJsonParser {
     @Test
     public void testInvalidArray() throws Exception {
 
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
@@ -251,7 +251,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testInvalidMap() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
@@ -269,7 +269,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testBatch() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         ImmutableMap<String, Object> props = ImmutableMap.of(
                 "test0", "test",
                 "test1", ImmutableList.of("test"),
@@ -294,7 +294,7 @@ public class TestEventJsonParser {
 
     @Test
     public void testBatchWithoutProject() throws Exception {
-        Event.EventContext api = new Event.EventContext(apiKeys.writeKey, "1.0", null, null);
+        Event.EventContext api = new Event.EventContext(apiKeys.writeKey(), "1.0", null, null);
         ImmutableMap<String, Object> props = ImmutableMap.of(
                 "test0", "test",
                 "test1", ImmutableList.of("test"),

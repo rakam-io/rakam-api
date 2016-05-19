@@ -12,6 +12,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
+import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.util.IgnorePermissionCheck;
@@ -225,7 +226,7 @@ public class RakamUIWebService extends HttpService {
     }
 
     private static void sendError(RakamHttpRequest request, HttpResponseStatus status) {
-        request.response(status.reasonPhrase(), status).end();
+        HttpServer.returnError(request, status.reasonPhrase(), status);
     }
 
     private static void sendNotModified(RakamHttpRequest request) {

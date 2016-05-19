@@ -66,7 +66,7 @@ public class PostgresqlModule extends RakamModule {
                 .toInstance(orCreateDataSource);
 
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).in(Scopes.SINGLETON);
-        binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(orCreateDataSource));
+        binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
         // TODO: implement postgresql specific materialized view service
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);

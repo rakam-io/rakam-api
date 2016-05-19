@@ -176,7 +176,6 @@ public class RakamUIModule extends RakamModule {
                         .execute();
 
                 handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (" +
-                        "  id SERIAL PRIMARY KEY,\n" +
                         "  user_id INTEGER REFERENCES web_user(id),\n" +
                         "  api_url TEXT,\n" +
                         "  project TEXT NOT NULL,\n" +

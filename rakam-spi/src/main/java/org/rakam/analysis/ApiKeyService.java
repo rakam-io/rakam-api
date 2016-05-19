@@ -1,68 +1,44 @@
 package org.rakam.analysis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.rakam.server.http.annotations.ApiParam;
-
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.auto.value.AutoValue;
 
 public interface ApiKeyService {
     ProjectApiKeys createApiKeys(String project);
 
     String getProjectOfApiKey(String apiKey, AccessKeyType type);
 
-    void revokeApiKeys(String project, int id);
+    void revokeApiKeys(String project, String masterKey);
 
     boolean checkPermission(String project, AccessKeyType type, String apiKey);
 
-    List<ProjectApiKeys> getApiKeys(int[] ids);
-
     void revokeAllKeys(String project);
 
-    class ProjectApiKeys {
-        public final int id;
-        public final String masterKey;
-        public final String readKey;
-        public final String writeKey;
+    @AutoValue
+    abstract class ProjectApiKeys {
+        @JsonProperty public abstract String masterKey();
+        @JsonProperty public abstract String readKey();
+        @JsonProperty public abstract String writeKey();
 
         @JsonCreator
-        public ProjectApiKeys(@ApiParam("id") int id,
-                              @ApiParam("masterKey") String masterKey,
-                              @ApiParam("readKey") String readKey,
-                              @ApiParam("writeKey") String writeKey) {
-            this.id = id;
-            this.masterKey = masterKey;
-            this.readKey = readKey;
-            this.writeKey = writeKey;
+        public static ProjectApiKeys create(@JsonProperty("masterKey") String masterKey,
+                                     @JsonProperty("readKey") String readKey,
+                                     @JsonProperty("writeKey") String writeKey) {
+            return new AutoValue_ApiKeyService_ProjectApiKeys(masterKey, readKey, writeKey);
         }
 
         public String getKey(AccessKeyType accessKeyType) {
             switch (accessKeyType) {
                 case WRITE_KEY:
-                    return writeKey;
+                    return writeKey();
                 case MASTER_KEY:
-                    return masterKey;
+                    return masterKey();
                 case READ_KEY:
-                    return readKey;
+                    return readKey();
                 default:
                     throw new IllegalStateException();
             }
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof ProjectApiKeys)) return false;
-
-            ProjectApiKeys that = (ProjectApiKeys) o;
-
-            if (id != that.id) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            return id;
         }
     }
 

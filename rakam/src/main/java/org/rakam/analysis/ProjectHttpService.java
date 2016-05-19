@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -14,7 +15,9 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
+import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.CryptUtil;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
@@ -46,9 +49,11 @@ public class ProjectHttpService extends HttpService {
     private final ProjectConfig projectConfig;
 
     @Inject
-    public ProjectHttpService(Metastore metastore, ProjectConfig projectConfig,
+    public ProjectHttpService(Metastore metastore,
+                              ProjectConfig projectConfig,
                               MaterializedViewService materializedViewService,
-                              ApiKeyService apiKeyService, ContinuousQueryService continuousQueryService) {
+                              ApiKeyService apiKeyService,
+                              ContinuousQueryService continuousQueryService) {
         this.continuousQueryService = continuousQueryService;
         this.materializedViewService = materializedViewService;
         this.apiKeyService = apiKeyService;
@@ -106,6 +111,9 @@ public class ProjectHttpService extends HttpService {
         }
 
         Map<String, Metastore.Stats> stats = metastore.getStats(keys.keySet());
+        if(stats == null) {
+            return ImmutableMap.of();
+        }
         return stats.entrySet().stream()
                 .collect(Collectors.toMap(e -> keys.get(e.getKey()), e -> e.getValue()));
     }
@@ -169,6 +177,25 @@ public class ProjectHttpService extends HttpService {
     }
 
     @JsonRequest
+    @ApiOperation(value = "Create API Keys",
+            authorizations = @Authorization(value = "master_key"))
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/create-api-keys")
+    public ProjectApiKeys createApiKeys(@Named("project") String project) {
+        ProjectApiKeys apiKeys = apiKeyService.createApiKeys(project);
+
+        if (projectConfig.getPassphrase() == null) {
+            return ProjectApiKeys.create(apiKeys.masterKey(), apiKeys.readKey(), apiKeys.writeKey());
+        } else {
+            return ProjectApiKeys.create(
+                    CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
+                    CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
+                    CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()));
+        }
+    }
+
+    @JsonRequest
     @ApiOperation(value = "Get collection names",
             authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
@@ -176,6 +203,17 @@ public class ProjectHttpService extends HttpService {
     @Path("/collection")
     public Set<String> collections(@Named("project") String project) {
         return metastore.getCollectionNames(project);
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Revoke API Keys",
+            authorizations = @Authorization(value = "master_key"))
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Project does not exist.")})
+    @Path("/revoke-api-keys")
+    public JsonResponse revokeApiKeys(@Named("project") String project, @HeaderParam("api_key") String masterKey) {
+        apiKeyService.revokeApiKeys(project, masterKey);
+        return JsonResponse.success();
     }
 
     public static class Collection {

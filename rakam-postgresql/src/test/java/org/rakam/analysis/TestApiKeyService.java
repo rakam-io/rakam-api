@@ -1,14 +1,15 @@
 package org.rakam.analysis;
 
-import com.google.common.collect.ImmutableSet;
 import org.rakam.TestingEnvironment;
 import org.rakam.analysis.ApiKeyService.AccessKeyType;
+import org.rakam.postgresql.PostgresqlApiKeyService;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 public class TestApiKeyService extends TestingEnvironment {
     private static final String PROJECT_NAME = TestApiKeyService.class.getName().replace(".", "_").toLowerCase();
@@ -19,7 +20,7 @@ public class TestApiKeyService extends TestingEnvironment {
     public void setUpMethod() throws Exception {
         JDBCPoolDataSource apiKeyServiceDataSource = JDBCPoolDataSource.getOrCreateDataSource(getPostgresqlConfig());
 
-        apiKeyService = new JDBCApiKeyService(apiKeyServiceDataSource);
+        apiKeyService = new PostgresqlApiKeyService(apiKeyServiceDataSource);
         apiKeyService.setup();
     }
 
@@ -30,20 +31,12 @@ public class TestApiKeyService extends TestingEnvironment {
     }
 
     @Test
-    public void testGetApiKeys() throws Exception {
-        ApiKeyService.ProjectApiKeys testing = apiKeyService.createApiKeys(PROJECT_NAME);
-        assertEquals(ImmutableSet.copyOf(apiKeyService.getApiKeys(new int[]{testing.id})), ImmutableSet.of(testing));
-    }
-
-
-
-    @Test
     public void testCreateApiKeys() throws Exception {
         ApiKeyService.ProjectApiKeys testing = apiKeyService.createApiKeys(PROJECT_NAME);
 
-        assertTrue(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.READ_KEY, testing.readKey));
-        assertTrue(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.WRITE_KEY, testing.writeKey));
-        assertTrue(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.MASTER_KEY, testing.masterKey));
+        assertTrue(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.READ_KEY, testing.readKey()));
+        assertTrue(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.WRITE_KEY, testing.writeKey()));
+        assertTrue(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.MASTER_KEY, testing.masterKey()));
 
         assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.READ_KEY, "invalidKey"));
         assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.WRITE_KEY, "invalidKey"));
@@ -54,10 +47,10 @@ public class TestApiKeyService extends TestingEnvironment {
     public void testRevokeApiKeys() throws Exception {
         ApiKeyService.ProjectApiKeys testing = apiKeyService.createApiKeys(PROJECT_NAME);
 
-        apiKeyService.revokeApiKeys(PROJECT_NAME, testing.id);
+        apiKeyService.revokeApiKeys(PROJECT_NAME, testing.masterKey());
 
-        assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.READ_KEY, testing.readKey));
-        assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.WRITE_KEY, testing.writeKey));
-        assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.MASTER_KEY, testing.masterKey));
+        assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.READ_KEY, testing.readKey()));
+        assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.WRITE_KEY, testing.writeKey()));
+        assertFalse(apiKeyService.checkPermission(PROJECT_NAME, AccessKeyType.MASTER_KEY, testing.masterKey()));
     }
 }
