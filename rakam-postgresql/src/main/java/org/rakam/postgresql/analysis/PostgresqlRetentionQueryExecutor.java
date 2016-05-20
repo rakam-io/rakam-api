@@ -27,6 +27,7 @@ import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -126,8 +127,13 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
 
         if (!retentionAction.isPresent()) {
-
-            return metastore.getCollectionNames(project).stream()
+            Set<String> collectionNames = metastore.getCollectionNames(project);
+            if(collectionNames.isEmpty()) {
+                return format("select cast(null as date) as date, %s cast(null as text) as %s",
+                        dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
+                        connectorField);
+            }
+            return collectionNames.stream()
                     .map(collection -> getTableSubQuery(collection, connectorField, timeColumn,
                             dimension, timePredicate, Optional.empty()))
                     .collect(Collectors.joining(" union all "));

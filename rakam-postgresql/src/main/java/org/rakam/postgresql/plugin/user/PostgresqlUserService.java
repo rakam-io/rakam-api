@@ -6,12 +6,12 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
-import org.rakam.report.QueryResult;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryResult;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -29,10 +29,12 @@ import static org.rakam.util.ValidationUtil.checkProject;
 public class PostgresqlUserService extends AbstractUserService {
     private final Metastore metastore;
     private final PostgresqlQueryExecutor executor;
+    private final ContinuousQueryService continuousQueryService;
 
     @Inject
     public PostgresqlUserService(UserStorage storage, ContinuousQueryService continuousQueryService, Metastore metastore, PostgresqlQueryExecutor executor) {
-        super(continuousQueryService, storage);
+        super(storage);
+        this.continuousQueryService = continuousQueryService;
         this.metastore = metastore;
         this.executor = executor;
     }
@@ -74,5 +76,11 @@ public class PostgresqlUserService extends AbstractUserService {
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Override
+    public QueryExecution precalculate(String project, PreCalculateQuery query) {
+        // no-op
+        return QueryExecution.completedQueryExecution(null, QueryResult.empty());
     }
 }

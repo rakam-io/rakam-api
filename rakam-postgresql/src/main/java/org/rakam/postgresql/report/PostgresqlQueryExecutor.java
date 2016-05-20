@@ -89,7 +89,6 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
         if (name.getSuffix().equals("_all") && !name.getPrefix().isPresent()) {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
-                    .filter(c -> !c.getKey().startsWith("_"))
                     .collect(Collectors.toList());
             if (!collections.isEmpty()) {
                 String sharedColumns = collections.get(0).getValue().stream()
@@ -104,7 +103,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                                 project + "." + collection))
                         .collect(Collectors.joining(" union all ")) + ") _all";
             } else {
-                return "(select null as collection, null as _user, null as _time limit 0) _all";
+                return "(select cast(null as text) as collection, cast(null as text) as _user, cast(null as timestamp) as _time limit 0) _all";
             }
 
         } else {

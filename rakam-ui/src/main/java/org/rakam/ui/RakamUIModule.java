@@ -182,7 +182,8 @@ public class RakamUIModule extends RakamModule {
                         "  scope_expression TEXT,\n" +
                         "  has_read_permission BOOLEAN NOT NULL,\n" +
                         "  has_write_permission BOOLEAN NOT NULL,\n" +
-                        "  is_admin BOOLEAN DEFAULT false NOT NULL\n" +
+                        "  is_admin BOOLEAN DEFAULT false NOT NULL,\n" +
+                        "  created_at timestamp DEFAULT now() NOT NULL\n" +
                         "  )")
                         .execute();
 

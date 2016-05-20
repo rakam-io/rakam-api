@@ -1,5 +1,7 @@
 package org.rakam.presto.analysis;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -7,10 +9,13 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
+import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.UserStorage;
+import org.rakam.report.DelegateQueryExecution;
+import org.rakam.report.QueryExecution;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -18,6 +23,7 @@ import javax.inject.Inject;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -43,13 +49,15 @@ public class PrestoUserService extends AbstractUserService {
     private final PrestoQueryExecutor executor;
     private final EventStore eventStore;
     private final UserPluginConfig config;
+    private final ContinuousQueryService continuousQueryService;
 
     @Inject
     public PrestoUserService(UserStorage storage, ContinuousQueryService continuousQueryService,
                              EventStore eventStore, Metastore metastore,
                              UserPluginConfig config,
                              PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
-        super(continuousQueryService, storage);
+        super(storage);
+        this.continuousQueryService = continuousQueryService;
         this.metastore = metastore;
         this.config = config;
         this.prestoConfig = prestoConfig;
@@ -106,6 +114,41 @@ public class PrestoUserService extends AbstractUserService {
                             .collect(Collectors.toList());
                     return collect;
                 });
+    }
+
+    @Override
+    public QueryExecution precalculate(String project, PreCalculateQuery query) {
+        String tableName = "_users_daily" +
+                Optional.ofNullable(query.collection).map(value -> "_" + value).orElse("") +
+                Optional.ofNullable(query.dimension).map(value -> "_by_" + value).orElse("");
+
+        String name = "Daily users who did " +
+                Optional.ofNullable(query.collection).map(value -> " event " + value).orElse(" at least one event") +
+                Optional.ofNullable(query.dimension).map(value -> " grouped by " + value).orElse("");
+
+        String table, dateColumn;
+        if (query.collection == null) {
+            table = String.format("SELECT cast(_time as date) as date, %s _user FROM _all",
+                    Optional.ofNullable(query.dimension).map(v -> v + ",").orElse(""));
+            dateColumn = "date";
+        } else {
+            table = "\"" + query.collection + "\"";
+            dateColumn = "cast(_time as date)";
+        }
+
+        String sqlQuery = String.format("SELECT %s as date, %s set(_user) _user_set FROM (%s) GROUP BY 1 %s",
+                dateColumn,
+                Optional.ofNullable(query.dimension).map(v -> v + " as dimension,").orElse(""), table,
+                Optional.ofNullable(query.dimension).map(v -> ", 2").orElse(""));
+
+        return new DelegateQueryExecution(continuousQueryService.create(project, new ContinuousQuery(name, tableName, sqlQuery,
+                ImmutableList.of("date"), ImmutableMap.of()), true), result -> {
+            if (result.isFailed()) {
+                throw new RakamException("Failed to create continuous query: " + JsonHelper.encode(result.getError()), INTERNAL_SERVER_ERROR);
+            }
+            result.setProperty("preCalculated", new PreCalculatedTable(name, tableName));
+            return result;
+        });
     }
 
     @Override

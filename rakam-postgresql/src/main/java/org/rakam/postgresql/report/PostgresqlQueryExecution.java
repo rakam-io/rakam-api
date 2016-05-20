@@ -16,11 +16,17 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.SentryUtil;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.sql.Array;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +36,7 @@ import java.util.function.Supplier;
 import static java.lang.String.format;
 import static org.rakam.postgresql.analysis.PostgresqlEventStore.UTC_CALENDAR;
 import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
+import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
 public class PostgresqlQueryExecution implements QueryExecution {
@@ -48,7 +55,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
                 if (update) {
                     statement.executeUpdate(sqlQuery);
                     // CREATE TABLE queries doesn't return any value and
-                    // fail when using executeQuery so we face the result data
+                    // fail when using executeQuery so we fake the result data
                     List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN));
                     List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
                     return new QueryResult(cols, data);
@@ -74,7 +81,7 @@ public class PostgresqlQueryExecution implements QueryExecution {
             }
         };
 
-        CompletableFuture<QueryResult> future = CompletableFuture.supplyAsync(task, PostgresqlQueryExecutor.QUERY_EXECUTOR);
+        CompletableFuture<QueryResult> future = CompletableFuture.supplyAsync(task, QUERY_EXECUTOR);
         this.result = future;
     }
 
@@ -127,57 +134,70 @@ public class PostgresqlQueryExecution implements QueryExecution {
                     FieldType type = columns.get(i).getType();
                     switch (type) {
                         case STRING:
-                            object = resultSet.getString(i+1);
+                            object = resultSet.getString(i + 1);
                             break;
                         case LONG:
-                            object = resultSet.getLong(i+1);
+                            object = resultSet.getLong(i + 1);
                             break;
                         case INTEGER:
-                            object = resultSet.getInt(i+1);
+                            object = resultSet.getInt(i + 1);
                             break;
                         case DECIMAL:
-                            object = resultSet.getBigDecimal(i+1).doubleValue();
+                            BigDecimal bigDecimal = resultSet.getBigDecimal(i + 1);
+                            object = bigDecimal != null ? bigDecimal.doubleValue() : null;
                             break;
                         case DOUBLE:
-                            object = resultSet.getDouble(i+1);
+                            object = resultSet.getDouble(i + 1);
                             break;
                         case BOOLEAN:
-                            object = resultSet.getBoolean(i+1);
+                            object = resultSet.getBoolean(i + 1);
                             break;
                         case TIMESTAMP:
-                            object = resultSet.getTimestamp(i+1, UTC_CALENDAR).toInstant();
+                            Timestamp timestamp = resultSet.getTimestamp(i + 1, UTC_CALENDAR);
+                            object = timestamp != null ? timestamp.toInstant() : null;
                             break;
                         case DATE:
-                            object = resultSet.getDate(i+1, UTC_CALENDAR).toLocalDate();
+                            Date date = resultSet.getDate(i + 1, UTC_CALENDAR);
+                            object = date != null ? date.toLocalDate() : null;
                             break;
                         case TIME:
-                            object = resultSet.getTime(i+1, UTC_CALENDAR).toLocalTime();
+                            Time time = resultSet.getTime(i + 1, UTC_CALENDAR);
+                            object = time != null ? time.toLocalTime() : null;
                             break;
                         case BINARY:
-                            try {
-                                object = ByteStreams.toByteArray(resultSet.getBinaryStream(i+1));
-                            } catch (IOException e) {
-                                LOGGER.error("Error while de-serializing BINARY type", e);
+                            InputStream binaryStream = resultSet.getBinaryStream(i + 1);
+                            if (binaryStream != null) {
+                                try {
+                                    object = ByteStreams.toByteArray(binaryStream);
+                                } catch (IOException e) {
+                                    LOGGER.error("Error while de-serializing BINARY type", e);
+                                    object = null;
+                                }
+                            } else {
                                 object = null;
                             }
                             break;
                         default:
-                            if(type.isArray()) {
-                                object = resultSet.getArray(i+1).getArray();
-                            } else
-                            if(type.isMap()) {
-                                PGobject pgObject = (PGobject) resultSet.getObject(i+1);
-                                if (pgObject.getType().equals("jsonb")) {
-                                    object = JsonHelper.read(pgObject.getValue());
+                            if (type.isArray()) {
+                                Array array = resultSet.getArray(i + 1);
+                                object = array == null ? null :array.getArray();
+                            } else if (type.isMap()) {
+                                PGobject pgObject = (PGobject) resultSet.getObject(i + 1);
+                                if (pgObject == null) {
+                                    object = null;
                                 } else {
-                                    throw new UnsupportedOperationException("Postgresql type is not supported");
+                                    if (pgObject.getType().equals("jsonb")) {
+                                        object = JsonHelper.read(pgObject.getValue());
+                                    } else {
+                                        throw new UnsupportedOperationException("Postgresql type is not supported");
+                                    }
                                 }
                             } else {
                                 throw new IllegalStateException();
                             }
                     }
 
-                    if(resultSet.wasNull()) {
+                    if (resultSet.wasNull()) {
                         object = null;
                     }
 

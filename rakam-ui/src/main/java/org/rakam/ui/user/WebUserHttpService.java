@@ -106,7 +106,7 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/revoke-api-keys")
-    public JsonResponse revokeApiKeys(@ApiParam("api_url") String apiUrl, @ApiParam("master_key") String key, @CookieParam(name = "session") String session) {
+    public JsonResponse revokeApiKeys(@ApiParam("api_url") String apiUrl, @ApiParam("api_key") String key, @CookieParam(name = "session") String session) {
         service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), apiUrl, key);
         return JsonResponse.success();
     }
@@ -117,8 +117,8 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @Path("/user-access")
     public List<WebUserService.UserAccess> getUserAccess(@CookieParam(name = "session") String session,
-                                                                      @ApiParam("project") String project,
-                                                                        @ApiParam("api_url") String apiUrl) {
+                                                         @ApiParam("project") String project,
+                                                         @ApiParam("api_url") String apiUrl) {
         return service.getUserAccessForAllProjects(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, apiUrl);
     }
 
@@ -163,21 +163,21 @@ public class WebUserHttpService extends HttpService {
             throw new RakamException(UNAUTHORIZED);
         }
 
-        service.revokeUserAccess(project, email);
+        service.revokeUserAccess(project, api_url, email);
         return JsonResponse.success();
     }
 
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/give-user-access")
-    public JsonResponse getUserAccess(@CookieParam(name = "session") String session,
-                                      @ApiParam("project") String project,
-                                      @ApiParam("email") String email,
-                                      @ApiParam(value="scope_expression", required = false) String scopeExpression,
-                                      @ApiParam("has_read_permission") boolean has_read_permission,
-                                      @ApiParam("has_write_permission") boolean has_write_permission,
-                                      @ApiParam("api_url") String api_url,
-                                      @ApiParam("is_admin") boolean isAdmin) {
+    public JsonResponse giveUserAccess(@CookieParam(name = "session") String session,
+                                       @ApiParam("project") String project,
+                                       @ApiParam("api_url") String api_url,
+                                       @ApiParam("email") String email,
+                                       @ApiParam(value = "scope_expression", required = false) String scopeExpression,
+                                       @ApiParam("has_read_permission") boolean has_read_permission,
+                                       @ApiParam("has_write_permission") boolean has_write_permission,
+                                       @ApiParam("is_admin") boolean isAdmin) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
@@ -190,7 +190,7 @@ public class WebUserHttpService extends HttpService {
 
         masterKey.orElseThrow(() -> new RakamException(UNAUTHORIZED));
 
-        service.giveAccessToUser(project, api_url, masterKey.get(), null, email, scopeExpression, has_read_permission, has_write_permission, isAdmin);
+        service.giveAccessToUser(project, api_url, masterKey.get(), email, scopeExpression, has_read_permission, has_write_permission, isAdmin);
         return JsonResponse.success();
     }
 

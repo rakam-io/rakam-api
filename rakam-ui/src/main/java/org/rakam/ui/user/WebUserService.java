@@ -24,6 +24,7 @@ import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
@@ -224,10 +225,10 @@ public class WebUserService {
             in.close();
 
             if (con.getResponseCode() != 200) {
-                if(con.getResponseCode() == 0) {
+                if (con.getResponseCode() == 0) {
                     throw new RakamException("The API is unreachable.", BAD_REQUEST);
                 }
-                if(con.getResponseCode() >= 400 && con.getResponseCode() < 500) {
+                if (con.getResponseCode() >= 400 && con.getResponseCode() < 500) {
                     Map<String, Object> message = JsonHelper.read(response.toString(), Map.class);
                     throw new RakamException(message.get("error").toString(), BAD_REQUEST);
                 }
@@ -280,13 +281,13 @@ public class WebUserService {
             in.close();
 
             if (con.getResponseCode() != 200) {
-                if(con.getResponseCode() == 403) {
+                if (con.getResponseCode() == 403) {
                     throw new RakamException("The lock key is not valid.", BAD_REQUEST);
                 }
-                if(con.getResponseCode() == 0) {
+                if (con.getResponseCode() == 0) {
                     throw new RakamException("The API is unreachable.", BAD_REQUEST);
                 }
-                if(con.getResponseCode() == 400) {
+                if (con.getResponseCode() == 400) {
                     Map<String, Object> message = JsonHelper.read(response.toString(), Map.class);
                     throw new RakamException(message.get("error").toString(), BAD_REQUEST);
                 }
@@ -320,11 +321,12 @@ public class WebUserService {
                 apiKeys.masterKey());
     }
 
-    public void revokeUserAccess(String project, String email) {
+    public void revokeUserAccess(String project, String apiUrl, String email) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM web_user_project WHERE project = :project AND user_id = (SELECT id FROM web_user WHERE email = :email)")
+            handle.createStatement("DELETE FROM web_user_project WHERE project = :project AND api_url = :apiUrl AND user_id = (SELECT id FROM web_user WHERE email = :email)")
                     .bind("project", project)
                     .bind("email", email)
+                    .bind("apiUrl", apiUrl)
                     .bind("project", project)
                     .execute();
         }
@@ -419,11 +421,11 @@ public class WebUserService {
         public final String apiUrl;
         public final String email;
         public final String scope_expression;
-        public final String readKey;
-        public final String writeKey;
-        public final String masterKey;
+        public final boolean readKey;
+        public final boolean writeKey;
+        public final boolean masterKey;
 
-        public UserAccess(String project, String apiUrl, String email, String scope_expression, String readKey, String writeKey, String masterKey) {
+        public UserAccess(String project, String apiUrl, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey) {
             this.project = project;
             this.apiUrl = apiUrl;
             this.email = email;
@@ -436,42 +438,66 @@ public class WebUserService {
 
     public List<UserAccess> getUserAccessForAllProjects(int user, String project, String apiUrl) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT project, api_url, web_user.email, scope_expression, read_key, write_key, master_key FROM web_user_project " +
-                    "JOIN web_user ON (web_user.id = web_user_project.user_id) WHERE web_user.id = :user AND web_user_project.project = :project AND web_user_project.api_url = :apiUrl")
+            return handle.createQuery("SELECT project, api_url, web_user.email, scope_expression, " +
+                    "read_key is not null as read_key," +
+                    "write_key is not null as write_key," +
+                    "master_key is not null as master_key FROM web_user_project " +
+                    "JOIN web_user ON (web_user.id = web_user_project.user_id) " +
+                    "WHERE web_user_project.project = :project AND " +
+                    "web_user_project.api_url = :apiUrl AND " +
+                    "(select bool_or(master_key is not null) from web_user_project where user_id = 1)" +
+                    "ORDER BY web_user_project.created_at")
                     .bind("user", user)
                     .bind("project", project)
                     .bind("apiUrl", apiUrl).map((i, resultSet, statementContext) -> {
                         return new UserAccess(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4),
-                                resultSet.getString(5), resultSet.getString(6), resultSet.getString(7));
+                                resultSet.getBoolean(5), resultSet.getBoolean(6), resultSet.getBoolean(7));
                     }).list();
         }
     }
 
-    public void giveAccessToUser(String project, String apiUrl, String masterKey, String lockKey, String email, String scopePermission, boolean hasReadPermission, boolean hasWritePermission, boolean isAdmin) {
-        Integer userId;
+    public void giveAccessToUser(String project, String apiUrl, String masterKey, String email, String scopePermission, boolean hasReadPermission, boolean hasWritePermission, boolean isAdmin) {
+        Map.Entry<Integer, Boolean> userId;
         try (Handle handle = dbi.open()) {
-            userId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
-                    .map(IntegerMapper.FIRST).first();
+            userId = handle.createQuery("SELECT id, coalesce(bool_or(p.master_key is not null), false) FROM web_user u LEFT JOIN web_user_project p ON (p.user_id = u.id AND p.project = :project AND p.api_url = :apiUrl) WHERE email = :email GROUP BY 1").bind("email", email)
+                    .bind("project", project)
+                    .bind("apiUrl", apiUrl)
+                    .map((i, resultSet, statementContext) -> {
+                        return new SimpleImmutableEntry<>(resultSet.getInt(1), resultSet.getBoolean(2));
+                    }).first();
+
             if (userId == null) {
-                userId = handle.createStatement("INSERT INTO web_user (email) VALUES (:email)")
+                Integer id = handle.createStatement("INSERT INTO web_user (email) VALUES (:email)")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+                userId = new SimpleImmutableEntry<>(id, false);
+            }
+
+            if (userId.getValue()) {
+                return;
             }
         }
 
         final ProjectApiKeys apiKeys = createApiKeys(apiUrl, project, masterKey);
 
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO web_user_project (read_key, write_key, scope_expression, master_key) " +
-                    " VALUES (:readKey, :writeKey, :scope, :masterKey)" +
-                    " WHERE project = :project AND user_id = :user AND api_url = :apiUrl")
-                    .bind("user", userId)
-                    .bind("apiUrl", apiUrl)
-                    .bind("project", project)
-                    .bind("scope", scopePermission)
-                    .bind("masterKey", isAdmin ? apiKeys.masterKey() : null)
-                    .bind("writeKey", hasWritePermission ? apiKeys.writeKey() : null)
-                    .bind("readKey", hasReadPermission ? apiKeys.readKey() : null).execute();
-        }
+            final Map.Entry<Integer, Boolean> finalUserId = userId;
+            dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
+                handle.createStatement("DELETE FROM web_user_project WHERE user_id = :user AND api_url = :apiUrl AND project = :project")
+                        .bind("user", finalUserId.getKey())
+                        .bind("apiUrl", apiUrl)
+                        .bind("project", project).execute();
+
+                handle.createStatement("INSERT INTO web_user_project (user_id, project, api_url, read_key, write_key, scope_expression, master_key) " +
+                        " VALUES (:user, :project, :apiUrl, :readKey, :writeKey, :scope, :masterKey)")
+                        .bind("user", finalUserId.getKey())
+                        .bind("apiUrl", apiUrl)
+                        .bind("project", project)
+                        .bind("scope", scopePermission)
+                        .bind("masterKey", isAdmin ? apiKeys.masterKey() : null)
+                        .bind("writeKey", hasWritePermission ? apiKeys.writeKey() : null)
+                        .bind("readKey", hasReadPermission ? apiKeys.readKey() : null).execute();
+
+                return null;
+            });
     }
 
     public ProjectApiKeys createApiKeys(int user, String project, String apiUrl) {
@@ -479,7 +505,7 @@ public class WebUserService {
             Optional<String> any = getUserApiKeys(handle, user).stream()
                     .filter(a -> a.name.equals(project) && a.apiKeys.stream().anyMatch(e -> e.masterKey() != null))
                     .map(z -> z.apiKeys.stream().filter(g -> g.masterKey() != null).findFirst().map(c -> c.masterKey()).get())
-                            .findAny();
+                    .findAny();
 
             // TODO: check scope permission keys
             any.orElseThrow(() -> new RakamException(UNAUTHORIZED));
@@ -592,7 +618,7 @@ public class WebUserService {
     public void revokeApiKeys(int user, String apiUrl, String masterKey) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM web_user_project " +
-                            "WHERE user_id = :user_id AND api_url = :apiUrl AND master_key = :masterKey")
+                    "WHERE user_id = :user_id AND api_url = :apiUrl AND master_key = :masterKey")
                     .bind("user_id", user)
                     .bind("apiUrl", apiUrl)
                     .bind("masterKey", masterKey).execute();
