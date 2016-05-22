@@ -12,17 +12,23 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractRetentionQueryExecutor implements RetentionQueryExecutor {
 
-    protected String getTableSubQuery(String collection, String connectorField, String timeColumn, Optional<String> dimension, String timePredicate, Optional<Expression> filter) {
+    protected String getTableSubQuery(String collection,
+                                      String connectorField,
+                                      Optional<Boolean> isText,
+                                      String timeColumn,
+                                      Optional<String> dimension,
+                                      String timePredicate,
+                                      Optional<Expression> filter) {
         return format("select %s as date, %s %s from %s where _time %s %s",
                 String.format(timeColumn, "_time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
-                connectorField,
+                isText.map(text -> String.format("cast(\"%s\" as varchar)", connectorField)).orElse(connectorField),
                 "\"" + collection + "\"",
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();
                 }) : "",
-                dimension.map(v -> ",2").orElse(""));
+                dimension.map(v -> ", 2").orElse(""));
     }
 
     protected String getTimeExpression(DateUnit dateUnit) {

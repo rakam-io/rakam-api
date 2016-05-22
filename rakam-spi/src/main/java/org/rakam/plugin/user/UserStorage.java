@@ -23,9 +23,9 @@ import static java.lang.String.format;
 public interface UserStorage {
     String PRIMARY_KEY = "id";
 
-    String create(String project, String id, Map<String, Object> properties);
+    Object create(String project, Object id, Map<String, Object> properties);
 
-    List<String> batchCreate(String project, List<User> users);
+    List<Object> batchCreate(String project, List<User> users);
 
     CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);
 
@@ -33,13 +33,13 @@ public interface UserStorage {
 
     List<SchemaField> getMetadata(String project);
 
-    CompletableFuture<User> getUser(String project, String userId);
+    CompletableFuture<User> getUser(String project, Object userId);
 
     void setUserProperty(String project, String user, Map<String, Object> properties);
 
     void setUserPropertyOnce(String project, String user, Map<String, Object> properties);
 
-    void createProject(String project);
+    void createProjectIfNotExists(String project, boolean isNumeric);
 
     void incrementProperty(String project, String user, String property, double value);
 

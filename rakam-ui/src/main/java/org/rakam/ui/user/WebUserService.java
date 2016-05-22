@@ -416,6 +416,16 @@ public class WebUserService {
         });
     }
 
+    public void deleteProject(int user, String apiUrl, String name) {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("DELETE web_user_project WHERE user_id = :userId AND project = :project AND api_url = :apiUrl")
+                    .bind("userId", user)
+                    .bind("project", name)
+                    .bind("apiUrl", apiUrl)
+                    .execute();
+        }
+    }
+
     public static class UserAccess {
         public final String project;
         public final String apiUrl;

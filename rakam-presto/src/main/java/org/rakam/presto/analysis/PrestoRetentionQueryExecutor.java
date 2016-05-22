@@ -45,6 +45,7 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -172,11 +173,15 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
                 return null;
             }
 
+            boolean isText = collections.entrySet().stream()
+                    .anyMatch(e -> e.getValue().stream().anyMatch(z -> z.getType().equals(STRING)));
+
             return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
                     dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
                     collections.entrySet().stream()
                             .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
                             .map(collection -> getTableSubQuery(collection.getKey(), connectorField,
+                                    Optional.of(isText),
                                     timeColumn, dimension, timePredicate, Optional.empty()))
                             .collect(Collectors.joining(" union all ")), dimension.isPresent() ? ", 2" : "");
         } else {
@@ -191,7 +196,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
 
             return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
                     dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
-                    getTableSubQuery(collection, connectorField,
+                    getTableSubQuery(collection, connectorField, Optional.empty(),
                             timeColumn, dimension, timePredicate, retentionAction.get().filter()), dimension.isPresent() ? ", 2" : "");
         }
     }

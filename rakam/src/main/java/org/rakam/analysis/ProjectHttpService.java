@@ -71,7 +71,7 @@ public class ProjectHttpService extends HttpService {
 
         checkProject(name);
         metastore.createProject(name.toLowerCase(ENGLISH));
-        return apiKeyService.createApiKeys(name);
+        return transformKeys(apiKeyService.createApiKeys(name));
     }
 
     @ApiOperation(value = "Delete project",
@@ -183,8 +183,10 @@ public class ProjectHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create-api-keys")
     public ProjectApiKeys createApiKeys(@Named("project") String project) {
-        ProjectApiKeys apiKeys = apiKeyService.createApiKeys(project);
+        return transformKeys(apiKeyService.createApiKeys(project));
+    }
 
+    private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys) {
         if (projectConfig.getPassphrase() == null) {
             return ProjectApiKeys.create(apiKeys.masterKey(), apiKeys.readKey(), apiKeys.writeKey());
         } else {

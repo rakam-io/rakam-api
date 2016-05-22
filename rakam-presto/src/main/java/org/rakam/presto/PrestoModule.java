@@ -8,9 +8,11 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.JDBCConfigManager;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
@@ -70,7 +72,9 @@ public class PrestoModule extends RakamModule {
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
                     .toInstance(metadataDataSource);
 
-            binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class).in(Scopes.SINGLETON);
+            binder.bind(ConfigManager.class).to(JDBCConfigManager.class);
+            binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class)
+                    .in(Scopes.SINGLETON);
         }
 
         binder.bind(Metastore.class).to(PrestoMetastore.class);

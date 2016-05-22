@@ -16,7 +16,6 @@ public interface Metastore {
 
     Set<String> getCollectionNames(String project);
 
-
     void createProject(String project);
 
     Set<String> getProjects();
@@ -32,14 +31,14 @@ public interface Metastore {
     default void setup() {}
 
     class Stats {
-        public long allEvents;
-        public long monthlyEvents;
-        public long dailyEvents;
+        public Long allEvents;
+        public Long monthlyEvents;
+        public Long dailyEvents;
 
         public Stats() {
         }
 
-        public Stats(long allEvents, long monthlyEvents, long dailyEvents) {
+        public Stats(Long allEvents, Long monthlyEvents, Long dailyEvents) {
             this.allEvents = allEvents;
             this.monthlyEvents = monthlyEvents;
             this.dailyEvents = dailyEvents;

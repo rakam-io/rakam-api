@@ -94,7 +94,7 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
     @IgnorePermissionCheck
-    public String createUser(@BodyParam User user) {
+    public Object createUser(@BodyParam User user) {
         String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.writeKey : null, WRITE_KEY);
 
         try {
@@ -109,7 +109,7 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/batch/create")
-    public List<String> createUsers(@Named("project") String project, @ApiParam("users") List<User> users) {
+    public List<Object> createUsers(@Named("project") String project, @ApiParam("users") List<User> users) {
         try {
             return service.batchCreate(project, users);
         } catch (Exception e) {
@@ -217,7 +217,7 @@ public class UserHttpService extends HttpService {
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/get")
     public CompletableFuture<org.rakam.plugin.user.User> getUser(@Named("project") String project,
-                                                                 @ApiParam("user") String user) {
+                                                                 @ApiParam("user") Object user) {
         return service.getUser(project, user);
     }
 

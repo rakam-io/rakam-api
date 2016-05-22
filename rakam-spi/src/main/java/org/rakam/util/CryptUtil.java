@@ -1,6 +1,8 @@
 package org.rakam.util;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.hash.Hashing;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -46,15 +48,10 @@ public final class CryptUtil {
 
     public static String encryptAES(String data, String secretKey) {
         try {
-            byte[] apiKeyBytes = secretKey.getBytes("UTF-8");
+            byte[] secretKeys = Arrays.copyOfRange(Hashing.sha256().hashString(secretKey, Charsets.UTF_8)
+                    .asBytes(), 0, 16);
 
-            if(apiKeyBytes.length % 16 != 0) {
-                // Cipher.getMaxAllowedKeyLength("AES") / Byte.SIZE equals 16
-                // we don't want to force users to install “Unlimited Strength” JCE policy files manually.
-                apiKeyBytes = Arrays.copyOf(apiKeyBytes, 16);
-            }
-
-            final SecretKey secret = new SecretKeySpec(apiKeyBytes, "AES");
+            final SecretKey secret = new SecretKeySpec(secretKeys, "AES");
 
             final Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             cipher.init(Cipher.ENCRYPT_MODE, secret);
@@ -62,7 +59,7 @@ public final class CryptUtil {
             final AlgorithmParameters params = cipher.getParameters();
 
             final byte[] iv = params.getParameterSpec(IvParameterSpec.class).getIV();
-            final byte[] cipherText = cipher.doFinal(data.getBytes("UTF-8"));
+            final byte[] cipherText = cipher.doFinal(data.getBytes(Charsets.UTF_8));
 
             return DatatypeConverter.printHexBinary(iv) + DatatypeConverter.printHexBinary(cipherText);
         } catch (Exception e) {
@@ -73,31 +70,25 @@ public final class CryptUtil {
 
     public static String decryptAES(String data, String secretKey) {
         try {
-            byte[] apiKeyBytes = secretKey.getBytes("UTF-8");
+            byte[] secretKeys = Arrays.copyOfRange(Hashing.sha256().hashString(secretKey, Charsets.UTF_8)
+                    .asBytes(), 0, 16);
 
-            if(apiKeyBytes.length % 16 != 0) {
-                apiKeyBytes = Arrays.copyOf(apiKeyBytes, 16);
-            }
-
-            // grab first 16 bytes (aka 32 characters of hex) - that's the IV
+            // grab first 16 bytes - that's the IV
             String hexedIv = data.substring(0, 32);
 
-            // grab everything else - that's the cipher-text (aka encrypted message)
+            // grab everything else - that's the cipher-text (encrypted message)
             String hexedCipherText = data.substring(32);
 
             byte[] iv = DatatypeConverter.parseHexBinary(hexedIv);
             byte[] cipherText = DatatypeConverter.parseHexBinary(hexedCipherText);
 
-            final SecretKey secret = new SecretKeySpec(apiKeyBytes, "AES");
-
             final Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
 
-            IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
-            cipher.init(Cipher.DECRYPT_MODE, secret, ivParameterSpec);
+            cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(secretKeys, "AES"), new IvParameterSpec(iv));
 
-            return new String(cipher.doFinal(cipherText), "UTF-8");
+            return new String(cipher.doFinal(cipherText), Charsets.UTF_8);
         } catch (BadPaddingException e) {
-            throw new IllegalArgumentException("secret key is invalid");
+            throw new IllegalArgumentException("Secret key is invalid");
         }catch (Exception e) {
             throw Throwables.propagate(e);
         }

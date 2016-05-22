@@ -19,6 +19,7 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.time.Clock;
 import java.time.Duration;
@@ -81,9 +82,9 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                 }
             }
         });
-        setup();
     }
 
+    @PostConstruct
     public void setup() {
         try (Handle handle = dbi.open()) {
             handle.createStatement("CREATE TABLE IF NOT EXISTS materialized_views (" +

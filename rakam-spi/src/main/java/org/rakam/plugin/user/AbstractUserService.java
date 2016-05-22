@@ -12,7 +12,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -23,19 +22,16 @@ public abstract class AbstractUserService {
         this.storage = storage;
     }
 
-    public String create(String project, String id, Map<String, Object> properties) {
-        if (id == null) {
-            id = UUID.randomUUID().toString();
-        }
+    public Object create(String project, Object id, Map<String, Object> properties) {
         return storage.create(project, id, properties);
     }
 
-    public List<String> batchCreate(String project, List<User> users) {
+    public List<Object> batchCreate(String project, List<User> users) {
         return storage.batchCreate(project, users);
     }
 
-    public void createProject(String project) {
-        storage.createProject(project);
+    public void createProject(String project, boolean userIdIsNumeric) {
+        storage.createProjectIfNotExists(project, userIdIsNumeric);
     }
 
     public List<SchemaField> getMetadata(String project) {
@@ -50,7 +46,7 @@ public abstract class AbstractUserService {
         storage.createSegment(project, name, tableName, filterExpression, eventFilter, interval);
     }
 
-    public CompletableFuture<User> getUser(String project, String user) {
+    public CompletableFuture<User> getUser(String project, Object user) {
         return storage.getUser(project, user);
     }
 

@@ -4,6 +4,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -45,16 +46,20 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     public PrestoExternalUserStorageAdapter(MaterializedViewService materializedViewService,
                                             PrestoQueryExecutor executor,
                                             PrestoConfig prestoConfig,
+                                            ConfigManager configManager,
                                             UserPluginConfig config,
                                             PostgresqlQueryExecutor queryExecutor,
                                             Metastore metastore) {
-        super(queryExecutor);
+        super(queryExecutor, configManager);
         this.executor = executor;
         this.config = config;
         this.prestoConfig = prestoConfig;
         this.materializedViewService = materializedViewService;
-        queryExecutor.executeRawStatement("CREATE SCHEMA IF NOT EXISTS users").getResult().join();
-        metastore.getProjects().forEach(this::createProject);
+        queryExecutor.executeRawStatement("CREATE SCHEMA IF NOT EXISTS users").getResult().thenAccept(result -> {
+            if(result.isFailed()) {
+                throw new IllegalStateException("Unable to create schema for users: "+result.getError().toString());
+            };
+        });
         this.metastore = metastore;
     }
 

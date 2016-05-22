@@ -1,16 +1,24 @@
 package org.rakam.postgresql.plugin.user.mailbox;
 
 import com.google.common.base.Throwables;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.html.HtmlEscapers;
 import com.google.inject.name.Named;
 import com.impossibl.postgres.api.jdbc.PGConnection;
 import com.impossibl.postgres.api.jdbc.PGNotificationListener;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.InternalConfig;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.collection.FieldType;
 import org.rakam.plugin.user.mailbox.Message;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.sql.Connection;
@@ -34,22 +42,29 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     private final static String USER_NOTIFICATION_SUFFIX = "_user_mailbox";
     private final static String USER_NOTIFICATION_ALL_SUFFIX = "_user_mailbox_all_listener";
     private final JDBCPoolDataSource dataSource;
+    private final LoadingCache<String, Boolean> userTypeCache;
 
     private AtomicLong lastMessage = new AtomicLong(Instant.now().getEpochSecond());
 
     @Inject
-    public PostgresqlUserMailboxStorage(PostgresqlQueryExecutor queryExecutor, @Named("async-postgresql") JDBCPoolDataSource dataSource) {
+    public PostgresqlUserMailboxStorage(PostgresqlQueryExecutor queryExecutor, ConfigManager configManager, @Named("async-postgresql") JDBCPoolDataSource dataSource) {
         this.queryExecutor = queryExecutor;
         this.dataSource = dataSource;
+        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Boolean>() {
+            @Override
+            public Boolean load(String key) throws Exception {
+                return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class) == FieldType.STRING;
+            }
+        });
     }
 
     @Override
-    public Message send(String project, String fromUser, String toUser, Integer parentId, String message, Instant date) {
+    public Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date) {
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO " + project + "._user_mailbox (from_user, to_user, parentId, content, time) VALUES (?, ?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, fromUser);
-            ps.setString(2, toUser);
+            ps.setObject(1, fromUser);
+            ps.setObject(2, toUser);
             ps.setObject(3, parentId);
             String escapedMessage = HtmlEscapers.htmlEscaper().escape(message);
             ps.setString(4, escapedMessage);
@@ -91,14 +106,14 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 //    }
 
     @Override
-    public void createProject(String projectId) {
+    public void createProjectIfNotExists(String projectId, boolean userIdIsNumeric) {
         try (Connection connection = queryExecutor.getConnection()) {
             String tableName = format("%s._user_mailbox", projectId);
             Statement statement = connection.createStatement();
             statement.execute(format("CREATE TABLE IF NOT EXISTS %s(" +
                     "  id SERIAL," +
-                    "  to_user TEXT NOT NULL," +
-                    "  from_user TEXT NOT NULL," +
+                    "  to_user " + (userIdIsNumeric ? "int4" : "text") + " NOT NULL," +
+                    "  from_user " + (userIdIsNumeric ? "int4" : "text") + " NOT NULL," +
                     "  content TEXT NOT NULL," +
                     "  parentId INT," +
                     "  seen BOOL DEFAULT FALSE NOT NULL," +
@@ -112,9 +127,9 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
                     "  RETURNS trigger AS" +
                     "  $BODY$" +
                     "    BEGIN" +
-                    "        PERFORM pg_notify('%1$s_' || NEW.to_user || '" + USER_NOTIFICATION_SUFFIX + "', "+msg+");" +
-                    "        PERFORM pg_notify('%1$s_' || NEW.from_user || '" + USER_NOTIFICATION_SUFFIX + "', "+msg+");" +
-                    "        PERFORM pg_notify('%1$s" + USER_NOTIFICATION_ALL_SUFFIX + "', "+msg+");" +
+                    "        PERFORM pg_notify('%1$s_' || NEW.to_user || '" + USER_NOTIFICATION_SUFFIX + "', " + msg + ");" +
+                    "        PERFORM pg_notify('%1$s_' || NEW.from_user || '" + USER_NOTIFICATION_SUFFIX + "', " + msg + ");" +
+                    "        PERFORM pg_notify('%1$s" + USER_NOTIFICATION_ALL_SUFFIX + "', " + msg + ");" +
                     "        RETURN NEW;" +
                     "    END;" +
                     "  $BODY$ LANGUAGE plpgsql;", projectId));
@@ -132,7 +147,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public MessageListener listen(String projectId, String user, Consumer<Data> consumer) {
-        try(Connection conn = dataSource.getConnection()) {
+        try (Connection conn = dataSource.getConnection()) {
             final PGConnection unwrap = conn.unwrap(PGConnection.class);
             String name = projectId + "_" + user + USER_NOTIFICATION_SUFFIX;
 
@@ -166,7 +181,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
 
     @Override
     public MessageListener listenAllUsers(String projectId, Consumer<Data> consumer) {
-        try(Connection conn = dataSource.getConnection()) {
+        try (Connection conn = dataSource.getConnection()) {
             PGConnection asyncConn = conn.unwrap(PGConnection.class);
             PGNotificationListener listener = (processId, channelName, payload) -> {
                 if (lastMessage.get() + 2 > Instant.now().getEpochSecond()) {
@@ -202,23 +217,36 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
     public List<Message> getConversation(String project, String userId, Integer parentId, int limit, long offset) {
         try (Connection connection = queryExecutor.getConnection()) {
             PreparedStatement ps;
+
             if (parentId == null) {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
                         "._user_mailbox WHERE (to_user = ? OR from_user = ?) AND parentId IS NULL ORDER BY time DESC LIMIT ? OFFSET ?");
-                ps.setObject(1, userId);
-                ps.setObject(2, userId);
                 ps.setInt(3, limit);
                 ps.setLong(4, offset);
             } else {
                 ps = connection.prepareStatement("SELECT id, from_user, content, seen, time, to_user FROM " + project +
                         "._user_mailbox WHERE (to_user = ? OR from_user = ?) AND (parentId = ? OR id = ?) ORDER BY time DESC LIMIT ? OFFSET ?");
-                ps.setString(1, userId);
-                ps.setString(2, userId);
                 ps.setInt(3, parentId);
                 ps.setInt(4, parentId);
                 ps.setInt(5, limit);
                 ps.setLong(6, offset);
             }
+
+            if (userTypeCache.getUnchecked(project) == Boolean.TRUE) {
+                ps.setString(1, userId.toString());
+                ps.setString(2, userId.toString());
+            } else {
+                long x;
+                try {
+                    x = Long.parseLong(userId.toString());
+                } catch (NumberFormatException e) {
+                    throw new RakamException("User id is invalid", HttpResponseStatus.BAD_REQUEST);
+                }
+
+                ps.setLong(1, x);
+                ps.setLong(2, x);
+            }
+
             ResultSet resultSet = ps.executeQuery();
             ImmutableList.Builder<Message> builder = ImmutableList.builder();
             while (resultSet.next()) {

@@ -96,6 +96,17 @@ public class WebUserHttpService extends HttpService {
         return service.createProject(user, apiUrl, name);
     }
 
+
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/delete-project")
+    public void deleteProject(@ApiParam("name") String name,
+                                    @ApiParam("api_url") String apiUrl,
+                                    @CookieParam(name = "session") String session) {
+        int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+        service.deleteProject(user, apiUrl, name);
+    }
+
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/create-api-keys")

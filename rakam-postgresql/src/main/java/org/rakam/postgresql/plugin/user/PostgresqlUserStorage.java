@@ -3,11 +3,11 @@ package org.rakam.postgresql.plugin.user;
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
-import org.rakam.postgresql.analysis.PostgresqlMetastore;
-import org.rakam.plugin.MaterializedView;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.report.QueryExecutor;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.report.QueryExecutor;
 
 import javax.inject.Inject;
 import java.time.Duration;
@@ -18,19 +18,18 @@ import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
-public class PostgresqlUserStorageAdapter extends AbstractPostgresqlUserStorage {
+public class PostgresqlUserStorage extends AbstractPostgresqlUserStorage {
     public static final String USER_TABLE = "_users";
     private final MaterializedViewService materializedViewService;
     private final PostgresqlQueryExecutor queryExecutor;
 
     @Inject
-    public PostgresqlUserStorageAdapter(MaterializedViewService materializedViewService,
-                                        PostgresqlQueryExecutor queryExecutor,
-                                        PostgresqlMetastore metastore) {
-        super(queryExecutor);
+    public PostgresqlUserStorage(MaterializedViewService materializedViewService,
+                                 ConfigManager configManager,
+                                 PostgresqlQueryExecutor queryExecutor) {
+        super(queryExecutor, configManager);
         this.queryExecutor = queryExecutor;
         this.materializedViewService = materializedViewService;
-        metastore.getProjects().forEach(this::createProject);
     }
 
     @Override

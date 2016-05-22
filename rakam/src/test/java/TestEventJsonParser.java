@@ -41,7 +41,7 @@ public class TestEventJsonParser {
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
 
-        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, fieldDependency);
+        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestConfigManager(), fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(apiKeyService, eventDeserializer);
 
         mapper = JsonHelper.getMapper();

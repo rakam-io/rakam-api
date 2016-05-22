@@ -15,6 +15,7 @@ package org.rakam.postgresql.analysis;
 
 import com.google.common.primitives.Ints;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
@@ -25,15 +26,17 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -88,7 +91,7 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
             throw new IllegalArgumentException("startDate must be before endDate.");
         }
 
-        if (range.isPresent() && range.get() == 0) {
+        if (range.isPresent() && range.get() < 0) {
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
@@ -127,20 +130,24 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
 
         if (!retentionAction.isPresent()) {
-            Set<String> collectionNames = metastore.getCollectionNames(project);
-            if(collectionNames.isEmpty()) {
+            Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+            if(collections.isEmpty()) {
                 return format("select cast(null as date) as date, %s cast(null as text) as %s",
                         dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
                         connectorField);
             }
-            return collectionNames.stream()
-                    .map(collection -> getTableSubQuery(collection, connectorField, timeColumn,
+
+            boolean isText = collections.entrySet().stream()
+                    .anyMatch(e -> e.getValue().stream().anyMatch(z -> z.getType().equals(STRING)));
+
+            return collections.entrySet().stream()
+                    .map(collection -> getTableSubQuery(collection.getKey(), connectorField, Optional.of(isText), timeColumn,
                             dimension, timePredicate, Optional.empty()))
                     .collect(Collectors.joining(" union all "));
         } else {
             String collection = retentionAction.get().collection();
 
-            return getTableSubQuery(collection, connectorField,
+            return getTableSubQuery(collection, connectorField, Optional.empty(),
                     timeColumn, dimension, timePredicate, retentionAction.get().filter());
         }
     }

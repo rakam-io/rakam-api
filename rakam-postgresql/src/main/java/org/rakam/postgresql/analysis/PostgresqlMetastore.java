@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -19,12 +20,15 @@ import org.rakam.util.ProjectCollection;
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -244,12 +248,38 @@ public class PostgresqlMetastore extends AbstractMetastore {
                         "See http://www.postgresql.org/docs/devel/static/sql-keywords-appendix.html");
             } else
                 // column or table already exists
-                if (e.getSQLState().equals("23505") || e.getSQLState().equals("42P07") || e.getSQLState().equals("42710")) {
+                if (e.getMessage().contains("already exists")) {
                     // TODO: should we try again until this operation is done successfully, what about infinite loops?
                     return getOrCreateCollectionFieldList(project, collection, fields);
                 } else {
                     throw new IllegalStateException(e.getMessage());
                 }
+        }
+    }
+
+    @Override
+    public Map<String, Stats> getStats(Collection<String> projects) {
+        if(projects.isEmpty()) {
+            return ImmutableMap.of();
+        }
+
+        try (Connection conn = connectionPool.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement("SELECT\n" +
+                    "        nspname, sum(reltuples)\n" +
+                    "        FROM pg_class C\n" +
+                    "        LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)\n" +
+                    "        WHERE nspname = any(?) AND relkind='r' AND relname != '_users' GROUP BY 1");
+            ps.setArray(1, conn.createArrayOf("text", projects.toArray()));
+            ResultSet resultSet = ps.executeQuery();
+            Map<String, Stats> map = new HashMap<>();
+
+            while(resultSet.next()) {
+                map.put(resultSet.getString(1), new Stats(resultSet.getLong(2), null, null));
+            }
+
+            return map;
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -331,6 +361,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
             }
             if(name.equals("jsonb")) {
                 return FieldType.MAP_STRING;
+            }
+            if(name.equals("json")) {
+                return FieldType.STRING;
             }
 
             throw new UnsupportedOperationException(String.format("type '%s' is not supported.", typeName));

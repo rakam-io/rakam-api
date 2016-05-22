@@ -9,6 +9,8 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.swagger.models.Tag;
+import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.InternalConfig;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.FieldType;
@@ -21,7 +23,6 @@ import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
-import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.EmailClientConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
@@ -31,9 +32,7 @@ import javax.inject.Inject;
 import java.util.Map;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
-import static java.lang.String.format;
 import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.util.ValidationUtil.checkProject;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.enabled", value = "true")
@@ -102,26 +101,27 @@ public class UserModule extends RakamModule {
 
         private final Optional<UserStorage> storage;
         private final Optional<UserMailboxStorage> mailboxStorage;
-        private final PostgresqlQueryExecutor queryExecutor;
+        private final ConfigManager configManager;
 
         @Inject
-        public UserStorageListener(com.google.common.base.Optional<UserStorage> storage, com.google.common.base.Optional<UserMailboxStorage> mailboxStorage, PostgresqlQueryExecutor queryExecutor) {
+        public UserStorageListener(Optional<UserStorage> storage, ConfigManager configManager, Optional<UserMailboxStorage> mailboxStorage) {
             this.storage = storage;
             this.mailboxStorage = mailboxStorage;
-            this.queryExecutor = queryExecutor;
+            this.configManager = configManager;
         }
 
         @Subscribe
-        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
-            checkProject(event.project);
-            // if event.store is not postgresql, schema may not exist.
-            queryExecutor.executeRawStatement(format("CREATE SCHEMA IF NOT EXISTS %s", event.project)).getResult().join();
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+            FieldType type = configManager.getConfig(event.project,
+                    InternalConfig.USER_TYPE.name(), FieldType.class);
 
-            if(mailboxStorage.isPresent()) {
-                mailboxStorage.get().createProject(event.project);
-            }
-            if(storage.isPresent()) {
-                storage.get().createProject(event.project);
+            if(type != null) {
+                if(mailboxStorage.isPresent()) {
+                    mailboxStorage.get().createProjectIfNotExists(event.project, type.isNumeric());
+                }
+                if(storage.isPresent()) {
+                    storage.get().createProjectIfNotExists(event.project, type.isNumeric());
+                }
             }
         }
     }

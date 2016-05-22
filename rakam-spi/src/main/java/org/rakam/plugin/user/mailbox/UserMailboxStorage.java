@@ -6,8 +6,8 @@ import java.util.function.Consumer;
 
 
 public interface UserMailboxStorage {
-    Message send(String project, String fromUser, String toUser, Integer parentId, String message, Instant date);
-    void createProject(String projectId);
+    Message send(String project, Object fromUser, Object toUser, Integer parentId, String message, Instant date);
+    void createProjectIfNotExists(String projectId, boolean userKeyIsNumeric);
     MessageListener listen(String projectId, String user, Consumer<Data> messageConsumer);
     MessageListener listenAllUsers(String projectId, Consumer<Data> messageConsumer);
     List<Message> getConversation(String project, String userId, Integer parentId, int limit, long offset);

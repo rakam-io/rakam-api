@@ -15,11 +15,12 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
-import org.rakam.util.NotExistsException;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.util.AvroUtil;
+import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
 
@@ -49,6 +50,7 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class JsonEventDeserializer extends JsonDeserializer<Event> {
@@ -63,12 +65,17 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
             .expireAfterAccess(5, TimeUnit.MINUTES).build();
     private final Set<SchemaField> constantFields;
     private final ApiKeyService apiKeyService;
+    private final ConfigManager configManager;
 
     @Inject
-    public JsonEventDeserializer(Metastore metastore, ApiKeyService apiKeyService, FieldDependency fieldDependency) {
+    public JsonEventDeserializer(Metastore metastore,
+                                 ApiKeyService apiKeyService,
+                                 ConfigManager configManager,
+                                 FieldDependency fieldDependency) {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.apiKeyService = apiKeyService;
+        this.configManager = configManager;
         this.constantFields = fieldDependency.constantFields;
     }
 
@@ -191,14 +198,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
                         if (fieldName.equals("_user")) {
                             // the type of magic _user field must be consistent between collections
-                            for (List<SchemaField> fields : metastore.getCollections(project).values()) {
-                                for (SchemaField schemaField : fields) {
-                                    if (schemaField.getName().equals("_user")) {
-                                        type = schemaField.getType();
-                                    }
-                                }
+                            if(type.isArray() || type.isMap()) {
+                                throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
                             }
+                            final FieldType eventUserType = type.isNumeric() && type != FieldType.INTEGER ? FieldType.LONG : FieldType.STRING;
+                            type = configManager.computeConfig(project, USER_TYPE.name(),
+                                    fieldType -> fieldType == null ? eventUserType : fieldType,
+                                    FieldType.class);
                         }
+
                         SchemaField newField = new SchemaField(fieldName, type);
                         newFields.add(newField);
 
@@ -244,13 +252,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         }
 
         if (newFields != null) {
-            List<SchemaField> newSchema = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
-            Schema newAvroSchema = convertAvroSchema(newSchema);
+            rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
+            Schema newAvroSchema = convertAvroSchema(rakamSchema);
 
-            schemaCache.put(key, new SimpleImmutableEntry<>(newSchema, newAvroSchema));
+            schemaCache.put(key, new SimpleImmutableEntry<>(rakamSchema, newAvroSchema));
             GenericData.Record newRecord = new GenericData.Record(newAvroSchema);
+
             for (Schema.Field field : record.getSchema().getFields()) {
-                newRecord.put(field.name(), record.get(field.name()));
+                Object value = record.get(field.name());
+                newRecord.put(field.name(), value);
             }
             record = newRecord;
         }

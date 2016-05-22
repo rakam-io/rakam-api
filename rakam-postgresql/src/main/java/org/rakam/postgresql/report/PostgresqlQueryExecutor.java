@@ -97,11 +97,12 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                         .collect(Collectors.joining(", "));
 
                 return "(" + collections.stream().map(Map.Entry::getKey)
-                        .map(collection -> format("select cast('%s' as text) as collection, %s from %s",
+                        .map(collection -> format("select cast('%s' as text) as collection %s, row_to_json(%s) properties from %s",
                                 collection,
-                                sharedColumns.isEmpty() ? "1" : sharedColumns,
-                                project + "." + collection))
-                        .collect(Collectors.joining(" union all ")) + ") _all";
+                                sharedColumns.isEmpty() ? "" : (", " + sharedColumns),
+                                "\"" + collection + "\"",
+                                project + ".\"" + collection + "\""))
+                        .collect(Collectors.joining(" union all \n")) + ") _all";
             } else {
                 return "(select cast(null as text) as collection, cast(null as text) as _user, cast(null as timestamp) as _time limit 0) _all";
             }

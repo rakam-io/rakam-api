@@ -75,13 +75,13 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
         String dimensionColumn = dimension.isPresent() ? dimension.get() + "," : "";
 
         if (idx == 0) {
-            return String.format("step0 AS (select %s %s from %s step0 where _time BETWEEN timestamp '%s' and timestamp '%s' %s\n group by 1 %s)",
+            return String.format("step0 AS (select %s %s from %s step0 where _time BETWEEN timestamp '%s' and timestamp '%s' + interval '1' day %s\n group by 1 %s)",
                     dimensionColumn, CONNECTOR_FIELD, table, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
                     filterExp, dimension.isPresent() ? ", 2" : "");
         } else {
             return String.format("%1$s AS (\n" +
                             "select %7$s %1$s.%9$s from %2$s %1$s join %3$s on (%1$s.%9$s = %3$s.%9$s) " +
-                            "where _time BETWEEN timestamp '%5$s' and timestamp '%6$s' %4$s group by 1 %8$s)",
+                            "where _time BETWEEN timestamp '%5$s' and timestamp '%6$s' + interval '1' day %4$s group by 1 %8$s)",
                     "step" + idx, table, "step" + (idx - 1), filterExp, startDate.format(ISO_LOCAL_DATE),
                     endDate.format(ISO_LOCAL_DATE), dimensionColumn.isEmpty() ? "" : "step" + idx + "." + dimensionColumn,
                     dimension.isPresent() ? ", 2" : "",

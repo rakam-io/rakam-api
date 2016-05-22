@@ -2,20 +2,18 @@ package org.rakam.plugin.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.rakam.plugin.ProjectItem;
 import org.rakam.server.http.annotations.ApiParam;
 
-import javax.inject.Named;
 import java.util.Map;
 
 
 public class User {
-    public final String id;
+    public final Object id;
     public final Map<String, Object> properties;
     public final UserContext api;
 
     @JsonCreator
-    public User(@ApiParam("id") String id,
+    public User(@ApiParam("id") Object id,
                 @ApiParam("api") UserContext api,
                 @ApiParam("properties") Map<String, Object> properties) {
         this.id = id;

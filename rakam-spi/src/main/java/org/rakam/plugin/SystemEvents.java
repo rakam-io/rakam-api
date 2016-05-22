@@ -38,6 +38,16 @@ public final class SystemEvents {
         }
     }
 
+    public static class UserPropertyAdded {
+        public final String project;
+        public final List<SchemaField> fields;
+
+        public UserPropertyAdded(String project, List<SchemaField> fields) {
+            this.project = project;
+            this.fields = fields;
+        }
+    }
+
     public static class CollectionFieldCreatedEvent {
         public final String project;
         public final String collection;

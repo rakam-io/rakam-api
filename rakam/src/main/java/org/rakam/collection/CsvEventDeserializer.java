@@ -11,7 +11,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.AvroUtil;
 
 import javax.inject.Inject;
@@ -35,8 +37,9 @@ import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static java.lang.String.format;
 import static java.util.stream.IntStream.range;
 import static org.apache.avro.Schema.Type.NULL;
-import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
+import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class CsvEventDeserializer extends JsonDeserializer<EventList> {
@@ -44,10 +47,13 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
     private final Metastore metastore;
     private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Set<SchemaField> constantFields;
+    private final ConfigManager configManager;
 
     @Inject
-    public CsvEventDeserializer(Metastore metastore, FieldDependencyBuilder.FieldDependency fieldDependency) {
+    public CsvEventDeserializer(Metastore metastore, ConfigManager configManager,
+                                FieldDependency fieldDependency) {
         this.metastore = metastore;
+        this.configManager = configManager;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.constantFields = fieldDependency.constantFields;
     }
@@ -122,16 +128,23 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
             String name = jp.getValueAsString().trim().toLowerCase();
             checkTableColumn(name, "Field name");
 
-            Optional<SchemaField> existingField = fields.stream().filter(f -> f.getName().equals(name)).findAny();
+            Optional<SchemaField> existingField = fields.stream()
+                    .filter(f -> f.getName().equals(name)).findAny();
 
-            if(!existingField.isPresent()) {
-                newFields.add(new SchemaField(name, STRING));
+            if (!existingField.isPresent()) {
+                FieldType type = STRING;
+                if (name.equals("_user")) {
+                    type = configManager.computeConfig(project, USER_TYPE.name(),
+                            fieldType -> fieldType == null ? STRING : fieldType,
+                            FieldType.class);
+                }
+                newFields.add(new SchemaField(name, type));
             }
 
             columns.add(name);
         }
 
-        if(!newFields.isEmpty()) {
+        if (!newFields.isEmpty()) {
             fields = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
         }
 
