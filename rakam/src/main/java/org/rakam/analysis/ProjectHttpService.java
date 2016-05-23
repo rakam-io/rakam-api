@@ -64,7 +64,7 @@ public class ProjectHttpService extends HttpService {
     @ApiOperation(value = "Create project")
     @JsonRequest
     @Path("/create")
-    public ProjectApiKeys createProject(@ApiParam("lock_key") String lockKey, @ApiParam("name") String name) {
+    public ProjectApiKeys createProject(@ApiParam(value = "lock_key", required = false) String lockKey, @ApiParam("name") String name) {
         if(!Objects.equals(projectConfig.getLockKey(), lockKey)) {
             throw new RakamException("Lock key is invalid", FORBIDDEN);
         }

@@ -22,7 +22,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         return format("select %s as date, %s %s from %s where _time %s %s",
                 String.format(timeColumn, "_time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
-                isText.map(text -> String.format("cast(\"%s\" as varchar)", connectorField)).orElse(connectorField),
+                isText.map(text -> String.format("cast(\"%s\" as varchar) as %s", connectorField, connectorField)).orElse(connectorField),
                 "\"" + collection + "\"",
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
