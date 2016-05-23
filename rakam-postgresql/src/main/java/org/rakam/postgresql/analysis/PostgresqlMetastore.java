@@ -277,6 +277,10 @@ public class PostgresqlMetastore extends AbstractMetastore {
                 map.put(resultSet.getString(1), new Stats(resultSet.getLong(2), null, null));
             }
 
+            for (String project : projects) {
+                map.computeIfAbsent(project, (k) -> new Stats(0L, null, null));
+            }
+
             return map;
         } catch (SQLException e) {
             throw Throwables.propagate(e);

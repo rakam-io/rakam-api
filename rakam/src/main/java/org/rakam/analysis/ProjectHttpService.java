@@ -106,7 +106,15 @@ public class ProjectHttpService extends HttpService {
 
         Map<String, String> keys = new LinkedHashMap<>();
         for (String apiKey : apiKeys) {
-            String project = apiKeyService.getProjectOfApiKey(apiKey, READ_KEY);
+            String project;
+            try {
+                project = apiKeyService.getProjectOfApiKey(apiKey, READ_KEY);
+            } catch (RakamException e) {
+                if(e.getStatusCode() == FORBIDDEN) {
+                    continue;
+                }
+                throw e;
+            }
             keys.put(project, apiKey);
         }
 

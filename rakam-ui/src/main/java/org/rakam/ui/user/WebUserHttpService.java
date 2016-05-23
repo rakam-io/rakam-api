@@ -73,7 +73,7 @@ public class WebUserHttpService extends HttpService {
     @Path("/update/password")
     public JsonResponse update(@ApiParam("oldPassword") String oldPassword,
                                @ApiParam("newPassword") String newPassword,
-                               @CookieParam(name = "session") String session) {
+                               @CookieParam("session") String session) {
         service.updateUserPassword(extractUserFromCookie(session, encryptionConfig.getSecretKey()), oldPassword, newPassword);
         return JsonResponse.success();
     }
@@ -81,7 +81,7 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/update/info")
-    public JsonResponse update(@ApiParam("name") String name, @CookieParam(name = "session") String session) {
+    public JsonResponse update(@ApiParam("name") String name, @CookieParam("session") String session) {
         service.updateUserInfo(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
         return JsonResponse.success();
     }
@@ -91,7 +91,7 @@ public class WebUserHttpService extends HttpService {
     @Path("/create-project")
     public UserApiKey createProject(@ApiParam("name") String name,
                                     @ApiParam("api_url") String apiUrl,
-                                    @CookieParam(name = "session") String session) {
+                                    @CookieParam("session") String session) {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
         return service.createProject(user, apiUrl, name);
     }
@@ -102,7 +102,7 @@ public class WebUserHttpService extends HttpService {
     @Path("/delete-project")
     public void deleteProject(@ApiParam("name") String name,
                                     @ApiParam("api_url") String apiUrl,
-                                    @CookieParam(name = "session") String session) {
+                                    @CookieParam("session") String session) {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
         service.deleteProject(user, apiUrl, name);
     }
@@ -110,14 +110,14 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/create-api-keys")
-    public ApiKeyService.ProjectApiKeys createApiKeys(@ApiParam("project") String project, @ApiParam("api_url") String apiUrl, @CookieParam(name = "session") String session) {
+    public ApiKeyService.ProjectApiKeys createApiKeys(@ApiParam("project") String project, @ApiParam("api_url") String apiUrl, @CookieParam("session") String session) {
         return service.createApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, apiUrl);
     }
 
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/revoke-api-keys")
-    public JsonResponse revokeApiKeys(@ApiParam("api_url") String apiUrl, @ApiParam("api_key") String key, @CookieParam(name = "session") String session) {
+    public JsonResponse revokeApiKeys(@ApiParam("api_url") String apiUrl, @ApiParam("api_key") String key, @CookieParam("session") String session) {
         service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), apiUrl, key);
         return JsonResponse.success();
     }
@@ -127,7 +127,7 @@ public class WebUserHttpService extends HttpService {
     @ApiOperation(value = "List users who can access to the project", authorizations = @Authorization(value = "master_key"))
     @IgnorePermissionCheck
     @Path("/user-access")
-    public List<WebUserService.UserAccess> getUserAccess(@CookieParam(name = "session") String session,
+    public List<WebUserService.UserAccess> getUserAccess(@CookieParam("session") String session,
                                                          @ApiParam("project") String project,
                                                          @ApiParam("api_url") String apiUrl) {
         return service.getUserAccessForAllProjects(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, apiUrl);
@@ -157,7 +157,7 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
-    public JsonResponse revokeUserAccess(@CookieParam(name = "session") String session,
+    public JsonResponse revokeUserAccess(@CookieParam("session") String session,
                                          @ApiParam("project") String project,
                                          @ApiParam("api_url") String api_url,
                                          @ApiParam("email") String email) {
@@ -181,7 +181,7 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/give-user-access")
-    public JsonResponse giveUserAccess(@CookieParam(name = "session") String session,
+    public JsonResponse giveUserAccess(@CookieParam("session") String session,
                                        @ApiParam("project") String project,
                                        @ApiParam("api_url") String api_url,
                                        @ApiParam("email") String email,

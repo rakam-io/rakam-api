@@ -67,7 +67,7 @@ public class CustomReportHttpService extends HttpService {
             response = JsonResponse.class, request = CustomReport.class)
     @JsonRequest
     @Path("/create")
-    public JsonResponse create(@Named("project") String project, @CookieParam(name = "session") String session, @BodyParam CustomReport report) {
+    public JsonResponse create(@Named("project") String project, @CookieParam("session") String session, @BodyParam CustomReport report) {
         int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         metadata.save(userId, project, report);

@@ -83,7 +83,7 @@ public class JDBCReportMetadata implements ReportMetadata {
             Report report = handle.createQuery("SELECT r.project, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
                     " LEFT JOIN web_user_project permission ON (permission.user_id = :user AND permission.project = :project)" +
                     " WHERE r.project = :project AND r.slug = :slug AND (:user IS NULL OR " +
-                    "(permission.user_id = :user AND (permission.is_admin OR r.shared OR r.user_id = :requestedUser)))")
+                    "(permission.user_id = :user AND (permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")
                     .bind("project", project)
                     .bind("user", userId)
                     .bind("requestedUser", requestedUserId)
@@ -98,7 +98,7 @@ public class JDBCReportMetadata implements ReportMetadata {
     public Report update(Integer userId, String project, Report report) {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project = :project AND slug = :slug AND " +
-                    "(SELECT p.is_admin OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project = :project) WHERE r.slug = :slug AND r.project = :project)")
+                    "(SELECT p.master_key IS NOT NULL OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project = :project) WHERE r.slug = :slug AND r.project = :project)")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)

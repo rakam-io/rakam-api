@@ -30,15 +30,17 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
+import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.util.IgnorePermissionCheck;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -51,12 +53,11 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
-import static org.rakam.util.JsonHelper.encode;
 
 
-@Path("/custom-page")
+@Path("/ui/custom-page")
 @IgnoreApi
-@Api(value = "/custom-page", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
+@Api(value = "/ui/custom-page", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 public class CustomPageHttpService extends HttpService {
     private final Optional<CustomPageDatabase> database;
     private final EncryptionConfig encryptionConfig;
@@ -114,30 +115,25 @@ public class CustomPageHttpService extends HttpService {
 
     @Path("/save")
     @POST
+    @JsonRequest
     @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"),
             response = JsonResponse.class, request = CustomPageDatabase.Page.class)
-    public void save(@javax.inject.Named("project") String project, RakamHttpRequest request) {
-        request.bodyHandler(body -> {
-            CustomPageDatabase.Page report = JsonHelper.read(body, CustomPageDatabase.Page.class);
-
-            java.util.Optional<Integer> user = request.cookies().stream().filter(a -> a.name().equals("session")).findFirst()
-                    .map(cookie -> extractUserFromCookie(cookie.value(), encryptionConfig.getSecretKey()));
-
-            if (!user.isPresent()) {
-                request.response(encode(JsonResponse.error("Unauthorized")), UNAUTHORIZED).end();
-            } else {
-                database.get().save(user.get(), project, report);
-                request.response(encode(JsonResponse.success()), OK).end();
-            }
-        });
+    public JsonResponse save(@CookieParam("session") String session, @Named("project") String project, @BodyParam CustomPageDatabase.Page report) {
+        java.util.Optional<Integer> user = java.util.Optional.ofNullable(session).map(cookie -> extractUserFromCookie(cookie, encryptionConfig.getSecretKey()));
+        if (!user.isPresent()) {
+            throw new RakamException(UNAUTHORIZED);
+        } else {
+            database.get().save(user.get(), project, report);
+            return JsonResponse.success();
+        }
     }
 
     @Path("/delete")
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public JsonResponse delete(@javax.inject.Named("project") String project,
+    public JsonResponse delete(@Named("project") String project,
                                @ApiParam("name") String name) {
-        if(!database.isPresent()) {
+        if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
         database.get().delete(project, name);
@@ -155,9 +151,9 @@ public class CustomPageHttpService extends HttpService {
     @Path("/get")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public Map<String, String> get(@javax.inject.Named("project") String project,
+    public Map<String, String> get(@Named("project") String project,
                                    @ApiParam("slug") String slug) {
-        if(!database.isPresent()) {
+        if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
         return database.get().get(project, slug);
@@ -167,7 +163,7 @@ public class CustomPageHttpService extends HttpService {
     @IgnorePermissionCheck
     @GET
     public void display(RakamHttpRequest request) {
-        if(!database.isPresent()) {
+        if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
         String path = request.path().substring(21);
@@ -175,7 +171,7 @@ public class CustomPageHttpService extends HttpService {
         byte[] bytes;
         try {
             InputStream file = database.get().getFile(projectCustomPage[0], projectCustomPage[1], projectCustomPage[2]);
-            if(file == null) {
+            if (file == null) {
                 request.response(NOT_FOUND.reasonPhrase(), NOT_FOUND).end();
             }
             bytes = ByteStreams.toByteArray(file);
@@ -198,8 +194,8 @@ public class CustomPageHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public List<CustomPageDatabase.Page> list(@javax.inject.Named("project") String project) {
-        if(!database.isPresent()) {
+    public List<CustomPageDatabase.Page> list(@Named("project") String project) {
+        if (!database.isPresent()) {
             return null;
         }
         return database.get().list(project);

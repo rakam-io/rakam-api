@@ -22,7 +22,7 @@ public class ProjectConfig {
 
     @Config("passphrase")
     public ProjectConfig setPassphrase(String passphrase) throws URISyntaxException {
-        this.passphrase = passphrase;
+        this.passphrase = passphrase != null && passphrase.isEmpty() ? null : passphrase;
         return this;
     }
 

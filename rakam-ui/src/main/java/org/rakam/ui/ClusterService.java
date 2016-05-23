@@ -52,7 +52,7 @@ public class ClusterService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
-    public JsonResponse create(@CookieParam(name = "session") String session,
+    public JsonResponse create(@CookieParam("session") String session,
                                @BodyParam Cluster cluster) {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
@@ -120,7 +120,7 @@ public class ClusterService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public JsonResponse delete(@CookieParam(name = "session") String session,
+    public JsonResponse delete(@CookieParam("session") String session,
                                @ApiParam("api_url") String apiUrl) {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
@@ -137,7 +137,7 @@ public class ClusterService extends HttpService {
     @ApiOperation(value = "List cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
     @GET
-    public List<String> list(@CookieParam(name = "session") String session) {
+    public List<String> list(@CookieParam("session") String session) {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         try (Handle handle = dbi.open()) {

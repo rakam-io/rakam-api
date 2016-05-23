@@ -34,7 +34,7 @@ import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 import static org.rakam.util.JsonHelper.encode;
 
 
-@Path("/report")
+@Path("/ui/report")
 @Api(value = "/report", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 @IgnoreApi
 public class ReportHttpService extends HttpService {
@@ -50,8 +50,8 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "List Reports", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
-    public Object list(@javax.inject.Named("project") String project,
-                       @CookieParam(name = "session") String session) {
+    public Object list(@Named("project") String project,
+                       @CookieParam("session") String session) {
         int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
         return metadata.getReports(userId, project);
     }
@@ -94,9 +94,9 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
-    public JsonResponse delete(@javax.inject.Named("project") String project,
+    public JsonResponse delete(@Named("project") String project,
                                @ApiParam(value="slug", description = "Slug") String slug,
-                               @CookieParam(name = "session") String session) {
+                               @CookieParam("session") String session) {
         metadata.delete(extractUserFromCookie(session, encryptionConfig.getSecretKey()),
                 project, slug);
 
@@ -106,10 +106,10 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public Report get(@javax.inject.Named("project") String project,
+    public Report get(@Named("project") String project,
                       @ApiParam(value="slug", description = "Report name") String slug,
                       @ApiParam(value="user_id", required = false, description = "Report user id") Integer userId,
-                      @CookieParam(name = "session") String session) {
+                      @CookieParam("session") String session) {
         return metadata.get(extractUserFromCookie(session, encryptionConfig.getSecretKey()), userId, project, slug);
     }
 

@@ -254,6 +254,10 @@ public class PrestoMetastore extends AbstractMetastore {
             });
 
             for (Stats stats : map.values()) {
+                stats.dailyEvents =  stats.dailyEvents == null ? 0 : stats.dailyEvents;
+                stats.monthlyEvents =  stats.monthlyEvents == null ? 0 : stats.monthlyEvents;
+                stats.allEvents =  stats.allEvents == null ? 0 : stats.allEvents;
+
                 stats.allEvents += stats.monthlyEvents + stats.dailyEvents;
                 stats.monthlyEvents += stats.dailyEvents;
             }
