@@ -195,7 +195,8 @@ public class RakamUIModule extends RakamModule {
                 handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (\n" +
                         "  id serial NOT NULL,\n" +
                         "  project varchar(150) NOT NULL,\n" +
-                        "  api_url varchar(250) NOT NULL,\n" +
+                        "  api_url varchar(250),\n" +
+                        "  created_user INT REFERENCES web_user(id),\n" +
                         "  created_at timestamp DEFAULT now() NOT NULL,\n" +
                         "  CONSTRAINT production UNIQUE(project, api_url),\n" +
                         "  PRIMARY KEY (id)\n" +
