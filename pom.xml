@@ -367,6 +367,12 @@
             </dependency>
 
             <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-core</artifactId>
+                <version>4.0.1</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.facebook.presto</groupId>
                 <artifactId>presto-parser</artifactId>
                 <version>${presto.version}</version>

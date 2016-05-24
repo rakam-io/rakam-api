@@ -224,7 +224,7 @@ public class RakamUIModule extends RakamModule {
                         "  options TEXT," +
                         "  shared BOOLEAN NOT NULL DEFAULT false," +
                         "  created_at TIMESTAMP NOT NULL DEFAULT now()," +
-                        "  CONSTRAINT address UNIQUE(project, user_id, slug)" +
+                        "  CONSTRAINT address UNIQUE(project_id, user_id, slug)" +
                         "  )")
                         .execute();
 
@@ -234,7 +234,7 @@ public class RakamUIModule extends RakamModule {
                         "  project_id INT REFERENCES web_user_project(id)," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  data TEXT NOT NULL," +
-                        "  PRIMARY KEY (report_type, project, name)" +
+                        "  PRIMARY KEY (project_id, report_type, name)" +
                         "  )")
                         .execute();
 
@@ -252,7 +252,7 @@ public class RakamUIModule extends RakamModule {
                         "  user_id INT REFERENCES web_user(id)," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  options TEXT," +
-                        "  UNIQUE (project, name)," +
+                        "  UNIQUE (project_id, name)," +
                         "  PRIMARY KEY (id)" +
                         "  )")
                         .execute();
@@ -274,7 +274,7 @@ public class RakamUIModule extends RakamModule {
                             "  slug VARCHAR(255) NOT NULL," +
                             "  category VARCHAR(255)," +
                             "  data TEXT NOT NULL," +
-                            "  PRIMARY KEY (project, slug)" +
+                            "  PRIMARY KEY (project_id, slug)" +
                             "  )")
                             .execute();
                 }
