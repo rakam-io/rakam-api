@@ -206,10 +206,10 @@ public class RakamUIModule extends RakamModule {
                         "  id serial NOT NULL,\n" +
                         "  project_id INTEGER REFERENCES web_user_project(id),\n" +
                         "  scope_expression TEXT,\n" +
-                        "  has_read_permission BOOLEAN NOT NULL,\n" +
-                        "  user_id INT REFERENCES web_user(id)," +
-                        "  has_write_permission BOOLEAN NOT NULL,\n" +
-                        "  is_admin BOOLEAN DEFAULT false NOT NULL,\n" +
+                        "  user_id INT REFERENCES web_user(id),\n" +
+                        "  write_key TEXT NOT NULL,\n" +
+                        "  read_key TEXT NOT NULL,\n" +
+                        "  master_key TEXT DEFAULT false NOT NULL,\n" +
                         "  created_at timestamp DEFAULT now() NOT NULL\n" +
                         "  )")
                         .execute();

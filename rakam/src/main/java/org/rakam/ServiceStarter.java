@@ -22,6 +22,7 @@ import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Tag;
+import org.flywaydb.core.Flyway;
 import org.rakam.analysis.AdminHttpService;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ContinuousQueryHttpService;
@@ -73,6 +74,10 @@ public final class ServiceStarter {
         if (args.length > 0) {
             System.setProperty("config", args[0]);
         }
+
+        Flyway flyway = new Flyway();
+        flyway.setDataSource("jdbc:h2:file:./target/foobar", "sa", null);
+        flyway.migrate();
 
         Bootstrap app = new Bootstrap(getModules());
         app.requireExplicitBindings(false);
