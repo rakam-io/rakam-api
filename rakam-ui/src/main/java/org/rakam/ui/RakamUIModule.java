@@ -192,6 +192,16 @@ public class RakamUIModule extends RakamModule {
                         "  )")
                         .execute();
 
+                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (\n" +
+                        "  id serial NOT NULL,\n" +
+                        "  project varchar(150) NOT NULL,\n" +
+                        "  api_url varchar(250) NOT NULL,\n" +
+                        "  created_at timestamp DEFAULT now() NOT NULL,\n" +
+                        "  CONSTRAINT production UNIQUE(project, api_url),\n" +
+                        "  PRIMARY KEY (id)\n" +
+                        ")")
+                        .execute();
+
                 handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_api_key (" +
                         "  id serial NOT NULL,\n" +
                         "  project_id INTEGER REFERENCES web_user_project(id),\n" +
@@ -202,16 +212,6 @@ public class RakamUIModule extends RakamModule {
                         "  is_admin BOOLEAN DEFAULT false NOT NULL,\n" +
                         "  created_at timestamp DEFAULT now() NOT NULL\n" +
                         "  )")
-                        .execute();
-
-                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (\n" +
-                        "  id serial NOT NULL,\n" +
-                        "  project varchar(150) NOT NULL,\n" +
-                        "  api_url varchar(250) NOT NULL,\n" +
-                        "  created_at timestamp DEFAULT now() NOT NULL,\n" +
-                        "  CONSTRAINT production UNIQUE(project, api_url),\n" +
-                        "  PRIMARY KEY (id)\n" +
-                        ")")
                         .execute();
 
                 handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
