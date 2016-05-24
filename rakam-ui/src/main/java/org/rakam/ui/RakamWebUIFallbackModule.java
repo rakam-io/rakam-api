@@ -45,7 +45,7 @@ public class RakamWebUIFallbackModule extends RakamModule {
         @IgnorePermissionCheck
         public void main(RakamHttpRequest request) {
             request.response("Rakam API is successfully installed! \n---------- \n" +
-                    "Visit api.rakam.io for API documentation.")
+                    "Visit app.rakam.io to register the API with Rakam BI or api.rakam.io for API documentation.")
                     .end();
         }
     }
