@@ -22,6 +22,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.AlreadyExistsException;
@@ -39,6 +40,7 @@ import java.util.Map;
 
 @Path("/ui/dashboard")
 @IgnoreApi
+@RakamUIModule.UIService
 public class DashboardService extends HttpService {
     private final DBI dbi;
 
@@ -50,20 +52,23 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Create dashboard", authorizations = @Authorization(value = "read_key"))
     @Path("/create")
-    public Dashboard create(@javax.inject.Named("project") String project,
+    public Dashboard create(@HeaderParam("project") int project,
                             @ApiParam("name") String name,
                             @ApiParam(value = "options", required = false) Map<String, Object> options) {
         try(Handle handle = dbi.open()) {
             int id;
             try {
-                id = handle.createQuery("INSERT INTO dashboard (project, name, options) VALUES (:project, :name, :options) RETURNING id")
+                id = handle.createQuery("INSERT INTO dashboard (project_id, name, options) VALUES (:project, :name, :options) RETURNING id")
                         .bind("project", project)
                         .bind("options", JsonHelper.encode(options))
                         .bind("name", name).map(IntegerMapper.FIRST).first();
             } catch (Exception e) {
-                if (get(project, name) != null) {
+                if(handle.createQuery("SELECT 1 FROM dashboard WHERE (project_id, name) = (:project, :name)")
+                        .bind("project", project)
+                        .bind("name", name).first() != null) {
                     throw new AlreadyExistsException("Dashboard", HttpResponseStatus.BAD_REQUEST);
                 }
+
                 throw e;
             }
             return new Dashboard(id, name, options);
@@ -73,10 +78,9 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Create dashboard", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
-    public JsonResponse delete(@javax.inject.Named(value = "project") String project,
-                               @ApiParam(value = "name") String name) {
+    public JsonResponse delete(@HeaderParam("project") int project, @ApiParam(value = "name") String name) {
         try(Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM dashboard WHERE project = :project AND name = :name")
+            handle.createStatement("DELETE FROM dashboard WHERE project_id = :project AND name = :name")
                     .bind("project", project)
                     .bind("name", name).execute();
         }
@@ -86,10 +90,10 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public List<DashboardItem> get(@javax.inject.Named("project") String project,
+    public List<DashboardItem> get(@HeaderParam("project") int project,
                                    @ApiParam("name") String name) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, directive, data FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project = :project AND name = :name)")
+            return handle.createQuery("SELECT id, name, directive, data FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND name = :name)")
                     .bind("project", project)
                     .bind("name", name)
                     .map((i, r, statementContext) -> {
@@ -99,11 +103,11 @@ public class DashboardService extends HttpService {
     }
 
     @JsonRequest
-    @ApiOperation(value = "List Report", authorizations = @Authorization(value = "read_key"))
+    @ApiOperation(value = "List Report")
     @Path("/list")
-    public List<Dashboard> list(@javax.inject.Named("project") String project) {
+    public List<Dashboard> list(@HeaderParam("project") int project) {
         try(Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project = :project ORDER BY id")
+            return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project_id = :project ORDER BY id")
                     .bind("project", project).map((i, resultSet, statementContext) -> {
                         String options = resultSet.getString(3);
                         return new Dashboard(resultSet.getInt(1), resultSet.getString(2),
@@ -145,7 +149,7 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Add item to dashboard", authorizations = @Authorization(value = "read_key"))
     @Path("/add_item")
-    public JsonResponse addToDashboard(@javax.inject.Named("project") String project,
+    public JsonResponse addToDashboard(@HeaderParam("project") int project,
                                @ApiParam("dashboard") int dashboard,
                                @ApiParam("name") String itemName,
                                @ApiParam("directive") String directive,
@@ -164,7 +168,7 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Update dashboard items", authorizations = @Authorization(value = "read_key"))
     @Path("/update_dashboard_items")
-    public JsonResponse updateDashboard(@javax.inject.Named("project") String project,
+    public JsonResponse updateDashboard(@Named("project") String project,
                                @ApiParam("dashboard") int dashboard,
                                @ApiParam("items") List<DashboardItem> items) {
 
@@ -186,7 +190,7 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Update dashboard options", authorizations = @Authorization(value = "read_key"))
     @Path("/update_dashboard_options")
-    public JsonResponse updateDashboardOptions(@javax.inject.Named("project") String project,
+    public JsonResponse updateDashboardOptions(@Named("project") String project,
                                @ApiParam("dashboard") int dashboard,
                                @ApiParam("options") Map<String, Object> options) {
 
@@ -204,7 +208,7 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Rename dashboard item", authorizations = @Authorization(value = "read_key"))
     @Path("/rename_item")
-    public JsonResponse renameDashboardItem(@javax.inject.Named("project") String project,
+    public JsonResponse renameDashboardItem(@Named("project") String project,
                                @ApiParam("dashboard") int dashboard,
                                @ApiParam("id") int id,
                                @ApiParam("name") String name) {
@@ -219,7 +223,7 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete dashboard item", authorizations = @Authorization(value = "read_key"))
     @Path("/delete_item")
-    public JsonResponse removeFromDashboard(@javax.inject.Named("project") String project,
+    public JsonResponse removeFromDashboard(@Named("project") String project,
                                             @ApiParam("dashboard") int dashboard,
                                             @ApiParam("id") int id) {
         try(Handle handle = dbi.open()) {
@@ -235,7 +239,7 @@ public class DashboardService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete dashboard item", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
-    public JsonResponse delete(@javax.inject.Named("project") String project, @ApiParam("dashboard") int dashboard) {
+    public JsonResponse delete(@HeaderParam("project") int project, @ApiParam("dashboard") int dashboard) {
         try(Handle handle = dbi.open()) {
             // todo check permission
             handle.createStatement("DELETE FROM dashboard_items WHERE dashboard = :dashboard")

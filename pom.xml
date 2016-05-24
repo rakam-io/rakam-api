@@ -77,7 +77,7 @@
         <presto.version>0.146</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.4.4</jackson.version>
-        <netty.rest.version>0.54</netty.rest.version>
+        <netty.rest.version>0.55</netty.rest.version>
 
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
@@ -201,6 +201,13 @@
                 <artifactId>javax.ws.rs-api</artifactId>
                 <version>2.0.1</version>
             </dependency>
+
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>1.15</version>
+            </dependency>
+
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>

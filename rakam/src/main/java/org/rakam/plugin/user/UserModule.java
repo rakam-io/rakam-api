@@ -26,7 +26,9 @@ import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.report.EmailClientConfig;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.ConditionalModule;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.util.Map;
@@ -50,7 +52,6 @@ public class UserModule extends RakamModule {
         webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
 
         binder.bind(UserStorageListener.class).asEagerSingleton();
-        binder.bind(UserCollectionFieldListener.class).asEagerSingleton();
         binder.bind(UserPrecomputationListener.class).asEagerSingleton();
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
         bindConfig(binder).to(EmailClientConfig.class);
@@ -126,12 +127,16 @@ public class UserModule extends RakamModule {
         }
     }
 
-    public static class UserCollectionFieldListener {
+    public static class UserPrecomputationListener {
         private final Metastore metastore;
+        private final AbstractUserService service;
+        private final QueryMetadataStore metadataStore;
 
         @Inject
-        public UserCollectionFieldListener(Metastore metastore) {
+        public UserPrecomputationListener(AbstractUserService service, QueryMetadataStore metadataStore, Metastore metastore) {
+            this.service = service;
             this.metastore = metastore;
+            this.metadataStore = metadataStore;
         }
 
         @Subscribe
@@ -143,27 +148,20 @@ public class UserModule extends RakamModule {
                         .filter(e -> e.getName().equals("_user")).findAny().map(f -> f.getType()).orElse(STRING);
                 metastore.getOrCreateCollectionFieldList(event.project, event.collection, ImmutableSet.of(new SchemaField("_user", userFieldType)));
             }
-        }
-    }
+            try {
+                service.precalculate(event.project, new PreCalculateQuery(event.collection, null));
+            } catch (AlreadyExistsException e) {
+            }
 
-    public static class UserPrecomputationListener {
-        private final QueryMetadataStore metastore;
-        private final AbstractUserService service;
+            try {
+                metadataStore.getContinuousQuery(event.project, "_users_daily");
+            } catch (RakamException e) {
+                try {
+                    service.precalculate(event.project, new PreCalculateQuery(null, null));
+                } catch (AlreadyExistsException e1) {
+                }
+            }
 
-        @Inject
-        public UserPrecomputationListener(AbstractUserService service, QueryMetadataStore metastore) {
-            this.service = service;
-            this.metastore = metastore;
-        }
-
-        @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            service.precalculate(event.project, new PreCalculateQuery(event.collection, null));
-        }
-
-        @Subscribe
-        public void onCreateProject(SystemEvents.ProjectCreatedEvent event) {
-            service.precalculate(event.project, new PreCalculateQuery(null, null));
         }
     }
 }

@@ -14,8 +14,10 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
+import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.RakamUIModule;
 import org.rakam.ui.ReportMetadata;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
@@ -23,7 +25,6 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.util.Optional;
@@ -37,6 +38,7 @@ import static org.rakam.util.JsonHelper.encode;
 @Path("/ui/report")
 @Api(value = "/report", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 @IgnoreApi
+@RakamUIModule.UIService
 public class ReportHttpService extends HttpService {
     private final ReportMetadata metadata;
     private final EncryptionConfig encryptionConfig;
@@ -50,7 +52,7 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "List Reports", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
-    public Object list(@Named("project") String project,
+    public Object list(@HeaderParam("project") int project,
                        @CookieParam("session") String session) {
         int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
         return metadata.getReports(userId, project);
@@ -59,7 +61,7 @@ public class ReportHttpService extends HttpService {
     @ApiOperation(value = "Create Report", authorizations = @Authorization(value = "read_key"))
     @Path("/create")
     @POST
-    public void create(@Named("project") String project, RakamHttpRequest request) {
+    public void create(@HeaderParam("project") int project, RakamHttpRequest request) {
         request.bodyHandler(body -> {
             Report report = JsonHelper.read(body, Report.class);
 
@@ -94,7 +96,7 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @Path("/delete")
-    public JsonResponse delete(@Named("project") String project,
+    public JsonResponse delete(@HeaderParam("project") int project,
                                @ApiParam(value="slug", description = "Slug") String slug,
                                @CookieParam("session") String session) {
         metadata.delete(extractUserFromCookie(session, encryptionConfig.getSecretKey()),
@@ -106,7 +108,7 @@ public class ReportHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public Report get(@Named("project") String project,
+    public Report get(@HeaderParam("project") int project,
                       @ApiParam(value="slug", description = "Report name") String slug,
                       @ApiParam(value="user_id", required = false, description = "Report user id") Integer userId,
                       @CookieParam("session") String session) {
@@ -116,7 +118,7 @@ public class ReportHttpService extends HttpService {
     @ApiOperation(value = "Update report", authorizations = @Authorization(value = "read_key"))
     @POST
     @Path("/update")
-    public void update(@Named("project") String project, RakamHttpRequest request) {
+    public void update(@HeaderParam("project") int project, RakamHttpRequest request) {
         request.bodyHandler(body -> {
             Report report = JsonHelper.read(body, Report.class);
 

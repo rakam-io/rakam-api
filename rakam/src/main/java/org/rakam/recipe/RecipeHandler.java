@@ -1,18 +1,12 @@
 package org.rakam.recipe;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
-import org.rakam.ui.DashboardService;
-import org.rakam.ui.ReportMetadata;
-import org.rakam.ui.customreport.CustomReportMetadata;
-import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
@@ -27,25 +21,13 @@ public class RecipeHandler {
     private final Metastore metastore;
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
-    private final Optional<ReportMetadata> reportMetadata;
-    private final Optional<CustomReportMetadata> customReportMetadata;
-    private final Optional<CustomPageDatabase> customPageDatabase;
-    private final Optional<DashboardService> dashboardService;
 
     @Inject
     public RecipeHandler(Metastore metastore, ContinuousQueryService continuousQueryService,
-                         MaterializedViewService materializedViewService,
-                         Optional<CustomReportMetadata> customReportMetadata,
-                         Optional<CustomPageDatabase> customPageDatabase,
-                         Optional<DashboardService> dashboardService,
-                         Optional<ReportMetadata> reportMetadata) {
+                         MaterializedViewService materializedViewService) {
         this.metastore = metastore;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
-        this.customReportMetadata = customReportMetadata;
-        this.customPageDatabase = customPageDatabase;
-        this.reportMetadata = reportMetadata;
-        this.dashboardService = dashboardService;
     }
 
     public Recipe export(String project) {
@@ -62,46 +44,8 @@ public class RecipeHandler {
                 .map(m -> new Recipe.ContinuousQueryBuilder(m.name, m.tableName, m.query, m.partitionKeys, m.options))
                 .collect(Collectors.toList());
 
-        final List<Recipe.ReportBuilder> reports;
-        if(reportMetadata.isPresent()) {
-            reports = reportMetadata.get()
-                    .getReports(null, project).stream()
-                    .map(r -> new Recipe.ReportBuilder(r.slug, r.name, r.category, r.query, r.options, r.shared))
-                    .collect(Collectors.toList());
-        } else {
-            reports = ImmutableList.of();
-        }
-
-        final List<Recipe.CustomReportBuilder> customReports;
-        if(customReportMetadata.isPresent()) {
-            customReports = customReportMetadata.get().list(project).entrySet().stream().flatMap(a -> a.getValue().stream())
-                    .map(r -> new Recipe.CustomReportBuilder(r.reportType, r.name, r.data))
-                    .collect(Collectors.toList());
-        } else {
-            customReports = ImmutableList.of();
-        }
-
-        final List<Recipe.CustomPageBuilder> customPages;
-        if(customPageDatabase.isPresent()) {
-            customPages = customPageDatabase.get()
-                    .list(project).stream()
-                    .map(r -> new Recipe.CustomPageBuilder(r.name, r.slug, r.category, customPageDatabase.get().get(project, r.slug)))
-                    .collect(Collectors.toList());
-        } else {
-            customPages = ImmutableList.of();
-        }
-
-        List<Recipe.DashboardBuilder> dashboards;
-        if(dashboardService.isPresent()) {
-            dashboards = dashboardService.get().list(project).stream()
-                    .map(a -> new Recipe.DashboardBuilder(a.name, dashboardService.get().get(project, a.name)))
-                    .collect(Collectors.toList());
-        } else {
-            dashboards = ImmutableList.of();
-        }
-
         return new Recipe(Recipe.Strategy.SPECIFIC, project, collections, materializedViews,
-                continuousQueryBuilders, customReports, customPages, dashboards, reports);
+                continuousQueryBuilders);
     }
 
     public void install(Recipe recipe, String project, boolean overrideExisting) {
@@ -167,69 +111,5 @@ public class RecipeHandler {
                         throw Throwables.propagate(ex);
                     }
                 }));
-
-        recipe.getReports().stream()
-                .map(reportBuilder -> reportBuilder.createReport(project))
-                .forEach(report -> {
-                    try {
-                        reportMetadata.get().save(null, project, report);
-                    } catch (AlreadyExistsException e) {
-                        if (overrideExisting) {
-                            reportMetadata.get().update(null, project, report);
-                        } else {
-                            throw Throwables.propagate(e);
-                        }
-                    }
-                });
-
-        recipe.getDashboards().stream()
-                .forEach(report -> {
-                    int dashboard;
-                    try {
-                        dashboard = dashboardService.get().create(project, report.name, ImmutableMap.of()).id;
-                    } catch (AlreadyExistsException e) {
-                        dashboard = dashboardService.get().list(project).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
-                        dashboardService.get().delete(project, dashboard);
-                        dashboard = dashboardService.get().create(project, report.name, ImmutableMap.of()).id;
-                    }
-
-                    for (DashboardService.DashboardItem item : report.items) {
-                        dashboardService.get().addToDashboard(project, dashboard, item.name, item.directive, item.data);
-                    }
-                });
-
-        recipe.getCustomReports().stream()
-                .map(reportBuilder -> reportBuilder.createCustomReport(project))
-                .forEach(customReport -> {
-                    try {
-                        customReportMetadata.get().save(null, project, customReport);
-                    } catch (AlreadyExistsException e) {
-                        if (overrideExisting) {
-                            customReportMetadata.get().update(project, customReport);
-                        } else {
-                            throw Throwables.propagate(e);
-                        }
-                    }
-                });
-
-        if(customPageDatabase.isPresent()) {
-            recipe.getCustomPages().stream()
-                    .map(reportBuilder -> reportBuilder.createCustomPage(project))
-                    .forEach(customReport -> {
-                        try {
-                            customPageDatabase.get().save(null, project, customReport);
-                        } catch (AlreadyExistsException e) {
-                            if (overrideExisting) {
-                                customPageDatabase.get().delete(project, customReport.slug);
-                                customPageDatabase.get().save(null, project, customReport);
-                            } else {
-                                throw Throwables.propagate(e);
-                            }
-                        }
-                    });
-        } else
-        if(recipe.getCustomPages().size() > 0) {
-            throw new RakamException("Custom page feature is not supported", BAD_REQUEST);
-        }
     }
 }

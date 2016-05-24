@@ -97,11 +97,7 @@ public class UserHttpService extends HttpService {
     public Object createUser(@BodyParam User user) {
         String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.writeKey : null, WRITE_KEY);
 
-        try {
-            return service.create(project, user.id, user.properties);
-        } catch (Exception e) {
-            throw new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST);
-        }
+        return service.create(project, user.id, user.properties);
     }
 
     @JsonRequest

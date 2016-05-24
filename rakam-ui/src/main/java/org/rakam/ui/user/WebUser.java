@@ -18,11 +18,13 @@ public class WebUser {
     }
 
     public static class UserApiKey {
+        public final int project;
         public final String readKey;
         public final String writeKey;
         public final String masterKey;
 
-        public UserApiKey(String readKey, String writeKey, String masterKey) {
+        public UserApiKey(int project, String readKey, String writeKey, String masterKey) {
+            this.project = project;
             this.readKey = readKey;
             this.writeKey = writeKey;
             this.masterKey = masterKey;
@@ -30,11 +32,13 @@ public class WebUser {
     }
 
     public static class Project {
+        public final int id;
         public final String name;
         public final String apiUrl;
         public final List<ProjectApiKeys> apiKeys;
 
-        public Project(String name, String apiUrl, List<ProjectApiKeys> apiKeys) {
+        public Project(int id, String name, String apiUrl, List<ProjectApiKeys> apiKeys) {
+            this.id = id;
             this.name = name;
             this.apiKeys = apiKeys;
             this.apiUrl = apiUrl;

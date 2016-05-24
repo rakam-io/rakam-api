@@ -114,7 +114,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
         String query;
         if (filterExpression == null) {
-            query = String.format("select distinct _user as id from (%s)",
+            query = String.format("select distinct _user as id from (%s) t",
                     eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
         } else {
             throw new RakamException("User segment must use event filters", HttpResponseStatus.BAD_GATEWAY);

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.auto.service.AutoService;
-import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -22,10 +21,6 @@ import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.server.http.HttpService;
-import org.rakam.ui.DashboardService;
-import org.rakam.ui.ReportMetadata;
-import org.rakam.ui.customreport.CustomReportMetadata;
-import org.rakam.ui.page.CustomPageDatabase;
 
 import javax.inject.Inject;
 import java.io.FileInputStream;
@@ -143,14 +138,9 @@ public class RecipeModule extends RakamModule {
         @Inject
         public RecipeLoader(Recipe recipe, Metastore metastore,
                             ContinuousQueryService continuousQueryService,
-                            MaterializedViewService materializedViewService,
-                            Optional<CustomReportMetadata> customReportMetadata,
-                            Optional<CustomPageDatabase> customPageDatabase,
-                            Optional<DashboardService> dashboardBuilder,
-                            Optional<ReportMetadata> reportMetadata) {
+                            MaterializedViewService materializedViewService) {
             this.recipe = recipe;
-            this.installer = new RecipeHandler(metastore, continuousQueryService, materializedViewService, customReportMetadata,
-                    customPageDatabase, dashboardBuilder, reportMetadata);
+            this.installer = new RecipeHandler(metastore, continuousQueryService, materializedViewService);
         }
 
         @Subscribe

@@ -17,6 +17,7 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
+import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.user.WebUser.UserApiKey;
@@ -100,11 +101,12 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
     @IgnorePermissionCheck
     @Path("/delete-project")
-    public void deleteProject(@ApiParam("name") String name,
+    public JsonResponse deleteProject(@ApiParam("name") String name,
                                     @ApiParam("api_url") String apiUrl,
                                     @CookieParam("session") String session) {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
         service.deleteProject(user, apiUrl, name);
+        return JsonResponse.success();
     }
 
     @JsonRequest
@@ -128,9 +130,8 @@ public class WebUserHttpService extends HttpService {
     @IgnorePermissionCheck
     @Path("/user-access")
     public List<WebUserService.UserAccess> getUserAccess(@CookieParam("session") String session,
-                                                         @ApiParam("project") String project,
-                                                         @ApiParam("api_url") String apiUrl) {
-        return service.getUserAccessForAllProjects(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, apiUrl);
+                                                         @HeaderParam("project") int project) {
+        return service.getUserAccessForAllProjects(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project);
     }
 
     @JsonRequest

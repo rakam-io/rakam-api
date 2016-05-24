@@ -39,9 +39,9 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
         dbi = new DBI(dataSource);
     }
 
-    public void save(Integer user, String project, Page page) {
+    public void save(Integer user, int project, Page page) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO custom_page (project, name, slug, category, data, user_id) VALUES (:project, :name, :slug, :category, :data, :user)")
+            handle.createStatement("INSERT INTO custom_page (project_id, name, slug, category, data, user_id) VALUES (:project, :name, :slug, :category, :data, :user)")
                     .bind("project", project)
                     .bind("name", page.name)
                     .bind("slug", page.slug)
@@ -57,9 +57,9 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
         }
     }
 
-    public List<Page> list(String project) {
+    public List<Page> list(int project) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, slug, category FROM custom_page WHERE project = :project")
+            return handle.createQuery("SELECT name, slug, category FROM custom_page WHERE project_id = :project")
                     .bind("project", project)
                     .map((i, resultSet, statementContext) -> {
                         return new Page(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3));
@@ -67,9 +67,9 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
         }
     }
 
-    public Map<String, String> get(String project, String slug) {
+    public Map<String, String> get(int project, String slug) {
         try (Handle handle = dbi.open()) {
-           return handle.createQuery("SELECT data FROM custom_page WHERE project = :project AND slug = :slug")
+           return handle.createQuery("SELECT data FROM custom_page WHERE project_id = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("slug", slug)
                     .map((i, resultSet, statementContext) -> {
@@ -79,9 +79,9 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public InputStream getFile(String project, String slug, String file) {
+    public InputStream getFile(int project, String slug, String file) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT data FROM custom_page WHERE project = :project AND slug = :slug")
+            return handle.createQuery("SELECT data FROM custom_page WHERE project_id = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("slug", slug)
                     .map((i, resultSet, statementContext) -> {
@@ -92,9 +92,9 @@ public class JDBCCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public void delete(String project, String slug) {
+    public void delete(int project, String slug) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM custom_page WHERE project = :project AND slug = :slug")
+            handle.createStatement("DELETE FROM custom_page WHERE project_id = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("slug", slug).execute();
         }

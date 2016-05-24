@@ -23,11 +23,14 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Tag;
 import org.rakam.analysis.AdminHttpService;
+import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ContinuousQueryHttpService;
 import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.MaterializedViewHttpService;
 import org.rakam.analysis.ProjectHttpService;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -36,6 +39,7 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.http.ForHttpServer;
 import org.rakam.http.HttpServerConfig;
 import org.rakam.http.WebServiceModule;
+import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.InjectionHook;
@@ -162,6 +166,11 @@ public final class ServiceStarter {
             Multibinder.newSetBinder(binder, EventProcessor.class);
             Multibinder.newSetBinder(binder, EventMapper.class);
 
+            Multibinder.newSetBinder(binder, RequestPreProcessorItem.class);
+
+            Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
+            customParameters.addBinding().toProvider(ProjectPermissionParameterProvider.class);
+
             Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
             httpServices.addBinding().to(AdminHttpService.class);
             httpServices.addBinding().to(ProjectHttpService.class);
@@ -187,4 +196,18 @@ public final class ServiceStarter {
 
     }
 
+    public static class ProjectPermissionParameterProvider implements Provider<CustomParameter> {
+
+        private final ApiKeyService apiKeyService;
+
+        @Inject
+        public ProjectPermissionParameterProvider(ApiKeyService apiKeyService) {
+            this.apiKeyService = apiKeyService;
+        }
+
+        @Override
+        public CustomParameter get() {
+            return new CustomParameter("project", new ProjectPermissionParameterFactory(apiKeyService));
+        }
+    }
 }

@@ -28,33 +28,21 @@ public class Recipe {
     private final Map<String, Collection> collections;
     private final List<MaterializedViewBuilder> materializedViews;
     private final List<ContinuousQueryBuilder> continuousQueries;
-    private final List<ReportBuilder> reports;
-    private final List<CustomReportBuilder> customReports;
-    private final List<CustomPageBuilder> customPages;
-    private final List<DashboardBuilder> dashboards;
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
                   @JsonProperty("project") String project,
                   @JsonProperty("collections") Map<String, Collection> collections,
                   @JsonProperty("materialized_views") List<MaterializedViewBuilder> materializedQueries,
-                  @JsonProperty("continuous_queries") List<ContinuousQueryBuilder> continuousQueries,
-                  @JsonProperty("custom_reports") List<CustomReportBuilder> customReports,
-                  @JsonProperty("custom_pages") List<CustomPageBuilder> customPages,
-                  @JsonProperty("dashboards") List<DashboardBuilder> dashboards,
-                  @JsonProperty("reports") List<ReportBuilder> reports) {
+                  @JsonProperty("continuous_queries") List<ContinuousQueryBuilder> continuousQueries) {
         if (strategy != Strategy.SPECIFIC && project != null) {
             throw new IllegalArgumentException("'project' parameter can be used when 'strategy' is 'specific'");
         }
         this.strategy = strategy;
         this.project = project;
         this.collections = collections != null ? ImmutableMap.copyOf(collections) : ImmutableMap.of();
-        this.customReports = customReports == null ? ImmutableList.of() : customReports;
-        this.customPages = customPages == null ? ImmutableList.of() : customPages;
         this.materializedViews = materializedQueries == null ? ImmutableList.of() : ImmutableList.copyOf(materializedQueries);
         this.continuousQueries = continuousQueries == null ? ImmutableList.of() : ImmutableList.copyOf(continuousQueries);
-        this.reports = reports == null ? ImmutableList.of() : ImmutableList.copyOf(reports);
-        this.dashboards = dashboards == null ? ImmutableList.of() : ImmutableList.copyOf(dashboards);
     }
 
     @JsonProperty("strategy")
@@ -65,16 +53,6 @@ public class Recipe {
     @JsonProperty("project")
     public String getProject() {
         return project;
-    }
-
-    @JsonProperty("custom_pages")
-    public List<CustomPageBuilder> getCustomPages() {
-        return customPages;
-    }
-
-    @JsonProperty("custom_reports")
-    public List<CustomReportBuilder> getCustomReports() {
-        return customReports;
     }
 
     @JsonProperty("collections")
@@ -90,16 +68,6 @@ public class Recipe {
     @JsonProperty("continuous_queries")
     public List<ContinuousQueryBuilder> getContinuousQueryBuilders() {
         return continuousQueries;
-    }
-
-    @JsonProperty("dashboards")
-    public List<DashboardBuilder> getDashboards() {
-        return dashboards;
-    }
-
-    @JsonProperty("reports")
-    public List<ReportBuilder> getReports() {
-        return reports;
     }
 
     public static class Collection {

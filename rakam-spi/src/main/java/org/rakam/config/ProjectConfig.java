@@ -12,7 +12,7 @@ public class ProjectConfig {
     @Config("lock-key")
     @ConfigDescription("A key that is required only for creating projects")
     public ProjectConfig setLockKey(String lockKey) throws URISyntaxException {
-        this.lockKey = lockKey;
+        this.lockKey = lockKey != null && lockKey.isEmpty() ? null : lockKey;
         return this;
     }
 

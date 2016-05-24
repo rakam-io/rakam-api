@@ -32,15 +32,16 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.CookieParam;
+import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.RakamUIModule;
 import org.rakam.ui.page.CustomPageDatabase;
 import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -57,6 +58,7 @@ import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 @Path("/ui/custom-page")
 @IgnoreApi
+@RakamUIModule.UIService
 @Api(value = "/ui/custom-page", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
 public class CustomPageHttpService extends HttpService {
     private final Optional<CustomPageDatabase> database;
@@ -118,7 +120,7 @@ public class CustomPageHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"),
             response = JsonResponse.class, request = CustomPageDatabase.Page.class)
-    public JsonResponse save(@CookieParam("session") String session, @Named("project") String project, @BodyParam CustomPageDatabase.Page report) {
+    public JsonResponse save(@CookieParam("session") String session, @HeaderParam("project") int project, @BodyParam CustomPageDatabase.Page report) {
         java.util.Optional<Integer> user = java.util.Optional.ofNullable(session).map(cookie -> extractUserFromCookie(cookie, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(UNAUTHORIZED);
@@ -131,7 +133,7 @@ public class CustomPageHttpService extends HttpService {
     @Path("/delete")
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public JsonResponse delete(@Named("project") String project,
+    public JsonResponse delete(@HeaderParam("project") int project,
                                @ApiParam("name") String name) {
         if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
@@ -151,7 +153,7 @@ public class CustomPageHttpService extends HttpService {
     @Path("/get")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public Map<String, String> get(@Named("project") String project,
+    public Map<String, String> get(@HeaderParam("project") int project,
                                    @ApiParam("slug") String slug) {
         if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
@@ -170,7 +172,7 @@ public class CustomPageHttpService extends HttpService {
         String[] projectCustomPage = path.split("/", 3);
         byte[] bytes;
         try {
-            InputStream file = database.get().getFile(projectCustomPage[0], projectCustomPage[1], projectCustomPage[2]);
+            InputStream file = database.get().getFile(Integer.parseInt(projectCustomPage[0]), projectCustomPage[1], projectCustomPage[2]);
             if (file == null) {
                 request.response(NOT_FOUND.reasonPhrase(), NOT_FOUND).end();
             }
@@ -194,7 +196,7 @@ public class CustomPageHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public List<CustomPageDatabase.Page> list(@Named("project") String project) {
+    public List<CustomPageDatabase.Page> list(@HeaderParam("project") int project) {
         if (!database.isPresent()) {
             return null;
         }

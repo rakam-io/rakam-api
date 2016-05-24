@@ -37,10 +37,10 @@ public class JDBCReportMetadata implements ReportMetadata {
         dbi = new DBI(dataSource);
     }
 
-    public List<Report> getReports(Integer requestedUserId, String project) {
+    public List<Report> getReports(Integer requestedUserId, int project) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT reports.project, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.shared, reports.user_id FROM reports " +
-                    " WHERE reports.project = :project " +
+            return handle.createQuery("SELECT reports.project_id, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.shared, reports.user_id FROM reports " +
+                    " WHERE reports.project_id = :project " +
                     " ORDER BY reports.created_at")
                     .bind("project", project)
                     .map(mapper)
@@ -48,14 +48,14 @@ public class JDBCReportMetadata implements ReportMetadata {
         }
     }
 
-    public void delete(Integer userId, String project, String slug) {
+    public void delete(Integer userId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM reports WHERE project = :project AND slug = :slug AND user_id = :user AND (SELECT p.masterKey is not null OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project = :project) WHERE r.slug = :slug AND r.user_id = :user AND r.project = :project)")
+            handle.createStatement("DELETE FROM reports WHERE project_id = :project AND slug = :slug AND user_id = :user AND (SELECT p.masterKey is not null OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project_id = :project) WHERE r.slug = :slug AND r.user_id = :user AND r.project_id = :project)")
                     .bind("project", project).bind("slug", slug).bind("user", userId).execute();
         }
     }
 
-    public void save(Integer userId, String project, Report report) {
+    public void save(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO reports (project, slug, category, name, query, options, user_id) VALUES (:project, :slug, :category, :name, :query, :options, :user)")
                     .bind("project", project)
@@ -78,11 +78,11 @@ public class JDBCReportMetadata implements ReportMetadata {
         }
     }
 
-    public Report get(Integer requestedUserId, Integer userId, String project, String slug) {
+    public Report get(Integer requestedUserId, Integer userId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            Report report = handle.createQuery("SELECT r.project, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
-                    " LEFT JOIN web_user_project permission ON (permission.user_id = :user AND permission.project = :project)" +
-                    " WHERE r.project = :project AND r.slug = :slug AND (:user IS NULL OR " +
+            Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
+                    " LEFT JOIN web_user_api_key permission ON (permission.user_id = :user AND permission.project_id = :project)" +
+                    " WHERE r.project_id = :project AND r.slug = :slug AND (:user IS NULL OR " +
                     "(permission.user_id = :user AND (permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")
                     .bind("project", project)
                     .bind("user", userId)
@@ -95,10 +95,10 @@ public class JDBCReportMetadata implements ReportMetadata {
         }
     }
 
-    public Report update(Integer userId, String project, Report report) {
+    public Report update(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project = :project AND slug = :slug AND " +
-                    "(SELECT p.master_key IS NOT NULL OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project = :project) WHERE r.slug = :slug AND r.project = :project)")
+            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug AND " +
+                    "(SELECT p.master_key IS NOT NULL OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project_id = :project) WHERE r.slug = :slug AND r.project_id = :project)")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)

@@ -45,8 +45,8 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public void save(Integer user, String project,  Page page) {
-        File projectDirectory = new File(directory, project);
+    public void save(Integer user, int project,  Page page) {
+        File projectDirectory = new File(directory, Integer.toString(project));
         if (!projectDirectory.exists()) {
             projectDirectory.mkdir();
         }
@@ -65,18 +65,18 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public List<Page> list(String project) {
-        File projectDir = new File(directory, project);
+    public List<Page> list(int project) {
+        File projectDir = new File(directory, Integer.toString(project));
         String[] list = projectDir.list();
         if(list == null) {
             return ImmutableList.of();
         }
         return Arrays.stream(list).filter(file -> new File(projectDir, file).isDirectory())
-                .map(name -> new Page(project, name, name, null)).collect(Collectors.toList());
+                .map(name -> new Page(name, name, null)).collect(Collectors.toList());
     }
 
     @Override
-    public Map<String, String> get(String project, String name) {
+    public Map<String, String> get(int project, String name) {
         File dir = new File(directory, project + File.separator + name);
         if(!dir.isDirectory()) {
            throw new IllegalArgumentException();
@@ -93,7 +93,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public InputStream getFile(String project, String name, String file) {
+    public InputStream getFile(int project, String name, String file) {
         File f = new File(directory, project + File.separator + name + File.separator + file);
         try {
             return new ByteArrayInputStream(Files.readAllBytes(f.toPath()));
@@ -105,7 +105,7 @@ public class FileBackedCustomPageDatabase implements CustomPageDatabase {
     }
 
     @Override
-    public void delete(String project, String name) {
+    public void delete(int project, String name) {
         File dir = new File(directory, project + File.separator + name);
         if(!dir.exists() || !dir.isDirectory()) {
            throw new IllegalArgumentException();

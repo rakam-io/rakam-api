@@ -24,15 +24,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 
 public interface CustomPageDatabase {
-    void save(Integer user, String project, Page page);
+    void save(Integer user, int project, Page page);
 
-    List<Page> list(String project);
+    List<Page> list(int project);
 
-    Map<String, String> get(String project, String slug);
+    Map<String, String> get(int project, String slug);
 
-    InputStream getFile(String project, String name, String file);
+    InputStream getFile(int project, String name, String file);
 
-    void delete(String project, String slug);
+    void delete(int project, String slug);
 
     class Page {
         public final String name;

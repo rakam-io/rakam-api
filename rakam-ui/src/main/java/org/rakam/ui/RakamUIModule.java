@@ -1,21 +1,26 @@
 package org.rakam.ui;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Optional;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
+import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
-import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.RequestPreprocessor;
+import org.rakam.ui.UIEvents.ProjectCreatedEvent;
 import org.rakam.ui.customreport.CustomPageHttpService;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.customreport.CustomReportHttpService;
@@ -26,17 +31,25 @@ import org.rakam.ui.page.FileBackedCustomPageDatabase;
 import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.Report;
 import org.rakam.ui.report.ReportHttpService;
+import org.rakam.ui.report.UIRecipeHttpService;
 import org.rakam.ui.user.UserUtilHttpService;
 import org.rakam.ui.user.WebUserHttpService;
 import org.rakam.util.ConditionalModule;
+import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.util.IntegerMapper;
 
 import javax.inject.Inject;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Map;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 
 @ConditionalModule(config = "ui.enable", value = "true")
@@ -48,7 +61,7 @@ public class RakamUIModule extends RakamModule {
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 
         OptionalBinder<CustomPageDatabase> customPageDb = OptionalBinder.newOptionalBinder(binder, CustomPageDatabase.class);
-        if(rakamUIConfig.getCustomPageBackend() != null) {
+        if (rakamUIConfig.getCustomPageBackend() != null) {
             switch (rakamUIConfig.getCustomPageBackend()) {
                 case FILE:
                     customPageDb.setBinding().to(FileBackedCustomPageDatabase.class).in(Scopes.SINGLETON);
@@ -66,6 +79,9 @@ public class RakamUIModule extends RakamModule {
         Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
         hooks.addBinding().to(DatabaseScript.class);
 
+        Multibinder<RequestPreProcessorItem> multibinder = Multibinder.newSetBinder(binder, RequestPreProcessorItem.class);
+        multibinder.addBinding().toProvider(UIPermissionCheckProcessorProvider.class);
+
         binder.bind(ProjectDeleteEventListener.class).asEagerSingleton();
         binder.bind(ReportMetadata.class).to(JDBCReportMetadata.class).in(Scopes.SINGLETON);
         binder.bind(CustomReportMetadata.class).to(JDBCCustomReportMetadata.class).in(Scopes.SINGLETON);
@@ -74,6 +90,7 @@ public class RakamUIModule extends RakamModule {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(WebUserHttpService.class);
         httpServices.addBinding().to(ReportHttpService.class);
+        httpServices.addBinding().to(UIRecipeHttpService.class);
         httpServices.addBinding().to(CustomReportHttpService.class);
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(DashboardService.class);
@@ -131,11 +148,11 @@ public class RakamUIModule extends RakamModule {
         }
 
         @Subscribe
-        public void onDeleteProject(SystemEvents.ProjectDeletedEvent event) {
+        public void onDeleteProject(UIEvents.ProjectDeletedEvent event) {
             for (DashboardService.Dashboard dashboard : dashboardService.list(event.project)) {
                 dashboardService.delete(event.project, dashboard.name);
             }
-            if(customPageDatabase != null) {
+            if (customPageDatabase != null) {
                 for (CustomPageDatabase.Page page : customPageDatabase.list(event.project)) {
                     customPageDatabase.delete(event.project, page.slug);
                 }
@@ -175,20 +192,30 @@ public class RakamUIModule extends RakamModule {
                         "  )")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (" +
-                        "  user_id INTEGER REFERENCES web_user(id),\n" +
-                        "  api_url TEXT,\n" +
-                        "  project TEXT NOT NULL,\n" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_api_key (" +
+                        "  id serial NOT NULL,\n" +
+                        "  project_id INTEGER REFERENCES web_user_project(id),\n" +
                         "  scope_expression TEXT,\n" +
                         "  has_read_permission BOOLEAN NOT NULL,\n" +
+                        "  user_id INT REFERENCES web_user(id)," +
                         "  has_write_permission BOOLEAN NOT NULL,\n" +
                         "  is_admin BOOLEAN DEFAULT false NOT NULL,\n" +
                         "  created_at timestamp DEFAULT now() NOT NULL\n" +
                         "  )")
                         .execute();
 
+                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (\n" +
+                        "  id serial NOT NULL,\n" +
+                        "  project varchar(150) NOT NULL,\n" +
+                        "  api_url varchar(250) NOT NULL,\n" +
+                        "  created_at timestamp DEFAULT now() NOT NULL,\n" +
+                        "  CONSTRAINT production UNIQUE(project, api_url),\n" +
+                        "  PRIMARY KEY (id)\n" +
+                        ")")
+                        .execute();
+
                 handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
-                        "  project VARCHAR(255) NOT NULL," +
+                        "  project_id INT REFERENCES web_user_project(id)," +
                         "  user_id INT REFERENCES web_user(id)," +
                         "  slug VARCHAR(255) NOT NULL," +
                         "  category VARCHAR(255)," +
@@ -204,7 +231,7 @@ public class RakamUIModule extends RakamModule {
                 handle.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
                         "  report_type VARCHAR(255) NOT NULL," +
                         "  user_id INT REFERENCES web_user(id)," +
-                        "  project VARCHAR(255) NOT NULL," +
+                        "  project_id INT REFERENCES web_user_project(id)," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  data TEXT NOT NULL," +
                         "  PRIMARY KEY (report_type, project, name)" +
@@ -221,7 +248,7 @@ public class RakamUIModule extends RakamModule {
 
                 handle.createStatement("CREATE TABLE IF NOT EXISTS dashboard (" +
                         "  id SERIAL," +
-                        "  project VARCHAR(255) NOT NULL," +
+                        "  project_id INT REFERENCES web_user_project(id)," +
                         "  user_id INT REFERENCES web_user(id)," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  options TEXT," +
@@ -239,9 +266,9 @@ public class RakamUIModule extends RakamModule {
                         "  )")
                         .execute();
 
-                if(config.getCustomPageBackend() == CustomPageBackend.JDBC) {
+                if (config.getCustomPageBackend() == CustomPageBackend.JDBC) {
                     handle.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
-                            "  project VARCHAR(255) NOT NULL," +
+                            "  project_id INT REFERENCES web_user_project(id)," +
                             "  name VARCHAR(255) NOT NULL," +
                             "  user_id INT REFERENCES web_user(id)," +
                             "  slug VARCHAR(255) NOT NULL," +
@@ -253,5 +280,53 @@ public class RakamUIModule extends RakamModule {
                 }
             }
         }
+    }
+
+    public static class UIPermissionCheckProcessorProvider implements Provider<RequestPreProcessorItem> {
+
+        private final DBI dbi;
+        private final EncryptionConfig encryptionConfig;
+
+        @Inject
+        public UIPermissionCheckProcessorProvider(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, EncryptionConfig encryptionConfig) {
+            dbi = new DBI(dataSource);
+            this.encryptionConfig = encryptionConfig;
+        }
+
+        @Override
+        public RequestPreProcessorItem get() {
+            return new RequestPreProcessorItem(method -> method.getDeclaringClass().isAnnotationPresent(UIService.class), new RequestPreprocessor() {
+                @Override
+                public void handle(RakamHttpRequest request, ObjectNode jsonNodes) {
+                    Integer userId = request.cookies().stream().filter(e -> e.name().equals("session"))
+                            .findFirst()
+                            .map(e -> extractUserFromCookie(e.value(), encryptionConfig.getSecretKey()))
+                            .orElseThrow(() -> new RakamException(HttpResponseStatus.FORBIDDEN));
+
+                    String projectId = request.headers().get("project");
+
+                    if (projectId == null) {
+                        new RakamException(HttpResponseStatus.FORBIDDEN);
+                    }
+
+                    try (Handle handle = dbi.open()) {
+                        int id = Integer.parseInt(projectId);
+                        boolean hasPermission = handle.createQuery("SELECT 1 FROM web_user_api_key key JOIN web_user_project project ON (key.project_id = project.id) WHERE key.user_id = :user AND project.id = :id")
+                                .map(IntegerMapper.FIRST)
+                                .bind("user", userId)
+                                .bind("id", id)
+                                .first() != null;
+                        if (!hasPermission) {
+                            new RakamException(HttpResponseStatus.FORBIDDEN);
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    @Target({ElementType.TYPE, ElementType.METHOD})
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface UIService {
     }
 }

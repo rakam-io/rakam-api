@@ -20,12 +20,13 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.CookieParam;
+import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.RakamUIModule;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
@@ -33,7 +34,8 @@ import java.util.List;
 import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 
-@Path("/custom-report")
+@Path("/ui/custom-report")
+@RakamUIModule.UIService
 @IgnoreApi
 public class CustomReportHttpService extends HttpService {
 
@@ -50,7 +52,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "List reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public List<CustomReport> list(@ApiParam("report_type") String reportType,
-                                   @Named("project") String project) {
+                                   @HeaderParam("project") int project) {
         return metadata.list(reportType, project);
     }
 
@@ -58,7 +60,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/types")
     @JsonRequest
     @ApiOperation(value = "List report types", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public List<String> types(@Named("project") String project) {
+    public List<String> types(@HeaderParam("project") int project) {
         return metadata.types(project);
     }
 
@@ -67,7 +69,7 @@ public class CustomReportHttpService extends HttpService {
             response = JsonResponse.class, request = CustomReport.class)
     @JsonRequest
     @Path("/create")
-    public JsonResponse create(@Named("project") String project, @CookieParam("session") String session, @BodyParam CustomReport report) {
+    public JsonResponse create(@HeaderParam("project") int project, @CookieParam("session") String session, @BodyParam CustomReport report) {
         int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         metadata.save(userId, project, report);
@@ -77,7 +79,7 @@ public class CustomReportHttpService extends HttpService {
     @JsonRequest
     @Path("/update")
     @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public JsonResponse update(@Named("project") String project, @BodyParam CustomReport report) {
+    public JsonResponse update(@HeaderParam("project") int project, @BodyParam CustomReport report) {
         metadata.update(project, report);
         return JsonResponse.success();
     }
@@ -85,7 +87,7 @@ public class CustomReportHttpService extends HttpService {
     @JsonRequest
     @Path("/delete")
     @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public JsonResponse delete(@Named("project") String project,
+    public JsonResponse delete(@HeaderParam("project") int project,
                                @ApiParam("report_type") String reportType,
                                @ApiParam("name") String name) {
         metadata.delete(reportType, project, name);
@@ -97,7 +99,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/get")
     @ApiOperation(value = "Get reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public Object get(@ApiParam("report_type") String reportType,
-                      @Named("project") String project,
+                      @HeaderParam("project") int project,
                       @ApiParam(value = "name") String name) {
         return metadata.get(reportType, project, name);
     }

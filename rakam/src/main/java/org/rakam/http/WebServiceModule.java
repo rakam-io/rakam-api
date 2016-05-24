@@ -21,8 +21,11 @@ import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;
+import org.rakam.analysis.CustomParameter;
+import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
+import org.rakam.server.http.HttpServerBuilder.IRequestParameterFactory;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.IRequestParameter;
 import org.rakam.server.http.RakamHttpRequest;
@@ -50,15 +53,22 @@ public class WebServiceModule extends AbstractModule {
     private final Set<HttpService> httpServices;
     private final HttpServerConfig config;
     private final Set<Tag> tags;
-    private final ApiKeyService apiKeyService;
+    private final Set<CustomParameter> customParameters;
+    private final Set<RequestPreProcessorItem> requestPreProcessorItems;
 
     @Inject
-    public WebServiceModule(Set<HttpService> httpServices, Set<Tag> tags, ApiKeyService apiKeyService, Set<WebSocketService> webSocketServices, HttpServerConfig config) {
+    public WebServiceModule(Set<HttpService> httpServices,
+                            Set<Tag> tags,
+                            Set<CustomParameter> customParameters,
+                            Set<RequestPreProcessorItem> requestPreProcessorItems,
+                            Set<WebSocketService> webSocketServices,
+                            HttpServerConfig config) {
         this.httpServices = httpServices;
         this.webSocketServices = webSocketServices;
+        this.requestPreProcessorItems = requestPreProcessorItems;
         this.config = config;
         this.tags = tags;
-        this.apiKeyService = apiKeyService;
+        this.customParameters = customParameters;
     }
 
     @Override
@@ -87,7 +97,7 @@ public class WebServiceModule extends AbstractModule {
             eventExecutors = new NioEventLoopGroup();
         }
 
-        HttpServer httpServer = new HttpServerBuilder()
+        HttpServerBuilder httpServer = new HttpServerBuilder()
                 .setHttpServices(httpServices)
                 .setWebsockerServices(webSocketServices)
                 .setSwagger(swagger)
@@ -100,29 +110,29 @@ public class WebServiceModule extends AbstractModule {
                         SentryUtil.logException(request, (RakamException) ex);
                     }
                 })
-                .setCustomRequestParameters(ImmutableMap.of("project", new ProjectPermissionIRequestParameterFactory(apiKeyService)))
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
-                .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"), method -> method.isAnnotationPresent(AllowCookie.class))
-//                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
-//                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
-//                .addJsonPreprocessor(new ProjectAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
-//                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, MASTER_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, MASTER_KEY))
-//                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, WRITE_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, WRITE_KEY))
-//                .addJsonBeanPreprocessor(new ProjectJsonBeanRequestPreprocessor(apiKeyService, READ_KEY), method -> ProjectJsonBeanRequestPreprocessor.test(method, READ_KEY))
-//                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, READ_KEY), method -> test(method, READ_KEY))
-//                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, WRITE_KEY), method -> test(method, WRITE_KEY))
-//                .addPreprocessor(new ProjectRawAuthPreprocessor(apiKeyService, MASTER_KEY), method -> test(method, MASTER_KEY))
-                .build();
+                .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"), method -> method.isAnnotationPresent(AllowCookie.class));
+
+        requestPreProcessorItems.forEach(i -> httpServer.addJsonPreprocessor(i.processor, i.predicate));
+
+        ImmutableMap.Builder<String, IRequestParameterFactory> builder = ImmutableMap.<String, IRequestParameterFactory>builder();
+
+        for (CustomParameter customParameter : customParameters) {
+            builder.put(customParameter.parameterName, customParameter.factory);
+        }
+
+        httpServer.setCustomRequestParameters(builder.build());
+        HttpServer build = httpServer.build();
 
         HostAndPort address = config.getAddress();
         try {
-            httpServer.bind(address.getHostText(), address.getPort());
+            build.bind(address.getHostText(), address.getPort());
         } catch (InterruptedException e) {
             addError(e);
             return;
         }
 
-        binder().bind(HttpServer.class).toInstance(httpServer);
+        binder().bind(HttpServer.class).toInstance(build);
     }
 
     public static boolean test(Method method, org.rakam.analysis.ApiKeyService.AccessKeyType key) {
@@ -153,11 +163,11 @@ public class WebServiceModule extends AbstractModule {
                 (clazzOperation != null && Arrays.stream(clazzOperation.authorizations()).anyMatch(a -> key.getKey().equals(a.value())));
     }
 
-    public static class ProjectPermissionIRequestParameterFactory implements HttpServerBuilder.IRequestParameterFactory {
+    public static class ProjectPermissionParameterFactory implements IRequestParameterFactory {
 
         private final ApiKeyService service;
 
-        public ProjectPermissionIRequestParameterFactory(ApiKeyService service) {
+        public ProjectPermissionParameterFactory(ApiKeyService service) {
             this.service = service;
         }
 
@@ -196,7 +206,7 @@ public class WebServiceModule extends AbstractModule {
                         "You must use @IgnorePermissionCheck if the endpoint doesn't need permission check", method.toString()));
             }
 
-            if(authorizations.length != 1) {
+            if (authorizations.length != 1) {
                 throw new IllegalArgumentException();
             }
 
@@ -207,10 +217,11 @@ public class WebServiceModule extends AbstractModule {
         @Override
         public Object extract(ObjectNode node, RakamHttpRequest request) {
             String api_key = request.headers().get("api_key");
-            if(api_key == null) {
+            if (api_key == null) {
                 throw new RakamException("api_key header parameter is missing.", FORBIDDEN);
             }
             return apiKeyService.getProjectOfApiKey(api_key, type);
         }
     }
+
 }
