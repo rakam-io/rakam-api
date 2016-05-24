@@ -17,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 public class JDBCPoolDataSource implements DataSource {
     private static final Map<JDBCConfig, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
@@ -54,21 +53,6 @@ public class JDBCPoolDataSource implements DataSource {
         dataSource = new HikariDataSource(hikariConfig);
     }
 
-    private void assureLoaded(String scheme) {
-        switch (scheme) {
-            case "postgresql":
-                checkState(org.postgresql.Driver.isRegistered());
-            case "pgsql":
-                try {
-                    Class.forName("com.impossibl.postgres.jdbc.PGDriver");
-                } catch (ClassNotFoundException e) {
-                    throw new IllegalStateException("Driver doesn't exist in classpath");
-                }
-            default:
-                throw new IllegalArgumentException("Currently, only Postgresql JDBC adapter is supported.");
-        }
-    }
-
     public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config, String initialQuery) {
         return pools.computeIfAbsent(config,
                 key -> new JDBCPoolDataSource(config, Optional.of(initialQuery)));
@@ -82,7 +66,6 @@ public class JDBCPoolDataSource implements DataSource {
     @Override
     public Connection getConnection() throws SQLException {
         return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
-//        return dataSource.getConnection();
     }
 
     @Override
