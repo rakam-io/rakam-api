@@ -161,7 +161,6 @@ public class TestEventJsonParser {
                 "properties", properties));
 
         Event event = mapper.readValue(bytes, Event.class);
-        ;
 
         assertEquals("test", event.project());
         assertEquals("test", event.collection());

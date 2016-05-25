@@ -71,8 +71,8 @@ public class TestCSVParser {
         record2.put("price", 1500.0);
 
         EventList eventList = new EventList(api, "project",
-                ImmutableList.of(new Event("project", "collection", null, record1),
-                        new Event("project", "collection", null, record2)));
+                ImmutableList.of(new Event("project", "collection", null, null, record1),
+                        new Event("project", "collection", null, null, record2)));
         assertEquals(actual, eventList);
     }
 

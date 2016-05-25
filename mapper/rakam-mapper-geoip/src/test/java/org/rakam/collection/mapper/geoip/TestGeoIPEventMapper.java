@@ -49,7 +49,7 @@ public class TestGeoIPEventMapper {
                 new Schema.Field("_isp", Schema.create(STRING), null, null))));
         props.forEach(properties::put);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
 
@@ -72,7 +72,7 @@ public class TestGeoIPEventMapper {
                 new Schema.Field("_connection_type", Schema.create(STRING), null, null))));
         props.forEach(properties::put);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
 
@@ -98,7 +98,7 @@ public class TestGeoIPEventMapper {
         Record properties = new Record(Schema.createRecord(build));
         props.forEach(properties::put);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
 
@@ -130,7 +130,7 @@ public class TestGeoIPEventMapper {
         Record properties = new Record(Schema.createRecord(build));
         properties.put("_ip", "127.0.0.1");
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getLocalHost());
 
@@ -157,7 +157,7 @@ public class TestGeoIPEventMapper {
         Record properties = new Record(Schema.createRecord(build));
         properties.put("_ip", false);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getByName("8.8.8.8"));
 

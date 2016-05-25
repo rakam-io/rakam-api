@@ -40,7 +40,7 @@ public class AvroEventDeserializer {
         List<Event> list = new ArrayList<>(records);
         for (int i = 0; i < records; i++) {
             GenericRecord record = reader.read(null, binaryDecoder);
-            list.add(new Event(project, collection, null, record));
+            list.add(new Event(project, collection, null, fields, record));
         }
 
         Event.EventContext api = new Event.EventContext(apiKey, null, null, null);

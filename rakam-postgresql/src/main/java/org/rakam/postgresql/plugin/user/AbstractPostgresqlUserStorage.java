@@ -4,9 +4,11 @@ import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -57,19 +59,12 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     private final PostgresqlQueryExecutor queryExecutor;
-    private final LoadingCache<String, Map<String, FieldType>> propertyCache;
+    private final Cache<String, Map<String, FieldType>> propertyCache;
     private final LoadingCache<String, Boolean> userTypeCache;
 
     public AbstractPostgresqlUserStorage(PostgresqlQueryExecutor queryExecutor, ConfigManager configManager) {
         this.queryExecutor = queryExecutor;
-        propertyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Map<String, FieldType>>() {
-            @Override
-            public Map<String, FieldType> load(String project) throws Exception {
-                Map<String, FieldType> columns = getMetadata(project).stream()
-                        .collect(Collectors.toMap(col -> col.getName(), col -> col.getType()));
-                return columns;
-            }
-        });
+        propertyCache = CacheBuilder.newBuilder().build();
         userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Boolean>() {
             @Override
             public Boolean load(String key) throws Exception {
@@ -79,17 +74,25 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         });
     }
 
+    public Map<String, FieldType> loadColumns(String project) {
+        Map<String, FieldType> columns = getMetadata(project).stream()
+                .collect(Collectors.toMap(col -> col.getName(), col -> col.getType()));
+        return columns;
+    }
+
     @Override
     public Object create(String project, Object id, Map<String, Object> properties) {
         Set<Map.Entry<String, Object>> props = properties.entrySet();
 
-        userTypeCache.getUnchecked(project);
-        createMissingColumns(project, props);
-        return createInternal(project, id, props);
+        return createInternal(project, id, props, createMissingColumns(project, props));
     }
 
-    private void createMissingColumns(String project, Iterable<Map.Entry<String, Object>> properties) {
-        Map<String, FieldType> columns = propertyCache.getUnchecked(project);
+    private Map<String, FieldType> createMissingColumns(String project, Iterable<Map.Entry<String, Object>> properties) {
+        Map<String, FieldType> columns = propertyCache.getIfPresent(project);
+        if (columns == null) {
+            columns = loadColumns(project);
+            propertyCache.put(project, columns);
+        }
 
         for (Map.Entry<String, Object> entry : properties) {
             FieldType fieldType = columns.get(entry.getKey());
@@ -99,24 +102,24 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             }
         }
 
-        propertyCache.refresh(project);
+        Map<String, FieldType> value = loadColumns(project);
+        propertyCache.put(project, value);
+        return value;
     }
 
     public abstract QueryExecutor getExecutorForWithEventFilter();
 
-    public Object createInternal(String project, Object id, Iterable<Map.Entry<String, Object>> properties) {
+    public Object createInternal(String project, Object id, Iterable<Map.Entry<String, Object>> properties, Map<String, FieldType> columns) {
         try (Connection conn = queryExecutor.getConnection()) {
             checkProject(project);
 
-            if(id == null) {
+            if (id == null) {
                 if (userTypeCache.getUnchecked(project) == Boolean.TRUE) {
                     id = UUID.randomUUID().toString();
                 } else {
                     id = new Random().nextInt();
                 }
             }
-
-            Map<String, FieldType> columns = propertyCache.getUnchecked(project);
 
             StringBuilder cols = new StringBuilder();
             StringBuilder parametrizedValues = new StringBuilder();
@@ -143,7 +146,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             parametrizedValues.append(", ").append('?');
             cols.append(", ").append("created_at");
 
-            if(id != null) {
+            if (id != null) {
                 parametrizedValues.append(", ").append('?');
                 cols.append(", ").append(PRIMARY_KEY);
             }
@@ -169,7 +172,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             }
 
             statement.setTimestamp(i++, java.sql.Timestamp.from(createdAt == null ? Instant.now() : createdAt));
-            if(id != null) {
+            if (id != null) {
                 statement.setObject(i++, id);
             }
 
@@ -303,6 +306,10 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     }
 
     private void createColumn(String project, String column, Object value) {
+        createColumnInternal(project, column, value, true);
+    }
+
+    private void createColumnInternal(String project, String column, Object value, boolean retry) {
         // it must be called from a separated transaction, otherwise it may lock table and the other insert may cause deadlock.
         checkTableColumn(column, "user property name is not valid");
         try (Connection conn = queryExecutor.getConnection()) {
@@ -310,15 +317,15 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 conn.createStatement().execute(format("alter table %s add column %s %s",
                         getUserTable(project, false), column, getPostgresqlType(value.getClass())));
             } catch (SQLException e) {
-                propertyCache.refresh(project);
-                Map<String, FieldType> fields = propertyCache.getUnchecked(project);
+                Map<String, FieldType> fields = loadColumns(project);
                 if (fields.containsKey(column)) {
                     return;
                 }
-                if(fields.isEmpty()) {
+
+                if (retry) {
                     userTypeCache.refresh(project);
                     createProjectIfNotExists(project, !userTypeCache.getUnchecked(project));
-                    createColumn(project, column, value);
+                    createColumnInternal(project, column, value, false);
                     return;
                 }
 
@@ -336,7 +343,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         checkProject(project);
         List<SchemaField> metadata = getMetadata(project);
 
-        if(metadata.isEmpty()) {
+        if (metadata.isEmpty()) {
             return CompletableFuture.completedFuture(QueryResult.empty());
         }
         Stream<SchemaField> projectColumns = metadata.stream();
@@ -491,10 +498,10 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     }
 
     public void setUserProperty(String project, String userId, Iterable<Map.Entry<String, Object>> properties, boolean onlyOnce) {
-        Map<String, FieldType> columns = propertyCache.getUnchecked(project);
-        if (columns.isEmpty()) {
-            createMissingColumns(project, properties);
-            columns = propertyCache.getUnchecked(project);
+        Map<String, FieldType> columns = propertyCache.getIfPresent(project);
+        if (columns == null) {
+            columns = createMissingColumns(project, properties);
+            propertyCache.put(project, columns);
         }
 
         StringBuilder builder = new StringBuilder("update " + getUserTable(project, false) + " set ");
@@ -527,7 +534,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
             i = statement.executeUpdate();
             if (i == 0) {
-                createInternal(project, userId, properties);
+                createInternal(project, userId, properties, createMissingColumns(project, properties));
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -568,7 +575,12 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
     @Override
     public void incrementProperty(String project, String user, String property, double value) {
-        Map<String, FieldType> columns = propertyCache.getUnchecked(project);
+        Map<String, FieldType> columns = propertyCache.getIfPresent(project);
+        if (columns == null) {
+            columns = createMissingColumns(project,
+                    ImmutableList.of(new SimpleImmutableEntry<>(project, value)));
+            propertyCache.put(project, columns);
+        }
 
         FieldType fieldType = columns.get(property);
         if (fieldType == null) {

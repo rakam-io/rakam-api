@@ -472,7 +472,14 @@ public class WebUserService {
 
     public void deleteProject(int user, String apiUrl, String name) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM web_user_project WHERE user_id = :userId AND project = :project AND api_url = :apiUrl")
+            handle.createStatement("DELETE FROM web_user_api_key WHERE user_id = :userId AND project_id = (SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl)")
+                    .bind("userId", user)
+                    .bind("project", name)
+                    .bind("apiUrl", apiUrl)
+                    .execute();
+
+            handle.createStatement("DELETE FROM web_user_project WHERE project = :project AND api_url = :apiUrl " +
+                    "AND (SELECT count(*) FROM web_user_api_key WHERE project_id = (SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl)) = 0")
                     .bind("userId", user)
                     .bind("project", name)
                     .bind("apiUrl", apiUrl)

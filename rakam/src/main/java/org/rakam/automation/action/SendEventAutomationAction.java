@@ -25,7 +25,7 @@ public class SendEventAutomationAction implements AutomationAction<SendEventAuto
     }
 
     public String process(String project, Supplier<User> user, SendEventAction sendEventAction) {
-        new Event(project, sendEventAction.collection, null, null);
+        new Event(project, sendEventAction.collection, null, null, null);
         return null;
     }
 

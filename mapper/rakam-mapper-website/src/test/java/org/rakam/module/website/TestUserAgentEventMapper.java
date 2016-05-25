@@ -53,7 +53,7 @@ public class TestUserAgentEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         props.forEach(properties::put);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost());
 
@@ -84,7 +84,7 @@ public class TestUserAgentEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         properties.put("_user_agent", true);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
@@ -112,7 +112,7 @@ public class TestUserAgentEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         properties.put("_user_agent", "unknown user agent");
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
@@ -142,7 +142,7 @@ public class TestUserAgentEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         properties.put("_user_agent", false);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, new DefaultHttpHeaders().set("User-Agent", USER_AGENT),
                 InetAddress.getLocalHost());

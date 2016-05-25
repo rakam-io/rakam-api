@@ -274,16 +274,9 @@ public class EventCollectionHttpService extends HttpService {
                                 .with(ContextAttributes.getEmpty().withSharedAttribute("apiKey", MASTER_KEY))
                                 .readValue(buff);
                     } else {
-                        List<String> projectParams = request.params().get("project");
                         String collection = getParam(request.params(), "collection");
                         String api_key = getParam(request.params(), "api_key");
-                        String project;
-
-                        if (projectParams == null || projectParams.isEmpty()) {
-                            project = apiKeyService.getProjectOfApiKey(api_key, MASTER_KEY);
-                        } else {
-                            project = projectParams.get(0);
-                        }
+                        String project = apiKeyService.getProjectOfApiKey(api_key, MASTER_KEY);
 
                         checkCollection(collection);
 
@@ -305,8 +298,8 @@ public class EventCollectionHttpService extends HttpService {
                     try {
                         eventStore.storeBulk(events);
                     } catch (Exception e) {
-                        LOGGER.error(e, "error while storing event.");
-                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                        LOGGER.error(e, "Error while storing event.");
+                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                 Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
                     }
 

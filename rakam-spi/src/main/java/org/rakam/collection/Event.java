@@ -25,18 +25,7 @@ public class Event {
     public Event(@ApiParam("collection") String collection,
                  @ApiParam("api") EventContext api,
                  @ApiParam("properties") GenericRecord properties) {
-        this(null, collection, api, properties);
-    }
-
-    public Event(String project,
-                 String collection,
-                 EventContext api,
-                 GenericRecord properties) {
-        this.project = project;
-        this.collection = collection;
-        this.properties = properties;
-        this.api = api;
-        this.schema = null;
+        this(null, collection, api, null, properties);
     }
 
     public Event(String project,

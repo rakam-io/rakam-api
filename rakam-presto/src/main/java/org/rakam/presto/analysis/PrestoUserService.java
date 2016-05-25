@@ -162,6 +162,6 @@ public class PrestoUserService extends AbstractUserService {
         properties.put(2, (int) Math.floorDiv(createdAt.getEpochSecond(), 86400));
         properties.put(3, (int) Math.floorDiv(mergedAt.getEpochSecond(), 86400));
 
-        eventStore.store(new Event(project, "_anonymous_id_mapping", null, properties));
+        eventStore.store(new Event(project, "_anonymous_id_mapping", null, null, properties));
     }
 }

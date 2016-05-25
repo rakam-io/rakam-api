@@ -86,7 +86,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
                 case JsonTokenId.ID_START_ARRAY:
                     idx = 0;
                     record = new GenericData.Record(schema);
-                    list.add(new Event(project, collection, null, record));
+                    list.add(new Event(project, collection, null, fields, record));
                     break;
                 case JsonTokenId.ID_END_ARRAY:
                     continue;

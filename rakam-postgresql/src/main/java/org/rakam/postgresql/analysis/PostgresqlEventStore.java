@@ -59,13 +59,21 @@ public class PostgresqlEventStore implements EventStore {
     public int[] storeBatch(List<Event> events) {
         try (Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
-            for (Event event : events) {
-                GenericRecord record = event.properties();
-                PreparedStatement ps = connection.prepareStatement(getQuery(event));
-                bindParam(connection, ps, event.schema(), record);
+            // last event must have the last schema
+            Event lastEvent = events.get(events.size() - 1);
+            PreparedStatement ps = connection.prepareStatement(getQuery(lastEvent));
 
-                ps.executeUpdate();
+            for (int i = 0; i < events.size(); i++) {
+                Event event = events.get(i);
+                bindParam(connection, ps, event.schema(), event.properties());
+                ps.addBatch();
+                if(i > 0 && i % 1000 == 0) {
+                    ps.executeBatch();
+                }
             }
+
+            ps.executeBatch();
+
             connection.commit();
             connection.setAutoCommit(true);
             return EventStore.SUCCESSFUL_BATCH;
@@ -79,7 +87,7 @@ public class PostgresqlEventStore implements EventStore {
         Object value;
         for (int i = 0; i < fields.size(); i++) {
             SchemaField field = fields.get(i);
-            value = record.get(i);
+            value = record.get(field.getName());
 
             if (value == null) {
                 ps.setNull(i + 1, 0);

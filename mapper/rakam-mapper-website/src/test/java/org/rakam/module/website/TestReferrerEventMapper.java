@@ -51,7 +51,7 @@ public class TestReferrerEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         props.forEach(properties::put);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost());
 
@@ -80,7 +80,7 @@ public class TestReferrerEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         properties.put("_referrer", true);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
@@ -108,7 +108,7 @@ public class TestReferrerEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         properties.put("_referrer", "http://test.com");
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
@@ -136,7 +136,7 @@ public class TestReferrerEventMapper {
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
         properties.put("_referrer", false);
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, new DefaultHttpHeaders().set("Referrer", "https://google.com/?q=test"),
                 InetAddress.getLocalHost());
@@ -166,7 +166,7 @@ public class TestReferrerEventMapper {
         properties.put("_referrer", "https://test.com/");
         properties.put("_host", "test.com");
 
-        Event event = new Event("testproject", "testcollection", null, properties);
+        Event event = new Event("testproject", "testcollection", null, null, properties);
 
         List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost());
 
