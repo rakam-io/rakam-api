@@ -303,7 +303,7 @@ public class EventCollectionHttpService extends HttpService {
                 },
                 (events, responseHeaders) -> {
                     try {
-                        eventStore.storeBulk(events, false);
+                        eventStore.storeBulk(events);
                     } catch (Exception e) {
                         LOGGER.error(e, "error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
@@ -369,7 +369,7 @@ public class EventCollectionHttpService extends HttpService {
                 },
                 (events, responseHeaders) -> {
                     try {
-                        eventStore.storeBulk(events, !ImmutableList.of("false").equals(request.params().get("commit")));
+                        eventStore.storeBulk(events);
                     } catch (Exception e) {
                         LOGGER.error(e, "error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
@@ -439,8 +439,17 @@ public class EventCollectionHttpService extends HttpService {
         }
 
         ImmutableList.Builder<QueryExecution> builder = ImmutableList.<QueryExecution>builder();
+        QueryExecution execution = null;
         for (String collection : collections) {
-            builder.add(eventStore.commit(project, collection));
+            try {
+                execution = eventStore.commit(project, collection);
+                builder.add(execution);
+            } catch (UnsupportedOperationException e) {
+                if (execution != null) {
+                    response.send("result", encode(errorMessage("Commit feature is not supported but this event store. /bulk endpoint commits automatically.", PRECONDITION_FAILED))).end();
+                    return;
+                }
+            }
         }
 
         queryHttpService.handleServerSentQueryExecution(request, new ChainQueryExecution(builder.build(), null), false);
@@ -520,7 +529,7 @@ public class EventCollectionHttpService extends HttpService {
                     request.response(e.getCause().getMessage(), BAD_REQUEST).end();
                     return;
                 }
-                request.response("\""+e.getMessage(), BAD_REQUEST).end();
+                request.response("\"" + e.getMessage(), BAD_REQUEST).end();
                 return;
             } catch (IOException e) {
                 HttpServer.returnError(request, "JSON couldn't parsed", BAD_REQUEST);

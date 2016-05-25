@@ -170,9 +170,7 @@ public class QueryHttpService extends HttpService {
             return;
         }
         query.getResult().whenComplete((result, ex) -> {
-            if (response.isClosed()) {
-                query.kill();
-            } else if (ex != null) {
+            if (ex != null) {
                 LOGGER.error(ex, "Error while executing query");
                 response.send("result", encode(jsonObject()
                         .put("success", false)
@@ -201,8 +199,10 @@ public class QueryHttpService extends HttpService {
                 if (response.isClosed() && killOnConnectionClose) {
                     query.kill();
                 } else if (!query.isFinished()) {
-                    String encode = encode(query.currentStats());
-                    response.send("stats", encode);
+                    if(!response.isClosed()) {
+                        String encode = encode(query.currentStats());
+                        response.send("stats", encode);
+                    }
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
                 }
             }

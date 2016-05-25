@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
@@ -135,16 +134,9 @@ public class AWSKinesisEventStore implements EventStore {
     }
 
     @Override
-    public QueryExecution storeBulk(List<Event> events, boolean commit) {
+    public void storeBulk(List<Event> events) {
         String project = events.get(0).project();
         bulkClient.upload(project, events);
-        if (commit) {
-            List<QueryExecution> executions = events.stream().map(e -> e.collection()).distinct().parallel()
-                    .map(collection -> commit(project, collection)).collect(Collectors.toList());
-            return new ChainQueryExecution(executions, null, Optional.empty());
-        } else {
-            return QueryExecution.completedQueryExecution(null, QueryResult.empty());
-        }
     }
 
     @Override

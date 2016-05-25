@@ -13,8 +13,8 @@ public interface EventStore {
 
     int[] storeBatch(List<Event> events);
 
-    default QueryExecution storeBulk(List<Event> events, boolean commit) {
-        throw new UnsupportedOperationException();
+    default void storeBulk(List<Event> events) {
+        storeBatch(events);
     }
 
     default QueryExecution commit(String project, String collection) {
