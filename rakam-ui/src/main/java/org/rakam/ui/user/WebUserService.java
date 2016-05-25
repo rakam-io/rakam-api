@@ -466,7 +466,6 @@ public class WebUserService {
                 mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent));
             } catch (MessagingException e) {
                 LOGGER.error(e, "Unable to send mail");
-                throw new RakamException("Unable to send mail", INTERNAL_SERVER_ERROR);
             }
         });
     }
@@ -479,6 +478,38 @@ public class WebUserService {
                     .bind("apiUrl", apiUrl)
                     .execute();
         }
+    }
+
+    public WebUser.UserApiKey registerProject(int user, String apiUrl, String project, String readKey, String writeKey, String masterKey) {
+        int projectId;
+        try (Handle handle = dbi.open()) {
+            try {
+                projectId = (Integer) handle.createStatement("INSERT INTO web_user_project " +
+                        "(project, api_url, created_user) " +
+                        "VALUES (:project, :apiUrl, :userId)")
+                        .bind("userId", user)
+                        .bind("project", project)
+                        .bind("apiUrl", apiUrl)
+                        .executeAndReturnGeneratedKeys().first().get("id");
+            } catch (Exception e) {
+                projectId = handle.createQuery("SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl")
+                        .bind("project",project)
+                        .bind("apiUrl", apiUrl).map(IntegerMapper.FIRST).first();
+            }
+
+            handle.createStatement("INSERT INTO web_user_api_key " +
+                    "(user_id, project_id, read_key, write_key, master_key) " +
+                    "VALUES (:userId, :project, :readKey, :writeKey, :masterKey)")
+                    .bind("userId", user)
+                    .bind("project", projectId)
+                    .bind("readKey", readKey)
+                    .bind("writeKey", writeKey)
+                    .bind("masterKey", masterKey)
+                    .execute();
+        }
+
+        eventBus.post(new UIEvents.ProjectCreatedEvent(projectId));
+        return new WebUser.UserApiKey(projectId, readKey, writeKey, masterKey);
     }
 
     public static class UserAccess {

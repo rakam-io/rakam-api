@@ -97,6 +97,19 @@ public class WebUserHttpService extends HttpService {
         return service.createProject(user, apiUrl, name);
     }
 
+    @JsonRequest
+    @IgnorePermissionCheck
+    @Path("/register-project")
+    public UserApiKey registerProject(@ApiParam("name") String name,
+                                    @ApiParam("api_url") String apiUrl,
+                                    @ApiParam("read_key") String readKey,
+                                    @ApiParam("write_key") String writeKey,
+                                    @ApiParam("master_key") String masterKey,
+                                    @CookieParam("session") String session) {
+        int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+        return service.registerProject(user, apiUrl, name, readKey, writeKey, masterKey);
+    }
+
 
     @JsonRequest
     @IgnorePermissionCheck

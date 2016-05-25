@@ -109,7 +109,7 @@ public class QueryHttpService extends HttpService {
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, boolean killOnConnectionClose) {
-        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, false);
+        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, killOnConnectionClose);
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose) {

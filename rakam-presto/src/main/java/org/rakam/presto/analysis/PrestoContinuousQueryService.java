@@ -143,7 +143,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         String query = build(project, continuousQuery.getQuery());
 
         return executor.executeRawQuery(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
-                project, tableName, query), ImmutableMap.of(config.getStreamingConnector() + ".append", "false"), config.getStreamingConnector());
+                project, tableName, query), ImmutableMap.of(config.getStreamingConnector() + ".append_data", "false"), config.getStreamingConnector());
     }
 
 }

@@ -1,5 +1,7 @@
 package org.rakam.analysis;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
@@ -20,12 +22,15 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 
 @Path("/continuous-query")
 @Api(value = "/continuous-query", nickname = "continuousQuery", description = "Continuous Query", tags = "continuous-query")
@@ -45,18 +50,19 @@ public class ContinuousQueryHttpService extends HttpService {
      * Creates a new continuous query for specified SQL query.
      * Rakam will process data in batches keep the result of query in-memory all the time.
      * Compared to reports, continuous queries continuously aggregate the data on the fly and the result is always available either in-memory or disk.
-     *
+     * <p>
      * curl 'http://localhost:9999/reports/add/view' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
+     *
      * @param report continuous query report
      * @return a future that contains the operation status
      */
     @JsonRequest
     @ApiOperation(value = "Create stream", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/create")
     public CompletableFuture<JsonResponse> createQuery(@Named("project") String project, @BodyParam ContinuousQuery report) {
-        if(service.test(project, report.query)) {
+        if (service.test(project, report.query)) {
             CompletableFuture<JsonResponse> err = new CompletableFuture<>();
             // TODO: more readable message is needed.
             err.completeExceptionally(new RakamException("Query is not valid.", HttpResponseStatus.BAD_REQUEST));
@@ -79,28 +85,28 @@ public class ContinuousQueryHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "List queries", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/list")
-    public List<ContinuousQuery> listQueries(@javax.inject.Named("project") String project) {
+    public List<ContinuousQuery> listQueries(@Named("project") String project) {
         return service.list(project);
     }
 
     @JsonRequest
     @ApiOperation(value = "Get query schema", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/schema")
-    public List<Collection> getSchemaOfQuery(@javax.inject.Named("project") String project,
-                                   @ApiParam(value = "names", required = false) List<String> names) {
+    public List<Collection> getSchemaOfQuery(@Named("project") String project,
+                                             @ApiParam(value = "names", required = false) List<String> names) {
         Map<String, List<SchemaField>> schemas = service.getSchemas(project);
-        if(schemas == null) {
+        if (schemas == null) {
             throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
         }
         Stream<Collection> collectionStream = schemas.entrySet().stream()
                 // ignore system tables
 //                    .filter(entry -> !entry.getKey().startsWith("_"))
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()));
-        if(names != null) {
+        if (names != null) {
             collectionStream = collectionStream.filter(a -> names.contains(a.name));
         }
         return collectionStream.collect(Collectors.toList());
@@ -119,14 +125,14 @@ public class ContinuousQueryHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete stream", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/delete")
-    public CompletableFuture<JsonResponse> deleteQuery(@javax.inject.Named("project") String project,
-                         @ApiParam("table_name") String tableName) {
+    public CompletableFuture<JsonResponse> deleteQuery(@Named("project") String project,
+                                                       @ApiParam("table_name") String tableName) {
         return service.delete(project, tableName).thenApply(success -> {
-            if(success) {
+            if (success) {
                 return JsonResponse.success();
-            }else {
+            } else {
                 return JsonResponse.error("Error while deleting.");
             }
         });
@@ -134,27 +140,39 @@ public class ContinuousQueryHttpService extends HttpService {
 
     @ApiOperation(value = "Delete stream", authorizations = @Authorization(value = "master_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/refresh")
-    public void refreshQuery(RakamHttpRequest request, @javax.inject.Named("project") String project, @ApiParam("table_name") String tableName) {
-        queryHttpService.handleServerSentQueryExecution(request, service.refresh(project, tableName), false);
+    @GET
+    public void refreshQuery(RakamHttpRequest request) {
+        queryHttpService.handleServerSentQueryExecution(request, RefreshQuery.class,
+                (project, q) -> service.refresh(project, q.table_name),
+                MASTER_KEY, false);
+    }
+
+    public static class RefreshQuery {
+        public final String table_name;
+
+        @JsonCreator
+        public RefreshQuery(@JsonProperty("table_name") String table_name) {
+            this.table_name = table_name;
+        }
     }
 
     @JsonRequest
     @ApiOperation(value = "Test continuous query", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/test")
-    public boolean testQuery(@javax.inject.Named("project") String project, @ApiParam("query") String query) {
+    public boolean testQuery(@Named("project") String project, @ApiParam("query") String query) {
         return service.test(project, query);
     }
 
     @JsonRequest
     @ApiOperation(value = "Get continuous query", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.") })
+            @ApiResponse(code = 400, message = "Project does not exist.")})
     @Path("/get")
-    public ContinuousQuery getQuery(@javax.inject.Named("project") String project, @ApiParam("table_name") String tableName) {
+    public ContinuousQuery getQuery(@Named("project") String project, @ApiParam("table_name") String tableName) {
         return service.get(project, tableName);
     }
 }
