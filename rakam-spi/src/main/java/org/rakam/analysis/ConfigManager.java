@@ -7,7 +7,7 @@ public interface ConfigManager {
 
     <T> void setConfig(String project, String configName, T clazz);
 
-    <T> void setConfigOnce(String project, String configName, T clazz);
+    <T> T setConfigOnce(String project, String configName, T clazz);
 
     <T> T computeConfig(String project, String configName, Function<T, T> mapper, Class<T> clazz);
 }

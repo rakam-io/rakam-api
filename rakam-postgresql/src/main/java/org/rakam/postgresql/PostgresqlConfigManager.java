@@ -3,7 +3,9 @@ package org.rakam.postgresql;
 import com.google.common.base.Throwables;
 import com.google.inject.name.Named;
 import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.InternalConfig;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.collection.FieldType;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -51,7 +53,10 @@ public class PostgresqlConfigManager implements ConfigManager {
     }
 
     @Override
-    public <T> void setConfigOnce(String project, String configName, T value) {
+    public <T> T setConfigOnce(String project, String configName, T value) {
+        if(configName.equals(InternalConfig.USER_TYPE.name())) {
+            return (T) FieldType.STRING;
+        }
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value)")
@@ -61,6 +66,7 @@ public class PostgresqlConfigManager implements ConfigManager {
             } catch (Exception e) {
 
             }
+            return null;
         }
     }
 

@@ -132,18 +132,17 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         try (Connection conn = queryExecutor.getConnection()) {
             if (id == null) {
-                Optional<FieldType> unchecked = userTypeCache.getUnchecked(project);
-                if (!unchecked.isPresent()) {
-                    configManager.setConfigOnce(project,
-                            InternalConfig.USER_TYPE.name(), FieldType.INTEGER);
-                    id = new Random().nextInt();
+                FieldType unchecked = userTypeCache.getUnchecked(project).orElse(null);
+                if (unchecked == null) {
+                    unchecked = configManager.setConfigOnce(project,
+                            InternalConfig.USER_TYPE.name(), FieldType.STRING);
 
+                }
+
+                if (unchecked.isNumeric()) {
+                    id = new Random().nextInt();
                 } else {
-                    if (unchecked.get().isNumeric()) {
-                        id = new Random().nextInt();
-                    } else {
-                        id = UUID.randomUUID().toString();
-                    }
+                    id = UUID.randomUUID().toString();
                 }
             }
 
@@ -554,11 +553,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             }
         }
 
-        Map<String, FieldType> columns = propertyCache.getIfPresent(project);
-        if (columns == null) {
-            columns = createMissingColumns(project, properties);
-            propertyCache.put(project, columns);
-        }
+        Map<String, FieldType> columns = createMissingColumns(project, properties);
 
         StringBuilder builder = new StringBuilder("update " + getUserTable(project, false) + " set ");
         Iterator<Map.Entry<String, Object>> entries = properties.iterator();
@@ -646,12 +641,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
     @Override
     public void incrementProperty(String project, Object user, String property, double value) {
-        Map<String, FieldType> columns = propertyCache.getIfPresent(project);
-        if (columns == null) {
-            columns = createMissingColumns(project,
-                    ImmutableList.of(new SimpleImmutableEntry<>(project, value)));
-            propertyCache.put(project, columns);
-        }
+        Map<String, FieldType> columns = createMissingColumns(project, ImmutableList.of(new SimpleImmutableEntry<>(property, 1L)));
 
         FieldType fieldType = columns.get(property);
         if (fieldType == null) {
