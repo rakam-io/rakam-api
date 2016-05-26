@@ -17,7 +17,7 @@ import io.airlift.configuration.Config;
 
 
 public class EventExplorerConfig {
-    private boolean enabled;
+    private boolean enabled = false;
 
     @Config("event-explorer.enabled")
     public void setEventExplorerEnabled(boolean enabled) {

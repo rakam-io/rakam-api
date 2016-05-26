@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.netty.buffer.ByteBuf;
@@ -28,6 +29,7 @@ import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.QueryExecution;
+import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -130,7 +132,7 @@ public class EventCollectionHttpService extends HttpService {
         csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
 
-    private List<Cookie> mapEvent(Event event, HttpHeaders requestHeaders, InetAddress remoteAddress, HttpHeaders responseHeaders) {
+    private List<Cookie> mapEvent(RakamHttpRequest request, Event event, HttpHeaders requestHeaders, InetAddress remoteAddress, HttpHeaders responseHeaders) {
         List<Cookie> responseAttachment = null;
         for (EventMapper mapper : eventMappers) {
             try {
@@ -143,6 +145,11 @@ public class EventCollectionHttpService extends HttpService {
 
                     responseAttachment.addAll(map);
                 }
+            } catch (RakamException e) {
+                SentryUtil.logException(request, e);
+                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
+            } catch (HttpRequestException e) {
+                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
             } catch (Exception e) {
                 throw new RuntimeException("An error occurred while processing event in " + mapper.getClass().getName(), e);
             }
@@ -205,7 +212,7 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
 
-                cookies = mapEvent(event, headers, getRemoteAddress(socketAddress), response.trailingHeaders());
+                cookies = mapEvent(request, event, headers, getRemoteAddress(socketAddress), response.trailingHeaders());
 
                 eventStore.store(event);
             } catch (JsonMappingException e) {
@@ -448,6 +455,8 @@ public class EventCollectionHttpService extends HttpService {
         queryHttpService.handleServerSentQueryExecution(request, new ChainQueryExecution(builder.build(), null), false);
     }
 
+    private static final int[] EMPTY_INT_ARRAY = new int[0];
+
     @POST
     @ApiOperation(value = "Collect multiple events", request = EventList.class, response = Integer.class,
             authorizations = @Authorization(value = "write_key")
@@ -462,10 +471,17 @@ public class EventCollectionHttpService extends HttpService {
                     int[] errorIndexes;
 
                     try {
-                        errorIndexes = eventStore.storeBatch(events);
+                        if (events.size() <= 1) {
+                            errorIndexes = EMPTY_INT_ARRAY;
+                            if (events.size() == 1) {
+                                eventStore.store(events.get(0));
+                            }
+                        } else {
+                            errorIndexes = eventStore.storeBatch(events);
+                        }
                     } catch (Exception e) {
-                        LOGGER.error(e, "error while storing event.");
-                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                        LOGGER.error(e, "Error while storing event.");
+                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                 Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
                     }
 
@@ -478,6 +494,8 @@ public class EventCollectionHttpService extends HttpService {
                     }
                 }, WRITE_KEY);
     }
+
+    private static final byte[] API_KEY_ERROR_MESSAGE = JsonHelper.encodeAsBytes(ImmutableMap.of("error", "API key is invalid", "error_code", 401));
 
     public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction, AccessKeyType accessKeyType) {
         HttpHeaders headers = request.headers();
@@ -498,15 +516,15 @@ public class EventCollectionHttpService extends HttpService {
                 }
 
                 if (!validateProjectPermission(events.project, context.writeKey, accessKeyType)) {
-                    ByteBuf byteBuf = Unpooled.wrappedBuffer("\"API key is invalid\"".getBytes(CharsetUtil.UTF_8));
-                    request.response(new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED, byteBuf, responseHeaders)).end();
+                    request.response(new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
+                            Unpooled.wrappedBuffer(API_KEY_ERROR_MESSAGE), responseHeaders)).end();
                     return;
                 }
 
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
                 for (Event event : events.events) {
-                    List<Cookie> mapperEntries = mapEvent(event, headers, remoteAddress, responseHeaders);
+                    List<Cookie> mapperEntries = mapEvent(request, event, headers, remoteAddress, responseHeaders);
                     if (mapperEntries != null) {
                         if (entries == null) {
                             entries = new ArrayList<>();
@@ -534,9 +552,9 @@ public class EventCollectionHttpService extends HttpService {
             } catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
 
-                ByteBuf byteBuf = Unpooled.wrappedBuffer("0".getBytes(CharsetUtil.UTF_8));
-                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
-                errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+                ByteBuf byteBuf = Unpooled.wrappedBuffer(NOT_OK_MESSAGE);
+                HeaderDefaultFullHttpResponse errResponse =
+                        new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf, responseHeaders);
                 request.response(errResponse).end();
                 return;
             }

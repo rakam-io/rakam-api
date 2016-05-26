@@ -42,12 +42,9 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
+import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkArgument;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor {
     private final Metastore metastore;
@@ -74,7 +71,6 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
                                 Optional<Integer> period,
                                 LocalDate startDate, LocalDate endDate) {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
-        checkTableColumn(CONNECTOR_FIELD, "connector field");
 
         String timeColumn = getTimeExpression(dateUnit);
 

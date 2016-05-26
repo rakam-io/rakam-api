@@ -3,6 +3,7 @@ package org.rakam.module.website;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -12,10 +13,12 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
+import org.rakam.server.http.HttpRequestException;
 import ua_parser.CachingParser;
 import ua_parser.Client;
 import ua_parser.Parser;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
@@ -23,13 +26,16 @@ import java.util.Map;
 
 public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     private final Parser uaParser;
+    private final boolean trackSpiders;
 
-    public UserAgentEventMapper() {
+    @Inject
+    public UserAgentEventMapper(WebsiteMapperConfig config) {
         try {
             uaParser = new CachingParser();
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
+        this.trackSpiders = config.getTrackSpiders();
     }
 
     @Override
@@ -46,16 +52,15 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
 
     private void mapInternal(HttpHeaders extraProperties, GenericRecord properties, Object agent) {
         String userAgent;
-        if(agent instanceof Boolean && ((Boolean) agent).booleanValue()) {
+        if (agent instanceof Boolean && ((Boolean) agent).booleanValue()) {
             userAgent = extraProperties.get("User-Agent");
-        } else
-        if(agent instanceof String){
+        } else if (agent instanceof String) {
             userAgent = (String) agent;
         } else {
             userAgent = null;
         }
 
-        if(userAgent != null) {
+        if (userAgent != null) {
             Client parsed;
             try {
                 parsed = uaParser.parse(userAgent);
@@ -63,26 +68,32 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
                 return;
             }
 
-            if(properties.get("user_agent_family") == null) {
+            if (parsed.device != null && "Spider".equals(parsed.device.family)) {
+                // A bit SEO wouldn't hurt.
+                throw new HttpRequestException("Spiders are not allowed in Rakam Analytics.", HttpResponseStatus.FORBIDDEN);
+            }
+
+            if (properties.get("user_agent_family") == null) {
                 properties.put("_user_agent_family", parsed.userAgent.family);
             }
 
-            if(parsed.userAgent != null && properties.get("_user_agent_version") == null) {
+            if (trackSpiders && parsed.userAgent != null && properties.get("_user_agent_version") == null) {
                 try {
                     properties.put("_user_agent_version", Long.parseLong(parsed.userAgent.major));
-                } catch (NumberFormatException e) {}
+                } catch (NumberFormatException e) {
+                }
             }
 
             if (parsed.device != null && properties.get("_device_family") == null) {
                 properties.put("_device_family", parsed.device.family);
             }
 
-            if(parsed.os != null) {
-                if(properties.get("_os") == null) {
+            if (parsed.os != null) {
+                if (properties.get("_os") == null) {
                     properties.put("_os", parsed.os.family);
                 }
 
-                if(parsed.os.major != null && properties.get("_os_version") == null) {
+                if (parsed.os.major != null && properties.get("_os_version") == null) {
                     try {
                         properties.put("_os_version", Long.parseLong(parsed.os.major));
                     } catch (Exception e) {

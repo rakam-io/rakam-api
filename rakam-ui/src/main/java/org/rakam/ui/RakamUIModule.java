@@ -216,7 +216,7 @@ public class RakamUIModule extends RakamModule {
                         .execute();
 
                 handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
-                        "  project_id INT REFERENCES web_user_project(id)," +
+                        "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
                         "  user_id INT REFERENCES web_user(id)," +
                         "  slug VARCHAR(255) NOT NULL," +
                         "  category VARCHAR(255)," +
@@ -232,7 +232,7 @@ public class RakamUIModule extends RakamModule {
                 handle.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
                         "  report_type VARCHAR(255) NOT NULL," +
                         "  user_id INT REFERENCES web_user(id)," +
-                        "  project_id INT REFERENCES web_user_project(id)," +
+                        "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  data TEXT NOT NULL," +
                         "  PRIMARY KEY (project_id, report_type, name)" +
@@ -249,7 +249,7 @@ public class RakamUIModule extends RakamModule {
 
                 handle.createStatement("CREATE TABLE IF NOT EXISTS dashboard (" +
                         "  id SERIAL," +
-                        "  project_id INT REFERENCES web_user_project(id)," +
+                        "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
                         "  user_id INT REFERENCES web_user(id)," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  options TEXT," +
@@ -269,7 +269,7 @@ public class RakamUIModule extends RakamModule {
 
                 if (config.getCustomPageBackend() == CustomPageBackend.JDBC) {
                     handle.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
-                            "  project_id INT REFERENCES web_user_project(id)," +
+                            "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
                             "  name VARCHAR(255) NOT NULL," +
                             "  user_id INT REFERENCES web_user(id)," +
                             "  slug VARCHAR(255) NOT NULL," +

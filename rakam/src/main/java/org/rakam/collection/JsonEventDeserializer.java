@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -177,19 +176,16 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
-            String fieldName = jp.getCurrentName();
+            String fieldName = checkTableColumn(jp.getCurrentName(), jp.getCurrentName());
 
             Schema.Field field = avroSchema.getField(fieldName);
 
             jp.nextToken();
 
             if (field == null) {
-                fieldName = fieldName.toLowerCase(Locale.ENGLISH);
                 field = avroSchema.getField(fieldName);
 
                 if (field == null) {
-                    checkTableColumn(fieldName, fieldName);
-
                     FieldType type = getType(jp);
                     if (type != null) {
                         if (newFields == null) {

@@ -1,7 +1,6 @@
 package org.rakam.postgresql.report;
 
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -19,9 +18,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -31,10 +28,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
     public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
 
     private final JDBCPoolDataSource connectionPool;
-    protected static final ExecutorService QUERY_EXECUTOR = new ThreadPoolExecutor(0, 50, 120L, TimeUnit.SECONDS,
-            new SynchronousQueue<>(), new ThreadFactoryBuilder()
-            .setNameFormat("postgresql-query-executor")
-            .setUncaughtExceptionHandler((t, e) -> e.printStackTrace()).build());
+    protected static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
     private final QueryMetadataStore queryMetadataStore;
     private final Metastore metastore;
 

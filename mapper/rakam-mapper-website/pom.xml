@@ -46,6 +46,14 @@
             <artifactId>netty-all</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>netty-rest</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.snowplowanalytics</groupId>
             <artifactId>referer-parser_2.11</artifactId>
             <version>0.2.1</version>

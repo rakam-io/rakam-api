@@ -35,15 +35,15 @@ public interface UserStorage {
 
     CompletableFuture<User> getUser(String project, Object userId);
 
-    void setUserProperty(String project, String user, Map<String, Object> properties);
+    void setUserProperty(String project, Object user, Map<String, Object> properties);
 
-    void setUserPropertyOnce(String project, String user, Map<String, Object> properties);
+    void setUserPropertyOnce(String project, Object user, Map<String, Object> properties);
 
     void createProjectIfNotExists(String project, boolean isNumeric);
 
-    void incrementProperty(String project, String user, String property, double value);
+    void incrementProperty(String project, Object user, String property, double value);
 
-    void unsetProperties(String project, String user, List<String> properties);
+    void unsetProperties(String project, Object user, List<String> properties);
 
     class Sorting {
         public final String column;

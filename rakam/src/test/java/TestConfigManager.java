@@ -22,6 +22,11 @@ public class TestConfigManager implements ConfigManager {
     }
 
     @Override
+    public synchronized <T> void setConfigOnce(String project, String configName, T clazz) {
+        table.column(project).putIfAbsent(configName, clazz);
+    }
+
+    @Override
     public synchronized <T> T computeConfig(String project, String configName, Function<T, T> mapper, Class<T> clazz) {
         T t = (T) table.get(project, configName);
         table.put(project, configName, mapper.apply(t));

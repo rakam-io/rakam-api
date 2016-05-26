@@ -185,8 +185,8 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
             throw new RakamException("Multiple references in filter expression are not supported: " +
                     node.getName().getParts().stream().collect(Collectors.joining(",")), HttpResponseStatus.BAD_REQUEST);
         }
-        String tableColumn = node.getName().getParts().get(0);
-        ValidationUtil.checkTableColumn(tableColumn, "reference in filter");
+        String tableColumn = ValidationUtil
+                .checkTableColumn(node.getName().getParts().get(0), "reference in filter");
 
         Optional<String> preComputedTable = columnNameMapper.apply(tableColumn);
         if (preComputedTable.isPresent()) {

@@ -5,6 +5,7 @@ import io.airlift.configuration.Config;
 public class WebsiteMapperConfig {
     private boolean userAgent = true;
     private boolean referrer = true;
+    private boolean trackSpiders = false;
 
     @Config("module.website.mapper.user-agent")
     public WebsiteMapperConfig setUserAgent(boolean enabled) {
@@ -25,6 +26,18 @@ public class WebsiteMapperConfig {
     public WebsiteMapperConfig setReferrer(boolean referrer)
     {
         this.referrer = true;
+        return this;
+    }
+
+    public boolean getTrackSpiders()
+    {
+        return trackSpiders;
+    }
+
+    @Config("module.website.mapper.user_agent.track_spiders")
+    public WebsiteMapperConfig setTrackSpiders(boolean trackSpiders)
+    {
+        this.trackSpiders = true;
         return this;
     }
 }

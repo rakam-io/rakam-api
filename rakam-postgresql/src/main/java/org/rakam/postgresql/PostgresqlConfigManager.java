@@ -1,7 +1,9 @@
-package org.rakam.analysis;
+package org.rakam.postgresql;
 
 import com.google.common.base.Throwables;
 import com.google.inject.name.Named;
+import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.JsonHelper;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -15,12 +17,12 @@ import java.sql.SQLException;
 import java.util.Locale;
 import java.util.function.Function;
 
-public class JDBCConfigManager implements ConfigManager {
+public class PostgresqlConfigManager implements ConfigManager {
 
     private final DBI dbi;
 
     @Inject
-    public JDBCConfigManager(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
+    public PostgresqlConfigManager(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource) {
         this.dbi = new DBI(dataSource);
     }
 
@@ -49,12 +51,30 @@ public class JDBCConfigManager implements ConfigManager {
     }
 
     @Override
+    public <T> void setConfigOnce(String project, String configName, T value) {
+        try (Handle handle = dbi.open()) {
+            try {
+                handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value)")
+                        .bind("project", project)
+                        .bind("name", configName.toUpperCase(Locale.ENGLISH))
+                        .bind("value", JsonHelper.encode(value)).execute();
+            } catch (Exception e) {
+
+            }
+        }
+    }
+
+    @Override
     public <T> void setConfig(String project, String configName, T value) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value) ON DUPLICATE KEY UPDATE value = :value;")
-                    .bind("project", project)
-                    .bind("name", configName.toUpperCase(Locale.ENGLISH))
-                    .bind("value", JsonHelper.encode(value)).execute();
+            try {
+                handle.createStatement("INSERT INTO config (project, name, value) VALUES (:project, :name, :value)")
+                        .bind("project", project)
+                        .bind("name", configName.toUpperCase(Locale.ENGLISH))
+                        .bind("value", JsonHelper.encode(value)).execute();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

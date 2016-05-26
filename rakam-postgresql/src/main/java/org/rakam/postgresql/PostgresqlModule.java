@@ -14,7 +14,6 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
-import org.rakam.analysis.JDBCConfigManager;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
@@ -87,7 +86,7 @@ public class PostgresqlModule extends RakamModule {
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
                     .toInstance(orCreateDataSource);
 
-            binder.bind(ConfigManager.class).to(JDBCConfigManager.class);
+            binder.bind(ConfigManager.class).to(PostgresqlConfigManager.class);
             binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class)
                     .in(Scopes.SINGLETON);
         }

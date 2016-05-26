@@ -38,7 +38,7 @@ public class TestUserAgentEventMapper {
 
     @Test(dataProvider = "chrome-user-agent")
     public void testUserAgentMapper(Map<String, Object> props, HttpHeaders headers) throws Exception {
-        UserAgentEventMapper mapper = new UserAgentEventMapper();
+        UserAgentEventMapper mapper = new UserAgentEventMapper(new WebsiteMapperConfig());
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 
@@ -68,7 +68,7 @@ public class TestUserAgentEventMapper {
 
     @Test()
     public void testUserAgentNotExists() throws Exception {
-        UserAgentEventMapper mapper = new UserAgentEventMapper();
+        UserAgentEventMapper mapper = new UserAgentEventMapper(new WebsiteMapperConfig());
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 
@@ -96,7 +96,7 @@ public class TestUserAgentEventMapper {
 
     @Test()
     public void testUnknownUserAgent() throws Exception {
-        UserAgentEventMapper mapper = new UserAgentEventMapper();
+        UserAgentEventMapper mapper = new UserAgentEventMapper(new WebsiteMapperConfig());
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 
@@ -126,7 +126,7 @@ public class TestUserAgentEventMapper {
 
     @Test()
     public void testDisableUserAgent() throws Exception {
-        UserAgentEventMapper mapper = new UserAgentEventMapper();
+        UserAgentEventMapper mapper = new UserAgentEventMapper(new WebsiteMapperConfig());
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
 

@@ -2,7 +2,6 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
@@ -43,13 +42,11 @@ import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
@@ -238,7 +235,7 @@ public class UserHttpService extends HttpService {
         return true;
     }
 
-    @ApiOperation(value = "Set user properties", request = SetUserProperties.class, response = Integer.class)
+    @ApiOperation(value = "Set user properties", request = User.class, response = Integer.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
@@ -247,9 +244,9 @@ public class UserHttpService extends HttpService {
     @POST
     public void setProperties(RakamHttpRequest request) {
         request.bodyHandler(s -> {
-            SetUserProperties req;
+            User req;
             try {
-                req = JsonHelper.readSafe(s, SetUserProperties.class);
+                req = JsonHelper.readSafe(s, User.class);
             } catch (IOException e) {
                 returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
                 return;
@@ -257,21 +254,16 @@ public class UserHttpService extends HttpService {
 
             String project = apiKeyService.getProjectOfApiKey(req.api.writeKey, WRITE_KEY);
 
-            if (!apiKeyService.checkPermission(project, WRITE_KEY, req.api.writeKey)) {
-                returnError(request, UNAUTHORIZED.reasonPhrase(), UNAUTHORIZED);
-                return;
-            }
-
             if (!mapProperties(project, req, request)) {
                 return;
             }
 
-            service.setUserProperties(project, req.user, req.properties);
+            service.setUserProperties(project, req.id, req.properties);
             request.response(OK_MESSAGE).end();
         });
     }
 
-    private boolean mapProperties(String project, SetUserProperties req, RakamHttpRequest request) {
+    private boolean mapProperties(String project, User req, RakamHttpRequest request) {
         InetAddress socketAddress = ((InetSocketAddress) request.context().channel()
                 .remoteAddress()).getAddress();
 
@@ -290,16 +282,16 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @IgnorePermissionCheck
-    @ApiOperation(value = "Set user properties once", request = SetUserProperties.class, response = Integer.class)
+    @ApiOperation(value = "Set user properties once", request = User.class, response = Integer.class)
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "Project does not exist."),
             @ApiResponse(code = 400, message = "User does not exist.")})
     @Path("/set_properties_once")
     public void setPropertiesOnce(RakamHttpRequest request) {
         request.bodyHandler(s -> {
-            SetUserProperties req;
+            User req;
             try {
-                req = JsonHelper.readSafe(s, SetUserProperties.class);
+                req = JsonHelper.readSafe(s, User.class);
             } catch (IOException e) {
                 returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
                 return;
@@ -312,7 +304,7 @@ public class UserHttpService extends HttpService {
             }
 
             // TODO: we may cache these values and reduce the db hit.
-            service.setUserPropertiesOnce(project, req.user, req.properties);
+            service.setUserPropertiesOnce(project, req.id, req.properties);
             request.response(OK_MESSAGE).end();
         });
     }
@@ -326,7 +318,7 @@ public class UserHttpService extends HttpService {
     @IgnorePermissionCheck
     @AllowCookie
     public JsonResponse incrementProperty(@ApiParam("api") User.UserContext api,
-                                          @ApiParam("user") String user,
+                                          @ApiParam("id") String user,
                                           @ApiParam("property") String property,
                                           @ApiParam("value") double value) {
         String project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
@@ -354,25 +346,10 @@ public class UserHttpService extends HttpService {
     @Path("/unset_properties")
     @AllowCookie
     public JsonResponse unsetProperty(@ApiParam("api") User.UserContext api,
-                                      @ApiParam("user") String user,
-                                      @ApiParam("property") List<String> properties) {
+                                      @ApiParam("id") Object id,
+                                      @ApiParam("properties") List<String> properties) {
         String project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
-        service.unsetProperties(project, user, properties);
+        service.unsetProperties(project, id, properties);
         return JsonResponse.success();
-    }
-
-    public static class SetUserProperties {
-        public final String user;
-        public final User.UserContext api;
-        public final Map<String, Object> properties;
-
-        @JsonCreator
-        public SetUserProperties(@ApiParam("user") String user,
-                                 @ApiParam("api") User.UserContext api,
-                                 @ApiParam("properties") Map<String, Object> properties) {
-            this.user = user;
-            this.api = api;
-            this.properties = properties;
-        }
     }
 }

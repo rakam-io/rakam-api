@@ -12,7 +12,6 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
-import org.rakam.analysis.JDBCConfigManager;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
@@ -30,6 +29,7 @@ import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
+import org.rakam.presto.analysis.MysqlConfigManager;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
@@ -72,7 +72,7 @@ public class PrestoModule extends RakamModule {
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
                     .toInstance(metadataDataSource);
 
-            binder.bind(ConfigManager.class).to(JDBCConfigManager.class);
+            binder.bind(ConfigManager.class).to(MysqlConfigManager.class);
             binder.bind(QueryMetadataStore.class).to(JDBCQueryMetadata.class)
                     .in(Scopes.SINGLETON);
         }
