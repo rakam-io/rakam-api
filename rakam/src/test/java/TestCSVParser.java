@@ -18,7 +18,6 @@ import org.rakam.util.AvroUtil;
 import org.testng.annotations.Test;
 
 import java.util.List;
-import java.util.Set;
 
 import static com.google.common.collect.ImmutableSet.of;
 import static org.rakam.collection.FieldType.DOUBLE;
@@ -52,12 +51,11 @@ public class TestCSVParser {
         Event.EventContext api = new Event.EventContext("api_key", null, null, null);
 
         List<SchemaField> collection = metastore.getCollection("project", "collection");
-        Set<SchemaField> schema = ImmutableSet.of(
+
+        assertEquals(ImmutableSet.copyOf(collection), ImmutableSet.of(
                 new SchemaField("transaction_date", STRING),
                 new SchemaField("product", STRING),
-                new SchemaField("price", DOUBLE));
-
-        assertEquals(ImmutableSet.copyOf(collection), schema);
+                new SchemaField("price", DOUBLE)));
 
         Schema avroSchema = AvroUtil.convertAvroSchema(collection);
         GenericData.Record record1 = new GenericData.Record(avroSchema);
@@ -70,9 +68,9 @@ public class TestCSVParser {
         record2.put("product", "Product2");
         record2.put("price", 1500.0);
 
-        EventList eventList = new EventList(api, "project",
-                ImmutableList.of(new Event("project", "collection", null, null, record1),
-                        new Event("project", "collection", null, null, record2)));
+        EventList eventList = new EventList(api, "project", ImmutableList.of(
+                new Event("project", "collection", null, ImmutableList.copyOf(collection), record1),
+                new Event("project", "collection", null, ImmutableList.copyOf(collection), record2)));
         assertEquals(actual, eventList);
     }
 
