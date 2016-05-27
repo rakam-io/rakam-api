@@ -14,6 +14,7 @@ public class RakamUserIdEventMapper implements EventMapper {
     public RakamUserIdEventMapper() {
         Jedis jedis = new Jedis("localhost");
         Pipeline p = jedis.pipelined();
+        p.set();
     }
 
     @Override

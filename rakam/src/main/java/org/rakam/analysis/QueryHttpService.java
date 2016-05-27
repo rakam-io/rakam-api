@@ -108,10 +108,6 @@ public class QueryHttpService extends HttpService {
         handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true);
     }
 
-    public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, boolean killOnConnectionClose) {
-        handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, killOnConnectionClose);
-    }
-
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose) {
         if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
             request.response("The endpoint only supports text/event-stream as Accept header", HttpResponseStatus.NOT_ACCEPTABLE).end();
