@@ -305,7 +305,9 @@ public class EventCollectionHttpService extends HttpService {
                     try {
                         eventStore.storeBulk(events);
                     } catch (Exception e) {
-                        LOGGER.error(e, "Error while storing event.");
+                        List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
+                        LOGGER.error(new RuntimeException("Error executing EventStore bulk method: "+sample, e),
+                                "Error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                 Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
                     }
@@ -371,7 +373,9 @@ public class EventCollectionHttpService extends HttpService {
                     try {
                         eventStore.storeBulk(events);
                     } catch (Exception e) {
-                        LOGGER.error(e, "error while storing event.");
+                        List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
+                        LOGGER.error(new RuntimeException("Error executing EventStore bulk method: "+sample, e),
+                                "Error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, UNAUTHORIZED,
                                 Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
                     }
@@ -470,19 +474,26 @@ public class EventCollectionHttpService extends HttpService {
                 (events, responseHeaders) -> {
                     int[] errorIndexes;
 
-                    try {
-                        if (events.size() <= 1) {
-                            errorIndexes = EMPTY_INT_ARRAY;
-                            if (events.size() == 1) {
-                                eventStore.store(events.get(0));
+                    if(events.size() > 0) {
+                        boolean single = events.size() == 1;
+                        try {
+                            if (single) {
+                                errorIndexes = EMPTY_INT_ARRAY;
+                                if (events.size() == 1) {
+                                    eventStore.store(events.get(0));
+                                }
+                            } else {
+                                errorIndexes = eventStore.storeBatch(events);
                             }
-                        } else {
-                            errorIndexes = eventStore.storeBatch(events);
+                        } catch (Exception e) {
+                            List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
+                            LOGGER.error(new RuntimeException("Error executing EventStore "+(single ? "store" : "bulk")+" method: "+sample, e),
+                                    "Error while storing event.");
+                            return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
+                                    Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
                         }
-                    } catch (Exception e) {
-                        LOGGER.error(e, "Error while storing event.");
-                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
-                                Unpooled.wrappedBuffer(NOT_OK_MESSAGE), responseHeaders);
+                    } else {
+                        errorIndexes = EMPTY_INT_ARRAY;
                     }
 
                     if (errorIndexes.length == 0) {

@@ -83,7 +83,7 @@
         <dependency>
             <groupId>com.github.ua-parser</groupId>
             <artifactId>uap-java</artifactId>
-            <version>8f138347c0</version>
+            <version>5193d4015f</version>
         </dependency>
         <dependency>
             <groupId>com.google.inject.extensions</groupId>

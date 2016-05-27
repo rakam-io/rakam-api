@@ -9,7 +9,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
@@ -162,7 +161,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         if (schema == null) {
             List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
             if (rakamSchema.isEmpty()) {
-                rakamSchema = ImmutableList.copyOf(constantFields);
+                rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, constantFields);
             }
 
             schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema));

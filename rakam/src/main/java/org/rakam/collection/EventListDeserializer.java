@@ -64,7 +64,6 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
             }
         }
 
-
         if (context == null) {
             throw new RakamException("First two fields must be api and project", BAD_REQUEST);
         }

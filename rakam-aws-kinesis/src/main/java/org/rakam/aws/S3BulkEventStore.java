@@ -87,11 +87,12 @@ public class S3BulkEventStore {
 
                 encoder.writeInt(entry.getValue().size());
 
+                int expectedSchemaSize = collection.size() + conditionalMagicFieldsSize;
                 for (Event event : entry.getValue()) {
                     GenericRecord properties = event.properties();
 
                     List<Schema.Field> existingFields = properties.getSchema().getFields();
-                    if (existingFields.size() != collection.size() + conditionalMagicFieldsSize) {
+                    if (existingFields.size() != expectedSchemaSize) {
                         GenericData.Record record = new GenericData.Record(avroSchema);
                         for (int i = 0; i < existingFields.size(); i++) {
                             if (existingFields.get(i).schema().getType() != Schema.Type.NULL) {
