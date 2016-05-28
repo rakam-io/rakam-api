@@ -256,8 +256,7 @@ public class QueryHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Test query", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/metadata")
     public CompletableFuture<List<SchemaField>> metadata(@javax.inject.Named("project") String project, @ApiParam("query") String query) {
         return executorService.metadata(project, query);

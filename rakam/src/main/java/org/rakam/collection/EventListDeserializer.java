@@ -82,7 +82,7 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
 
         if (project == null) {
             Object apiKey = deserializationContext.getAttribute("apiKey");
-            project = apiKeyService.getProjectOfApiKey(context.writeKey, apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);
+            project = apiKeyService.getProjectOfApiKey(context.apiKey, apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);
         }
 
         for (; t == JsonToken.START_OBJECT; t = jp.nextToken()) {

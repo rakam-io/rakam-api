@@ -221,7 +221,7 @@ public class JDBCMetastore extends AbstractMetastore {
             Runnable task;
             if (currentFields.isEmpty()) {
                 if (!getProjects().contains(project)) {
-                    throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
+                    throw new NotExistsException("project", HttpResponseStatus.FORBIDDEN);
                 }
                 String queryEnd = schemaFields.stream()
                         .map(f -> {

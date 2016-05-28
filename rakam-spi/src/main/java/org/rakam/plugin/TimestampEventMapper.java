@@ -31,7 +31,7 @@ public class TimestampEventMapper implements EventMapper {
     private static final int HASHCODE = TimestampEventMapper.class.getName().hashCode();
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         GenericRecord properties = event.properties();
         Object time = properties.get("_time");
         if (time == null) {

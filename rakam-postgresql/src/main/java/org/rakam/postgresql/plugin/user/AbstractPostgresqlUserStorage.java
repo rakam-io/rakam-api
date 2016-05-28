@@ -72,8 +72,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
         userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Optional<FieldType>>() {
             @Override
             public Optional<FieldType> load(String key) throws Exception {
-                FieldType config = configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class);
-                return config == null ? Optional.<FieldType>empty() : Optional.of(config);
+                return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class);
             }
         });
     }

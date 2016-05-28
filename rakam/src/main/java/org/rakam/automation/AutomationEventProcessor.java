@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.rakam.collection.Event;
 import org.rakam.config.EncryptionConfig;
-import org.rakam.plugin.EventProcessor;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.util.CryptUtil;
@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-public class AutomationEventProcessor implements EventProcessor {
+public class AutomationEventProcessor implements EventMapper {
 
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";
@@ -73,7 +73,7 @@ public class AutomationEventProcessor implements EventProcessor {
             }
             int ruleId = automationRule.id;
             ScenarioState state = null;
-            if(value != null) {
+            if (value != null) {
                 for (ScenarioState scenarioState : value) {
                     if (ruleId == scenarioState.ruleId) {
                         state = scenarioState;
@@ -81,11 +81,11 @@ public class AutomationEventProcessor implements EventProcessor {
                 }
             }
 
-            if(state == null) {
-                if(newStates == null) {
+            if (state == null) {
+                if (newStates == null) {
                     newStates = new ScenarioState[automationRules.size()];
 
-                    if(value != null) {
+                    if (value != null) {
                         for (ScenarioState scenarioState : value) {
                             newStates[newIdx++] = scenarioState;
                         }
@@ -100,11 +100,11 @@ public class AutomationEventProcessor implements EventProcessor {
 
                 stateChanged |= updateState(scenarioStep, state, event);
 
-                if(state.state >= automationRule.scenarios.size()) {
+                if (state.state >= automationRule.scenarios.size()) {
                     state.state = 0;
                     state.threshold = 0;
                     // state is already changed
-                    if(actions == null) {
+                    if (actions == null) {
                         actions = new ArrayList<>();
                     }
 
@@ -130,12 +130,12 @@ public class AutomationEventProcessor implements EventProcessor {
             }
         }
 
-        if(actions != null) {
+        if (actions != null) {
             StringBuilder builder = new StringBuilder();
             Base64.Encoder encoder = Base64.getEncoder();
 
             for (String action : actions) {
-                if(builder.length() != 0) {
+                if (builder.length() != 0) {
                     builder.append(',');
                 }
                 try {
@@ -149,16 +149,16 @@ public class AutomationEventProcessor implements EventProcessor {
             responseHeaders.set(PROPERTY_ACTION_KEY, builder.toString());
         }
 
-        return  stateChanged ? ImmutableList.of(new DefaultCookie(PROPERTY_KEY, encodeState(newStates == null ? value : newStates))) : null;
+        return stateChanged ? ImmutableList.of(new DefaultCookie(PROPERTY_KEY, encodeState(newStates == null ? value : newStates))) : null;
     }
 
     private String encodeState(ScenarioState[] states) {
-        if(states == null) {
+        if (states == null) {
             return null;
         }
         StringBuilder builder = new StringBuilder();
         for (ScenarioState scenarioState : states) {
-            if(scenarioState != null) {
+            if (scenarioState != null) {
                 builder.append(scenarioState.ruleId).append(':').append(scenarioState.state).append(':').append(scenarioState.threshold);
             }
         }
@@ -207,11 +207,11 @@ public class AutomationEventProcessor implements EventProcessor {
                 String val = null;
                 Set<Cookie> decode = ServerCookieDecoder.STRICT.decode(extraProperty.getValue());
                 for (Cookie cookie : decode) {
-                    if(cookie.name().equals(PROPERTY_KEY)) {
+                    if (cookie.name().equals(PROPERTY_KEY)) {
                         val = cookie.value();
                     }
                 }
-                if(val == null) {
+                if (val == null) {
                     return null;
                 }
                 String[] cookie = val.split("\\|", 2);

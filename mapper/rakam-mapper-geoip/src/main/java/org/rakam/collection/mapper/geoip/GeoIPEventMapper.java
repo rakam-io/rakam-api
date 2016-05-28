@@ -110,7 +110,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;

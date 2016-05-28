@@ -114,7 +114,7 @@ public interface UserStorage {
             try {
                 return filterExpression  != null ? SQL_PARSER.createExpression(filterExpression) : null;
             } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), HttpResponseStatus.UNAUTHORIZED);
+                throw new RakamException(format("filter expression '%s' couldn't parsed", filterExpression), HttpResponseStatus.BAD_REQUEST);
             }
         }
 

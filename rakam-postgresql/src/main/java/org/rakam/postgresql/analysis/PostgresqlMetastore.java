@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -205,7 +205,7 @@ public class PostgresqlMetastore extends AbstractMetastore {
             Runnable task;
             if (currentFields.isEmpty()) {
                 if (!getProjects().contains(project)) {
-                    throw new NotExistsException("project", UNAUTHORIZED);
+                    throw new NotExistsException("project", FORBIDDEN);
                 }
                 String queryEnd = schemaFields.stream()
                         .map(f -> {

@@ -111,8 +111,8 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     if (collection == null) {
                         throw new JsonMappingException("'collection' field must be located before 'properties' field.");
                     } else {
-                        if(project == null) {
-                            project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
+                        if (project == null) {
+                            project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                         }
                         try {
                             properties = parseProperties(project, collection, jp);
@@ -193,13 +193,11 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
                         if (fieldName.equals("_user")) {
                             // the type of magic _user field must be consistent between collections
-                            if(type.isArray() || type.isMap()) {
+                            if (type.isArray() || type.isMap()) {
                                 throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
                             }
                             final FieldType eventUserType = type.isNumeric() && type != FieldType.INTEGER ? FieldType.LONG : FieldType.STRING;
-                            type = configManager.computeConfig(project, USER_TYPE.name(),
-                                    fieldType -> fieldType == null ? eventUserType : fieldType,
-                                    FieldType.class);
+                            type = configManager.setConfigOnce(project, USER_TYPE.name(), eventUserType);
                         }
 
                         SchemaField newField = new SchemaField(fieldName, type);

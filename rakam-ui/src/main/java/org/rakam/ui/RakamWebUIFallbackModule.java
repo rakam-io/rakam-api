@@ -9,7 +9,6 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.ui.customreport.CustomReportMetadata;
 import org.rakam.ui.page.CustomPageDatabase;
-import org.rakam.util.IgnorePermissionCheck;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -42,7 +41,6 @@ public class RakamWebUIFallbackModule extends RakamModule {
     public static class RootAPIInformationService extends HttpService {
         @GET
         @Path("/")
-        @IgnorePermissionCheck
         public void main(RakamHttpRequest request) {
             request.response("Rakam API is successfully installed! \n---------- \n" +
                     "Visit app.rakam.io to register the API with Rakam BI or api.rakam.io for API documentation.")

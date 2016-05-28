@@ -17,7 +17,6 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
@@ -57,14 +56,12 @@ public class UserMailboxHttpService extends HttpService {
             responseContainer = "List",
             authorizations = @Authorization(value = "read_key")
     )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 404, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     public List<Message> getMailbox(@javax.inject.Named("project") String project,
-                             @ApiParam(value = "user", description = "User id") String user,
-                             @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
-                             @ApiParam(value = "limit", description = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
-                             @ApiParam(value = "offset", description = "Message query result offset", required = false) Long offset) {
+                                    @ApiParam(value = "user", description = "User id") String user,
+                                    @ApiParam(value = "parent", description = "Parent message id", required = false) Integer parent,
+                                    @ApiParam(value = "limit", description = "Message query result limit", allowableValues = "range[1,100]", required = false) Integer limit,
+                                    @ApiParam(value = "offset", description = "Message query result offset", required = false) Long offset) {
         return storage.getConversation(project, user, parent, firstNonNull(limit, 100), firstNonNull(offset, 0L));
     }
 
@@ -79,20 +76,19 @@ public class UserMailboxHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @IgnoreApi
-    @IgnorePermissionCheck
     public void listenMails(RakamHttpRequest request) {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
         List<String> project = request.params().get("project");
-        if(project == null || project.isEmpty()) {
+        if (project == null || project.isEmpty()) {
             response.send("result", encode(HttpServer.errorMessage("project query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
 
         List<String> api_key = request.params().get("api_key");
-        if(api_key == null || api_key.isEmpty() || !apiKeyService.checkPermission(project.get(0), org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY, api_key.get(0))) {
-            response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.UNAUTHORIZED.reasonPhrase(),
-                    HttpResponseStatus.UNAUTHORIZED))).end();
+        if (api_key == null || api_key.isEmpty() || !apiKeyService.checkPermission(project.get(0), org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY, api_key.get(0))) {
+            response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.FORBIDDEN.reasonPhrase(),
+                    HttpResponseStatus.FORBIDDEN))).end();
             return;
         }
 
@@ -107,9 +103,7 @@ public class UserMailboxHttpService extends HttpService {
             notes = "Marks the specified mails as read.",
             authorizations = @Authorization(value = "write_key")
     )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 404, message = "Message does not exist."),
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "Message does not exist."),
             @ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/mark_as_read")
     public JsonResponse markAsRead(
@@ -126,15 +120,13 @@ public class UserMailboxHttpService extends HttpService {
     @ApiOperation(value = "Get connected users",
             authorizations = @Authorization(value = "read_key")
     )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     public CompletableFuture<Collection<Map<String, Object>>> getConnectedUsers(@javax.inject.Named("project") String project) {
         Collection<Object> connectedUsers = webSocketService.getConnectedUsers(project);
         return CompletableFuture.completedFuture(connectedUsers.stream()
                 .map(id -> ImmutableMap.of(config.getIdentifierColumn(), id))
                 .collect(Collectors.toList()));
     }
-
 
 
 }

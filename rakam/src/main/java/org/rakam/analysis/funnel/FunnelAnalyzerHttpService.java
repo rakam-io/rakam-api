@@ -26,7 +26,6 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.IgnorePermissionCheck;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -62,7 +61,6 @@ public class FunnelAnalyzerHttpService extends HttpService {
 
     @GET
     @IgnoreApi
-    @IgnorePermissionCheck
     @Path("/analyze")
     public void analyzeFunnel(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) ->

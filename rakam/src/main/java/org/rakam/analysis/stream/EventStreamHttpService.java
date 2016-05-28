@@ -4,7 +4,6 @@ import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -21,7 +20,6 @@ import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
@@ -58,10 +56,8 @@ public class EventStreamHttpService extends HttpService {
             produces = "text/event-stream",
             authorizations = @Authorization(value = "read_key"),
             notes = "Subscribes the event stream.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/subscribe")
-    @IgnorePermissionCheck
     @IgnoreApi
     public void subscribe(RakamHttpRequest request) {
         if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
@@ -87,7 +83,7 @@ public class EventStreamHttpService extends HttpService {
         List<String> api_key = request.params().get("api_key");
 
         if (api_key == null || api_key.isEmpty()) {
-            response.send("result", HttpResponseStatus.UNAUTHORIZED.reasonPhrase()).end();
+            response.send("result", HttpResponseStatus.FORBIDDEN.reasonPhrase()).end();
             return;
         }
 
@@ -100,8 +96,8 @@ public class EventStreamHttpService extends HttpService {
                 try {
                     expression = collection.filter == null ? null : sqlParser.createExpression(collection.filter);
                 } catch (ParsingException e) {
-                    ObjectNode obj = errorMessage(format("Couldn't parse %s: %s", collection.filter, e.getErrorMessage()), HttpResponseStatus.BAD_REQUEST);
-                    request.response(encode(obj)).end();
+                    request.response(encode(errorMessage(format("Couldn't parse %s: %s",
+                            collection.filter, e.getErrorMessage()), HttpResponseStatus.BAD_REQUEST))).end();
                     throw e;
                 }
                 return new CollectionStreamQuery(collection.name,

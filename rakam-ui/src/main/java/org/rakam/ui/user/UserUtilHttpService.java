@@ -33,7 +33,6 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.IgnoreApi;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -49,7 +48,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.lang.String.format;
 
@@ -86,7 +86,6 @@ public class UserUtilHttpService extends HttpService {
 
     @GET
     @Path("/export")
-    @IgnorePermissionCheck
     public void export(RakamHttpRequest request) {
         final Map<String, List<String>> params = request.params();
         final List<String> query = params.get("query");

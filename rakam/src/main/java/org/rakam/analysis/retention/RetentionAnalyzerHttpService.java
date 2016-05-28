@@ -28,7 +28,6 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.IgnorePermissionCheck;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -58,7 +57,6 @@ public class RetentionAnalyzerHttpService extends HttpService {
     )
     @GET
     @IgnoreApi
-    @IgnorePermissionCheck
     @Path("/analyze")
     public void analyzeRetention(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, RetentionQuery.class, (project, query) ->

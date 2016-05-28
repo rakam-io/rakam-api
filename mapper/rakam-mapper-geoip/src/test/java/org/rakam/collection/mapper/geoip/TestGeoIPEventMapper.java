@@ -51,7 +51,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address, null);
 
         assertTrue(resp == null);
 
@@ -74,7 +74,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address, null);
 
         assertTrue(resp == null);
 
@@ -100,7 +100,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address);
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address, null);
 
         assertTrue(resp == null);
 
@@ -132,7 +132,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getLocalHost());
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getLocalHost(), null);
 
         assertTrue(resp == null);
         for (SchemaField schemaField : ip) {
@@ -159,7 +159,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getByName("8.8.8.8"));
+        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getByName("8.8.8.8"), null);
 
         assertTrue(resp == null);
         for (SchemaField schemaField : ip) {

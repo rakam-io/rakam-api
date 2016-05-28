@@ -51,8 +51,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
     @JsonRequest
     @ApiOperation(value = "Apply batch operation", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/batch")
     public CompletableFuture<Long> batch(@Named("project") String project,
                                          @ApiParam(value = "filter", required = false) String filter,
@@ -151,8 +150,7 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
 
     @JsonRequest
     @ApiOperation(value = "Perform action for single user", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/single")
     public CompletableFuture<Boolean> send(@Named("project") String project,
                                            @ApiParam("user") String userId,

@@ -74,8 +74,7 @@ public class IdGeneratorImpl  {
 
     private static long getHostId() throws IllegalStateException {
         try {
-            InetAddress address = getHostAddress();
-            NetworkInterface iface = NetworkInterface.getByInetAddress(address);
+            NetworkInterface iface = NetworkInterface.getByInetAddress(getHostAddress());
             byte[] mac = iface.getHardwareAddress();
             return ((0x000000FF & (long) mac[mac.length - 1]) | (0x0000FF00 & (((long) mac[mac.length - 2]) << 8))) >> 6;
         } catch (IOException e) {

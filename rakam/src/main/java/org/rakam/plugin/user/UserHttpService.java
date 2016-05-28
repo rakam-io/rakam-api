@@ -25,7 +25,6 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.AllowCookie;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
@@ -87,20 +86,17 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Create new user")
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/create")
-    @IgnorePermissionCheck
     public Object createUser(@BodyParam User user) {
-        String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.writeKey : null, WRITE_KEY);
+        String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.apiKey : null, WRITE_KEY);
 
         return service.create(project, user.id, user.properties);
     }
 
     @JsonRequest
     @ApiOperation(value = "Create new users", authorizations = @Authorization(value = "write_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/batch/create")
     public List<Object> createUsers(@Named("project") String project, @ApiParam("users") List<User> users) {
         try {
@@ -112,8 +108,7 @@ public class UserHttpService extends HttpService {
 
     @GET
     @ApiOperation(value = "Get user storage metadata", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/metadata")
     public MetadataResponse getMetadata(@Named("project") String project) {
         return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
@@ -131,8 +126,7 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Search users", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/search")
     public CompletableFuture<QueryResult> searchUsers(@Named("project") String project,
                                                       @ApiParam(value = "columns", required = false) List<String> columns,
@@ -163,9 +157,7 @@ public class UserHttpService extends HttpService {
     @POST
     @JsonRequest
     @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/get_events")
     public CompletableFuture<List<CollectionEvent>> getEvents(@Named("project") String project,
                                                               @ApiParam("user") String user,
@@ -177,9 +169,7 @@ public class UserHttpService extends HttpService {
     @POST
     @JsonRequest
     @ApiOperation(value = "Get events of the user", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/create_segment")
     public JsonResponse createSegment(@Named("project") String project,
                                       @ApiParam("name") String name,
@@ -205,9 +195,7 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Get user", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/get")
     public CompletableFuture<org.rakam.plugin.user.User> getUser(@Named("project") String project,
                                                                  @ApiParam("user") Object user) {
@@ -216,9 +204,7 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Merge user with anonymous id", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = { @ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/merge")
     @AllowCookie
     public boolean mergeUser(@Named("project") String project,
@@ -236,11 +222,8 @@ public class UserHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Set user properties", request = User.class, response = Integer.class)
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = { @ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/set_properties")
-    @IgnorePermissionCheck
     @POST
     public void setProperties(RakamHttpRequest request) {
         request.bodyHandler(s -> {
@@ -252,7 +235,7 @@ public class UserHttpService extends HttpService {
                 return;
             }
 
-            String project = apiKeyService.getProjectOfApiKey(req.api.writeKey, WRITE_KEY);
+            String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
 
             if (!mapProperties(project, req, request)) {
                 return;
@@ -281,11 +264,8 @@ public class UserHttpService extends HttpService {
     }
 
     @JsonRequest
-    @IgnorePermissionCheck
     @ApiOperation(value = "Set user properties once", request = User.class, response = Integer.class)
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/set_properties_once")
     public void setPropertiesOnce(RakamHttpRequest request) {
         request.bodyHandler(s -> {
@@ -297,7 +277,7 @@ public class UserHttpService extends HttpService {
                 return;
             }
 
-            String project = apiKeyService.getProjectOfApiKey(req.api.writeKey, WRITE_KEY);
+            String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
 
             if (!mapProperties(project, req, request)) {
                 return;
@@ -311,17 +291,14 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Set user property", authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/increment_property")
-    @IgnorePermissionCheck
     @AllowCookie
     public JsonResponse incrementProperty(@ApiParam("api") User.UserContext api,
                                           @ApiParam("id") String user,
                                           @ApiParam("property") String property,
                                           @ApiParam("value") double value) {
-        String project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
+        String project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
         service.incrementProperty(project, user, property, value);
         return JsonResponse.success();
     }
@@ -340,15 +317,13 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Unset user property")
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/unset_properties")
     @AllowCookie
     public JsonResponse unsetProperty(@ApiParam("api") User.UserContext api,
                                       @ApiParam("id") Object id,
                                       @ApiParam("properties") List<String> properties) {
-        String project = apiKeyService.getProjectOfApiKey(api.writeKey, WRITE_KEY);
+        String project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
         service.unsetProperties(project, id, properties);
         return JsonResponse.success();
     }

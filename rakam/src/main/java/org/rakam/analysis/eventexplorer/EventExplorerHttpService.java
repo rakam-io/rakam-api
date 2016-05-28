@@ -33,7 +33,6 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -188,9 +187,9 @@ public class EventExplorerHttpService extends HttpService {
             produces = "text/event-stream",
             authorizations = @Authorization(value = "read_key")
     )
+
     @GET
     @IgnoreApi
-    @IgnorePermissionCheck
     @Path("/analyze")
     public void analyzeEvents(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {

@@ -5,11 +5,11 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import org.rakam.config.EncryptionConfig;
-import org.rakam.plugin.user.UserActionService;
-import org.rakam.util.ConditionalModule;
-import org.rakam.plugin.EventProcessor;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.user.UserActionService;
 import org.rakam.server.http.HttpService;
+import org.rakam.util.ConditionalModule;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
@@ -19,7 +19,7 @@ public class AutomationModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         configBinder(binder).bindConfig(EncryptionConfig.class);
-        Multibinder<EventProcessor> eventProcessors = Multibinder.newSetBinder(binder, EventProcessor.class);
+        Multibinder<EventMapper> eventProcessors = Multibinder.newSetBinder(binder, EventMapper.class);
         eventProcessors.addBinding().to(AutomationEventProcessor.class);
         Multibinder.newSetBinder(binder, UserActionService.class);
 

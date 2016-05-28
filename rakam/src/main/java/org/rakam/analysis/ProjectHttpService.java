@@ -18,7 +18,6 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.CryptUtil;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
@@ -100,7 +99,6 @@ public class ProjectHttpService extends HttpService {
 
     @ApiOperation(value = "Get project stats")
     @JsonRequest
-    @IgnorePermissionCheck
     @Path("/stats")
     public Map<String, Metastore.Stats> getStats(@BodyParam List<String> apiKeys) {
 
@@ -148,8 +146,7 @@ public class ProjectHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Add fields to collections",
             authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/schema/add")
     public List<SchemaField> addFieldsToSchema(@Named("project") String project,
                                                @ApiParam("collection") String collection,
@@ -160,8 +157,7 @@ public class ProjectHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Add fields to collections by transforming other schemas",
             authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/schema/add/custom")
     public List<SchemaField> addCustomFieldsToSchema(@Named("project") String project,
                                                      @ApiParam("collection") String collection,
@@ -173,8 +169,7 @@ public class ProjectHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Get collection schema",
             authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/schema")
     public List<Collection> schema(@Named("project") String project,
                                    @ApiParam(value = "names", required = false) Set<String> names) {
@@ -187,8 +182,7 @@ public class ProjectHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Create API Keys",
             authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/create-api-keys")
     public ProjectApiKeys createApiKeys(@Named("project") String project) {
         return transformKeys(apiKeyService.createApiKeys(project));
@@ -208,8 +202,7 @@ public class ProjectHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Get collection names",
             authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/collection")
     public Set<String> collections(@Named("project") String project) {
         return metastore.getCollectionNames(project);
@@ -218,8 +211,7 @@ public class ProjectHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Revoke API Keys",
             authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/revoke-api-keys")
     public JsonResponse revokeApiKeys(@Named("project") String project, @HeaderParam("api_key") String masterKey) {
         apiKeyService.revokeApiKeys(project, masterKey);

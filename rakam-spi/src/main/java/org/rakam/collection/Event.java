@@ -106,17 +106,28 @@ public class Event {
     }
 
     public static class EventContext {
-        public final String writeKey;
+        public final String apiKey;
         public final String apiVersion;
         public final Long uploadTime;
         public final String checksum;
 
         @JsonCreator
-        public EventContext(@ApiParam("writeKey") String writeKey,
+        public EventContext(@ApiParam(value = "apiKey", access = "internal") String apiKey,
+                            @ApiParam("writeKey") String writeKey,
                             @ApiParam("apiVersion") String apiVersion,
                             @ApiParam("uploadTime") Long uploadTime,
                             @ApiParam("checksum") String checksum) {
-            this.writeKey = writeKey;
+            this.apiKey = apiKey != null ? apiKey : writeKey;
+            this.apiVersion = apiVersion;
+            this.uploadTime = uploadTime;
+            this.checksum = checksum;
+        }
+
+        public EventContext(String apiKey,
+                            String apiVersion,
+                            Long uploadTime,
+                            String checksum) {
+            this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.uploadTime = uploadTime;
             this.checksum = checksum;
@@ -125,7 +136,7 @@ public class Event {
         @Override
         public String toString() {
             return "EventContext{" +
-                    "writeKey='" + writeKey + '\'' +
+                    "apiKey='" + apiKey + '\'' +
                     ", apiVersion='" + apiVersion + '\'' +
                     ", uploadTime=" + uploadTime +
                     ", checksum='" + checksum + '\'' +
@@ -139,7 +150,7 @@ public class Event {
 
             EventContext context = (EventContext) o;
 
-            if (writeKey != null ? !writeKey.equals(context.writeKey) : context.writeKey != null) return false;
+            if (apiKey != null ? !apiKey.equals(context.apiKey) : context.apiKey != null) return false;
             if (apiVersion != null ? !apiVersion.equals(context.apiVersion) : context.apiVersion != null) return false;
             if (uploadTime != null ? !uploadTime.equals(context.uploadTime) : context.uploadTime != null) return false;
             return !(checksum != null ? !checksum.equals(context.checksum) : context.checksum != null);
@@ -148,7 +159,7 @@ public class Event {
 
         @Override
         public int hashCode() {
-            int result = writeKey != null ? writeKey.hashCode() : 0;
+            int result = apiKey != null ? apiKey.hashCode() : 0;
             result = 31 * result + (apiVersion != null ? apiVersion.hashCode() : 0);
             result = 31 * result + (uploadTime != null ? uploadTime.hashCode() : 0);
             result = 31 * result + (checksum != null ? checksum.hashCode() : 0);

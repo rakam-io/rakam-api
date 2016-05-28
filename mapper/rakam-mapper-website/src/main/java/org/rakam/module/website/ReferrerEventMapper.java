@@ -75,7 +75,7 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         Object referrer = event.properties().get("_referrer");
         Object host = event.properties().get("_host");
         mapInternal(extraProperties, referrer, host, event.properties());

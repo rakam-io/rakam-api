@@ -15,7 +15,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 
 import javax.activation.MimetypesFileTypeMap;
@@ -65,14 +64,12 @@ public class RakamUIWebService extends HttpService {
 
     @Path("/favicon.ico")
     @GET
-    @IgnorePermissionCheck
     public void favicon(RakamHttpRequest request) {
         sendFile(request, new File(directory.getPath(), "favicon.ico"));
     }
 
     @Path("/check-sentry")
     @GET
-    @IgnorePermissionCheck
     public void checkSentry(RakamHttpRequest request) {
         LogManager manager = LogManager.getLogManager();
         String canonicalName = SentryHandler.class.getCanonicalName();
@@ -170,7 +167,6 @@ public class RakamUIWebService extends HttpService {
 
     @Path("/*")
     @GET
-    @IgnorePermissionCheck
     public void main(RakamHttpRequest request) {
         if (!request.getDecoderResult().isSuccess()) {
             sendError(request, BAD_REQUEST);

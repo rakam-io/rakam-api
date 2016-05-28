@@ -86,7 +86,8 @@ public class PrestoQueryExecution implements QueryExecution {
         try {
             client = new StatementClient(HTTP_CLIENT, QUERY_RESULTS_JSON_CODEC, session, query);
         } catch (RuntimeException e) {
-            throw new RakamException("Presto server is not active: "+e.getMessage(), HttpResponseStatus.BAD_GATEWAY);
+            LOGGER.warn(e, "Presto server is not active.");
+            throw new RakamException("Presto server is not active.", HttpResponseStatus.BAD_GATEWAY);
         }
         QUERY_EXECUTOR.execute(new QueryTracker());
     }

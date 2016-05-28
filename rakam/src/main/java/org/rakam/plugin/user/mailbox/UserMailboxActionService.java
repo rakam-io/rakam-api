@@ -48,8 +48,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
 
     @JsonRequest
     @ApiOperation(value = "Apply batch operation", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/batch")
     public CompletableFuture<Long> batchSendMessages(@Named("project") String project,
                                                      @ApiParam(value = "filter", required = false) String filter,
@@ -139,9 +138,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
             notes = "Sends a mail to users mailbox",
             authorizations = @Authorization(value = "write_key")
     )
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 404, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     public Message sendMail(@Named("project") String project,
                         @ApiParam("from_user") String fromUser,
                         @ApiParam("to_user") String toUser,

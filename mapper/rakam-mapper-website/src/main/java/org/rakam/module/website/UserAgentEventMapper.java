@@ -44,7 +44,7 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress) {
+    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         GenericRecord properties = event.properties();
         mapInternal(extraProperties, properties, properties.get("_user_agent"));
         return null;

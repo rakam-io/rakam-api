@@ -8,7 +8,7 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-@JsonPropertyOrder({"project", "api", "events"})
+@JsonPropertyOrder({"api", "events"})
 public class EventList {
     public final Event.EventContext api;
     public final String project;
@@ -16,8 +16,15 @@ public class EventList {
 
     @JsonCreator
     public EventList(@ApiParam("api") Event.EventContext api,
-                     @ApiParam("project") String project,
                      @ApiParam("events") List<Event> events) {
+        this.events = checkNotNull(events, "events parameter is null");
+        this.api = checkNotNull(api, "api is null");
+        this.project = null;
+    }
+
+    public EventList(Event.EventContext api,
+                     String project,
+                     List<Event> events) {
         this.project = checkNotNull(project, "project parameter is null");
         this.events = checkNotNull(events, "events parameter is null");
         this.api = checkNotNull(api, "api is null");

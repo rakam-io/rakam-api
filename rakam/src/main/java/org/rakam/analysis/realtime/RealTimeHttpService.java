@@ -111,8 +111,7 @@ public class RealTimeHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "List queries", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/list")
     public List<ContinuousQuery> listTables(@javax.inject.Named("project") String project) {
         return service.list(project).stream()
@@ -123,9 +122,7 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @POST
     @ApiOperation(value = "Get report", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist."),
-            @ApiResponse(code = 400, message = "Report does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
     public CompletableFuture<RealTimeQueryResult> queryTable(@javax.inject.Named("project") String project,
                                                       @ApiParam("table_name") String tableName,

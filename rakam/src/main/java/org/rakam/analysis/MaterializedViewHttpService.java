@@ -10,7 +10,6 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
@@ -39,8 +38,7 @@ public class MaterializedViewHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "List views", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/list")
     public List<MaterializedView> listViews(@javax.inject.Named("project") String project) {
         return service.list(project);
@@ -48,8 +46,7 @@ public class MaterializedViewHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Get schemas", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/schema")
     public List<MaterializedViewSchema> getSchemaOfView(@javax.inject.Named("project") String project,
                                                                   @ApiParam(value = "names", required = false) List<String> tableNames) {
@@ -83,8 +80,7 @@ public class MaterializedViewHttpService extends HttpService {
      */
     @JsonRequest
     @ApiOperation(value = "Create view", authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/create")
     public CompletableFuture<JsonResponse> createView(@javax.inject.Named("project") String project, @BodyParam MaterializedView query) {
         return service.create(project, query).thenApply(res -> JsonResponse.success());
@@ -92,8 +88,7 @@ public class MaterializedViewHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Delete materialized view", authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/delete")
     public CompletableFuture<JsonResponse> deleteView(@javax.inject.Named("project") String project,
                                                   @ApiParam("table_name") String name) {
@@ -112,8 +107,7 @@ public class MaterializedViewHttpService extends HttpService {
     @GET
     @Path("/update")
     @ApiOperation(value = "Update view", authorizations = @Authorization(value = "master_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     public void update(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
                 (project, query) -> {
@@ -136,8 +130,7 @@ public class MaterializedViewHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Get view", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Project does not exist.")})
+
     @Path("/get")
     public MaterializedView getView(@javax.inject.Named("project") String project,
                                 @ApiParam("table_name") String tableName) {

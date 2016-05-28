@@ -37,7 +37,6 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.RakamUIModule;
 import org.rakam.ui.page.CustomPageDatabase;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 
@@ -72,7 +71,6 @@ public class CustomPageHttpService extends HttpService {
 
     @Path("/frame")
     @GET
-    @IgnorePermissionCheck
     public void frame(RakamHttpRequest request) {
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
         String data = "<!DOCTYPE html> \n" +
@@ -145,7 +143,6 @@ public class CustomPageHttpService extends HttpService {
     @Path("/check")
     @ApiOperation(value = "Check feature exists", authorizations = @Authorization(value = "read_key"))
     @GET
-    @IgnorePermissionCheck
     public boolean check() {
         return !database.isPresent();
     }
@@ -162,7 +159,6 @@ public class CustomPageHttpService extends HttpService {
     }
 
     @Path("/display/*")
-    @IgnorePermissionCheck
     @GET
     public void display(RakamHttpRequest request) {
         if (!database.isPresent()) {

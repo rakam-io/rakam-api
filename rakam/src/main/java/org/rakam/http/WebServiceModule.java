@@ -13,10 +13,12 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Contact;
 import io.swagger.models.Info;
 import io.swagger.models.License;
+import io.swagger.models.Response;
 import io.swagger.models.Swagger;
 import io.swagger.models.Tag;
 import io.swagger.models.auth.ApiKeyAuthDefinition;
 import io.swagger.models.auth.In;
+import io.swagger.models.properties.RefProperty;
 import io.swagger.util.PrimitiveType;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.ServiceStarter;
@@ -34,7 +36,6 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.util.AllowCookie;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
@@ -102,6 +103,14 @@ public class WebServiceModule extends AbstractModule {
                 .setWebsockerServices(webSocketServices)
                 .setSwagger(swagger)
                 .setEventLoopGroup(eventExecutors)
+                .setSwaggerOperationProcessor((method, operation) -> {
+                    ApiOperation annotation = method.getAnnotation(ApiOperation.class);
+                    if (annotation != null && annotation.authorizations() != null && annotation.authorizations().length > 0) {
+                        operation.response(FORBIDDEN.code(), new Response()
+                                .schema(new RefProperty("ErrorMessage"))
+                                .description("Api key is invalid"));
+                    }
+                })
                 .setMapper(JsonHelper.getMapper())
                 .setDebugMode(config.getDebug())
                 .setProxyProtocol(config.getProxyProtocol())
@@ -135,34 +144,6 @@ public class WebServiceModule extends AbstractModule {
         binder().bind(HttpServer.class).toInstance(build);
     }
 
-    public static boolean test(Method method, org.rakam.analysis.ApiKeyService.AccessKeyType key) {
-        if (method.isAnnotationPresent(IgnorePermissionCheck.class)) {
-            return false;
-        }
-        final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
-        Authorization[] authorizations = annotation == null ?
-                new Authorization[0] :
-                Arrays.stream(annotation.authorizations()).filter(auth -> !auth.value().equals("")).toArray(value -> new Authorization[value]);
-
-        if (authorizations.length == 0) {
-            throw new IllegalStateException(method.toGenericString() + ": The permission check component requires endpoints to have authorizations definition in @ApiOperation. " +
-                    "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
-        }
-
-        if (annotation != null && !annotation.consumes().isEmpty() && !annotation.consumes().equals("application/json")) {
-            throw new IllegalStateException("The permission check component requires endpoint to consume application/json. " +
-                    "Use @IgnorePermissionCheck to bypass security check in method " + method.toString());
-        }
-        Api clazzOperation = method.getDeclaringClass().getAnnotation(Api.class);
-        if (authorizations.length == 0 && (clazzOperation == null || clazzOperation.authorizations().length == 0)) {
-            throw new IllegalArgumentException(String.format("Authorization for method %s is not defined. " +
-                    "You must use @IgnorePermissionCheck if the endpoint doesn't need permission check", method.toString()));
-        }
-
-        return Arrays.stream(authorizations).anyMatch(a -> key.getKey().equals(a.value())) ||
-                (clazzOperation != null && Arrays.stream(clazzOperation.authorizations()).anyMatch(a -> key.getKey().equals(a.value())));
-    }
-
     public static class ProjectPermissionParameterFactory implements IRequestParameterFactory {
 
         private final ApiKeyService service;
@@ -183,9 +164,6 @@ public class WebServiceModule extends AbstractModule {
         private final ApiKeyService apiKeyService;
 
         public ProjectPermissionIRequestParameter(ApiKeyService apiKeyService, Method method) {
-            if (method.isAnnotationPresent(IgnorePermissionCheck.class)) {
-                throw new IllegalArgumentException("project named parameter cannot be applied if method has @IgnorePermissionCheck annotation");
-            }
             final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
             Authorization[] authorizations = annotation == null ?
                     new Authorization[0] :

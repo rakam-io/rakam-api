@@ -70,7 +70,7 @@ public class InMemoryMetastore extends AbstractMetastore {
     public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
         Map<String, List<SchemaField>> list = collections.get(project);
         if(list == null) {
-            throw new NotExistsException("project", HttpResponseStatus.UNAUTHORIZED);
+            throw new NotExistsException("project", HttpResponseStatus.BAD_REQUEST);
         }
         List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<>());
         fields.stream()

@@ -1,7 +1,6 @@
 package org.rakam.plugin.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.Map;
@@ -22,13 +21,17 @@ public class User {
     }
 
     public static class UserContext {
+        public final String apiLibrary;
         public final String apiVersion;
-        public final String writeKey;
+        public final String apiKey;
 
         @JsonCreator
-        public UserContext(@JsonProperty("writeKey") String writeKey,
-                           @JsonProperty("apiVersion") String apiVersion) {
-            this.writeKey = writeKey;
+        public UserContext(@ApiParam(value = "writeKey", access = "internal") String writeKey,
+                           @ApiParam("apiKey") String apiKey,
+                           @ApiParam("apiLibrary") String apiLibrary,
+                           @ApiParam("apiVersion") String apiVersion) {
+            this.apiLibrary = apiLibrary;
+            this.apiKey = apiKey != null ? apiKey : writeKey;
             this.apiVersion = apiVersion;
         }
     }

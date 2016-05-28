@@ -119,7 +119,7 @@ public class PrestoMetastore extends AbstractMetastore {
             List<SchemaField> currentFields = new ArrayList<>();
 
             if (!getProjects().contains(project)) {
-                throw new NotExistsException("project", UNAUTHORIZED);
+                throw new NotExistsException("project", BAD_REQUEST);
             }
             String queryEnd = fields.stream()
                     .map(f -> {

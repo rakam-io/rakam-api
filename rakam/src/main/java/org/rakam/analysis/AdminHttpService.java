@@ -12,7 +12,6 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
@@ -70,7 +69,6 @@ public class AdminHttpService extends HttpService {
     @ApiOperation(value = "List installed modules for ui",
             authorizations = @Authorization(value = "master_key")
     )
-    @IgnorePermissionCheck
     public ActiveModuleList modules() {
         return activeModules;
     }

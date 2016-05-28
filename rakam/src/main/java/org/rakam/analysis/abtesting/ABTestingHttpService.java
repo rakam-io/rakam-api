@@ -7,10 +7,9 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.util.IgnorePermissionCheck;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 
@@ -22,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 
 @Path("/ab-testing")
 @Api(value = "/ab-testing", nickname = "abTesting", description = "A/B Testing module", tags = {"ab-testing"})
@@ -55,7 +54,6 @@ public class ABTestingHttpService extends HttpService {
     @Path("/list")
     @GET
     @IgnoreApi
-    @IgnorePermissionCheck
     public void data(RakamHttpRequest request) {
         Map<String, List<String>> params = request.params();
         List<String> project = params.get("project");
@@ -72,7 +70,7 @@ public class ABTestingHttpService extends HttpService {
         // since this endpoint is created for clients to read the ab-testing rule,
         // the permission is WRITE_KEY
         if(!apiKeyService.checkPermission(project.get(0), ApiKeyService.AccessKeyType.WRITE_KEY, api_key.get(0))) {
-            request.response("\"unauthorized\"", UNAUTHORIZED).end();
+            request.response("\"Unauthorized\"", FORBIDDEN).end();
             return;
         }
 

@@ -133,9 +133,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
             if (!existingField.isPresent()) {
                 FieldType type = STRING;
                 if (name.equals("_user")) {
-                    type = configManager.computeConfig(project, USER_TYPE.name(),
-                            fieldType -> fieldType == null ? STRING : fieldType,
-                            FieldType.class);
+                    type = configManager.setConfigOnce(project, USER_TYPE.name(), STRING);
                 }
                 newFields.add(new SchemaField(name, type));
             }

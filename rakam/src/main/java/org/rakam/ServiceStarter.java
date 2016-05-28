@@ -42,7 +42,6 @@ import org.rakam.http.HttpServerConfig;
 import org.rakam.http.WebServiceModule;
 import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.EventProcessor;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.AbstractUserService;
@@ -168,7 +167,6 @@ public final class ServiceStarter {
             tags.addBinding().toInstance(new Tag().name("continuous-query").description("Continuous query").externalDocs(MetadataConfig.centralDocs));
 
             // Register these interfaces to MultiBinder
-            Multibinder.newSetBinder(binder, EventProcessor.class);
             Multibinder.newSetBinder(binder, EventMapper.class);
 
             Multibinder.newSetBinder(binder, RequestPreProcessorItem.class);

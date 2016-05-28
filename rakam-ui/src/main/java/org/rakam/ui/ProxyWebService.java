@@ -36,7 +36,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.parser.Parser;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.util.IgnorePermissionCheck;
 
 import javax.annotation.PostConstruct;
 import javax.net.ssl.SSLException;
@@ -98,7 +97,6 @@ public class ProxyWebService extends HttpService {
 
     @Path("/")
     @GET
-    @IgnorePermissionCheck
     public void proxy(RakamHttpRequest request) throws InterruptedException {
         URI url = UriBuilder.fromUri(request.params().get("u").get(0)).build();
 
