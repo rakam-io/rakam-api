@@ -53,7 +53,7 @@ public class PostgresqlUserMailboxStorage implements UserMailboxStorage {
         userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Boolean>() {
             @Override
             public Boolean load(String key) throws Exception {
-                return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class).map(e -> e == FieldType.STRING).orElse(false);
+                return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class) == FieldType.STRING;
             }
         });
     }

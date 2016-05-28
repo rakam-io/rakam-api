@@ -62,16 +62,16 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public abstract class AbstractPostgresqlUserStorage implements UserStorage {
     private final PostgresqlQueryExecutor queryExecutor;
     private final Cache<String, Map<String, FieldType>> propertyCache;
-    private final LoadingCache<String, Optional<FieldType>> userTypeCache;
+    private final LoadingCache<String, FieldType> userTypeCache;
     private final ConfigManager configManager;
 
     public AbstractPostgresqlUserStorage(PostgresqlQueryExecutor queryExecutor, ConfigManager configManager) {
         this.queryExecutor = queryExecutor;
         propertyCache = CacheBuilder.newBuilder().build();
         this.configManager = configManager;
-        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Optional<FieldType>>() {
+        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>() {
             @Override
-            public Optional<FieldType> load(String key) throws Exception {
+            public FieldType load(String key) throws Exception {
                 return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class);
             }
         });
@@ -131,7 +131,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
 
         try (Connection conn = queryExecutor.getConnection()) {
             if (id == null) {
-                FieldType unchecked = userTypeCache.getUnchecked(project).orElse(null);
+                FieldType unchecked = userTypeCache.getUnchecked(project);
                 if (unchecked == null) {
                     unchecked = configManager.setConfigOnce(project,
                             InternalConfig.USER_TYPE.name(), FieldType.STRING);
@@ -348,7 +348,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 if (retry) {
                     userTypeCache.refresh(project);
                     createProjectIfNotExists(project,
-                            userTypeCache.getUnchecked(project).orElse(FieldType.STRING).isNumeric());
+                            Optional.ofNullable(userTypeCache.getUnchecked(project)).orElse(FieldType.STRING).isNumeric());
                     createColumnInternal(project, column, value, false);
                     return;
                 }
@@ -473,15 +473,11 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
             try (Connection conn = queryExecutor.getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", getUserTable(project, false), PRIMARY_KEY));
 
-                Optional<FieldType> unchecked = userTypeCache.getUnchecked(project);
+                FieldType unchecked = userTypeCache.getUnchecked(project);
 
-                if (!unchecked.isPresent()) {
-                    return null;
-                }
-
-                if (!unchecked.get().isNumeric()) {
+                if (unchecked == null || !unchecked.isNumeric()) {
                     ps.setString(1, userId.toString());
-                } else if (unchecked.get() == FieldType.LONG) {
+                } else if (unchecked == FieldType.LONG) {
                     long x;
                     try {
                         x = Long.parseLong(userId.toString());
@@ -490,7 +486,7 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                     }
 
                     ps.setLong(1, x);
-                } else if (unchecked.get() == FieldType.INTEGER) {
+                } else if (unchecked == FieldType.INTEGER) {
                     int x;
                     try {
                         x = Integer.parseInt(userId.toString());
@@ -580,8 +576,8 @@ public abstract class AbstractPostgresqlUserStorage implements UserStorage {
                 }
                 statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
             }
-            FieldType fieldType = userTypeCache.getUnchecked(project).orElse(FieldType.STRING);
-            if(fieldType == FieldType.STRING) {
+            FieldType fieldType = userTypeCache.getUnchecked(project);
+            if(fieldType == null || fieldType == FieldType.STRING) {
                 statement.setString(i++, userId.toString());
             } else
             if(fieldType == FieldType.INTEGER) {
