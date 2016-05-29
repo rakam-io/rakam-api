@@ -1,4 +1,4 @@
-package org.rakam.ui.user;
+package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
@@ -25,8 +25,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.user.AbstractUserService;
-import org.rakam.plugin.user.UserStorage;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
@@ -54,7 +52,7 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 
-@Path("/ui/user")
+@Path("/user/export")
 @IgnoreApi
 public class UserUtilHttpService extends HttpService {
     private final SqlParser sqlParser = new SqlParser();
@@ -86,7 +84,7 @@ public class UserUtilHttpService extends HttpService {
     }
 
     @GET
-    @Path("/export")
+    @Path("/")
     public void export(RakamHttpRequest request) {
         final Map<String, List<String>> params = request.params();
         final List<String> query = params.get("query");

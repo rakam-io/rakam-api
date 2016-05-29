@@ -74,6 +74,7 @@ public class UserModule extends RakamModule {
         }
 
         if (userPluginConfig.getStorageModule() != null) {
+            httpServices.addBinding().to(UserUtilHttpService.class);
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
         }
 

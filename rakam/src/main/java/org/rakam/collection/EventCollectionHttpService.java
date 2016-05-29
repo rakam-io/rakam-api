@@ -20,7 +20,6 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.ApiKeyService.AccessKeyType;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
@@ -74,7 +73,6 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
-import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
@@ -152,9 +150,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(value = "Collect event", response = Integer.class, request = Event.class,
-            authorizations = @Authorization(value = "write_key")
-    )
+    @ApiOperation(value = "Collect event", response = Integer.class, request = Event.class)
     @Path("/collect")
     public void collectEvent(RakamHttpRequest request) {
         String socketAddress = request.getRemoteAddress();
@@ -234,9 +230,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class,
-            authorizations = @Authorization(value = "master_key")
-    )
+    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)})
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request) {
@@ -284,7 +278,7 @@ public class EventCollectionHttpService extends HttpService {
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
                             Unpooled.wrappedBuffer(OK_MESSAGE),
                             responseHeaders);
-                }, MASTER_KEY);
+                });
     }
 
     public static class BulkEventRemote {
@@ -303,9 +297,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class,
-            authorizations = @Authorization(value = "master_key")
-    )
+    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)})
     @Path("/bulk/remote")
     public void bulkEventsRemote(RakamHttpRequest request) throws IOException {
@@ -351,7 +343,7 @@ public class EventCollectionHttpService extends HttpService {
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
                             Unpooled.wrappedBuffer(OK_MESSAGE),
                             responseHeaders);
-                }, MASTER_KEY);
+                });
     }
 
     private String getParam(Map<String, List<String>> params, String param) {
@@ -428,9 +420,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(notes = "Returns 1 if the events are collected.",value = "Collect multiple events", request = EventList.class, response = Integer.class,
-            authorizations = @Authorization(value = "write_key")
-    )
+    @ApiOperation(notes = "Returns 1 if the events are collected.",value = "Collect multiple events", request = EventList.class, response = Integer.class)
     @ApiResponses(value = {
             @ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)
     })
@@ -470,12 +460,10 @@ public class EventCollectionHttpService extends HttpService {
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
                                 Unpooled.wrappedBuffer(encodeAsBytes(errorIndexes)), responseHeaders);
                     }
-                }, WRITE_KEY);
+                });
     }
 
-    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction, AccessKeyType accessKeyType) {
-        HttpHeaders headers = request.headers();
-
+    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction) {
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");

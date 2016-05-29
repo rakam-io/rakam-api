@@ -32,7 +32,6 @@ import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.Report;
 import org.rakam.ui.report.ReportHttpService;
 import org.rakam.ui.report.UIRecipeHttpService;
-import org.rakam.ui.user.UserUtilHttpService;
 import org.rakam.ui.user.WebUserHttpService;
 import org.rakam.util.ConditionalModule;
 import org.rakam.util.RakamException;
@@ -96,7 +95,6 @@ public class RakamUIModule extends RakamModule {
         httpServices.addBinding().to(DashboardService.class);
         httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(RakamUIWebService.class);
-        httpServices.addBinding().to(UserUtilHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
     }
 
