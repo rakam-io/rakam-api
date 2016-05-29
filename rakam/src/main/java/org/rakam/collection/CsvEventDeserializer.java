@@ -97,7 +97,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
             }
         }
 
-        Event.EventContext context = new Event.EventContext(apiKey, null, null, null);
+        Event.EventContext context = Event.EventContext.apiKey(apiKey);
         return new EventList(context, project, list);
     }
 

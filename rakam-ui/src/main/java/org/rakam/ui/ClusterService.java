@@ -127,7 +127,7 @@ public class ClusterService extends HttpService {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM rakam_cluster WHERE (user_id, api_url) VALUES (:userId, :apiUrl)")
                     .bind("userId", id)
-                    .bind("apiKey", apiUrl).execute();
+                    .bind("apiUrl", apiUrl).execute();
             return JsonResponse.success();
         }
     }

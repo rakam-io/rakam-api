@@ -8,6 +8,7 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
@@ -252,7 +253,7 @@ public class UserHttpService extends HttpService {
 
         for (UserPropertyMapper mapper : mappers) {
             try {
-                mapper.map(project, req.properties, request.headers(), socketAddress);
+                mapper.map(project, req.properties, new EventCollectionHttpService.HttpRequestParams(request), socketAddress);
             } catch (Exception e) {
                 LOGGER.error(e);
                 request.response("0", BAD_REQUEST).end();

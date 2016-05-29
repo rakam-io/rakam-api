@@ -79,14 +79,13 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
     @Override
     public Event deserialize(JsonParser jp, DeserializationContext ctx) throws IOException {
-        return deserializeWithProject(jp, null);
+        return deserializeWithProject(jp, null, null);
     }
 
-    public Event deserializeWithProject(JsonParser jp, String project) throws IOException, RakamException {
+    public Event deserializeWithProject(JsonParser jp, String project, EventContext api) throws IOException, RakamException {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
 
         String collection = null;
-        EventContext api = null;
 
         JsonToken t = jp.getCurrentToken();
         if (t == JsonToken.START_OBJECT) {
@@ -105,6 +104,9 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     collection = jp.getValueAsString().toLowerCase();
                     break;
                 case "api":
+                    if(api != null) {
+                        throw new RakamException("api is already set", BAD_REQUEST);
+                    }
                     api = jp.readValueAs(EventContext.class);
                     break;
                 case "properties":

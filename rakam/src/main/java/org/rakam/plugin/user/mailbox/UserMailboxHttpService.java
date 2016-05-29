@@ -85,7 +85,7 @@ public class UserMailboxHttpService extends HttpService {
             return;
         }
 
-        List<String> api_key = request.params().get("api_key");
+        List<String> api_key = request.params().get("read_key");
         if (api_key == null || api_key.isEmpty() || !apiKeyService.checkPermission(project.get(0), org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY, api_key.get(0))) {
             response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.FORBIDDEN.reasonPhrase(),
                     HttpResponseStatus.FORBIDDEN))).end();

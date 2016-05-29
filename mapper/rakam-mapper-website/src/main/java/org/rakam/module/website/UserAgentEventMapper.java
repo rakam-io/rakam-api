@@ -39,21 +39,21 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress) {
-        mapInternal(extraProperties, new MapProxyGenericRecord(properties), properties.get("_user_agent"));
+    public void map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress) {
+        mapInternal(requestParams, new MapProxyGenericRecord(properties), properties.get("_user_agent"));
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         GenericRecord properties = event.properties();
         mapInternal(extraProperties, properties, properties.get("_user_agent"));
         return null;
     }
 
-    private void mapInternal(HttpHeaders extraProperties, GenericRecord properties, Object agent) {
+    private void mapInternal(RequestParams extraProperties, GenericRecord properties, Object agent) {
         String userAgent;
         if (agent instanceof Boolean && ((Boolean) agent).booleanValue()) {
-            userAgent = extraProperties.get("User-Agent");
+            userAgent = extraProperties.headers().get("User-Agent");
         } else if (agent instanceof String) {
             userAgent = (String) agent;
         } else {

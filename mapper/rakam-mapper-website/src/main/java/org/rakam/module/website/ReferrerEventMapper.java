@@ -34,11 +34,11 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
         }
     }
 
-    private void mapInternal(HttpHeaders extraProperties, Object referrer, Object host, GenericRecord record) {
+    private void mapInternal(RequestParams extraProperties, Object referrer, Object host, GenericRecord record) {
         String hostUrl, referrerUrl;
         if (referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
-            hostUrl = extraProperties.get("Origin");
-            referrerUrl = extraProperties.get("Referer");
+            hostUrl = extraProperties.headers().get("Origin");
+            referrerUrl = extraProperties.headers().get("Referer");
         } else if (referrer instanceof String) {
             referrerUrl = (String) referrer;
             if (host instanceof String) {
@@ -75,7 +75,7 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         Object referrer = event.properties().get("_referrer");
         Object host = event.properties().get("_host");
         mapInternal(extraProperties, referrer, host, event.properties());
@@ -83,7 +83,7 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress) {
+    public void map(String project, Map<String, Object> properties, RequestParams extraProperties, InetAddress sourceAddress) {
         mapInternal(extraProperties, properties.get("_referrer"), properties.get("_host"), new MapProxyGenericRecord(properties));
     }
 

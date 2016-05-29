@@ -3,13 +3,13 @@ package org.rakam.module.website;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.collection.Event;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.SchemaField;
+import org.rakam.plugin.EventMapper;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -27,15 +27,15 @@ import static org.testng.Assert.assertNull;
 public class TestReferrerEventMapper {
     @DataProvider(name = "google-referrer")
     public static Object[][] hashEnabledValuesProvider() throws UnknownHostException {
-        return new Object[][] {
-                { ImmutableMap.of("_referrer", "https://google.com/?q=test"), HttpHeaders.EMPTY_HEADERS },
-                { ImmutableMap.of("_referrer", true), new DefaultHttpHeaders().set("Referer", "https://google.com/?q=test") },
-                { ImmutableMap.of("_referrer", "https://google.com/?q=test"), new DefaultHttpHeaders().set("Referer", "https://google.com/?q=test")  }
+        return new Object[][]{
+                {ImmutableMap.of("_referrer", "https://google.com/?q=test"), EventMapper.RequestParams.EMPTY_PARAMS},
+                {ImmutableMap.of("_referrer", true), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("Referer", "https://google.com/?q=test")},
+                {ImmutableMap.of("_referrer", "https://google.com/?q=test"), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("Referer", "https://google.com/?q=test")}
         };
     }
 
     @Test(dataProvider = "google-referrer")
-    public void testReferrer(Map<String, Object> props, HttpHeaders headers) throws Exception {
+    public void testReferrer(Map<String, Object> props, EventMapper.RequestParams headers) throws Exception {
         ReferrerEventMapper mapper = new ReferrerEventMapper();
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
@@ -82,7 +82,7 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, InetAddress.getLocalHost(), null);
 
         assertNull(resp);
         for (SchemaField field : fields) {
@@ -110,7 +110,7 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, InetAddress.getLocalHost(), null);
 
         assertNull(resp);
         assertNull(event.getAttribute("_referrer_source"));
@@ -138,8 +138,9 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, new DefaultHttpHeaders().set("Referrer", "https://google.com/?q=test"),
-                InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, () -> {
+            return new DefaultHttpHeaders().set("Referrer", "https://google.com/?q=test");
+        }, InetAddress.getLocalHost(), null);
 
         assertNull(resp);
         for (SchemaField field : fields) {
@@ -168,7 +169,7 @@ public class TestReferrerEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, InetAddress.getLocalHost(), null);
 
         assertNull(resp);
         assertNull(event.getAttribute("_referrer_source"));

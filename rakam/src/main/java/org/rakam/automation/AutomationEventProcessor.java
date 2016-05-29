@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
-import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.rakam.collection.Event;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.plugin.EventMapper;
@@ -19,8 +18,6 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.function.Supplier;
 
 public class AutomationEventProcessor implements EventMapper {
@@ -49,7 +46,7 @@ public class AutomationEventProcessor implements EventMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         final List<AutomationRule> automationRules = service.list(event.project());
         if (automationRules == null) {
             return null;
@@ -200,41 +197,33 @@ public class AutomationEventProcessor implements EventMapper {
         return false;
     }
 
-    private ScenarioState[] extractState(Iterable<Map.Entry<String, String>> extraProperties) throws IllegalStateException {
+    private ScenarioState[] extractState(RequestParams extraProperties) throws IllegalStateException {
         ScenarioState[] value;
-        for (Map.Entry<String, String> extraProperty : extraProperties) {
-            if ("Cookie".equals(extraProperty.getKey())) {
-                String val = null;
-                Set<Cookie> decode = ServerCookieDecoder.STRICT.decode(extraProperty.getValue());
-                for (Cookie cookie : decode) {
-                    if (cookie.name().equals(PROPERTY_KEY)) {
-                        val = cookie.value();
-                    }
-                }
-                if (val == null) {
-                    return null;
-                }
-                String[] cookie = val.split("\\|", 2);
 
-                if (cookie.length != 2 || !CryptUtil.encryptWithHMacSHA1(cookie[0], encryptionConfig.getSecretKey()).equals(cookie[1])) {
-                    throw new IllegalStateException();
-                }
-
-                String[] values = cookie[0].split(",");
-                value = new ScenarioState[values.length];
-                for (int i = 0; i < values.length; i++) {
-                    final String[] split = values[i].split(":", 3);
-                    final ScenarioState scenarioState;
-                    try {
-                        scenarioState = new ScenarioState(Integer.parseInt(split[0]), Integer.parseInt(split[1]), Integer.parseInt(split[2]));
-                    } catch (NumberFormatException e) {
-                        throw new IllegalStateException();
-                    }
-                    value[i] = scenarioState;
-                }
-                break;
-            }
+        String val = extraProperties.cookies().stream().filter(e -> e.name().equals(PROPERTY_KEY))
+                .findAny().map(e -> e.value()).orElse(null);
+        if (val == null) {
+            return null;
         }
+        String[] cookie = val.split("\\|", 2);
+
+        if (cookie.length != 2 || !CryptUtil.encryptWithHMacSHA1(cookie[0], encryptionConfig.getSecretKey()).equals(cookie[1])) {
+            throw new IllegalStateException();
+        }
+
+        String[] values = cookie[0].split(",");
+        value = new ScenarioState[values.length];
+        for (int i = 0; i < values.length; i++) {
+            final String[] split = values[i].split(":", 3);
+            final ScenarioState scenarioState;
+            try {
+                scenarioState = new ScenarioState(Integer.parseInt(split[0]), Integer.parseInt(split[1]), Integer.parseInt(split[2]));
+            } catch (NumberFormatException e) {
+                throw new IllegalStateException();
+            }
+            value[i] = scenarioState;
+        }
+
         return null;
     }
 

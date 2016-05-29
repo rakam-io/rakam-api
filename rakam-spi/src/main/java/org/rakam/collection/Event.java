@@ -9,6 +9,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.util.List;
+import java.util.Map;
 
 @JsonPropertyOrder({"project", "collection", "api", "properties"})
 public class Event {
@@ -105,32 +106,74 @@ public class Event {
         return result;
     }
 
+    public static class Library {
+        public final String name;
+        public final String version;
+
+        @JsonCreator
+        public Library(@ApiParam("name") String name, @ApiParam("version") String version) {
+            this.name = name;
+            this.version = version;
+        }
+    }
+
+    public static final class MappingPlugin {
+        public final String name;
+        public final Map<String, Object> arguments;
+
+        @JsonCreator
+        public MappingPlugin(@JsonProperty("name") String name, @JsonProperty("properties") Map<String, Object> arguments) {
+            this.name = name;
+            this.arguments = arguments;
+        }
+    }
+
     public static class EventContext {
+        private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null, null);
+
         public final String apiKey;
+        public final Library library;
         public final String apiVersion;
         public final Long uploadTime;
         public final String checksum;
+        public final List<MappingPlugin> plugins;
 
         @JsonCreator
-        public EventContext(@ApiParam(value = "apiKey", access = "internal") String apiKey,
-                            @ApiParam("writeKey") String writeKey,
+        public EventContext(@ApiParam("apiKey") String apiKey,
+                            @ApiParam(value = "writeKey", access = "internal") String writeKey,
+                            @ApiParam("library") Library library,
                             @ApiParam("apiVersion") String apiVersion,
                             @ApiParam("uploadTime") Long uploadTime,
-                            @ApiParam("checksum") String checksum) {
+                            @ApiParam("checksum") String checksum,
+                            @ApiParam("plugins") List<MappingPlugin> plugins) {
+            this.library = library;
             this.apiKey = apiKey != null ? apiKey : writeKey;
             this.apiVersion = apiVersion;
             this.uploadTime = uploadTime;
             this.checksum = checksum;
+            this.plugins = plugins;
         }
 
         public EventContext(String apiKey,
+                            Library library,
                             String apiVersion,
                             Long uploadTime,
-                            String checksum) {
+                            String checksum,
+                            List<MappingPlugin> plugins) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
+            this.library = library;
             this.uploadTime = uploadTime;
             this.checksum = checksum;
+            this.plugins = plugins;
+        }
+
+        public static EventContext apiKey(String apiKey) {
+            return new EventContext(apiKey, null, null, null, null, null);
+        }
+
+        public static EventContext empty() {
+            return EMPTY_CONTEXT;
         }
 
         @Override

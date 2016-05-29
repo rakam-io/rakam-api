@@ -130,31 +130,25 @@ public class EventCollectionHttpService extends HttpService {
         csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
 
-    private <T> List<Cookie> mapEvent(RakamHttpRequest request, Function<EventMapper, List<Cookie>> event) {
-        List<Cookie> responseAttachment = null;
+    public List<Cookie> mapEvent(Function<EventMapper, List<Cookie>> mapperFunction) {
+        List<Cookie> cookies = null;
         for (EventMapper mapper : eventMappers) {
             try {
+
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
-
-                final List<Cookie> map = event.apply(mapper);
-                if (map != null) {
-                    if (responseAttachment == null) {
-                        responseAttachment = new ArrayList<>();
+                List<Cookie> mapperCookies = mapperFunction.apply(mapper);
+                if(mapperCookies != null) {
+                    if(cookies == null) {
+                        cookies = new ArrayList<>();
                     }
-
-                    responseAttachment.addAll(map);
+                    cookies.addAll(mapperCookies);
                 }
-            } catch (RakamException e) {
-                SentryUtil.logException(request, e);
-                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
-            } catch (HttpRequestException e) {
-                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
             } catch (Exception e) {
                 throw new RuntimeException("An error occurred while processing event in " + mapper.getClass().getName(), e);
             }
         }
 
-        return responseAttachment;
+        return cookies;
     }
 
     @POST
@@ -190,7 +184,8 @@ public class EventCollectionHttpService extends HttpService {
                     return;
                 }
 
-                cookies = mapEvent(request, (mapper) -> mapper.map(event, headers, getRemoteAddress(socketAddress), response.trailingHeaders()));
+                cookies = mapEvent((mapper) -> mapper.map(event, new HttpRequestParams(request),
+                        getRemoteAddress(socketAddress), response.trailingHeaders()));
 
                 eventStore.store(event);
             } catch (JsonMappingException e) {
@@ -202,6 +197,9 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             } catch (RakamException e) {
                 SentryUtil.logException(request, e);
+                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
+                return;
+            } catch (HttpRequestException e) {
                 HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             } catch (Exception e) {
@@ -504,7 +502,8 @@ public class EventCollectionHttpService extends HttpService {
 
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
-                entries = mapEvent(request, (m) -> m.map(events, headers, remoteAddress, responseHeaders));
+                entries = mapEvent((m) -> m.map(events, new HttpRequestParams(request),
+                        remoteAddress, responseHeaders));
 
                 response = responseFunction.apply(events.events, responseHeaders);
             } catch (JsonMappingException e) {
@@ -516,6 +515,9 @@ public class EventCollectionHttpService extends HttpService {
                 return;
             } catch (RakamException e) {
                 SentryUtil.logException(request, e);
+                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
+                return;
+            } catch (HttpRequestException e) {
                 HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             } catch (Exception e) {
@@ -585,5 +587,23 @@ public class EventCollectionHttpService extends HttpService {
 
     interface ThrowableFunction {
         EventList apply(String buffer) throws IOException;
+    }
+
+    public static class HttpRequestParams implements EventMapper.RequestParams {
+        private final RakamHttpRequest request;
+
+        public HttpRequestParams(RakamHttpRequest request) {
+            this.request = request;
+        }
+
+        @Override
+        public Collection<Cookie> cookies() {
+            return request.cookies();
+        }
+
+        @Override
+        public HttpHeaders headers() {
+            return request.headers();
+        }
     }
 }

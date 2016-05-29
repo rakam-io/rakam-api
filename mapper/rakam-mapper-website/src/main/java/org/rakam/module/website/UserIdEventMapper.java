@@ -1,4 +1,4 @@
-package org.rakam.collection;
+package org.rakam.module.website;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -7,11 +7,15 @@ import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
+import org.rakam.collection.Event;
+import org.rakam.collection.FieldType;
 import org.rakam.plugin.EventMapper;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -23,6 +27,7 @@ public class UserIdEventMapper implements EventMapper {
     private final LoadingCache<String, FieldType> userType;
     DistributedIdGenerator idGenerator;
 
+    @Inject
     public UserIdEventMapper(ConfigManager configManager) {
         idGenerator = new DistributedIdGenerator();
         userType = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>() {
@@ -34,39 +39,71 @@ public class UserIdEventMapper implements EventMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         GenericRecord properties = event.properties();
 
-        if(properties.get("_user") == null && "true".equals(extraProperties.get("_track_user"))) {
-            switch (userType.getUnchecked(event.project())) {
-                case STRING:
-                    String randomUUID = UUID.randomUUID().toString();
-                    properties.put("_user", randomUUID);
-                    return ImmutableList.of(new DefaultCookie("_user", randomUUID));
-                case INTEGER:
-                    long userId = idGenerator.generateId();
-                    properties.put("_user", userId);
-                    return ImmutableList.of(new DefaultCookie("_user", Long.toString(userId)));
-                case LONG:
-                    int id = (int) idGenerator.generateId();
-                    properties.put("_user", id);
-                    return ImmutableList.of(new DefaultCookie("_user", Integer.toString(id)));
+        if (properties.get("_user") == null) {
+            Schema.Field user = event.properties().getSchema().getField("_user");
+            if (user == null) {
+                return null;
             }
+
+            Schema.Type type = user.schema().getTypes().get(1).getType();
+            Object anonymousUser = requestParams.cookies().stream()
+                    .filter(e -> e.name().equals("_anonymous_user")).findAny()
+                    .map(e -> cast(type, e.value())).orElse(generate(type));
+
+            properties.put("_user", anonymousUser);
+            return ImmutableList.of(new DefaultCookie("_anonymous_user", String.valueOf(anonymousUser)));
         }
 
         return null;
     }
 
+    private Object generate(Schema.Type type) {
+        switch (type) {
+            case STRING:
+                return UUID.randomUUID().toString();
+            case LONG:
+                return idGenerator.generateId();
+            case INT:
+                return (int) idGenerator.generateId();
+            default:
+                return null;
+        }
+    }
+
+    private Object cast(Schema.Type type, String value) {
+        switch (type) {
+            case STRING:
+                return value;
+            case LONG:
+                try {
+                    return Long.parseLong(value);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            case INT:
+                try {
+                    return Integer.parseInt(value);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            default:
+                return null;
+        }
+    }
+
     /**
      * This class implements an ID generator.
-     *
+     * <p>
      * The ID is a signed 64 bit long composed of:
-     *
+     * <p>
      * sign      - 1 bit
      * timestamp - 41 bits (millisecond precision with a custom epoch allowing for 69 years)
      * host id   - 10 bits (allowing for 1024 hosts)
      * sequence  - 12 bits (allowing for 4096 IDs per millisecond)
-     *
+     * <p>
      * There is a check that catches sequence rollover within the current millisecond.
      *
      * @author Maxim Khodanovich
@@ -127,10 +164,10 @@ public class UserIdEventMapper implements EventMapper {
             InetAddress address = null;
 
             // Iterate all the network interfaces
-            for (Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces(); ifaces.hasMoreElements();) {
+            for (Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces(); ifaces.hasMoreElements(); ) {
                 NetworkInterface iface = ifaces.nextElement();
                 // Iterate all the addresses assigned to the network interface
-                for (Enumeration<InetAddress> addrs = iface.getInetAddresses(); addrs.hasMoreElements();) {
+                for (Enumeration<InetAddress> addrs = iface.getInetAddresses(); addrs.hasMoreElements(); ) {
                     InetAddress addr = addrs.nextElement();
                     if (!addr.isLoopbackAddress()) {
                         if (addr.isSiteLocalAddress()) {

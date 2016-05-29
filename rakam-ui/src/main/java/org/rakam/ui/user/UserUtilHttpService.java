@@ -52,6 +52,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.lang.String.format;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 
 @Path("/ui/user")
 @IgnoreApi
@@ -67,17 +68,17 @@ public class UserUtilHttpService extends HttpService {
     }
 
     public static class FilterQuery {
-        public final String apiKey;
+        public final String readKey;
         public final String filter;
         public final List<UserStorage.EventFilter> event_filter;
         public final UserStorage.Sorting sorting;
 
         @JsonCreator
-        public FilterQuery(@ApiParam("api_key") String apiKey,
+        public FilterQuery(@ApiParam("read_key") String apiKey,
                            @ApiParam(value = "filter", required = false) String filter,
                            @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
                            @ApiParam(value = "sorting", required = false) UserStorage.Sorting sorting) {
-            this.apiKey = apiKey;
+            this.readKey = apiKey;
             this.filter = filter;
             this.event_filter = event_filter;
             this.sorting = sorting;
@@ -103,7 +104,7 @@ public class UserUtilHttpService extends HttpService {
             return;
         }
 
-        String project = apiKeyService.getProjectOfApiKey(read.filterQuery.apiKey,  ApiKeyService.AccessKeyType.READ_KEY);
+        String project = apiKeyService.getProjectOfApiKey(read.filterQuery.readKey,  READ_KEY);
 
         Expression expression;
         if (read.filterQuery.filter != null) {

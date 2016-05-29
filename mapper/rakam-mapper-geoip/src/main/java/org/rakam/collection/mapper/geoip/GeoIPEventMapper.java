@@ -110,7 +110,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, HttpHeaders extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;
@@ -143,7 +143,7 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress) {
+    public void map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress) {
         Object ip = properties.get("_ip");
 
         if (ip == null)

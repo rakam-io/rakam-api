@@ -10,6 +10,8 @@ import org.apache.avro.generic.GenericData;
 import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.plugin.EventMapper;
+import org.rakam.server.http.IRequestParameter;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -30,9 +32,9 @@ public class TestUserAgentEventMapper {
     @DataProvider(name = "chrome-user-agent")
     public static Object[][] hashEnabledValuesProvider() throws UnknownHostException {
         return new Object[][] {
-                { ImmutableMap.of("_user_agent", USER_AGENT), HttpHeaders.EMPTY_HEADERS },
-                { ImmutableMap.of("_user_agent", true), new DefaultHttpHeaders().set("User-Agent", USER_AGENT) },
-                { ImmutableMap.of("_user_agent", USER_AGENT), new DefaultHttpHeaders().set("User-Agent", USER_AGENT)  }
+                { ImmutableMap.of("_user_agent", USER_AGENT), EventMapper.RequestParams.EMPTY_PARAMS},
+                { ImmutableMap.of("_user_agent", true), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT) },
+                { ImmutableMap.of("_user_agent", USER_AGENT), (EventMapper.RequestParams) () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT)  }
         };
     }
 
@@ -55,7 +57,7 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, () -> headers, InetAddress.getLocalHost(), null);
 
         assertEquals("Chrome", event.getAttribute("_user_agent_family"));
         assertEquals(new Long(47), event.getAttribute("_user_agent_version"));
@@ -86,7 +88,7 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, InetAddress.getLocalHost(), null);
 
         assertNull(resp);
         for (SchemaField field : fields) {
@@ -114,7 +116,7 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, HttpHeaders.EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, InetAddress.getLocalHost(), null);
 
         assertNull(resp);
         assertEquals("Other", event.getAttribute("_user_agent_family"));
@@ -144,7 +146,7 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, new DefaultHttpHeaders().set("User-Agent", USER_AGENT),
+        List<Cookie> resp = mapper.map(event, () -> new DefaultHttpHeaders().set("User-Agent", USER_AGENT),
                 InetAddress.getLocalHost(), null);
 
         assertNull(resp);

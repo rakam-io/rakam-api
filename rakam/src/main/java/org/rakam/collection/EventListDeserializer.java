@@ -86,7 +86,7 @@ public class EventListDeserializer extends JsonDeserializer<EventList> {
         }
 
         for (; t == JsonToken.START_OBJECT; t = jp.nextToken()) {
-            list.add(eventDeserializer.deserializeWithProject(jp, project));
+            list.add(eventDeserializer.deserializeWithProject(jp, project, context));
         }
 
         return new EventList(context, project, list);

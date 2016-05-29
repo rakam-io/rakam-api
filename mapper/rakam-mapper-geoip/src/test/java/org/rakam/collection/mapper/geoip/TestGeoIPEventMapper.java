@@ -10,6 +10,7 @@ import org.apache.avro.generic.GenericData.Record;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
+import org.rakam.plugin.EventMapper;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -21,7 +22,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpHeaders.EMPTY_HEADERS;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.STRING;
 import static org.testng.Assert.*;
@@ -51,7 +51,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address, null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, address, null);
 
         assertTrue(resp == null);
 
@@ -74,7 +74,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address, null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, address, null);
 
         assertTrue(resp == null);
 
@@ -100,7 +100,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, address, null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, address, null);
 
         assertTrue(resp == null);
 
@@ -132,7 +132,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, InetAddress.getLocalHost(), null);
 
         assertTrue(resp == null);
         for (SchemaField schemaField : ip) {
@@ -159,7 +159,7 @@ public class TestGeoIPEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, EMPTY_HEADERS, InetAddress.getByName("8.8.8.8"), null);
+        List<Cookie> resp = mapper.map(event, EventMapper.RequestParams.EMPTY_PARAMS, InetAddress.getByName("8.8.8.8"), null);
 
         assertTrue(resp == null);
         for (SchemaField schemaField : ip) {

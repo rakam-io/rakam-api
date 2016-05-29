@@ -1,11 +1,11 @@
 package org.rakam.plugin.user;
 
-import io.netty.handler.codec.http.HttpHeaders;
+import org.rakam.plugin.EventMapper;
 
 import java.net.InetAddress;
 import java.util.Map;
 
 public interface UserPropertyMapper {
-    void map(String project, Map<String, Object> properties, HttpHeaders extraProperties, InetAddress sourceAddress);
+    void map(String project, Map<String, Object> properties, EventMapper.RequestParams requestParams, InetAddress sourceAddress);
 }
 

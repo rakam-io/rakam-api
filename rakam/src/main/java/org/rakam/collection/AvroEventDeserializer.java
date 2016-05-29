@@ -43,7 +43,6 @@ public class AvroEventDeserializer {
             list.add(new Event(project, collection, null, fields, record));
         }
 
-        Event.EventContext api = new Event.EventContext(apiKey, null, null, null);
-        return new EventList(api, project, list);
+        return new EventList(Event.EventContext.empty(), project, list);
     }
 }
