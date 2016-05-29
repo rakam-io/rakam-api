@@ -45,6 +45,16 @@
             <artifactId>mail</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>3.13</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-ui</artifactId>
             <version>${project.version}</version>
