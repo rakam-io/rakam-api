@@ -213,6 +213,20 @@ public class RakamUIModule extends RakamModule {
                         "  )")
                         .execute();
 
+                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_api_key_permission (\n" +
+                        " api_key_id int4 NOT NULL,\n" +
+                        " user_id int4 NOT NULL,\n" +
+                        " read_permission boolean not null,\n" +
+                        " write_permission boolean not null,\n" +
+                        " master_permission boolean not null,\n" +
+                        " scope_expression text,\n" +
+                        " created_at timestamp NOT NULL DEFAULT now(),\n" +
+                        " PRIMARY KEY (api_key_id, user_id),\n" +
+                        " FOREIGN KEY (user_id) REFERENCES web_user (id),\n" +
+                        " FOREIGN KEY (api_key_id) REFERENCES web_user_api_key (id)\n" +
+                        ")")
+                        .execute();
+
                 handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
                         "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
                         "  user_id INT REFERENCES web_user(id)," +

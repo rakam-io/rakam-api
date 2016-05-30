@@ -1,5 +1,6 @@
 package org.rakam.ui.user;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 
 import java.util.List;
@@ -19,9 +20,9 @@ public class WebUser {
 
     public static class UserApiKey {
         public final int project;
-        public final String readKey;
-        public final String writeKey;
-        public final String masterKey;
+        @JsonProperty("read_key") public final String readKey;
+        @JsonProperty("write_key") public final String writeKey;
+        @JsonProperty("master_key") public final String masterKey;
 
         public UserApiKey(int project, String readKey, String writeKey, String masterKey) {
             this.project = project;

@@ -24,7 +24,7 @@ public class AvroEventDeserializer {
         this.metastore = metastore;
     }
 
-    public EventList deserialize(String project, String collection, String apiKey, Slice buff) throws IOException {
+    public EventList deserialize(String project, String collection, Slice buff) throws IOException {
         BasicSliceInput slice = buff.getInput();
         String json = slice.readSlice(slice.readInt()).toStringUtf8();
         Schema schema = new Schema.Parser().parse(json);

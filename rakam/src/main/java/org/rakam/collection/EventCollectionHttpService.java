@@ -39,6 +39,7 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
@@ -135,8 +136,8 @@ public class EventCollectionHttpService extends HttpService {
 
                 // TODO: bound event mappers to Netty Channels and run them in separate thread
                 List<Cookie> mapperCookies = mapperFunction.apply(mapper);
-                if(mapperCookies != null) {
-                    if(cookies == null) {
+                if (mapperCookies != null) {
+                    if (cookies == null) {
                         cookies = new ArrayList<>();
                     }
                     cookies.addAll(mapperCookies);
@@ -154,7 +155,6 @@ public class EventCollectionHttpService extends HttpService {
     @Path("/collect")
     public void collectEvent(RakamHttpRequest request) {
         String socketAddress = request.getRemoteAddress();
-        HttpHeaders headers = request.headers();
 
         request.bodyHandler(buff -> {
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
@@ -188,7 +188,7 @@ public class EventCollectionHttpService extends HttpService {
                 String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
                 HttpServer.returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
                 return;
-            }catch (IOException e) {
+            } catch (IOException e) {
                 HttpServer.returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
                 return;
             } catch (RakamException e) {
@@ -230,8 +230,8 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class)
-    @ApiResponses(value = {@ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)})
+    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = JsonResponse.class, notes = "Bulk API requires master_key as api key and designed to handle large value of data. " +
+            "The endpoint also accepts application/avro and text/csv formats. You need need to set 'collection' and 'master_key' query parameters if the content-type is not application/json.")
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request) {
         storeEvents(request,
@@ -243,19 +243,19 @@ public class EventCollectionHttpService extends HttpService {
                                 .readValue(buff);
                     } else {
                         String collection = getParam(request.params(), "collection");
-                        String api_key = getParam(request.params(), "api_key");
-                        String project = apiKeyService.getProjectOfApiKey(api_key, MASTER_KEY);
+                        String apiKey = getParam(request.params(), MASTER_KEY.getKey());
+                        String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
 
                         checkCollection(collection);
 
                         if ("application/avro".equals(contentType)) {
-                            return avroEventDeserializer.deserialize(project, collection, api_key, utf8Slice(buff));
+                            return avroEventDeserializer.deserialize(project, collection, utf8Slice(buff));
                         } else if ("text/csv".equals(contentType)) {
                             return csvMapper.reader(EventList.class)
                                     .with(ContextAttributes.getEmpty()
                                                     .withSharedAttribute("project", project)
                                                     .withSharedAttribute("collection", collection)
-                                                    .withSharedAttribute("api_key", api_key)
+                                                    .withSharedAttribute("apiKey", apiKey)
                                     ).readValue(buff);
                         }
                     }
@@ -267,7 +267,7 @@ public class EventCollectionHttpService extends HttpService {
                         eventStore.storeBulk(events);
                     } catch (Exception e) {
                         List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
-                        LOGGER.error(new RuntimeException("Error executing EventStore bulk method: "+sample, e),
+                        LOGGER.error(new RuntimeException("Error executing EventStore bulk method: " + sample, e),
                                 "Error while storing event.");
 
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
@@ -276,35 +276,35 @@ public class EventCollectionHttpService extends HttpService {
                     }
 
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                            Unpooled.wrappedBuffer(OK_MESSAGE),
+                            Unpooled.wrappedBuffer(encodeAsBytes(JsonResponse.success())),
                             responseHeaders);
                 });
     }
 
     public static class BulkEventRemote {
         public final String collection;
-        public final String api_key;
+        public final String masterKey;
         public final URL url;
 
         @JsonCreator
         public BulkEventRemote(@ApiParam("collection") String collection,
-                               @ApiParam("api_key") String api_key,
+                               @ApiParam("master_key") String masterKey,
                                @ApiParam("url") URL url) {
             this.collection = collection;
-            this.api_key = api_key;
+            this.masterKey = masterKey;
             this.url = url;
         }
     }
 
     @POST
-    @ApiOperation(value = "Send Bulk events", request = EventList.class, response = Integer.class)
+    @ApiOperation(value = "Collect bulk events from remote", request = EventList.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)})
     @Path("/bulk/remote")
     public void bulkEventsRemote(RakamHttpRequest request) throws IOException {
         storeEvents(request,
                 buff -> {
                     BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
-                    String project = apiKeyService.getProjectOfApiKey(query.api_key, MASTER_KEY);
+                    String project = apiKeyService.getProjectOfApiKey(query.masterKey, MASTER_KEY);
 
                     checkCollection(query.collection);
 
@@ -314,7 +314,7 @@ public class EventCollectionHttpService extends HttpService {
                         return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
                                         .withSharedAttribute("project", project)
                                         .withSharedAttribute("collection", query.collection)
-                                        .withSharedAttribute("api_key", query.api_key)
+                                        .withSharedAttribute("apiKey", query.masterKey)
                         ).readValue(query.url);
                     } else if (query.url.getPath().endsWith(".avro")) {
                         URLConnection conn = query.url.openConnection();
@@ -323,7 +323,7 @@ public class EventCollectionHttpService extends HttpService {
                         conn.connect();
 
                         Slice slice = wrappedBuffer(toByteArray(conn.getInputStream()));
-                        return avroEventDeserializer.deserialize(project, query.collection, query.api_key, slice);
+                        return avroEventDeserializer.deserialize(project, query.collection, slice);
                     }
 
                     throw new RakamException("Unsupported content type.", BAD_REQUEST);
@@ -333,7 +333,7 @@ public class EventCollectionHttpService extends HttpService {
                         eventStore.storeBulk(events);
                     } catch (Exception e) {
                         List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
-                        LOGGER.error(new RuntimeException("Error executing EventStore bulkRemote method: "+sample, e),
+                        LOGGER.error(new RuntimeException("Error executing EventStore bulkRemote method: " + sample, e),
                                 "Error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                 Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
@@ -378,9 +378,9 @@ public class EventCollectionHttpService extends HttpService {
             return;
         }
 
-        List<String> apiKey = request.params().get("api_key");
+        List<String> apiKey = request.params().get(MASTER_KEY.getKey());
         if (apiKey == null || data.isEmpty()) {
-            String message = "api_key query parameter is required";
+            String message = MASTER_KEY.getKey()+" query parameter is required";
             response.send("result", encode(errorMessage(message, BAD_REQUEST))).end();
             return;
         }
@@ -420,7 +420,7 @@ public class EventCollectionHttpService extends HttpService {
     }
 
     @POST
-    @ApiOperation(notes = "Returns 1 if the events are collected.",value = "Collect multiple events", request = EventList.class, response = Integer.class)
+    @ApiOperation(notes = "Returns 1 if the events are collected.", value = "Collect multiple events", request = EventList.class, response = Integer.class)
     @ApiResponses(value = {
             @ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)
     })
@@ -430,7 +430,7 @@ public class EventCollectionHttpService extends HttpService {
                 (events, responseHeaders) -> {
                     int[] errorIndexes;
 
-                    if(events.size() > 0) {
+                    if (events.size() > 0) {
                         boolean single = events.size() == 1;
                         try {
                             if (single) {
@@ -443,7 +443,7 @@ public class EventCollectionHttpService extends HttpService {
                             }
                         } catch (Exception e) {
                             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
-                            LOGGER.error(new RuntimeException("Error executing EventStore "+(single ? "store" : "bulk")+" method: "+sample, e),
+                            LOGGER.error(new RuntimeException("Error executing EventStore " + (single ? "store" : "batch") + " method: " + sample, e),
                                     "Error while storing event.");
                             return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                     Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
@@ -495,11 +495,10 @@ public class EventCollectionHttpService extends HttpService {
 
                 response = responseFunction.apply(events.events, responseHeaders);
             } catch (JsonMappingException e) {
-                String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-                HttpServer.returnError(request, "JSON couldn't parsed: "+message, BAD_REQUEST);
+                HttpServer.returnError(request, "JSON couldn't parsed: " + e.getOriginalMessage(), BAD_REQUEST);
                 return;
             } catch (IOException e) {
-                HttpServer.returnError(request, "JSON couldn't parsed: "+e.getMessage(), BAD_REQUEST);
+                HttpServer.returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
                 return;
             } catch (RakamException e) {
                 SentryUtil.logException(request, e);

@@ -41,7 +41,6 @@ public class Event {
         this.api = api;
     }
 
-    @JsonProperty
     public String project() {
         return project;
     }
@@ -131,19 +130,19 @@ public class Event {
     public static class EventContext {
         private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null, null);
 
-        public final String apiKey;
-        public final Library library;
-        public final String apiVersion;
-        public final Long uploadTime;
-        public final String checksum;
-        public final List<MappingPlugin> plugins;
+        @JsonProperty("api_key") public final String apiKey;
+        @JsonProperty("library") public final Library library;
+        @JsonProperty("api_version") public final String apiVersion;
+        @JsonProperty("upload_time") public final Long uploadTime;
+        @JsonProperty("checksum") public final String checksum;
+        @JsonProperty("plugins") public final List<MappingPlugin> plugins;
 
         @JsonCreator
-        public EventContext(@ApiParam("apiKey") String apiKey,
-                            @ApiParam(value = "writeKey", access = "internal") String writeKey,
+        public EventContext(@ApiParam(value = "writeKey", access = "internal") String writeKey,
+                            @ApiParam("api_key") String apiKey,
                             @ApiParam("library") Library library,
-                            @ApiParam("apiVersion") String apiVersion,
-                            @ApiParam("uploadTime") Long uploadTime,
+                            @ApiParam("api_version") String apiVersion,
+                            @ApiParam("upload_time") Long uploadTime,
                             @ApiParam("checksum") String checksum,
                             @ApiParam("plugins") List<MappingPlugin> plugins) {
             this.library = library;
@@ -154,15 +153,15 @@ public class Event {
             this.plugins = plugins;
         }
 
-        public EventContext(String apiKey,
+        public EventContext(String writeKey,
                             Library library,
                             String apiVersion,
                             Long uploadTime,
                             String checksum,
                             List<MappingPlugin> plugins) {
-            this.apiKey = apiKey;
-            this.apiVersion = apiVersion;
             this.library = library;
+            this.apiKey = writeKey;
+            this.apiVersion = apiVersion;
             this.uploadTime = uploadTime;
             this.checksum = checksum;
             this.plugins = plugins;

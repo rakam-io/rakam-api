@@ -198,7 +198,8 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                             if (type.isArray() || type.isMap()) {
                                 throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
                             }
-                            final FieldType eventUserType = type.isNumeric() && type != FieldType.INTEGER ? FieldType.LONG : FieldType.STRING;
+                            final FieldType eventUserType = type.isNumeric() ? (type != FieldType.INTEGER ? FieldType.LONG : FieldType.INTEGER) :
+                                    FieldType.STRING;
                             type = configManager.setConfigOnce(project, USER_TYPE.name(), eventUserType);
                         }
 

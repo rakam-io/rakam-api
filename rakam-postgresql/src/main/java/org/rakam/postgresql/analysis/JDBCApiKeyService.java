@@ -5,7 +5,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.util.CryptUtil;
@@ -24,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
@@ -52,7 +52,7 @@ public class JDBCApiKeyService implements ApiKeyService {
                     ps.setString(1, apiKey.key);
                     ResultSet resultSet = ps.executeQuery();
                     if (!resultSet.next()) {
-                        throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
+                        throw new RakamException(apiKey.type.getKey()+" is invalid", FORBIDDEN);
                     }
                     return resultSet.getString(1);
                 } catch (SQLException e) {
@@ -130,10 +130,10 @@ public class JDBCApiKeyService implements ApiKeyService {
     public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
         try {
             if (apiKey == null) {
-                throw new RakamException("Api key is missing", HttpResponseStatus.FORBIDDEN);
+                throw new RakamException("Api key is missing", FORBIDDEN);
             }
             if (project == null) {
-                throw new RakamException("Project id is missing", HttpResponseStatus.FORBIDDEN);
+                throw new RakamException("Project id is missing", FORBIDDEN);
             }
             boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
             if (!exists) {

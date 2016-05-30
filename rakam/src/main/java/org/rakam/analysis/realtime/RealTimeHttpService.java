@@ -113,7 +113,7 @@ public class RealTimeHttpService extends HttpService {
     @ApiOperation(value = "List queries", authorizations = @Authorization(value = "read_key"))
 
     @Path("/list")
-    public List<ContinuousQuery> listTables(@javax.inject.Named("project") String project) {
+    public List<ContinuousQuery> listTables(@Named("project") String project) {
         return service.list(project).stream()
                 .filter(c -> TRUE.equals(c.options.get("realtime")))
                 .collect(Collectors.toList());
@@ -124,7 +124,7 @@ public class RealTimeHttpService extends HttpService {
     @ApiOperation(value = "Get report", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {@ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
-    public CompletableFuture<RealTimeQueryResult> queryTable(@javax.inject.Named("project") String project,
+    public CompletableFuture<RealTimeQueryResult> queryTable(@Named("project") String project,
                                                       @ApiParam("table_name") String tableName,
                                                       @ApiParam(value = "filter", required = false) String filter,
                                                       @ApiParam("measure") RealTimeReport.Measure measure,
@@ -225,7 +225,7 @@ public class RealTimeHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
-    public CompletableFuture<JsonResponse> deleteTable(@javax.inject.Named("project") String project,
+    public CompletableFuture<JsonResponse> deleteTable(@Named("project") String project,
                                                   @ApiParam("table_name") String tableName) {
 
         // TODO: Check if it's a real-time report.

@@ -32,7 +32,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -119,15 +118,20 @@ public class WebUserHttpService extends HttpService {
     }
 
     @JsonRequest
-    @Path("/create-api-keys")
-    public ApiKeyService.ProjectApiKeys createApiKeys(@ApiParam("project") String project, @ApiParam("api_url") String apiUrl, @CookieParam("session") String session) {
-        return service.createApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, apiUrl);
+    @Path("/save-api-keys")
+    public ApiKeyService.ProjectApiKeys createApiKeys(@HeaderParam("project") int project,
+                                                      @CookieParam("session") String session,
+                                                      @ApiParam("read_key") String readKey,
+                                                      @ApiParam("write_key") String writeKey,
+                                                      @ApiParam("master_key") String masterKey) {
+        service.saveApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, readKey, writeKey, masterKey);
+        return ApiKeyService.ProjectApiKeys.create(masterKey, readKey, writeKey);
     }
 
     @JsonRequest
     @Path("/revoke-api-keys")
-    public JsonResponse revokeApiKeys(@ApiParam("api_url") String apiUrl, @ApiParam("api_key") String key, @CookieParam("session") String session) {
-        service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), apiUrl, key);
+    public JsonResponse revokeApiKeys(@HeaderParam("project") int project, @ApiParam("master_key") String key, @CookieParam("session") String session) {
+        service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, key);
         return JsonResponse.success();
     }
 
@@ -137,7 +141,7 @@ public class WebUserHttpService extends HttpService {
     @Path("/user-access")
     public List<WebUserService.UserAccess> getUserAccess(@CookieParam("session") String session,
                                                          @HeaderParam("project") int project) {
-        return service.getUserAccessForAllProjects(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project);
+        return service.getUserAccessForProject(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project);
     }
 
     @JsonRequest
@@ -165,23 +169,14 @@ public class WebUserHttpService extends HttpService {
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
     public JsonResponse revokeUserAccess(@CookieParam("session") String session,
-                                         @ApiParam("project") String project,
-                                         @ApiParam("api_url") String api_url,
+                                         @HeaderParam("project") int project,
                                          @ApiParam("email") String email) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
         }
 
-        boolean hasPermission = user.get().projects.stream().anyMatch(e -> e.name.equals(project) &&
-                Objects.equals(e.apiUrl, api_url) &&
-                e.apiKeys.stream().anyMatch(a -> a.masterKey() != null));
-
-        if (!hasPermission) {
-            throw new RakamException(UNAUTHORIZED);
-        }
-
-        service.revokeUserAccess(project, api_url, email);
+        service.revokeUserAccess(user.get().id, project, email);
         return JsonResponse.success();
     }
 
@@ -189,26 +184,22 @@ public class WebUserHttpService extends HttpService {
 
     @Path("/give-user-access")
     public JsonResponse giveUserAccess(@CookieParam("session") String session,
-                                       @ApiParam("project") String project,
-                                       @ApiParam("api_url") String api_url,
+                                       @HeaderParam("project") int project,
                                        @ApiParam("email") String email,
                                        @ApiParam(value = "scope_expression", required = false) String scopeExpression,
-                                       @ApiParam("has_read_permission") boolean has_read_permission,
-                                       @ApiParam("has_write_permission") boolean has_write_permission,
-                                       @ApiParam("is_admin") boolean isAdmin) {
+                                       @ApiParam(value = "keys") ApiKeyService.ProjectApiKeys keys,
+                                       @ApiParam(value = "read_permission") boolean readPermission,
+                                       @ApiParam(value = "write_permission") boolean writePermission,
+                                       @ApiParam(value = "master_permission") boolean masterPermission) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(BAD_REQUEST);
         }
 
-        Optional<String> masterKey = user.get().projects.stream().filter(e -> e.name.equals(project) &&
-                Objects.equals(e.apiUrl, api_url) &&
-                e.apiKeys.stream().anyMatch(a -> a.masterKey() != null)).findAny()
-                .flatMap(e -> e.apiKeys.stream().filter(a -> a.masterKey() != null).findFirst().map(k -> k.masterKey()));
+        user.get().projects.stream().filter(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null));
 
-        masterKey.orElseThrow(() -> new RakamException(UNAUTHORIZED));
-
-        service.giveAccessToUser(project, api_url, masterKey.get(), email, scopeExpression, has_read_permission, has_write_permission, isAdmin);
+        service.giveAccessToUser(project, user.get().id, email, keys, scopeExpression,
+                readPermission, writePermission, masterPermission);
         return JsonResponse.success();
     }
 

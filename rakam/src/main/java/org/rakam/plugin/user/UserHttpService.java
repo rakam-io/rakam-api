@@ -5,9 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.QueryHttpService;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
@@ -62,32 +60,25 @@ public class UserHttpService extends HttpService {
     private final SqlParser sqlParser;
     private final AbstractUserService service;
     private final Set<UserPropertyMapper> mappers;
-    private final Metastore metastore;
     private final QueryHttpService queryService;
-    private final ContinuousQueryService continuousQueryService;
     private final ApiKeyService apiKeyService;
 
     @Inject
     public UserHttpService(UserPluginConfig config,
                            Set<UserPropertyMapper> mappers,
-                           Metastore metastore,
                            ApiKeyService apiKeyService,
-                           ContinuousQueryService continuousQueryService,
                            AbstractUserService service,
                            QueryHttpService queryService) {
         this.service = service;
         this.config = config;
-        this.metastore = metastore;
         this.apiKeyService = apiKeyService;
         this.queryService = queryService;
         this.sqlParser = new SqlParser();
         this.mappers = mappers;
-        this.continuousQueryService = continuousQueryService;
     }
 
     @JsonRequest
     @ApiOperation(value = "Create new user")
-
     @Path("/create")
     public Object createUser(@BodyParam User user) {
         String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.apiKey : null, WRITE_KEY);
@@ -205,7 +196,7 @@ public class UserHttpService extends HttpService {
 
     @JsonRequest
     @ApiOperation(value = "Merge user with anonymous id", authorizations = @Authorization(value = "read_key"))
-    @ApiResponses(value = { @ApiResponse(code = 404, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/merge")
     @AllowCookie
     public boolean mergeUser(@Named("project") String project,
@@ -223,7 +214,7 @@ public class UserHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Set user properties", request = User.class, response = Integer.class)
-    @ApiResponses(value = { @ApiResponse(code = 404, message = "User does not exist.")})
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/set_properties")
     @POST
     public void setProperties(RakamHttpRequest request) {

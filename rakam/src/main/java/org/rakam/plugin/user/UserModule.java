@@ -3,7 +3,6 @@ package org.rakam.plugin.user;
 import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
@@ -14,11 +13,9 @@ import org.rakam.analysis.InternalConfig;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.FieldType;
-import org.rakam.collection.SchemaField;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
-import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
@@ -34,7 +31,6 @@ import javax.inject.Inject;
 import java.util.Map;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
-import static org.rakam.collection.FieldType.STRING;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="plugin.user.enabled", value = "true")
@@ -140,29 +136,42 @@ public class UserModule extends RakamModule {
             this.metadataStore = metadataStore;
         }
 
+
+
+        @Subscribe
+        public void onCreateFields(SystemEvents.CollectionFieldCreatedEvent event) {
+            if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
+                createInternal(event.project, event.collection);
+            }
+        }
+
         @Subscribe
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            if (!event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
-                FieldType userFieldType = metastore.getCollections(event.project).entrySet()
-                        .stream()
-                        .flatMap(e -> e.getValue().stream()).filter(e -> e.getName().equals("_user"))
-                        .filter(e -> e.getName().equals("_user")).findAny().map(f -> f.getType()).orElse(STRING);
-                metastore.getOrCreateCollectionFieldList(event.project, event.collection, ImmutableSet.of(new SchemaField("_user", userFieldType)));
+            if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
+                createInternal(event.project, event.collection);
             }
-            try {
-                service.precalculate(event.project, new PreCalculateQuery(event.collection, null));
-            } catch (AlreadyExistsException e) {
-            }
+        }
 
-            try {
-                metadataStore.getContinuousQuery(event.project, "_users_daily");
-            } catch (RakamException e) {
+        private void createInternal(String project, String collection) {
+            if(collection != null) {
                 try {
-                    service.precalculate(event.project, new PreCalculateQuery(null, null));
-                } catch (AlreadyExistsException e1) {
+                    metadataStore.getContinuousQuery(project, "_users_daily_"+collection);
+                } catch (RakamException e) {
+                    try {
+                        service.precalculate(project, new AbstractUserService.PreCalculateQuery(collection, null));
+                    } catch (AlreadyExistsException e1) {
+                    }
                 }
             }
 
+            try {
+                metadataStore.getContinuousQuery(project, "_users_daily");
+            } catch (RakamException e) {
+                try {
+                    service.precalculate(project, new AbstractUserService.PreCalculateQuery(null, null));
+                } catch (AlreadyExistsException e1) {
+                }
+            }
         }
     }
 }

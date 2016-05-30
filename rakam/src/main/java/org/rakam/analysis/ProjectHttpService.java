@@ -11,8 +11,6 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
@@ -29,12 +27,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.util.Locale.ENGLISH;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Path("/project")
@@ -188,6 +190,27 @@ public class ProjectHttpService extends HttpService {
         return transformKeys(apiKeyService.createApiKeys(project));
     }
 
+    @JsonRequest
+    @ApiOperation(value = "Create API Keys")
+    @Path("/check-api-keys")
+    public List<Boolean> checkApiKeys(@ApiParam("keys") List<ProjectApiKeys> keys, @ApiParam("project") String project) {
+        return keys.stream().map(key -> {
+            try {
+                Consumer<String> stringConsumer = e -> {
+                    if (!e.equals(project)) {
+                        throw new RakamException(FORBIDDEN);
+                    }
+                };
+                Optional.ofNullable(key.masterKey()).map(k -> apiKeyService.getProjectOfApiKey(k, MASTER_KEY)).ifPresent(stringConsumer);
+                Optional.ofNullable(key.readKey()).map(k -> apiKeyService.getProjectOfApiKey(k, READ_KEY)).ifPresent(stringConsumer);
+                Optional.ofNullable(key.writeKey()).map(k -> apiKeyService.getProjectOfApiKey(k, WRITE_KEY)).ifPresent(stringConsumer);
+                return true;
+            } catch (RakamException e) {
+                return false;
+            }
+        }).collect(Collectors.toList());
+    }
+
     private ProjectApiKeys transformKeys(ProjectApiKeys apiKeys) {
         if (projectConfig.getPassphrase() == null) {
             return ProjectApiKeys.create(apiKeys.masterKey(), apiKeys.readKey(), apiKeys.writeKey());
@@ -213,7 +236,7 @@ public class ProjectHttpService extends HttpService {
             authorizations = @Authorization(value = "master_key"))
 
     @Path("/revoke-api-keys")
-    public JsonResponse revokeApiKeys(@Named("project") String project, @HeaderParam("api_key") String masterKey) {
+    public JsonResponse revokeApiKeys(@Named("project") String project, @HeaderParam("master_key") String masterKey) {
         apiKeyService.revokeApiKeys(project, masterKey);
         return JsonResponse.success();
     }

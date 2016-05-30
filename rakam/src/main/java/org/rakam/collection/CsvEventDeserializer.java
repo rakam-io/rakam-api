@@ -62,7 +62,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
     public EventList deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
         String project = (String) ctxt.getAttribute("project");
         String collection = (String) ctxt.getAttribute("collection");
-        String apiKey = (String) ctxt.getAttribute("api_key");
+        String apiKey = (String) ctxt.getAttribute("apiKey");
 
         Map.Entry<List<SchemaField>, int[]> header = readHeader((CsvParser) jp, project, collection);
         List<SchemaField> fields = header.getKey();

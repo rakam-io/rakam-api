@@ -78,13 +78,13 @@ public class WebServiceModule extends AbstractModule {
                 .title("Rakam API Documentation")
                 .version(ServiceStarter.RAKAM_VERSION)
                 .description("An analytics platform API that lets you create your own analytics services.")
-                .contact(new Contact().email("contact@rakam.com"))
+                .contact(new Contact().email("contact@rakam.io"))
                 .license(new License()
                         .name("Apache License 2.0")
                         .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
 
         Swagger swagger = new Swagger().info(info)
-                .host("app.rakam.io")
+                .host("https://app.rakam.io")
                 .basePath("/")
                 .tags(ImmutableList.copyOf(tags))
                 .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER).name("write_key"))
@@ -106,9 +106,12 @@ public class WebServiceModule extends AbstractModule {
                 .setSwaggerOperationProcessor((method, operation) -> {
                     ApiOperation annotation = method.getAnnotation(ApiOperation.class);
                     if (annotation != null && annotation.authorizations() != null && annotation.authorizations().length > 0) {
-                        operation.response(FORBIDDEN.code(), new Response()
-                                .schema(new RefProperty("ErrorMessage"))
-                                .description("Api key is invalid"));
+                        String value = annotation.authorizations()[0].value();
+                        if (value != null && !value.isEmpty()) {
+                            operation.response(FORBIDDEN.code(), new Response()
+                                    .schema(new RefProperty("ErrorMessage"))
+                                    .description(value + " is invalid"));
+                        }
                     }
                 })
                 .setMapper(JsonHelper.getMapper())
@@ -194,11 +197,11 @@ public class WebServiceModule extends AbstractModule {
 
         @Override
         public Object extract(ObjectNode node, RakamHttpRequest request) {
-            String api_key = request.headers().get("api_key");
-            if (api_key == null) {
-                throw new RakamException("api_key header parameter is missing.", FORBIDDEN);
+            String apiKey = request.headers().get(type.getKey());
+            if (apiKey == null) {
+                throw new RakamException(type.getKey() + " header parameter is missing.", FORBIDDEN);
             }
-            return apiKeyService.getProjectOfApiKey(api_key, type);
+            return apiKeyService.getProjectOfApiKey(apiKey, type);
         }
     }
 

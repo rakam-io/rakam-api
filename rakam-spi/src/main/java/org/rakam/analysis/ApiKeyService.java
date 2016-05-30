@@ -17,14 +17,14 @@ public interface ApiKeyService {
 
     @AutoValue
     abstract class ProjectApiKeys {
-        @JsonProperty public abstract String masterKey();
-        @JsonProperty public abstract String readKey();
-        @JsonProperty public abstract String writeKey();
+        @JsonProperty("master_key") public abstract String masterKey();
+        @JsonProperty("read_key") public abstract String readKey();
+        @JsonProperty("write_key") public abstract String writeKey();
 
         @JsonCreator
-        public static ProjectApiKeys create(@JsonProperty("masterKey") String masterKey,
-                                     @JsonProperty("readKey") String readKey,
-                                     @JsonProperty("writeKey") String writeKey) {
+        public static ProjectApiKeys create(@JsonProperty("master_key") String masterKey,
+                                     @JsonProperty("read_key") String readKey,
+                                     @JsonProperty("write_key") String writeKey) {
             return new AutoValue_ApiKeyService_ProjectApiKeys(masterKey, readKey, writeKey);
         }
 

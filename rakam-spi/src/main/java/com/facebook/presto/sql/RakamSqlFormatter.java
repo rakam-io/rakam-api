@@ -85,7 +85,13 @@ public final class RakamSqlFormatter {
 
     public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper) {
         StringBuilder builder = new StringBuilder();
-        new Formatter(builder, tableNameMapper).process(root, 0);
+        new Formatter(builder, tableNameMapper, null).process(root, 0);
+        return builder.toString();
+    }
+
+    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper) {
+        StringBuilder builder = new StringBuilder();
+        new Formatter(builder, tableNameMapper, columnNameMapper).process(root, 0);
         return builder.toString();
     }
 
@@ -93,10 +99,12 @@ public final class RakamSqlFormatter {
             extends AstVisitor<Void, Integer> {
         private final StringBuilder builder;
         private final Function<QualifiedName, String> tableNameMapper;
+        private final Optional<Function<QualifiedName, String>> columnNameMapper;
 
-        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper) {
+        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper) {
             this.builder = builder;
             this.tableNameMapper = tableNameMapper;
+            this.columnNameMapper = Optional.ofNullable(columnNameMapper);
         }
 
         @Override
@@ -107,7 +115,7 @@ public final class RakamSqlFormatter {
         @Override
         protected Void visitExpression(Expression node, Integer indent) {
             checkArgument(indent == 0, "visitExpression should only be called at root");
-            builder.append(formatExpression(node, tableNameMapper));
+            builder.append(formatExpression(node, tableNameMapper, columnNameMapper));
             return null;
         }
 
@@ -175,7 +183,7 @@ public final class RakamSqlFormatter {
             builder.append('\n');
 
             if (node.getWhere().isPresent()) {
-                append(indent, "WHERE " + formatExpression(node.getWhere().get(), tableNameMapper))
+                append(indent, "WHERE " + formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper))
                         .append('\n');
             }
 
@@ -184,7 +192,7 @@ public final class RakamSqlFormatter {
             }
 
             if (node.getHaving().isPresent()) {
-                append(indent, "HAVING " + formatExpression(node.getHaving().get(), tableNameMapper))
+                append(indent, "HAVING " + formatExpression(node.getHaving().get(), tableNameMapper, columnNameMapper))
                         .append('\n');
             }
 
@@ -229,7 +237,7 @@ public final class RakamSqlFormatter {
 
         @Override
         protected Void visitSingleColumn(SingleColumn node, Integer indent) {
-            builder.append(formatExpression(node.getExpression(), tableNameMapper));
+            builder.append(formatExpression(node.getExpression(), tableNameMapper, columnNameMapper));
             if (node.getAlias().isPresent()) {
                 builder.append(' ')
                         .append('"')
@@ -284,7 +292,7 @@ public final class RakamSqlFormatter {
                 } else if (criteria instanceof JoinOn) {
                     JoinOn on = (JoinOn) criteria;
                     builder.append(" ON (")
-                            .append(formatExpression(on.getExpression(), tableNameMapper))
+                            .append(formatExpression(on.getExpression(), tableNameMapper, columnNameMapper))
                             .append(')');
                 } else if (!(criteria instanceof NaturalJoin)) {
                     throw new UnsupportedOperationException("unknown join criteria: " + criteria);
@@ -340,7 +348,7 @@ public final class RakamSqlFormatter {
                         .append(indentString(indent))
                         .append(first ? "  " : ", ");
 
-                builder.append(formatExpression(row, tableNameMapper));
+                builder.append(formatExpression(row, tableNameMapper, columnNameMapper));
                 first = false;
             }
             builder.append('\n');
@@ -514,7 +522,7 @@ public final class RakamSqlFormatter {
 
             if (node.getWhere().isPresent()) {
                 builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get(), tableNameMapper));
+                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper));
             }
 
             if (!node.getOrderBy().isEmpty()) {
@@ -551,7 +559,7 @@ public final class RakamSqlFormatter {
 
             if (node.getWhere().isPresent()) {
                 builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get(), tableNameMapper));
+                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper));
             }
 
             return null;
@@ -565,7 +573,7 @@ public final class RakamSqlFormatter {
             if (!node.getProperties().isEmpty()) {
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper)));
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper)));
                 builder.append(')');
             }
 
@@ -592,7 +600,7 @@ public final class RakamSqlFormatter {
             if (!node.getProperties().isEmpty()) {
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper)));
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper)));
                 builder.append(')');
             }
 
@@ -660,7 +668,7 @@ public final class RakamSqlFormatter {
             builder.append("SET SESSION ")
                     .append(node.getName())
                     .append(" = ")
-                    .append(formatExpression(node.getValue(), tableNameMapper));
+                    .append(formatExpression(node.getValue(), tableNameMapper, columnNameMapper));
 
             return null;
         }
@@ -708,6 +716,10 @@ public final class RakamSqlFormatter {
 
     public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper) {
         return new RakamExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper)).process(expression, false);
+    }
+
+    private static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper) {
+        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper).process(expression, false);
     }
 
 }

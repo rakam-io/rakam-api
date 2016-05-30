@@ -28,8 +28,6 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
@@ -63,7 +61,7 @@ import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
 @Path("/query")
-@Api(value = "/query", nickname = "query", description = "Query module", tags = {"event"})
+@Api(value = "/query", nickname = "query", description = "Query module", tags = {"analyze"})
 @Produces({"application/json"})
 public class QueryHttpService extends HttpService {
     private static final Logger LOGGER = Logger.get(QueryHttpService.class);
@@ -129,9 +127,9 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        List<String> apiKey = request.params().get("api_key");
+        List<String> apiKey = request.params().get(keyType.getKey());
         if (apiKey == null || data.isEmpty()) {
-            String message = "api_key query parameter is required";
+            String message = keyType.getKey()+" query parameter is required";
             SentryUtil.logException(request, new RakamException(message, BAD_REQUEST));
             response.send("result", encode(errorMessage(message, BAD_REQUEST))).end();
             return;

@@ -45,7 +45,7 @@ public class TestCSVParser {
         EventList actual = mapper.reader(EventList.class).with(ContextAttributes.getEmpty()
                         .withSharedAttribute("project", "project")
                         .withSharedAttribute("collection", "collection")
-                        .withSharedAttribute("api_key", "api_key")
+                        .withSharedAttribute("apiKey", "apiKey")
         ).readValue(csv);
 
         List<SchemaField> collection = metastore.getCollection("project", "collection");
@@ -66,7 +66,7 @@ public class TestCSVParser {
         record2.put("product", "Product2");
         record2.put("price", 1500.0);
 
-        EventList eventList = new EventList(Event.EventContext.apiKey("api_key"), "project", ImmutableList.of(
+        EventList eventList = new EventList(Event.EventContext.apiKey("apiKey"), "project", ImmutableList.of(
                 new Event("project", "collection", null, ImmutableList.copyOf(collection), record1),
                 new Event("project", "collection", null, ImmutableList.copyOf(collection), record2)));
         assertEquals(actual, eventList);

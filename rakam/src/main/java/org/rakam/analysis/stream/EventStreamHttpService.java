@@ -16,8 +16,6 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.JsonHelper;
@@ -80,7 +78,7 @@ public class EventStreamHttpService extends HttpService {
             response.send("result", encode(errorMessage("json couldn't parsed", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
-        List<String> api_key = request.params().get("api_key");
+        List<String> api_key = request.params().get("read_key");
 
         if (api_key == null || api_key.isEmpty()) {
             response.send("result", HttpResponseStatus.FORBIDDEN.reasonPhrase()).end();
