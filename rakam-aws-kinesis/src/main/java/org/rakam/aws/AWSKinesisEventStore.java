@@ -158,7 +158,6 @@ public class AWSKinesisEventStore implements EventStore {
                 throw new RakamException("Unable to get commit lock, there is another ongoing commit process", CONFLICT);
             }
 
-            System.out.println(1);
             String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s UTC'",
                     prestoConfig.getBulkConnector(), project, collection,
                     PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)));
