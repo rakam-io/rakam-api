@@ -3,15 +3,13 @@ package org.rakam.module.website;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.collection.Event;
-import org.rakam.collection.SchemaField;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
-import org.rakam.server.http.IRequestParameter;
 import org.rakam.util.AvroUtil;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -39,7 +37,7 @@ public class TestUserAgentEventMapper {
     }
 
     @Test(dataProvider = "chrome-user-agent")
-    public void testUserAgentMapper(Map<String, Object> props, HttpHeaders headers) throws Exception {
+    public void testUserAgentMapper(Map<String, Object> props, EventMapper.RequestParams headers) throws Exception {
         UserAgentEventMapper mapper = new UserAgentEventMapper(new WebsiteMapperConfig());
         FieldDependencyBuilder builder = new FieldDependencyBuilder();
         mapper.addFieldDependency(builder);
@@ -57,10 +55,9 @@ public class TestUserAgentEventMapper {
 
         Event event = new Event("testproject", "testcollection", null, null, properties);
 
-        List<Cookie> resp = mapper.map(event, () -> headers, InetAddress.getLocalHost(), null);
+        List<Cookie> resp = mapper.map(event, headers, InetAddress.getLocalHost(), null);
 
         assertEquals("Chrome", event.getAttribute("_user_agent_family"));
-        assertEquals(new Long(47), event.getAttribute("_user_agent_version"));
         assertEquals("Mac OS X", event.getAttribute("_os"));
         assertEquals(new Long(10), event.getAttribute("_os_version"));
         assertEquals("Other", event.getAttribute("_device_family"));
