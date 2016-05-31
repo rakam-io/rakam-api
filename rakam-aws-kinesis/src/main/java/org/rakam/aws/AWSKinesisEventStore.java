@@ -27,14 +27,17 @@ import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecution;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.ChainQueryExecution;
+import org.rakam.report.DelegateQueryExecution;
+import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryResult;
 import org.rakam.util.KByteArrayOutputStream;
 import org.rakam.util.QueryFormatter;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -42,9 +45,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
 import static java.lang.String.format;
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
@@ -148,8 +152,13 @@ public class AWSKinesisEventStore implements EventStore {
             conn = dataSource.getConnection();
 
             String lockKey = "bulk." + project + "." + collection;
-            conn.createStatement().execute(format("SELECT GET_LOCK('%s', -1)", lockKey));
+            ResultSet rs = conn.createStatement().executeQuery(format("SELECT GET_LOCK('%s', 120)", lockKey));
+            rs.next();
+            if (rs.getInt(1) == 0) {
+                throw new RakamException("Unable to get commit lock, there is another ongoing commit process", CONFLICT);
+            }
 
+            System.out.println(1);
             String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s UTC'",
                     prestoConfig.getBulkConnector(), project, collection,
                     PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)));
@@ -187,22 +196,28 @@ public class AWSKinesisEventStore implements EventStore {
                 }
 
                 return new ChainQueryExecution(builder.build(), null, (viewUpdateResults) -> {
-                    Optional<QueryResult> result = viewUpdateResults.stream().filter(e -> e.isFailed()).findAny();
+                    List<QueryError> continuousQueryErrors = viewUpdateResults.stream()
+                            .filter(e -> e.isFailed()).map(e -> e.getError())
+                            .collect(Collectors.toList());
 
-                    QueryExecution e;
-                    if (result.isPresent()) {
-                        e = QueryExecution.completedQueryExecution(null, result.get());
-                    } else {
-                        e = executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s UTC'", prestoConfig.getBulkConnector(),
-                                project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC))));
+                    if (!continuousQueryErrors.isEmpty()) {
+                        LOGGER.warn("Error while updating continuous queries via bulk commit: " + continuousQueryErrors);
                     }
+
+                    DelegateQueryExecution clearStaging = new DelegateQueryExecution(executor.executeRawStatement(format("DELETE FROM %s.%s.%s WHERE \"$created_at\" <= timestamp '%s UTC'", prestoConfig.getBulkConnector(),
+                            project, collection, PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)))), result -> {
+                        if (!continuousQueryErrors.isEmpty()) {
+                            result.setProperty("continuousQueryUpdateError", continuousQueryErrors);
+                        }
+                        return result;
+                    });
 
                     try {
                         conn.createStatement().execute(format("SELECT RELEASE_LOCK('%s')", lockKey));
                     } catch (SQLException e1) {
                     }
 
-                    return e;
+                    return clearStaging;
                 });
             });
         } catch (SQLException e) {
