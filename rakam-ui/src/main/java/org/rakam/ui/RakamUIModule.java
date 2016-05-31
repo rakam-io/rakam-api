@@ -202,14 +202,15 @@ public class RakamUIModule extends RakamModule {
                         .execute();
 
                 handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_api_key (" +
-                        "  id serial NOT NULL,\n" +
+                        "  id SERIAL NOT NULL,\n" +
                         "  project_id INTEGER REFERENCES web_user_project(id),\n" +
                         "  scope_expression TEXT,\n" +
                         "  user_id INT REFERENCES web_user(id),\n" +
                         "  write_key TEXT NOT NULL,\n" +
                         "  read_key TEXT NOT NULL,\n" +
                         "  master_key TEXT DEFAULT false NOT NULL,\n" +
-                        "  created_at timestamp DEFAULT now() NOT NULL\n" +
+                        "  created_at timestamp DEFAULT now() NOT NULL," +
+                        "  PRIMARY KEY (id)\n" +
                         "  )")
                         .execute();
 
