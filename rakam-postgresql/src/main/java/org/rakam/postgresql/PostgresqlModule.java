@@ -195,7 +195,7 @@ public class PostgresqlModule extends RakamModule {
 
         public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
             for (SchemaField field : fields) {
-                executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.\"%s\"(\"%s\")",
+                executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.\"%s\" USING BTREE(\"%s\")",
                         project, collection, field.getName(),
                         project, collection, field.getName()));
             }

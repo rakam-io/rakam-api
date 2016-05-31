@@ -97,8 +97,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
             }
         }
 
-        Event.EventContext context = Event.EventContext.apiKey(apiKey);
-        return new EventList(context, project, list);
+        return new EventList(Event.EventContext.apiKey(apiKey), project, list);
     }
 
     public Schema convertAvroSchema(List<SchemaField> fields) {
