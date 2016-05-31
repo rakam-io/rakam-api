@@ -9,7 +9,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
@@ -25,8 +24,6 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
@@ -329,13 +326,13 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     return jp.getValueAsLong();
                 }
                 try {
-                    return Instant.parse(jp.getValueAsString()).toEpochMilli();
+                    return DateTimeUtils.parseTimestamp(jp.getValueAsString());
                 } catch (DateTimeParseException e) {
                     return null;
                 }
             case DATE:
                 try {
-                    return Ints.checkedCast(LocalDate.parse(jp.getValueAsString()).toEpochDay());
+                    return DateTimeUtils.parseDate(jp.getValueAsString());
                 } catch (DateTimeParseException e) {
                     return null;
                 }

@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
 import com.google.common.collect.ImmutableList;
-import com.google.common.primitives.Ints;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ConfigManager;
@@ -18,8 +17,6 @@ import org.rakam.util.AvroUtil;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
@@ -53,6 +50,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
     public CsvEventDeserializer(Metastore metastore, ConfigManager configManager,
                                 FieldDependency fieldDependency) {
         this.metastore = metastore;
+
         this.configManager = configManager;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.constantFields = fieldDependency.constantFields;
@@ -177,13 +175,13 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
                     return jp.getValueAsLong();
                 }
                 try {
-                    return Instant.parse(jp.getValueAsString()).toEpochMilli();
-                } catch (DateTimeParseException e) {
+                    return DateTimeUtils.parseTimestamp(jp.getValueAsString());
+                } catch (Exception e) {
                     return null;
                 }
             case DATE:
                 try {
-                    return Ints.checkedCast(LocalDate.parse(jp.getValueAsString()).toEpochDay());
+                    return DateTimeUtils.parseDate(jp.getValueAsString());
                 } catch (DateTimeParseException e) {
                     return null;
                 }

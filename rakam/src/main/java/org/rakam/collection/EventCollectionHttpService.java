@@ -396,7 +396,7 @@ public class EventCollectionHttpService extends HttpService {
         CommitRequest commitRequest = JsonHelper.read(data.get(0), CommitRequest.class);
 
         Collection<String> collections;
-        if (commitRequest.collections != null && !commitRequest.collections.isEmpty()) {
+        if (commitRequest != null && commitRequest.collections != null && !commitRequest.collections.isEmpty()) {
             collections = commitRequest.collections;
         } else {
             collections = metastore.getCollectionNames(project);

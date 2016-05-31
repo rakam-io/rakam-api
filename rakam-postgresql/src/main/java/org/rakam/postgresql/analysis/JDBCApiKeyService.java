@@ -107,6 +107,12 @@ public class JDBCApiKeyService implements ApiKeyService {
 
     @Override
     public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
+        if(type == null) {
+            throw new IllegalStateException();
+        }
+        if(apiKey == null) {
+            throw new RakamException(type.getKey()+" is missing", FORBIDDEN);
+        }
         try {
             return apiKeyReverseCache.getUnchecked(new ApiKey(apiKey, type));
         } catch (UncheckedExecutionException e) {

@@ -177,10 +177,20 @@ public class PostgresqlModule extends RakamModule {
 
     private static class CollectionFieldIndexerListener {
         private final PostgresqlQueryExecutor executor;
+        boolean brinIndexSupported;
 
         @Inject
         public CollectionFieldIndexerListener(PostgresqlQueryExecutor executor) {
             this.executor = executor;
+            try {
+                String version = executor.executeRawQuery("SHOW server_version")
+                        .getResult().join().getResult().get(0).get(0).toString();
+                String[] split = version.split("\\.", 2);
+                // Postgresql BRIN support came in 9.5 version
+                brinIndexSupported = Integer.parseInt(split[0]) > 9 || (Integer.parseInt(split[0]) == 9 && Double.parseDouble(split[1]) >= 5);
+            } catch (Exception e) {
+                brinIndexSupported = false;
+            }
         }
 
         @Subscribe
@@ -195,9 +205,11 @@ public class PostgresqlModule extends RakamModule {
 
         public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
             for (SchemaField field : fields) {
-                executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.\"%s\" USING BTREE(\"%s\")",
+                executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.\"%s\" USING %s(\"%s\")",
                         project, collection, field.getName(),
-                        project, collection, field.getName()));
+                        project, collection,
+                        brinIndexSupported ? "BRIN" : "BREE",
+                        field.getName()));
             }
         }
     }

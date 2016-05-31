@@ -2,33 +2,24 @@ package org.rakam.collection;
 
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 import org.joda.time.format.DateTimeParser;
 import org.joda.time.format.DateTimePrinter;
 import org.joda.time.format.ISODateTimeFormat;
 
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
 public class DateTimeUtils {
-    private DateTimeUtils()
-    {
+    private DateTimeUtils() {
     }
 
     private static final DateTimeFormatter DATE_FORMATTER = ISODateTimeFormat.date().withZoneUTC();
-
-    public static int parseDate(String value)
-    {
-        return (int) TimeUnit.MILLISECONDS.toDays(DATE_FORMATTER.parseMillis(value));
-    }
-
-    public static String printDate(int days)
-    {
-        return DATE_FORMATTER.print(TimeUnit.DAYS.toMillis(days));
-    }
-
     private static final DateTimeFormatter TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER;
     private static final DateTimeFormatter TIMESTAMP_WITH_TIME_ZONE_FORMATTER;
-    private static final DateTimeFormatter TIMESTAMP_WITH_OR_WITHOUT_TIME_ZONE_FORMATTER;
+
+    public static int parseDate(String value) {
+        return (int) TimeUnit.MILLISECONDS.toDays(DATE_FORMATTER.parseMillis(value));
+    }
 
     static {
         DateTimeParser[] timestampWithoutTimeZoneParser = {
@@ -37,7 +28,7 @@ public class DateTimeUtils {
                 DateTimeFormat.forPattern("yyyy-M-d H:m:s").getParser(),
                 DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSS").getParser()};
         DateTimePrinter timestampWithoutTimeZonePrinter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").getPrinter();
-        TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER = new org.joda.time.format.DateTimeFormatterBuilder()
+        TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER = new DateTimeFormatterBuilder()
                 .append(timestampWithoutTimeZonePrinter, timestampWithoutTimeZoneParser)
                 .toFormatter()
                 .withOffsetParsed();
@@ -60,32 +51,23 @@ public class DateTimeUtils {
                 DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSSZZZ").getParser(),
                 DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSS ZZZ").getParser()};
         DateTimePrinter timestampWithTimeZonePrinter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS ZZZ").getPrinter();
-        TIMESTAMP_WITH_TIME_ZONE_FORMATTER = new org.joda.time.format.DateTimeFormatterBuilder()
+        TIMESTAMP_WITH_TIME_ZONE_FORMATTER = new DateTimeFormatterBuilder()
                 .append(timestampWithTimeZonePrinter, timestampWithTimeZoneParser)
                 .toFormatter()
                 .withOffsetParsed();
-
-        DateTimeParser[] timestampWithOrWithoutTimeZoneParser = Stream.concat(Stream.of(timestampWithoutTimeZoneParser), Stream.of(timestampWithTimeZoneParser))
-                .toArray(DateTimeParser[]::new);
-        TIMESTAMP_WITH_OR_WITHOUT_TIME_ZONE_FORMATTER = new org.joda.time.format.DateTimeFormatterBuilder()
-                .append(timestampWithTimeZonePrinter, timestampWithOrWithoutTimeZoneParser)
-                .toFormatter()
-                .withOffsetParsed();
     }
 
-    public static long parseTimestampLiteral(String value)
-    {
+    public static long parseTimestamp(String timestampWithTimeZone) {
+        // If it's in ISO format the last character must be 'Z'
+        if (timestampWithTimeZone.charAt(timestampWithTimeZone.length() - 1) == 'Z') {
+            return ISODateTimeFormat.dateTime().parseMillis(timestampWithTimeZone);
+        }
         try {
-            return TIMESTAMP_WITH_TIME_ZONE_FORMATTER.parseDateTime(value).getMillis();
+            return TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
         }
         catch (Exception e) {
-            return TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER.parseMillis(value);
+            return TIMESTAMP_WITH_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
         }
-    }
-
-    public static long parseTimestampWithTimeZone(String timestampWithTimeZone)
-    {
-        return TIMESTAMP_WITH_OR_WITHOUT_TIME_ZONE_FORMATTER.parseDateTime(timestampWithTimeZone).getMillis();
     }
 
 
