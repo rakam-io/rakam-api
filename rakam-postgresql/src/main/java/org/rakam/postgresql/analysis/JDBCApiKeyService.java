@@ -11,6 +11,7 @@ import org.rakam.util.CryptUtil;
 import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -27,35 +28,45 @@ import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.*;
 
-public class JDBCApiKeyService implements ApiKeyService {
+public class JDBCApiKeyService
+        implements ApiKeyService
+{
     private final LoadingCache<String, List<Set<String>>> apiKeyCache;
     protected final JDBCPoolDataSource connectionPool;
     private final LoadingCache<ApiKey, String> apiKeyReverseCache;
 
-    public JDBCApiKeyService(JDBCPoolDataSource connectionPool) {
+    public JDBCApiKeyService(JDBCPoolDataSource connectionPool)
+    {
         this.connectionPool = connectionPool;
 
-        apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>() {
+        apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>()
+        {
             @Override
-            public List<Set<String>> load(String project) throws Exception {
+            public List<Set<String>> load(String project)
+                    throws Exception
+            {
                 try (Connection conn = connectionPool.getConnection()) {
                     return getKeys(conn, project);
                 }
             }
         });
 
-        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, String>() {
+        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, String>()
+        {
             @Override
-            public String load(ApiKey apiKey) throws Exception {
+            public String load(ApiKey apiKey)
+                    throws Exception
+            {
                 try (Connection conn = connectionPool.getConnection()) {
                     PreparedStatement ps = conn.prepareStatement(format("SELECT project FROM api_key WHERE %s = ?", apiKey.type.name()));
                     ps.setString(1, apiKey.key);
                     ResultSet resultSet = ps.executeQuery();
                     if (!resultSet.next()) {
-                        throw new RakamException(apiKey.type.getKey()+" is invalid", FORBIDDEN);
+                        throw new RakamException(apiKey.type.getKey() + " is invalid", FORBIDDEN);
                     }
                     return resultSet.getString(1);
-                } catch (SQLException e) {
+                }
+                catch (SQLException e) {
                     throw Throwables.propagate(e);
                 }
             }
@@ -63,7 +74,8 @@ public class JDBCApiKeyService implements ApiKeyService {
     }
 
     @PostConstruct
-    public void setup() {
+    public void setup()
+    {
         try (Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
             statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
@@ -75,13 +87,15 @@ public class JDBCApiKeyService implements ApiKeyService {
                     "  created_at TIMESTAMP default current_timestamp NOT NULL," +
                     "PRIMARY KEY (id)\n" +
                     "  )");
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             Throwables.propagate(e);
         }
     }
 
     @Override
-    public ProjectApiKeys createApiKeys(String project) {
+    public ProjectApiKeys createApiKeys(String project)
+    {
 
         String masterKey = CryptUtil.generateRandomKey(64);
         String readKey = CryptUtil.generateRandomKey(64);
@@ -98,7 +112,8 @@ public class JDBCApiKeyService implements ApiKeyService {
             ps.executeUpdate();
             final ResultSet generatedKeys = ps.getGeneratedKeys();
             generatedKeys.next();
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw Throwables.propagate(e);
         }
 
@@ -106,34 +121,39 @@ public class JDBCApiKeyService implements ApiKeyService {
     }
 
     @Override
-    public String getProjectOfApiKey(String apiKey, AccessKeyType type) {
-        if(type == null) {
+    public String getProjectOfApiKey(String apiKey, AccessKeyType type)
+    {
+        if (type == null) {
             throw new IllegalStateException();
         }
-        if(apiKey == null) {
-            throw new RakamException(type.getKey()+" is missing", FORBIDDEN);
+        if (apiKey == null) {
+            throw new RakamException(type.getKey() + " is missing", FORBIDDEN);
         }
         try {
             return apiKeyReverseCache.getUnchecked(new ApiKey(apiKey, type));
-        } catch (UncheckedExecutionException e) {
+        }
+        catch (UncheckedExecutionException e) {
             throw Throwables.propagate(e.getCause());
         }
     }
 
     @Override
-    public void revokeApiKeys(String project, String masterKey) {
+    public void revokeApiKeys(String project, String masterKey)
+    {
         try (Connection conn = connectionPool.getConnection()) {
             PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ? AND master_key = ?");
             ps.setString(1, project);
             ps.setString(2, masterKey);
             ps.execute();
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
+    public boolean checkPermission(String project, AccessKeyType type, String apiKey)
+    {
         try {
             if (apiKey == null) {
                 throw new RakamException("Api key is missing", FORBIDDEN);
@@ -147,23 +167,28 @@ public class JDBCApiKeyService implements ApiKeyService {
                 return apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
             }
             return true;
-        } catch (ExecutionException e) {
+        }
+        catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public void revokeAllKeys(String project) {
+    public void revokeAllKeys(String project)
+    {
         try (Connection conn = connectionPool.getConnection()) {
             PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ?");
             ps.setString(1, project);
             ps.execute();
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private List<Set<String>> getKeys(Connection conn, String project) throws SQLException {
+    private List<Set<String>> getKeys(Connection conn, String project)
+            throws SQLException
+    {
         Set<String> masterKeyList = new HashSet<>();
         Set<String> readKeyList = new HashSet<>();
         Set<String> writeKeyList = new HashSet<>();
@@ -198,33 +223,43 @@ public class JDBCApiKeyService implements ApiKeyService {
         return Collections.unmodifiableList(Arrays.asList(keys));
     }
 
-    public void clearCache() {
+    public void clearCache()
+    {
         apiKeyCache.cleanUp();
     }
 
-    public static final class ApiKey {
+    public static final class ApiKey
+    {
         public final String key;
         public final AccessKeyType type;
 
-        public ApiKey(String key, AccessKeyType type) {
+        public ApiKey(String key, AccessKeyType type)
+        {
             this.key = key;
             this.type = type;
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof ApiKey)) return false;
+        public boolean equals(Object o)
+        {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ApiKey)) {
+                return false;
+            }
 
             ApiKey apiKey = (ApiKey) o;
 
-            if (!key.equals(apiKey.key)) return false;
+            if (!key.equals(apiKey.key)) {
+                return false;
+            }
             return type == apiKey.type;
-
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             int result = key.hashCode();
             result = 31 * result + type.hashCode();
             return result;

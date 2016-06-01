@@ -123,7 +123,8 @@ public class PostgresqlQueryExecution implements QueryExecution {
 
             columns = new ArrayList<>(columnCount);
             for (int i = 1; i < columnCount + 1; i++) {
-                columns.add(new SchemaField(metaData.getColumnName(i), fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i))));
+                columns.add(new SchemaField(metaData.getColumnName(i),
+                        fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i))));
             }
 
             ImmutableList.Builder<List<Object>> builder = ImmutableList.builder();

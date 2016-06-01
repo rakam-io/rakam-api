@@ -128,10 +128,6 @@ public class PrestoQueryExecution implements QueryExecution {
         }
     }
 
-    public String getTransactionId() {
-        return transactionId;
-    }
-
     @Override
     public QueryStats currentStats() {
 

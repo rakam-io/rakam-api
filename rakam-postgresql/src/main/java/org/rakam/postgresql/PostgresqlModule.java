@@ -208,7 +208,7 @@ public class PostgresqlModule extends RakamModule {
                 executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.\"%s\" USING %s(\"%s\")",
                         project, collection, field.getName(),
                         project, collection,
-                        brinIndexSupported ? "BRIN" : "BREE",
+                        brinIndexSupported ? "BRIN" : "BTREE",
                         field.getName()));
             }
         }

@@ -168,7 +168,7 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
             case DATE:
                 try {
                     return DateTimeUtils.parseDate(jp.getValueAsString());
-                } catch (DateTimeParseException e) {
+                } catch (Exception e) {
                     return null;
                 }
             default:

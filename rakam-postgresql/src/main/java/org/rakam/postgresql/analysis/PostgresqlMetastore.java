@@ -369,6 +369,9 @@ public class PostgresqlMetastore extends AbstractMetastore {
             if(name.equals("json")) {
                 return FieldType.STRING;
             }
+            if(name.equals("unknown")) {
+                return FieldType.STRING;
+            }
 
             throw new UnsupportedOperationException(String.format("type '%s' is not supported.", typeName));
         });

@@ -316,13 +316,13 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 }
                 try {
                     return DateTimeUtils.parseTimestamp(jp.getValueAsString());
-                } catch (DateTimeParseException e) {
+                } catch (Exception e) {
                     return null;
                 }
             case DATE:
                 try {
                     return DateTimeUtils.parseDate(jp.getValueAsString());
-                } catch (DateTimeParseException e) {
+                } catch (Exception e) {
                     return null;
                 }
             default:

@@ -26,7 +26,8 @@ import java.util.Optional;
 import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 
-public class SentryUtil {
+public class SentryUtil
+{
     private static final Raven RAVEN;
     private static final Map<String, String> TAGS;
     private static final String RELEASE;
@@ -47,8 +48,11 @@ public class SentryUtil {
         RAVEN = dsnInternal != null ? RavenFactory.ravenInstance(dsnInternal) : null;
     }
 
-    public static void logException(RakamHttpRequest request, RakamException e) {
-        if (RAVEN == null) return;
+    public static void logException(RakamHttpRequest request, RakamException e)
+    {
+        if (RAVEN == null) {
+            return;
+        }
         EventBuilder builder = new EventBuilder()
                 .withMessage(e.getMessage())
                 .withSentryInterface(new HttpInterface(new RakamServletWrapper(request)))
@@ -69,8 +73,11 @@ public class SentryUtil {
         RAVEN.sendEvent(builder.build());
     }
 
-    public static void logQueryError(String query, QueryError e, Class<? extends QueryExecutor> queryExecutorClass) {
-        if (RAVEN == null) return;
+    public static void logQueryError(String query, QueryError e, Class<? extends QueryExecutor> queryExecutorClass)
+    {
+        if (RAVEN == null) {
+            return;
+        }
         EventBuilder builder = new EventBuilder()
                 .withMessage(e.message)
                 .withExtra("query", query)
@@ -92,32 +99,42 @@ public class SentryUtil {
         RAVEN.sendEvent(builder.build());
     }
 
-    private static class QuerySentryInterface implements SentryInterface {
+    private static class QuerySentryInterface
+            implements SentryInterface
+    {
         private final String query;
         private final String engine;
 
-        public QuerySentryInterface(String query, String engine) {
+        public QuerySentryInterface(String query, String engine)
+        {
             this.query = query;
             this.engine = engine;
         }
 
         @Override
-        public String getInterfaceName() {
+        public String getInterfaceName()
+        {
             return "sentry.interfaces.Query";
         }
 
-        public String getQuery() {
+        public String getQuery()
+        {
             return query;
         }
 
-        public String getEngine() {
+        public String getEngine()
+        {
             return engine;
         }
     }
 
-    private static class QueryInterfaceInterfaceBinding implements InterfaceBinding<QuerySentryInterface> {
+    private static class QueryInterfaceInterfaceBinding
+            implements InterfaceBinding<QuerySentryInterface>
+    {
         @Override
-        public void writeInterface(JsonGenerator generator, QuerySentryInterface sentryInterface) throws IOException {
+        public void writeInterface(JsonGenerator generator, QuerySentryInterface sentryInterface)
+                throws IOException
+        {
             generator.writeStartObject();
             generator.writeStringField("query", sentryInterface.getQuery());
             generator.writeStringField("engine", sentryInterface.getEngine());
@@ -125,14 +142,18 @@ public class SentryUtil {
         }
     }
 
-    private static class QueryRavenFactory extends DefaultRavenFactory {
+    private static class QueryRavenFactory
+            extends DefaultRavenFactory
+    {
         @Override
-        public Raven createRavenInstance(Dsn dsn) {
+        public Raven createRavenInstance(Dsn dsn)
+        {
             return super.createRavenInstance(dsn);
         }
 
         @Override
-        protected Marshaller createMarshaller(Dsn dsn) {
+        protected Marshaller createMarshaller(Dsn dsn)
+        {
             JsonMarshaller marshaller = (JsonMarshaller) super.createMarshaller(dsn);
             marshaller.addInterfaceBinding(QuerySentryInterface.class, new QueryInterfaceInterfaceBinding());
             return marshaller;
