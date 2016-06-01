@@ -3,6 +3,7 @@ package org.rakam.postgresql.analysis;
 import com.google.common.base.Throwables;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import io.airlift.log.Logger;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.postgresql.util.PGobject;
@@ -15,6 +16,7 @@ import org.rakam.plugin.EventStore;
 import org.rakam.util.JsonHelper;
 
 import javax.inject.Inject;
+
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
@@ -25,65 +27,98 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Singleton
-public class PostgresqlEventStore implements EventStore {
+public class PostgresqlEventStore
+        implements EventStore
+{
+    private final static Logger LOGGER = Logger.get(PostgresqlEventStore.class);
+
     private final Set<String> sourceFields;
     private final JDBCPoolDataSource connectionPool;
     public static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone(ZoneId.of("UTC")));
 
     @Inject
-    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, FieldDependencyBuilder.FieldDependency fieldDependency) {
+    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, FieldDependencyBuilder.FieldDependency fieldDependency)
+    {
         this.connectionPool = connectionPool;
         this.sourceFields = fieldDependency.dependentFields.keySet();
     }
 
     @Override
-    public void store(org.rakam.collection.Event event) {
+    public void store(org.rakam.collection.Event event)
+    {
         GenericRecord record = event.properties();
         try (Connection connection = connectionPool.getConnection()) {
-            PreparedStatement ps = connection.prepareStatement(getQuery(event));
+            PreparedStatement ps = connection.prepareStatement(getQuery(event.project(), event.collection(), event.properties().getSchema()));
             bindParam(connection, ps, event.schema(), record);
             ps.executeUpdate();
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             Throwables.propagate(e);
         }
     }
 
     @Override
-    public int[] storeBatch(List<Event> events) {
-        try (Connection connection = connectionPool.getConnection()) {
-            connection.setAutoCommit(false);
-            // last event must have the last schema
-            Event lastEvent = events.get(events.size() - 1);
-            PreparedStatement ps = connection.prepareStatement(getQuery(lastEvent));
+    public int[] storeBatch(List<Event> events)
+    {
+        Map<String, List<Event>> groupedByCollection = events.stream()
+                .collect(Collectors.groupingBy(Event::collection));
 
-            for (int i = 0; i < events.size(); i++) {
-                Event event = events.get(i);
-                bindParam(connection, ps, event.schema(), event.properties());
-                ps.addBatch();
-                if(i > 0 && i % 1000 == 0) {
-                    ps.executeBatch();
+        Map<String, Integer> successfulCollections = new HashMap<>(groupedByCollection.size());
+        try (Connection connection = connectionPool.getConnection()) {
+            for (Map.Entry<String, List<Event>> entry : groupedByCollection.entrySet()) {
+                connection.setAutoCommit(false);
+                // last event must have the last schema
+                Event lastEvent = events.get(events.size() - 1);
+                PreparedStatement ps = connection.prepareStatement(getQuery(lastEvent.project(),
+                        entry.getKey(), lastEvent.properties().getSchema()));
+
+                for (int i = 0; i < events.size(); i++) {
+                    Event event = events.get(i);
+                    bindParam(connection, ps, event.schema(), event.properties());
+                    ps.addBatch();
+                    if (i > 0 && i % 5000 == 0) {
+                        ps.executeBatch();
+                        int finalI = i;
+                        successfulCollections
+                                .compute(entry.getKey(), (k, v) -> k == null ? finalI : v+finalI);
+                    }
                 }
+
+                ps.executeBatch();
+
+                connection.commit();
+                successfulCollections.compute(entry.getKey(), (k, v) -> events.size());
             }
 
-            ps.executeBatch();
-
-            connection.commit();
             connection.setAutoCommit(true);
             return EventStore.SUCCESSFUL_BATCH;
-        } catch (SQLException e) {
-            Throwables.propagate(e);
-            return IntStream.range(0, events.size()).toArray();
+        }
+        catch (SQLException e) {
+            LOGGER.error(e.getNextException(), "Error while storing events in Postgresql batch query");
+
+            return IntStream.range(0, events.size()).filter(idx -> {
+                Event event = events.get(idx);
+                Integer checkpointPosition = successfulCollections.get(event.collection());
+                return checkpointPosition == null ||
+                        groupedByCollection.get(event.collection()).indexOf(event) > checkpointPosition;
+            }).toArray();
         }
     }
 
-    private void bindParam(Connection connection, PreparedStatement ps, List<SchemaField> fields, GenericRecord record) throws SQLException {
+    private void bindParam(Connection connection, PreparedStatement ps, List<SchemaField> fields, GenericRecord record)
+            throws SQLException
+    {
         Object value;
         for (int i = 0; i < fields.size(); i++) {
             SchemaField field = fields.get(i);
@@ -125,28 +160,30 @@ public class PostgresqlEventStore implements EventStore {
                     if (type.isArray()) {
                         String typeName = toPostgresqlPrimitiveTypeName(type.getArrayElementType());
                         ps.setArray(i + 1, connection.createArrayOf(typeName, ((List) value).toArray()));
-                    } else if (type.isMap()) {
+                    }
+                    else if (type.isMap()) {
                         PGobject jsonObject = new PGobject();
                         jsonObject.setType("jsonb");
                         jsonObject.setValue(JsonHelper.encode(value));
                         ps.setObject(i + 1, jsonObject);
-                    } else {
+                    }
+                    else {
                         throw new UnsupportedOperationException();
                     }
             }
         }
     }
 
-    private String getQuery(Event event) {
+    private String getQuery(String project, String collection, Schema schema)
+    {
         // since we don't cache queries, we should care about performance so we just use StringBuilder instead of streams.
         // String columns = schema.getFields().stream().map(Schema.Field::name).collect(Collectors.joining(", "));
         // String parameters = schema.getFields().stream().map(f -> "?").collect(Collectors.joining(", "));
         StringBuilder query = new StringBuilder("INSERT INTO ")
-                .append(event.project())
+                .append(project)
                 .append(".")
-                .append(event.collection());
+                .append(collection);
         StringBuilder params = new StringBuilder();
-        Schema schema = event.properties().getSchema();
         List<Schema.Field> fields = schema.getFields();
 
         Schema.Field f = fields.get(0);
@@ -167,7 +204,8 @@ public class PostgresqlEventStore implements EventStore {
         return query.append("\") VALUES (").append(params.toString()).append(")").toString();
     }
 
-    public static String toPostgresqlPrimitiveTypeName(FieldType type) {
+    public static String toPostgresqlPrimitiveTypeName(FieldType type)
+    {
         switch (type) {
             case LONG:
                 return "int8";

@@ -37,6 +37,7 @@ import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
+import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class CsvEventDeserializer extends JsonDeserializer<EventList> {
@@ -96,21 +97,6 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
         }
 
         return new EventList(Event.EventContext.apiKey(apiKey), project, list);
-    }
-
-    public Schema convertAvroSchema(List<SchemaField> fields) {
-        List<Schema.Field> avroFields = fields.stream()
-                .map(AvroUtil::generateAvroField).collect(Collectors.toList());
-
-        Schema schema = Schema.createRecord("collection", null, null, false);
-
-        conditionalMagicFields.keySet().stream()
-                .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
-                .map(n -> new Schema.Field(n, Schema.create(NULL), "", null))
-                .forEach(x -> avroFields.add(x));
-
-        schema.setFields(avroFields);
-        return schema;
     }
 
     public Map.Entry<List<SchemaField>, int[]> readHeader(CsvParser jp, String project, String collection) throws IOException {

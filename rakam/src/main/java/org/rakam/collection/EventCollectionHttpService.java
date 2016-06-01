@@ -16,6 +16,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.util.CharsetUtil;
@@ -49,6 +50,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.xml.bind.DatatypeConverter;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
@@ -81,7 +83,9 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 
 @Path("/event")
 @Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
-public class EventCollectionHttpService extends HttpService {
+public class EventCollectionHttpService
+        extends HttpService
+{
     private final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
     private static final int[] EMPTY_INT_ARRAY = new int[0];
     private static final String PARTIAL_ERROR_MESSAGE = "Failed to collect some of the events in batch. Returns the indexes of events that are failed in batch.";
@@ -98,13 +102,14 @@ public class EventCollectionHttpService extends HttpService {
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
-                                      JsonEventDeserializer deserializer,
-                                      QueryHttpService queryHttpService,
-                                      AvroEventDeserializer avroEventDeserializer,
-                                      EventListDeserializer eventListDeserializer,
-                                      CsvEventDeserializer csvEventDeserializer,
-                                      Metastore metastore,
-                                      Set<EventMapper> mappers) {
+            JsonEventDeserializer deserializer,
+            QueryHttpService queryHttpService,
+            AvroEventDeserializer avroEventDeserializer,
+            EventListDeserializer eventListDeserializer,
+            CsvEventDeserializer csvEventDeserializer,
+            Metastore metastore,
+            Set<EventMapper> mappers)
+    {
         this.eventStore = eventStore;
         this.eventMappers = mappers;
         this.apiKeyService = apiKeyService;
@@ -117,9 +122,11 @@ public class EventCollectionHttpService extends HttpService {
         module.addDeserializer(EventList.class, eventListDeserializer);
         jsonMapper.registerModule(module);
 
-        jsonMapper.registerModule(new SimpleModule("swagger", Version.unknownVersion()) {
+        jsonMapper.registerModule(new SimpleModule("swagger", Version.unknownVersion())
+        {
             @Override
-            public void setupModule(SetupContext context) {
+            public void setupModule(SetupContext context)
+            {
                 context.insertAnnotationIntrospector(new SwaggerJacksonAnnotationIntrospector());
             }
         });
@@ -129,31 +136,36 @@ public class EventCollectionHttpService extends HttpService {
         csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
 
-    public List<Cookie> mapEvent(Function<EventMapper, List<Cookie>> mapperFunction) {
+    public List<Cookie> mapEvent(Function<EventMapper, List<Cookie>> mapperFunction)
+    {
         List<Cookie> cookies = null;
         for (EventMapper mapper : eventMappers) {
-            try {
-
-                // TODO: bound event mappers to Netty Channels and run them in separate thread
-                List<Cookie> mapperCookies = mapperFunction.apply(mapper);
-                if (mapperCookies != null) {
-                    if (cookies == null) {
-                        cookies = new ArrayList<>();
-                    }
-                    cookies.addAll(mapperCookies);
+            // TODO: bound event mappers to Netty Channels and run them in separate thread
+            List<Cookie> mapperCookies = mapperFunction.apply(mapper);
+            if (mapperCookies != null) {
+                if (cookies == null) {
+                    cookies = new ArrayList<>();
                 }
-            } catch (Exception e) {
-                throw new RuntimeException("An error occurred while processing event in " + mapper.getClass().getName(), e);
+                cookies.addAll(mapperCookies);
             }
         }
 
         return cookies;
     }
 
+    private static void returnError(RakamHttpRequest request, String msg, HttpResponseStatus status)
+    {
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
+        DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
+        errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        request.response(errResponse).end();
+    }
+
     @POST
     @ApiOperation(value = "Collect event", response = Integer.class, request = Event.class)
     @Path("/collect")
-    public void collectEvent(RakamHttpRequest request) {
+    public void collectEvent(RakamHttpRequest request)
+    {
         String socketAddress = request.getRemoteAddress();
 
         request.bodyHandler(buff -> {
@@ -162,17 +174,7 @@ public class EventCollectionHttpService extends HttpService {
             final List<Cookie> cookies;
 
             try {
-                Event event;
-                try {
-                    event = jsonMapper.readValue(buff, Event.class);
-                } catch (RakamException e) {
-                    String msg = JsonHelper.encode(errorMessage(e.getMessage(), e.getStatusCode()));
-                    ByteBuf byteBuf = Unpooled.wrappedBuffer(msg.getBytes(CharsetUtil.UTF_8));
-                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, e.getStatusCode(), byteBuf);
-                    errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-                    request.response(errResponse).end();
-                    return;
-                }
+                Event event = jsonMapper.readValue(buff, Event.class);
 
                 Event.EventContext context = event.api();
 
@@ -184,27 +186,29 @@ public class EventCollectionHttpService extends HttpService {
                         getRemoteAddress(socketAddress), response.trailingHeaders()));
 
                 eventStore.store(event);
-            } catch (JsonMappingException e) {
+            }
+            catch (JsonMappingException e) {
                 String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-                HttpServer.returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
+                returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
                 return;
-            } catch (IOException e) {
-                HttpServer.returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
+            }
+            catch (IOException e) {
+                returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
                 return;
-            } catch (RakamException e) {
+            }
+            catch (RakamException e) {
                 SentryUtil.logException(request, e);
-                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
+                returnError(request, e.getMessage(), e.getStatusCode());
                 return;
-            } catch (HttpRequestException e) {
-                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
+            }
+            catch (HttpRequestException e) {
+                returnError(request, e.getMessage(), e.getStatusCode());
                 return;
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
 
-                ByteBuf byteBuf = Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR)));
-                DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
-                errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-                request.response(errResponse).end();
+                returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                 return;
             }
 
@@ -221,10 +225,12 @@ public class EventCollectionHttpService extends HttpService {
         });
     }
 
-    private InetAddress getRemoteAddress(String socketAddress) {
+    private InetAddress getRemoteAddress(String socketAddress)
+    {
         try {
             return InetAddress.getByName(socketAddress);
-        } catch (UnknownHostException e) {
+        }
+        catch (UnknownHostException e) {
             return null;
         }
     }
@@ -233,7 +239,8 @@ public class EventCollectionHttpService extends HttpService {
     @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = JsonResponse.class, notes = "Bulk API requires master_key as api key and designed to handle large value of data. " +
             "The endpoint also accepts application/avro and text/csv formats. You need need to set 'collection' and 'master_key' query parameters if the content-type is not application/json.")
     @Path("/bulk")
-    public void bulkEvents(RakamHttpRequest request) {
+    public void bulkEvents(RakamHttpRequest request)
+    {
         storeEvents(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
@@ -241,7 +248,8 @@ public class EventCollectionHttpService extends HttpService {
                         return jsonMapper.reader(EventList.class)
                                 .with(ContextAttributes.getEmpty().withSharedAttribute("apiKey", MASTER_KEY))
                                 .readValue(buff);
-                    } else {
+                    }
+                    else {
                         String collection = getParam(request.params(), "collection");
                         String apiKey = getParam(request.params(), MASTER_KEY.getKey());
                         String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
@@ -250,12 +258,13 @@ public class EventCollectionHttpService extends HttpService {
 
                         if ("application/avro".equals(contentType)) {
                             return avroEventDeserializer.deserialize(project, collection, utf8Slice(buff));
-                        } else if ("text/csv".equals(contentType)) {
+                        }
+                        else if ("text/csv".equals(contentType)) {
                             return csvMapper.reader(EventList.class)
                                     .with(ContextAttributes.getEmpty()
-                                                    .withSharedAttribute("project", project)
-                                                    .withSharedAttribute("collection", collection)
-                                                    .withSharedAttribute("apiKey", apiKey)
+                                            .withSharedAttribute("project", project)
+                                            .withSharedAttribute("collection", collection)
+                                            .withSharedAttribute("apiKey", apiKey)
                                     ).readValue(buff);
                         }
                     }
@@ -265,7 +274,8 @@ public class EventCollectionHttpService extends HttpService {
                 (events, responseHeaders) -> {
                     try {
                         eventStore.storeBulk(events);
-                    } catch (Exception e) {
+                    }
+                    catch (Exception e) {
                         List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
                         LOGGER.error(new RuntimeException("Error executing EventStore bulk method: " + sample, e),
                                 "Error while storing event.");
@@ -281,15 +291,17 @@ public class EventCollectionHttpService extends HttpService {
                 });
     }
 
-    public static class BulkEventRemote {
+    public static class BulkEventRemote
+    {
         public final String collection;
         public final String masterKey;
         public final URL url;
 
         @JsonCreator
         public BulkEventRemote(@ApiParam("collection") String collection,
-                               @ApiParam("master_key") String masterKey,
-                               @ApiParam("url") URL url) {
+                @ApiParam("master_key") String masterKey,
+                @ApiParam("url") URL url)
+        {
             this.collection = collection;
             this.masterKey = masterKey;
             this.url = url;
@@ -300,7 +312,9 @@ public class EventCollectionHttpService extends HttpService {
     @ApiOperation(value = "Collect bulk events from remote", request = EventList.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)})
     @Path("/bulk/remote")
-    public void bulkEventsRemote(RakamHttpRequest request) throws IOException {
+    public void bulkEventsRemote(RakamHttpRequest request)
+            throws IOException
+    {
         storeEvents(request,
                 buff -> {
                     BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
@@ -310,13 +324,15 @@ public class EventCollectionHttpService extends HttpService {
 
                     if (query.url.getPath().endsWith(".json")) {
                         return jsonMapper.readValue(query.url, EventList.class);
-                    } else if (query.url.getPath().endsWith(".csv")) {
+                    }
+                    else if (query.url.getPath().endsWith(".csv")) {
                         return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
-                                        .withSharedAttribute("project", project)
-                                        .withSharedAttribute("collection", query.collection)
-                                        .withSharedAttribute("apiKey", query.masterKey)
+                                .withSharedAttribute("project", project)
+                                .withSharedAttribute("collection", query.collection)
+                                .withSharedAttribute("apiKey", query.masterKey)
                         ).readValue(query.url);
-                    } else if (query.url.getPath().endsWith(".avro")) {
+                    }
+                    else if (query.url.getPath().endsWith(".avro")) {
                         URLConnection conn = query.url.openConnection();
                         conn.setConnectTimeout(5000);
                         conn.setReadTimeout(5000);
@@ -331,7 +347,8 @@ public class EventCollectionHttpService extends HttpService {
                 (events, responseHeaders) -> {
                     try {
                         eventStore.storeBulk(events);
-                    } catch (Exception e) {
+                    }
+                    catch (Exception e) {
                         List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
                         LOGGER.error(new RuntimeException("Error executing EventStore bulkRemote method: " + sample, e),
                                 "Error while storing event.");
@@ -346,7 +363,8 @@ public class EventCollectionHttpService extends HttpService {
                 });
     }
 
-    private String getParam(Map<String, List<String>> params, String param) {
+    private String getParam(Map<String, List<String>> params, String param)
+    {
         List<String> strings = params.get(param);
         if (strings == null || strings.size() == 0) {
             throw new RakamException(String.format("%s query parameter is required", param), BAD_REQUEST);
@@ -355,11 +373,13 @@ public class EventCollectionHttpService extends HttpService {
         return strings.get(strings.size() - 1);
     }
 
-    public static class CommitRequest {
+    public static class CommitRequest
+    {
         public final List<String> collections;
 
         @JsonCreator
-        public CommitRequest(@ApiParam("collections") List<String> collections) {
+        public CommitRequest(@ApiParam("collections") List<String> collections)
+        {
             this.collections = collections;
         }
     }
@@ -369,7 +389,8 @@ public class EventCollectionHttpService extends HttpService {
     @IgnoreApi
     @ApiOperation(value = "Commit Bulk events", request = CommitRequest.class, authorizations = @Authorization(value = "master_key"))
     @Path("/bulk/commit")
-    public void commitBulkEvents(RakamHttpRequest request) {
+    public void commitBulkEvents(RakamHttpRequest request)
+    {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
         List<String> data = request.params().get("data");
@@ -380,7 +401,7 @@ public class EventCollectionHttpService extends HttpService {
 
         List<String> apiKey = request.params().get(MASTER_KEY.getKey());
         if (apiKey == null || data.isEmpty()) {
-            String message = MASTER_KEY.getKey()+" query parameter is required";
+            String message = MASTER_KEY.getKey() + " query parameter is required";
             response.send("result", encode(errorMessage(message, BAD_REQUEST))).end();
             return;
         }
@@ -388,7 +409,8 @@ public class EventCollectionHttpService extends HttpService {
         String project;
         try {
             project = apiKeyService.getProjectOfApiKey(apiKey.get(0), MASTER_KEY);
-        } catch (RakamException e) {
+        }
+        catch (RakamException e) {
             response.send("result", encode(errorMessage(e.getMessage(), e.getStatusCode()))).end();
             return;
         }
@@ -398,7 +420,8 @@ public class EventCollectionHttpService extends HttpService {
         Collection<String> collections;
         if (commitRequest != null && commitRequest.collections != null && !commitRequest.collections.isEmpty()) {
             collections = commitRequest.collections;
-        } else {
+        }
+        else {
             collections = metastore.getCollectionNames(project);
         }
 
@@ -408,7 +431,8 @@ public class EventCollectionHttpService extends HttpService {
             try {
                 execution = eventStore.commit(project, collection);
                 builder.add(execution);
-            } catch (UnsupportedOperationException e) {
+            }
+            catch (UnsupportedOperationException e) {
                 if (execution != null) {
                     response.send("result", encode(errorMessage("Commit feature is not supported but this event store. /bulk endpoint commits automatically.", PRECONDITION_FAILED))).end();
                     return;
@@ -425,7 +449,8 @@ public class EventCollectionHttpService extends HttpService {
             @ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)
     })
     @Path("/batch")
-    public void batchEvents(RakamHttpRequest request) {
+    public void batchEvents(RakamHttpRequest request)
+    {
         storeEvents(request, buff -> jsonMapper.readValue(buff, EventList.class),
                 (events, responseHeaders) -> {
                     int[] errorIndexes;
@@ -438,10 +463,12 @@ public class EventCollectionHttpService extends HttpService {
                                 if (events.size() == 1) {
                                     eventStore.store(events.get(0));
                                 }
-                            } else {
+                            }
+                            else {
                                 errorIndexes = eventStore.storeBatch(events);
                             }
-                        } catch (Exception e) {
+                        }
+                        catch (Exception e) {
                             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
                             LOGGER.error(new RuntimeException("Error executing EventStore " + (single ? "store" : "batch") + " method: " + sample, e),
                                     "Error while storing event.");
@@ -449,21 +476,24 @@ public class EventCollectionHttpService extends HttpService {
                                     Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
                                     responseHeaders);
                         }
-                    } else {
+                    }
+                    else {
                         errorIndexes = EMPTY_INT_ARRAY;
                     }
 
                     if (errorIndexes.length == 0) {
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
                                 Unpooled.wrappedBuffer(OK_MESSAGE), responseHeaders);
-                    } else {
+                    }
+                    else {
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
                                 Unpooled.wrappedBuffer(encodeAsBytes(errorIndexes)), responseHeaders);
                     }
                 });
     }
 
-    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction) {
+    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction)
+    {
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
@@ -471,17 +501,7 @@ public class EventCollectionHttpService extends HttpService {
             FullHttpResponse response;
             List<Cookie> entries;
             try {
-                EventList events;
-                try {
-                    events = mapper.apply(buff);
-                } catch (RakamException e) {
-                    String msg = JsonHelper.encode(errorMessage(e.getMessage(), e.getStatusCode()));
-                    ByteBuf byteBuf = Unpooled.wrappedBuffer(msg.getBytes(CharsetUtil.UTF_8));
-                    DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, e.getStatusCode(), byteBuf);
-                    errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-                    request.response(errResponse).end();
-                    return;
-                }
+                EventList events = mapper.apply(buff);
 
                 Event.EventContext context = events.api;
                 if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
@@ -494,26 +514,28 @@ public class EventCollectionHttpService extends HttpService {
                         remoteAddress, responseHeaders));
 
                 response = responseFunction.apply(events.events, responseHeaders);
-            } catch (JsonMappingException e) {
-                HttpServer.returnError(request, "JSON couldn't parsed: " + e.getOriginalMessage(), BAD_REQUEST);
+            }
+            catch (JsonMappingException e) {
+                returnError(request, "JSON couldn't parsed: " + e.getOriginalMessage(), BAD_REQUEST);
                 return;
-            } catch (IOException e) {
-                HttpServer.returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
+            }
+            catch (IOException e) {
+                returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
                 return;
-            } catch (RakamException e) {
+            }
+            catch (RakamException e) {
                 SentryUtil.logException(request, e);
-                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
+                returnError(request, e.getMessage(), e.getStatusCode());
                 return;
-            } catch (HttpRequestException e) {
-                HttpServer.returnError(request, e.getMessage(), e.getStatusCode());
+            }
+            catch (HttpRequestException e) {
+                returnError(request, e.getMessage(), e.getStatusCode());
                 return;
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
 
-                ByteBuf byteBuf = Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR)));
-                HeaderDefaultFullHttpResponse errResponse =
-                        new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf, responseHeaders);
-                request.response(errResponse).end();
+                returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
                 return;
             }
 
@@ -532,7 +554,8 @@ public class EventCollectionHttpService extends HttpService {
         });
     }
 
-    private String getHeaderList(Iterator<Map.Entry<String, String>> it) {
+    private String getHeaderList(Iterator<Map.Entry<String, String>> it)
+    {
         StringBuilder builder = null;
         while (it.hasNext()) {
             String key = it.next().getKey();
@@ -549,11 +572,13 @@ public class EventCollectionHttpService extends HttpService {
         return builder == null ? null : builder.toString();
     }
 
-    private boolean validateChecksum(RakamHttpRequest request, String checksum, String expected) {
+    private boolean validateChecksum(RakamHttpRequest request, String checksum, String expected)
+    {
         MessageDigest md;
         try {
             md = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
+        }
+        catch (NoSuchAlgorithmException e) {
             ByteBuf byteBuf = Unpooled.wrappedBuffer("0".getBytes(CharsetUtil.UTF_8));
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
             response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
@@ -572,24 +597,31 @@ public class EventCollectionHttpService extends HttpService {
         return true;
     }
 
-    interface ThrowableFunction {
-        EventList apply(String buffer) throws IOException;
+    interface ThrowableFunction
+    {
+        EventList apply(String buffer)
+                throws IOException;
     }
 
-    public static class HttpRequestParams implements EventMapper.RequestParams {
+    public static class HttpRequestParams
+            implements EventMapper.RequestParams
+    {
         private final RakamHttpRequest request;
 
-        public HttpRequestParams(RakamHttpRequest request) {
+        public HttpRequestParams(RakamHttpRequest request)
+        {
             this.request = request;
         }
 
         @Override
-        public Collection<Cookie> cookies() {
+        public Collection<Cookie> cookies()
+        {
             return request.cookies();
         }
 
         @Override
-        public HttpHeaders headers() {
+        public HttpHeaders headers()
+        {
             return request.headers();
         }
     }

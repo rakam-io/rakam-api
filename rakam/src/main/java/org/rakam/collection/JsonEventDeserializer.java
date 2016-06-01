@@ -46,6 +46,7 @@ import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
+import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class JsonEventDeserializer extends JsonDeserializer<Event> {
@@ -139,20 +140,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         return new Event(project, collection, api, properties.getKey(), properties.getValue());
     }
 
-    public Schema convertAvroSchema(List<SchemaField> fields) {
-        List<Schema.Field> avroFields = fields.stream()
-                .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
-        Schema schema = Schema.createRecord("collection", null, null, false);
-
-        conditionalMagicFields.keySet().stream()
-                .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
-                .map(n -> new Schema.Field(n, Schema.create(NULL), "", null))
-                .forEach(x -> avroFields.add(x));
-
-        schema.setFields(avroFields);
-        return schema;
-    }
 
     private Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp) throws IOException, NotExistsException {
         ProjectCollection key = new ProjectCollection(project, collection);
@@ -163,9 +151,10 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, constantFields);
             }
 
-            schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema));
+            schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema, conditionalMagicFields));
             schemaCache.put(key, schema);
         }
+
         Schema avroSchema = schema.getValue();
         List<SchemaField> rakamSchema = schema.getKey();
 
@@ -246,7 +235,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
         if (newFields != null) {
             rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
-            Schema newAvroSchema = convertAvroSchema(rakamSchema);
+            Schema newAvroSchema = convertAvroSchema(rakamSchema, conditionalMagicFields);
 
             schemaCache.put(key, new SimpleImmutableEntry<>(rakamSchema, newAvroSchema));
             GenericData.Record newRecord = new GenericData.Record(newAvroSchema);

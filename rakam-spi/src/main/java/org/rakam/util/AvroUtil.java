@@ -21,6 +21,7 @@ import org.rakam.collection.SchemaField;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.avro.Schema.Type.NULL;
@@ -30,6 +31,21 @@ public final class AvroUtil {
 
     private AvroUtil() throws InstantiationException {
         throw new InstantiationException("The class is not created for instantiation");
+    }
+
+    public static Schema convertAvroSchema(List<SchemaField> fields, Map<String, List<SchemaField>> conditionalMagicFields) {
+        List<Schema.Field> avroFields = fields.stream()
+                .map(AvroUtil::generateAvroField).collect(Collectors.toList());
+
+        Schema schema = Schema.createRecord("collection", null, null, false);
+
+        conditionalMagicFields.keySet().stream()
+                .filter(s -> !avroFields.stream().anyMatch(af -> af.name().equals(s)))
+                .map(n -> new Schema.Field(n, Schema.create(NULL), "", null))
+                .forEach(x -> avroFields.add(x));
+
+        schema.setFields(avroFields);
+        return schema;
     }
 
     public static Schema convertAvroSchema(Collection<SchemaField> fields) {
