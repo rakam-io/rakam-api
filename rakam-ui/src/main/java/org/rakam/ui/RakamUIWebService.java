@@ -56,6 +56,7 @@ public class RakamUIWebService extends HttpService {
     public static final int HTTP_CACHE_SECONDS = 60 * 60 * 24;
     private final File directory;
     private static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
+    private final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
 
     @Inject
     public RakamUIWebService(RakamUIConfig config) {
@@ -125,7 +126,7 @@ public class RakamUIWebService extends HttpService {
             long ifModifiedSinceDateSeconds = ifModifiedSinceDate.getTime() / 1000;
             long fileLastModifiedSeconds = file.lastModified() / 1000;
             if (ifModifiedSinceDateSeconds == fileLastModifiedSeconds) {
-                sendNotModified(request);
+                sendNotModified(request, file);
                 return;
             }
         }
@@ -225,9 +226,10 @@ public class RakamUIWebService extends HttpService {
         HttpServer.returnError(request, status.reasonPhrase(), status);
     }
 
-    private static void sendNotModified(RakamHttpRequest request) {
+    private void sendNotModified(RakamHttpRequest request, File file) {
         FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, NOT_MODIFIED);
 
+        setContentTypeHeader(response, file);
         SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
 
@@ -237,7 +239,7 @@ public class RakamUIWebService extends HttpService {
         request.response(response).end();
     }
 
-    static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
+    private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
         SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
 
@@ -251,8 +253,7 @@ public class RakamUIWebService extends HttpService {
         response.headers().set(LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
     }
 
-    static void setContentTypeHeader(HttpResponse response, File file) {
-        MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
+    private void setContentTypeHeader(HttpResponse response, File file) {
         response.headers().set(CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath()));
     }
 

@@ -35,7 +35,9 @@ import java.util.stream.Collectors;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.mapper.geoip.GeoIPModule.downloadOrGetFile;
 
-public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
+public class GeoIPEventMapper
+        implements EventMapper, UserPropertyMapper
+{
     private static final Logger LOGGER = Logger.get(GeoIPEventMapper.class);
     private static final String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
 
@@ -47,7 +49,9 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     private final DatabaseReader ispLookup;
     private final DatabaseReader cityLookup;
 
-    public GeoIPEventMapper(GeoIPModuleConfig config) throws IOException {
+    public GeoIPEventMapper(GeoIPModuleConfig config)
+            throws IOException
+    {
         Preconditions.checkNotNull(config, "config is null");
 
         DatabaseReader connectionTypeLookup = null, ispLookup = null, cityLookup = null;
@@ -61,29 +65,36 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
                         cityLookup = getReader(config.getDatabaseUrl());
                     }
                     continue;
-                } else if ("isp".equals(attr)) {
+                }
+                else if ("isp".equals(attr)) {
                     if (config.getIspDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.isp-database.url", attr));
                     }
-                    if (ispLookup == null) ispLookup = getReader(config.getIspDatabaseUrl());
+                    if (ispLookup == null) {
+                        ispLookup = getReader(config.getIspDatabaseUrl());
+                    }
                     continue;
-                } else if ("connection_type".equals(attr)) {
+                }
+                else if ("connection_type".equals(attr)) {
                     if (config.getConnectionTypeDatabaseUrl() == null) {
                         throw new IllegalStateException(String.format(ERROR_MESSAGE, "plugin.geoip.connection-type-database.url", attr));
                     }
-                    if (connectionTypeLookup == null)
+                    if (connectionTypeLookup == null) {
                         connectionTypeLookup = getReader(config.getConnectionTypeDatabaseUrl());
+                    }
                     continue;
                 }
                 throw new IllegalArgumentException("Attribute " + attr + " is not valid. Available attributes: " +
                         Joiner.on(", ").join(CITY_DATABASE_ATTRIBUTES));
             }
             attributes = config.getAttributes().stream().toArray(String[]::new);
-        } else {
+        }
+        else {
             if (config.getDatabaseUrl() != null) {
                 cityLookup = getReader(config.getDatabaseUrl());
                 attributes = CITY_DATABASE_ATTRIBUTES.stream().toArray(String[]::new);
-            } else {
+            }
+            else {
                 attributes = null;
             }
         }
@@ -100,17 +111,20 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         this.connectionTypeLookup = connectionTypeLookup;
     }
 
-    private DatabaseReader getReader(String url) {
+    private DatabaseReader getReader(String url)
+    {
         try {
             FileInputStream cityDatabase = new FileInputStream(downloadOrGetFile(url));
             return new DatabaseReader.Builder(cityDatabase).fileMode(Reader.FileMode.MEMORY).build();
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders)
+    {
         Object ip = event.properties().get("_ip");
 
         InetAddress addr;
@@ -118,12 +132,15 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 addr = Inet4Address.getByName((String) ip);
-            } catch (UnknownHostException e) {
+            }
+            catch (UnknownHostException e) {
                 return null;
             }
-        } else if (Boolean.TRUE == ip) {
+        }
+        else if (Boolean.TRUE == ip) {
             addr = sourceAddress;
-        } else {
+        }
+        else {
             return null;
         }
 
@@ -143,17 +160,20 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress) {
+    public void map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress)
+    {
         Object ip = properties.get("_ip");
 
-        if (ip == null)
+        if (ip == null) {
             return;
+        }
 
         if ((ip instanceof String)) {
             try {
                 // it may be slow because java performs reverse hostname lookup.
                 sourceAddress = Inet4Address.getByName((String) ip);
-            } catch (UnknownHostException e) {
+            }
+            catch (UnknownHostException e) {
                 return;
             }
         }
@@ -174,7 +194,8 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void addFieldDependency(FieldDependencyBuilder builder) {
+    public void addFieldDependency(FieldDependencyBuilder builder)
+    {
         List<SchemaField> fields = Arrays.stream(attributes)
                 .map(attr -> new SchemaField("_" + attr, getType(attr)))
                 .collect(Collectors.toList());
@@ -190,7 +211,8 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         builder.addFields("_ip", fields);
     }
 
-    private static FieldType getType(String attr) {
+    private static FieldType getType(String attr)
+    {
         switch (attr) {
             case "country_code":
             case "region":
@@ -205,13 +227,16 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         }
     }
 
-    private void setConnectionType(InetAddress address, GenericRecord properties) {
+    private void setConnectionType(InetAddress address, GenericRecord properties)
+    {
         ConnectionTypeResponse connectionType;
         try {
             connectionType = connectionTypeLookup.connectionType(address);
-        } catch (AddressNotFoundException e) {
+        }
+        catch (AddressNotFoundException e) {
             return;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             LOGGER.error(e, "Error while search for location information. ");
             return;
         }
@@ -219,13 +244,16 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         properties.put("_connection_type", connectionType.getConnectionType().name());
     }
 
-    private void setIsp(InetAddress address, GenericRecord properties) {
+    private void setIsp(InetAddress address, GenericRecord properties)
+    {
         IspResponse isp;
         try {
             isp = ispLookup.isp(address);
-        } catch (AddressNotFoundException e) {
+        }
+        catch (AddressNotFoundException e) {
             return;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             LOGGER.error(e, "Error while search for location information. ");
             return;
         }
@@ -233,14 +261,17 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         properties.put("_isp", isp.getIsp());
     }
 
-    private void setGeoFields(InetAddress address, GenericRecord properties) {
+    private void setGeoFields(InetAddress address, GenericRecord properties)
+    {
         CityResponse city;
 
         try {
             city = cityLookup.city(address);
-        } catch (AddressNotFoundException e) {
+        }
+        catch (AddressNotFoundException e) {
             return;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             LOGGER.error(e, "Error while search for location information. ");
             return;
         }
@@ -269,36 +300,44 @@ public class GeoIPEventMapper implements EventMapper, UserPropertyMapper {
         }
     }
 
-    private static class MapProxyGenericRecord implements GenericRecord {
+    private static class MapProxyGenericRecord
+            implements GenericRecord
+    {
 
         private final Map<String, Object> properties;
 
-        public MapProxyGenericRecord(Map<String, Object> properties) {
+        public MapProxyGenericRecord(Map<String, Object> properties)
+        {
             this.properties = properties;
         }
 
         @Override
-        public Schema getSchema() {
+        public Schema getSchema()
+        {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void put(int i, Object v) {
+        public void put(int i, Object v)
+        {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Object get(int i) {
+        public Object get(int i)
+        {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public void put(String key, Object v) {
+        public void put(String key, Object v)
+        {
             properties.put(key, v);
         }
 
         @Override
-        public Object get(String key) {
+        public Object get(String key)
+        {
             return properties.get(key);
         }
     }

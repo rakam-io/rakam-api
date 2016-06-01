@@ -91,7 +91,7 @@ public class PostgresqlEventStore
                         ps.executeBatch();
                         int finalI = i;
                         successfulCollections
-                                .compute(entry.getKey(), (k, v) -> k == null ? finalI : v+finalI);
+                                .compute(entry.getKey(), (k, v) -> k == null ? finalI : v + finalI);
                     }
                 }
 
@@ -136,8 +136,10 @@ public class PostgresqlEventStore
                     break;
                 case LONG:
                     ps.setLong(i + 1, ((Number) value).longValue());
+                    break;
                 case INTEGER:
                     ps.setInt(i + 1, ((Number) value).intValue());
+                    break;
                 case DECIMAL:
                     ps.setBigDecimal(i + 1, new BigDecimal(((Number) value).doubleValue()));
                     break;
@@ -155,6 +157,9 @@ public class PostgresqlEventStore
                     break;
                 case BOOLEAN:
                     ps.setBoolean(i + 1, (Boolean) value);
+                    break;
+                case BINARY:
+                    ps.setBytes(i + 1, (byte[]) value);
                     break;
                 default:
                     if (type.isArray()) {
