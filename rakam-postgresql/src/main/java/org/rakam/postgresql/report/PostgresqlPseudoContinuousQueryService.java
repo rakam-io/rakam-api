@@ -82,7 +82,7 @@ public class PostgresqlPseudoContinuousQueryService extends ContinuousQueryServi
     public boolean test(String project, String query) {
         ContinuousQuery continuousQuery;
         try {
-            continuousQuery = new ContinuousQuery("test", "test",
+            continuousQuery = new ContinuousQuery("test",
                     query, ImmutableList.of(), ImmutableMap.of());
         } catch (ParsingException | IllegalArgumentException e) {
             throw new RakamException("Query is not valid: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);

@@ -44,16 +44,16 @@ public class PostgresqlUserStorage extends AbstractPostgresqlUserStorage {
         for (EventFilter filter : eventFilter) {
             StringBuilder builder = new StringBuilder();
 
-            checkCollection(filter.collection);
+            String collection = checkCollection(filter.collection);
             if (filter.aggregation == null) {
-                builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, filter.collection));
+                builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, collection));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
                 }
                 // TODO: timeframe
                 filters.add((format("id in (%s)", builder.toString())));
             } else {
-                builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, filter.collection));
+                builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, collection));
                 if (filter.filterExpression != null) {
                     builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
                 }
@@ -100,6 +100,6 @@ public class PostgresqlUserStorage extends AbstractPostgresqlUserStorage {
             builder.append(getEventFilterPredicate(project, eventFilter));
         }
 
-        materializedViewService.create(project, new MaterializedView(name, tableName, builder.toString(), interval, null, ImmutableMap.of()));
+        materializedViewService.create(project, new MaterializedView(tableName, builder.toString(), interval, null, ImmutableMap.of()));
     }
 }

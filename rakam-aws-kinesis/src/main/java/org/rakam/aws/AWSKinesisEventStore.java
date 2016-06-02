@@ -255,16 +255,16 @@ public class AWSKinesisEventStore implements EventStore {
 
     @Override
     public void store(Event event) {
-//        try {
+        try {
         kinesis.putRecord(config.getEventStoreStreamName(), getBuffer(event),
                 event.project() + "|" + event.collection());
-//        } catch (ResourceNotFoundException e) {
-//            try {
-//                createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-//            } catch (Exception e1) {
-//                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-//            }
-//        }
+        } catch (ResourceNotFoundException e) {
+            try {
+                createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+            } catch (Exception e1) {
+                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
+            }
+        }
     }
 
     private ByteBuffer getBuffer(Event event) {

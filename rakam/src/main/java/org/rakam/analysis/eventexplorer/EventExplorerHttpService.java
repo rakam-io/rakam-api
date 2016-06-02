@@ -153,7 +153,7 @@ public class EventExplorerHttpService extends HttpService {
                 subQuery,
                 table.collections.size() == 1 ? "" : ", collection", dimensions.isEmpty() ? "" : "," + dimensions);
 
-        return materializedViewService.create(project, new MaterializedView(project, table.tableName, query,
+        return materializedViewService.create(project, new MaterializedView(table.tableName, query,
                 Duration.ofHours(1), null, ImmutableMap.of("olap_table", table)))
                 .thenApply(v -> new PrecalculatedTable(name, table.tableName));
     }

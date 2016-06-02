@@ -34,6 +34,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlEventExplorer extends AbstractEventExplorer {
@@ -73,8 +74,9 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
 
         String timePredicate = format("\"_time\" between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+        // TODO: sql injection
         String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> String.format("SELECT _time, cast('%s' as text) as collection FROM %s", col, col)).collect(Collectors.joining(", ")) + ") data")
+                .map(col -> String.format("SELECT _time, cast('%s' as text) as collection FROM %s", col, checkCollection(col))).collect(Collectors.joining(", ")) + ") data")
                 .orElse("_all");
 
         String query;

@@ -39,7 +39,7 @@ public class InMemoryQueryMetadataStore implements QueryMetadataStore {
     @Override
     public MaterializedView getMaterializedView(String project, String name) {
         return materializedViews.computeIfAbsent(project, (key) -> new HashSet<>()).stream()
-                .filter(view -> view.name.equals(name))
+                .filter(view -> view.tableName.equals(name))
                 .findAny().get();
     }
 

@@ -28,6 +28,7 @@ import org.rakam.plugin.EventStore;
 import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.server.http.HttpRequestException;
+import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
@@ -71,15 +72,8 @@ import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.slice.Slices.wrappedBuffer;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.OK;
-import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED;
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.server.http.HttpServer.errorMessage;
@@ -163,6 +157,7 @@ public class EventCollectionHttpService
     {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
+        errResponse.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
         errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
         request.response(errResponse).end();
     }
@@ -503,6 +498,7 @@ public class EventCollectionHttpService
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+            responseHeaders.set(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
 
             FullHttpResponse response;
             List<Cookie> entries;

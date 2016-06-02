@@ -74,27 +74,6 @@ public class UIRecipe {
         }
     }
 
-    public static class MaterializedViewBuilder {
-        public final String name;
-        public final String table_name;
-        public final String query;
-        public final boolean incremental;
-        public final Duration updateInterval;
-
-        @Inject
-        public MaterializedViewBuilder(@JsonProperty("name") String name, @JsonProperty("table_name") String table_name, @JsonProperty("query") String query, @JsonProperty("update_interval") Duration updateInterval, @JsonProperty("incremental") Boolean incremental) {
-            this.name = name;
-            this.table_name = table_name;
-            this.query = query;
-            this.incremental = incremental;
-            this.updateInterval = updateInterval;
-        }
-
-        public MaterializedView createMaterializedView(String project) {
-            return new MaterializedView(name, table_name, query, updateInterval, incremental, ImmutableMap.of());
-        }
-    }
-
     public static class DashboardBuilder {
         public final String name;
         public final List<DashboardService.DashboardItem> items;

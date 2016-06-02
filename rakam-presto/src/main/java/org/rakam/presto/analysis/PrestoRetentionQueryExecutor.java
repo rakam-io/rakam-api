@@ -165,7 +165,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
             }
 
             Map<String, List<SchemaField>> collections = metastore.getCollections(project);
-            if (collections.size() == 0) {
+            if (!collections.entrySet().stream().anyMatch(e -> e.getValue().stream().anyMatch(s -> s.getName().equals("_user")))) {
                 return null;
             }
 

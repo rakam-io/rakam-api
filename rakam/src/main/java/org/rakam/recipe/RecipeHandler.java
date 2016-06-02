@@ -7,6 +7,8 @@ import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.MaterializedView;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
@@ -37,11 +39,11 @@ public class RecipeHandler {
                     .collect(Collectors.toList());
             return new Recipe.Collection(map);
         }));
-        final List<Recipe.MaterializedViewBuilder> materializedViews = materializedViewService.list(project).stream()
-                .map(m -> new Recipe.MaterializedViewBuilder(m.name, m.tableName, m.query, m.updateInterval, m.incremental))
+        final List<MaterializedView> materializedViews = materializedViewService.list(project).stream()
+                .map(m -> new MaterializedView(m.tableName, m.query, m.updateInterval, m.incremental, m.options))
                 .collect(Collectors.toList());
-        final List<Recipe.ContinuousQueryBuilder> continuousQueryBuilders = continuousQueryService.list(project).stream()
-                .map(m -> new Recipe.ContinuousQueryBuilder(m.name, m.tableName, m.query, m.partitionKeys, m.options))
+        final List<ContinuousQuery> continuousQueryBuilders = continuousQueryService.list(project).stream()
+                .map(m -> new ContinuousQuery(m.tableName, m.query, m.partitionKeys, m.options))
                 .collect(Collectors.toList());
 
         return new Recipe(Recipe.Strategy.SPECIFIC, project, collections, materializedViews,
@@ -81,7 +83,6 @@ public class RecipeHandler {
         });
 
         recipe.getContinuousQueryBuilders().stream()
-                .map(builder -> builder.createContinuousQuery(project))
                 .forEach(continuousQuery -> continuousQueryService.create(project, continuousQuery, false).getResult().whenComplete((res, ex) -> {
                     if (ex != null) {
                         if (ex instanceof AlreadyExistsException) {
@@ -97,7 +98,6 @@ public class RecipeHandler {
                 }));
 
         recipe.getMaterializedViewBuilders().stream()
-                .map(builder -> builder.createMaterializedView(project))
                 .forEach(materializedView -> materializedViewService.create(project, materializedView).whenComplete((res, ex) -> {
                     if (ex != null) {
                         if (ex instanceof AlreadyExistsException) {

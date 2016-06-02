@@ -115,7 +115,7 @@ public abstract class AbstractMetastore implements Metastore {
         }
         moduleFields.constantFields.forEach(field -> addModuleField(fields, field));
         moduleFields.dependentFields.forEach((fieldName, field) -> addConditionalModuleField(fields, fieldName, field));
-        return getOrCreateCollectionFields(project, collection.toLowerCase(Locale.ENGLISH), fields);
+        return getOrCreateCollectionFields(project, collection, fields);
     }
 
     public abstract List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields);

@@ -141,7 +141,7 @@ public class PrestoUserService extends AbstractUserService {
                 Optional.ofNullable(query.dimension).map(v -> v + " as dimension,").orElse(""), table,
                 Optional.ofNullable(query.dimension).map(v -> ", 2").orElse(""));
 
-        return new DelegateQueryExecution(continuousQueryService.create(project, new ContinuousQuery(name, tableName, sqlQuery,
+        return new DelegateQueryExecution(continuousQueryService.create(project, new ContinuousQuery(tableName, sqlQuery,
                 ImmutableList.of("date"), ImmutableMap.of()), true), result -> {
             if (result.isFailed()) {
                 throw new RakamException("Failed to create continuous query: " + JsonHelper.encode(result.getError()), INTERNAL_SERVER_ERROR);

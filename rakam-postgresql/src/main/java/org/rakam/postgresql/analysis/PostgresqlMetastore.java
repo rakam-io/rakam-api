@@ -41,7 +41,9 @@ import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlMetastore
         extends AbstractMetastore
@@ -201,16 +203,6 @@ public class PostgresqlMetastore
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields)
             throws NotExistsException
     {
-        if (collection.equals("public")) {
-            throw new IllegalArgumentException("Collection name 'public' is not allowed.");
-        }
-        if (collection.startsWith("pg_") || collection.startsWith("_")) {
-            throw new IllegalArgumentException("Collection names must not start with 'pg_' and '_' prefix.");
-        }
-        if (!collection.matches("^[a-zA-Z0-9_]*$")) {
-            throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
-        }
-
         List<SchemaField> currentFields = new ArrayList<>();
         String query;
         Runnable task;
@@ -235,12 +227,12 @@ public class PostgresqlMetastore
                             currentFields.add(f);
                             return f;
                         })
-                        .map(f -> format("\"%s\" %s NULL", f.getName(), toSql(f.getType())))
+                        .map(f -> format("%s %s NULL", checkCollection(f.getName()), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
                 if (queryEnd.isEmpty()) {
                     return currentFields;
                 }
-                query = format("CREATE TABLE \"%s\".\"%s\" (%s)", project, collection, queryEnd);
+                query = format("CREATE TABLE \"%s\".%s (%s)", project, checkCollection(collection), queryEnd);
                 task = () -> super.onCreateCollection(project, collection, schemaFields);
             }
             else {
@@ -249,7 +241,7 @@ public class PostgresqlMetastore
                             currentFields.add(f);
                             return f;
                         })
-                        .map(f -> format("ADD COLUMN \"%s\" %s NULL", f.getName(), toSql(f.getType())))
+                        .map(f -> format("ADD COLUMN %s %s NULL", checkTableColumn(f.getName()), toSql(f.getType())))
                         .collect(Collectors.joining(", "));
                 if (queryEnd.isEmpty()) {
                     return currentFields;

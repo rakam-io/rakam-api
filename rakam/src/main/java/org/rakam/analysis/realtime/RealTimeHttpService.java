@@ -100,9 +100,7 @@ public class RealTimeHttpService extends HttpService {
                         IntStream.range(0, report.dimensions.size()).mapToObj(i -> ", " + (i + 2)).collect(Collectors.joining("")) : "")
                 .toString();
 
-        ContinuousQuery query = new ContinuousQuery(
-                report.name,
-                report.table_name,
+        ContinuousQuery query = new ContinuousQuery(report.table_name,
                 sqlQuery,
                 ImmutableList.of(),
                 ImmutableMap.of("realtime", true, "aggregation", report.measures));

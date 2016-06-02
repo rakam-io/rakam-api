@@ -77,7 +77,7 @@ public class QueryExecutorService {
             if (materializedViews.isEmpty()) {
                 return execution;
             } else {
-                Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().name, v -> v.getKey().lastUpdate != null ? v.getKey().lastUpdate.toEpochMilli() : -1));
+                Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().tableName, v -> v.getKey().lastUpdate != null ? v.getKey().lastUpdate.toEpochMilli() : -1));
                 return new DelegateQueryExecution(execution, result -> {
                     result.setProperty("materializedViews", collect);
                     return result;
@@ -108,7 +108,7 @@ public class QueryExecutorService {
                 return executor.executeRawQuery(query);
             }), result -> {
                 if (!result.isFailed()) {
-                    Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().name, v -> v.getKey().lastUpdate.toEpochMilli()));
+                    Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().tableName, v -> v.getKey().lastUpdate.toEpochMilli()));
                     result.setProperty("materializedViews", collect);
                     result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
                 }

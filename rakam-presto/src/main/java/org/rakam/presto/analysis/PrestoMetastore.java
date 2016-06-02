@@ -108,10 +108,6 @@ public class PrestoMetastore extends AbstractMetastore {
     }
 
     public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount) {
-        if (!collection.matches("^[a-zA-Z0-9_]*$")) {
-            throw new IllegalArgumentException("Only alphanumeric characters allowed in collection name.");
-        }
-
         String query;
         List<SchemaField> schemaFields = getCollection(project, collection);
         List<SchemaField> lastFields;

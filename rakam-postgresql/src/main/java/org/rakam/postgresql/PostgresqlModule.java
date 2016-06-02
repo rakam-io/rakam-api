@@ -55,6 +55,8 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
 
+import static org.rakam.util.ValidationUtil.checkCollection;
+
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="postgresql")
 public class PostgresqlModule extends RakamModule {
@@ -209,9 +211,9 @@ public class PostgresqlModule extends RakamModule {
 
         public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
             for (SchemaField field : fields) {
-                executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.\"%s\" USING %s(\"%s\")",
-                        project, collection, field.getName(),
-                        project, collection,
+                executor.executeRawStatement(String.format("CREATE INDEX %s_%d_%s_auto_index ON %s.\"%s\" USING %s(\"%s\")",
+                        project, collection.hashCode(), field.getName(),
+                        project, checkCollection(collection),
                         (brinIndexSupported && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
                         field.getName()));
             }

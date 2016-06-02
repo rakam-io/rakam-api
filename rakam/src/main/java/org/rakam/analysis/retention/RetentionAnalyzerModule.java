@@ -32,9 +32,12 @@ import javax.inject.Inject;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "user.retention-analysis.enabled", value = "true")
-public class RetentionAnalyzerModule extends RakamModule {
+public class RetentionAnalyzerModule
+        extends RakamModule
+{
     @Override
-    protected void setup(Binder binder) {
+    protected void setup(Binder binder)
+    {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(RetentionAnalyzerHttpService.class);
 
@@ -46,30 +49,35 @@ public class RetentionAnalyzerModule extends RakamModule {
     }
 
     @Override
-    public String name() {
+    public String name()
+    {
         return "Retention Analyzer Module";
     }
 
     @Override
-    public String description() {
+    public String description()
+    {
         return "Analyzes events of each user and allows you to improve your user acquisition and retention activities.";
     }
 
-    public static class RetentionAnalyzerListener {
+    public static class RetentionAnalyzerListener
+    {
         private static final String QUERY = "select cast(_time as date) as date, _user from \"%s\" group by 1, 2";
         private final ContinuousQueryService continuousQueryService;
 
         @Inject
-        public RetentionAnalyzerListener(ContinuousQueryService continuousQueryService) {
+        public RetentionAnalyzerListener(ContinuousQueryService continuousQueryService)
+        {
             this.continuousQueryService = continuousQueryService;
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
-            ContinuousQuery report = new ContinuousQuery("Daily distinct users " + event.collection,
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
+        {
+            ContinuousQuery report = new ContinuousQuery(
                     "_users_" + event.collection,
                     String.format(QUERY, event.collection),
-                    ImmutableList.of("date"), ImmutableMap.of());
+                    ImmutableList.of("date"), ImmutableMap.of("description", "Daily distinct users " + event.collection));
             continuousQueryService.create(event.project, report, false);
         }
     }

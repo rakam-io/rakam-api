@@ -120,7 +120,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             throw new RakamException("User segment must use event filters", HttpResponseStatus.BAD_GATEWAY);
         }
 
-        materializedViewService.create(project, new MaterializedView(name, tableName, query, interval, null, ImmutableMap.of()));
+        materializedViewService.create(project, new MaterializedView(tableName, query, interval, null, ImmutableMap.of()));
     }
 
     @Override
@@ -138,8 +138,6 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     public String getEventFilterQuery(String project, EventFilter filter) {
         StringBuilder builder = new StringBuilder();
 
-        checkCollection(filter.collection);
-
         builder.append("select ")
                 .append(config.getEnableUserMapping() ? "coalesce(mapping._user, collection._user, collection.device_id) as _user" : "collection._user")
                 .append(" from %s collection");
@@ -150,10 +148,12 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }
         if (filter.timeframe != null) {
             if (filter.timeframe.start != null) {
-                filterList.add(String.format("collection._time > cast('%s' as timestamp)", PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.start.atZone(ZoneId.of("UTC")))));
+                filterList.add(String.format("collection._time > cast('%s' as timestamp)",
+                        PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.start.atZone(ZoneId.of("UTC")))));
             }
             if (filter.timeframe.end != null) {
-                filterList.add(String.format("collection._time < cast('%s' as timestamp)",  PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.end.atZone(ZoneId.of("UTC")))));
+                filterList.add(String.format("collection._time < cast('%s' as timestamp)",
+                        PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.end.atZone(ZoneId.of("UTC")))));
             }
         }
 

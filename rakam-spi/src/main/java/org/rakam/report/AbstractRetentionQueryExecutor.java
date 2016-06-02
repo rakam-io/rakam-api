@@ -2,6 +2,7 @@ package org.rakam.report;
 
 import com.facebook.presto.sql.tree.Expression;
 import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.util.ValidationUtil;
 
 import java.util.Optional;
 
@@ -23,7 +24,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                 String.format(timeColumn, "_time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
                 isText.map(text -> String.format("cast(\"%s\" as varchar) as %s", connectorField, connectorField)).orElse(connectorField),
-                "\"" + collection + "\"",
+                ValidationUtil.checkCollection(collection),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();

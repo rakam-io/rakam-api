@@ -20,15 +20,15 @@ public class Recipe {
     private final Strategy strategy;
     private final String project;
     private final Map<String, Collection> collections;
-    private final List<MaterializedViewBuilder> materializedViews;
-    private final List<ContinuousQueryBuilder> continuousQueries;
+    private final List<MaterializedView> materializedViews;
+    private final List<ContinuousQuery> continuousQueries;
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
                   @JsonProperty("project") String project,
                   @JsonProperty("collections") Map<String, Collection> collections,
-                  @JsonProperty("materialized_views") List<MaterializedViewBuilder> materializedQueries,
-                  @JsonProperty("continuous_queries") List<ContinuousQueryBuilder> continuousQueries) {
+                  @JsonProperty("materialized_views") List<MaterializedView> materializedQueries,
+                  @JsonProperty("continuous_queries") List<ContinuousQuery> continuousQueries) {
         if (strategy != Strategy.SPECIFIC && project != null) {
             throw new IllegalArgumentException("'project' parameter can be used when 'strategy' is 'specific'");
         }
@@ -55,12 +55,12 @@ public class Recipe {
     }
 
     @JsonProperty("materialized_views")
-    public List<MaterializedViewBuilder> getMaterializedViewBuilders() {
+    public List<MaterializedView> getMaterializedViewBuilders() {
         return materializedViews;
     }
 
     @JsonProperty("continuous_queries")
-    public List<ContinuousQueryBuilder> getContinuousQueryBuilders() {
+    public List<ContinuousQuery> getContinuousQueryBuilders() {
         return continuousQueries;
     }
 
@@ -79,52 +79,6 @@ public class Recipe {
                         Map.Entry<String, SchemaFieldInfo> next = column.entrySet().iterator().next();
                         return new SchemaField(next.getKey(), next.getValue().type);
                     }).collect(Collectors.toList());
-        }
-    }
-
-    public static class MaterializedViewBuilder {
-        public final String name;
-        public final String table_name;
-        public final String query;
-        public final boolean incremental;
-        public final Duration updateInterval;
-
-        @Inject
-        public MaterializedViewBuilder(@JsonProperty("name") String name, @JsonProperty("table_name") String table_name, @JsonProperty("query") String query, @JsonProperty("update_interval") Duration updateInterval, @JsonProperty("incremental") Boolean incremental) {
-            this.name = name;
-            this.table_name = table_name;
-            this.query = query;
-            this.incremental = incremental;
-            this.updateInterval = updateInterval;
-        }
-
-        public MaterializedView createMaterializedView(String project) {
-            return new MaterializedView(name, table_name, query, updateInterval, incremental, ImmutableMap.of());
-        }
-    }
-
-    public static class ContinuousQueryBuilder {
-        public final String name;
-        public final String tableName;
-        public final String query;
-        public final List<String> partitionKeys;
-        public final Map<String, Object> options;
-
-        @JsonCreator
-        public ContinuousQueryBuilder(@JsonProperty("name") String name,
-                                      @JsonProperty("table_name") String tableName,
-                                      @JsonProperty("query") String query,
-                                      @JsonProperty("partition_keys") List<String> partitionKeys,
-                                      @JsonProperty("options") Map<String, Object> options) {
-            this.name = name;
-            this.tableName = tableName;
-            this.query = query;
-            this.partitionKeys = partitionKeys;
-            this.options = options;
-        }
-
-        public ContinuousQuery createContinuousQuery(String project) {
-            return new ContinuousQuery(name, tableName, query, partitionKeys, options);
         }
     }
 

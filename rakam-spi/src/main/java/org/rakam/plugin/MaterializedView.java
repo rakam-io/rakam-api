@@ -19,7 +19,6 @@ import static java.time.temporal.ChronoUnit.MILLIS;
 public class MaterializedView {
     private final static SqlParser SQL_PARSER = new SqlParser();
 
-    public final String name;
     public final String tableName;
     public final String query;
     public final boolean incremental;
@@ -28,13 +27,11 @@ public class MaterializedView {
     public final Map<String, Object> options;
 
     @JsonCreator
-    public MaterializedView(@ApiParam(value = "name", description="The name of the materialized view") String name,
-                            @ApiParam(value = "table_name", description="The table name of the materialized view that can be used when querying") String tableName,
+    public MaterializedView(@ApiParam(value = "table_name", description="The table name of the materialized view that can be used when querying") String tableName,
                             @ApiParam(value = "query", description="The sql query that will be executed and materialized") String query,
                             @ApiParam(value = "update_interval", required = false) Duration updateInterval,
                             @ApiParam(value = "incremental", required = false) Boolean incremental,
                             @ApiParam(value = "options", description="", required = false) Map<String, Object> options) {
-        this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.query = checkNotNull(query, "query is required");
         this.incremental = incremental == null ? false : incremental;
@@ -64,27 +61,44 @@ public class MaterializedView {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof MaterializedView)) return false;
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         MaterializedView that = (MaterializedView) o;
 
-        if (incremental != that.incremental) return false;
-        if (!name.equals(that.name)) return false;
-        if (!tableName.equals(that.tableName)) return false;
-        if (!query.equals(that.query)) return false;
-        return !(updateInterval != null ? !updateInterval.equals(that.updateInterval) : that.updateInterval != null);
-
+        if (incremental != that.incremental) {
+            return false;
+        }
+        if (!tableName.equals(that.tableName)) {
+            return false;
+        }
+        if (!query.equals(that.query)) {
+            return false;
+        }
+        if (updateInterval != null ? !updateInterval.equals(that.updateInterval) : that.updateInterval != null) {
+            return false;
+        }
+        if (lastUpdate != null ? !lastUpdate.equals(that.lastUpdate) : that.lastUpdate != null) {
+            return false;
+        }
+        return options != null ? options.equals(that.options) : that.options == null;
     }
 
     @Override
-    public int hashCode() {
-        int result = name.hashCode();
-        result = 31 * result + tableName.hashCode();
+    public int hashCode()
+    {
+        int result = tableName.hashCode();
         result = 31 * result + query.hashCode();
         result = 31 * result + (incremental ? 1 : 0);
         result = 31 * result + (updateInterval != null ? updateInterval.hashCode() : 0);
+        result = 31 * result + (lastUpdate != null ? lastUpdate.hashCode() : 0);
+        result = 31 * result + (options != null ? options.hashCode() : 0);
         return result;
     }
 }

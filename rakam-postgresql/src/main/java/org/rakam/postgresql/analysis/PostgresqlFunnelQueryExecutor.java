@@ -20,6 +20,7 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import java.time.LocalDate;
@@ -66,7 +67,7 @@ public class PostgresqlFunnelQueryExecutor implements FunnelQueryExecutor {
     }
 
     private String convertFunnel(String project, String CONNECTOR_FIELD, int idx, FunnelQueryExecutor.FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
-        String table = project + "." + funnelStep.getCollection();
+        String table = project + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
         String filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
                 name -> formatIdentifier("step" + idx) + "." + name.getParts().stream()

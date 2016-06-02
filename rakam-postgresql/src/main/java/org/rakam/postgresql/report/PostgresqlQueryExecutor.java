@@ -22,6 +22,9 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkLiteral;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PostgresqlQueryExecutor implements QueryExecutor {
     private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
@@ -75,7 +78,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
 
                     return "(" + builder.toString() + ") as " + name.getSuffix();
                 case "materialized":
-                    return project + "." + MATERIALIZED_VIEW_PREFIX + name.getSuffix();
+                    return project + "." + checkCollection(MATERIALIZED_VIEW_PREFIX + name.getSuffix());
                 default:
                     throw new IllegalArgumentException("Schema does not exist: " + name.getPrefix().get().toString());
             }
@@ -87,15 +90,14 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             if (!collections.isEmpty()) {
                 String sharedColumns = collections.get(0).getValue().stream()
                         .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
-                        .map(f -> f.getName())
+                        .map(f -> checkTableColumn(f.getName()))
                         .collect(Collectors.joining(", "));
 
                 return "(" + collections.stream().map(Map.Entry::getKey)
-                        .map(collection -> format("select cast('%s' as text) as collection %s, row_to_json(%s) properties from %s",
-                                collection,
+                        .map(collection -> format("select cast('%s' as text) as collection %s, row_to_json(t) properties from %s t",
+                                checkLiteral(collection),
                                 sharedColumns.isEmpty() ? "" : (", " + sharedColumns),
-                                "\"" + collection + "\"",
-                                project + ".\"" + collection + "\""))
+                                project + "." + checkCollection(collection)))
                         .collect(Collectors.joining(" union all \n")) + ") _all";
             } else {
                 return "(select cast(null as text) as collection, cast(null as text) as _user, cast(null as timestamp) as _time limit 0) _all";

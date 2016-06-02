@@ -13,12 +13,15 @@
  */
 package org.rakam.util;
 
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
 import org.codehaus.jackson.node.NullNode;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 
+import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -26,14 +29,44 @@ import java.util.stream.Collectors;
 
 import static org.apache.avro.Schema.Type.NULL;
 
+public final class AvroUtil
+{
+    static  {
+        try {
+            Field validateNames = Schema.class.getDeclaredField("validateNames");
+            boolean accessible = validateNames.isAccessible();
+            validateNames.setAccessible(true);
+            validateNames.set(null, new ThreadLocal<Boolean>() {
+                @Override
+                public Boolean get()
+                {
+                    return false;
+                }
 
-public final class AvroUtil {
+                @Override
+                public void set(Boolean value)
+                {
+                    // no-op
+                    return;
+                }
+            });
+            if(!accessible) {
+                validateNames.setAccessible(false);
+            }
+        }
+        catch (NoSuchFieldException|IllegalAccessException e) {
+            throw Throwables.propagate(e);
+        }
+    }
 
-    private AvroUtil() throws InstantiationException {
+    private AvroUtil()
+            throws InstantiationException
+    {
         throw new InstantiationException("The class is not created for instantiation");
     }
 
-    public static Schema convertAvroSchema(List<SchemaField> fields, Map<String, List<SchemaField>> conditionalMagicFields) {
+    public static Schema convertAvroSchema(List<SchemaField> fields, Map<String, List<SchemaField>> conditionalMagicFields)
+    {
         List<Schema.Field> avroFields = fields.stream()
                 .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
@@ -48,7 +81,8 @@ public final class AvroUtil {
         return schema;
     }
 
-    public static Schema convertAvroSchema(Collection<SchemaField> fields) {
+    public static Schema convertAvroSchema(Collection<SchemaField> fields)
+    {
         List<Schema.Field> avroFields = fields.stream()
                 .map(AvroUtil::generateAvroField).collect(Collectors.toList());
 
@@ -58,15 +92,18 @@ public final class AvroUtil {
         return schema;
     }
 
-    public static Schema.Field generateAvroField(SchemaField field) {
+    public static Schema.Field generateAvroField(SchemaField field)
+    {
         return new Schema.Field(field.getName(), generateAvroSchema(field.getType()), null, NullNode.getInstance());
     }
 
-    public static Schema generateAvroSchema(FieldType field) {
+    public static Schema generateAvroSchema(FieldType field)
+    {
         return Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field)));
     }
 
-    private static Schema getAvroSchema(FieldType type) {
+    private static Schema getAvroSchema(FieldType type)
+    {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);
@@ -85,7 +122,7 @@ public final class AvroUtil {
                 if (type.isMap()) {
                     return Schema.createMap(getAvroSchema(type.getMapValueType()));
                 }
-                if(type.isArray()) {
+                if (type.isArray()) {
                     return Schema.createArray(getAvroSchema(type.getArrayElementType()));
                 }
                 throw new IllegalStateException();

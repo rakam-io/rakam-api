@@ -14,6 +14,7 @@ import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.InternalConfig;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
@@ -23,6 +24,7 @@ import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -43,13 +45,17 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
+import static org.apache.avro.Schema.Type.BOOLEAN;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
+import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class JsonEventDeserializer extends JsonDeserializer<Event> {
+public class JsonEventDeserializer
+        extends JsonDeserializer<Event>
+{
     private final Map<String, List<SchemaField>> conditionalMagicFields;
 
     private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{4}\\-(0?[1-9]|1[012])\\-(0?[1-9]|[12][0-9]|3[01])$");
@@ -65,9 +71,10 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
     @Inject
     public JsonEventDeserializer(Metastore metastore,
-                                 ApiKeyService apiKeyService,
-                                 ConfigManager configManager,
-                                 FieldDependency fieldDependency) {
+            ApiKeyService apiKeyService,
+            ConfigManager configManager,
+            FieldDependency fieldDependency)
+    {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.apiKeyService = apiKeyService;
@@ -76,11 +83,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
     }
 
     @Override
-    public Event deserialize(JsonParser jp, DeserializationContext ctx) throws IOException {
+    public Event deserialize(JsonParser jp, DeserializationContext ctx)
+            throws IOException
+    {
         return deserializeWithProject(jp, null, null);
     }
 
-    public Event deserializeWithProject(JsonParser jp, String project, EventContext api) throws IOException, RakamException {
+    public Event deserializeWithProject(JsonParser jp, String project, EventContext api)
+            throws IOException, RakamException
+    {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
 
         String collection = null;
@@ -102,7 +113,7 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     collection = jp.getValueAsString().toLowerCase();
                     break;
                 case "api":
-                    if(api != null) {
+                    if (api != null) {
                         throw new RakamException("api is already set", BAD_REQUEST);
                     }
                     api = jp.readValueAs(EventContext.class);
@@ -110,13 +121,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 case "properties":
                     if (collection == null) {
                         throw new JsonMappingException("'collection' field must be located before 'properties' field.");
-                    } else {
+                    }
+                    else {
                         if (project == null) {
                             project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                         }
                         try {
                             properties = parseProperties(project, collection, jp);
-                        } catch (NotExistsException e) {
+                        }
+                        catch (NotExistsException e) {
                             throw Throwables.propagate(e);
                         }
                         t = jp.getCurrentToken();
@@ -124,7 +137,8 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                         if (t != JsonToken.END_OBJECT) {
                             if (t == JsonToken.START_OBJECT) {
                                 throw new RakamException("Nested properties are not supported", BAD_REQUEST);
-                            } else {
+                            }
+                            else {
                                 throw new RakamException("Error while de-serializing event", INTERNAL_SERVER_ERROR);
                             }
                         }
@@ -140,9 +154,9 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         return new Event(project, collection, api, properties.getKey(), properties.getValue());
     }
 
-
-
-    private Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp) throws IOException, NotExistsException {
+    private Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp)
+            throws IOException, NotExistsException
+    {
         ProjectCollection key = new ProjectCollection(project, collection);
         Map.Entry<List<SchemaField>, Schema> schema = schemaCache.getIfPresent(key);
         if (schema == null) {
@@ -163,14 +177,14 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
-            String fieldName = checkTableColumn(jp.getCurrentName(), jp.getCurrentName());
+            String fieldName = jp.getCurrentName();
 
             Schema.Field field = avroSchema.getField(fieldName);
 
             jp.nextToken();
 
             if (field == null) {
-                field = avroSchema.getField(fieldName);
+                field = avroSchema.getField(stripName(fieldName));
 
                 if (field == null) {
                     FieldType type = getType(jp);
@@ -191,8 +205,9 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
 
                         SchemaField newField = new SchemaField(fieldName, type);
                         newFields.add(newField);
+                        rakamSchema.add(newField);
 
-                        avroSchema = createNewSchema(avroSchema, newField);
+                        avroSchema = createNewSchema(project, avroSchema, newField);
                         field = avroSchema.getField(newField.getName());
 
                         GenericData.Record newRecord = new GenericData.Record(avroSchema);
@@ -205,17 +220,19 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                             // if the type of new field is ARRAY, we already switched to next token
                             // so current token is not START_ARRAY.
                             record.put(field.pos(), getValue(jp, type, field, true));
-                        } else {
+                        }
+                        else {
                             record.put(field.pos(), getValue(jp, type, field, false));
                         }
                         continue;
-
-                    } else {
+                    }
+                    else {
                         // the type is null or an empty array
                         continue;
                     }
                 }
-            } else {
+            }
+            else {
                 if (field.schema().getType() == NULL) {
                     // TODO: get rid of this loop.
                     for (SchemaField schemaField : conditionalMagicFields.get(fieldName)) {
@@ -250,14 +267,19 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         return new SimpleImmutableEntry<>(rakamSchema, record);
     }
 
-    private Schema createNewSchema(Schema currentSchema, SchemaField newField) {
+    private Schema createNewSchema(String project, Schema currentSchema, SchemaField newField)
+    {
+        if (Boolean.TRUE == configManager.getConfig(project, InternalConfig.FIXED_SCHEMA.name(), Boolean.class)) {
+            throw new RakamException(BAD_REQUEST);
+        }
         List<Schema.Field> avroFields = currentSchema.getFields().stream()
                 .filter(field -> field.schema().getType() != Schema.Type.NULL)
                 .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
                 .collect(toList());
         try {
             avroFields.add(AvroUtil.generateAvroField(newField));
-        } catch (SchemaParseException e) {
+        }
+        catch (SchemaParseException e) {
             throw new RakamException("Couldn't create new column: " + e.getMessage(), BAD_REQUEST);
         }
 
@@ -272,7 +294,9 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         return avroSchema;
     }
 
-    public static Object getValueOfMagicField(JsonParser jp) throws IOException {
+    public static Object getValueOfMagicField(JsonParser jp)
+            throws IOException
+    {
         switch (jp.getCurrentToken()) {
             case VALUE_TRUE:
                 return Boolean.TRUE;
@@ -291,7 +315,9 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken) throws IOException {
+    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
+            throws IOException
+    {
         if (type == null) {
             return getValueOfMagicField(jp);
         }
@@ -316,13 +342,15 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                 }
                 try {
                     return DateTimeUtils.parseTimestamp(jp.getValueAsString());
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     return null;
                 }
             case DATE:
                 try {
                     return DateTimeUtils.parseDate(jp.getValueAsString());
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     return null;
                 }
             default:
@@ -335,10 +363,12 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     if (!passInitialToken) {
                         if (t != JsonToken.START_OBJECT) {
                             return null;
-                        } else {
+                        }
+                        else {
                             t = jp.nextToken();
                         }
-                    } else {
+                    }
+                    else {
                         // In order to determine the value type of map, getType method performed an extra
                         // jp.nextToken() so the cursor should be at VALUE_STRING token.
                         String key = jp.getParsingContext().getCurrentName();
@@ -364,7 +394,8 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
                     if (!passInitialToken) {
                         if (t != JsonToken.START_ARRAY) {
                             return null;
-                        } else {
+                        }
+                        else {
                             t = jp.nextToken();
                         }
                     }
@@ -382,7 +413,9 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
         }
     }
 
-    private FieldType getType(JsonParser jp) throws IOException {
+    private FieldType getType(JsonParser jp)
+            throws IOException
+    {
         switch (jp.getCurrentToken()) {
             case VALUE_NULL:
                 return null;
@@ -440,7 +473,8 @@ public class JsonEventDeserializer extends JsonDeserializer<Event> {
     }
 
     @VisibleForTesting
-    public void cleanCache() {
+    public void cleanCache()
+    {
         schemaCache.invalidateAll();
     }
 }

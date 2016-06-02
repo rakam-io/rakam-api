@@ -131,7 +131,7 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
 
         if (!retentionAction.isPresent()) {
             Map<String, List<SchemaField>> collections = metastore.getCollections(project);
-            if(collections.isEmpty()) {
+            if (!collections.entrySet().stream().anyMatch(e -> e.getValue().stream().anyMatch(s -> s.getName().equals("_user")))) {
                 return format("select cast(null as date) as date, %s cast(null as text) as %s",
                         dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
                         connectorField);
@@ -141,6 +141,7 @@ public class PostgresqlRetentionQueryExecutor extends AbstractRetentionQueryExec
                     .anyMatch(e -> e.getValue().stream().anyMatch(z -> z.getType().equals(STRING)));
 
             return collections.entrySet().stream()
+                    .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
                     .map(collection -> getTableSubQuery(collection.getKey(), connectorField, Optional.of(isText), timeColumn,
                             dimension, timePredicate, Optional.empty()))
                     .collect(Collectors.joining(" union all "));
