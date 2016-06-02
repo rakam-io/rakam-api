@@ -54,6 +54,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -193,7 +194,7 @@ public abstract class AbstractPostgresqlUserStorage
             int i = 1;
             for (Map.Entry<String, Object> o : properties) {
                 if (o.getKey().equals(PRIMARY_KEY)) {
-                    throw new RakamException(String.format("User property %s is invalid. It's used as primary key", PRIMARY_KEY), HttpResponseStatus.BAD_REQUEST);
+                    throw new RakamException(String.format("User property %s is invalid. It's used as primary key", PRIMARY_KEY), BAD_REQUEST);
                 }
 
                 if (o.getKey().equals("created_at")) {
@@ -352,7 +353,13 @@ public abstract class AbstractPostgresqlUserStorage
     {
         // may use transaction when we start to use Postgresql 9.5. Since we use insert or merge, it doesn't work right now.
         return users.stream()
-                .map(user -> create(project, user.id, user.properties))
+                .map(user -> {
+                    Object o = create(project, user.id, user.properties);
+                    if(user.api != null) {
+                        throw new RakamException("api property in User object is not allowed in batch endpoint", BAD_REQUEST);
+                    }
+                    return o;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -522,7 +529,7 @@ public abstract class AbstractPostgresqlUserStorage
                         x = Long.parseLong(userId.toString());
                     }
                     catch (NumberFormatException e) {
-                        throw new RakamException("User id is invalid", HttpResponseStatus.BAD_REQUEST);
+                        throw new RakamException("User id is invalid", BAD_REQUEST);
                     }
 
                     ps.setLong(1, x);
@@ -533,7 +540,7 @@ public abstract class AbstractPostgresqlUserStorage
                         x = Integer.parseInt(userId.toString());
                     }
                     catch (NumberFormatException e) {
-                        throw new RakamException("User id is invalid", HttpResponseStatus.BAD_REQUEST);
+                        throw new RakamException("User id is invalid", BAD_REQUEST);
                     }
 
                     ps.setInt(1, x);
@@ -581,7 +588,7 @@ public abstract class AbstractPostgresqlUserStorage
     public void setUserProperty(String project, Object userId, Iterable<Map.Entry<String, Object>> _properties, boolean onlyOnce)
     {
         if (userId == null) {
-            throw new RakamException("User id is not set.", HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException("User id is not set.", BAD_REQUEST);
         }
 
         List<Map.Entry<String, Object>> properties = new ArrayList<>();
@@ -603,12 +610,12 @@ public abstract class AbstractPostgresqlUserStorage
         if (entries.hasNext()) {
             Map.Entry<String, Object> entry = entries.next();
             builder.append('"').append(entry.getKey())
-                    .append(onlyOnce ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"=?");
+                    .append(onlyOnce ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
 
             while (entries.hasNext()) {
                 entry = entries.next();
-                builder.append(" and ").append('"').append(entry.getKey())
-                        .append(onlyOnce ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"=?");
+                builder.append(", ").append('"').append(entry.getKey())
+                        .append(onlyOnce ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
             }
         }
 
@@ -705,7 +712,7 @@ public abstract class AbstractPostgresqlUserStorage
 
         if (!fieldType.isNumeric()) {
             throw new RakamException(String.format("The property the is %s and it can't be incremented.", fieldType.name()),
-                    HttpResponseStatus.BAD_REQUEST);
+                    BAD_REQUEST);
         }
 
         try (Connection conn = queryExecutor.getConnection()) {
