@@ -12,6 +12,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.server.http.HttpRequestException;
 import ua_parser.CachingParser;
@@ -39,8 +40,8 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress) {
-        mapInternal(requestParams, new MapProxyGenericRecord(properties), properties.get("_user_agent"));
+    public List<Cookie> map(String project, User user, RequestParams requestParams, InetAddress sourceAddress) {
+        mapInternal(requestParams, new MapProxyGenericRecord(user.properties), user.properties.get("_user_agent"));
         return null;
     }
 

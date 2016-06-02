@@ -20,6 +20,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserPropertyMapper;
 
 import java.io.FileInputStream;
@@ -160,9 +161,9 @@ public class GeoIPEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress)
+    public List<Cookie> map(String project, User user, RequestParams requestParams, InetAddress sourceAddress)
     {
-        Object ip = properties.get("_ip");
+        Object ip = user.properties.get("_ip");
 
         if (ip == null) {
             return null;
@@ -178,7 +179,7 @@ public class GeoIPEventMapper
             }
         }
 
-        GenericRecord record = new MapProxyGenericRecord(properties);
+        GenericRecord record = new MapProxyGenericRecord(user.properties);
 
         if (connectionTypeLookup != null) {
             setConnectionType(sourceAddress, record);

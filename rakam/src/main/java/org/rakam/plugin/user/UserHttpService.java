@@ -263,7 +263,7 @@ public class UserHttpService extends HttpService {
         List<Cookie> cookies = null;
         for (UserPropertyMapper mapper : mappers) {
             try {
-                List<Cookie> map = mapper.map(project, req.properties, new HttpRequestParams(request), socketAddress);
+                List<Cookie> map = mapper.map(project, req, new HttpRequestParams(request), socketAddress);
                 if(map != null) {
                     if (cookies == null) {
                         cookies = new ArrayList<>();

@@ -5,7 +5,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import org.apache.avro.Schema;
@@ -15,9 +14,9 @@ import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.AvroUtil;
-import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -26,10 +25,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public class UserIdEventMapper
         implements EventMapper, UserPropertyMapper
@@ -49,7 +45,7 @@ public class UserIdEventMapper
             public FieldType load(String key)
                     throws Exception
             {
-                return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class);
+                return configManager.setConfigOnce(key, InternalConfig.USER_TYPE.name(), FieldType.STRING);
             }
         });
     }
@@ -116,35 +112,17 @@ public class UserIdEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress)
+    public List<Cookie> map(String project, User user, RequestParams requestParams, InetAddress sourceAddress)
     {
-        Object userId = properties.get("_user");
-        if (userId == null) {
+        if (user.id == null) {
             FieldType fieldType = userTypeCache.getUnchecked(project);
-
-            if (fieldType == null) {
-                FieldType type;
-                if (userId instanceof String) {
-                    type = FieldType.STRING;
-                }
-                else if (userId instanceof Number) {
-                    type = userId instanceof Long ? FieldType.LONG : FieldType.INTEGER;
-                }
-                else {
-                    throw new RakamException("User id type is not valid. It can be STRING, LONG or INTEGER", BAD_REQUEST);
-                }
-
-                fieldType = configManager.setConfigOnce(project, InternalConfig.USER_TYPE.name(), type);
-            }
-
-
             Schema field = AvroUtil.generateAvroSchema(fieldType);
             Schema.Type type = field.getTypes().get(1).getType();
             Object anonymousUser = requestParams.cookies().stream()
                     .filter(e -> e.name().equals("_anonymous_user")).findAny()
                     .map(e -> cast(type, e.value())).orElse(generate(type));
 
-            properties.put("_user", anonymousUser);
+            user.setId(anonymousUser);
             return ImmutableList.of(new DefaultCookie("_anonymous_user", String.valueOf(anonymousUser)));
         }
 

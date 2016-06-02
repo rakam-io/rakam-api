@@ -5,9 +5,8 @@ import org.rakam.plugin.EventMapper;
 
 import java.net.InetAddress;
 import java.util.List;
-import java.util.Map;
 
 public interface UserPropertyMapper {
-    List<Cookie> map(String project, Map<String, Object> properties, EventMapper.RequestParams requestParams, InetAddress sourceAddress);
+    List<Cookie> map(String project, User user, EventMapper.RequestParams requestParams, InetAddress sourceAddress);
 }
 

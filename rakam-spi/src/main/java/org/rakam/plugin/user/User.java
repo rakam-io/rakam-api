@@ -7,7 +7,7 @@ import java.util.Map;
 
 
 public class User {
-    public final Object id;
+    public Object id;
     public final Map<String, Object> properties;
     public final UserContext api;
 
@@ -18,6 +18,11 @@ public class User {
         this.id = id;
         this.api = api;
         this.properties = properties;
+    }
+
+    public void setId(Object id)
+    {
+        this.id = id;
     }
 
     public static class UserContext {

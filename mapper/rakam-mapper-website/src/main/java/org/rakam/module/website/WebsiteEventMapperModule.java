@@ -27,8 +27,8 @@ public class WebsiteEventMapperModule extends RakamModule {
             userPropertyMappers.addBinding().to(UserAgentEventMapper.class).in(Scopes.SINGLETON);
         }
 
-        Multibinder.newSetBinder(binder, EventMapper.class).addBinding()
-                .to(UserIdEventMapper.class).in(Scopes.SINGLETON);
+        eventMappers.addBinding().to(UserIdEventMapper.class).in(Scopes.SINGLETON);
+        userPropertyMappers.addBinding().to(UserIdEventMapper.class).in(Scopes.SINGLETON);
     }
 
     @Override
