@@ -27,11 +27,11 @@ public class User {
 
         @JsonCreator
         public UserContext(@ApiParam("api_key") String apiKey,
-                           @ApiParam("writeKey") String writeKey,
+                           @ApiParam(value = "writeKey", access = "internal") String writeKey,
                            @ApiParam("api_library") String apiLibrary,
                            @ApiParam("api_version") String apiVersion) {
-            this.apiLibrary = apiKey != null ? apiKey : apiLibrary;
-            this.apiKey = writeKey;
+            this.apiKey = apiKey != null ? apiKey : writeKey;
+            this.apiLibrary = apiLibrary;
             this.apiVersion = apiVersion;
         }
     }
