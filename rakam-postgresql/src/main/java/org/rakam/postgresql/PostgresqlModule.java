@@ -2,6 +2,8 @@ package org.rakam.postgresql;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -21,6 +23,7 @@ import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.EventStore;
@@ -50,6 +53,7 @@ import org.rakam.util.ConditionalModule;
 import javax.inject.Inject;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Set;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="postgresql")
@@ -208,9 +212,13 @@ public class PostgresqlModule extends RakamModule {
                 executor.executeRawStatement(String.format("CREATE INDEX %s_%s_%s_auto_index ON %s.\"%s\" USING %s(\"%s\")",
                         project, collection, field.getName(),
                         project, collection,
-                        brinIndexSupported ? "BRIN" : "BTREE",
+                        (brinIndexSupported && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
                         field.getName()));
             }
         }
+
+        private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
+                FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
+                FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
     }
 }
