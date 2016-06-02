@@ -255,7 +255,7 @@ public class UserHttpService extends HttpService {
             }
 
             service.setUserProperties(project, req.id, req.properties);
-            request.response(OK_MESSAGE).end();
+            request.response(response).end();
         });
     }
 
