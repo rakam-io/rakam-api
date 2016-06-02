@@ -102,11 +102,11 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    private String getColumnValue(Reference ref)
+    private String getColumnValue(Reference ref, boolean format)
     {
         switch (ref.type) {
             case COLUMN:
-                return ref.value;
+                return format ? checkTableColumn(ref.value) : ref.value;
             case REFERENCE:
                 return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "_time");
             default:
@@ -217,8 +217,8 @@ public abstract class AbstractEventExplorer
                     .collect(Collectors.joining(" and "));
 
             computeQuery = format("SELECT %s %s %s as value FROM %s WHERE %s %s",
-                    grouping != null ? (getColumnValue(grouping) + " as " + checkTableColumn(getColumnReference(grouping) + "_group") + " ,") : "",
-                    segment != null ? (getColumnValue(segment) + " as " + checkTableColumn(getColumnReference(segment) + "_segment") + " ,") : "",
+                    grouping != null ? (getColumnValue(grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group") + " ,") : "",
+                    segment != null ? (getColumnValue(segment, true) + " as " + checkTableColumn(getColumnReference(segment) + "_segment") + " ,") : "",
                     format(getFinalForAggregationFunction(measure), measure.column + "_" + measure.aggregation.name().toLowerCase()),
                     checkCollection(preComputedTable.get().getValue()),
                     Stream.of(
@@ -296,12 +296,12 @@ public abstract class AbstractEventExplorer
                 boolean reference;
 
                 if (segment != null) {
-                    columnValue = getColumnValue(segment);
+                    columnValue = getColumnValue(segment, false);
                     reference = segment.type == REFERENCE;
                     suffix = "segment";
                 }
                 else if (grouping != null) {
-                    columnValue = getColumnValue(grouping);
+                    columnValue = getColumnValue(grouping, false);
                     reference = grouping.type == REFERENCE;
                     suffix = "group";
                 }
@@ -349,13 +349,13 @@ public abstract class AbstractEventExplorer
     {
         StringBuilder selectBuilder = new StringBuilder();
         if (grouping != null) {
-            selectBuilder.append(checkTableColumn(getColumnValue(grouping)) + " as " + checkTableColumn(getColumnReference(grouping) + "_group"));
+            selectBuilder.append(getColumnValue(grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group"));
             if (segment != null) {
                 selectBuilder.append(", ");
             }
         }
         if (segment != null) {
-            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? checkTableColumn(getColumnValue(segment)) : "'" + stripName(collection) + "'") + " as "
+            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(segment, true) : "'" + stripName(collection) + "'") + " as "
                     + checkTableColumn(getColumnReference(segment) + "_segment"));
         }
         return selectBuilder.toString();

@@ -55,7 +55,7 @@ public class PostgresqlEventStore
     }
 
     @Override
-    public void store(org.rakam.collection.Event event)
+    public void store(Event event)
     {
         GenericRecord record = event.properties();
         try (Connection connection = connectionPool.getConnection()) {
@@ -105,8 +105,10 @@ public class PostgresqlEventStore
             return EventStore.SUCCESSFUL_BATCH;
         }
         catch (SQLException e) {
+            List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
+
             LOGGER.error(e.getNextException() != null ? e.getNextException() : e,
-                    "Error while storing events in Postgresql batch query");
+                    "Error while storing events in Postgresql batch query: " + sample);
 
             return IntStream.range(0, events.size()).filter(idx -> {
                 Event event = events.get(idx);

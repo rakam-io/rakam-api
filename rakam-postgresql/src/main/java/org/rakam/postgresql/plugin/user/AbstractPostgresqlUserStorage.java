@@ -12,7 +12,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
@@ -124,13 +123,11 @@ public abstract class AbstractPostgresqlUserStorage
 
     public abstract QueryExecutor getExecutorForWithEventFilter();
 
-    public Object createInternal(String project, Object id,
-            Iterable<Map.Entry<String, Object>> _properties)
-    {
+    private List<Map.Entry<String, Object>> strip(Iterable<Map.Entry<String, Object>> _properties) {
         List<Map.Entry<String, Object>> properties = new ArrayList<>();
 
         for (Map.Entry<String, Object> entry : _properties) {
-            String key = checkTableColumn(entry.getKey());
+            String key = SchemaField.stripName(entry.getKey());
             if (!key.equals(entry.getKey())) {
                 properties.add(new SimpleImmutableEntry<>(key, entry.getValue()));
             }
@@ -139,6 +136,15 @@ public abstract class AbstractPostgresqlUserStorage
             }
         }
 
+        return properties;
+    }
+
+
+    public Object createInternal(String project, Object id,
+            Iterable<Map.Entry<String, Object>> _properties)
+    {
+
+        List<Map.Entry<String, Object>> properties = strip(_properties);
         Map<String, FieldType> columns = createMissingColumns(project, properties);
 
         try (Connection conn = queryExecutor.getConnection()) {
@@ -382,15 +388,20 @@ public abstract class AbstractPostgresqlUserStorage
                     return;
                 }
 
+                if (getMetadata(project).stream().anyMatch(col -> col.getName().equals(column))) {
+                    // what if the type does not match?
+                    return;
+                }
+
                 if (retry) {
                     userTypeCache.refresh(project);
                     createProjectIfNotExists(project,
                             Optional.ofNullable(userTypeCache.getUnchecked(project)).orElse(FieldType.STRING).isNumeric());
-                    createColumnInternal(project, column, value, false);
-                    return;
-                }
 
-                throw e;
+                    createColumnInternal(project, column, value, false);
+                } else {
+                    throw e;
+                }
             }
         }
         catch (SQLException e) {
@@ -591,17 +602,7 @@ public abstract class AbstractPostgresqlUserStorage
             throw new RakamException("User id is not set.", BAD_REQUEST);
         }
 
-        List<Map.Entry<String, Object>> properties = new ArrayList<>();
-
-        for (Map.Entry<String, Object> entry : _properties) {
-            String key = checkTableColumn(entry.getKey());
-            if (!key.equals(entry.getKey())) {
-                properties.add(new SimpleImmutableEntry<>(key, entry.getValue()));
-            }
-            else {
-                properties.add(entry);
-            }
-        }
+        List<Map.Entry<String, Object>> properties = strip(_properties);
 
         Map<String, FieldType> columns = createMissingColumns(project, properties);
 

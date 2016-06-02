@@ -157,7 +157,6 @@ public class EventCollectionHttpService
     {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
-        errResponse.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
         errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
         request.response(errResponse).end();
     }
@@ -498,7 +497,6 @@ public class EventCollectionHttpService
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            responseHeaders.set(ACCESS_CONTROL_ALLOW_ORIGIN, "*");
 
             FullHttpResponse response;
             List<Cookie> entries;
@@ -581,18 +579,12 @@ public class EventCollectionHttpService
             md = MessageDigest.getInstance("MD5");
         }
         catch (NoSuchAlgorithmException e) {
-            ByteBuf byteBuf = Unpooled.wrappedBuffer("0".getBytes(CharsetUtil.UTF_8));
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, byteBuf);
-            response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            request.response(response).end();
+            returnError(request, "0", INTERNAL_SERVER_ERROR);
             return false;
         }
 
         if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF_8))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
-            ByteBuf byteBuf = Unpooled.wrappedBuffer("\"checksum is invalid\"".getBytes(CharsetUtil.UTF_8));
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST, byteBuf);
-            response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            request.response(response).end();
+            returnError(request, "Checksum is invalid", BAD_REQUEST);
             return false;
         }
 

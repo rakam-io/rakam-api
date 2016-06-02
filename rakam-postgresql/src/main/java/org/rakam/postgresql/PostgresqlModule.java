@@ -49,6 +49,7 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.util.ConditionalModule;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import java.net.URISyntaxException;
@@ -211,11 +212,11 @@ public class PostgresqlModule extends RakamModule {
 
         public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
             for (SchemaField field : fields) {
-                executor.executeRawStatement(String.format("CREATE INDEX %s_%d_%s_auto_index ON %s.\"%s\" USING %s(\"%s\")",
-                        project, collection.hashCode(), field.getName(),
+                executor.executeRawStatement(String.format("CREATE INDEX %s IF NOT EXISTS ON %s.%s USING %s(%s)",
+                        checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
                         project, checkCollection(collection),
                         (brinIndexSupported && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
-                        field.getName()));
+                        ValidationUtil.checkTableColumn(field.getName())));
             }
         }
 
