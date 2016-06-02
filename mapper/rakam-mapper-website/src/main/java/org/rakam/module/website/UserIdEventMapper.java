@@ -5,6 +5,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import org.apache.avro.Schema;
@@ -14,32 +15,48 @@ import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.UserPropertyMapper;
+import org.rakam.util.AvroUtil;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-public class UserIdEventMapper implements EventMapper {
-    private final LoadingCache<String, FieldType> userType;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+
+public class UserIdEventMapper
+        implements EventMapper, UserPropertyMapper
+{
+    private final LoadingCache<String, FieldType> userTypeCache;
+    private final ConfigManager configManager;
     DistributedIdGenerator idGenerator;
 
     @Inject
-    public UserIdEventMapper(ConfigManager configManager) {
+    public UserIdEventMapper(ConfigManager configManager)
+    {
         idGenerator = new DistributedIdGenerator();
-        userType = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>() {
+        this.configManager = configManager;
+        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>()
+        {
             @Override
-            public FieldType load(String key) throws Exception {
-                return configManager.setConfigOnce(key, InternalConfig.USER_TYPE.name(), FieldType.STRING);
+            public FieldType load(String key)
+                    throws Exception
+            {
+                return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class);
             }
         });
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
+    {
         GenericRecord properties = event.properties();
 
         if (properties.get("_user") == null) {
@@ -60,7 +77,8 @@ public class UserIdEventMapper implements EventMapper {
         return null;
     }
 
-    private Object generate(Schema.Type type) {
+    private Object generate(Schema.Type type)
+    {
         switch (type) {
             case STRING:
                 return UUID.randomUUID().toString();
@@ -73,25 +91,64 @@ public class UserIdEventMapper implements EventMapper {
         }
     }
 
-    private Object cast(Schema.Type type, String value) {
+    private Object cast(Schema.Type type, String value)
+    {
         switch (type) {
             case STRING:
                 return value;
             case LONG:
                 try {
                     return Long.parseLong(value);
-                } catch (NumberFormatException e) {
+                }
+                catch (NumberFormatException e) {
                     return null;
                 }
             case INT:
                 try {
                     return Integer.parseInt(value);
-                } catch (NumberFormatException e) {
+                }
+                catch (NumberFormatException e) {
                     return null;
                 }
             default:
                 return null;
         }
+    }
+
+    @Override
+    public List<Cookie> map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress)
+    {
+        Object userId = properties.get("_user");
+        if (userId == null) {
+            FieldType fieldType = userTypeCache.getUnchecked(project);
+
+            if (fieldType == null) {
+                FieldType type;
+                if (userId instanceof String) {
+                    type = FieldType.STRING;
+                }
+                else if (userId instanceof Number) {
+                    type = userId instanceof Long ? FieldType.LONG : FieldType.INTEGER;
+                }
+                else {
+                    throw new RakamException("User id type is not valid. It can be STRING, LONG or INTEGER", BAD_REQUEST);
+                }
+
+                fieldType = configManager.setConfigOnce(project, InternalConfig.USER_TYPE.name(), type);
+            }
+
+
+            Schema field = AvroUtil.generateAvroSchema(fieldType);
+            Schema.Type type = field.getTypes().get(1).getType();
+            Object anonymousUser = requestParams.cookies().stream()
+                    .filter(e -> e.name().equals("_anonymous_user")).findAny()
+                    .map(e -> cast(type, e.value())).orElse(generate(type));
+
+            properties.put("_user", anonymousUser);
+            return ImmutableList.of(new DefaultCookie("_anonymous_user", String.valueOf(anonymousUser)));
+        }
+
+        return null;
     }
 
     /**
@@ -108,7 +165,8 @@ public class UserIdEventMapper implements EventMapper {
      *
      * @author Maxim Khodanovich
      */
-    public static class DistributedIdGenerator {
+    public static class DistributedIdGenerator
+    {
         private static final long START_EPOCH = 1464307172048L;
 
         private static final long SEQUENCE_BITS = 12L;
@@ -124,25 +182,30 @@ public class UserIdEventMapper implements EventMapper {
         private volatile long lastTimestamp = -1L;
         private volatile long sequence = 0L;
 
-        public DistributedIdGenerator() {
+        public DistributedIdGenerator()
+        {
             hostId = getHostId();
             if (hostId < 0 || hostId > HOST_ID_MAX) {
                 throw new IllegalStateException("Invalid host ID: " + hostId);
             }
         }
 
-        public long generateId() throws IllegalStateException {
+        public long generateId()
+                throws IllegalStateException
+        {
             long timestamp = System.currentTimeMillis();
             if (lastTimestamp == timestamp) {
                 sequence = (sequence + 1) & SEQUENCE_MASK;
-            } else {
+            }
+            else {
                 sequence = 0;
             }
             lastTimestamp = timestamp;
             return ((timestamp - START_EPOCH) << TIMESTAMP_SHIFT) | (hostId << HOST_ID_SHIFT) | sequence;
         }
 
-        private long nextTimestamp(long lastTimestamp) {
+        private long nextTimestamp(long lastTimestamp)
+        {
             long timestamp = System.currentTimeMillis();
             while (timestamp <= lastTimestamp) {
                 timestamp = System.currentTimeMillis();
@@ -150,17 +213,22 @@ public class UserIdEventMapper implements EventMapper {
             return timestamp;
         }
 
-        private long getHostId() throws IllegalStateException {
+        private long getHostId()
+                throws IllegalStateException
+        {
             try {
                 NetworkInterface iface = NetworkInterface.getByInetAddress(getHostAddress());
                 byte[] mac = iface.getHardwareAddress();
                 return ((0x000000FF & (long) mac[mac.length - 1]) | (0x0000FF00 & (((long) mac[mac.length - 2]) << 8))) >> 6;
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 throw new IllegalStateException("Failed to get host ID", e);
             }
         }
 
-        private InetAddress getHostAddress() throws IOException {
+        private InetAddress getHostAddress()
+                throws IOException
+        {
             InetAddress address = null;
 
             // Iterate all the network interfaces

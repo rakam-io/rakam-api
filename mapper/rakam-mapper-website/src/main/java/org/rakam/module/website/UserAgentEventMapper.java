@@ -39,8 +39,9 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress) {
+    public List<Cookie> map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress) {
         mapInternal(requestParams, new MapProxyGenericRecord(properties), properties.get("_user_agent"));
+        return null;
     }
 
     @Override

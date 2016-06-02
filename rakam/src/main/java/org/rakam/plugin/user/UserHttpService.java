@@ -3,10 +3,15 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import io.airlift.log.Logger;
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
-import org.rakam.collection.EventCollectionHttpService;
+import org.rakam.collection.EventCollectionHttpService.HttpRequestParams;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
@@ -39,15 +44,20 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Charsets.UTF_8;
+import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.collection.EventCollectionHttpService.getHeaderList;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")
@@ -229,8 +239,16 @@ public class UserHttpService extends HttpService {
 
             String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
 
-            if (!mapProperties(project, req, request)) {
-                return;
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+
+            List<Cookie> cookies = mapProperties(project, req, request);
+            if (cookies != null) {
+                response.headers().add(HttpHeaders.Names.SET_COOKIE,
+                        ServerCookieEncoder.STRICT.encode(cookies));
+            }
+            String headerList = getHeaderList(response.headers().iterator());
+            if (headerList != null) {
+                response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
 
             service.setUserProperties(project, req.id, req.properties);
@@ -238,21 +256,28 @@ public class UserHttpService extends HttpService {
         });
     }
 
-    private boolean mapProperties(String project, User req, RakamHttpRequest request) {
+    private List<Cookie> mapProperties(String project, User req, RakamHttpRequest request) {
         InetAddress socketAddress = ((InetSocketAddress) request.context().channel()
                 .remoteAddress()).getAddress();
 
+        List<Cookie> cookies = null;
         for (UserPropertyMapper mapper : mappers) {
             try {
-                mapper.map(project, req.properties, new EventCollectionHttpService.HttpRequestParams(request), socketAddress);
+                List<Cookie> map = mapper.map(project, req.properties, new HttpRequestParams(request), socketAddress);
+                if(map != null) {
+                    if (cookies == null) {
+                        cookies = new ArrayList<>();
+                    }
+
+                    cookies.addAll(map);
+                }
             } catch (Exception e) {
-                LOGGER.error(e);
-                request.response("0", BAD_REQUEST).end();
-                return false;
+                LOGGER.error(e, "Error while mapping user properties in "+mapper.getClass().toString());
+                return null;
             }
         }
 
-        return true;
+        return cookies;
     }
 
     @JsonRequest
@@ -271,8 +296,16 @@ public class UserHttpService extends HttpService {
 
             String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
 
-            if (!mapProperties(project, req, request)) {
-                return;
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+
+            List<Cookie> cookies = mapProperties(project, req, request);
+            if (cookies != null) {
+                response.headers().add(HttpHeaders.Names.SET_COOKIE,
+                        ServerCookieEncoder.STRICT.encode(cookies));
+            }
+            String headerList = getHeaderList(response.headers().iterator());
+            if (headerList != null) {
+                response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
 
             // TODO: we may cache these values and reduce the db hit.

@@ -83,8 +83,9 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void map(String project, Map<String, Object> properties, RequestParams extraProperties, InetAddress sourceAddress) {
+    public List<Cookie> map(String project, Map<String, Object> properties, RequestParams extraProperties, InetAddress sourceAddress) {
         mapInternal(extraProperties, properties.get("_referrer"), properties.get("_host"), new MapProxyGenericRecord(properties));
+        return null;
     }
 
     @Override

@@ -554,7 +554,7 @@ public class EventCollectionHttpService
         });
     }
 
-    private String getHeaderList(Iterator<Map.Entry<String, String>> it)
+    public static String getHeaderList(Iterator<Map.Entry<String, String>> it)
     {
         StringBuilder builder = null;
         while (it.hasNext()) {

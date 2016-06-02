@@ -105,7 +105,8 @@ public class PostgresqlEventStore
             return EventStore.SUCCESSFUL_BATCH;
         }
         catch (SQLException e) {
-            LOGGER.error(e.getNextException(), "Error while storing events in Postgresql batch query");
+            LOGGER.error(e.getNextException() != null ? e.getNextException() : e,
+                    "Error while storing events in Postgresql batch query");
 
             return IntStream.range(0, events.size()).filter(idx -> {
                 Event event = events.get(idx);

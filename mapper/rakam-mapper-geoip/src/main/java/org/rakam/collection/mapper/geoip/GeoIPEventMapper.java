@@ -160,12 +160,12 @@ public class GeoIPEventMapper
     }
 
     @Override
-    public void map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress)
+    public List<Cookie> map(String project, Map<String, Object> properties, RequestParams requestParams, InetAddress sourceAddress)
     {
         Object ip = properties.get("_ip");
 
         if (ip == null) {
-            return;
+            return null;
         }
 
         if ((ip instanceof String)) {
@@ -174,7 +174,7 @@ public class GeoIPEventMapper
                 sourceAddress = Inet4Address.getByName((String) ip);
             }
             catch (UnknownHostException e) {
-                return;
+                return null;
             }
         }
 
@@ -191,6 +191,8 @@ public class GeoIPEventMapper
         if (cityLookup != null) {
             setGeoFields(sourceAddress, record);
         }
+
+        return null;
     }
 
     @Override
