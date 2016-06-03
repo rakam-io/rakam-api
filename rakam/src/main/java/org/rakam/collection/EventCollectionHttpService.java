@@ -503,7 +503,7 @@ public class EventCollectionHttpService
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
             responseHeaders.set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
-            
+
             FullHttpResponse response;
             List<Cookie> entries;
             try {

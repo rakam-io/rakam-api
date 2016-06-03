@@ -14,6 +14,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -36,6 +37,8 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
 public class PostgresqlEventStore
@@ -186,9 +189,6 @@ public class PostgresqlEventStore
 
     private String getQuery(String project, String collection, Schema schema)
     {
-        // since we don't cache queries, we should care about performance so we just use StringBuilder instead of streams.
-        // String columns = schema.getFields().stream().map(Schema.Field::name).collect(Collectors.joining(", "));
-        // String parameters = schema.getFields().stream().map(f -> "?").collect(Collectors.joining(", "));
         StringBuilder query = new StringBuilder("INSERT INTO ")
                 .append(project)
                 .append(".")
@@ -196,9 +196,9 @@ public class PostgresqlEventStore
         StringBuilder params = new StringBuilder();
         List<Schema.Field> fields = schema.getFields();
 
-        Schema.Field f = fields.get(0);
-        if (!sourceFields.contains(f.name())) {
-            query.append(" (\"").append(f.name());
+        Schema.Field firstField = fields.get(0);
+        if (!sourceFields.contains(firstField.name())) {
+            query.append(" (\"").append(checkTableColumn(firstField.name()));
             params.append('?');
         }
 
@@ -206,7 +206,7 @@ public class PostgresqlEventStore
             Schema.Field field = fields.get(i);
 
             if (!sourceFields.contains(field.name())) {
-                query.append("\", \"").append(field.name());
+                query.append("\", \"").append(checkTableColumn(field.name()));
                 params.append(", ?");
             }
         }
