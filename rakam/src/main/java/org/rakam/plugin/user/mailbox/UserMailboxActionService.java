@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
+import static org.rakam.plugin.user.UserHttpService.parseExpression;
 
 @Path("/user/action/mailbox")
 @Api(value = "/user/action/mailbox", nickname = "userMailboxAction", description = "Mailbox action", tags = "user-action")
@@ -57,19 +58,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
         List<String> variables = new StringTemplate(config.message).getVariables();
         variables.add(UserStorage.PRIMARY_KEY);
 
-        Expression expression;
-        if (filter != null) {
-            try {
-                synchronized (sqlParser) {
-                    expression = sqlParser.createExpression(filter);
-                }
-            } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filter),
-                        HttpResponseStatus.BAD_REQUEST);
-            }
-        } else {
-            expression = null;
-        }
+        Expression expression = parseExpression(filter);
 
         CompletableFuture<QueryResult> future = userService.filter(project, variables, expression, event_filter, null, 100000, null);
         return batch(project, future, config);

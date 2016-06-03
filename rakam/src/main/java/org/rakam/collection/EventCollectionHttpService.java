@@ -225,6 +225,7 @@ public class EventCollectionHttpService
             if (headerList != null) {
                 response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
+            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
 
             request.response(response).end();
         });

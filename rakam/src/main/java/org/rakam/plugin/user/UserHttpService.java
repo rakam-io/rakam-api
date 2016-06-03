@@ -52,7 +52,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
+import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
+import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -69,7 +71,7 @@ public class UserHttpService extends HttpService {
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
 
     private final UserPluginConfig config;
-    private final SqlParser sqlParser;
+    private final static SqlParser sqlParser = new SqlParser();
     private final AbstractUserService service;
     private final Set<UserPropertyMapper> mappers;
     private final QueryHttpService queryService;
@@ -85,7 +87,6 @@ public class UserHttpService extends HttpService {
         this.config = config;
         this.apiKeyService = apiKeyService;
         this.queryService = queryService;
-        this.sqlParser = new SqlParser();
         this.mappers = mappers;
     }
 
@@ -128,6 +129,21 @@ public class UserHttpService extends HttpService {
         }
     }
 
+    public static Expression parseExpression(String filter) {
+        if (filter != null) {
+            try {
+                synchronized (sqlParser) {
+                    return sqlParser.createExpression(filter);
+                }
+            } catch (Exception e) {
+                throw new RakamException(format("filter expression '%s' couldn't parsed", filter),
+                        HttpResponseStatus.BAD_REQUEST);
+            }
+        } else {
+            return null;
+        }
+    }
+
     @JsonRequest
     @ApiOperation(value = "Search users", authorizations = @Authorization(value = "read_key"))
 
@@ -139,19 +155,7 @@ public class UserHttpService extends HttpService {
                                                       @ApiParam(value = "sorting", required = false) Sorting sorting,
                                                       @ApiParam(value = "offset", required = false) String offset,
                                                       @ApiParam(value = "limit", required = false) Integer limit) {
-        Expression expression;
-        if (filter != null) {
-            try {
-                synchronized (sqlParser) {
-                    expression = sqlParser.createExpression(filter);
-                }
-            } catch (Exception e) {
-                throw new RakamException(format("filter expression '%s' couldn't parsed", filter),
-                        HttpResponseStatus.BAD_REQUEST);
-            }
-        } else {
-            expression = null;
-        }
+        Expression expression = parseExpression(filter);
 
         limit = limit == null ? 100 : Math.min(5000, limit);
 
@@ -243,6 +247,7 @@ public class UserHttpService extends HttpService {
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
             response.headers().add(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
 
             List<Cookie> cookies = mapProperties(project, req, request);
             if (cookies != null) {
@@ -300,6 +305,7 @@ public class UserHttpService extends HttpService {
             String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
 
             List<Cookie> cookies = mapProperties(project, req, request);
             if (cookies != null) {

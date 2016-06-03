@@ -31,7 +31,11 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.Arrays;
 
+import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/recipe")
@@ -106,8 +110,10 @@ public class RecipeHttpService extends HttpService {
                 throw Throwables.propagate(e);
             }
 
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buffer);
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, buffer);
             response.headers().add(CONTENT_TYPE, exportType.contentType);
+            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+
             request.response(response).end();
         });
     }
