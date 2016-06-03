@@ -158,6 +158,7 @@ public class EventCollectionHttpService
         ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
         errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        errResponse.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
         String headerList = getHeaderList(errResponse.headers().iterator());
         if (headerList != null) {
             errResponse.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
@@ -501,7 +502,8 @@ public class EventCollectionHttpService
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-
+            responseHeaders.set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            
             FullHttpResponse response;
             List<Cookie> entries;
             try {
