@@ -560,14 +560,14 @@ public class EventCollectionHttpService
 
     public static String getHeaderList(Iterator<Map.Entry<String, String>> it)
     {
-        StringBuilder builder = new StringBuilder("cf-ray, server");
+        StringBuilder builder = new StringBuilder("cf-ray,server");
         while (it.hasNext()) {
             String key = it.next().getKey();
             if (!key.equals(SET_COOKIE)) {
                 if (builder.length() != 0) {
                     builder.append(',');
                 }
-                builder.append(key);
+                builder.append(key.toLowerCase(Locale.ENGLISH));
             }
         }
         return builder == null ? null : builder.toString();
