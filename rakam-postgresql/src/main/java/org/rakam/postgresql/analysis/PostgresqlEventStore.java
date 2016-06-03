@@ -198,7 +198,7 @@ public class PostgresqlEventStore
 
         Schema.Field firstField = fields.get(0);
         if (!sourceFields.contains(firstField.name())) {
-            query.append(" (\"").append(checkTableColumn(firstField.name()));
+            query.append(" (").append(checkTableColumn(firstField.name()));
             params.append('?');
         }
 
@@ -206,12 +206,12 @@ public class PostgresqlEventStore
             Schema.Field field = fields.get(i);
 
             if (!sourceFields.contains(field.name())) {
-                query.append("\", \"").append(checkTableColumn(field.name()));
+                query.append(", ").append(checkTableColumn(field.name()));
                 params.append(", ?");
             }
         }
 
-        return query.append("\") VALUES (").append(params.toString()).append(")").toString();
+        return query.append(") VALUES (").append(params.toString()).append(")").toString();
     }
 
     public static String toPostgresqlPrimitiveTypeName(FieldType type)
