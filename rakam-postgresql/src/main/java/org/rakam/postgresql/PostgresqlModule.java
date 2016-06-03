@@ -212,7 +212,7 @@ public class PostgresqlModule extends RakamModule {
 
         public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
             for (SchemaField field : fields) {
-                executor.executeRawStatement(String.format("CREATE INDEX %s IF NOT EXISTS ON %s.%s USING %s(%s)",
+                executor.executeRawStatement(String.format("CREATE INDEX IF NOT EXISTS %s ON %s.%s USING %s(%s)",
                         checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
                         project, checkCollection(collection),
                         (brinIndexSupported && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",

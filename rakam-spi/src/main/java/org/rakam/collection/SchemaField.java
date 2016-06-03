@@ -3,6 +3,8 @@ package org.rakam.collection;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.util.RakamException;
 
 import java.util.Locale;
 
@@ -40,7 +42,7 @@ public class SchemaField
         StringBuilder builder = new StringBuilder(name.length());
         for (int i = 0; i < name.length(); i++) {
             char charAt = name.charAt(i);
-            if (charAt == '"') {
+            if (charAt == '"' || (i == 0 && charAt == ' ')) {
                 continue;
             }
 
@@ -56,6 +58,15 @@ public class SchemaField
             else {
                 builder.append(charAt);
             }
+        }
+
+        if(builder.length() == 0) {
+            throw new RakamException("Invalid collection: "+name, HttpResponseStatus.BAD_REQUEST);
+        }
+
+        int lastIdx = builder.length() - 1;
+        if(builder.charAt(lastIdx) == ' ') {
+            builder.deleteCharAt(lastIdx);
         }
 
         return builder.toString();

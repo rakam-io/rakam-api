@@ -9,6 +9,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableSet;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
@@ -33,6 +34,7 @@ import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -173,7 +175,7 @@ public class JsonEventDeserializer
         List<SchemaField> rakamSchema = schema.getKey();
 
         GenericData.Record record = new GenericData.Record(avroSchema);
-        Set<SchemaField> newFields = null;
+        List<SchemaField> newFields = null;
 
         JsonToken t = jp.nextToken();
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
@@ -190,7 +192,7 @@ public class JsonEventDeserializer
                     FieldType type = getType(jp);
                     if (type != null) {
                         if (newFields == null) {
-                            newFields = new HashSet<>();
+                            newFields = new ArrayList<>();
                         }
 
                         if (fieldName.equals("_user")) {
@@ -205,7 +207,6 @@ public class JsonEventDeserializer
 
                         SchemaField newField = new SchemaField(fieldName, type);
                         newFields.add(newField);
-                        rakamSchema.add(newField);
 
                         avroSchema = createNewSchema(project, avroSchema, newField);
                         field = avroSchema.getField(newField.getName());
@@ -238,7 +239,7 @@ public class JsonEventDeserializer
                     for (SchemaField schemaField : conditionalMagicFields.get(fieldName)) {
                         if (avroSchema.getField(schemaField.getName()) == null) {
                             if (newFields == null) {
-                                newFields = new HashSet<>();
+                                newFields = new ArrayList<>();
                             }
                             newFields.add(schemaField);
                         }
@@ -246,12 +247,15 @@ public class JsonEventDeserializer
                 }
             }
 
-            Object value = getValue(jp, field.schema().getType() == NULL ? null : rakamSchema.get(field.pos()).getType(), field, false);
+            FieldType type = field.schema().getType() == NULL ? null :
+                    (field.pos() >= rakamSchema.size() ?
+                            newFields.get(field.pos() - rakamSchema.size()) : rakamSchema.get(field.pos())).getType();
+            Object value = getValue(jp, type, field, false);
             record.put(field.pos(), value);
         }
 
         if (newFields != null) {
-            rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
+            rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, ImmutableSet.copyOf(newFields));
             Schema newAvroSchema = convertAvroSchema(rakamSchema, conditionalMagicFields);
 
             schemaCache.put(key, new SimpleImmutableEntry<>(rakamSchema, newAvroSchema));

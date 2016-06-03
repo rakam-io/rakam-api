@@ -59,7 +59,8 @@ public class PostgresqlEventStore
     {
         GenericRecord record = event.properties();
         try (Connection connection = connectionPool.getConnection()) {
-            PreparedStatement ps = connection.prepareStatement(getQuery(event.project(), event.collection(), event.properties().getSchema()));
+            Schema schema = event.properties().getSchema();
+            PreparedStatement ps = connection.prepareStatement(getQuery(event.project(), event.collection(), schema));
             bindParam(connection, ps, event.schema(), record);
             ps.executeUpdate();
         }

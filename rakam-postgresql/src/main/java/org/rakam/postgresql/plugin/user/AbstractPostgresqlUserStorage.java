@@ -78,7 +78,7 @@ public abstract class AbstractPostgresqlUserStorage
             public FieldType load(String key)
                     throws Exception
             {
-                return configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class);
+                return configManager.setConfigOnce(key, InternalConfig.USER_TYPE.name(), FieldType.STRING);
             }
         });
     }
