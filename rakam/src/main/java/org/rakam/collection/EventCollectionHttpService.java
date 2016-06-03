@@ -560,7 +560,7 @@ public class EventCollectionHttpService
 
     public static String getHeaderList(Iterator<Map.Entry<String, String>> it)
     {
-        StringBuilder builder = new StringBuilder("cf-ray,server");
+        StringBuilder builder = new StringBuilder("cf-ray,server,status");
         while (it.hasNext()) {
             String key = it.next().getKey();
             if (!key.equals(SET_COOKIE)) {
