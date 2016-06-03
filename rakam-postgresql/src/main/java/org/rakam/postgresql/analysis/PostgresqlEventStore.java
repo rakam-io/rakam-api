@@ -192,7 +192,7 @@ public class PostgresqlEventStore
         StringBuilder query = new StringBuilder("INSERT INTO ")
                 .append(project)
                 .append(".")
-                .append(collection);
+                .append(ValidationUtil.checkCollection(collection));
         StringBuilder params = new StringBuilder();
         List<Schema.Field> fields = schema.getFields();
 

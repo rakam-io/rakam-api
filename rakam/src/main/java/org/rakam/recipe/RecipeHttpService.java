@@ -36,6 +36,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.rakam.recipe.RecipeHttpService.ExportType.YAML;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/recipe")
@@ -65,7 +66,7 @@ public class RecipeHttpService extends HttpService {
         ExportType exportType = Arrays.stream(ExportType.values())
                 .filter(f -> f.contentType.equals(contentType))
                 .findAny()
-                .orElse(ExportType.YAML);
+                .orElse(YAML);
 
         boolean override = ImmutableList.of(Boolean.TRUE.toString()).equals(request.params().get("override"));
 
@@ -101,7 +102,7 @@ public class RecipeHttpService extends HttpService {
             ExportType exportType = Arrays.stream(ExportType.values())
                     .filter(f -> f.contentType.equals(contentType))
                     .findAny()
-                    .orElse(ExportType.YAML);
+                    .orElse(YAML);
 
             ByteBuf buffer;
             try {

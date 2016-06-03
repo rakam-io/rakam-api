@@ -9,6 +9,7 @@ import java.util.Optional;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractRetentionQueryExecutor implements RetentionQueryExecutor {
@@ -24,7 +25,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                 String.format(timeColumn, "_time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
                 isText.map(text -> String.format("cast(\"%s\" as varchar) as %s", connectorField, connectorField)).orElse(connectorField),
-                ValidationUtil.checkCollection(collection),
+                checkCollection(collection),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();

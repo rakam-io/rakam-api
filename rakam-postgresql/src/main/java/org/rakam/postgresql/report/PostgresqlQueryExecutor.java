@@ -11,6 +11,7 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.util.QueryFormatter;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import java.sql.Connection;
@@ -104,7 +105,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
             }
 
         } else {
-            return project + "." + name.getSuffix();
+            return project + "." + checkCollection(name.getSuffix());
         }
     }
 

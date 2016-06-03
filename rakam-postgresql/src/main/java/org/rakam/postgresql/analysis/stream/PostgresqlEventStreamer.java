@@ -11,6 +11,8 @@ import io.airlift.log.Logger;
 import org.rakam.plugin.stream.CollectionStreamQuery;
 import org.rakam.plugin.stream.EventStream;
 import org.rakam.plugin.stream.StreamResponse;
+import org.rakam.util.JsonHelper;
+import org.rakam.util.ValidationUtil;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -90,7 +92,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                 statement.execute(format("DROP TRIGGER IF EXISTS %s ON %1$s.%2$s",
                         getProcedureName(collection.getCollection()),
                         project,
-                        collection.getCollection()));
+                        ValidationUtil.checkCollection(collection.getCollection())));
                 statement.execute(format("DROP FUNCTION IF EXISTS stream_%s_%s_%s",
                         getProcedureName(collection.getCollection())));
             }
@@ -102,7 +104,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
     }
 
     private String getProcedureName(String collection) {
-        return format("stream_%s_%s_%s", project, collection, ticket);
+        return format("stream_%s_%s_%s", project, ValidationUtil.checkCollection(collection), ticket);
     }
 
     private boolean createProcedures() {
@@ -119,13 +121,13 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
                                 "        RETURN NEW;" +
                                 "    END;" +
                                 "  $BODY$ LANGUAGE plpgsql;",
-                        name, createSqlExpression(collection), ticket, collection.getCollection()));
+                        name, createSqlExpression(collection), ticket, JsonHelper.encode(collection.getCollection())));
 
                 statement.execute(format("CREATE TRIGGER %s" +
                         "  AFTER INSERT" +
-                        "  ON \"%s\".\"%s\"" +
+                        "  ON %s.%s" +
                         "  FOR EACH ROW" +
-                        "  EXECUTE PROCEDURE %s();", name, project, collection.getCollection(), name));
+                        "  EXECUTE PROCEDURE %s();", name, project, ValidationUtil.checkCollection(collection.getCollection()), name));
 
             } catch (SQLException e) {
                 try {
