@@ -158,6 +158,10 @@ public class EventCollectionHttpService
         ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
         errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        String headerList = getHeaderList(errResponse.headers().iterator());
+        if (headerList != null) {
+            errResponse.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
+        }
         request.response(errResponse).end();
     }
 
