@@ -80,12 +80,13 @@ public class PostgresqlEventStore
             for (Map.Entry<String, List<Event>> entry : groupedByCollection.entrySet()) {
                 connection.setAutoCommit(false);
                 // last event must have the last schema
-                Event lastEvent = events.get(events.size() - 1);
+                List<Event> eventsForCollection = entry.getValue();
+                Event lastEvent = eventsForCollection.get(eventsForCollection.size() - 1);
                 PreparedStatement ps = connection.prepareStatement(getQuery(lastEvent.project(),
                         entry.getKey(), lastEvent.properties().getSchema()));
 
-                for (int i = 0; i < events.size(); i++) {
-                    Event event = events.get(i);
+                for (int i = 0; i < eventsForCollection.size(); i++) {
+                    Event event = eventsForCollection.get(i);
                     bindParam(connection, ps, event.schema(), event.properties());
                     ps.addBatch();
                     if (i > 0 && i % 5000 == 0) {
@@ -99,7 +100,7 @@ public class PostgresqlEventStore
                 ps.executeBatch();
 
                 connection.commit();
-                successfulCollections.compute(entry.getKey(), (k, v) -> events.size());
+                successfulCollections.compute(entry.getKey(), (k, v) -> eventsForCollection.size());
             }
 
             connection.setAutoCommit(true);
