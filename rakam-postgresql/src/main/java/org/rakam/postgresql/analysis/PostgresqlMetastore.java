@@ -184,7 +184,7 @@ public class PostgresqlMetastore
             throws SQLException
     {
         List<SchemaField> schemaFields = Lists.newArrayList();
-        ResultSet dbColumns = connection.getMetaData().getColumns("", project, collection, null);
+        ResultSet dbColumns = connection.getMetaData().getColumns("", project, collection.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_"), null);
         while (dbColumns.next()) {
             String columnName = dbColumns.getString("COLUMN_NAME");
             FieldType fieldType;
