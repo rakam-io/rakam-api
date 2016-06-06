@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkArgument;
@@ -89,7 +90,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         } else {
             throw new IllegalStateException();
         }
-        Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(ChronoUnit.DAYS.between(start, end))));
+        Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(DAYS.between(start, end))));
 
         if (range.isPresent() && range.get() < 0) {
             throw new IllegalArgumentException("startDate must be before endDate.");

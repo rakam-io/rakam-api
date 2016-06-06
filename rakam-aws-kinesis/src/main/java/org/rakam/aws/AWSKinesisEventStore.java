@@ -154,7 +154,7 @@ public class AWSKinesisEventStore implements EventStore {
             String lockKey = "bulk." + project + "." + collection;
             ResultSet rs = conn.createStatement().executeQuery(format("SELECT GET_LOCK('%s', 120)", lockKey));
             rs.next();
-            if (rs.getInt(1) == 0) {
+            if (rs.getInt(1) != 1) {
                 throw new RakamException("Unable to get commit lock, there is another ongoing commit process", CONFLICT);
             }
 
@@ -213,6 +213,7 @@ public class AWSKinesisEventStore implements EventStore {
 
                     try {
                         conn.createStatement().execute(format("SELECT RELEASE_LOCK('%s')", lockKey));
+                        conn.close();
                     } catch (SQLException e1) {
                     }
 
