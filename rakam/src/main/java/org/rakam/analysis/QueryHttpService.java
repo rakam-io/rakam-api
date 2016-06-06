@@ -190,7 +190,7 @@ public class QueryHttpService extends HttpService {
         eventLoopGroup.schedule(new Runnable() {
             @Override
             public void run() {
-                if (response.isClosed() && killOnConnectionClose) {
+                if (response.isClosed() && !query.isFinished() && killOnConnectionClose) {
                     query.kill();
                 } else if (!query.isFinished()) {
                     if(!response.isClosed()) {

@@ -2,7 +2,6 @@ package org.rakam.postgresql;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
@@ -57,6 +56,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="store.adapter", value="postgresql")
@@ -184,7 +184,7 @@ public class PostgresqlModule extends RakamModule {
 
     private static class CollectionFieldIndexerListener {
         private final PostgresqlQueryExecutor executor;
-        boolean brinIndexSupported;
+        boolean postgresql9_5;
 
         @Inject
         public CollectionFieldIndexerListener(PostgresqlQueryExecutor executor) {
@@ -194,9 +194,9 @@ public class PostgresqlModule extends RakamModule {
                         .getResult().join().getResult().get(0).get(0).toString();
                 String[] split = version.split("\\.", 2);
                 // Postgresql BRIN support came in 9.5 version
-                brinIndexSupported = Integer.parseInt(split[0]) > 9 || (Integer.parseInt(split[0]) == 9 && Double.parseDouble(split[1]) >= 5);
+                postgresql9_5 = Integer.parseInt(split[0]) > 9 || (Integer.parseInt(split[0]) == 9 && Double.parseDouble(split[1]) >= 5);
             } catch (Exception e) {
-                brinIndexSupported = false;
+                postgresql9_5 = false;
             }
         }
 
@@ -212,11 +212,19 @@ public class PostgresqlModule extends RakamModule {
 
         public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
             for (SchemaField field : fields) {
-                executor.executeRawStatement(String.format("CREATE INDEX IF NOT EXISTS %s ON %s.%s USING %s(%s)",
-                        checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
-                        project, checkCollection(collection),
-                        (brinIndexSupported && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
-                        ValidationUtil.checkTableColumn(field.getName())));
+                try {
+                    executor.executeRawStatement(String.format("CREATE INDEX %s %s ON %s.%s USING %s(%s)",
+                            postgresql9_5 ? "IF NOT EXISTS" : "",
+                            checkCollection(String.format("%s_%s_%s_auto_index", project, collection, field.getName())),
+                            project, checkCollection(collection),
+                            (postgresql9_5 && brinSupportedTypes.contains(field.getType())) ? "BRIN" : "BTREE",
+                            checkTableColumn(field.getName())));
+                }
+                catch (Exception e) {
+                    if(postgresql9_5) {
+                        throw e;
+                    }
+                }
             }
         }
 

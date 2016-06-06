@@ -38,7 +38,7 @@ public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExec
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
         QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService,  Clock.systemUTC());
 
-        retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(queryExecutorService, metastore);
+        retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(queryExecutorService, queryExecutor, metastore);
         super.setup();
     }
 

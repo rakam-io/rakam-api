@@ -1,5 +1,6 @@
 package org.rakam.postgresql.report;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
@@ -39,19 +40,23 @@ import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
-public class PostgresqlQueryExecution implements QueryExecution {
+public class PostgresqlQueryExecution
+        implements QueryExecution
+{
     private final static Logger LOGGER = Logger.get(PostgresqlQueryExecution.class);
 
     private final CompletableFuture<QueryResult> result;
     private final String query;
+    private Statement statement;
 
-    public PostgresqlQueryExecution(JDBCPoolDataSource connectionPool, String sqlQuery, boolean update) {
+    public PostgresqlQueryExecution(JDBCPoolDataSource connectionPool, String sqlQuery, boolean update)
+    {
         this.query = sqlQuery;
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
             try (Connection connection = connectionPool.getConnection()) {
-                Statement statement = connection.createStatement();
+                statement = connection.createStatement();
                 if (update) {
                     statement.executeUpdate(sqlQuery);
                     // CREATE TABLE queries doesn't return any value and
@@ -59,20 +64,24 @@ public class PostgresqlQueryExecution implements QueryExecution {
                     List<SchemaField> cols = ImmutableList.of(new SchemaField("result", FieldType.BOOLEAN));
                     List<List<Object>> data = ImmutableList.of(ImmutableList.of(true));
                     return new QueryResult(cols, data);
-                } else {
+                }
+                else {
                     long beforeExecuted = System.currentTimeMillis();
                     ResultSet resultSet = statement.executeQuery(sqlQuery);
+                    statement = null;
                     final QueryResult queryResult = resultSetToQueryResult(resultSet,
                             System.currentTimeMillis() - beforeExecuted);
                     return queryResult;
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 QueryError error;
                 if (e instanceof SQLException) {
                     SQLException cause = (SQLException) e;
                     error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), null, null);
                     SentryUtil.logQueryError(query, error, PostgresqlQueryExecutor.class);
-                } else {
+                }
+                else {
                     LOGGER.error(e, "Internal query execution error");
                     error = new QueryError(e.getMessage(), null, null, null, null);
                 }
@@ -86,35 +95,49 @@ public class PostgresqlQueryExecution implements QueryExecution {
     }
 
     @Override
-    public QueryStats currentStats() {
+    public QueryStats currentStats()
+    {
         if (result.isDone()) {
             return new QueryStats(100, QueryStats.State.FINISHED, null, null, null, null, null, null);
-        } else {
+        }
+        else {
             return new QueryStats(0, QueryStats.State.RUNNING, null, null, null, null, null, null);
         }
     }
 
     @Override
-    public boolean isFinished() {
+    public boolean isFinished()
+    {
         return result.isDone();
     }
 
     @Override
-    public CompletableFuture<QueryResult> getResult() {
+    public CompletableFuture<QueryResult> getResult()
+    {
         return result;
     }
 
     @Override
-    public String getQuery() {
+    public String getQuery()
+    {
         return query;
     }
 
     @Override
-    public void kill() {
-        // TODO: Find a way to kill Postgresql query.
+    public void kill()
+    {
+        if (statement != null) {
+            try {
+                statement.cancel();
+            }
+            catch (SQLException e) {
+                throw Throwables.propagate(e);
+            }
+        }
     }
 
-    private static QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis) {
+    private static QueryResult resultSetToQueryResult(ResultSet resultSet, long executionTimeInMillis)
+    {
         List<SchemaField> columns;
         List<List<Object>> data;
         try {
@@ -170,30 +193,36 @@ public class PostgresqlQueryExecution implements QueryExecution {
                             if (binaryStream != null) {
                                 try {
                                     object = ByteStreams.toByteArray(binaryStream);
-                                } catch (IOException e) {
+                                }
+                                catch (IOException e) {
                                     LOGGER.error("Error while de-serializing BINARY type", e);
                                     object = null;
                                 }
-                            } else {
+                            }
+                            else {
                                 object = null;
                             }
                             break;
                         default:
                             if (type.isArray()) {
                                 Array array = resultSet.getArray(i + 1);
-                                object = array == null ? null :array.getArray();
-                            } else if (type.isMap()) {
+                                object = array == null ? null : array.getArray();
+                            }
+                            else if (type.isMap()) {
                                 PGobject pgObject = (PGobject) resultSet.getObject(i + 1);
                                 if (pgObject == null) {
                                     object = null;
-                                } else {
+                                }
+                                else {
                                     if (pgObject.getType().equals("jsonb")) {
                                         object = JsonHelper.read(pgObject.getValue());
-                                    } else {
+                                    }
+                                    else {
                                         throw new UnsupportedOperationException("Postgresql type is not supported");
                                     }
                                 }
-                            } else {
+                            }
+                            else {
                                 throw new IllegalStateException();
                             }
                     }
@@ -208,7 +237,8 @@ public class PostgresqlQueryExecution implements QueryExecution {
             }
             data = builder.build();
             return new QueryResult(columns, data, ImmutableMap.of(EXECUTION_TIME, executionTimeInMillis));
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             QueryError error = new QueryError(e.getMessage(), e.getSQLState(), e.getErrorCode(), null, null);
             return QueryResult.errorResult(error);
         }
