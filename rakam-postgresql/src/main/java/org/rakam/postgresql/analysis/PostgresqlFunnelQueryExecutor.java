@@ -38,6 +38,8 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +51,7 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.collection.FieldType.INTEGER;
+import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -69,8 +72,7 @@ public class PostgresqlFunnelQueryExecutor
     public void setup()
     {
         try (Connection conn = executor.getConnection()) {
-            conn.createStatement().execute("CREATE EXTENSION IF NOT EXISTS plv8; \n" +
-                    "CREATE OR REPLACE FUNCTION public.get_funnel_step(arr int[]) RETURNS integer AS $$\n" +
+            conn.createStatement().execute("CREATE OR REPLACE FUNCTION public.get_funnel_step(arr int[]) RETURNS integer AS $$\n" +
                     "DECLARE next_step integer := 1; step integer;\n" +
                     "        BEGIN \n" +
                     "                FOREACH step IN ARRAY arr\n" +
@@ -122,38 +124,39 @@ public class PostgresqlFunnelQueryExecutor
                         Map<Object, List<List<Object>>> collect = queryResult.stream().collect(Collectors.groupingBy(x -> x.get(0)));
                         for (Map.Entry<Object, List<List<Object>>> entry : collect.entrySet()) {
                             List<List<Object>> subResult = IntStream.range(0, steps.size())
-                                    .mapToObj(i -> Arrays.asList("Step " + (i + 1), entry.getKey(), 0))
+                                    .mapToObj(i -> Arrays.asList("Step " + (i + 1), entry.getKey(), 0L))
                                     .collect(Collectors.toList());
 
                             for (int step = 0; step < subResult.size(); step++) {
                                 int finalStep = step;
-                                entry.getValue().stream().filter(e -> ((Number) e.get(1)).intValue() >= finalStep + 1).map(e -> e.get(2))
+                                entry.getValue().stream().filter(e -> ((Number) e.get(1)).longValue() >= finalStep + 1).map(e -> e.get(2))
                                         .forEach(val -> subResult.get(finalStep).set(2,
-                                                ((Number) subResult.get(finalStep).get(2)).intValue() + ((Number) val).intValue()));
+                                                ((Number) subResult.get(finalStep).get(2)).longValue() + ((Number) val).longValue()));
                             }
 
                             newResult.addAll(subResult);
                         }
+
                         metadata = ImmutableList.of(
                                 new SchemaField("step", STRING),
                                 new SchemaField("dimension", STRING),
-                                new SchemaField("count", INTEGER));
+                                new SchemaField("count", LONG));
                     }
                     else {
                         newResult = IntStream.range(0, steps.size())
-                                .mapToObj(i -> Arrays.<Object>asList("Step " + (i + 1), 0))
+                                .mapToObj(i -> Arrays.<Object>asList("Step " + (i + 1), 0L))
                                 .collect(Collectors.toList());
 
                         for (int step = 0; step < newResult.size(); step++) {
                             int finalStep = step;
                             queryResult.stream().filter(e -> ((Number) e.get(0)).intValue() >= finalStep + 1).map(e -> e.get(1))
                                     .forEach(val -> newResult.get(finalStep).set(1,
-                                            ((Number) newResult.get(finalStep).get(1)).intValue() + ((Number) val).intValue()));
+                                            ((Number) newResult.get(finalStep).get(1)).longValue() + ((Number) val).longValue()));
                         }
 
                         metadata = ImmutableList.of(
                                 new SchemaField("step", STRING),
-                                new SchemaField("count", INTEGER));
+                                new SchemaField("count", LONG));
                     }
                     return new QueryResult(metadata, newResult, result.getProperties());
                 });

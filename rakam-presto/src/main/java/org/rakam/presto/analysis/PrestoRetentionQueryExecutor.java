@@ -89,7 +89,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
         } else {
             throw new IllegalStateException();
         }
-        Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end))));
+        Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(ChronoUnit.DAYS.between(start, end))));
 
         if (range.isPresent() && range.get() < 0) {
             throw new IllegalArgumentException("startDate must be before endDate.");
