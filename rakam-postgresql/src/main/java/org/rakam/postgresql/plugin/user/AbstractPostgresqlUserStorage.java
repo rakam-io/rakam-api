@@ -180,8 +180,12 @@ public abstract class AbstractPostgresqlUserStorage
                     next = stringIterator.next();
 
                     if (!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
-                        cols.append(", ").append(next.getKey());
-                        parametrizedValues.append(", ").append('?');
+                        if(cols.length() > 0) {
+                            cols.append(", ");
+                            parametrizedValues.append(", ");
+                        }
+                        cols.append(next.getKey());
+                        parametrizedValues.append('?');
                     }
                 }
             }
