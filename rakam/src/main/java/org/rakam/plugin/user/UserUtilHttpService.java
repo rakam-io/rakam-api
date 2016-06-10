@@ -12,8 +12,6 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFFont;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
@@ -31,21 +29,23 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.util.ExportUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TRANSFER_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -126,7 +126,7 @@ public class UserUtilHttpService extends HttpService {
                 stream = exportAsExcel(search);
                 break;
             case CSV:
-                stream = exportAsCSV(search);
+                stream = search.thenApply(ExportUtil::exportAsCSV);
                 break;
             default:
                 throw new IllegalStateException();
@@ -169,23 +169,6 @@ public class UserUtilHttpService extends HttpService {
         public static ExportFormat fromString(String str) {
             return valueOf(str.toUpperCase(Locale.ENGLISH));
         }
-    }
-
-
-    private CompletableFuture<byte[]> exportAsCSV(CompletableFuture<QueryResult> queryResult) {
-        return queryResult.thenApply(result -> {
-            final ByteArrayOutputStream out = new ByteArrayOutputStream();
-            final CSVPrinter csvPrinter;
-            try {
-                csvPrinter = new CSVPrinter(new PrintWriter(out), CSVFormat.DEFAULT);
-                csvPrinter.printRecord(result.getMetadata().stream().map(SchemaField::getName).collect(Collectors.toList()));
-                csvPrinter.printRecords(result.getResult());
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            }
-
-            return out.toByteArray();
-        });
     }
 
     private CompletableFuture<byte[]> exportAsExcel(CompletableFuture<QueryResult> queryResult) {

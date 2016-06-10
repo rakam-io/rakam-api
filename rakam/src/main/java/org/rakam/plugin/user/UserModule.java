@@ -28,20 +28,24 @@ import org.rakam.util.ConditionalModule;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.util.Map;
 
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="plugin.user.enabled", value = "true")
-public class UserModule extends RakamModule {
+@ConditionalModule(config = "plugin.user.enabled", value = "true")
+public class UserModule
+        extends RakamModule
+{
 
     private Map<String, Class<? extends UserActionService>> actionList = ImmutableMap.<String, Class<? extends UserActionService>>builder()
-                    .put("email", UserEmailActionService.class)
-                    .build();
+            .put("email", UserEmailActionService.class)
+            .build();
 
     @Override
-    protected void setup(Binder binder) {
+    protected void setup(Binder binder)
+    {
         Multibinder.newSetBinder(binder, UserPropertyMapper.class);
 
         Multibinder<WebSocketService> webSocketServices = Multibinder.newSetBinder(binder, WebSocketService.class);
@@ -61,7 +65,7 @@ public class UserModule extends RakamModule {
 
         Multibinder<UserActionService> userAction = Multibinder.newSetBinder(binder, UserActionService.class);
         Iterable<String> actionList = userPluginConfig.getActionList();
-        if(actionList != null) {
+        if (actionList != null) {
             for (String actionName : actionList) {
                 Class<? extends UserActionService> implementation = this.actionList.get(actionName);
                 userAction.addBinding().to(implementation).in(Scopes.SINGLETON);
@@ -74,7 +78,7 @@ public class UserModule extends RakamModule {
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
         }
 
-        if(userPluginConfig.isMailboxEnabled()) {
+        if (userPluginConfig.isMailboxEnabled()) {
             httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);
             httpServices.addBinding().to(UserMailboxActionService.class).in(Scopes.SINGLETON);
             userAction.addBinding().to(UserMailboxActionService.class);
@@ -86,91 +90,108 @@ public class UserModule extends RakamModule {
     }
 
     @Override
-    public String name() {
+    public String name()
+    {
         return "Customer Analytics Module";
     }
 
     @Override
-    public String description() {
+    public String description()
+    {
         return "Analyze your users";
     }
 
-    public static class UserStorageListener {
+    public static class UserStorageListener
+    {
 
         private final Optional<UserStorage> storage;
         private final Optional<UserMailboxStorage> mailboxStorage;
         private final ConfigManager configManager;
 
         @Inject
-        public UserStorageListener(Optional<UserStorage> storage, ConfigManager configManager, Optional<UserMailboxStorage> mailboxStorage) {
+        public UserStorageListener(Optional<UserStorage> storage, ConfigManager configManager, Optional<UserMailboxStorage> mailboxStorage)
+        {
             this.storage = storage;
             this.mailboxStorage = mailboxStorage;
             this.configManager = configManager;
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
+        {
             FieldType type = configManager.getConfig(event.project,
                     InternalConfig.USER_TYPE.name(), FieldType.class);
 
-            if(type != null) {
-                if(mailboxStorage.isPresent()) {
+            if (type != null) {
+                if (mailboxStorage.isPresent()) {
                     mailboxStorage.get().createProjectIfNotExists(event.project, type.isNumeric());
                 }
-                if(storage.isPresent()) {
+                if (storage.isPresent()) {
                     storage.get().createProjectIfNotExists(event.project, type.isNumeric());
                 }
             }
         }
     }
 
-    public static class UserPrecomputationListener {
+    public static class UserPrecomputationListener
+    {
         private final Metastore metastore;
         private final AbstractUserService service;
         private final QueryMetadataStore metadataStore;
 
         @Inject
-        public UserPrecomputationListener(AbstractUserService service, QueryMetadataStore metadataStore, Metastore metastore) {
+        public UserPrecomputationListener(AbstractUserService service, QueryMetadataStore metadataStore, Metastore metastore)
+        {
             this.service = service;
             this.metastore = metastore;
             this.metadataStore = metadataStore;
         }
 
-
-
         @Subscribe
-        public void onCreateFields(SystemEvents.CollectionFieldCreatedEvent event) {
+        public void onCreateFields(SystemEvents.CollectionFieldCreatedEvent event)
+        {
             if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
                 createInternal(event.project, event.collection);
             }
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
+        {
             if (event.fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
                 createInternal(event.project, event.collection);
             }
         }
 
-        private void createInternal(String project, String collection) {
-            if(collection != null) {
-                try {
-                    metadataStore.getContinuousQuery(project, "_users_daily_"+collection);
-                } catch (RakamException e) {
+        private void createInternal(String project, String collection)
+        {
+            try {
+                if (collection != null) {
                     try {
-                        service.precalculate(project, new AbstractUserService.PreCalculateQuery(collection, null));
-                    } catch (AlreadyExistsException e1) {
+                        metadataStore.getContinuousQuery(project, "_users_daily_" + collection);
+                    }
+                    catch (RakamException e) {
+                        try {
+                            service.precalculate(project, new AbstractUserService.PreCalculateQuery(collection, null));
+                        }
+                        catch (RakamException e1) {
+                        }
+                    }
+                }
+
+                try {
+                    metadataStore.getContinuousQuery(project, "_users_daily");
+                }
+                catch (RakamException e) {
+                    try {
+                        service.precalculate(project, new AbstractUserService.PreCalculateQuery(null, null));
+                    }
+                    catch (RakamException e1) {
                     }
                 }
             }
-
-            try {
-                metadataStore.getContinuousQuery(project, "_users_daily");
-            } catch (RakamException e) {
-                try {
-                    service.precalculate(project, new AbstractUserService.PreCalculateQuery(null, null));
-                } catch (AlreadyExistsException e1) {
-                }
+            catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

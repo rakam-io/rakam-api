@@ -24,6 +24,7 @@ import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
+import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
@@ -185,8 +186,15 @@ public abstract class AbstractPostgresqlUserStorage
                 }
             }
 
-            parametrizedValues.append(", ").append('?');
-            cols.append(", ").append("created_at");
+            if(parametrizedValues.length() > 0) {
+                parametrizedValues.append(", ");
+            }
+            parametrizedValues.append('?');
+
+            if(cols.length() > 0) {
+                cols.append(", ");
+            }
+            cols.append("created_at");
 
             if (id != null) {
                 parametrizedValues.append(", ").append('?');
@@ -196,7 +204,7 @@ public abstract class AbstractPostgresqlUserStorage
             PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + getUserTable(project, false) + " (" + cols +
                     ") values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
 
-            Instant createdAt = null;
+            long createdAt = -1;
             int i = 1;
             for (Map.Entry<String, Object> o : properties) {
                 if (o.getKey().equals(PRIMARY_KEY)) {
@@ -204,9 +212,7 @@ public abstract class AbstractPostgresqlUserStorage
                 }
 
                 if (o.getKey().equals("created_at")) {
-                    if (o.getValue() instanceof String) {
-                        createdAt = Instant.parse(o.getValue().toString());
-                    }
+                    createdAt = DateTimeUtils.parseTimestamp(o.getValue());
                 }
                 else {
                     FieldType fieldType = columns.get(o.getKey());
@@ -214,7 +220,7 @@ public abstract class AbstractPostgresqlUserStorage
                 }
             }
 
-            statement.setTimestamp(i++, java.sql.Timestamp.from(createdAt == null ? Instant.now() : createdAt));
+            statement.setTimestamp(i++, new java.sql.Timestamp(createdAt == -1 ? Instant.now().toEpochMilli() : createdAt));
             if (id != null) {
                 statement.setObject(i++, id);
             }
@@ -307,7 +313,7 @@ public abstract class AbstractPostgresqlUserStorage
         switch (fieldType) {
             case TIMESTAMP:
             case DATE:
-                return parseTimestamp(value);
+                return new Timestamp(DateTimeUtils.parseTimestamp(value));
             case LONG:
             case DOUBLE:
             case INTEGER:
@@ -329,21 +335,6 @@ public abstract class AbstractPostgresqlUserStorage
         if (value instanceof String) {
             try {
                 return Time.valueOf((String) value);
-            }
-            catch (Exception e) {
-                return null;
-            }
-        }
-        else {
-            return null;
-        }
-    }
-
-    private Timestamp parseTimestamp(Object value)
-    {
-        if (value instanceof String) {
-            try {
-                return Timestamp.from(Instant.parse((CharSequence) value));
             }
             catch (Exception e) {
                 return null;
@@ -603,6 +594,9 @@ public abstract class AbstractPostgresqlUserStorage
         }
 
         List<Map.Entry<String, Object>> properties = strip(_properties);
+        if(properties.isEmpty()) {
+            return;
+        }
 
         Map<String, FieldType> columns = createMissingColumns(project, properties);
 

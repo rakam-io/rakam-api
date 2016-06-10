@@ -1,4 +1,4 @@
-package org.rakam.collection;
+package org.rakam.util;
 
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -55,6 +55,16 @@ public class DateTimeUtils {
                 .append(timestampWithTimeZonePrinter, timestampWithTimeZoneParser)
                 .toFormatter()
                 .withOffsetParsed();
+    }
+
+    public static long parseTimestamp(Number timestampWithTimeZone) {
+        return timestampWithTimeZone.longValue();
+    }
+
+    public static long parseTimestamp(Object timestampWithTimeZone) {
+        return timestampWithTimeZone instanceof Number ?
+                parseTimestamp((Number) timestampWithTimeZone) :
+                parseTimestamp(timestampWithTimeZone.toString());
     }
 
     public static long parseTimestamp(String timestampWithTimeZone) {

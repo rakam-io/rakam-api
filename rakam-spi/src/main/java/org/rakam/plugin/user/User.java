@@ -41,12 +41,13 @@ public class User
                 @ApiParam(value = "library") Event.Library library,
                 @ApiParam(value = "api_library", access = "internal") String apiLibrary,
                 @ApiParam(value = "api_version", access = "internal") String apiVersion,
-                Long uploadTime, String checksum)
+                @ApiParam("upload_time")  Long uploadTime,
+                @ApiParam("checksum") String checksum)
         {
-            this.uploadTime = uploadTime;
-            this.checksum = checksum;
             this.apiKey = apiKey != null ? apiKey : writeKey;
             this.library = library != null ? library : new Event.Library(apiLibrary, apiVersion);
+            this.checksum = checksum;
+            this.uploadTime = uploadTime;
         }
     }
 }
