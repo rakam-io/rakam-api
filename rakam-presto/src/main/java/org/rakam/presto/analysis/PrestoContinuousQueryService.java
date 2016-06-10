@@ -79,11 +79,6 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
                 database.createContinuousQuery(project, report);
             }
 
-//            if (replayHistoricalData) {
-//                return executor.executeRawQuery(format("create or replace view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
-//                        project, report.tableName, query), ImmutableMap.of(), config.getStreamingConnector());
-//            }
-
             return prestoQueryExecution;
         } else {
             if (result.getError().message.contains("already exists")) {

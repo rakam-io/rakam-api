@@ -18,22 +18,16 @@ import java.util.stream.Collectors;
 
 public class Recipe {
     private final Strategy strategy;
-    private final String project;
     private final Map<String, Collection> collections;
     private final List<MaterializedView> materializedViews;
     private final List<ContinuousQuery> continuousQueries;
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
-                  @JsonProperty("project") String project,
                   @JsonProperty("collections") Map<String, Collection> collections,
                   @JsonProperty("materialized_views") List<MaterializedView> materializedQueries,
                   @JsonProperty("continuous_queries") List<ContinuousQuery> continuousQueries) {
-        if (strategy != Strategy.SPECIFIC && project != null) {
-            throw new IllegalArgumentException("'project' parameter can be used when 'strategy' is 'specific'");
-        }
         this.strategy = strategy;
-        this.project = project;
         this.collections = collections != null ? ImmutableMap.copyOf(collections) : ImmutableMap.of();
         this.materializedViews = materializedQueries == null ? ImmutableList.of() : ImmutableList.copyOf(materializedQueries);
         this.continuousQueries = continuousQueries == null ? ImmutableList.of() : ImmutableList.copyOf(continuousQueries);
@@ -42,11 +36,6 @@ public class Recipe {
     @JsonProperty("strategy")
     public Strategy getStrategy() {
         return strategy;
-    }
-
-    @JsonProperty("project")
-    public String getProject() {
-        return project;
     }
 
     @JsonProperty("collections")

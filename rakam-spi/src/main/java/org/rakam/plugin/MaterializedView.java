@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Statement;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.server.http.annotations.ApiParam;
 
 import java.time.Clock;
@@ -19,19 +20,19 @@ import static java.time.temporal.ChronoUnit.MILLIS;
 public class MaterializedView {
     private final static SqlParser SQL_PARSER = new SqlParser();
 
-    public final String tableName;
-    public final String query;
-    public final boolean incremental;
-    public final Duration updateInterval;
-    public Instant lastUpdate;
-    public final Map<String, Object> options;
+    @JsonProperty("table_name") public final String tableName;
+    @JsonProperty("query") public final String query;
+    @JsonProperty("incremental") public final boolean incremental;
+    @JsonProperty("update_interval") public final Duration updateInterval;
+    @JsonProperty("last_update") public Instant lastUpdate;
+    @JsonProperty("options") public final Map<String, Object> options;
 
     @JsonCreator
     public MaterializedView(@ApiParam(value = "table_name", description="The table name of the materialized view that can be used when querying") String tableName,
                             @ApiParam(value = "query", description="The sql query that will be executed and materialized") String query,
                             @ApiParam(value = "update_interval", required = false) Duration updateInterval,
                             @ApiParam(value = "incremental", required = false) Boolean incremental,
-                            @ApiParam(value = "options", description="", required = false) Map<String, Object> options) {
+                            @ApiParam(value = "options", required = false) Map<String, Object> options) {
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.query = checkNotNull(query, "query is required");
         this.incremental = incremental == null ? false : incremental;

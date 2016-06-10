@@ -6,11 +6,13 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.amazonaws.util.Base64;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import io.netty.util.CharsetUtil;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
@@ -30,11 +32,15 @@ import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.KByteArrayOutputStream;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
+
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -44,16 +50,21 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
 import static java.lang.String.format;
 import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 
-public class AWSKinesisEventStore implements EventStore {
+public class AWSKinesisEventStore
+        implements EventStore
+{
     private final static Logger LOGGER = Logger.get(AWSKinesisEventStore.class);
 
     private final AmazonKinesisClient kinesis;
@@ -65,21 +76,24 @@ public class AWSKinesisEventStore implements EventStore {
     private final QueryMetadataStore queryMetadataStore;
     private final JDBCPoolDataSource dataSource;
 
-    private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
+    private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>()
+    {
         @Override
-        protected KByteArrayOutputStream initialValue() {
+        protected KByteArrayOutputStream initialValue()
+        {
             return new KByteArrayOutputStream(1000000);
         }
     };
 
     @Inject
     public AWSKinesisEventStore(AWSConfig config,
-                                Metastore metastore,
-                                @Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource,
-                                PrestoQueryExecutor executor,
-                                QueryMetadataStore queryMetadataStore,
-                                PrestoConfig prestoConfig,
-                                FieldDependencyBuilder.FieldDependency fieldDependency) {
+            Metastore metastore,
+            @Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource,
+            PrestoQueryExecutor executor,
+            QueryMetadataStore queryMetadataStore,
+            PrestoConfig prestoConfig,
+            FieldDependencyBuilder.FieldDependency fieldDependency)
+    {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
         if (config.getKinesisEndpoint() != null) {
@@ -93,7 +107,8 @@ public class AWSKinesisEventStore implements EventStore {
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
     }
 
-    public int[] storeBatchInline(List<Event> events, int offset, int limit) {
+    public int[] storeBatchInline(List<Event> events, int offset, int limit)
+    {
         PutRecordsRequestEntry[] records = new PutRecordsRequestEntry[limit];
 
         for (int i = 0; i < limit; i++) {
@@ -124,27 +139,32 @@ public class AWSKinesisEventStore implements EventStore {
 
                 LOGGER.warn("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), errors.toString());
                 return failedRecordIndexes;
-            } else {
+            }
+            else {
                 return EventStore.SUCCESSFUL_BATCH;
             }
-        } catch (ResourceNotFoundException e) {
+        }
+        catch (ResourceNotFoundException e) {
             try {
                 createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
                 return storeBatchInline(events, offset, limit);
-            } catch (Exception e1) {
+            }
+            catch (Exception e1) {
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
             }
         }
     }
 
     @Override
-    public void storeBulk(List<Event> events) {
+    public void storeBulk(List<Event> events)
+    {
         String project = events.get(0).project();
         bulkClient.upload(project, events);
     }
 
     @Override
-    public QueryExecution commit(String project, String collection) {
+    public QueryExecution commit(String project, String collection)
+    {
         Instant now = Instant.now();
 
         Connection conn;
@@ -161,7 +181,6 @@ public class AWSKinesisEventStore implements EventStore {
             String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s UTC'",
                     prestoConfig.getBulkConnector(), project, collection,
                     PRESTO_TIMESTAMP_FORMAT.format(now.atZone(ZoneOffset.UTC)));
-
 
             QueryExecution insertQuery = executor.executeRawStatement(format("INSERT INTO %s.\"%s\".\"%s\" SELECT * %s",
                     prestoConfig.getColdStorageConnector(), project, collection, middlewareTable));
@@ -188,7 +207,7 @@ public class AWSKinesisEventStore implements EventStore {
                     }
 
                     PrestoQueryExecution processQuery = executor.executeRawQuery(format("CREATE OR REPLACE VIEW %s.\"%s\".\"%s\" AS %s",
-                                    prestoConfig.getStreamingConnector(), project, continuousQuery.tableName, query),
+                            prestoConfig.getStreamingConnector(), project, continuousQuery.tableName, query),
                             ImmutableMap.of(prestoConfig.getStreamingConnector() + ".append_data", "true"),
                             prestoConfig.getStreamingConnector());
                     builder.add(processQuery);
@@ -214,19 +233,22 @@ public class AWSKinesisEventStore implements EventStore {
                     try {
                         conn.createStatement().execute(format("SELECT RELEASE_LOCK('%s')", lockKey));
                         conn.close();
-                    } catch (SQLException e1) {
+                    }
+                    catch (SQLException e1) {
                     }
 
                     return clearStaging;
                 });
             });
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Override
-    public int[] storeBatch(List<Event> events) {
+    public int[] storeBatch(List<Event> events)
+    {
 
         if (events.size() > BATCH_SIZE) {
             ArrayList<Integer> errors = null;
@@ -249,26 +271,31 @@ public class AWSKinesisEventStore implements EventStore {
             }
 
             return errors == null ? EventStore.SUCCESSFUL_BATCH : errors.stream().mapToInt(Integer::intValue).toArray();
-        } else {
+        }
+        else {
             return storeBatchInline(events, 0, events.size());
         }
     }
 
     @Override
-    public void store(Event event) {
+    public void store(Event event)
+    {
         try {
-        kinesis.putRecord(config.getEventStoreStreamName(), getBuffer(event),
-                event.project() + "|" + event.collection());
-        } catch (ResourceNotFoundException e) {
+            kinesis.putRecord(config.getEventStoreStreamName(), getBuffer(event),
+                    event.project() + "|" + event.collection());
+        }
+        catch (ResourceNotFoundException e) {
             try {
                 createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-            } catch (Exception e1) {
+            }
+            catch (Exception e1) {
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
             }
         }
     }
 
-    private ByteBuffer getBuffer(Event event) {
+    private ByteBuffer getBuffer(Event event)
+    {
         DatumWriter writer = new FilteredRecordWriter(event.properties().getSchema(), GenericData.get());
         KByteArrayOutputStream out = buffer.get();
 
@@ -277,7 +304,8 @@ public class AWSKinesisEventStore implements EventStore {
 
         try {
             writer.write(event.properties(), encoder);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new RuntimeException("Couldn't serialize event", e);
         }
 
@@ -289,5 +317,34 @@ public class AWSKinesisEventStore implements EventStore {
         }
 
         return out.getBuffer(startPosition, endPosition - startPosition);
+    }
+
+    @Override
+    public QueryExecution copy(String project, String collection, List<URL> urls, CopyType type, CompressionType compressionType, Map<String, String> options)
+    {
+        if(type == null) {
+            throw new RakamException("source type is missing", BAD_REQUEST);
+        }
+
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+
+        builder.put(format("%s.urls", prestoConfig.getBulkConnector()),
+                Base64.encodeAsString(JsonHelper.encodeAsBytes(urls)));
+
+        builder.put(format("%s.source_type", prestoConfig.getBulkConnector()), type.name());
+
+        if (options != null) {
+            builder.put(format("%s.source_options", prestoConfig.getBulkConnector()),
+                    Base64.encodeAsString(JsonHelper.encode(options).getBytes(CharsetUtil.UTF_8)));
+        }
+
+        if (compressionType != null) {
+            builder.put(format("%s.compression", prestoConfig.getBulkConnector()), type.name());
+        }
+
+        return executor.executeRawQuery(format("insert into %s.%s.%s select * from %s.%s.%s",
+                prestoConfig.getColdStorageConnector(), project, ValidationUtil.checkCollection(collection),
+                prestoConfig.getBulkConnector(), project, ValidationUtil.checkCollection(collection)),
+                builder.build(), "middleware");
     }
 }

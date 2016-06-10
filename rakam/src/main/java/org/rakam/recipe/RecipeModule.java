@@ -111,8 +111,8 @@ public class RecipeModule extends RakamModule {
                     set_default = true;
                     break;
                 case SPECIFIC:
-                    Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
-                    hooks.addBinding().toInstance(new RecipeLoaderSingle(recipe));
+//                    Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
+//                    hooks.addBinding().toInstance(new RecipeLoaderSingle(recipe));
                     break;
                 default:
                     throw new IllegalStateException();
@@ -183,7 +183,7 @@ public class RecipeModule extends RakamModule {
 
         @Override
         public void call() {
-            metastore.createProject(recipe.getProject());
+            metastore.createProject(null);
         }
     }
 }

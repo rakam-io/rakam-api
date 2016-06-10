@@ -47,6 +47,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -66,7 +67,9 @@ import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")
 @Api(value = "/user", nickname = "user", description = "User", tags = "user")
-public class UserHttpService extends HttpService {
+public class UserHttpService
+        extends HttpService
+{
     private final static Logger LOGGER = Logger.get(UserHttpService.class);
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
 
@@ -79,10 +82,11 @@ public class UserHttpService extends HttpService {
 
     @Inject
     public UserHttpService(UserPluginConfig config,
-                           Set<UserPropertyMapper> mappers,
-                           ApiKeyService apiKeyService,
-                           AbstractUserService service,
-                           QueryHttpService queryService) {
+            Set<UserPropertyMapper> mappers,
+            ApiKeyService apiKeyService,
+            AbstractUserService service,
+            QueryHttpService queryService)
+    {
         this.service = service;
         this.config = config;
         this.apiKeyService = apiKeyService;
@@ -93,7 +97,8 @@ public class UserHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Create new user")
     @Path("/create")
-    public Object createUser(@BodyParam User user) {
+    public Object createUser(@BodyParam User user)
+    {
         String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.apiKey : null, WRITE_KEY);
 
         return service.create(project, user.id, user.properties);
@@ -103,10 +108,12 @@ public class UserHttpService extends HttpService {
     @ApiOperation(value = "Create new users", authorizations = @Authorization(value = "write_key"))
 
     @Path("/batch/create")
-    public List<Object> createUsers(@Named("project") String project, @ApiParam("users") List<User> users) {
+    public List<Object> createUsers(@Named("project") String project, @ApiParam("users") List<User> users)
+    {
         try {
             return service.batchCreate(project, users);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST);
         }
     }
@@ -115,31 +122,37 @@ public class UserHttpService extends HttpService {
     @ApiOperation(value = "Get user storage metadata", authorizations = @Authorization(value = "read_key"))
 
     @Path("/metadata")
-    public MetadataResponse getMetadata(@Named("project") String project) {
+    public MetadataResponse getMetadata(@Named("project") String project)
+    {
         return new MetadataResponse(config.getIdentifierColumn(), service.getMetadata(project));
     }
 
-    public static class MetadataResponse {
+    public static class MetadataResponse
+    {
         public final List<SchemaField> columns;
         public final String identifierColumn;
 
-        public MetadataResponse(String identifierColumn, List<SchemaField> columns) {
+        public MetadataResponse(String identifierColumn, List<SchemaField> columns)
+        {
             this.identifierColumn = identifierColumn;
             this.columns = columns;
         }
     }
 
-    public static Expression parseExpression(String filter) {
+    public static Expression parseExpression(String filter)
+    {
         if (filter != null) {
             try {
                 synchronized (sqlParser) {
                     return sqlParser.createExpression(filter);
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new RakamException(format("filter expression '%s' couldn't parsed", filter),
                         HttpResponseStatus.BAD_REQUEST);
             }
-        } else {
+        }
+        else {
             return null;
         }
     }
@@ -149,12 +162,13 @@ public class UserHttpService extends HttpService {
 
     @Path("/search")
     public CompletableFuture<QueryResult> searchUsers(@Named("project") String project,
-                                                      @ApiParam(value = "columns", required = false) List<String> columns,
-                                                      @ApiParam(value = "filter", required = false) String filter,
-                                                      @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
-                                                      @ApiParam(value = "sorting", required = false) Sorting sorting,
-                                                      @ApiParam(value = "offset", required = false) String offset,
-                                                      @ApiParam(value = "limit", required = false) Integer limit) {
+            @ApiParam(value = "columns", required = false) List<String> columns,
+            @ApiParam(value = "filter", required = false) String filter,
+            @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+            @ApiParam(value = "sorting", required = false) Sorting sorting,
+            @ApiParam(value = "offset", required = false) String offset,
+            @ApiParam(value = "limit", required = false) Integer limit)
+    {
         Expression expression = parseExpression(filter);
 
         limit = limit == null ? 100 : Math.min(5000, limit);
@@ -168,9 +182,10 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/get_events")
     public CompletableFuture<List<CollectionEvent>> getEvents(@Named("project") String project,
-                                                              @ApiParam("user") String user,
-                                                              @ApiParam(value = "limit", required = false) Integer limit,
-                                                              @ApiParam(value = "offset", required = false) Instant offset) {
+            @ApiParam("user") String user,
+            @ApiParam(value = "limit", required = false) Integer limit,
+            @ApiParam(value = "offset", required = false) Instant offset)
+    {
         return service.getEvents(project, user, limit == null ? 15 : limit, offset);
     }
 
@@ -180,11 +195,12 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/create_segment")
     public JsonResponse createSegment(@Named("project") String project,
-                                      @ApiParam("name") String name,
-                                      @ApiParam("table_name") String tableName,
-                                      @ApiParam(value = "filter_expression", required = false) String filterExpression,
-                                      @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> eventFilters,
-                                      @ApiParam("cache_eviction") Duration duration) {
+            @ApiParam("name") String name,
+            @ApiParam("table_name") String tableName,
+            @ApiParam(value = "filter_expression", required = false) String filterExpression,
+            @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> eventFilters,
+            @ApiParam("cache_eviction") Duration duration)
+    {
         if (filterExpression == null && (eventFilters == null || eventFilters.isEmpty())) {
             throw new RakamException("At least one predicate is required", BAD_REQUEST);
         }
@@ -206,7 +222,8 @@ public class UserHttpService extends HttpService {
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/get")
     public CompletableFuture<org.rakam.plugin.user.User> getUser(@Named("project") String project,
-                                                                 @ApiParam("user") Object user) {
+            @ApiParam("user") Object user)
+    {
         return service.getUser(project, user);
     }
 
@@ -216,11 +233,12 @@ public class UserHttpService extends HttpService {
     @Path("/merge")
     @AllowCookie
     public boolean mergeUser(@Named("project") String project,
-                             @ApiParam("user") String user,
-                             @ApiParam("api") User.UserContext api,
-                             @ApiParam("anonymous_id") String anonymousId,
-                             @ApiParam("created_at") Instant createdAt,
-                             @ApiParam("merged_at") Instant mergedAt) {
+            @ApiParam("user") String user,
+            @ApiParam("api") User.UserContext api,
+            @ApiParam("anonymous_id") String anonymousId,
+            @ApiParam("created_at") Instant createdAt,
+            @ApiParam("merged_at") Instant mergedAt)
+    {
         // TODO: what if a user sends real user ids instead of its previous anonymous id?
         if (!config.getEnableUserMapping()) {
             throw new RakamException("The feature is not supported", HttpResponseStatus.PRECONDITION_FAILED);
@@ -229,16 +247,100 @@ public class UserHttpService extends HttpService {
         return true;
     }
 
+    @ApiOperation(value = "Batch operation user properties", request = User.class, response = Integer.class)
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
+    @Path("/batch_operation")
+    @IgnoreApi
+    @POST
+    public void batchOperations(RakamHttpRequest request)
+    {
+        request.bodyHandler(s -> {
+            BatchUserOperation req;
+            try {
+                req = JsonHelper.read(s, BatchUserOperation.class);
+            }
+            catch (Exception e) {
+                returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+                return;
+            }
+
+            String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
+
+            if (req.data.set_properties != null) {
+                service.setUserProperties(project, req.id, req.data.set_properties);
+            }
+            if (req.data.set_properties_once != null) {
+                service.setUserPropertiesOnce(project, req.id, req.data.set_properties_once);
+            }
+            if (req.data.unset_properties != null) {
+                service.unsetProperties(project, req.id, req.data.unset_properties);
+            }
+            if (req.data.increment_property != null) {
+                for (Map.Entry<String, Long> entry : req.data.increment_property.entrySet()) {
+                    service.incrementProperty(project, req.id, entry.getKey(), entry.getValue());
+                }
+            }
+        });
+    }
+
+    public static class BatchUserOperation
+    {
+        public final Object id;
+        public final User.UserContext api;
+        public final Data data;
+
+        public BatchUserOperation(Object id, User.UserContext api, Data data)
+        {
+            this.id = id;
+            this.api = api;
+            this.data = data;
+        }
+
+        public static class Data {
+            public final Map<String, Object> set_properties;
+            public final Map<String, Object> set_properties_once;
+            public final Map<String, Long> increment_property;
+            public final List<String> unset_properties;
+
+            public Data(Map<String, Object> set_properties, Map<String, Object> set_properties_once, Map<String, Long> increment_property, List<String> unset_properties)
+            {
+                this.set_properties = set_properties;
+                this.set_properties_once = set_properties_once;
+                this.increment_property = increment_property;
+                this.unset_properties = unset_properties;
+            }
+        }
+    }
+
+    public static class UserOperation
+    {
+        public final UserOp op;
+        public final Object value;
+
+        public UserOperation(UserOp op, Object value)
+        {
+            this.op = op;
+            this.value = value;
+        }
+    }
+
+    public enum UserOp
+    {
+        set_properties, set_properties_once, increment_property, unset_properties;
+    }
+
     @ApiOperation(value = "Set user properties", request = User.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/set_properties")
     @POST
-    public void setProperties(RakamHttpRequest request) {
+    public void setProperties(RakamHttpRequest request)
+    {
         request.bodyHandler(s -> {
             User req;
             try {
                 req = JsonHelper.readSafe(s, User.class);
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
                 return;
             }
@@ -264,7 +366,8 @@ public class UserHttpService extends HttpService {
         });
     }
 
-    private List<Cookie> mapProperties(String project, User req, RakamHttpRequest request) {
+    private List<Cookie> mapProperties(String project, User req, RakamHttpRequest request)
+    {
         InetAddress socketAddress = ((InetSocketAddress) request.context().channel()
                 .remoteAddress()).getAddress();
 
@@ -272,15 +375,16 @@ public class UserHttpService extends HttpService {
         for (UserPropertyMapper mapper : mappers) {
             try {
                 List<Cookie> map = mapper.map(project, req, new HttpRequestParams(request), socketAddress);
-                if(map != null) {
+                if (map != null) {
                     if (cookies == null) {
                         cookies = new ArrayList<>();
                     }
 
                     cookies.addAll(map);
                 }
-            } catch (Exception e) {
-                LOGGER.error(e, "Error while mapping user properties in "+mapper.getClass().toString());
+            }
+            catch (Exception e) {
+                LOGGER.error(e, "Error while mapping user properties in " + mapper.getClass().toString());
                 return null;
             }
         }
@@ -292,12 +396,14 @@ public class UserHttpService extends HttpService {
     @ApiOperation(value = "Set user properties once", request = User.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/set_properties_once")
-    public void setPropertiesOnce(RakamHttpRequest request) {
+    public void setPropertiesOnce(RakamHttpRequest request)
+    {
         request.bodyHandler(s -> {
             User req;
             try {
                 req = JsonHelper.readSafe(s, User.class);
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
                 return;
             }
@@ -329,9 +435,10 @@ public class UserHttpService extends HttpService {
     @Path("/increment_property")
     @AllowCookie
     public JsonResponse incrementProperty(@ApiParam("api") User.UserContext api,
-                                          @ApiParam("id") String user,
-                                          @ApiParam("property") String property,
-                                          @ApiParam("value") double value) {
+            @ApiParam("id") String user,
+            @ApiParam("property") String property,
+            @ApiParam("value") double value)
+    {
         String project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
         service.incrementProperty(project, user, property, value);
         return JsonResponse.success();
@@ -344,7 +451,8 @@ public class UserHttpService extends HttpService {
     @IgnoreApi
     @GET
     @Path("/pre_calculate")
-    public void precalculateUsers(RakamHttpRequest request) {
+    public void precalculateUsers(RakamHttpRequest request)
+    {
         queryService.handleServerSentQueryExecution(request, PreCalculateQuery.class,
                 service::precalculate, MASTER_KEY, false);
     }
@@ -355,8 +463,9 @@ public class UserHttpService extends HttpService {
     @Path("/unset_properties")
     @AllowCookie
     public JsonResponse unsetProperty(@ApiParam("api") User.UserContext api,
-                                      @ApiParam("id") Object id,
-                                      @ApiParam("properties") List<String> properties) {
+            @ApiParam("id") Object id,
+            @ApiParam("properties") List<String> properties)
+    {
         String project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
         service.unsetProperties(project, id, properties);
         return JsonResponse.success();

@@ -19,16 +19,16 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
-import io.netty.util.CharsetUtil;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.EventStore.CopyType;
 import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.HttpRequestException;
-import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
@@ -45,6 +45,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
+import javax.print.attribute.standard.Compression;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -76,6 +77,9 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
+import static org.rakam.plugin.EventStore.CopyType.AVRO;
+import static org.rakam.plugin.EventStore.CopyType.CSV;
+import static org.rakam.plugin.EventStore.CopyType.JSON;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
@@ -99,9 +103,11 @@ public class EventCollectionHttpService
     private final AvroEventDeserializer avroEventDeserializer;
     private final Metastore metastore;
     private final QueryHttpService queryHttpService;
+    private final QueryExecutor queryExecutor;
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
+            QueryExecutor queryExecutor,
             JsonEventDeserializer deserializer,
             QueryHttpService queryHttpService,
             AvroEventDeserializer avroEventDeserializer,
@@ -111,6 +117,7 @@ public class EventCollectionHttpService
             Set<EventMapper> mappers)
     {
         this.eventStore = eventStore;
+        this.queryExecutor = queryExecutor;
         this.eventMappers = mappers;
         this.apiKeyService = apiKeyService;
         this.queryHttpService = queryHttpService;
@@ -158,7 +165,9 @@ public class EventCollectionHttpService
         ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
         errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-        errResponse.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+        if(request.headers().contains(ORIGIN)) {
+            errResponse.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+        }
         String headerList = getHeaderList(errResponse.headers().iterator());
         if (headerList != null) {
             errResponse.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
@@ -225,7 +234,9 @@ public class EventCollectionHttpService
             if (headerList != null) {
                 response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
-            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            if(request.headers().contains(ORIGIN)) {
+                response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            }
 
             request.response(response).end();
         });
@@ -300,22 +311,40 @@ public class EventCollectionHttpService
     public static class BulkEventRemote
     {
         public final String collection;
-        public final String masterKey;
-        public final URL url;
+        public final List<URL> urls;
+        public final CopyType type;
+        public final EventStore.CompressionType compression;
+        public final Map<String, String> options;
 
         @JsonCreator
         public BulkEventRemote(@ApiParam("collection") String collection,
-                @ApiParam("master_key") String masterKey,
-                @ApiParam("url") URL url)
+                @ApiParam("urls") List<URL> urls,
+                @ApiParam("type") CopyType type,
+                @ApiParam("compression") EventStore.CompressionType compression,
+                @ApiParam("options") Map<String, String> options)
         {
             this.collection = collection;
-            this.masterKey = masterKey;
-            this.url = url;
+            this.urls = urls;
+            this.type = type;
+            this.compression = compression;
+            this.options = options;
         }
     }
 
+    @GET
+    @Consumes("text/event-stream")
+    @IgnoreApi
+    @ApiOperation(value = "Copy events from remote", request = BulkEventRemote.class, response = Integer.class)
+    @Path("/copy")
+    public void copyEventsRemote(RakamHttpRequest request)
+            throws IOException
+    {
+        queryHttpService.handleServerSentQueryExecution(request, BulkEventRemote.class, (project, convert) ->
+                eventStore.copy(project, convert.collection, convert.urls, convert.type, convert.compression, convert.options), MASTER_KEY, false);
+    }
+
     @POST
-    @ApiOperation(value = "Collect bulk events from remote", request = EventList.class, response = Integer.class)
+    @ApiOperation(value = "Collect bulk events from remote", request = BulkEventRemote.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)})
     @Path("/bulk/remote")
     public void bulkEventsRemote(RakamHttpRequest request)
@@ -324,22 +353,35 @@ public class EventCollectionHttpService
         storeEvents(request,
                 buff -> {
                     BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
-                    String project = apiKeyService.getProjectOfApiKey(query.masterKey, MASTER_KEY);
+                    List<String> master_key = request.params().get("master_key");
+                    if (master_key == null || master_key.size() == 0) {
+                        throw new RakamException("Master key is missing", FORBIDDEN);
+                    }
+                    String masterKey = master_key.get(0);
+                    String project = apiKeyService.getProjectOfApiKey(masterKey, MASTER_KEY);
 
                     checkCollection(query.collection);
 
-                    if (query.url.getPath().endsWith(".json")) {
-                        return jsonMapper.readValue(query.url, EventList.class);
+                    if (query.urls.size() == 1) {
+                        throw new RakamException("Only one url is supported", BAD_REQUEST);
                     }
-                    else if (query.url.getPath().endsWith(".csv")) {
+                    if (query.compression != null) {
+                        throw new RakamException("Compression is not supported yet", BAD_REQUEST);
+                    }
+
+                    URL url = query.urls.get(0);
+                    if (query.type == JSON) {
+                        return jsonMapper.readValue(url, EventList.class);
+                    }
+                    else if (query.type == CSV) {
                         return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
                                 .withSharedAttribute("project", project)
                                 .withSharedAttribute("collection", query.collection)
-                                .withSharedAttribute("apiKey", query.masterKey)
-                        ).readValue(query.url);
+                                .withSharedAttribute("apiKey", masterKey)
+                        ).readValue(url);
                     }
-                    else if (query.url.getPath().endsWith(".avro")) {
-                        URLConnection conn = query.url.openConnection();
+                    else if (query.type == AVRO) {
+                        URLConnection conn = url.openConnection();
                         conn.setConnectTimeout(5000);
                         conn.setReadTimeout(5000);
                         conn.connect();
@@ -348,7 +390,7 @@ public class EventCollectionHttpService
                         return avroEventDeserializer.deserialize(project, query.collection, slice);
                     }
 
-                    throw new RakamException("Unsupported content type.", BAD_REQUEST);
+                    throw new RakamException("Unsupported or missing content type.", BAD_REQUEST);
                 },
                 (events, responseHeaders) -> {
                     try {
@@ -503,7 +545,9 @@ public class EventCollectionHttpService
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            responseHeaders.set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            if(request.headers().contains(ORIGIN)) {
+                responseHeaders.set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            }
 
             FullHttpResponse response;
             List<Cookie> entries;

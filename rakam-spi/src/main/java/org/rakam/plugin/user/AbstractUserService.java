@@ -60,7 +60,7 @@ public abstract class AbstractUserService {
 
     public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime);
 
-    public void incrementProperty(String project, String user, String property, double value) {
+    public void incrementProperty(String project, Object user, String property, double value) {
         storage.incrementProperty(project, user, property, value);
     }
 

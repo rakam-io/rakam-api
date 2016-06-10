@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCEPT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 import static org.rakam.server.http.HttpServer.errorMessage;
@@ -135,7 +136,18 @@ public class QueryHttpService extends HttpService {
             return;
         }
 
-        String project = apiKeyService.getProjectOfApiKey(apiKey.get(0), keyType);
+        String project;
+        try {
+            project = apiKeyService.getProjectOfApiKey(apiKey.get(0), keyType);
+        }
+        catch (RakamException e) {
+            if(e.getStatusCode() == FORBIDDEN) {
+                response.send("result", encode(errorMessage(e.getMessage(), FORBIDDEN))).end();
+            } else {
+                response.send("result", encode(errorMessage(e.getMessage(), e.getStatusCode()))).end();
+            }
+            return;
+        }
 
         QueryExecution execute;
         try {
@@ -160,7 +172,7 @@ public class QueryHttpService extends HttpService {
             response.send("result", encode(jsonObject()
                     .put("success", false)
                     .put("query", query.getQuery())
-                    .put("error", "Not running"))).end();
+                        .put("error", "Not running"))).end();
             return;
         }
         query.getResult().whenComplete((result, ex) -> {

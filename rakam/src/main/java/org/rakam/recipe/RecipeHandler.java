@@ -13,26 +13,30 @@ import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
-public class RecipeHandler {
+public class RecipeHandler
+{
     private final Metastore metastore;
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
 
     @Inject
     public RecipeHandler(Metastore metastore, ContinuousQueryService continuousQueryService,
-                         MaterializedViewService materializedViewService) {
+            MaterializedViewService materializedViewService)
+    {
         this.metastore = metastore;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
     }
 
-    public Recipe export(String project) {
+    public Recipe export(String project)
+    {
         final Map<String, Recipe.Collection> collections = metastore.getCollections(project).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> {
             List<Map<String, Recipe.SchemaFieldInfo>> map = e.getValue().stream()
                     .map(a -> ImmutableMap.of(a.getName(), new Recipe.SchemaFieldInfo(a.getCategory(), a.getType())))
@@ -46,23 +50,22 @@ public class RecipeHandler {
                 .map(m -> new ContinuousQuery(m.tableName, m.query, m.partitionKeys, m.options))
                 .collect(Collectors.toList());
 
-        return new Recipe(Recipe.Strategy.SPECIFIC, project, collections, materializedViews,
+        return new Recipe(Recipe.Strategy.SPECIFIC, collections, materializedViews,
                 continuousQueryBuilders);
     }
 
-    public void install(Recipe recipe, String project, boolean overrideExisting) {
+    public void install(Recipe recipe, String project, boolean overrideExisting)
+    {
         installInternal(recipe, project, overrideExisting);
     }
 
-    public void install(Recipe recipe, boolean overrideExisting) {
-        if (recipe.getProject() != null) {
-            installInternal(recipe, recipe.getProject(), overrideExisting);
-        } else {
-            throw new IllegalArgumentException("project is null");
-        }
+    public void install(String project, Recipe recipe, boolean overrideExisting)
+    {
+        installInternal(recipe, project, overrideExisting);
     }
 
-    public void installInternal(Recipe recipe, String project, boolean overrideExisting) {
+    public void installInternal(Recipe recipe, String project, boolean overrideExisting)
+    {
         recipe.getCollections().forEach((collectionName, collection) -> {
             List<SchemaField> build = collection.build();
             List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(project, collectionName,
@@ -89,7 +92,8 @@ public class RecipeHandler {
                             if (overrideExisting) {
                                 continuousQueryService.delete(project, continuousQuery.tableName);
                                 continuousQueryService.create(project, continuousQuery, false);
-                            } else {
+                            }
+                            else {
                                 throw Throwables.propagate(ex);
                             }
                         }
@@ -104,7 +108,8 @@ public class RecipeHandler {
                             if (overrideExisting) {
                                 materializedViewService.delete(project, materializedView.tableName);
                                 materializedViewService.create(project, materializedView);
-                            } else {
+                            }
+                            else {
                                 throw Throwables.propagate(ex);
                             }
                         }
