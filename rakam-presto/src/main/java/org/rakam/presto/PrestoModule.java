@@ -2,9 +2,11 @@ package org.rakam.presto;
 
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import org.rakam.analysis.ApiKeyService;
@@ -14,6 +16,7 @@ import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RealtimeService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
@@ -43,9 +46,12 @@ import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
+import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
+
+import java.util.List;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
@@ -65,6 +71,10 @@ public class PrestoModule extends RakamModule {
         JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));
+        binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
+                AggregationType.SUM,
+                AggregationType.MINIMUM,
+                AggregationType.MAXIMUM, AggregationType.APPROXIMATE_UNIQUE));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if(getConfig("report.metadata.store") == null) {

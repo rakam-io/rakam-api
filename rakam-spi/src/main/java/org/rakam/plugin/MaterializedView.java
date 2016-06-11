@@ -25,15 +25,18 @@ public class MaterializedView {
     @JsonProperty("incremental") public final boolean incremental;
     @JsonProperty("update_interval") public final Duration updateInterval;
     @JsonProperty("last_update") public Instant lastUpdate;
+    @JsonProperty("name") public String name;
     @JsonProperty("options") public final Map<String, Object> options;
 
     @JsonCreator
     public MaterializedView(@ApiParam(value = "table_name", description="The table name of the materialized view that can be used when querying") String tableName,
+                            @ApiParam(value = "name", description="Name") String name,
                             @ApiParam(value = "query", description="The sql query that will be executed and materialized") String query,
                             @ApiParam(value = "update_interval", required = false) Duration updateInterval,
                             @ApiParam(value = "incremental", required = false) Boolean incremental,
                             @ApiParam(value = "options", required = false) Map<String, Object> options) {
         this.tableName = checkNotNull(tableName, "table_name is required");
+        this.name = checkNotNull(name, "name is required");
         this.query = checkNotNull(query, "query is required");
         this.incremental = incremental == null ? false : incremental;
         this.updateInterval = updateInterval;

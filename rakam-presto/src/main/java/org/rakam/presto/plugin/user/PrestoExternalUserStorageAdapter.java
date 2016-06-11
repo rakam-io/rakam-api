@@ -120,7 +120,9 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             throw new RakamException("User segment must use event filters", HttpResponseStatus.BAD_GATEWAY);
         }
 
-        materializedViewService.create(project, new MaterializedView(tableName, query, interval, null, ImmutableMap.of()));
+        materializedViewService.create(project, new MaterializedView(tableName,
+                "Users who did " + (tableName == null ? "at least one event" : tableName + " event"),
+                query, interval, null, ImmutableMap.of()));
     }
 
     @Override

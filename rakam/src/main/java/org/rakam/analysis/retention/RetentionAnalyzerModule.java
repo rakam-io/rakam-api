@@ -76,6 +76,7 @@ public class RetentionAnalyzerModule
         {
             ContinuousQuery report = new ContinuousQuery(
                     "_users_" + event.collection,
+                    "Users who did "+event.collection+" event",
                     String.format(QUERY, event.collection),
                     ImmutableList.of("date"), ImmutableMap.of("description", "Daily distinct users " + event.collection));
             continuousQueryService.create(event.project, report, false);

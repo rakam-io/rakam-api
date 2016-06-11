@@ -45,7 +45,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     private ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
         Long update_interval = r.getLong("update_interval");
-        MaterializedView materializedView = new MaterializedView(r.getString("table_name"), r.getString("query"),
+        MaterializedView materializedView = new MaterializedView(r.getString("table_name"), r.getString("name"), r.getString("query"),
                 update_interval != null ? Duration.ofMillis(update_interval) : null,
                 r.getBoolean("incremental"),
                 r.getString("options") == null ? null : JsonHelper.read(r.getString("options"), Map.class));
@@ -57,7 +57,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     };
 
     private ResultSetMapper<ContinuousQuery> continuousQueryMapper = (index, r, ctx) ->
-            new ContinuousQuery(r.getString(2), r.getString(3),
+            new ContinuousQuery(r.getString(1), r.getString(2), r.getString(3),
                     JsonHelper.read(r.getString(4), List.class),
                     JsonHelper.read(r.getString(5), Map.class));
 
@@ -115,8 +115,9 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public void createMaterializedView(String project, MaterializedView materializedView) {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO materialized_views (project, query, table_name, update_interval, incremental, options) VALUES (:project, :query, :table_name, :update_interval, :incremental, :options)")
+                handle.createStatement("INSERT INTO materialized_views (project, name, query, table_name, update_interval, incremental, options) VALUES (:project, :name, :query, :table_name, :update_interval, :incremental, :options)")
                         .bind("project", project)
+                        .bind("name", materializedView.name)
                         .bind("table_name", materializedView.tableName)
                         .bind("query", materializedView.query)
                         .bind("update_interval", materializedView.updateInterval != null ? materializedView.updateInterval.toMillis() : null)
@@ -166,8 +167,9 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     public void createContinuousQuery(String project, ContinuousQuery report) {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO continuous_query_metadata (project, table_name, query, partition_keys, options) VALUES (:project, :tableName, :query, :partitionKeys, :options)")
+                handle.createStatement("INSERT INTO continuous_query_metadata (project, name, table_name, query, partition_keys, options) VALUES (:project, :name,  :tableName, :query, :partitionKeys, :options)")
                         .bind("project", project)
+                        .bind("name", report.name)
                         .bind("tableName", report.tableName)
                         .bind("query", report.query)
                         .bind("partitionKeys", JsonHelper.encode(report.partitionKeys))
@@ -176,7 +178,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             } catch (Exception e) {
                 ContinuousQuery continuousQuery = null;
                 try {
-                    getContinuousQuery(project, report.tableName);
+                    continuousQuery = getContinuousQuery(project, report.tableName);
                 } catch (NotExistsException e1) {
                 }
                 if (continuousQuery != null) {
@@ -210,7 +212,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             ContinuousQuery first = handle.createQuery("SELECT name, table_name, query, partition_keys, options FROM continuous_query_metadata WHERE project = :project AND table_name = :name")
                     .bind("project", project).bind("name", tableName).map(continuousQueryMapper).first();
             if (first == null) {
-                throw new RakamException(String.format("Continuous query table continuous.%s is not found", tableName), BAD_REQUEST);
+                throw new NotExistsException(String.format("Continuous query table continuous.%s", tableName), BAD_REQUEST);
             }
             return first;
         }
@@ -249,7 +251,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             handle.createQuery("SELECT project, name, table_name, query, partition_keys, options from continuous_query_metadata")
                     .map((index, r, ctx) -> {
                         return new AbstractMap.SimpleImmutableEntry<>(r.getString("project"), new ContinuousQuery(
-                                r.getString("table_name"), r.getString("query"),
+                                r.getString("table_name"), r.getString("name"), r.getString("query"),
                                 JsonHelper.read(r.getString("partition_keys"), List.class),
                                 JsonHelper.read(r.getString("options"), Map.class)));
                     }).list().forEach(e -> map.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));

@@ -131,7 +131,7 @@ public class PostgresqlQueryExecution
                 statement.cancel();
             }
             catch (SQLException e) {
-                throw Throwables.propagate(e);
+                return;
             }
         }
     }

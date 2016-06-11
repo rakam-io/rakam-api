@@ -20,6 +20,7 @@ public class ContinuousQuery {
     private final static SqlParser SQL_PARSER = new SqlParser();
 
     public final String query;
+    public final String name;
     @JsonIgnore
     public Query queryStatement;
     public final String tableName;
@@ -28,10 +29,12 @@ public class ContinuousQuery {
 
     @JsonCreator
     public ContinuousQuery(@ApiParam(value = "table_name", description="The table name of the continuous query that can be used when querying") String tableName,
+                            @ApiParam(value = "name", description="Name") String name,
                            @ApiParam(value = "query", description="The sql query that will be executed and materialized") String query,
                            @ApiParam(value = "partition_keys", description="Partition columns of the table", required = false) List<String> partitionKeys,
                            @ApiParam(value = "options", description="Additional information about the continuous query", required = false) Map<String, Object> options)
             throws ParsingException, IllegalArgumentException {
+        this.name = checkNotNull(name, "name is required");
         this.tableName = checkNotNull(tableName, "table_name is required");
         this.options = options == null ? ImmutableMap.of() : options;
         this.partitionKeys = partitionKeys == null ? ImmutableList.of() : partitionKeys;

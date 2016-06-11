@@ -2,14 +2,17 @@ package org.rakam.postgresql;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import org.rakam.analysis.RealtimeService;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
@@ -47,8 +50,8 @@ import org.rakam.postgresql.report.PostgresqlPseudoContinuousQueryService;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
+import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.ConditionalModule;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import java.net.URISyntaxException;
@@ -85,6 +88,11 @@ public class PostgresqlModule extends RakamModule {
         }
 
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
+        binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
+                AggregationType.SUM,
+                AggregationType.MINIMUM,
+                AggregationType.MAXIMUM));
+
         binder.install(getAsyncClientModule(config));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
