@@ -14,6 +14,7 @@ import com.getsentry.raven.marshaller.Marshaller;
 import com.getsentry.raven.marshaller.json.InterfaceBinding;
 import com.getsentry.raven.marshaller.json.JsonMarshaller;
 import com.google.common.collect.ImmutableMap;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.RakamHttpRequest;
@@ -71,6 +72,10 @@ public class SentryUtil
         }
 
         RAVEN.sendEvent(builder.build());
+    }
+
+    public static void logException(RakamHttpRequest request, IllegalArgumentException e) {
+        logException(request, new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST));
     }
 
     public static void logQueryError(String query, QueryError e, Class<? extends QueryExecutor> queryExecutorClass)

@@ -219,6 +219,11 @@ public class EventCollectionHttpService
                 returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             }
+            catch (IllegalArgumentException e) {
+                SentryUtil.logException(request, e);
+                returnError(request, e.getMessage(), BAD_REQUEST);
+                return;
+            }
             catch (Exception e) {
                 LOGGER.error(e, "Error while collecting event");
 
@@ -581,6 +586,11 @@ public class EventCollectionHttpService
             }
             catch (HttpRequestException e) {
                 returnError(request, e.getMessage(), e.getStatusCode());
+                return;
+            }
+            catch (IllegalArgumentException e) {
+                SentryUtil.logException(request, e);
+                returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }
             catch (Exception e) {

@@ -324,7 +324,7 @@ public abstract class AbstractPostgresqlUserStorage
             case DECIMAL:
                 return value instanceof Number ? value : null;
             case STRING:
-                return value instanceof String ? value : null;
+                return value.toString();
             case TIME:
                 return parseTime(value);
             case BOOLEAN:
