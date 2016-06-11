@@ -11,10 +11,11 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.QuoteMode;
-import org.glassfish.jersey.internal.util.Base64;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryResult;
+
+import javax.xml.bind.DatatypeConverter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -22,6 +23,7 @@ import java.io.PrintWriter;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -46,7 +48,7 @@ public class ExportUtil
                     return JsonHelper.encode(input1);
                 }
                 if(input1 instanceof byte[]) {
-                    return Base64.encode((byte[]) input1);
+                    return DatatypeConverter.printBase64Binary((byte[]) input1);
                 }
                 return input1;
             })));
