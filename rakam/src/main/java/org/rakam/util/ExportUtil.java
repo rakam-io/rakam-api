@@ -3,7 +3,6 @@ package org.rakam.util;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import org.apache.avro.Schema;
-import org.apache.avro.data.Json;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
@@ -16,8 +15,6 @@ import org.glassfish.jersey.internal.util.Base64;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryResult;
-
-import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
