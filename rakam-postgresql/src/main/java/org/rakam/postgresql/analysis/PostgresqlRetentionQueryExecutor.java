@@ -62,17 +62,14 @@ public class PostgresqlRetentionQueryExecutor
         extends AbstractRetentionQueryExecutor
 {
 
-    private final QueryExecutorService queryExecutor;
     private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
 
     @Inject
-    public PostgresqlRetentionQueryExecutor(QueryExecutorService queryExecutor,
-            PostgresqlQueryExecutor executor,
+    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor,
             Metastore metastore)
     {
         this.executor = executor;
-        this.queryExecutor = queryExecutor;
         this.metastore = metastore;
     }
 

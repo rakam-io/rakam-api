@@ -45,12 +45,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -314,23 +316,41 @@ public abstract class AbstractPostgresqlUserStorage
                 return null;
             }
         }
+        
         switch (fieldType) {
             case TIMESTAMP:
             case DATE:
                 return new Timestamp(DateTimeUtils.parseTimestamp(value));
             case LONG:
-            case DOUBLE:
-            case INTEGER:
+                if(value instanceof Number) return value;
+                return safeCast(Long::parseLong, value.toString());
             case DECIMAL:
-                return value instanceof Number ? value : null;
+            case DOUBLE:
+                if(value instanceof Number) return value;
+                return safeCast(Double::parseDouble, value.toString());
+            case INTEGER:
+                if(value instanceof Number) return value;
+                return safeCast(Integer::parseInt, value.toString());
             case STRING:
                 return value.toString();
             case TIME:
                 return parseTime(value);
             case BOOLEAN:
-                return value instanceof Boolean ? value : null;
+                return value instanceof Boolean ? value : !value.equals("0");
             default:
                 throw new UnsupportedOperationException();
+        }
+    }
+
+    private <T> Object safeCast(Function<String, T> func, String value) {
+        try {
+            return func.apply(value);
+        }
+        catch (Exception e) {
+            if(value.toLowerCase(Locale.ENGLISH).equals(Boolean.TRUE.toString())) {
+                return 1;
+            }
+            return null;
         }
     }
 
