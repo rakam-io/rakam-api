@@ -185,9 +185,6 @@ public class PostgresqlRetentionQueryExecutor
         String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
-//        LocalDate truncatedStart = dateUnit == MONTH ? startDate.withDayOfMonth(1) :
-//                (dateUnit == WEEK ? startDate.minus(start.getDayOfWeek().getValue(), DAY.getTemporalUnit()) : startDate);
-
         String query = format("select %s, collect_retention(bits) from (\n" +
                         "select %s, (case when (is_first and dates.date = any(timeline)) then \n" +
                         "generate_timeline(dates.date::date, timeline, %d::bigint, 15) else null end) as bits from (\n" +

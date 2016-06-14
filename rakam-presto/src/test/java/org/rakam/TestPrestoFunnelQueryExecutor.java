@@ -1,7 +1,7 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestFunnelQueryExecutor;
@@ -25,7 +25,7 @@ import java.time.ZoneId;
 
 public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
-    private FunnelQueryExecutor funnelQueryExecutor;
+    private AbstractFunnelQueryExecutor funnelQueryExecutor;
     private TestingPrestoEventStore testingPrestoEventStore;
     private TestingEnvironment testingEnvironment;
     private PrestoMetastore metastore;
@@ -35,9 +35,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
     public void setup() throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
-        JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
 
-        JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
         InMemoryQueryMetadataStore inMemoryQueryMetadataStore = new InMemoryQueryMetadataStore();
 
         EventBus eventBus = new EventBus();
@@ -57,7 +55,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, inMemoryQueryMetadataStore, metastore,
                 materializedViewService, Clock.system(ZoneId.of("UTC")));
 
-        funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService, materializedViewService, continuousQueryService);
+        funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService, prestoQueryExecutor, materializedViewService, continuousQueryService);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
         Thread.sleep(1000);
         super.setup();
@@ -74,7 +72,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
     }
 
     @Override
-    public FunnelQueryExecutor getFunnelQueryExecutor() {
+    public AbstractFunnelQueryExecutor getFunnelQueryExecutor() {
         return funnelQueryExecutor;
     }
 }

@@ -16,6 +16,8 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
@@ -103,11 +105,9 @@ public class EventCollectionHttpService
     private final AvroEventDeserializer avroEventDeserializer;
     private final Metastore metastore;
     private final QueryHttpService queryHttpService;
-    private final QueryExecutor queryExecutor;
 
     @Inject
     public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
-            QueryExecutor queryExecutor,
             JsonEventDeserializer deserializer,
             QueryHttpService queryHttpService,
             AvroEventDeserializer avroEventDeserializer,
@@ -117,7 +117,6 @@ public class EventCollectionHttpService
             Set<EventMapper> mappers)
     {
         this.eventStore = eventStore;
-        this.queryExecutor = queryExecutor;
         this.eventMappers = mappers;
         this.apiKeyService = apiKeyService;
         this.queryHttpService = queryHttpService;
@@ -164,15 +163,19 @@ public class EventCollectionHttpService
     {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
-        errResponse.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-        if(request.headers().contains(ORIGIN)) {
-            errResponse.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
-        }
-        String headerList = getHeaderList(errResponse.headers().iterator());
-        if (headerList != null) {
-            errResponse.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
-        }
+        setBrowser(request, errResponse);
         request.response(errResponse).end();
+    }
+
+    public static void setBrowser(HttpRequest request, HttpResponse response) {
+        response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        if(request.headers().contains(ORIGIN)) {
+            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+        }
+        String headerList = getHeaderList(request.headers().iterator());
+        if (headerList != null) {
+            response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
+        }
     }
 
     @POST
@@ -358,16 +361,12 @@ public class EventCollectionHttpService
         storeEvents(request,
                 buff -> {
                     BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
-                    List<String> master_key = request.params().get("master_key");
-                    if (master_key == null || master_key.size() == 0) {
-                        throw new RakamException("Master key is missing", FORBIDDEN);
-                    }
-                    String masterKey = master_key.get(0);
+                    String masterKey = request.headers().get("master_key");
                     String project = apiKeyService.getProjectOfApiKey(masterKey, MASTER_KEY);
 
                     checkCollection(query.collection);
 
-                    if (query.urls.size() == 1) {
+                    if (query.urls.size() != 1) {
                         throw new RakamException("Only one url is supported", BAD_REQUEST);
                     }
                     if (query.compression != null) {
@@ -395,7 +394,7 @@ public class EventCollectionHttpService
                         return avroEventDeserializer.deserialize(project, query.collection, slice);
                     }
 
-                    throw new RakamException("Unsupported or missing content type.", BAD_REQUEST);
+                    throw new RakamException("Unsupported or missing type.", BAD_REQUEST);
                 },
                 (events, responseHeaders) -> {
                     try {

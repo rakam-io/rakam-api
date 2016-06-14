@@ -14,7 +14,7 @@
 package org.rakam.analysis.funnel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
@@ -43,11 +43,11 @@ import static com.google.common.base.Preconditions.checkState;
 @Path("/funnel")
 @Api(value = "/funnel", nickname = "funnelAnalyzer", tags = "funnel")
 public class FunnelAnalyzerHttpService extends HttpService {
-    private final FunnelQueryExecutor funnelQueryExecutor;
+    private final AbstractFunnelQueryExecutor funnelQueryExecutor;
     private final QueryHttpService queryService;
 
     @Inject
-    public FunnelAnalyzerHttpService(FunnelQueryExecutor funnelQueryExecutor, QueryHttpService queryService) {
+    public FunnelAnalyzerHttpService(AbstractFunnelQueryExecutor funnelQueryExecutor, QueryHttpService queryService) {
         this.funnelQueryExecutor = funnelQueryExecutor;
         this.queryService = queryService;
     }
@@ -88,17 +88,17 @@ public class FunnelAnalyzerHttpService extends HttpService {
     }
 
     private static class FunnelQuery {
-        public final List<FunnelQueryExecutor.FunnelStep> steps;
+        public final List<AbstractFunnelQueryExecutor.FunnelStep> steps;
         public final String dimension;
         public final LocalDate startDate;
-        public final FunnelQueryExecutor.FunnelWindow window;
+        public final AbstractFunnelQueryExecutor.FunnelWindow window;
         public final LocalDate endDate;
 
         @JsonCreator
-        public FunnelQuery(@ApiParam("steps") List<FunnelQueryExecutor.FunnelStep> steps,
+        public FunnelQuery(@ApiParam("steps") List<AbstractFunnelQueryExecutor.FunnelStep> steps,
                            @ApiParam(value = "dimension", required = false) String dimension,
                            @ApiParam("startDate") LocalDate startDate,
-                           @ApiParam(value = "window", required = false) FunnelQueryExecutor.FunnelWindow window,
+                           @ApiParam(value = "window", required = false) AbstractFunnelQueryExecutor.FunnelWindow window,
                            @ApiParam("endDate") LocalDate endDate) {
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;

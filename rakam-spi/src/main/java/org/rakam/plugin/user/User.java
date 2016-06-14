@@ -41,7 +41,7 @@ public class User
                 @ApiParam(value = "library") Event.Library library,
                 @ApiParam(value = "api_library", access = "internal") String apiLibrary,
                 @ApiParam(value = "api_version", access = "internal") String apiVersion,
-                @ApiParam("upload_time")  Long uploadTime,
+                @ApiParam("upload_time") Long uploadTime,
                 @ApiParam("checksum") String checksum)
         {
             this.apiKey = apiKey != null ? apiKey : writeKey;

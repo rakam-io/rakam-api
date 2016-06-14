@@ -27,6 +27,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
@@ -126,7 +127,8 @@ public abstract class AbstractPostgresqlUserStorage
 
     public abstract QueryExecutor getExecutorForWithEventFilter();
 
-    private List<Map.Entry<String, Object>> strip(Iterable<Map.Entry<String, Object>> _properties) {
+    private List<Map.Entry<String, Object>> strip(Iterable<Map.Entry<String, Object>> _properties)
+    {
         List<Map.Entry<String, Object>> properties = new ArrayList<>();
 
         for (Map.Entry<String, Object> entry : _properties) {
@@ -141,7 +143,6 @@ public abstract class AbstractPostgresqlUserStorage
 
         return properties;
     }
-
 
     public Object createInternal(String project, Object id,
             Iterable<Map.Entry<String, Object>> _properties)
@@ -182,7 +183,7 @@ public abstract class AbstractPostgresqlUserStorage
                     next = stringIterator.next();
 
                     if (!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
-                        if(cols.length() > 0) {
+                        if (cols.length() > 0) {
                             cols.append(", ");
                             parametrizedValues.append(", ");
                         }
@@ -192,12 +193,12 @@ public abstract class AbstractPostgresqlUserStorage
                 }
             }
 
-            if(parametrizedValues.length() > 0) {
+            if (parametrizedValues.length() > 0) {
                 parametrizedValues.append(", ");
             }
             parametrizedValues.append('?');
 
-            if(cols.length() > 0) {
+            if (cols.length() > 0) {
                 cols.append(", ");
             }
             cols.append("created_at");
@@ -290,6 +291,9 @@ public abstract class AbstractPostgresqlUserStorage
     public Object getJDBCValue(FieldType fieldType, Object value, Connection conn)
             throws SQLException
     {
+        if(value == null) {
+            return null;
+        }
         if (fieldType.isArray()) {
             if (value instanceof List) {
                 FieldType arrayType = fieldType.getArrayElementType();
@@ -316,20 +320,26 @@ public abstract class AbstractPostgresqlUserStorage
                 return null;
             }
         }
-        
+
         switch (fieldType) {
             case TIMESTAMP:
             case DATE:
                 return new Timestamp(DateTimeUtils.parseTimestamp(value));
             case LONG:
-                if(value instanceof Number) return value;
+                if (value instanceof Number) {
+                    return value;
+                }
                 return safeCast(Long::parseLong, value.toString());
             case DECIMAL:
             case DOUBLE:
-                if(value instanceof Number) return value;
+                if (value instanceof Number) {
+                    return value;
+                }
                 return safeCast(Double::parseDouble, value.toString());
             case INTEGER:
-                if(value instanceof Number) return value;
+                if (value instanceof Number) {
+                    return value;
+                }
                 return safeCast(Integer::parseInt, value.toString());
             case STRING:
                 return value.toString();
@@ -342,12 +352,13 @@ public abstract class AbstractPostgresqlUserStorage
         }
     }
 
-    private <T> Object safeCast(Function<String, T> func, String value) {
+    private <T> Object safeCast(Function<String, T> func, String value)
+    {
         try {
             return func.apply(value);
         }
         catch (Exception e) {
-            if(value.toLowerCase(Locale.ENGLISH).equals(Boolean.TRUE.toString())) {
+            if (value.toLowerCase(Locale.ENGLISH).equals(Boolean.TRUE.toString())) {
                 return 1;
             }
             return null;
@@ -376,7 +387,7 @@ public abstract class AbstractPostgresqlUserStorage
         return users.stream()
                 .map(user -> {
                     Object o = create(project, user.id, user.properties);
-                    if(user.api != null) {
+                    if (user.api != null) {
                         throw new RakamException("api property in User object is not allowed in batch endpoint", BAD_REQUEST);
                     }
                     return o;
@@ -395,7 +406,7 @@ public abstract class AbstractPostgresqlUserStorage
         try (Connection conn = queryExecutor.getConnection()) {
             try {
                 conn.createStatement().execute(format("alter table %s add column %s %s",
-                        getUserTable(project, false), column, getPostgresqlType(value.getClass())));
+                        getUserTable(project, false), checkTableColumn(column), getPostgresqlType(value.getClass())));
             }
             catch (SQLException e) {
                 Map<String, FieldType> fields = loadColumns(project);
@@ -414,7 +425,8 @@ public abstract class AbstractPostgresqlUserStorage
                             Optional.ofNullable(userTypeCache.getUnchecked(project)).orElse(FieldType.STRING).isNumeric());
 
                     createColumnInternal(project, column, value, false);
-                } else {
+                }
+                else {
                     throw e;
                 }
             }
@@ -618,7 +630,7 @@ public abstract class AbstractPostgresqlUserStorage
         }
 
         List<Map.Entry<String, Object>> properties = strip(_properties);
-        if(properties.isEmpty()) {
+        if (properties.isEmpty()) {
             return;
         }
 
@@ -735,7 +747,7 @@ public abstract class AbstractPostgresqlUserStorage
         }
 
         try (Connection conn = queryExecutor.getConnection()) {
-            conn.createStatement().execute("update " + getUserTable(project, false) + " set " + property + " += " + value);
+            conn.createStatement().execute("update " + getUserTable(project, false) + " set " + checkTableColumn(property) + " = " + value + " + " + checkTableColumn(property));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);

@@ -14,7 +14,6 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserPropertyMapper;
 
 import java.io.IOException;
@@ -84,8 +83,16 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(String project, User user, RequestParams extraProperties, InetAddress sourceAddress) {
-        mapInternal(extraProperties, user.properties.get("_referrer"), user.properties.get("_host"), new MapProxyGenericRecord(user.properties));
+    public List<Cookie> map(String project, BatchUserOperation user, RequestParams extraProperties, InetAddress sourceAddress) {
+        for (BatchUserOperation.Data data : user.data) {
+            if(data.setProperties != null) {
+                mapInternal(extraProperties, data.setProperties.get("_referrer"), data.setProperties.get("_host"), new MapProxyGenericRecord(data.setProperties));
+            }
+
+            if(data.setPropertiesOnce != null) {
+                mapInternal(extraProperties, data.setPropertiesOnce.get("_referrer"), data.setPropertiesOnce.get("_host"), new MapProxyGenericRecord(data.setProperties));
+            }
+        }
         return null;
     }
 

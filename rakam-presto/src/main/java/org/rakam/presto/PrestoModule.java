@@ -13,7 +13,7 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
-import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RealtimeService;
@@ -106,7 +106,7 @@ public class PrestoModule extends RakamModule {
         }
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
+            binder.bind(AbstractFunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {

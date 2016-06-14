@@ -21,14 +21,14 @@ import com.facebook.presto.sql.tree.QualifiedNameReference;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.CalculatedUserSet;
 import org.rakam.analysis.ContinuousQueryService;
-import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -45,19 +45,20 @@ import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PrestoFunnelQueryExecutor
-        implements FunnelQueryExecutor
+        extends AbstractFunnelQueryExecutor
 {
-    private final QueryExecutorService executor;
+    private final QueryExecutorService executorService;
     private static final String CONNECTOR_FIELD = "_user";
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
 
     @Inject
-    public PrestoFunnelQueryExecutor(QueryExecutorService executor, MaterializedViewService materializedViewService, ContinuousQueryService continuousQueryService)
+    public PrestoFunnelQueryExecutor(QueryExecutorService executorService, QueryExecutor executor, MaterializedViewService materializedViewService, ContinuousQueryService continuousQueryService)
     {
+        super(executor);
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
-        this.executor = executor;
+        this.executorService = executorService;
     }
 
     @Override
@@ -72,6 +73,10 @@ public class PrestoFunnelQueryExecutor
         String stepQueries = IntStream.range(0, steps.size())
                 .mapToObj(i -> convertFunnel(calculatedUserSets, project, CONNECTOR_FIELD, i, window, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
+
+        if(calculatedUserSets.size() == steps.size()){
+            return super.query(project, steps, dimension, startDate, endDate, window);
+        }
 
         String query;
         if (dimension.isPresent()) {
@@ -89,7 +94,7 @@ public class PrestoFunnelQueryExecutor
                     .collect(Collectors.joining(" UNION ALL ")) + " ORDER BY 1 ASC";
         }
 
-        return new DelegateQueryExecution(executor.executeQuery(project, "WITH \n" + stepQueries + " " + query),
+        return new DelegateQueryExecution(executorService.executeQuery(project, "WITH \n" + stepQueries + " " + query),
                 result -> {
                     result.setProperty("calculatedUserSets", calculatedUserSets);
                     return result;

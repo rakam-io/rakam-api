@@ -14,9 +14,14 @@ import org.rakam.plugin.stream.StreamResponse;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.ValidationUtil;
 
+import javax.xml.bind.DatatypeConverter;
+
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
@@ -90,11 +95,11 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
             statement.execute("UNLISTEN " + ticket);
             for (CollectionStreamQuery collection : collections) {
                 statement.execute(format("DROP TRIGGER IF EXISTS %s ON %1$s.%2$s",
-                        getProcedureName(collection.getCollection()),
+                        getProcedureName(collection),
                         project,
                         ValidationUtil.checkCollection(collection.getCollection())));
-                statement.execute(format("DROP FUNCTION IF EXISTS stream_%s_%s_%s",
-                        getProcedureName(collection.getCollection())));
+                statement.execute(format("DROP FUNCTION IF EXISTS %s",
+                        getProcedureName(collection)));
             }
         } catch (SQLException e) {
             LOGGER.error(e, "Couldn't deleted functions and triggers from Postgresql server. Ticket: " + ticket);
@@ -103,20 +108,21 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
         }
     }
 
-    private String getProcedureName(String collection) {
-        return format("stream_%s_%s_%s", project, ValidationUtil.checkCollection(collection), ticket);
+    private String getProcedureName(CollectionStreamQuery hash) {
+        return format("stream_%s_%s_%s", project,
+                Math.abs(hash.hashCode()), ticket);
     }
 
-    private boolean createProcedures() {
+    private synchronized boolean createProcedures() {
         for (CollectionStreamQuery collection : collections) {
             try (Statement statement = conn.createStatement()) {
-                String name = getProcedureName(collection.getCollection());
+                String name = getProcedureName(collection);
                 statement.execute(format("CREATE OR REPLACE FUNCTION %s()" +
                                 "  RETURNS trigger AS" +
                                 "  $BODY$" +
                                 "    BEGIN" +
                                 "       IF %s THEN" +
-                                "           PERFORM pg_notify('%s', '{\"collection\":\"%s\", \"properties\": {' || ltrim(row_to_json((NEW))::text, '{') || '}');" +
+                                "           PERFORM pg_notify('%s', '{\"collection\":%s, \"properties\": {' || ltrim(row_to_json((NEW))::text, '{') || '}');" +
                                 "       END IF;" +
                                 "        RETURN NEW;" +
                                 "    END;" +

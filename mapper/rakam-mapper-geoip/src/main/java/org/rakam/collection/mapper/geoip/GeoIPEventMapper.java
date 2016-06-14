@@ -20,7 +20,6 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserPropertyMapper;
 
 import java.io.FileInputStream;
@@ -161,39 +160,51 @@ public class GeoIPEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, User user, RequestParams requestParams, InetAddress sourceAddress)
+    public List<Cookie> map(String project, BatchUserOperation user, RequestParams requestParams, InetAddress sourceAddress)
     {
-        Object ip = user.properties.get("_ip");
-
-        if (ip == null) {
-            return null;
-        }
-
-        if ((ip instanceof String)) {
-            try {
-                // it may be slow because java performs reverse hostname lookup.
-                sourceAddress = Inet4Address.getByName((String) ip);
+        for (BatchUserOperation.Data data : user.data) {
+            if (data.setProperties != null) {
+                mapInternal(project, data.setProperties, sourceAddress);
             }
-            catch (UnknownHostException e) {
-                return null;
+            if (data.setPropertiesOnce != null) {
+                mapInternal(project, data.setPropertiesOnce, sourceAddress);
             }
-        }
-
-        GenericRecord record = new MapProxyGenericRecord(user.properties);
-
-        if (connectionTypeLookup != null) {
-            setConnectionType(sourceAddress, record);
-        }
-
-        if (ispLookup != null) {
-            setIsp(sourceAddress, record);
-        }
-
-        if (cityLookup != null) {
-            setGeoFields(sourceAddress, record);
         }
 
         return null;
+    }
+
+    public void mapInternal(String project, Map<String, Object> data, InetAddress sourceAddress)
+    {
+            Object ip = data.get("_ip");
+
+            if (ip == null) {
+                return;
+            }
+
+            if ((ip instanceof String)) {
+                try {
+                    // it may be slow because java performs reverse hostname lookup.
+                    sourceAddress = Inet4Address.getByName((String) ip);
+                }
+                catch (UnknownHostException e) {
+                    return;
+                }
+            }
+
+            GenericRecord record = new MapProxyGenericRecord(data);
+
+            if (connectionTypeLookup != null) {
+                setConnectionType(sourceAddress, record);
+            }
+
+            if (ispLookup != null) {
+                setIsp(sourceAddress, record);
+            }
+
+            if (cityLookup != null) {
+                setGeoFields(sourceAddress, record);
+            }
     }
 
     @Override

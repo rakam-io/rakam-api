@@ -47,7 +47,7 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
     }
 
     @Override
-    public FunnelQueryExecutor getFunnelQueryExecutor() {
+    public AbstractFunnelQueryExecutor getFunnelQueryExecutor() {
         return funnelQueryExecutor;
     }
 }

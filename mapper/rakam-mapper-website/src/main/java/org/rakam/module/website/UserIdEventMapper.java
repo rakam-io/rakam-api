@@ -14,7 +14,6 @@ import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.plugin.EventMapper;
-import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.AvroUtil;
 
@@ -112,7 +111,7 @@ public class UserIdEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, User user, RequestParams requestParams, InetAddress sourceAddress)
+    public List<Cookie> map(String project, BatchUserOperation user, RequestParams requestParams, InetAddress sourceAddress)
     {
         if (user.id == null) {
             FieldType fieldType = userTypeCache.getUnchecked(project);

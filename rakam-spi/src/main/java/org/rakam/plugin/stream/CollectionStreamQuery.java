@@ -37,4 +37,30 @@ public class CollectionStreamQuery {
     public String getFilter() {
         return filter;
     }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        CollectionStreamQuery that = (CollectionStreamQuery) o;
+
+        if (!collection.equals(that.collection)) {
+            return false;
+        }
+        return filter != null ? filter.equals(that.filter) : that.filter == null;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        int result = collection.hashCode();
+        result = 31 * result + (filter != null ? filter.hashCode() : 0);
+        return result;
+    }
 }

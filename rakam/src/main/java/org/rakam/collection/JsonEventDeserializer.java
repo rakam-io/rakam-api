@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
@@ -91,13 +92,13 @@ public class JsonEventDeserializer
             throws IOException, RakamException
     {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
-
         String collection = null;
 
         JsonToken t = jp.getCurrentToken();
         if (t == JsonToken.START_OBJECT) {
             t = jp.nextToken();
         }
+        TokenBuffer propertiesBuffer = null;
         for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
             String fieldName = jp.getCurrentName();
 
@@ -118,18 +119,14 @@ public class JsonEventDeserializer
                     break;
                 case "properties":
                     if (collection == null) {
-                        throw new JsonMappingException("'collection' field must be located before 'properties' field.");
+                        propertiesBuffer = jp.readValueAs(TokenBuffer.class);
                     }
                     else {
                         if (project == null) {
                             project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                         }
-                        try {
-                            properties = parseProperties(project, collection, jp);
-                        }
-                        catch (NotExistsException e) {
-                            throw Throwables.propagate(e);
-                        }
+                        properties = parseProperties(project, collection, jp);
+
                         t = jp.getCurrentToken();
 
                         if (t != JsonToken.END_OBJECT) {
@@ -147,7 +144,14 @@ public class JsonEventDeserializer
             }
         }
         if (properties == null) {
-            throw new JsonMappingException("properties is null");
+            if(propertiesBuffer != null) {
+                if (project == null) {
+                    project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
+                }
+                properties = parseProperties(project, collection, propertiesBuffer.asParser(jp));
+            } else {
+                throw new JsonMappingException("properties is null");
+            }
         }
         return new Event(project, collection, api, properties.getKey(), properties.getValue());
     }

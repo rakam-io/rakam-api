@@ -2,9 +2,14 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -13,8 +18,12 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.collection.EventCollectionHttpService.HttpRequestParams;
 import org.rakam.collection.SchemaField;
+import org.rakam.module.website.UserIdEventMapper;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
+import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation;
+import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation.Data;
 import org.rakam.plugin.user.UserStorage.Sorting;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
@@ -50,19 +59,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
+import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.collection.EventCollectionHttpService.getHeaderList;
+import static org.rakam.collection.EventCollectionHttpService.setBrowser;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/user")
@@ -114,7 +127,7 @@ public class UserHttpService
             return service.batchCreate(project, users);
         }
         catch (Exception e) {
-            throw new RakamException(e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException(e.getMessage(), BAD_REQUEST);
         }
     }
 
@@ -149,7 +162,7 @@ public class UserHttpService
             }
             catch (Exception e) {
                 throw new RakamException(format("filter expression '%s' couldn't parsed", filter),
-                        HttpResponseStatus.BAD_REQUEST);
+                        BAD_REQUEST);
             }
         }
         else {
@@ -249,9 +262,9 @@ public class UserHttpService
 
     @ApiOperation(value = "Batch operation user properties", request = User.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
-    @Path("/batch_operation")
+    @Path("/batch")
     @IgnoreApi
-    @POST
+    @JsonRequest
     public void batchOperations(RakamHttpRequest request)
     {
         request.bodyHandler(s -> {
@@ -260,74 +273,62 @@ public class UserHttpService
                 req = JsonHelper.read(s, BatchUserOperation.class);
             }
             catch (Exception e) {
-                returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+                returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }
 
             String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
 
-            if (req.data.set_properties != null) {
-                service.setUserProperties(project, req.id, req.data.set_properties);
-            }
-            if (req.data.set_properties_once != null) {
-                service.setUserPropertiesOnce(project, req.id, req.data.set_properties_once);
-            }
-            if (req.data.unset_properties != null) {
-                service.unsetProperties(project, req.id, req.data.unset_properties);
-            }
-            if (req.data.increment_property != null) {
-                for (Map.Entry<String, Long> entry : req.data.increment_property.entrySet()) {
-                    service.incrementProperty(project, req.id, entry.getKey(), entry.getValue());
+            InetAddress socketAddress = ((InetSocketAddress) request.context().channel()
+                    .remoteAddress()).getAddress();
+
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+            List<Cookie> cookies = mapEvent(mapper ->
+                    mapper.map(project, req, new HttpRequestParams(request), socketAddress));
+
+            for (Data data : req.data) {
+                if (data.setProperties != null) {
+                    service.setUserProperties(project, req.id, data.setProperties);
+                }
+                if (data.setPropertiesOnce != null) {
+                    service.setUserPropertiesOnce(project, req.id, data.setPropertiesOnce);
+                }
+                if (data.unsetProperties != null) {
+                    service.unsetProperties(project, req.id, data.unsetProperties);
+                }
+                if (data.incrementProperties != null) {
+                    for (Map.Entry<String, Long> entry : data.incrementProperties.entrySet()) {
+                        service.incrementProperty(project, req.id, entry.getKey(), entry.getValue());
+                    }
                 }
             }
+
+            setBrowser(request, response);
+            if(cookies != null && !cookies.isEmpty()) {
+                response.headers().add(SET_COOKIE, STRICT.encode(cookies));
+            }
+            request.response(response).end();
         });
     }
 
-    public static class BatchUserOperation
+
+    public List<Cookie> mapEvent(Function<UserPropertyMapper, List<Cookie>> mapperFunction)
     {
-        public final Object id;
-        public final User.UserContext api;
-        public final Data data;
-
-        public BatchUserOperation(Object id, User.UserContext api, Data data)
-        {
-            this.id = id;
-            this.api = api;
-            this.data = data;
-        }
-
-        public static class Data {
-            public final Map<String, Object> set_properties;
-            public final Map<String, Object> set_properties_once;
-            public final Map<String, Long> increment_property;
-            public final List<String> unset_properties;
-
-            public Data(Map<String, Object> set_properties, Map<String, Object> set_properties_once, Map<String, Long> increment_property, List<String> unset_properties)
-            {
-                this.set_properties = set_properties;
-                this.set_properties_once = set_properties_once;
-                this.increment_property = increment_property;
-                this.unset_properties = unset_properties;
+        List<Cookie> cookies = null;
+        for (UserPropertyMapper mapper : mappers) {
+            // TODO: bound event mappers to Netty Channels and run them in separate thread
+            List<Cookie> mapperCookies = mapperFunction.apply(mapper);
+            if (mapperCookies != null) {
+                if (cookies == null) {
+                    cookies = new ArrayList<>();
+                }
+                cookies.addAll(mapperCookies);
             }
         }
+
+        return cookies;
     }
 
-    public static class UserOperation
-    {
-        public final UserOp op;
-        public final Object value;
-
-        public UserOperation(UserOp op, Object value)
-        {
-            this.op = op;
-            this.value = value;
-        }
-    }
-
-    public enum UserOp
-    {
-        set_properties, set_properties_once, increment_property, unset_properties;
-    }
 
     @ApiOperation(value = "Set user properties", request = User.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
@@ -341,7 +342,7 @@ public class UserHttpService
                 req = JsonHelper.readSafe(s, User.class);
             }
             catch (IOException e) {
-                returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+                returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }
 
@@ -353,8 +354,8 @@ public class UserHttpService
 
             List<Cookie> cookies = mapProperties(project, req, request);
             if (cookies != null) {
-                response.headers().add(HttpHeaders.Names.SET_COOKIE,
-                        ServerCookieEncoder.STRICT.encode(cookies));
+                response.headers().add(SET_COOKIE,
+                        STRICT.encode(cookies));
             }
             String headerList = getHeaderList(response.headers().iterator());
             if (headerList != null) {
@@ -374,7 +375,9 @@ public class UserHttpService
         List<Cookie> cookies = null;
         for (UserPropertyMapper mapper : mappers) {
             try {
-                List<Cookie> map = mapper.map(project, req, new HttpRequestParams(request), socketAddress);
+                BatchUserOperation op = new BatchUserOperation(req.id, req.api, ImmutableList.of(new Data(req.properties, null, null, null, null)));
+
+                List<Cookie> map = mapper.map(project, op, new HttpRequestParams(request), socketAddress);
                 if (map != null) {
                     if (cookies == null) {
                         cookies = new ArrayList<>();
@@ -404,7 +407,7 @@ public class UserHttpService
                 req = JsonHelper.readSafe(s, User.class);
             }
             catch (IOException e) {
-                returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
+                returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }
 
@@ -415,8 +418,8 @@ public class UserHttpService
 
             List<Cookie> cookies = mapProperties(project, req, request);
             if (cookies != null) {
-                response.headers().add(HttpHeaders.Names.SET_COOKIE,
-                        ServerCookieEncoder.STRICT.encode(cookies));
+                response.headers().add(SET_COOKIE,
+                        STRICT.encode(cookies));
             }
             String headerList = getHeaderList(response.headers().iterator());
             if (headerList != null) {

@@ -17,7 +17,7 @@ import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
-import org.rakam.analysis.FunnelQueryExecutor;
+import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RetentionQueryExecutor;
@@ -124,7 +124,7 @@ public class PostgresqlModule extends RakamModule {
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
+            binder.bind(AbstractFunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {
