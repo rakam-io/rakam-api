@@ -47,6 +47,7 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.InternalConfig.FIXED_SCHEMA;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
@@ -273,7 +274,7 @@ public class JsonEventDeserializer
 
     private Schema createNewSchema(String project, Schema currentSchema, SchemaField newField)
     {
-        if (Boolean.TRUE == configManager.getConfig(project, InternalConfig.FIXED_SCHEMA.name(), Boolean.class)) {
+        if (Boolean.TRUE == configManager.getConfig(project, FIXED_SCHEMA.name(), Boolean.class)) {
             throw new RakamException(BAD_REQUEST);
         }
         List<Schema.Field> avroFields = currentSchema.getFields().stream()
@@ -319,7 +320,7 @@ public class JsonEventDeserializer
         }
     }
 
-    private Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
+    private static Object getValue(JsonParser jp, FieldType type, Schema.Field field, boolean passInitialToken)
             throws IOException
     {
         if (type == null) {
@@ -417,7 +418,7 @@ public class JsonEventDeserializer
         }
     }
 
-    private FieldType getType(JsonParser jp)
+    private static FieldType getType(JsonParser jp)
             throws IOException
     {
         switch (jp.getCurrentToken()) {

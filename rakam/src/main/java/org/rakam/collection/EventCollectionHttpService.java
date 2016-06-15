@@ -29,7 +29,6 @@ import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStore.CopyType;
 import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -47,7 +46,6 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
-import javax.print.attribute.standard.Compression;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;

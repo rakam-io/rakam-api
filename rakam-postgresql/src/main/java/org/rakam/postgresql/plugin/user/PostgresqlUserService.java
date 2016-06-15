@@ -34,12 +34,12 @@ import static org.rakam.util.ValidationUtil.checkProject;
 public class PostgresqlUserService extends AbstractUserService {
     private final Metastore metastore;
     private final PostgresqlQueryExecutor executor;
-    private final ContinuousQueryService continuousQueryService;
+    private final UserStorage storage;
 
     @Inject
-    public PostgresqlUserService(UserStorage storage, ContinuousQueryService continuousQueryService, Metastore metastore, PostgresqlQueryExecutor executor) {
+    public PostgresqlUserService(UserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor) {
         super(storage);
-        this.continuousQueryService = continuousQueryService;
+        this.storage = storage;
         this.metastore = metastore;
         this.executor = executor;
     }

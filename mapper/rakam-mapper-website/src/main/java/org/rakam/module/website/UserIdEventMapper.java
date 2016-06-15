@@ -30,14 +30,12 @@ public class UserIdEventMapper
         implements EventMapper, UserPropertyMapper
 {
     private final LoadingCache<String, FieldType> userTypeCache;
-    private final ConfigManager configManager;
     DistributedIdGenerator idGenerator;
 
     @Inject
     public UserIdEventMapper(ConfigManager configManager)
     {
         idGenerator = new DistributedIdGenerator();
-        this.configManager = configManager;
         userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>()
         {
             @Override

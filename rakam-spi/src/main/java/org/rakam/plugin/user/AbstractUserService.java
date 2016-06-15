@@ -3,6 +3,7 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
@@ -28,6 +29,11 @@ public abstract class AbstractUserService {
 
     public List<Object> batchCreate(String project, List<User> users) {
         return storage.batchCreate(project, users);
+    }
+
+    @VisibleForTesting
+    public void dropProject(String project) {
+        storage.dropProjectIfExists(project);
     }
 
     public void createProject(String project, boolean userIdIsNumeric) {

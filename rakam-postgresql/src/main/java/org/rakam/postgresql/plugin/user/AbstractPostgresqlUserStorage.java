@@ -2,6 +2,7 @@ package org.rakam.postgresql.plugin.user;
 
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
@@ -27,7 +28,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
@@ -49,9 +49,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -68,7 +66,7 @@ public abstract class AbstractPostgresqlUserStorage
 {
     private final PostgresqlQueryExecutor queryExecutor;
     private final Cache<String, Map<String, FieldType>> propertyCache;
-    private final LoadingCache<String, FieldType> userTypeCache;
+    private final LoadingCache<String, Optional<FieldType>> userTypeCache;
     private final ConfigManager configManager;
 
     public AbstractPostgresqlUserStorage(PostgresqlQueryExecutor queryExecutor, ConfigManager configManager)
@@ -76,13 +74,13 @@ public abstract class AbstractPostgresqlUserStorage
         this.queryExecutor = queryExecutor;
         propertyCache = CacheBuilder.newBuilder().build();
         this.configManager = configManager;
-        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, FieldType>()
+        userTypeCache = CacheBuilder.newBuilder().build(new CacheLoader<String, Optional<FieldType>>()
         {
             @Override
-            public FieldType load(String key)
+            public Optional<FieldType> load(String key)
                     throws Exception
             {
-                return configManager.setConfigOnce(key, InternalConfig.USER_TYPE.name(), FieldType.STRING);
+                return Optional.ofNullable(configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class));
             }
         });
     }
@@ -100,7 +98,7 @@ public abstract class AbstractPostgresqlUserStorage
         return createInternal(project, id, properties.entrySet());
     }
 
-    private Map<String, FieldType> createMissingColumns(String project, Iterable<Map.Entry<String, Object>> properties)
+    private Map<String, FieldType> createMissingColumns(String project, Object id, Iterable<Map.Entry<String, Object>> properties)
     {
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
@@ -111,9 +109,9 @@ public abstract class AbstractPostgresqlUserStorage
         boolean created = false;
         for (Map.Entry<String, Object> entry : properties) {
             FieldType fieldType = columns.get(entry.getKey());
-            if (fieldType == null && entry.getValue() != null) {
+            if (fieldType == null && entry.getValue() != null && !entry.getKey().equals("created_at")) {
                 created = true;
-                createColumn(project, entry.getKey(), entry.getValue());
+                createColumn(project, id, entry.getKey(), entry.getValue());
             }
         }
 
@@ -149,23 +147,10 @@ public abstract class AbstractPostgresqlUserStorage
     {
 
         List<Map.Entry<String, Object>> properties = strip(_properties);
-        Map<String, FieldType> columns = createMissingColumns(project, properties);
+
+        Map<String, FieldType> columns = createMissingColumns(project, id, properties);
 
         try (Connection conn = queryExecutor.getConnection()) {
-            if (id == null) {
-                FieldType unchecked = userTypeCache.getUnchecked(project);
-                if (unchecked == null) {
-                    unchecked = configManager.setConfigOnce(project,
-                            InternalConfig.USER_TYPE.name(), FieldType.STRING);
-                }
-
-                if (unchecked.isNumeric()) {
-                    id = new Random().nextInt();
-                }
-                else {
-                    id = UUID.randomUUID().toString();
-                }
-            }
 
             StringBuilder cols = new StringBuilder();
             StringBuilder parametrizedValues = new StringBuilder();
@@ -219,7 +204,12 @@ public abstract class AbstractPostgresqlUserStorage
                 }
 
                 if (o.getKey().equals("created_at")) {
-                    createdAt = DateTimeUtils.parseTimestamp(o.getValue());
+                    try {
+                        createdAt = DateTimeUtils.parseTimestamp(o.getValue());
+                    }
+                    catch (Exception e) {
+                        createdAt = Instant.now().toEpochMilli();
+                    }
                 }
                 else {
                     FieldType fieldType = columns.get(o.getKey());
@@ -291,7 +281,7 @@ public abstract class AbstractPostgresqlUserStorage
     public Object getJDBCValue(FieldType fieldType, Object value, Connection conn)
             throws SQLException
     {
-        if(value == null) {
+        if (value == null) {
             return null;
         }
         if (fieldType.isArray()) {
@@ -324,21 +314,26 @@ public abstract class AbstractPostgresqlUserStorage
         switch (fieldType) {
             case TIMESTAMP:
             case DATE:
-                return new Timestamp(DateTimeUtils.parseTimestamp(value));
+                try {
+                    return new Timestamp(DateTimeUtils.parseTimestamp(value));
+                }
+                catch (Exception e) {
+                    return null;
+                }
             case LONG:
                 if (value instanceof Number) {
-                    return value;
+                    return ((Number) value).longValue();
                 }
                 return safeCast(Long::parseLong, value.toString());
             case DECIMAL:
             case DOUBLE:
                 if (value instanceof Number) {
-                    return value;
+                    return ((Number) value).doubleValue();
                 }
                 return safeCast(Double::parseDouble, value.toString());
             case INTEGER:
                 if (value instanceof Number) {
-                    return value;
+                    return ((Number) value).intValue();
                 }
                 return safeCast(Integer::parseInt, value.toString());
             case STRING:
@@ -395,12 +390,12 @@ public abstract class AbstractPostgresqlUserStorage
                 .collect(Collectors.toList());
     }
 
-    private void createColumn(String project, String column, Object value)
+    private void createColumn(String project, Object id, String column, Object value)
     {
-        createColumnInternal(project, column, value, true);
+        createColumnInternal(project, id, column, value, true);
     }
 
-    private void createColumnInternal(String project, String column, Object value, boolean retry)
+    private void createColumnInternal(String project, Object id, String column, Object value, boolean retry)
     {
         // it must be called from a separated transaction, otherwise it may lock table and the other insert may cause deadlock.
         try (Connection conn = queryExecutor.getConnection()) {
@@ -414,17 +409,20 @@ public abstract class AbstractPostgresqlUserStorage
                     return;
                 }
 
-                if (getMetadata(project).stream().anyMatch(col -> col.getName().equals(column))) {
+                if (getMetadata(project).stream()
+                        .anyMatch(col -> col.getName().equals(column))) {
                     // what if the type does not match?
                     return;
                 }
 
                 if (retry) {
-                    userTypeCache.refresh(project);
-                    createProjectIfNotExists(project,
-                            Optional.ofNullable(userTypeCache.getUnchecked(project)).orElse(FieldType.STRING).isNumeric());
+                    FieldType other = (id instanceof Long ? FieldType.LONG :
+                            (id instanceof Integer ? FieldType.INTEGER : FieldType.STRING));
+                    FieldType fieldType = configManager.setConfigOnce(project, InternalConfig.USER_TYPE.name(), other);
 
-                    createColumnInternal(project, column, value, false);
+                    createProjectIfNotExists(project, fieldType.isNumeric());
+
+                    createColumnInternal(project, id, column, value, false);
                 }
                 else {
                     throw e;
@@ -556,12 +554,12 @@ public abstract class AbstractPostgresqlUserStorage
             try (Connection conn = queryExecutor.getConnection()) {
                 PreparedStatement ps = conn.prepareStatement(format("select * from %s where %s = ?", getUserTable(project, false), PRIMARY_KEY));
 
-                FieldType unchecked = userTypeCache.getUnchecked(project);
+                Optional<FieldType> unchecked = userTypeCache.getUnchecked(project);
 
-                if (unchecked == null || !unchecked.isNumeric()) {
+                if (!unchecked.isPresent() || !unchecked.get().isNumeric()) {
                     ps.setString(1, userId.toString());
                 }
-                else if (unchecked == FieldType.LONG) {
+                else if (unchecked.get() == FieldType.LONG) {
                     long x;
                     try {
                         x = Long.parseLong(userId.toString());
@@ -572,7 +570,7 @@ public abstract class AbstractPostgresqlUserStorage
 
                     ps.setLong(1, x);
                 }
-                else if (unchecked == FieldType.INTEGER) {
+                else if (unchecked.get() == FieldType.INTEGER) {
                     int x;
                     try {
                         x = Integer.parseInt(userId.toString());
@@ -590,20 +588,19 @@ public abstract class AbstractPostgresqlUserStorage
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int columnCount = metaData.getColumnCount() + 1;
 
-                String id = null;
                 while (resultSet.next()) {
                     for (int i = 1; i < columnCount; i++) {
                         String key = metaData.getColumnName(i);
-                        if (key.equals(PRIMARY_KEY)) {
-                            id = resultSet.getString(i);
-                        }
-                        else {
+                        if (!key.equals(PRIMARY_KEY)) {
                             Object value = resultSet.getObject(i);
+                            if (value instanceof Timestamp) {
+                                value = ((Timestamp) value).toInstant();
+                            }
                             properties.put(key, value);
                         }
                     }
                 }
-                return new User(id, null, properties);
+                return new User(userId, null, properties);
             }
             catch (SQLException e) {
                 throw Throwables.propagate(e);
@@ -634,19 +631,19 @@ public abstract class AbstractPostgresqlUserStorage
             return;
         }
 
-        Map<String, FieldType> columns = createMissingColumns(project, properties);
+        Map<String, FieldType> columns = createMissingColumns(project, userId, properties);
 
         StringBuilder builder = new StringBuilder("update " + getUserTable(project, false) + " set ");
         Iterator<Map.Entry<String, Object>> entries = properties.iterator();
         if (entries.hasNext()) {
             Map.Entry<String, Object> entry = entries.next();
             builder.append('"').append(entry.getKey())
-                    .append(onlyOnce ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
+                    .append((onlyOnce || entry.getKey().equals("created_at")) ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
 
             while (entries.hasNext()) {
                 entry = entries.next();
                 builder.append(", ").append('"').append(entry.getKey())
-                        .append(onlyOnce ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
+                        .append((onlyOnce || entry.getKey().equals("created_at")) ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
             }
         }
 
@@ -658,19 +655,19 @@ public abstract class AbstractPostgresqlUserStorage
             for (Map.Entry<String, Object> entry : properties) {
                 FieldType fieldType = columns.get(entry.getKey());
                 if (fieldType == null) {
-                    createColumn(project, entry.getKey(), entry.getValue());
+                    createColumn(project, userId, entry.getKey(), entry.getValue());
                 }
                 statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
             }
-            FieldType fieldType = userTypeCache.getUnchecked(project);
-            if (fieldType == null || fieldType == FieldType.STRING) {
+            Optional<FieldType> fieldType = userTypeCache.getUnchecked(project);
+            if (!fieldType.isPresent() || fieldType.get() == FieldType.STRING) {
                 statement.setString(i++, userId.toString());
             }
-            else if (fieldType == FieldType.INTEGER) {
+            else if (fieldType.get() == FieldType.INTEGER) {
                 statement.setInt(i++, (userId instanceof Number) ? ((Number) userId).intValue() :
                         Integer.parseInt(userId.toString()));
             }
-            else if (fieldType == FieldType.LONG) {
+            else if (fieldType.get() == FieldType.LONG) {
                 statement.setLong(i++, (userId instanceof Number) ? ((Number) userId).longValue() :
                         Integer.parseInt(userId.toString()));
             }
@@ -725,6 +722,19 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     @Override
+    public void dropProjectIfExists(String project)
+    {
+        checkProject(project);
+        QueryResult result = queryExecutor.executeRawStatement(format("DROP TABLE IF EXISTS %s",
+                getUserTable(project, false))).getResult().join();
+        propertyCache.invalidateAll();
+        userTypeCache.invalidateAll();
+        if (result.isFailed()) {
+            throw new IllegalStateException(result.toString());
+        }
+    }
+
+    @Override
     public void unsetProperties(String project, Object user, List<String> properties)
     {
         setUserProperty(project, user, Iterables.transform(properties,
@@ -732,13 +742,13 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     @Override
-    public void incrementProperty(String project, Object user, String property, double value)
+    public void incrementProperty(String project, Object userId, String property, double value)
     {
-        Map<String, FieldType> columns = createMissingColumns(project, ImmutableList.of(new SimpleImmutableEntry<>(property, 1L)));
+        Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, 1L)));
 
         FieldType fieldType = columns.get(property);
         if (fieldType == null) {
-            createColumn(project, property, 0);
+            createColumn(project, userId, property, 0);
         }
 
         if (!fieldType.isNumeric()) {

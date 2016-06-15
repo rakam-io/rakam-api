@@ -43,6 +43,8 @@ public interface UserStorage {
 
     void incrementProperty(String project, Object user, String property, double value);
 
+    void dropProjectIfExists(String project);
+
     void unsetProperties(String project, Object user, List<String> properties);
 
     class Sorting {
