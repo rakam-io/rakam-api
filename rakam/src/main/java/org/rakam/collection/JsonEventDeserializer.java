@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableSet;
@@ -47,11 +46,9 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
-import static org.rakam.analysis.InternalConfig.FIXED_SCHEMA;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class JsonEventDeserializer
         extends JsonDeserializer<Event>
@@ -274,7 +271,7 @@ public class JsonEventDeserializer
 
     private Schema createNewSchema(String project, Schema currentSchema, SchemaField newField)
     {
-        if (Boolean.TRUE == configManager.getConfig(project, FIXED_SCHEMA.name(), Boolean.class)) {
+        if (Boolean.TRUE == configManager.getConfig(project, InternalConfig.FIXED_SCHEMA.name(), Boolean.class)) {
             throw new RakamException(BAD_REQUEST);
         }
         List<Schema.Field> avroFields = currentSchema.getFields().stream()

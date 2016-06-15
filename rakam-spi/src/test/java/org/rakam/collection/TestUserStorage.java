@@ -7,18 +7,20 @@ import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.User;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public abstract class TestUserStorage
 {
@@ -26,14 +28,14 @@ public abstract class TestUserStorage
 
     private ImmutableMap<String, Object> sampleProperties = ImmutableMap.of(
             "test", 1L,
-            "test1", "value",
-            "test4", true,
+            "test1 Naber Abi", "value",
+            "test4 Şamil", true,
             "created_at", 100,
             "test5", 1.5);
     private ImmutableMap<String, Object> samplePropertiesExpected = ImmutableMap.of(
             "test", 1L,
-            "test1", "value",
-            "test4", true,
+            "test1 naber abi", "value",
+            "test4 şamil", true,
             "created_at", Instant.ofEpochMilli(100),
             "test5", 1.5);
 
@@ -80,8 +82,8 @@ public abstract class TestUserStorage
 
         userService.setUserProperties(PROJECT_NAME, 2, ImmutableMap.of(
                 "test", "2",
-                "test1", 324,
-                "test4", "true",
+                "test1 Naber abi", 324,
+                "test4 şamil", "true",
                 "created_at", PROJECT_NAME,
                 "test5", "2.5"));
 
@@ -89,8 +91,8 @@ public abstract class TestUserStorage
         assertEquals(test.id, 2);
         assertEquals(test.properties, ImmutableMap.of(
                 "test", 2L,
-                "test1", "324",
-                "test4", true,
+                "test1 naber abi", "324",
+                "test4 şamil", true,
                 "created_at", Instant.ofEpochMilli(100),
                 "test5", 2.5));
     }
@@ -108,6 +110,42 @@ public abstract class TestUserStorage
     }
 
     @Test
+    public void testSetNullProperties()
+            throws Exception
+    {
+        AbstractUserService userService = getUserService();
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("test", null);
+        map.put("test1", null);
+
+        userService.setUserProperties(PROJECT_NAME, 3, map);
+
+        User test = userService.getUser(PROJECT_NAME, 3).join();
+        assertEquals(test.id, 3);
+        assertTrue(test.properties.get("created_at") instanceof Instant);
+    }
+
+    @Test
+    public void testSetSomeOfNullProperties()
+            throws Exception
+    {
+        AbstractUserService userService = getUserService();
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("test10", "val");
+        map.put("created_at", 100);
+        map.put("test", null);
+        map.put("test1", null);
+
+        userService.setUserProperties(PROJECT_NAME, 3, map);
+
+        User test = userService.getUser(PROJECT_NAME, 3).join();
+        assertEquals(test.id, 3);
+        assertEquals(test.properties, ImmutableMap.of(
+                "test10", "val",
+                "created_at", Instant.ofEpochMilli(100)));
+    }
+
+    @Test
     public void testConcurrentSetProperties()
             throws Exception
     {
@@ -117,6 +155,7 @@ public abstract class TestUserStorage
         Set<String> objects = new ConcurrentSkipListSet<>();
 
         getUserService().setUserProperties(PROJECT_NAME, 3, ImmutableMap.of("created_at", 100));
+        CountDownLatch countDownLatch = new CountDownLatch(1000);
 
         for (int x = 0; x < 1000; x++) {
             executorService.submit(() -> {
@@ -128,15 +167,16 @@ public abstract class TestUserStorage
                     builder.put(key, 10L);
                 }
                 userService.setUserProperties(PROJECT_NAME, 3, builder.build());
+                countDownLatch.countDown();
             });
         }
 
-        executorService.awaitTermination(1, TimeUnit.MINUTES);
+        countDownLatch.await(1, TimeUnit.MINUTES);
 
         User test = getUserService().getUser(PROJECT_NAME, 3).join();
         assertEquals(test.id, 3);
         ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
-        builder.put("created_at", 100);
+        builder.put("created_at", Instant.ofEpochMilli(100));
         for (String object : objects) {
             builder.put(object, 10L);
         }
@@ -187,13 +227,12 @@ public abstract class TestUserStorage
 
         userService.setUserPropertiesOnce(PROJECT_NAME, 6, ImmutableMap.of(
                 "test", 2,
-                "test1", "value1",
-                "test4", false,
+                "test1 Naber Abi", "value1",
+                "test4 Şamil", false,
                 "created_at", Instant.now().toEpochMilli(),
                 "test5", 2.5));
 
-        User test = userService.getUser(PROJECT_NAME, 10).join();
-        assertEquals(test.id, 10);
+        User test = userService.getUser(PROJECT_NAME, 6).join();
         assertEquals(test.properties, samplePropertiesExpected);
     }
 
@@ -206,8 +245,8 @@ public abstract class TestUserStorage
 
         userService.unsetProperties(PROJECT_NAME, 7, ImmutableList.of(
                 "test",
-                "test1",
-                "test4"));
+                "test1 Naber Abi",
+                "test4 Şamil"));
 
         User test = userService.getUser(PROJECT_NAME, 7).join();
         assertEquals(test.id, 7);
@@ -223,10 +262,10 @@ public abstract class TestUserStorage
         AbstractUserService userService = getUserService();
         userService.incrementProperty(PROJECT_NAME, 8, "test", 10);
 
-        assertEquals(userService.getUser(PROJECT_NAME, 8).join().properties.get("test"), 10);
+        assertEquals(userService.getUser(PROJECT_NAME, 8).join().properties.get("test"), 10.0);
 
         userService.incrementProperty(PROJECT_NAME, 8, "test", 10);
-        assertEquals(userService.getUser(PROJECT_NAME, 8).join().properties.get("test"), 20);
+        assertEquals(userService.getUser(PROJECT_NAME, 8).join().properties.get("test"), 20.0);
     }
 
     public abstract AbstractUserService getUserService();

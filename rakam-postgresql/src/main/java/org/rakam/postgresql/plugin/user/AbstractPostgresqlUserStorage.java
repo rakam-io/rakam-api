@@ -28,6 +28,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
@@ -36,6 +37,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -57,6 +59,7 @@ import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -120,6 +123,14 @@ public abstract class AbstractPostgresqlUserStorage
             propertyCache.put(project, columns);
         }
 
+        if(columns.isEmpty()) {
+            FieldType other = (id instanceof Long ? FieldType.LONG :
+                    (id instanceof Integer ? FieldType.INTEGER : FieldType.STRING));
+            FieldType fieldType = configManager.setConfigOnce(project, InternalConfig.USER_TYPE.name(), other);
+            createProjectIfNotExists(project, fieldType.isNumeric());
+            columns = loadColumns(project);
+        }
+
         return columns;
     }
 
@@ -130,7 +141,10 @@ public abstract class AbstractPostgresqlUserStorage
         List<Map.Entry<String, Object>> properties = new ArrayList<>();
 
         for (Map.Entry<String, Object> entry : _properties) {
-            String key = SchemaField.stripName(entry.getKey());
+            String key = stripName(entry.getKey());
+            if(key.equals("id")) {
+                continue;
+            }
             if (!key.equals(entry.getKey())) {
                 properties.add(new SimpleImmutableEntry<>(key, entry.getValue()));
             }
@@ -157,22 +171,18 @@ public abstract class AbstractPostgresqlUserStorage
             Iterator<Map.Entry<String, Object>> stringIterator = properties.iterator();
 
             if (stringIterator.hasNext()) {
-                Map.Entry<String, Object> next = stringIterator.next();
-
-                if (!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
-                    parametrizedValues.append('?');
-                    cols.append(next.getKey());
-                }
-
                 while (stringIterator.hasNext()) {
-                    next = stringIterator.next();
+                    Map.Entry<String, Object> next = stringIterator.next();
 
                     if (!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
+                        if (!columns.containsKey(next.getKey())) {
+                            continue;
+                        }
                         if (cols.length() > 0) {
                             cols.append(", ");
                             parametrizedValues.append(", ");
                         }
-                        cols.append(next.getKey());
+                        cols.append(checkTableColumn(next.getKey()));
                         parametrizedValues.append('?');
                     }
                 }
@@ -201,6 +211,10 @@ public abstract class AbstractPostgresqlUserStorage
             for (Map.Entry<String, Object> o : properties) {
                 if (o.getKey().equals(PRIMARY_KEY)) {
                     throw new RakamException(String.format("User property %s is invalid. It's used as primary key", PRIMARY_KEY), BAD_REQUEST);
+                }
+
+                if (!columns.containsKey(o.getKey())) {
+                    continue;
                 }
 
                 if (o.getKey().equals("created_at")) {
@@ -400,6 +414,9 @@ public abstract class AbstractPostgresqlUserStorage
         // it must be called from a separated transaction, otherwise it may lock table and the other insert may cause deadlock.
         try (Connection conn = queryExecutor.getConnection()) {
             try {
+                if(value == null) {
+                    return;
+                }
                 conn.createStatement().execute(format("alter table %s add column %s %s",
                         getUserTable(project, false), checkTableColumn(column), getPostgresqlType(value.getClass())));
             }
@@ -593,6 +610,9 @@ public abstract class AbstractPostgresqlUserStorage
                         String key = metaData.getColumnName(i);
                         if (!key.equals(PRIMARY_KEY)) {
                             Object value = resultSet.getObject(i);
+                            if(value == null) {
+                                continue;
+                            }
                             if (value instanceof Timestamp) {
                                 value = ((Timestamp) value).toInstant();
                             }
@@ -635,16 +655,30 @@ public abstract class AbstractPostgresqlUserStorage
 
         StringBuilder builder = new StringBuilder("update " + getUserTable(project, false) + " set ");
         Iterator<Map.Entry<String, Object>> entries = properties.iterator();
+        boolean hasColumn = false;
         if (entries.hasNext()) {
-            Map.Entry<String, Object> entry = entries.next();
-            builder.append('"').append(entry.getKey())
-                    .append((onlyOnce || entry.getKey().equals("created_at")) ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
 
             while (entries.hasNext()) {
-                entry = entries.next();
-                builder.append(", ").append('"').append(entry.getKey())
-                        .append((onlyOnce || entry.getKey().equals("created_at")) ? "\"= coalesce(\"" + entry.getKey() + "\", ?)" : "\"= ?");
+                Map.Entry<String, Object> entry = entries.next();
+
+                if(!columns.containsKey(entry.getKey())) {
+                    continue;
+                }
+
+                if(!hasColumn) {
+                    hasColumn = true;
+                } else {
+                    builder.append(", ");
+                }
+
+                builder.append(checkTableColumn(entry.getKey()))
+                        .append((onlyOnce || entry.getKey().equals("created_at")) ?
+                                " = coalesce(" + checkTableColumn(entry.getKey()) + ", ?)" : " = ?");
             }
+        }
+
+        if(!hasColumn) {
+            builder.append("created_at = created_at");
         }
 
         builder.append(" where " + PRIMARY_KEY + " = ?");
@@ -655,7 +689,7 @@ public abstract class AbstractPostgresqlUserStorage
             for (Map.Entry<String, Object> entry : properties) {
                 FieldType fieldType = columns.get(entry.getKey());
                 if (fieldType == null) {
-                    createColumn(project, userId, entry.getKey(), entry.getValue());
+                    continue;
                 }
                 statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
             }
@@ -744,7 +778,7 @@ public abstract class AbstractPostgresqlUserStorage
     @Override
     public void incrementProperty(String project, Object userId, String property, double value)
     {
-        Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, 1L)));
+        Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, value)));
 
         FieldType fieldType = columns.get(property);
         if (fieldType == null) {
@@ -757,7 +791,13 @@ public abstract class AbstractPostgresqlUserStorage
         }
 
         try (Connection conn = queryExecutor.getConnection()) {
-            conn.createStatement().execute("update " + getUserTable(project, false) + " set " + checkTableColumn(property) + " = " + value + " + " + checkTableColumn(property));
+            String tableRef = checkTableColumn(stripName(property));
+            Statement statement = conn.createStatement();
+            int execute = statement.executeUpdate("update " + getUserTable(project, false) +
+                    " set " + tableRef + " = " + value + " + coalesce(" + tableRef + ", 0)");
+            if (execute == 0) {
+                create(project, userId, ImmutableMap.of(property, value));
+            }
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
