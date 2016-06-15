@@ -14,8 +14,10 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
+import org.apache.poi.ss.formula.functions.Even;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
+import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventCollectionHttpService.HttpRequestParams;
 import org.rakam.collection.SchemaField;
 import org.rakam.module.website.UserIdEventMapper;
@@ -26,6 +28,7 @@ import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation;
 import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation.Data;
 import org.rakam.plugin.user.UserStorage.Sorting;
 import org.rakam.report.QueryResult;
+import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -41,6 +44,7 @@ import org.rakam.util.AllowCookie;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.JsonResponse;
 import org.rakam.util.RakamException;
+import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -68,6 +72,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOS
 import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
@@ -346,24 +351,37 @@ public class UserHttpService
                 return;
             }
 
-            String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
+                    Unpooled.wrappedBuffer(OK_MESSAGE));
+            EventCollectionHttpService.setBrowser(request, response);
 
-            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
-            response.headers().add(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            try {
 
-            List<Cookie> cookies = mapProperties(project, req, request);
-            if (cookies != null) {
-                response.headers().add(SET_COOKIE,
-                        STRICT.encode(cookies));
+                String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, WRITE_KEY);
+
+                List<Cookie> cookies = mapProperties(project, req, request);
+                if (cookies != null) {
+                    response.headers().add(SET_COOKIE,
+                            STRICT.encode(cookies));
+                }
+                String headerList = getHeaderList(response.headers().iterator());
+                if (headerList != null) {
+                    response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
+                }
+
+                service.setUserProperties(project, req.id, req.properties);
+                request.response(response).end();
             }
-            String headerList = getHeaderList(response.headers().iterator());
-            if (headerList != null) {
-                response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
+            catch (RakamException e) {
+                SentryUtil.logException(request, e);
+                EventCollectionHttpService.returnError(request, e.getMessage(), e.getStatusCode());
             }
-
-            service.setUserProperties(project, req.id, req.properties);
-            request.response(response).end();
+            catch (HttpRequestException e) {
+                EventCollectionHttpService.returnError(request, e.getMessage(), e.getStatusCode());
+            } catch (Throwable t) {
+                LOGGER.error(t);
+                EventCollectionHttpService.returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
+            }
         });
     }
 
@@ -373,10 +391,11 @@ public class UserHttpService
                 .remoteAddress()).getAddress();
 
         List<Cookie> cookies = null;
+        BatchUserOperation op = new BatchUserOperation(req.id, req.api, ImmutableList.of(new Data(req.properties, null, null, null, null)));
+        req.id = op.id;
+
         for (UserPropertyMapper mapper : mappers) {
             try {
-                BatchUserOperation op = new BatchUserOperation(req.id, req.api, ImmutableList.of(new Data(req.properties, null, null, null, null)));
-
                 List<Cookie> map = mapper.map(project, op, new HttpRequestParams(request), socketAddress);
                 if (map != null) {
                     if (cookies == null) {

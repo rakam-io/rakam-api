@@ -157,7 +157,7 @@ public class EventCollectionHttpService
         return cookies;
     }
 
-    private static void returnError(RakamHttpRequest request, String msg, HttpResponseStatus status)
+    public static void returnError(RakamHttpRequest request, String msg, HttpResponseStatus status)
     {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(JsonHelper.encodeAsBytes(errorMessage(msg, status)));
         DefaultFullHttpResponse errResponse = new DefaultFullHttpResponse(HTTP_1_1, status, byteBuf);
