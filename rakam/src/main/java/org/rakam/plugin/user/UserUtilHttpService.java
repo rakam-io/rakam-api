@@ -118,7 +118,7 @@ public class UserUtilHttpService extends HttpService {
             expression = null;
         }
 
-        final CompletableFuture<QueryResult> search = service.filter(project, null, expression,
+        final CompletableFuture<QueryResult> search = service.searchUsers(project, null, expression,
                 read.filterQuery.event_filter, read.filterQuery.sorting, 100000, null);
         final CompletableFuture<byte[]> stream;
         switch (read.exportFormat) {

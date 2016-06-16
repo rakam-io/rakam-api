@@ -6,6 +6,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.User;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -13,11 +14,15 @@ import org.testng.annotations.Test;
 
 import java.time.Instant;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.UnaryOperator;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
@@ -66,7 +71,7 @@ public abstract class TestUserStorage
     {
         AbstractUserService userService = getUserService();
 
-        userService.create(PROJECT_NAME, 1L, sampleProperties);
+        userService.setUserProperties(PROJECT_NAME, 1L, sampleProperties);
 
         User test = userService.getUser(PROJECT_NAME, 1L).join();
         assertEquals(test.id, 1L);
@@ -142,6 +147,70 @@ public abstract class TestUserStorage
         assertEquals((Object) test.properties, JsonHelper.jsonObject()
                 .put("test10", "val")
                 .put("created_at", Instant.ofEpochMilli(100).toString()));
+    }
+
+    @Test
+    public void testUserIdStringToNumber()
+            throws Exception
+    {
+        AbstractUserService userService = getUserService();
+
+        userService.setUserProperties(PROJECT_NAME, "3", sampleProperties);
+
+        User test = userService.getUser(PROJECT_NAME, 3).join();
+        assertEquals(test.id, 3);
+        assertEquals((Object) test.properties, samplePropertiesExpected);
+    }
+
+    @Test
+    public void testUserIdInitialConcurrent()
+            throws Exception
+    {
+        AbstractUserService userService = getUserService();
+
+        ExecutorService executorService = Executors.newFixedThreadPool(8);
+        AtomicReference<Boolean> isNumeric = new AtomicReference();
+        CountDownLatch latch = new CountDownLatch(8);
+        for (int i = 0; i < 8; i++) {
+            executorService.submit(() -> {
+                boolean numeric = Math.random() > 0.5;
+                isNumeric.updateAndGet(aBoolean -> aBoolean == null ? numeric : aBoolean);
+
+                userService.setUserProperties(PROJECT_NAME, numeric ? 3 : "3", sampleProperties);
+                latch.countDown();
+            });
+        }
+
+        latch.await(1, TimeUnit.MINUTES);
+
+        assertEquals((Object) samplePropertiesExpected,
+                userService.getUser(PROJECT_NAME, isNumeric.get() ? 3 : "3").join().properties);
+    }
+
+    @Test
+    public void testUserIdNumberToString()
+            throws Exception
+    {
+        AbstractUserService userService = getUserService();
+
+        userService.setUserProperties(PROJECT_NAME, 3, sampleProperties);
+
+        User test = userService.getUser(PROJECT_NAME, "3").join();
+        assertEquals(test.id, "3");
+        assertEquals((Object) test.properties, samplePropertiesExpected);
+    }
+
+    @Test(expectedExceptions = CompletionException.class)
+    public void testUserIdInvalid()
+            throws Exception
+    {
+        AbstractUserService userService = getUserService();
+
+        userService.setUserProperties(PROJECT_NAME, 3, sampleProperties);
+
+        User test = userService.getUser(PROJECT_NAME, "selami").join();
+        assertEquals(test.id, 3);
+        assertEquals((Object) test.properties, samplePropertiesExpected);
     }
 
     @Test

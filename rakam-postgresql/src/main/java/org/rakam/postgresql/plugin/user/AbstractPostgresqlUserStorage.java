@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import org.apache.avro.ValidateAll;
 import org.apache.avro.data.Json;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.ConfigManager;
@@ -35,6 +36,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.annotation.Nullable;
 
@@ -450,7 +452,7 @@ public abstract class AbstractPostgresqlUserStorage
     public abstract List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter);
 
     @Override
-    public CompletableFuture<QueryResult> filter(String project, List<String> selectColumns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset)
+    public CompletableFuture<QueryResult> searchUsers(String project, List<String> selectColumns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset)
     {
         checkProject(project);
         List<SchemaField> metadata = getMetadata(project);
@@ -463,7 +465,7 @@ public abstract class AbstractPostgresqlUserStorage
             projectColumns = projectColumns.filter(column -> selectColumns.contains(column.getName()));
         }
         // TODO: fail id column is not exist.
-        String columns = Joiner.on(", ").join(projectColumns.map(col -> col.getName())
+        String columns = Joiner.on(", ").join(projectColumns.map(col -> checkTableColumn(col.getName()))
                 .toArray());
 
         LinkedList<String> filters = new LinkedList<>();

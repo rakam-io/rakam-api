@@ -28,7 +28,7 @@ public interface UserStorage {
 
     List<Object> batchCreate(String project, List<User> users);
 
-    CompletableFuture<QueryResult> filter(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);
+    CompletableFuture<QueryResult> searchUsers(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);
 
     void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval);
 

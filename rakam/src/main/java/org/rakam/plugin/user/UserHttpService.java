@@ -2,26 +2,17 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
-import org.apache.poi.ss.formula.functions.Even;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventCollectionHttpService.HttpRequestParams;
 import org.rakam.collection.SchemaField;
-import org.rakam.module.website.UserIdEventMapper;
-import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
 import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation;
@@ -66,7 +57,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import static com.google.common.base.Charsets.UTF_8;
-import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_EXPOSE_HEADERS;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
@@ -118,6 +108,10 @@ public class UserHttpService
     public Object createUser(@BodyParam User user)
     {
         String project = apiKeyService.getProjectOfApiKey(user.api != null ? user.api.apiKey : null, WRITE_KEY);
+
+        if(user.id == null) {
+            throw new RakamException("User id is null", BAD_REQUEST);
+        }
 
         return service.create(project, user.id, user.properties);
     }
@@ -191,7 +185,7 @@ public class UserHttpService
 
         limit = limit == null ? 100 : Math.min(5000, limit);
 
-        return service.filter(project, columns, expression, event_filter, sorting, limit, offset);
+        return service.searchUsers(project, columns, expression, event_filter, sorting, limit, offset);
     }
 
     @POST

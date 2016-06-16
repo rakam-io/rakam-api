@@ -59,7 +59,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public void save(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO reports (project, slug, category, name, query, options, user_id) VALUES (:project, :slug, :category, :name, :query, :options, :user)")
+            handle.createStatement("INSERT INTO reports (project_id, slug, category, name, query, options, user_id) VALUES (:project, :slug, :category, :name, :query, :options, :user)")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)

@@ -155,7 +155,13 @@ public class PostgresqlEventStore
                     ps.setDouble(i + 1, ((Number) value).doubleValue());
                     break;
                 case TIMESTAMP:
-                    ps.setTimestamp(i + 1, new Timestamp(((Number) value).longValue()), UTC_CALENDAR);
+                    Timestamp x = new Timestamp(((Number) value).longValue());
+                    if (x.getTime() < 0) {
+                        ps.setTimestamp(i + 1, null);
+                    }
+                    else {
+                        ps.setTimestamp(i + 1, x, UTC_CALENDAR);
+                    }
                     break;
                 case TIME:
                     ps.setTime(i + 1, Time.valueOf(LocalTime.ofSecondOfDay(((Number) value).intValue())), UTC_CALENDAR);

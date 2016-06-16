@@ -60,7 +60,7 @@ public class UserMailboxActionService extends UserActionService<UserMailboxActio
 
         Expression expression = parseExpression(filter);
 
-        CompletableFuture<QueryResult> future = userService.filter(project, variables, expression, event_filter, null, 100000, null);
+        CompletableFuture<QueryResult> future = userService.searchUsers(project, variables, expression, event_filter, null, 100000, null);
         return batch(project, future, config);
     }
 

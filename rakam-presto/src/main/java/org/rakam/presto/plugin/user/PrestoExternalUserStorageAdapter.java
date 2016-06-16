@@ -32,7 +32,6 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 import static org.rakam.report.realtime.AggregationType.COUNT;
-import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStorage {
@@ -64,14 +63,14 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     }
 
     @Override
-    public CompletableFuture<QueryResult> filter(String project,
+    public CompletableFuture<QueryResult> searchUsers(String project,
                                                  List<String> selectColumns,
                                                  Expression filterExpression,
                                                  List<EventFilter> eventFilter,
                                                  Sorting sortColumn, long limit,
                                                  String offset) {
         if (filterExpression != null && eventFilter != null && !eventFilter.isEmpty()) {
-            return super.filter(project, selectColumns, filterExpression, eventFilter, sortColumn, limit, offset);
+            return super.searchUsers(project, selectColumns, filterExpression, eventFilter, sortColumn, limit, offset);
         }
 
         String query;
