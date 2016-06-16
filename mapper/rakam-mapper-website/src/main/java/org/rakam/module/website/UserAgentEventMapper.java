@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -14,6 +13,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.server.http.HttpRequestException;
+import org.rakam.util.MapProxyGenericRecord;
 import ua_parser.CachingParser;
 import ua_parser.Client;
 import ua_parser.Parser;
@@ -22,7 +22,6 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
-import java.util.Map;
 
 public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     private final Parser uaParser;
@@ -123,37 +122,4 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
         ));
     }
 
-    private static class MapProxyGenericRecord implements GenericRecord {
-
-        private final Map<String, Object> properties;
-
-        public MapProxyGenericRecord(Map<String, Object> properties) {
-            this.properties = properties;
-        }
-
-        @Override
-        public Schema getSchema() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void put(int i, Object v) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Object get(int i) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void put(String key, Object v) {
-            properties.put(key, v);
-        }
-
-        @Override
-        public Object get(String key) {
-            return properties.get(key);
-        }
-    }
 }

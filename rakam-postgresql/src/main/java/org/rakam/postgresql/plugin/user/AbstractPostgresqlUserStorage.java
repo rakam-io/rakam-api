@@ -1,8 +1,13 @@
 package org.rakam.postgresql.plugin.user;
 
+import autovalue.shaded.com.google.common.common.collect.Iterators;
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
-import com.google.common.annotations.VisibleForTesting;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.DoubleNode;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
@@ -13,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import org.apache.avro.data.Json;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
@@ -20,6 +26,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
+import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
@@ -28,9 +35,11 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.ParameterizedType;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -42,8 +51,8 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -96,12 +105,12 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     @Override
-    public Object create(String project, Object id, Map<String, Object> properties)
+    public Object create(String project, Object id, ObjectNode properties)
     {
-        return createInternal(project, id, properties.entrySet());
+        return createInternal(project, id, () -> properties.fields());
     }
 
-    private Map<String, FieldType> createMissingColumns(String project, Object id, Iterable<Map.Entry<String, Object>> properties)
+    private Map<String, FieldType> createMissingColumns(String project, Object id, Iterable<Map.Entry<String, JsonNode>> fields)
     {
         Map<String, FieldType> columns = propertyCache.getIfPresent(project);
         if (columns == null) {
@@ -110,7 +119,7 @@ public abstract class AbstractPostgresqlUserStorage
         }
 
         boolean created = false;
-        for (Map.Entry<String, Object> entry : properties) {
+        for (Map.Entry<String, JsonNode> entry : fields) {
             FieldType fieldType = columns.get(entry.getKey());
             if (fieldType == null && entry.getValue() != null && !entry.getKey().equals("created_at")) {
                 created = true;
@@ -123,7 +132,7 @@ public abstract class AbstractPostgresqlUserStorage
             propertyCache.put(project, columns);
         }
 
-        if(columns.isEmpty()) {
+        if (columns.isEmpty()) {
             FieldType other = (id instanceof Long ? FieldType.LONG :
                     (id instanceof Integer ? FieldType.INTEGER : FieldType.STRING));
             FieldType fieldType = configManager.setConfigOnce(project, InternalConfig.USER_TYPE.name(), other);
@@ -136,31 +145,25 @@ public abstract class AbstractPostgresqlUserStorage
 
     public abstract QueryExecutor getExecutorForWithEventFilter();
 
-    private List<Map.Entry<String, Object>> strip(Iterable<Map.Entry<String, Object>> _properties)
+    private Iterable<Map.Entry<String, JsonNode>> strip(Iterable<Map.Entry<String, JsonNode>> fields)
     {
-        List<Map.Entry<String, Object>> properties = new ArrayList<>();
+        ObjectNode properties = JsonHelper.jsonObject();
 
-        for (Map.Entry<String, Object> entry : _properties) {
+        for (Map.Entry<String, JsonNode> entry : fields) {
             String key = stripName(entry.getKey());
-            if(key.equals("id")) {
+            if (key.equals("id")) {
                 continue;
             }
-            if (!key.equals(entry.getKey())) {
-                properties.add(new SimpleImmutableEntry<>(key, entry.getValue()));
-            }
-            else {
-                properties.add(entry);
-            }
+
+            properties.set(key, entry.getValue());
         }
 
-        return properties;
+        return () -> properties.fields();
     }
 
-    public Object createInternal(String project, Object id,
-            Iterable<Map.Entry<String, Object>> _properties)
+    public Object createInternal(String project, Object id, Iterable<Map.Entry<String, JsonNode>> _properties)
     {
-
-        List<Map.Entry<String, Object>> properties = strip(_properties);
+        Iterable<Map.Entry<String, JsonNode>> properties = strip(_properties);
 
         Map<String, FieldType> columns = createMissingColumns(project, id, properties);
 
@@ -168,11 +171,11 @@ public abstract class AbstractPostgresqlUserStorage
 
             StringBuilder cols = new StringBuilder();
             StringBuilder parametrizedValues = new StringBuilder();
-            Iterator<Map.Entry<String, Object>> stringIterator = properties.iterator();
+            Iterator<Map.Entry<String, JsonNode>> stringIterator = properties.iterator();
 
             if (stringIterator.hasNext()) {
                 while (stringIterator.hasNext()) {
-                    Map.Entry<String, Object> next = stringIterator.next();
+                    Map.Entry<String, JsonNode> next = stringIterator.next();
 
                     if (!next.getKey().equals(PRIMARY_KEY) && !next.getKey().equals("created_at")) {
                         if (!columns.containsKey(next.getKey())) {
@@ -208,7 +211,7 @@ public abstract class AbstractPostgresqlUserStorage
 
             long createdAt = -1;
             int i = 1;
-            for (Map.Entry<String, Object> o : properties) {
+            for (Map.Entry<String, JsonNode> o : properties) {
                 if (o.getKey().equals(PRIMARY_KEY)) {
                     throw new RakamException(String.format("User property %s is invalid. It's used as primary key", PRIMARY_KEY), BAD_REQUEST);
                 }
@@ -219,7 +222,8 @@ public abstract class AbstractPostgresqlUserStorage
 
                 if (o.getKey().equals("created_at")) {
                     try {
-                        createdAt = DateTimeUtils.parseTimestamp(o.getValue());
+                        createdAt = DateTimeUtils.parseTimestamp(o.getValue().isNumber() ? o.getValue().numberValue()
+                                : o.getValue().textValue());
                     }
                     catch (Exception e) {
                         createdAt = Instant.now().toEpochMilli();
@@ -292,20 +296,20 @@ public abstract class AbstractPostgresqlUserStorage
         }
     }
 
-    public Object getJDBCValue(FieldType fieldType, Object value, Connection conn)
+    public Object getJDBCValue(FieldType fieldType, JsonNode value, Connection conn)
             throws SQLException
     {
-        if (value == null) {
+        if (value == NullNode.getInstance() || value == null) {
             return null;
         }
         if (fieldType.isArray()) {
-            if (value instanceof List) {
-                FieldType arrayType = fieldType.getArrayElementType();
-                List value1 = (List) value;
 
-                Object[] objects = new Object[value1.size()];
-                for (int i = 0; i < value1.size(); i++) {
-                    objects[i] = getJDBCValue(arrayType, value1.get(i), conn);
+            if (value.isArray()) {
+                FieldType arrayType = fieldType.getArrayElementType();
+
+                Object[] objects = new Object[value.size()];
+                for (int i = 0; i < value.size(); i++) {
+                    objects[i] = getJDBCValue(arrayType, value.get(i), conn);
                 }
                 return conn.createArrayOf(sqlArrayTypeName(arrayType), objects);
             }
@@ -329,33 +333,25 @@ public abstract class AbstractPostgresqlUserStorage
             case TIMESTAMP:
             case DATE:
                 try {
-                    return new Timestamp(DateTimeUtils.parseTimestamp(value));
+                    return new Timestamp(DateTimeUtils.parseTimestamp(value.isNumber() ? value.numberValue()
+                            : value.textValue()));
                 }
                 catch (Exception e) {
                     return null;
                 }
             case LONG:
-                if (value instanceof Number) {
-                    return ((Number) value).longValue();
-                }
-                return safeCast(Long::parseLong, value.toString());
+                return value.asLong();
             case DECIMAL:
             case DOUBLE:
-                if (value instanceof Number) {
-                    return ((Number) value).doubleValue();
-                }
-                return safeCast(Double::parseDouble, value.toString());
+                return value.asDouble();
             case INTEGER:
-                if (value instanceof Number) {
-                    return ((Number) value).intValue();
-                }
-                return safeCast(Integer::parseInt, value.toString());
+                return value.asInt();
             case STRING:
-                return value.toString();
+                return value.asText();
             case TIME:
                 return parseTime(value);
             case BOOLEAN:
-                return value instanceof Boolean ? value : !value.equals("0");
+                return value.asBoolean();
             default:
                 throw new UnsupportedOperationException();
         }
@@ -404,21 +400,21 @@ public abstract class AbstractPostgresqlUserStorage
                 .collect(Collectors.toList());
     }
 
-    private void createColumn(String project, Object id, String column, Object value)
+    private void createColumn(String project, Object id, String column, JsonNode value)
     {
         createColumnInternal(project, id, column, value, true);
     }
 
-    private void createColumnInternal(String project, Object id, String column, Object value, boolean retry)
+    private void createColumnInternal(String project, Object id, String column, JsonNode value, boolean retry)
     {
         // it must be called from a separated transaction, otherwise it may lock table and the other insert may cause deadlock.
         try (Connection conn = queryExecutor.getConnection()) {
             try {
-                if(value == null) {
+                if (value.equals(NullNode.getInstance())) {
                     return;
                 }
                 conn.createStatement().execute(format("alter table %s add column %s %s",
-                        getUserTable(project, false), checkTableColumn(column), getPostgresqlType(value.getClass())));
+                        getUserTable(project, false), checkTableColumn(column), getPostgresqlType(value)));
             }
             catch (SQLException e) {
                 Map<String, FieldType> fields = loadColumns(project);
@@ -601,7 +597,7 @@ public abstract class AbstractPostgresqlUserStorage
 
                 ResultSet resultSet = ps.executeQuery();
 
-                Map<String, Object> properties = new HashMap<>();
+                ObjectNode properties = JsonHelper.jsonObject();
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 int columnCount = metaData.getColumnCount() + 1;
 
@@ -609,14 +605,13 @@ public abstract class AbstractPostgresqlUserStorage
                     for (int i = 1; i < columnCount; i++) {
                         String key = metaData.getColumnName(i);
                         if (!key.equals(PRIMARY_KEY)) {
-                            Object value = resultSet.getObject(i);
-                            if(value == null) {
-                                continue;
+
+                            FieldType fieldType = PostgresqlMetastore.fromSql(metaData.getColumnType(i),
+                                    metaData.getColumnTypeName(i));
+                            JsonNode value = setValues(resultSet, i, fieldType);
+                            if(!value.equals(NullNode.getInstance())) {
+                                properties.set(key, value);
                             }
-                            if (value instanceof Timestamp) {
-                                value = ((Timestamp) value).toInstant();
-                            }
-                            properties.put(key, value);
                         }
                     }
                 }
@@ -628,56 +623,113 @@ public abstract class AbstractPostgresqlUserStorage
         });
     }
 
-    @Override
-    public void setUserProperty(String project, Object userId, Map<String, Object> properties)
+    private JsonNode setValues(ResultSet resultSet, int i, FieldType fieldType)
+            throws SQLException
     {
-        setUserProperty(project, userId, properties.entrySet(), false);
+        JsonNode node;
+        switch (fieldType) {
+            case STRING:
+                node = JsonHelper.textNode(resultSet.getString(i));
+                break;
+            case INTEGER:
+                node = JsonHelper.numberNode(resultSet.getInt(i));
+                break;
+            case LONG:
+                node = JsonHelper.numberNode(resultSet.getLong(i));
+                break;
+            case BOOLEAN:
+                node = JsonHelper.booleanNode(resultSet.getBoolean(i));
+                break;
+            case DATE:
+                node = JsonHelper.textNode(resultSet.getDate(i).toLocalDate().toString());
+                break;
+            case TIMESTAMP:
+                node = JsonHelper.textNode(resultSet.getTimestamp(i).toInstant().toString());
+                break;
+            case TIME:
+                node = JsonHelper.textNode(resultSet.getTime(i).toInstant().toString());
+                break;
+            case BINARY:
+                node = JsonHelper.binaryNode(resultSet.getBytes(i));
+                break;
+            case DOUBLE:
+            case DECIMAL:
+                node = JsonHelper.numberNode(resultSet.getDouble(i));
+                break;
+            default:
+                if (fieldType.isArray()) {
+                    ArrayNode jsonNodes = JsonHelper.jsonArray();
+                    Array array = resultSet.getArray(i);
+
+                    ResultSet rs = array.getResultSet();
+                    int arrIdx = 1;
+                    if (rs.next()) {
+                        jsonNodes.add(setValues(rs, arrIdx++, fieldType.getArrayElementType()));
+                    }
+
+                    node = jsonNodes;
+                }
+                else if (fieldType.isMap()) {
+                    PGobject pgObject = (PGobject) resultSet.getObject(i + 1);
+
+                    node = JsonHelper.read(pgObject.getValue());
+                }
+                else {
+                    throw new UnsupportedOperationException();
+                }
+        }
+
+        return resultSet.wasNull() ? NullNode.getInstance() : node;
     }
 
     @Override
-    public void setUserPropertyOnce(String project, Object userId, Map<String, Object> properties)
+    public void setUserProperty(String project, Object userId, ObjectNode properties)
     {
-        setUserProperty(project, userId, properties.entrySet(), true);
+        setUserProperty(project, userId, () -> properties.fields(), false);
     }
 
-    public void setUserProperty(String project, Object userId, Iterable<Map.Entry<String, Object>> _properties, boolean onlyOnce)
+    @Override
+    public void setUserPropertyOnce(String project, Object userId, ObjectNode properties)
+    {
+        setUserProperty(project, userId, () -> properties.fields(), true);
+    }
+
+    public void setUserProperty(String project, Object userId, Iterable<Map.Entry<String, JsonNode>> _properties, boolean onlyOnce)
     {
         if (userId == null) {
             throw new RakamException("User id is not set.", BAD_REQUEST);
         }
 
-        List<Map.Entry<String, Object>> properties = strip(_properties);
-        if (properties.isEmpty()) {
+        Iterable<Map.Entry<String, JsonNode>> properties = strip(_properties);
+        if (!properties.iterator().hasNext()) {
             return;
         }
 
         Map<String, FieldType> columns = createMissingColumns(project, userId, properties);
 
         StringBuilder builder = new StringBuilder("update " + getUserTable(project, false) + " set ");
-        Iterator<Map.Entry<String, Object>> entries = properties.iterator();
+        Iterator<Map.Entry<String, JsonNode>> entries = properties.iterator();
         boolean hasColumn = false;
-        if (entries.hasNext()) {
+        while (entries.hasNext()) {
+            Map.Entry<String, JsonNode> entry = entries.next();
 
-            while (entries.hasNext()) {
-                Map.Entry<String, Object> entry = entries.next();
-
-                if(!columns.containsKey(entry.getKey())) {
-                    continue;
-                }
-
-                if(!hasColumn) {
-                    hasColumn = true;
-                } else {
-                    builder.append(", ");
-                }
-
-                builder.append(checkTableColumn(entry.getKey()))
-                        .append((onlyOnce || entry.getKey().equals("created_at")) ?
-                                " = coalesce(" + checkTableColumn(entry.getKey()) + ", ?)" : " = ?");
+            if (!columns.containsKey(entry.getKey())) {
+                continue;
             }
+
+            if (!hasColumn) {
+                hasColumn = true;
+            }
+            else {
+                builder.append(", ");
+            }
+
+            builder.append(checkTableColumn(entry.getKey()))
+                    .append((onlyOnce || entry.getKey().equals("created_at")) ?
+                            " = coalesce(" + checkTableColumn(entry.getKey()) + ", ?)" : " = ?");
         }
 
-        if(!hasColumn) {
+        if (!hasColumn) {
             builder.append("created_at = created_at");
         }
 
@@ -686,7 +738,9 @@ public abstract class AbstractPostgresqlUserStorage
         try (Connection conn = queryExecutor.getConnection()) {
             PreparedStatement statement = conn.prepareStatement(builder.toString());
             int i = 1;
-            for (Map.Entry<String, Object> entry : properties) {
+            Iterator<Map.Entry<String, JsonNode>> fields = properties.iterator();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> entry = fields.next();
                 FieldType fieldType = columns.get(entry.getKey());
                 if (fieldType == null) {
                     continue;
@@ -719,24 +773,25 @@ public abstract class AbstractPostgresqlUserStorage
         }
     }
 
-    private String getPostgresqlType(Class clazz)
+    private String getPostgresqlType(JsonNode clazz)
     {
-        if (clazz.equals(String.class)) {
+        if (clazz.isTextual()) {
             return "text";
         }
-        else if (clazz.equals(Float.class) || clazz.equals(Double.class)) {
+        else if (clazz.isFloat() || clazz.isDouble()) {
             return "double precision";
         }
-        else if (Number.class.isAssignableFrom(clazz)) {
+        else if (clazz.isNumber()) {
             return "bigint";
         }
-        else if (clazz.equals(Boolean.class)) {
+        else if (clazz.isBoolean()) {
             return "bool";
         }
-        else if (Collection.class.isAssignableFrom(clazz)) {
-            return getPostgresqlType((Class) ((ParameterizedType) getClass().getGenericInterfaces()[0]).getActualTypeArguments()[0]) + "[]";
+        else if (clazz.isArray()) {
+            ;
+            return getPostgresqlType(clazz.get(0)) + "[]";
         }
-        else if (Map.class.isAssignableFrom(clazz)) {
+        else if (clazz.isObject()) {
             return "jsonb";
         }
         else {
@@ -771,18 +826,24 @@ public abstract class AbstractPostgresqlUserStorage
     @Override
     public void unsetProperties(String project, Object user, List<String> properties)
     {
-        setUserProperty(project, user, Iterables.transform(properties,
-                input -> new SimpleImmutableEntry<>(input, null)), false);
+        setUserProperty(project, user, Iterables.transform(properties, new com.google.common.base.Function<String, Map.Entry<String, JsonNode>>()
+        {
+            @Nullable
+            public Map.Entry<String, JsonNode> apply(@Nullable String input)
+            {
+                return new SimpleImmutableEntry<>(input, NullNode.getInstance());
+            }
+        }), false);
     }
 
     @Override
     public void incrementProperty(String project, Object userId, String property, double value)
     {
-        Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, value)));
+        Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, new DoubleNode(value))));
 
         FieldType fieldType = columns.get(property);
         if (fieldType == null) {
-            createColumn(project, userId, property, 0);
+            createColumn(project, userId, property, JsonHelper.numberNode(0));
         }
 
         if (!fieldType.isNumeric()) {
@@ -796,7 +857,7 @@ public abstract class AbstractPostgresqlUserStorage
             int execute = statement.executeUpdate("update " + getUserTable(project, false) +
                     " set " + tableRef + " = " + value + " + coalesce(" + tableRef + ", 0)");
             if (execute == 0) {
-                create(project, userId, ImmutableMap.of(property, value));
+                create(project, userId, JsonHelper.jsonObject().put(property, value));
             }
         }
         catch (SQLException e) {

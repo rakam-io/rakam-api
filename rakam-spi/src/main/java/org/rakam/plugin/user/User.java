@@ -2,6 +2,7 @@ package org.rakam.plugin.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.rakam.collection.Event;
 import org.rakam.server.http.annotations.ApiParam;
 
@@ -10,13 +11,13 @@ import java.util.Map;
 public class User
 {
     public Object id;
-    public final Map<String, Object> properties;
+    public final ObjectNode properties;
     public final UserContext api;
 
     @JsonCreator
     public User(@ApiParam("id") Object id,
             @ApiParam("api") UserContext api,
-            @ApiParam("properties") Map<String, Object> properties)
+            @ApiParam("properties") ObjectNode properties)
     {
         this.id = id;
         this.api = api;

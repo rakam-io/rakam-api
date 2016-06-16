@@ -5,6 +5,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.realtime.AggregationType;
@@ -23,7 +24,7 @@ import static java.lang.String.format;
 public interface UserStorage {
     String PRIMARY_KEY = "id";
 
-    Object create(String project, Object id, Map<String, Object> properties);
+    Object create(String project, Object id, ObjectNode properties);
 
     List<Object> batchCreate(String project, List<User> users);
 
@@ -35,9 +36,9 @@ public interface UserStorage {
 
     CompletableFuture<User> getUser(String project, Object userId);
 
-    void setUserProperty(String project, Object user, Map<String, Object> properties);
+    void setUserProperty(String project, Object user, ObjectNode properties);
 
-    void setUserPropertyOnce(String project, Object user, Map<String, Object> properties);
+    void setUserPropertyOnce(String project, Object user, ObjectNode properties);
 
     void createProjectIfNotExists(String project, boolean isNumeric);
 

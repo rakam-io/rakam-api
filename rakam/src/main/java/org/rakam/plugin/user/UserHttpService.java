@@ -302,7 +302,7 @@ public class UserHttpService
                     service.unsetProperties(project, req.id, data.unsetProperties);
                 }
                 if (data.incrementProperties != null) {
-                    for (Map.Entry<String, Long> entry : data.incrementProperties.entrySet()) {
+                    for (Map.Entry<String, Double> entry : data.incrementProperties.entrySet()) {
                         service.incrementProperty(project, req.id, entry.getKey(), entry.getValue());
                     }
                 }

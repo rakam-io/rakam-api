@@ -7,7 +7,6 @@ import com.snowplowanalytics.refererparser.Parser;
 import com.snowplowanalytics.refererparser.Referer;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -15,38 +14,46 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
+import org.rakam.util.MapProxyGenericRecord;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Map;
 
-public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
+public class ReferrerEventMapper
+        implements EventMapper, UserPropertyMapper
+{
 
     private final Parser parser;
 
-    public ReferrerEventMapper() {
+    public ReferrerEventMapper()
+    {
         try {
             parser = new Parser();
-        } catch (IOException | CorruptYamlException e) {
+        }
+        catch (IOException | CorruptYamlException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private void mapInternal(RequestParams extraProperties, Object referrer, Object host, GenericRecord record) {
+    private void mapInternal(RequestParams extraProperties, Object referrer, Object host, GenericRecord record)
+    {
         String hostUrl, referrerUrl;
         if (referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
             hostUrl = extraProperties.headers().get("Origin");
             referrerUrl = extraProperties.headers().get("Referer");
-        } else if (referrer instanceof String) {
+        }
+        else if (referrer instanceof String) {
             referrerUrl = (String) referrer;
             if (host instanceof String) {
                 hostUrl = (String) host;
-            } else {
+            }
+            else {
                 hostUrl = null;
             }
-        } else {
+        }
+        else {
             return;
         }
 
@@ -54,7 +61,8 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
         if (referrerUrl != null) {
             try {
                 parse = parser.parse(referrerUrl, hostUrl);
-            } catch (URISyntaxException e) {
+            }
+            catch (URISyntaxException e) {
                 return;
             }
             if (parse == null) {
@@ -75,7 +83,8 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders) {
+    public List<Cookie> map(Event event, RequestParams extraProperties, InetAddress sourceAddress, HttpHeaders responseHeaders)
+    {
         Object referrer = event.properties().get("_referrer");
         Object host = event.properties().get("_host");
         mapInternal(extraProperties, referrer, host, event.properties());
@@ -83,13 +92,14 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(String project, BatchUserOperation user, RequestParams extraProperties, InetAddress sourceAddress) {
+    public List<Cookie> map(String project, BatchUserOperation user, RequestParams extraProperties, InetAddress sourceAddress)
+    {
         for (BatchUserOperation.Data data : user.data) {
-            if(data.setProperties != null) {
+            if (data.setProperties != null) {
                 mapInternal(extraProperties, data.setProperties.get("_referrer"), data.setProperties.get("_host"), new MapProxyGenericRecord(data.setProperties));
             }
 
-            if(data.setPropertiesOnce != null) {
+            if (data.setPropertiesOnce != null) {
                 mapInternal(extraProperties, data.setPropertiesOnce.get("_referrer"), data.setPropertiesOnce.get("_host"), new MapProxyGenericRecord(data.setProperties));
             }
         }
@@ -97,7 +107,8 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public void addFieldDependency(FieldDependencyBuilder builder) {
+    public void addFieldDependency(FieldDependencyBuilder builder)
+    {
         ImmutableList<SchemaField> list = ImmutableList.of(
                 new SchemaField("_referrer_medium", FieldType.STRING),
                 new SchemaField("_referrer_source", FieldType.STRING),
@@ -105,39 +116,5 @@ public class ReferrerEventMapper implements EventMapper, UserPropertyMapper {
         );
         builder.addFields("_referrer", list);
         builder.addFields("_host", list);
-    }
-
-    private static class MapProxyGenericRecord implements GenericRecord {
-
-        private final Map<String, Object> properties;
-
-        public MapProxyGenericRecord(Map<String, Object> properties) {
-            this.properties = properties;
-        }
-
-        @Override
-        public Schema getSchema() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void put(int i, Object v) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Object get(int i) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void put(String key, Object v) {
-            properties.put(key, v);
-        }
-
-        @Override
-        public Object get(String key) {
-            return properties.get(key);
-        }
     }
 }

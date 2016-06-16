@@ -1,5 +1,6 @@
 package org.rakam.collection.mapper.geoip;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -21,6 +22,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
+import org.rakam.util.MapProxyGenericRecord;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -174,7 +176,7 @@ public class GeoIPEventMapper
         return null;
     }
 
-    public void mapInternal(String project, Map<String, Object> data, InetAddress sourceAddress)
+    public void mapInternal(String project, ObjectNode data, InetAddress sourceAddress)
     {
             Object ip = data.get("_ip");
 
@@ -311,48 +313,6 @@ public class GeoIPEventMapper
                     properties.put("_timezone", city.getLocation().getTimeZone());
                     break;
             }
-        }
-    }
-
-    private static class MapProxyGenericRecord
-            implements GenericRecord
-    {
-
-        private final Map<String, Object> properties;
-
-        public MapProxyGenericRecord(Map<String, Object> properties)
-        {
-            this.properties = properties;
-        }
-
-        @Override
-        public Schema getSchema()
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void put(int i, Object v)
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Object get(int i)
-        {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void put(String key, Object v)
-        {
-            properties.put(key, v);
-        }
-
-        @Override
-        public Object get(String key)
-        {
-            return properties.get(key);
         }
     }
 }

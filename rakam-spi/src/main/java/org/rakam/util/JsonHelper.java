@@ -8,8 +8,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BinaryNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NumericNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JSR310Module;
 import com.google.common.base.Throwables;
@@ -83,6 +87,23 @@ public class JsonHelper {
 
     public static ArrayNode jsonArray() {
         return jsonNodeFactory.arrayNode();
+    }
+
+    public static TextNode textNode(String value) {
+        return jsonNodeFactory.textNode(value);
+    }
+
+    public static BinaryNode binaryNode(byte[] value) {
+        return jsonNodeFactory.binaryNode(value);
+    }
+
+    public static BooleanNode booleanNode(boolean value) {
+        return jsonNodeFactory.booleanNode(value);
+    }
+
+    public static NumericNode numberNode(Number value) {
+        return jsonNodeFactory.numberNode((value instanceof Double || value instanceof Float) ?
+                value.doubleValue() : value.longValue());
     }
 
     public static <T extends JsonNode> T readSafe(String json) throws IOException {

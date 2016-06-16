@@ -2,6 +2,7 @@ package org.rakam.plugin.user;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.plugin.EventMapper;
 import org.rakam.server.http.annotations.ApiParam;
@@ -32,16 +33,16 @@ public interface UserPropertyMapper
 
         public static class Data
         {
-            @JsonProperty("set_properties") public final Map<String, Object> setProperties;
-            @JsonProperty("set_properties_once") public final Map<String, Object> setPropertiesOnce;
-            @JsonProperty("increment_properties") public final Map<String, Long> incrementProperties;
+            @JsonProperty("set_properties") public final ObjectNode setProperties;
+            @JsonProperty("set_properties_once") public final ObjectNode setPropertiesOnce;
+            @JsonProperty("increment_properties") public final Map<String, Double> incrementProperties;
             @JsonProperty("unset_properties") public final List<String> unsetProperties;
             @JsonProperty("time") public final Long time;
 
             @JsonCreator
-            public Data(@ApiParam("set_properties") Map<String, Object> setProperties,
-                    @ApiParam("set_properties_once") Map<String, Object> setPropertiesOnce,
-                    @ApiParam("increment_properties") Map<String, Long> incrementProperties,
+            public Data(@ApiParam("set_properties") ObjectNode setProperties,
+                    @ApiParam("set_properties_once") ObjectNode setPropertiesOnce,
+                    @ApiParam("increment_properties") Map<String, Double> incrementProperties,
                     @ApiParam("unset_properties") List<String> unsetProperties,
                     @ApiParam("time") Long time)
             {

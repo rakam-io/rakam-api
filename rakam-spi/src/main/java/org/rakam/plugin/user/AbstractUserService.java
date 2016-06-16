@@ -3,6 +3,7 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
@@ -23,7 +24,7 @@ public abstract class AbstractUserService {
         this.storage = storage;
     }
 
-    public Object create(String project, Object id, Map<String, Object> properties) {
+    public Object create(String project, Object id, ObjectNode properties) {
         return storage.create(project, id, properties);
     }
 
@@ -56,11 +57,11 @@ public abstract class AbstractUserService {
         return storage.getUser(project, user);
     }
 
-    public void setUserProperties(String project, Object user, Map<String, Object> properties) {
+    public void setUserProperties(String project, Object user, ObjectNode properties) {
         storage.setUserProperty(project, user, properties);
     }
 
-    public void setUserPropertiesOnce(String project, Object user, Map<String, Object> properties) {
+    public void setUserPropertiesOnce(String project, Object user, ObjectNode properties) {
         storage.setUserPropertyOnce(project, user, properties);
     }
 
