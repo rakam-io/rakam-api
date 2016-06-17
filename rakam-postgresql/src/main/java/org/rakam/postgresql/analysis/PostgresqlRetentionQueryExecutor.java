@@ -23,9 +23,7 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -33,7 +31,6 @@ import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
@@ -47,9 +44,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_DATE_TIME;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.DAY;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.collection.FieldType.INTEGER;
@@ -61,7 +56,6 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public class PostgresqlRetentionQueryExecutor
         extends AbstractRetentionQueryExecutor
 {
-
     private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
 
@@ -77,45 +71,14 @@ public class PostgresqlRetentionQueryExecutor
     public void setup()
     {
         try (Connection conn = executor.getConnection()) {
-            conn.createStatement().execute("CREATE EXTENSION IF NOT EXISTS plv8;\n" +
-                    "create or replace function analyze_retention_intermediate(arr integer[], ff boolean[]) returns integer[] volatile language plv8 as $$\n" +
-                    "\n" +
-                    " if(ff == null) return arr;\n" +
-                    " for(var i=0; i <= ff.length; i++) {\n" +
-                    "   if(ff[i] === true) {\n" +
-                    "   arr[i] = arr[i] == null ? 1 : (arr[i]+1)\n" +
-                    "   }\n" +
-                    " }\n" +
-                    "\n" +
-                    " return arr;\n" +
-                    "$$;" +
-
-                    "create or replace function public.generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plv8 as $$\n" +
-                    "\n" +
-                    " if(arr == null) {\n" +
-                    "  return null;\n" +
-                    " }\n" +
-                    " var steps = null;\n" +
-                    "\n" +
-                    " for(var i=0; i <= arr.length; i++) {\n" +
-                    "   var value = (arr[i]-start);\n" +
-                    "   if(value < 0) continue;\n" +
-                    "   \n" +
-                    "   var gap = value / durationmillis;\n" +
-                    "   if(gap > max_step) { \n" +
-                    "\tbreak; \n" +
-                    "   }\n" +
-                    "\n" +
-                    "   if(steps == null) {\n" +
-                    "       steps = new Array(Math.min(max_step, arr.length))\n" +
-                    "   }\n" +
-                    "\n" +
-                    "  //plv8.elog(ERROR, gap, value, start, durationmillis);\n" +
-                    "   steps[gap] = true;\n" +
-                    " }\n" +
-                    "\n" +
-                    " return steps;\n" +
-                    "$$;");
+            try {
+                conn.createStatement().execute(V8_RETENTION_FUNCTIONS);
+            }
+            catch (SQLException e) {
+                // plv8 is not available, fallback to pl/pgsql
+                conn.createStatement().execute(PL_PGGSQL_RETENTION_TIMELINE_FUNCTION);
+                conn.createStatement().execute(PL_PGGSQL_RETENTION_AGGREGATE_FUNCTION);
+            }
 
             try {
                 conn.createStatement().execute("CREATE AGGREGATE collect_retention(boolean[])\n" +
@@ -186,21 +149,26 @@ public class PostgresqlRetentionQueryExecutor
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
 
         String query = format("select %s, collect_retention(bits) from (\n" +
-                        "select %s, (case when (is_first and dates.date = any(timeline)) then \n" +
-                        "generate_timeline(dates.date::date, timeline, %d::bigint, 15) else null end) as bits from (\n" +
-                        "select %s %s, true  as is_first, array_agg(%s::date order by %s::date) as timeline from (%s) t group by 1 %s " +
+                        "select %s, (case when (not is_first %s) then \n" +
+                        "generate_timeline(%s, timeline, %d::bigint, 15) else null end) as bits from (\n" +
+                        "select %s %s, true as is_first, %s as timeline from (%s) t group by 1 %s " +
                         "UNION ALL " +
                         "select %s %s, false as is_first, array_agg(%s::date order by %s::date) as timeline from (%s) t group by 1 %s) t\n" +
-                        "cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s') date) dates \n" +
+                        "%s \n" +
                         ") t\n" +
                         "group by 1 order by 1 asc",
                 dimension.map(v -> "dimension").orElse("date"),
                 dimension.map(v -> "dimension").orElse("date"),
+                // do not check dimension value for first action dates.
+                dimension.map(v -> "").orElse("and dates.date = any(timeline)"),
+                dimension.map(v -> "timeline[1]").orElse("dates.date::date"),
                 dateUnit.getTemporalUnit().getDuration().toMillis(),
 
                 dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
                 CONNECTOR_FIELD,
-                format(timeColumn, "_time"), format(timeColumn, "_time"),
+                // if we're calculating by dimension, take the first event data for each user
+                dimension.map(val -> format("array[min(%s)]", format(timeColumn, "_time")))
+                        .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, "_time"), format(timeColumn, "_time"))),
                 firstActionQuery,
                 dimension.map(v -> ", 2").orElse(""),
 
@@ -210,9 +178,10 @@ public class PostgresqlRetentionQueryExecutor
                 returningActionQuery,
                 dimension.map(v -> ", 2").orElse(""),
 
+                dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
                 dateUnit.name().toLowerCase(Locale.ENGLISH), startDate.format(ISO_LOCAL_DATE),
                 dateUnit.name().toLowerCase(Locale.ENGLISH), endDate.format(ISO_LOCAL_DATE),
-                dateUnit.name().toLowerCase(Locale.ENGLISH));
+                dateUnit.name().toLowerCase(Locale.ENGLISH))));
 
         return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {
             if (result.isFailed()) {
@@ -223,7 +192,9 @@ public class PostgresqlRetentionQueryExecutor
                 Object date = objects.get(0);
                 Integer[] days = (Integer[]) objects.get(1);
                 for (int i = 0; i < days.length; i++) {
-                    rows.add(Arrays.asList(date, i == 0 ? null : i - 1, days[i]));
+                    if(days[i] != null) {
+                        rows.add(Arrays.asList(date, i == 0 ? null : ((long) i - 1), (long) days[i]));
+                    }
                 }
             }
             return new QueryResult(ImmutableList.of(
@@ -286,4 +257,106 @@ public class PostgresqlRetentionQueryExecutor
                     throw new UnsupportedOperationException();
                 }) : "");
     }
+
+    private static String PL_PGGSQL_RETENTION_AGGREGATE_FUNCTION = "create or replace function public.analyze_retention_intermediate(arr integer[], ff boolean[]) returns integer[] volatile language plpgsql as $$\n" +
+            "DECLARE \n" +
+            " i int;\n" +
+            "begin\n" +
+            " if ff is null then\n" +
+            "    return arr;\n" +
+            " end if;\n" +
+            " \n" +
+            "FOR i IN 1 .. array_upper(ff, 1)\n" +
+            " LOOP\n" +
+            "   if ff[i] = true then \n" +
+            "     if arr[i] is null then \n" +
+            "       arr[i] := 1;\n" +
+            "     ELSE\n" +
+            "       arr[i] := (arr[i]+1);\n" +
+            "     end if;\n" +
+            "   end if;\n" +
+            "END LOOP;\n" +
+            "return arr;\n" +
+            "END\n" +
+            "$$;";
+
+    private static String PL_PGGSQL_RETENTION_TIMELINE_FUNCTION =
+            "create or replace function public.generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plpgsql as $$\n" +
+            "DECLARE \n" +
+            " steps boolean[];\n" +
+            " value int;\n" +
+            " gap int;\n" +
+            " item date;\n" +
+            "BEGIN\n" +
+            " if arr is null then\n" +
+            "  return null;\n" +
+            " end if;\n" +
+            "\n" +
+            "-- substracting dates returns an integer that represents date diff\n" +
+            "durationmillis := durationmillis / 86400000; \n" +
+            "FOREACH item IN ARRAY arr\n" +
+            "LOOP\n" +
+            "   value := (item - start);\n" +
+            "\n" +
+            "   if value < 0 then \n" +
+            "      continue; \n" +
+            "   end if;\n" +
+            "   \n" +
+            "   gap := value / durationmillis;\n" +
+            "   if gap > max_step then \n" +
+            "      EXIT; \n" +
+            "   end if;\n" +
+            "\n" +
+            "   if steps is null then\n" +
+            "       steps = cast(ARRAY[] as boolean[]);\n" +
+            "       --steps = new Array(Math.min(max_step, arr.length))\n" +
+            "   end if;\n" +
+            "\n" +
+            "   steps[gap+1] := true;\n" +
+            "\n" +
+            " END LOOP;\n" +
+            "\n" +
+            " return steps;\n" +
+            "END\n" +
+            "$$;";
+
+    private static String V8_RETENTION_FUNCTIONS = "CREATE EXTENSION IF NOT EXISTS plv8;\n" +
+            "create or replace function analyze_retention_intermediate(arr integer[], ff boolean[]) returns integer[] volatile language plv8 as $$\n" +
+            "\n" +
+            " if(ff == null) return arr;\n" +
+            " for(var i=0; i <= ff.length; i++) {\n" +
+            "   if(ff[i] === true) {\n" +
+            "   arr[i] = arr[i] == null ? 1 : (arr[i]+1)\n" +
+            "   }\n" +
+            " }\n" +
+            "\n" +
+            " return arr;\n" +
+            "$$;" +
+
+            "create or replace function public.generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plv8 as $$\n" +
+            "\n" +
+            " if(arr == null) {\n" +
+            "  return null;\n" +
+            " }\n" +
+            " var steps = null;\n" +
+            "\n" +
+            " for(var i=0; i <= arr.length; i++) {\n" +
+            "   var value = (arr[i]-start);\n" +
+            "   if(value < 0) continue;\n" +
+            "   \n" +
+            "   var gap = value / durationmillis;\n" +
+            "   if(gap > max_step) { \n" +
+            "\tbreak; \n" +
+            "   }\n" +
+            "\n" +
+            "   if(steps == null) {\n" +
+            "       steps = new Array(Math.min(max_step, arr.length))\n" +
+            "   }\n" +
+            "\n" +
+            "  //plv8.elog(ERROR, gap, value, start, durationmillis);\n" +
+            "   steps[gap] = true;\n" +
+            " }\n" +
+            "\n" +
+            " return steps;\n" +
+            "$$;";
 }

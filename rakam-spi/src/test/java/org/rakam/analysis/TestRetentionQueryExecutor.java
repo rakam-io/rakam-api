@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import autovalue.shaded.com.google.common.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.EventBuilder;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
@@ -114,7 +115,7 @@ public abstract class TestRetentionQueryExecutor {
                 LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(result.isFailed());
-        assertEquals(result.getResult(), of(
+        assertEquals(ImmutableSet.copyOf(result.getResult()), ImmutableSet.of(
                 asList("test0", null, 1L),
                 asList("test0", 1L, 1L),
                 asList("test1", null, 1L)));

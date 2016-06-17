@@ -209,7 +209,7 @@ public class PostgresqlMetastore
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);
-            ResultSet columns = connection.getMetaData().getColumns("", project, collection, null);
+            ResultSet columns = connection.getMetaData().getColumns("", project, collection.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_"), null);
             HashSet<String> strings = new HashSet<>();
             while (columns.next()) {
                 String colName = columns.getString("COLUMN_NAME");

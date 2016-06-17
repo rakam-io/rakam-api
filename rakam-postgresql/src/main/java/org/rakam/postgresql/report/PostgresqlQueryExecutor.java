@@ -68,7 +68,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
         if (name.getPrefix().isPresent()) {
             switch (name.getPrefix().get().toString()) {
                 case "collection":
-                    return project + "." + name.getSuffix();
+                    return project + "." + checkCollection(name.getSuffix());
                 case "continuous":
                     final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, name.getSuffix());
                     StringBuilder builder = new StringBuilder();
