@@ -1,5 +1,7 @@
 package org.rakam.analysis;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import javax.validation.constraints.NotNull;
 
 public interface ConfigManager {
@@ -8,4 +10,7 @@ public interface ConfigManager {
     <T> void setConfig(String project, String configName, @NotNull T value);
 
     <T> T setConfigOnce(String project, String configName, @NotNull T clazz);
+
+    @VisibleForTesting
+    void clear();
 }

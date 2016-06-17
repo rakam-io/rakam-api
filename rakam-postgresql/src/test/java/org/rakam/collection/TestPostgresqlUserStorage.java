@@ -2,6 +2,7 @@ package org.rakam.collection;
 
 import com.google.common.eventbus.EventBus;
 import org.rakam.TestingEnvironment;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
@@ -24,6 +25,7 @@ public class TestPostgresqlUserStorage
     private TestingEnvironment testingPostgresqlServer;
     private PostgresqlMetastore metastore;
     private PostgresqlUserService userService;
+    private PostgresqlConfigManager configManager;
 
     @BeforeSuite
     @Override
@@ -43,7 +45,7 @@ public class TestPostgresqlUserStorage
 
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
 
-        PostgresqlConfigManager configManager = new PostgresqlConfigManager(dataSource);
+        configManager = new PostgresqlConfigManager(dataSource);
         configManager.setup();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(materializedViewService, configManager, queryExecutor);
         userService = new PostgresqlUserService(userStorage, metastore, queryExecutor);
@@ -54,6 +56,12 @@ public class TestPostgresqlUserStorage
     public AbstractUserService getUserService()
     {
         return userService;
+    }
+
+    @Override
+    public ConfigManager getConfigManager()
+    {
+        return configManager;
     }
 
     @Override

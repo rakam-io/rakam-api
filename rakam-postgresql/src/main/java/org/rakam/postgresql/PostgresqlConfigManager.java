@@ -72,6 +72,14 @@ public class PostgresqlConfigManager implements ConfigManager {
     }
 
     @Override
+    public void clear()
+    {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("DELETE FROM config").execute();
+        }
+    }
+
+    @Override
     public <T> void setConfig(String project, String configName, T value) {
         try (Handle handle = dbi.open()) {
             try {

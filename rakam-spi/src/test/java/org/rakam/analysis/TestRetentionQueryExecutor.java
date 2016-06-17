@@ -51,6 +51,7 @@ public abstract class TestRetentionQueryExecutor {
     @AfterSuite
     protected void clean() {
         getMetastore().deleteProject(PROJECT_NAME);
+
     }
 
     public abstract EventStore getEventStore();

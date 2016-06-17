@@ -2,6 +2,7 @@ package org.rakam.collection;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.User;
@@ -63,6 +64,7 @@ public abstract class TestUserStorage
             throws Exception
     {
         getUserService().dropProject(PROJECT_NAME);
+        getConfigManager().clear();
     }
 
     @Test
@@ -336,6 +338,8 @@ public abstract class TestUserStorage
     }
 
     public abstract AbstractUserService getUserService();
+
+    public abstract ConfigManager getConfigManager();
 
     public abstract Metastore getMetastore();
 }

@@ -24,4 +24,10 @@ public class TestConfigManager implements ConfigManager {
         table.column(project).putIfAbsent(configName, clazz);
         return null;
     }
+
+    @Override
+    public void clear()
+    {
+        table.clear();
+    }
 }
