@@ -1,7 +1,7 @@
 package org.rakam.analysis;
 
-import autovalue.shaded.com.google.common.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.rakam.EventBuilder;
 import org.rakam.analysis.RetentionQueryExecutor.RetentionAction;
 import org.rakam.analysis.metadata.Metastore;

@@ -1,6 +1,5 @@
 package org.rakam.postgresql.plugin.user;
 
-import autovalue.shaded.com.google.common.common.collect.Iterators;
 import com.facebook.presto.sql.ExpressionFormatter;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,8 +17,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import org.apache.avro.ValidateAll;
-import org.apache.avro.data.Json;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
@@ -36,11 +33,9 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.annotation.Nullable;
 
-import java.lang.reflect.ParameterizedType;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -53,9 +48,6 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
