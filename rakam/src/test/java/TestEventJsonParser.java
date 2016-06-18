@@ -169,7 +169,6 @@ public class TestEventJsonParser {
                 .createEvent("test", properties).properties(), event.properties());
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "'collection' field must be located before 'properties' field.")
     public void testInvalidOrder() throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
