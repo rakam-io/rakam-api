@@ -56,5 +56,14 @@ public class PostgresqlFunnelQueryExecutor
             throw Throwables.propagate(e);
         }
     }
+
+    @Override
+    public String getTemplate()
+    {
+        return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
+                "select %s array_agg(step order by _time) as steps from (%s) t WHERE _time between date '%s' and date '%s'\n" +
+                "group by %s %s\n" +
+                ") t group by 1 %s order by 1";
+    }
 }
 

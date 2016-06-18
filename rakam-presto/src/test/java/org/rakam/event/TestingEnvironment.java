@@ -106,6 +106,7 @@ public class TestingEnvironment {
                                     .put("aws.access-key", "JVKUio6AZTZ9oQgpbTlVeRcyhTo7zivi3oHa1IYg")
                                     .put("aws.region", "eu-central-1")
                                     .put("aws.enable-cloudwatch", "false")
+                                    .put("kinesis.consumer-dynamodb-table", "rakamtest")
                                     .put("middleware.max-flush-records", "1")
                                     .put("stream.max-flush-records", "1");
 
@@ -158,6 +159,7 @@ public class TestingEnvironment {
                 postgresqlConfig = new JDBCConfig()
                         .setUrl(testingPostgresqlServer.getJdbcUrl())
                         .setUsername(testingPostgresqlServer.getUser());
+                System.out.println("postgresql config: "+postgresqlConfig);
             }
         } catch (Exception e) {
             throw propagate(e);

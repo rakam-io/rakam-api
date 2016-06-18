@@ -56,6 +56,8 @@ public abstract class AbstractFunnelQueryExecutor
         this.executor = executor;
     }
 
+    public abstract String getTemplate();
+
     public QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
@@ -69,10 +71,7 @@ public abstract class AbstractFunnelQueryExecutor
                 .collect(Collectors.joining(" UNION ALL "));
 
         String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
-        String query = format("select %s get_funnel_step(steps) step, count(*) total from (\n" +
-                        "select %s array_agg(step) as steps from (%s) t WHERE _time between date '%s' and date '%s'\n" +
-                        "group by %s %s\n" +
-                        ") t group by 1 %s order by 1", dimensionCol, dimensionCol, ctes,
+        String query = format(getTemplate(), dimensionCol, dimensionCol, ctes,
                 startDate.format(ISO_LOCAL_DATE),
                 endDate.format(ISO_LOCAL_DATE),
                 dimensionCol, CONNECTOR_FIELD,

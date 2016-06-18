@@ -40,14 +40,17 @@ public abstract class TestFunnelQueryExecutor {
                     ImmutableMap.<String, Object>builder()
                             .put("teststr", "test" + (i % 2))
                             .put("_user", "test" + (i % 3))
-                            .put("_time", Instant.ofEpochSecond(i * 100)).build())).collect(Collectors.toList());
+                            .put("_time", Instant.ofEpochSecond((i * 100) + finalCIdx)).build())).collect(Collectors.toList());
 
             getEventStore().storeBatch(events);
         }
     }
 
     @AfterSuite
-    public void destroy() {
+    public void destroy()
+            throws InterruptedException
+    {
+//        Thread.sleep(100000000);
         getMetastore().deleteProject(PROJECT_NAME);
     }
 
@@ -105,8 +108,11 @@ public abstract class TestFunnelQueryExecutor {
 
         assertFalse(query.isFailed());
         assertEquals(ImmutableSet.copyOf(query.getResult()),
-                ImmutableSet.of(of("Step 1", "test0", 3L), of("Step 1", "test1", 3L),
-                        of("Step 2", "test0", 3L), of("Step 2", "test1", 3L)));
+                ImmutableSet.of(
+                        of("Step 1", "test0", 3L),
+                        of("Step 1", "test1", 3L),
+                        of("Step 2", "test0", 3L),
+                        of("Step 2", "test1", 3L)));
     }
 
     @Test
@@ -120,19 +126,6 @@ public abstract class TestFunnelQueryExecutor {
         assertFalse(query.isFailed());
         assertEquals(query.getResult(), of(of("Step 1", "test1", 3L), of("Step 2", "test1", 3L)));
     }
-
-//    @Test
-//    public void testInterval() throws Exception {
-//        QueryResult query = getFunnelQueryExecutor().query(PROJECT_NAME,
-//                of(new FunnelStep("test0", null)),
-//                Optional.empty(),
-//                LocalDate.ofEpochDay(1000),
-//                LocalDate.ofEpochDay(1001), 30, DAY).getResult().join();
-//
-//        assertFalse(query.isFailed());
-//        System.out.println(query.getResult());
-//        assertEquals(query.getResult(), of(of("Step 1", 0L)));
-//    }
 
     @Test
     public void testSameConnectorAndDimension() throws Exception {
