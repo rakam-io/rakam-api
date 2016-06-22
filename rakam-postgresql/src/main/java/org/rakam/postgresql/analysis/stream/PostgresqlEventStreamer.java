@@ -76,7 +76,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
             if (!queue.isEmpty()) {
                 builder.append(queue.poll());
                 for (int i = 1; i < queue.size(); i++) {
-                    builder.append(", " + queue.poll());
+                    builder.append(", ").append(queue.poll());
                 }
             }
             builder.append(']');
