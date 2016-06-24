@@ -31,7 +31,7 @@ public class PostgresqlFunnelQueryExecutor
     @Inject
     public PostgresqlFunnelQueryExecutor(PostgresqlQueryExecutor executor)
     {
-        super(executor);
+        super(executor, '"');
         this.executor = executor;
     }
 

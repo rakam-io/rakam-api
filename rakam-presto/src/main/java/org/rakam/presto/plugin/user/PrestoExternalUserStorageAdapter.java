@@ -145,7 +145,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
         ArrayList<String> filterList = new ArrayList<>(3);
         if (filter.filterExpression != null) {
-            filterList.add(formatExpression(filter.getExpression(), reference -> executor.formatTableReference(project, reference)));
+            filterList.add(formatExpression(filter.getExpression(), reference -> executor.formatTableReference(project, reference), '"'));
         }
         if (filter.timeframe != null) {
             if (filter.timeframe.start != null) {
@@ -173,7 +173,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {
                 field = "collection._user";
             } else {
-                field = "collection.\"" + checkTableColumn(filter.aggregation.field, "aggregation field")+"\"";
+                field = "collection.\"" + checkTableColumn(filter.aggregation.field, "aggregation field", '"')+"\"";
             }
 
             if (config.getEnableUserMapping()) {

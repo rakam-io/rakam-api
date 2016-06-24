@@ -23,7 +23,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.user.WebUser.UserApiKey;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
 
 import javax.ws.rs.GET;
@@ -40,7 +40,6 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
-import static org.rakam.util.JsonResponse.error;
 
 @Path("/ui/user")
 @IgnoreApi
@@ -70,18 +69,18 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
 
     @Path("/update/password")
-    public JsonResponse update(@ApiParam("oldPassword") String oldPassword,
+    public SuccessMessage update(@ApiParam("oldPassword") String oldPassword,
                                @ApiParam("newPassword") String newPassword,
                                @CookieParam("session") String session) {
         service.updateUserPassword(extractUserFromCookie(session, encryptionConfig.getSecretKey()), oldPassword, newPassword);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest
     @Path("/update/info")
-    public JsonResponse update(@ApiParam("name") String name, @CookieParam("session") String session) {
+    public SuccessMessage update(@ApiParam("name") String name, @CookieParam("session") String session) {
         service.updateUserInfo(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest
@@ -109,12 +108,12 @@ public class WebUserHttpService extends HttpService {
     @JsonRequest
 
     @Path("/delete-project")
-    public JsonResponse deleteProject(@ApiParam("name") String name,
+    public SuccessMessage deleteProject(@ApiParam("name") String name,
                                       @ApiParam("api_url") String apiUrl,
                                       @CookieParam("session") String session) {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
         service.deleteProject(user, apiUrl, name);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest
@@ -130,9 +129,9 @@ public class WebUserHttpService extends HttpService {
 
     @JsonRequest
     @Path("/revoke-api-keys")
-    public JsonResponse revokeApiKeys(@HeaderParam("project") int project, @ApiParam("master_key") String key, @CookieParam("session") String session) {
+    public SuccessMessage revokeApiKeys(@HeaderParam("project") int project, @ApiParam("master_key") String key, @CookieParam("session") String session) {
         service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, key);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
 
@@ -148,27 +147,27 @@ public class WebUserHttpService extends HttpService {
     @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
 
     @Path("/prepare-recover-password")
-    public JsonResponse prepareRecoverPassword(@ApiParam("email") String email) {
+    public SuccessMessage prepareRecoverPassword(@ApiParam("email") String email) {
         service.prepareRecoverPassword(email);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
 
     @Path("/perform-recover-password")
-    public JsonResponse performRecoverPassword(@ApiParam("key") String key,
+    public SuccessMessage performRecoverPassword(@ApiParam("key") String key,
                                                @ApiParam("hash") String hash,
                                                @ApiParam("password") String password) {
         service.performRecoverPassword(key, hash, password);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest
 
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
-    public JsonResponse revokeUserAccess(@CookieParam("session") String session,
+    public SuccessMessage revokeUserAccess(@CookieParam("session") String session,
                                          @HeaderParam("project") int project,
                                          @ApiParam("email") String email) {
         Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
@@ -177,13 +176,13 @@ public class WebUserHttpService extends HttpService {
         }
 
         service.revokeUserAccess(user.get().id, project, email);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest
 
     @Path("/give-user-access")
-    public JsonResponse giveUserAccess(@CookieParam("session") String session,
+    public SuccessMessage giveUserAccess(@CookieParam("session") String session,
                                        @HeaderParam("project") int project,
                                        @ApiParam("email") String email,
                                        @ApiParam(value = "scope_expression", required = false) String scopeExpression,
@@ -200,11 +199,10 @@ public class WebUserHttpService extends HttpService {
 
         service.giveAccessToUser(project, user.get().id, email, keys, scopeExpression,
                 readPermission, writePermission, masterPermission);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @GET
-
     @Path("/me")
     public void me(RakamHttpRequest request) {
         String cookie = request.headers().get(COOKIE);
@@ -250,7 +248,7 @@ public class WebUserHttpService extends HttpService {
     }
 
     private FullHttpResponse unauthorized(Optional<String> jsonp) {
-        String encode = JsonHelper.encode(error(UNAUTHORIZED.reasonPhrase()));
+        String encode = JsonHelper.encode(UNAUTHORIZED.reasonPhrase());
         if (jsonp.isPresent()) {
             encode = jsonp.get() + "(" + encode + ")";
         }
@@ -282,8 +280,8 @@ public class WebUserHttpService extends HttpService {
 
     @GET
     @Path("/logout")
-    public Response<JsonResponse> logout() {
-        return Response.ok(JsonResponse.success()).addCookie("session", "", null, true, -1L, "/", null);
+    public Response<SuccessMessage> logout() {
+        return Response.ok(SuccessMessage.success()).addCookie("session", "", null, true, -1L, "/", null);
     }
 
     private Response getLoginResponseForUser(WebUser user) {

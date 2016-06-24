@@ -40,7 +40,10 @@ public interface UserStorage {
 
     void setUserPropertyOnce(String project, Object user, ObjectNode properties);
 
-    void createProjectIfNotExists(String project, boolean isNumeric);
+    default void createProjectIfNotExists(String project, boolean isNumeric)
+    {
+
+    }
 
     void incrementProperty(String project, Object user, String property, double value);
 

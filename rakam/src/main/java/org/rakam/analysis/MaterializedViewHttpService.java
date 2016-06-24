@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryError;
@@ -10,19 +11,23 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 
 @Path("/materialized-view")
 @Api(value = "/materialized-view", nickname = "materializedView", description = "Materialized View", tags = "materialized-view")
@@ -82,32 +87,32 @@ public class MaterializedViewHttpService extends HttpService {
     @ApiOperation(value = "Create view", authorizations = @Authorization(value = "master_key"))
 
     @Path("/create")
-    public CompletableFuture<JsonResponse> createView(@javax.inject.Named("project") String project, @BodyParam MaterializedView query) {
-        return service.create(project, query).thenApply(res -> JsonResponse.success());
+    public CompletableFuture<SuccessMessage> createView(@javax.inject.Named("project") String project, @BodyParam MaterializedView query) {
+        return service.create(project, query).thenApply(res -> SuccessMessage.success());
     }
 
     @JsonRequest
     @ApiOperation(value = "Delete materialized view", authorizations = @Authorization(value = "master_key"))
 
     @Path("/delete")
-    public CompletableFuture<JsonResponse> deleteView(@javax.inject.Named("project") String project,
+    public CompletableFuture<SuccessMessage> deleteView(@javax.inject.Named("project") String project,
                                                   @ApiParam("table_name") String name) {
         return service.delete(project, name)
-                .thenApply(result -> JsonResponse.result(result.getError() == null));
+                .thenApply(result -> {
+                    if(result.getError() == null) {
+                        return SuccessMessage.success();
+                    } else {
+                        throw new RakamException(result.getError().message, INTERNAL_SERVER_ERROR);
+                    }
+                });
     }
 
-    /**
-     * Invalidate previous cached data, executes the materialized view query and caches it.
-     * This feature is similar to UPDATE MATERIALIZED VIEWS in RDBMSs.
-     * <p>
-     * curl 'http://localhost:9999/materialized-view/update' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits"}'
-     *
-     * @param request http request object
-     */
     @GET
+    @Consumes("text/event-stream")
     @Path("/update")
-    @ApiOperation(value = "Update view", authorizations = @Authorization(value = "master_key"))
-
+    @ApiOperation(value = "Update view", authorizations = @Authorization(value = "master_key"), notes = "Invalidate previous cached data, executes the materialized view query and caches it.\n" +
+            "This feature is similar to UPDATE MATERIALIZED VIEWS in RDBMSs.")
+    @IgnoreApi
     public void update(RakamHttpRequest request) {
         queryService.handleServerSentQueryExecution(request, MaterializedViewRequest.class,
                 (project, query) -> {

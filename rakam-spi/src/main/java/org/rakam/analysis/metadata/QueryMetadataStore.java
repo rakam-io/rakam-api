@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture;
 public interface QueryMetadataStore {
     void createMaterializedView(String project, MaterializedView materializedView);
 
-    void deleteMaterializedView(String project, String name);
+    void deleteMaterializedView(String project, String tableName);
 
     MaterializedView getMaterializedView(String project, String tableName);
 
@@ -23,11 +23,9 @@ public interface QueryMetadataStore {
 
     void createContinuousQuery(String project, ContinuousQuery report);
 
-    void deleteContinuousQuery(String project, String name);
+    void deleteContinuousQuery(String project, String tableName);
 
     List<ContinuousQuery> getContinuousQueries(String project);
 
     ContinuousQuery getContinuousQuery(String project, String tableNme);
-
-    Map<String, Collection<ContinuousQuery>> getAllContinuousQueries();
 }

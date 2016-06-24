@@ -26,6 +26,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.TransactionStatus;
@@ -53,7 +54,9 @@ import static com.facebook.presto.spi.type.ParameterKind.TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoMetastore extends AbstractMetastore {
     private static final Logger LOGGER = Logger.get(PrestoMetastore.class);
@@ -115,7 +118,7 @@ public class PrestoMetastore extends AbstractMetastore {
             List<SchemaField> currentFields = new ArrayList<>();
 
             if (!getProjects().contains(project)) {
-                throw new NotExistsException("project", BAD_REQUEST);
+                throw new NotExistsException("Project");
             }
             String queryEnd = fields.stream()
                     .map(f -> {
@@ -130,8 +133,8 @@ public class PrestoMetastore extends AbstractMetastore {
             String properties = fields.stream().anyMatch(f -> f.getName().equals("_time") && f.getType() == FieldType.DATE) ?
                     "WITH(temporal_column = '_time')" : "";
 
-            query = format("CREATE TABLE %s.\"%s\".\"%s\" (%s) %s ",
-                    prestoConfig.getColdStorageConnector(), project, collection, queryEnd, properties);
+            query = format("CREATE TABLE %s.\"%s\".%s (%s) %s ",
+                    prestoConfig.getColdStorageConnector(), project, checkCollection(collection), queryEnd, properties);
             QueryResult join = new PrestoQueryExecution(defaultSession, query).getResult().join();
             if (join.isFailed()) {
                 if (join.getError().message.contains("exists") || join.getError().message.equals("Failed to perform metadata operation")) {
@@ -155,14 +158,14 @@ public class PrestoMetastore extends AbstractMetastore {
                     .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
                     .forEach(f -> {
                         newFields.add(f);
-                        String q = format("ALTER TABLE %s.\"%s\".\"%s\" ADD COLUMN \"%s\" %s",
-                                prestoConfig.getColdStorageConnector(), project, collection,
-                                f.getName(), toSql(f.getType()));
+                        String q = format("ALTER TABLE %s.%s.%s ADD COLUMN %s %s",
+                                prestoConfig.getColdStorageConnector(), project, checkCollection(collection),
+                                checkTableColumn(f.getName()), toSql(f.getType()));
                         QueryResult join = new PrestoQueryExecution(defaultSession, q).getResult().join();
                         if (join.isFailed()) {
                             // FIXME: Presto Raptor connector has a bug when new columns are added concurrently.
                             if (join.getError().message.equals("Failed to perform metadata operation")) {
-                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 1);
+                                getOrCreateCollectionFields(project, checkCollection(collection), ImmutableSet.of(f), 1);
                             } else if (!join.getError().message.contains("exists")) {
                                 throw new IllegalStateException(join.getError().message);
                             }
@@ -175,12 +178,6 @@ public class PrestoMetastore extends AbstractMetastore {
         super.onCreateCollection(project, collection, schemaFields);
         return lastFields;
     }
-
-    @Override
-    public Map<String, Set<String>> getAllCollections() {
-        return getProjects().stream().collect(Collectors.toMap(a -> a, a -> getCollectionNames(a)));
-    }
-
 
     @Override
     public List<SchemaField> getCollection(String project, String collection) {

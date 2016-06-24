@@ -40,11 +40,6 @@ public class InMemoryApiKeyService implements ApiKeyService {
                 .removeIf(e -> e.masterKey().equals(masterKey));
     }
 
-    @Override
-    public boolean checkPermission(String project, AccessKeyType type, String apiKey) {
-        return apiKeys.getOrDefault(project, ImmutableList.of()).stream().anyMatch(a -> apiKey.equals(getKey(a, type)));
-    }
-
     private String getKey(ProjectApiKeys keys, AccessKeyType type) {
         switch (type) {
             case MASTER_KEY:

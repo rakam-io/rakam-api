@@ -100,7 +100,7 @@ public class PostgresqlPseudoContinuousQueryService
 
         StringBuilder builder = new StringBuilder();
         new QueryFormatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName))
+                executor.formatTableReference(project, qualifiedName), '"')
                 .process(continuousQuery.getQuery(), 1);
 
         QueryExecution execution = executor

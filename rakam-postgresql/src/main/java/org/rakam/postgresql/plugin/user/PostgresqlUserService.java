@@ -4,9 +4,10 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecution;
@@ -37,8 +38,8 @@ public class PostgresqlUserService extends AbstractUserService {
     private final UserStorage storage;
 
     @Inject
-    public PostgresqlUserService(UserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor) {
-        super(storage);
+    public PostgresqlUserService(UserStorage storage, UserPluginConfig config, EventStore eventStore, Metastore metastore, PostgresqlQueryExecutor executor) {
+        super(storage, config, eventStore);
         this.storage = storage;
         this.metastore = metastore;
         this.executor = executor;

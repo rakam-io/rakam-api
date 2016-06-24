@@ -15,7 +15,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
@@ -26,8 +25,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.JsonResponse;
-import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Named;
 import javax.ws.rs.GET;
@@ -35,12 +33,10 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
@@ -77,11 +73,11 @@ public class RecipeHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Install recipe",
-            authorizations = @Authorization(value = "master_key")
+            authorizations = @Authorization(value = "master_key"), response = SuccessMessage.class
     )
     @POST
     @Path("/install")
-    public void install(RakamHttpRequest request) {
+    public void installRecipe(RakamHttpRequest request) {
         String contentType = request.headers().get(CONTENT_TYPE);
         ExportType exportType = Arrays.stream(ExportType.values())
                 .filter(f -> f.contentType.equals(contentType))
@@ -106,7 +102,7 @@ public class RecipeHttpService extends HttpService {
 
             try {
                 installer.install(recipe, project, override);
-                request.response(JsonHelper.encode(JsonResponse.success())).end();
+                request.response(JsonHelper.encode(SuccessMessage.success())).end();
             } catch (Exception e) {
                 returnError(request, "Error loading recipe: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);
             }
@@ -118,7 +114,7 @@ public class RecipeHttpService extends HttpService {
     )
     @GET
     @Path("/export")
-    public void export(@HeaderParam("Accept") String contentType, @Named("project") String project, RakamHttpRequest request) throws JsonProcessingException {
+    public void exportRecipe(@HeaderParam("Accept") String contentType, @Named("project") String project, RakamHttpRequest request) throws JsonProcessingException {
         request.bodyHandler(s -> {
             Recipe export = installer.export(project);
 

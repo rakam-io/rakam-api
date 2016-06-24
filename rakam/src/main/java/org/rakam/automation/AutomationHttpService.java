@@ -7,7 +7,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -31,9 +31,9 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/add")
-    public JsonResponse addRule(@Named("project") String project, @BodyParam AutomationRule rule) {
+    public SuccessMessage addRule(@Named("project") String project, @BodyParam AutomationRule rule) {
         service.add(project, rule);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @ApiOperation(value = "Remove rule",
@@ -41,9 +41,9 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/remove")
-    public JsonResponse removeRule(@Named("project") String project, @ApiParam("id") int id) {
+    public SuccessMessage removeRule(@Named("project") String project, @ApiParam("id") int id) {
         service.remove(project, id);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @ApiOperation(value = "Deactivate rule",
@@ -51,9 +51,9 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/deactivate")
-    public JsonResponse deactivateRule(@Named("project") String project, @ApiParam("id") int id) {
+    public SuccessMessage deactivateRule(@Named("project") String project, @ApiParam("id") int id) {
         service.deactivate(project, id);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @ApiOperation(value = "Activate rule",
@@ -61,9 +61,9 @@ public class AutomationHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/activate")
-    public JsonResponse activateRule(@Named("project") String project, @ApiParam("id") int id) {
+    public SuccessMessage activateRule(@Named("project") String project, @ApiParam("id") int id) {
         service.activate(project, id);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @ApiOperation(value = "List scenarios",

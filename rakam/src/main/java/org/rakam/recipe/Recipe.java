@@ -11,12 +11,14 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
 import javax.inject.Inject;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class Recipe {
+public class Recipe
+{
     private final Strategy strategy;
     private final Map<String, Collection> collections;
     private final List<MaterializedView> materializedViews;
@@ -24,9 +26,10 @@ public class Recipe {
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
-                  @JsonProperty("collections") Map<String, Collection> collections,
-                  @JsonProperty("materialized_views") List<MaterializedView> materializedQueries,
-                  @JsonProperty("continuous_queries") List<ContinuousQuery> continuousQueries) {
+            @JsonProperty("collections") Map<String, Collection> collections,
+            @JsonProperty("materialized_views") List<MaterializedView> materializedQueries,
+            @JsonProperty("continuous_queries") List<ContinuousQuery> continuousQueries)
+    {
         this.strategy = strategy;
         this.collections = collections != null ? ImmutableMap.copyOf(collections) : ImmutableMap.of();
         this.materializedViews = materializedQueries == null ? ImmutableList.of() : ImmutableList.copyOf(materializedQueries);
@@ -34,35 +37,42 @@ public class Recipe {
     }
 
     @JsonProperty("strategy")
-    public Strategy getStrategy() {
+    public Strategy getStrategy()
+    {
         return strategy;
     }
 
     @JsonProperty("collections")
-    public Map<String, Collection> getCollections() {
+    public Map<String, Collection> getCollections()
+    {
         return collections;
     }
 
     @JsonProperty("materialized_views")
-    public List<MaterializedView> getMaterializedViewBuilders() {
+    public List<MaterializedView> getMaterializedViewBuilders()
+    {
         return materializedViews;
     }
 
     @JsonProperty("continuous_queries")
-    public List<ContinuousQuery> getContinuousQueryBuilders() {
+    public List<ContinuousQuery> getContinuousQueryBuilders()
+    {
         return continuousQueries;
     }
 
-    public static class Collection {
+    public static class Collection
+    {
         public final List<Map<String, SchemaFieldInfo>> columns;
 
         @JsonCreator
-        public Collection(@JsonProperty("columns") List<Map<String, SchemaFieldInfo>> columns) {
+        public Collection(@JsonProperty("columns") List<Map<String, SchemaFieldInfo>> columns)
+        {
             this.columns = columns;
         }
 
         @JsonIgnore
-        public List<SchemaField> build() {
+        public List<SchemaField> build()
+        {
             return columns.stream()
                     .map(column -> {
                         Map.Entry<String, SchemaFieldInfo> next = column.entrySet().iterator().next();
@@ -71,23 +81,27 @@ public class Recipe {
         }
     }
 
-    public static class SchemaFieldInfo {
+    public static class SchemaFieldInfo
+    {
         public final String category;
         public final FieldType type;
 
         @JsonCreator
         public SchemaFieldInfo(@JsonProperty("category") String category,
-                               @JsonProperty("type") FieldType type) {
+                @JsonProperty("type") FieldType type)
+        {
             this.category = category;
             this.type = type;
         }
     }
 
-    public enum Strategy {
+    public enum Strategy
+    {
         DEFAULT, SPECIFIC;
 
         @JsonCreator
-        public static Strategy get(String name) {
+        public static Strategy get(String name)
+        {
             return valueOf(name.toUpperCase());
         }
     }

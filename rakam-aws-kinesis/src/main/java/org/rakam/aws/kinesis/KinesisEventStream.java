@@ -1,4 +1,4 @@
-package org.rakam.aws;
+package org.rakam.aws.kinesis;
 
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.JsonBodyGenerator;

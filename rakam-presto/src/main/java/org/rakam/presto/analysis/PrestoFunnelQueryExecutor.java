@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -55,7 +56,7 @@ public class PrestoFunnelQueryExecutor
     @Inject
     public PrestoFunnelQueryExecutor(QueryExecutorService executorService, QueryExecutor executor, MaterializedViewService materializedViewService, ContinuousQueryService continuousQueryService)
     {
-        super(executor);
+        super(executor, '"');
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
         this.executorService = executorService;
@@ -136,9 +137,9 @@ public class PrestoFunnelQueryExecutor
         }
         else {
             Optional<String> filterExp = funnelStep.getExpression().map(value -> "AND " + RakamSqlFormatter.formatExpression(value,
-                    name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
+                    name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
                     name -> checkCollection(funnelStep.getCollection()) + "." + name.getParts().stream()
-                            .map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))));
+                            .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
             String merged = format("step%d.date, %s intersection(merge_sets(step%d.\"%s_set\"), merge_sets(step%d.\"%s_set\")) as %s_set",
                     idx, dimension.map(v -> "step" + idx + ".dimension, ").orElse(""), idx, connectorField, idx - 1, connectorField, connectorField);

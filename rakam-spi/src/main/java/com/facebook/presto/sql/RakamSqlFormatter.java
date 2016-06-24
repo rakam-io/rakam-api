@@ -56,6 +56,7 @@ import com.facebook.presto.sql.tree.ShowSchemas;
 import com.facebook.presto.sql.tree.ShowSession;
 import com.facebook.presto.sql.tree.ShowTables;
 import com.facebook.presto.sql.tree.SingleColumn;
+import com.facebook.presto.sql.tree.SortItem;
 import com.facebook.presto.sql.tree.Table;
 import com.facebook.presto.sql.tree.TableSubquery;
 import com.facebook.presto.sql.tree.Union;
@@ -83,15 +84,15 @@ public final class RakamSqlFormatter {
     private RakamSqlFormatter() {
     }
 
-    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper) {
+    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier) {
         StringBuilder builder = new StringBuilder();
-        new Formatter(builder, tableNameMapper, null).process(root, 0);
+        new Formatter(builder, tableNameMapper, null, escapeIdentifier).process(root, 0);
         return builder.toString();
     }
 
-    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper) {
+    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier) {
         StringBuilder builder = new StringBuilder();
-        new Formatter(builder, tableNameMapper, columnNameMapper).process(root, 0);
+        new Formatter(builder, tableNameMapper, columnNameMapper, escapeIdentifier).process(root, 0);
         return builder.toString();
     }
 
@@ -100,10 +101,12 @@ public final class RakamSqlFormatter {
         private final StringBuilder builder;
         private final Function<QualifiedName, String> tableNameMapper;
         private final Optional<Function<QualifiedName, String>> columnNameMapper;
+        private final char escapeIdentifier;
 
-        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper) {
+        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier) {
             this.builder = builder;
             this.tableNameMapper = tableNameMapper;
+            this.escapeIdentifier = escapeIdentifier;
             this.columnNameMapper = Optional.ofNullable(columnNameMapper);
         }
 
@@ -115,7 +118,7 @@ public final class RakamSqlFormatter {
         @Override
         protected Void visitExpression(Expression node, Integer indent) {
             checkArgument(indent == 0, "visitExpression should only be called at root");
-            builder.append(formatExpression(node, tableNameMapper, columnNameMapper));
+            builder.append(formatExpression(node, tableNameMapper, columnNameMapper, escapeIdentifier));
             return null;
         }
 
@@ -151,7 +154,7 @@ public final class RakamSqlFormatter {
             processRelation(node.getQueryBody(), indent);
 
             if (!node.getOrderBy().isEmpty()) {
-                append(indent, "ORDER BY " + formatSortItems(node.getOrderBy()))
+                append(indent, "ORDER BY " + formatSortItems(node.getOrderBy(), tableNameMapper, columnNameMapper, escapeIdentifier))
                         .append('\n');
             }
 
@@ -183,21 +186,21 @@ public final class RakamSqlFormatter {
             builder.append('\n');
 
             if (node.getWhere().isPresent()) {
-                append(indent, "WHERE " + formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper))
+                append(indent, "WHERE " + formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, escapeIdentifier))
                         .append('\n');
             }
 
             if (node.getGroupBy().isPresent()) {
-                append(indent, "GROUP BY " + (node.getGroupBy().get().isDistinct() ? " DISTINCT " : "") + formatGroupBy(node.getGroupBy().get().getGroupingElements())).append('\n');
+                append(indent, "GROUP BY " + (node.getGroupBy().get().isDistinct() ? " DISTINCT " : "") + RakamExpressionFormatter.formatGroupBy(node.getGroupBy().get().getGroupingElements(), tableNameMapper, columnNameMapper, escapeIdentifier)).append('\n');
             }
 
             if (node.getHaving().isPresent()) {
-                append(indent, "HAVING " + formatExpression(node.getHaving().get(), tableNameMapper, columnNameMapper))
+                append(indent, "HAVING " + formatExpression(node.getHaving().get(), tableNameMapper, columnNameMapper, escapeIdentifier))
                         .append('\n');
             }
 
             if (!node.getOrderBy().isEmpty()) {
-                append(indent, "ORDER BY " + formatSortItems(node.getOrderBy()))
+                append(indent, "ORDER BY " + formatSortItems(node.getOrderBy(), tableNameMapper, columnNameMapper, escapeIdentifier))
                         .append('\n');
             }
 
@@ -206,6 +209,49 @@ public final class RakamSqlFormatter {
                         .append('\n');
             }
             return null;
+        }
+
+        static String formatSortItems(List<SortItem> sortItems, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier)
+        {
+            return Joiner.on(", ").join(sortItems.stream()
+                    .map(sortItemFormatterFunction(tableNameMapper, columnNameMapper, escapeIdentifier))
+                    .iterator());
+        }
+
+        private static Function<SortItem, String> sortItemFormatterFunction(Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier)
+        {
+            return input -> {
+                StringBuilder builder = new StringBuilder();
+
+                builder.append(formatExpression(input.getSortKey(), tableNameMapper, columnNameMapper, escapeIdentifier));
+
+                switch (input.getOrdering()) {
+                    case ASCENDING:
+                        builder.append(" ASC");
+                        break;
+                    case DESCENDING:
+                        builder.append(" DESC");
+                        break;
+                    default:
+                        throw new UnsupportedOperationException("unknown ordering: " + input.getOrdering());
+                }
+
+                switch (input.getNullOrdering()) {
+                    case FIRST:
+                        builder.append(" NULLS FIRST");
+                        break;
+                    case LAST:
+                        builder.append(" NULLS LAST");
+                        break;
+                    case UNDEFINED:
+                        // no op
+                        break;
+                    default:
+                        throw new UnsupportedOperationException("unknown null ordering: " + input.getNullOrdering());
+                }
+
+                return builder.toString();
+            };
         }
 
         @Override
@@ -237,12 +283,12 @@ public final class RakamSqlFormatter {
 
         @Override
         protected Void visitSingleColumn(SingleColumn node, Integer indent) {
-            builder.append(formatExpression(node.getExpression(), tableNameMapper, columnNameMapper));
+            builder.append(formatExpression(node.getExpression(), tableNameMapper, columnNameMapper, escapeIdentifier));
             if (node.getAlias().isPresent()) {
                 builder.append(' ')
-                        .append('"')
+                        .append(escapeIdentifier)
                         .append(node.getAlias().get())
-                        .append('"'); // TODO: handle quoting properly
+                        .append(escapeIdentifier); // TODO: handle quoting properly
             }
 
             return null;
@@ -292,7 +338,7 @@ public final class RakamSqlFormatter {
                 } else if (criteria instanceof JoinOn) {
                     JoinOn on = (JoinOn) criteria;
                     builder.append(" ON (")
-                            .append(formatExpression(on.getExpression(), tableNameMapper, columnNameMapper))
+                            .append(formatExpression(on.getExpression(), tableNameMapper, columnNameMapper, escapeIdentifier))
                             .append(')');
                 } else if (!(criteria instanceof NaturalJoin)) {
                     throw new UnsupportedOperationException("unknown join criteria: " + criteria);
@@ -348,7 +394,7 @@ public final class RakamSqlFormatter {
                         .append(indentString(indent))
                         .append(first ? "  " : ", ");
 
-                builder.append(formatExpression(row, tableNameMapper, columnNameMapper));
+                builder.append(formatExpression(row, tableNameMapper, columnNameMapper, escapeIdentifier));
                 first = false;
             }
             builder.append('\n');
@@ -522,12 +568,12 @@ public final class RakamSqlFormatter {
 
             if (node.getWhere().isPresent()) {
                 builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper));
+                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, escapeIdentifier));
             }
 
             if (!node.getOrderBy().isEmpty()) {
                 builder.append(" ORDER BY ")
-                        .append(formatSortItems(node.getOrderBy()));
+                        .append(formatSortItems(node.getOrderBy(), tableNameMapper, columnNameMapper, escapeIdentifier));
             }
 
             if (node.getLimit().isPresent()) {
@@ -559,7 +605,7 @@ public final class RakamSqlFormatter {
 
             if (node.getWhere().isPresent()) {
                 builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper));
+                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, escapeIdentifier));
             }
 
             return null;
@@ -573,7 +619,7 @@ public final class RakamSqlFormatter {
             if (!node.getProperties().isEmpty()) {
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper)));
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper, escapeIdentifier)));
                 builder.append(')');
             }
 
@@ -600,7 +646,7 @@ public final class RakamSqlFormatter {
             if (!node.getProperties().isEmpty()) {
                 builder.append(" WITH (");
                 Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper)));
+                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper, escapeIdentifier)));
                 builder.append(')');
             }
 
@@ -668,7 +714,7 @@ public final class RakamSqlFormatter {
             builder.append("SET SESSION ")
                     .append(node.getName())
                     .append(" = ")
-                    .append(formatExpression(node.getValue(), tableNameMapper, columnNameMapper));
+                    .append(formatExpression(node.getValue(), tableNameMapper, columnNameMapper, escapeIdentifier));
 
             return null;
         }
@@ -710,16 +756,16 @@ public final class RakamSqlFormatter {
         }
     }
 
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper) {
-        return new RakamExpressionFormatter(tableNameMapper, Optional.empty()).process(expression, false);
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier) {
+        return new RakamExpressionFormatter(tableNameMapper, Optional.empty(), escapeIdentifier).process(expression, false);
     }
 
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper) {
-        return new RakamExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper)).process(expression, false);
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier) {
+        return new RakamExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper), escapeIdentifier).process(expression, false);
     }
 
-    private static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper) {
-        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper).process(expression, false);
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier) {
+        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper, escapeIdentifier).process(expression, false);
     }
 
 }

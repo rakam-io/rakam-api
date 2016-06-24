@@ -3,7 +3,6 @@ package org.rakam.presto.analysis;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
@@ -33,22 +32,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
-import static org.apache.avro.Schema.Type.*;
 import static org.rakam.collection.FieldType.BINARY;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PrestoUserService extends AbstractUserService {
-    private static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
-            new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
-            new Schema.Field("_user", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
-            new Schema.Field("created_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null),
-            new Schema.Field("merged_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null)
-    ));
     private final Metastore metastore;
     private final PrestoConfig prestoConfig;
     private final PrestoQueryExecutor executor;
-    private final EventStore eventStore;
-    private final UserPluginConfig config;
     private final ContinuousQueryService continuousQueryService;
 
     @Inject
@@ -56,13 +47,11 @@ public class PrestoUserService extends AbstractUserService {
                              EventStore eventStore, Metastore metastore,
                              UserPluginConfig config,
                              PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
-        super(storage);
+        super(storage, config, eventStore);
         this.continuousQueryService = continuousQueryService;
         this.metastore = metastore;
-        this.config = config;
         this.prestoConfig = prestoConfig;
         this.executor = executor;
-        this.eventStore = eventStore;
     }
 
     @Override
@@ -84,6 +73,8 @@ public class PrestoUserService extends AbstractUserService {
                                     }
                                     return true;
                                 })
+                                // for performance reasons, restrict this.
+                                .filter(field -> field.getName().equals("_session_id"))
                                 .filter(field -> field.getType() != BINARY)
                                 .map(field -> {
                                     if (field.getType().isNumeric()) {
@@ -97,11 +88,14 @@ public class PrestoUserService extends AbstractUserService {
                                 })
                                 .collect(Collectors.joining(", ")) +
                                 format(" }' as json, _time from %s where _user = %s %s",
-                                        "\"" + prestoConfig.getColdStorageConnector() + "\"" + ".\"" + project + "\".\"" + entry.getKey() + "\"",
+                                        "\"" + prestoConfig.getColdStorageConnector() + "\"" + ".\"" + project + "\"." + checkCollection(entry.getKey()),
                                         userType.get().isNumeric() ? user : "'" + user + "'",
                                         beforeThisTime == null ? "" : format("and _time < from_iso8601_timestamp('%s')", beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
+        if(sqlQuery.isEmpty()) {
+            return CompletableFuture.completedFuture(ImmutableList.of());
+        }
 
         return executor.executeRawQuery(format("select collection, json from (%s) order by _time desc limit %d", sqlQuery, limit))
                 .getResult()
@@ -150,19 +144,5 @@ public class PrestoUserService extends AbstractUserService {
             result.setProperty("preCalculated", new PreCalculatedTable(name, tableName));
             return result;
         });
-    }
-
-    @Override
-    public void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt) {
-        if (!config.getEnableUserMapping()) {
-            throw new RakamException(HttpResponseStatus.NOT_IMPLEMENTED);
-        }
-        GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
-        properties.put(0, anonymousId);
-        properties.put(1, user);
-        properties.put(2, (int) Math.floorDiv(createdAt.getEpochSecond(), 86400));
-        properties.put(3, (int) Math.floorDiv(mergedAt.getEpochSecond(), 86400));
-
-        eventStore.store(new Event(project, "_anonymous_id_mapping", null, null, properties));
     }
 }

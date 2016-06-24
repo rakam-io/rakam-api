@@ -1,13 +1,11 @@
 package org.rakam;
 
 import com.google.common.eventbus.EventBus;
-import org.rakam.analysis.AbstractFunnelQueryExecutor;
+import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestFunnelQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.config.JDBCConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
 import org.rakam.presto.analysis.PrestoConfig;
@@ -25,7 +23,7 @@ import java.time.ZoneId;
 
 public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
-    private AbstractFunnelQueryExecutor funnelQueryExecutor;
+    private FunnelQueryExecutor funnelQueryExecutor;
     private TestingPrestoEventStore testingPrestoEventStore;
     private TestingEnvironment testingEnvironment;
     private PrestoMetastore metastore;
@@ -52,8 +50,8 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
                 prestoQueryExecutor, metastore, inMemoryQueryMetadataStore);
-        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, inMemoryQueryMetadataStore, metastore,
-                materializedViewService, Clock.system(ZoneId.of("UTC")));
+        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
+                materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 
         funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService, prestoQueryExecutor, materializedViewService, continuousQueryService);
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
@@ -72,7 +70,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
     }
 
     @Override
-    public AbstractFunnelQueryExecutor getFunnelQueryExecutor() {
+    public FunnelQueryExecutor getFunnelQueryExecutor() {
         return funnelQueryExecutor;
     }
 }

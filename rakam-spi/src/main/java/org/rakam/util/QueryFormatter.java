@@ -24,17 +24,17 @@ public class QueryFormatter
     private final BiFunction<QualifiedName, StringBuilder, String> tableNameMapper;
     private final List<String> queryWithTables;
 
-    public QueryFormatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper)
+    public QueryFormatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier)
     {
-        super(builder, tableNameMapper, null);
+        super(builder, tableNameMapper, null, escapeIdentifier);
         this.builder = builder;
         this.queryWithTables = new ArrayList<>();
         this.tableNameMapper = (key, ctx) -> tableNameMapper.apply(key);
     }
 
-    public static String format(Statement query, Function<QualifiedName, String> tableNameMapper) {
+    public static String format(Statement query, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier) {
         StringBuilder builder = new StringBuilder();
-        new QueryFormatter(builder, tableNameMapper).process(query, 1);
+        new QueryFormatter(builder, tableNameMapper, escapeIdentifier).process(query, 1);
         return builder.toString();
     }
 

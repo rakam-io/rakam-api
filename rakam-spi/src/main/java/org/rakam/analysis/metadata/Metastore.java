@@ -10,8 +10,6 @@ import java.util.Set;
 
 
 public interface Metastore {
-    Map<String, Set<String>> getAllCollections();
-
     Map<String, List<SchemaField>> getCollections(String project);
 
     Set<String> getCollectionNames(String project);
@@ -42,16 +40,6 @@ public interface Metastore {
             this.allEvents = allEvents;
             this.monthlyEvents = monthlyEvents;
             this.dailyEvents = dailyEvents;
-        }
-    }
-
-    final class Project {
-        public final String name;
-        public final String apiUrl;
-
-        public Project(String name, String apiUrl) {
-            this.name = name;
-            this.apiUrl = apiUrl;
         }
     }
 }

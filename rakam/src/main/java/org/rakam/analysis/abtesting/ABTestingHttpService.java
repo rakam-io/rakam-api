@@ -11,7 +11,7 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 
 @Path("/ab-testing")
 @Api(value = "/ab-testing", nickname = "abTesting", description = "A/B Testing module", tags = {"ab-testing"})
@@ -46,9 +45,9 @@ public class ABTestingHttpService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Create test", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public JsonResponse create(@Named("project") String project, @BodyParam ABTestingReport report) {
+    public SuccessMessage create(@Named("project") String project, @BodyParam ABTestingReport report) {
         metadata.save(project, report);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @Path("/list")
@@ -56,12 +55,7 @@ public class ABTestingHttpService extends HttpService {
     @IgnoreApi
     public void data(RakamHttpRequest request) {
         Map<String, List<String>> params = request.params();
-        List<String> project = params.get("project");
         List<String> api_key = params.get("read_key");
-        if(project == null || project.isEmpty()) {
-            request.response("\"project is missing\"", BAD_REQUEST).end();
-            return;
-        }
         if(api_key == null || api_key.isEmpty()) {
             request.response("\"read_key is missing\"", BAD_REQUEST).end();
             return;
@@ -69,22 +63,19 @@ public class ABTestingHttpService extends HttpService {
 
         // since this endpoint is created for clients to read the ab-testing rule,
         // the permission is WRITE_KEY
-        if(!apiKeyService.checkPermission(project.get(0), ApiKeyService.AccessKeyType.WRITE_KEY, api_key.get(0))) {
-            request.response("\"Unauthorized\"", FORBIDDEN).end();
-            return;
-        }
+        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), ApiKeyService.AccessKeyType.WRITE_KEY);
 
-        request.response(JsonHelper.encodeAsBytes(metadata.getReports(project.get(0))))
+        request.response(JsonHelper.encodeAsBytes(metadata.getReports(project)))
                 .end();
     }
 
     @JsonRequest
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
-    public JsonResponse delete(@Named("project") String project,
+    public SuccessMessage delete(@Named("project") String project,
                                @ApiParam("id") int id) {
         metadata.delete(project, id);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest

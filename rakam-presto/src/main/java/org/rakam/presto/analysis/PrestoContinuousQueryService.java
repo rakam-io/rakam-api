@@ -48,7 +48,7 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
                 return String.format("_all.%s", project);
             }
             return executor.formatTableReference(project, name);
-        }).process(query, 1);
+        }, '"').process(query, 1);
 
         return builder.toString();
     }

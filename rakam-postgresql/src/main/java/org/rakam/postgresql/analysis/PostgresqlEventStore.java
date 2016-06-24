@@ -13,6 +13,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.SyncEventStore;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.ValidationUtil;
 
@@ -42,7 +43,7 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @Singleton
 public class PostgresqlEventStore
-        implements EventStore
+        implements SyncEventStore
 {
     private final static Logger LOGGER = Logger.get(PostgresqlEventStore.class);
 

@@ -4,6 +4,8 @@ import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.swagger.models.Tag;
+import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.TimestampEventMapper;
@@ -20,6 +22,9 @@ public class EventExplorerModule extends RakamModule {
 
         Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
         timeMapper.permitDuplicates().addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
+
+        Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
+        tags.addBinding().toInstance(new Tag().name("event-explorer").description("Event Explorer").externalDocs(MetadataConfig.centralDocs));
     }
 
     @Override

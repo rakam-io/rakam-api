@@ -9,10 +9,10 @@ import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ActiveModuleListBuilder;
 import org.rakam.ui.ActiveModuleListBuilder.ActiveModuleList;
-import org.rakam.util.JsonResponse;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -42,6 +42,7 @@ public class AdminHttpService extends HttpService {
     )
     @GET
     @Path("/configurations")
+    @JsonRequest
     public List<ModuleDescriptor> getConfigurations() {
         return systemRegistry.getModules();
     }
@@ -50,6 +51,7 @@ public class AdminHttpService extends HttpService {
             authorizations = @Authorization(value = "master_key")
     )
     @GET
+    @JsonRequest
     @Path("/types")
     public Map<String, String> getTypes() {
         return Arrays.stream(FieldType.values()).collect(Collectors.toMap(FieldType::name, FieldType::getPrettyName));
@@ -60,13 +62,14 @@ public class AdminHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/lock_key")
-    public JsonResponse checkLockKey(@ApiParam(value = "lock_key", required = false) String lockKey) {
-        return Objects.equals(lockKey, projectConfig.getLockKey()) ? JsonResponse.success() : JsonResponse.error("invalid");
+    public boolean checkLockKey(@ApiParam(value = "lock_key", required = false) String lockKey) {
+        return Objects.equals(lockKey, projectConfig.getLockKey());
     }
 
     @Path("/modules")
     @GET
-    @ApiOperation(value = "List installed modules for ui",
+    @IgnoreApi
+    @ApiOperation(value = "List installed modules for Rakam UI",
             authorizations = @Authorization(value = "master_key")
     )
     public ActiveModuleList modules() {

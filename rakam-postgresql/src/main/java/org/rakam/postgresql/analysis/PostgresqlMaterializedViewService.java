@@ -16,6 +16,7 @@ import javax.inject.Inject;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
@@ -28,7 +29,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
 
     @Inject
     public PostgresqlMaterializedViewService(PostgresqlQueryExecutor queryExecutor, QueryMetadataStore database) {
-        super(database, queryExecutor);
+        super(database, queryExecutor, '"');
         this.queryExecutor = queryExecutor;
         this.database = database;
     }
@@ -43,12 +44,12 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             statement = (Query) parser.createStatement(materializedView.query);
         }
 
-        new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name)).process(statement, 1);
+        new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name), '"').process(statement, 1);
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
                 project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
         if (result.isFailed()) {
-            throw new RakamException("Couldn't created table: " + result.getError().toString(), UNAUTHORIZED);
+            throw new RakamException("Couldn't created table: " + result.getError().toString(), FORBIDDEN);
         }
         database.createMaterializedView(project, materializedView);
         return CompletableFuture.completedFuture(null);

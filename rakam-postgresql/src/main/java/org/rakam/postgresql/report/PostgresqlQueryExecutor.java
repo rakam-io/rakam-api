@@ -11,9 +11,9 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.util.QueryFormatter;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -74,7 +74,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     StringBuilder builder = new StringBuilder();
 
                     new QueryFormatter(builder,
-                            qualifiedName -> this.formatTableReference(project, qualifiedName))
+                            qualifiedName -> this.formatTableReference(project, qualifiedName), '"')
                             .process(report.getQuery(), 1);
 
                     return "(" + builder.toString() + ") as " + name.getSuffix();

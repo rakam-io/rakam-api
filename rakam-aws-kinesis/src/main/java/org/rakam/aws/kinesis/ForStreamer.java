@@ -1,4 +1,4 @@
-package org.rakam.aws;
+package org.rakam.aws.kinesis;
 
 import javax.inject.Qualifier;
 import java.lang.annotation.Retention;

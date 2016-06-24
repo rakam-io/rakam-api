@@ -2,11 +2,13 @@ package org.rakam.analysis;
 
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.SyncEventStore;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class InMemoryEventStore implements EventStore {
+public class InMemoryEventStore implements SyncEventStore
+{
     private final List<Event> events = new ArrayList<>();
 
     @Override

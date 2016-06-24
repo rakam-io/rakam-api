@@ -88,6 +88,7 @@ public class EventExplorerHttpService extends HttpService {
             authorizations = @Authorization(value = "read_key")
     )
     @Path("/extra_dimensions")
+    @JsonRequest
     public Map<String, List<String>> getExtraDimensions(@Named("project") String project) {
         return eventExplorer.getExtraDimensions(project);
     }

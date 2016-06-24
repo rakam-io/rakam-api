@@ -57,6 +57,7 @@ public class PrestoRetentionQueryExecutor extends AbstractRetentionQueryExecutor
     public PrestoRetentionQueryExecutor(QueryExecutorService executor, Metastore metastore,
                                         MaterializedViewService materializedViewService,
                                         ContinuousQueryService continuousQueryService) {
+        super('"');
         this.executor = executor;
         this.metastore = metastore;
         this.materializedViewService = materializedViewService;

@@ -1,4 +1,4 @@
-package org.rakam.aws;
+package org.rakam.aws.kinesis;
 
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
@@ -18,13 +18,16 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.aws.AWSConfig;
+import org.rakam.aws.s3.S3BulkEventStore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.SyncEventStore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecution;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
@@ -36,6 +39,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.KByteArrayOutputStream;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
+import org.rakam.util.StandardErrors;
 import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
@@ -50,22 +54,19 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
 import static java.lang.String.format;
-import static org.rakam.aws.KinesisUtils.createAndWaitForStreamToBecomeAvailable;
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 
-public class AWSKinesisEventStore
-        implements EventStore
+public class AWSKinesisPrestoEventStore
+        implements SyncEventStore
 {
-    private final static Logger LOGGER = Logger.get(AWSKinesisEventStore.class);
+    private final static Logger LOGGER = Logger.get(AWSKinesisPrestoEventStore.class);
 
     private final AmazonKinesisClient kinesis;
     private final AWSConfig config;
@@ -73,7 +74,7 @@ public class AWSKinesisEventStore
     private final S3BulkEventStore bulkClient;
     private final PrestoQueryExecutor executor;
     private final PrestoConfig prestoConfig;
-    private final QueryMetadataStore queryMetadataStore;
+    private final ContinuousQueryService continuousQueryService;
     private final JDBCPoolDataSource dataSource;
 
     private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>()
@@ -86,11 +87,11 @@ public class AWSKinesisEventStore
     };
 
     @Inject
-    public AWSKinesisEventStore(AWSConfig config,
+    public AWSKinesisPrestoEventStore(AWSConfig config,
             Metastore metastore,
             @Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource,
             PrestoQueryExecutor executor,
-            QueryMetadataStore queryMetadataStore,
+            ContinuousQueryService continuousQueryService,
             PrestoConfig prestoConfig,
             FieldDependencyBuilder.FieldDependency fieldDependency)
     {
@@ -103,7 +104,7 @@ public class AWSKinesisEventStore
         this.executor = executor;
         this.prestoConfig = prestoConfig;
         this.dataSource = dataSource;
-        this.queryMetadataStore = queryMetadataStore;
+        this.continuousQueryService = continuousQueryService;
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
     }
 
@@ -146,7 +147,7 @@ public class AWSKinesisEventStore
         }
         catch (ResourceNotFoundException e) {
             try {
-                createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
                 return storeBatchInline(events, offset, limit);
             }
             catch (Exception e1) {
@@ -172,10 +173,10 @@ public class AWSKinesisEventStore
             conn = dataSource.getConnection();
 
             String lockKey = "bulk." + project + "." + collection;
-            ResultSet rs = conn.createStatement().executeQuery(format("SELECT GET_LOCK('%s', 120)", lockKey));
+            ResultSet rs = conn.createStatement().executeQuery(format("SELECT GET_LOCK('%s', 10)", lockKey));
             rs.next();
             if (rs.getInt(1) != 1) {
-                throw new RakamException("Unable to get commit lock, there is another ongoing commit process", CONFLICT);
+                throw new RakamException(StandardErrors.CONFLICT_COMMIT_MESSAGE, CONFLICT);
             }
 
             String middlewareTable = format("FROM %s.\"%s\".\"%s\" WHERE \"$created_at\" < timestamp '%s UTC'",
@@ -190,7 +191,7 @@ public class AWSKinesisEventStore
                     return insertQuery;
                 }
                 ImmutableList.Builder<QueryExecution> builder = ImmutableList.builder();
-                for (ContinuousQuery continuousQuery : queryMetadataStore.getContinuousQueries(project)) {
+                for (ContinuousQuery continuousQuery : continuousQueryService.list(project)) {
                     AtomicBoolean ref = new AtomicBoolean();
 
                     String query = QueryFormatter.format(continuousQuery.getQuery(), name -> {
@@ -200,7 +201,7 @@ public class AWSKinesisEventStore
                             return format("(SELECT '%s' as \"$collection\", * ", collection) + middlewareTable + ")";
                         }
                         return executor.formatTableReference(project, name);
-                    });
+                    }, '"');
 
                     if (!ref.get()) {
                         continue;
@@ -286,7 +287,7 @@ public class AWSKinesisEventStore
         }
         catch (ResourceNotFoundException e) {
             try {
-                createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
             }
             catch (Exception e1) {
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);

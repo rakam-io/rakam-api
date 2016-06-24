@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
@@ -59,7 +60,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                                          QueryExecutor queryExecutor,
                                          PrestoMetastore metastore,
                                          QueryMetadataStore database) {
-        super(database, queryExecutor);
+        super(database, queryExecutor, '"');
         this.database = database;
         this.queryExecutor = queryExecutor;
         this.metastore = metastore;
@@ -109,7 +110,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         }, null);
 
         StringBuilder builder = new StringBuilder();
-        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName))
+        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName), '"')
                 .process(statement, 1);
 
         QueryExecution execution = queryExecutor
@@ -161,18 +162,18 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                 throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
             }
             StringBuilder builder = new StringBuilder();
-            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name)).process(statement, 1);
+            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name), '"').process(statement, 1);
             QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()));
             return new MaterializedViewExecution(execution, tableName);
         } else {
             List<String> referencedCollections = new ArrayList<>();
 
-            RakamSqlFormatter.formatSql(statement, name -> {
+            formatSql(statement, name -> {
                 if (name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
                     referencedCollections.add(name.getSuffix());
                 }
                 return null;
-            });
+            }, '"');
 
             String materializedTableReference = tableName;
 
@@ -182,10 +183,10 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
 
             QueryExecution queryExecution;
             if (needsUpdate && database.updateMaterializedView(project, materializedView, f)) {
-                String query = RakamSqlFormatter.formatSql(statement,
+                String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s WHERE \"_shard_time\" between timestamp '%s' and timestamp '%s')",
                                 queryExecutor.formatTableReference(project, name),
-                                ISO_INSTANT.format(lastUpdated), ISO_INSTANT.format(now)));
+                                ISO_INSTANT.format(lastUpdated), ISO_INSTANT.format(now)), '"');
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query));
                 final Instant finalLastUpdated = lastUpdated;
@@ -199,10 +200,10 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             if (!needsUpdate) {
                 reference = materializedTableReference;
             } else {
-                String query = RakamSqlFormatter.formatSql(statement,
+                String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s WHERE \"_shard_time\" > timestamp '%s'",
                                 queryExecutor.formatTableReference(project, name),
-                                ISO_INSTANT.format(lastUpdated)));
+                                ISO_INSTANT.format(lastUpdated)), '"');
 
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
             }

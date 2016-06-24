@@ -23,6 +23,7 @@ import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
@@ -66,7 +67,7 @@ import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
 
 @Path("/query")
-@Api(value = "/query", nickname = "query", description = "Query module", tags = {"analyze"})
+@Api(value = "/query", nickname = "query", description = "Execute query", tags = {"query"})
 @Produces({"application/json"})
 public class QueryHttpService
         extends HttpService
@@ -84,11 +85,11 @@ public class QueryHttpService
     }
 
     @Path("/execute")
-    @ApiOperation(value = "Analyze events",
+    @ApiOperation(value = "Execute query on event data-set",
             authorizations = @Authorization(value = "read_key")
     )
     @JsonRequest
-    public CompletableFuture<Object> execute(@Named("project") String project, @BodyParam ExportQuery query)
+    public CompletableFuture<QueryResult> execute(@Named("project") String project, @BodyParam ExportQuery query)
     {
         return executorService.executeQuery(project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
             if (result.isFailed()) {
@@ -99,9 +100,10 @@ public class QueryHttpService
     }
 
     @Path("/export")
-    @ApiOperation(value = "Analyze events",
+    @ApiOperation(value = "Export query results",
             authorizations = @Authorization(value = "read_key")
     )
+    @IgnoreApi
     @JsonRequest
     public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam ExportQuery query)
     {
@@ -310,7 +312,7 @@ public class QueryHttpService
     @JsonRequest
     @ApiOperation(value = "Explain query", authorizations = @Authorization(value = "read_key"))
     @Path("/explain")
-    public Object explain(@ApiParam(value = "query", description = "Query") String query)
+    public ResponseQuery explain(@ApiParam(value = "query", description = "Query") String query)
     {
         try {
             Query statement;

@@ -113,7 +113,7 @@ public final class ExpressionCompiler {
                 throw new IllegalArgumentException("field reference is invalid");
             }
             final String suffix = node.getName().getSuffix();
-            return "props.get(\""+checkTableColumn(suffix, "field reference is invalid")+"\")";
+            return "props.get(\""+checkTableColumn(suffix, "field reference is invalid", '"')+"\")";
         }
 
         @Override

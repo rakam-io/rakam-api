@@ -33,14 +33,6 @@ public class InMemoryMetastore extends AbstractMetastore {
     }
 
     @Override
-    public Map<String, Set<String>> getAllCollections() {
-        return Collections.unmodifiableMap(collections.entrySet().stream()
-                .collect(Collectors.toMap(
-                        entry -> entry.getKey(),
-                        entry -> entry.getValue().keySet())));
-    }
-
-    @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
         return collections.get(project);
     }
@@ -70,7 +62,7 @@ public class InMemoryMetastore extends AbstractMetastore {
     public synchronized List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields) throws NotExistsException {
         Map<String, List<SchemaField>> list = collections.get(project);
         if(list == null) {
-            throw new NotExistsException("project", HttpResponseStatus.BAD_REQUEST);
+            throw new NotExistsException("Project");
         }
         List<SchemaField> schemaFields = list.computeIfAbsent(collection, (key) -> new ArrayList<>());
         fields.stream()

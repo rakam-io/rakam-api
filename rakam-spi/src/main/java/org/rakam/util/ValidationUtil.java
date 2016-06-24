@@ -30,16 +30,26 @@ public final class ValidationUtil
 
     public static String checkCollection(String collection)
     {
+        return checkCollection(collection, '"');
+    }
+
+    public static String checkCollection(String collection, char character)
+    {
         checkArgument(collection != null, "collection is null");
         if (collection.length() > 250) {
             throw new IllegalArgumentException("Collection name must have maximum 250 characters.");
         }
-        return "\"" + collection.replaceAll("\"", "").toLowerCase(Locale.ENGLISH) + "\"";
+        return character + collection.replaceAll("\"", "").toLowerCase(Locale.ENGLISH) + character;
+    }
+
+    public static String checkTableColumn(String column, char escape)
+    {
+        return checkTableColumn(column, column, escape);
     }
 
     public static String checkTableColumn(String column)
     {
-        return checkTableColumn(column, column);
+        return checkTableColumn(column, column, '"');
     }
 
     public static String checkLiteral(String value)
@@ -47,13 +57,13 @@ public final class ValidationUtil
         return value.replaceAll("'", "''");
     }
 
-    public static String checkTableColumn(String column, String type)
+    public static String checkTableColumn(String column, String type, char escape)
     {
         if (column == null) {
             throw new IllegalArgumentException(type + " is null");
         }
 
-        return "\"" + SchemaField.stripName(column) + "\"";
+        return escape + SchemaField.stripName(column) + escape;
     }
 
     public static void checkArgument(boolean expression, @Nullable String errorMessage)

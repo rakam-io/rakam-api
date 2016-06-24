@@ -1,0 +1,104 @@
+package org.rakam.clickhouse;
+
+import com.facebook.presto.sql.tree.QualifiedName;
+import com.google.inject.Inject;
+import org.rakam.analysis.metadata.Metastore;
+import org.rakam.clickhouse.analysis.ClickHouseQueryExecution;
+import org.rakam.collection.SchemaField;
+import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryResult;
+import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkCollection;
+
+public class ClickHouseQueryExecutor implements QueryExecutor
+{
+    private final ClickHouseConfig config;
+    private final Metastore metastore;
+
+    @Inject
+    public ClickHouseQueryExecutor(ClickHouseConfig config, Metastore metastore)
+    {
+        this.config = config;
+        this.metastore = metastore;
+    }
+
+    @Override
+    public QueryExecution executeRawQuery(String sqlQuery)
+    {
+        return new ClickHouseQueryExecution(config, sqlQuery);
+    }
+
+    @Override
+    public QueryExecution executeRawStatement(String sqlQuery)
+    {
+        ClickHouseQueryExecution.runStatement(config, sqlQuery);
+        return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.empty());
+    }
+
+    @SuppressWarnings("Duplicates")
+    @Override
+    public String formatTableReference(String project, QualifiedName node)
+    {
+        if (node.getPrefix().isPresent()) {
+            String prefix = node.getPrefix().get().toString();
+            if (prefix.equals("continuous")) {
+                return ".`" + project + "`.`$continuous_" + checkCollection(node.getSuffix(), '`');
+            } else if (prefix.equals("materialized")) {
+                return ".`" + project + "`.`$materialized_" + checkCollection(node.getSuffix(), '`');
+            } else if (prefix.equals("user")) {
+                throw new IllegalArgumentException();
+            } else if (!prefix.equals("collection")) {
+                throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
+            }
+        }
+
+        // special prefix for all columns
+        if (node.getSuffix().equals("_all") && !node.getPrefix().isPresent()) {
+            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
+                    .filter(c -> !c.getKey().startsWith("_"))
+                    .collect(Collectors.toList());
+            if (!collections.isEmpty()) {
+                String sharedColumns = collections.get(0).getValue().stream()
+                        .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
+                        .map(f -> f.getName())
+                        .collect(Collectors.joining(", "));
+
+                return "(" + collections.stream().map(Map.Entry::getKey)
+                        .map(collection -> format("select '%s' as `$collection`, %s from %s",
+                                collection,
+                                sharedColumns.isEmpty() ? "1" : sharedColumns,
+                                getTableReference(project, QualifiedName.of(collection))))
+                        .collect(Collectors.joining(" union all ")) + ") ";
+            } else {
+                return "(select '' as `$collection`, '' as _user, now() as _time limit 0)";
+            }
+
+        } else {
+            return getTableReference(project, node);
+        }
+    }
+
+    private String getTableReference(String project, QualifiedName node) {
+        String hotStoragePrefix = Optional.ofNullable(config.getHotStoragePrefix()).map(e -> e+"_").orElse(null);
+        String coldStoragePrefix = Optional.ofNullable(config.getColdStoragePrefix()).map(e -> e + "_").orElse("");
+        String table = project + "." + checkCollection(node.getSuffix(), '`');
+
+        if (hotStoragePrefix != null) {
+            return "((select * from "+ checkCollection(coldStoragePrefix + table, '`') + " union all " +
+                    "select * from " + checkCollection(hotStoragePrefix + table, '`') + ")" +
+                    " as " + node.getSuffix() + ")";
+        } else {
+            return checkCollection(coldStoragePrefix + table, '`');
+        }
+    }
+}

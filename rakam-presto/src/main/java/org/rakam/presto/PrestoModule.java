@@ -12,8 +12,9 @@ import com.google.inject.name.Names;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.EventExplorer;
-import org.rakam.analysis.AbstractFunnelQueryExecutor;
+import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RealtimeService;
@@ -64,6 +65,7 @@ public class PrestoModule extends RakamModule {
         configBinder(binder).bindConfig(PrestoConfig.class);
 
         binder.bind(QueryExecutor.class).to(PrestoQueryExecutor.class);
+        binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
         binder.bind(ContinuousQueryService.class).to(PrestoContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
@@ -106,7 +108,7 @@ public class PrestoModule extends RakamModule {
         }
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(AbstractFunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
+            binder.bind(FunnelQueryExecutor.class).to(PrestoFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {

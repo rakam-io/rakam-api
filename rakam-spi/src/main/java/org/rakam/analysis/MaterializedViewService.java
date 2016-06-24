@@ -26,10 +26,12 @@ public abstract class MaterializedViewService {
     public final static SqlParser sqlParser = new SqlParser();
     private final QueryMetadataStore database;
     private final QueryExecutor queryExecutor;
+    private final char escapeIdentifier;
 
-    public MaterializedViewService(QueryMetadataStore database, QueryExecutor queryExecutor) {
+    public MaterializedViewService(QueryMetadataStore database, QueryExecutor queryExecutor, char escapeIdentifier) {
         this.database = database;
         this.queryExecutor = queryExecutor;
+        this.escapeIdentifier = escapeIdentifier;
     }
 
     public abstract CompletableFuture<Void> create(String project, MaterializedView materializedView);
@@ -88,7 +90,7 @@ public abstract class MaterializedViewService {
         StringBuilder builder = new StringBuilder();
         Query queryStatement = (Query) sqlParser.createStatement(checkNotNull(query, "query is required"));
 
-        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName))
+        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = queryExecutor

@@ -10,6 +10,9 @@ import org.testng.annotations.Test;
 
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
+import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
+import static org.rakam.util.QueryFormatter.format;
 import static org.testng.Assert.assertEquals;
 
 public class TestQueryFormatter {
@@ -17,12 +20,12 @@ public class TestQueryFormatter {
     public void testSimpleExpression() throws Exception {
         Expression expression = new SqlParser().createExpression("test = 'test'");
 
-        assertEquals("(\"dummy\".\"test\" = 'test')", RakamSqlFormatter.formatExpression(expression,
+        assertEquals("(\"dummy\".\"test\" = 'test')", formatExpression(expression,
                 name -> {
                     throw new UnsupportedOperationException();
                 },
-                name -> "\"dummy\"." + name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier)
-                        .collect(Collectors.joining("."))));
+                name -> "\"dummy\"." + name.getParts().stream().map(e -> formatIdentifier(e, '"'))
+                        .collect(Collectors.joining(".")), '"'));
     }
 
     @Test
@@ -31,7 +34,7 @@ public class TestQueryFormatter {
 
         assertEquals("SELECT *\n" +
                 "   FROM\n" +
-                "     dummy", QueryFormatter.format(statement, name -> "dummy").trim());
+                "     dummy", format(statement, name -> "dummy", '"').trim());
     }
 
     @Test
@@ -44,7 +47,7 @@ public class TestQueryFormatter {
                 "   FROM\n" +
                 "     (dummy\n" +
                 "   INNER JOIN dummy ON ((\"anothercollection\".\"test\" = \"testcollection\".\"test\")))",
-                QueryFormatter.format(statement, name -> "dummy").trim());
+                format(statement, name -> "dummy", '"').trim());
     }
 
     @Test
@@ -59,7 +62,7 @@ public class TestQueryFormatter {
                 "   ) \n" +
                 "   SELECT *\n" +
                 "   FROM\n" +
-                "     test", QueryFormatter.format(statement, name -> "dummy").trim());
+                "     test", format(statement, name -> "dummy", '"').trim());
     }
 
     @Test
@@ -74,7 +77,7 @@ public class TestQueryFormatter {
                 "   ) \n" +
                 "   SELECT *\n" +
                 "   FROM\n" +
-                "     dummy", QueryFormatter.format(statement, name -> "dummy").trim());
+                "     dummy", format(statement, name -> "dummy", '"').trim());
     }
 
     @Test
@@ -84,9 +87,9 @@ public class TestQueryFormatter {
         assertEquals("(\"test\" IN (SELECT \"id\"\n" +
                 "FROM\n" +
                 "  \"schema\".\"testcollection\"\n" +
-                "))", RakamSqlFormatter.formatExpression(expression,
-                name -> "\"schema\"." + name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
-                name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier)
-                        .collect(Collectors.joining("."))));
+                "))", formatExpression(expression,
+                name -> "\"schema\"." + name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
+                name -> name.getParts().stream().map(e -> formatIdentifier(e, '"'))
+                        .collect(Collectors.joining(".")), '"'));
     }
 }

@@ -45,7 +45,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
                 queryExecutor, metastore, queryMetadataStore);
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, queryExecutor, prestoConfig);
 
-        QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, queryMetadataStore, metastore, materializedViewService, Clock.systemUTC());
+        QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
         retentionQueryExecutor = new PrestoRetentionQueryExecutor(queryExecutorService, metastore, materializedViewService, continuousQueryService);
         testingPrestoEventStore = new TestingPrestoEventStore(queryExecutor, prestoConfig);

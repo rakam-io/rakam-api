@@ -5,6 +5,7 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.SyncEventStore;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.QueryResult;
@@ -19,7 +20,8 @@ import java.util.stream.Collectors;
 
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 
-public class TestingPrestoEventStore implements EventStore {
+public class TestingPrestoEventStore implements SyncEventStore
+{
     private final PrestoQueryExecutor queryExecutor;
     private final PrestoConfig config;
 

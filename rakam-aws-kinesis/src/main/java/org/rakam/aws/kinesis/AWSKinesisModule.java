@@ -1,10 +1,11 @@
-package org.rakam.aws;
+package org.rakam.aws.kinesis;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.Config;
 import io.airlift.log.Logger;
+import org.rakam.aws.AWSConfig;
 import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.stream.EventStream;
@@ -23,7 +24,7 @@ public class AWSKinesisModule extends RakamModule {
     protected void setup(Binder binder) {
         configBinder(binder).bindConfig(AWSConfig.class);
         configBinder(binder).bindConfig(PrestoStreamConfig.class);
-        binder.bind(EventStore.class).to(AWSKinesisEventStore.class).in(Scopes.SINGLETON);
+        binder.bind(EventStore.class).to(AWSKinesisPrestoEventStore.class).in(Scopes.SINGLETON);
         if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
             httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
             binder.bind(EventStream.class).to(KinesisEventStream.class).in(Scopes.SINGLETON);

@@ -12,14 +12,18 @@ import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.server.http.annotations.ApiResponse;
+import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.List;
@@ -28,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 
 @Path("/continuous-query")
@@ -44,36 +50,32 @@ public class ContinuousQueryHttpService extends HttpService {
         this.queryHttpService = queryHttpService;
     }
 
-    /**
-     * Creates a new continuous query for specified SQL query.
-     * Rakam will process data in batches keep the result of query in-memory all the time.
-     * Compared to reports, continuous queries continuously aggregate the data on the fly and the result is always available either in-memory or disk.
-     * <p>
-     * curl 'http://localhost:9999/reports/add/view' -H 'Content-Type: text/event-stream;charset=UTF-8' --data-binary '{"project": "projectId", "name": "Yearly Visits", "query": "SELECT year(time), count(1) from visits GROUP BY 1"}'
-     *
-     * @param report continuous query report
-     * @return a future that contains the operation status
-     */
+    public static final String PARTITION_KEY_INVALID = "Partition keys are not valid.";
+
     @JsonRequest
-    @ApiOperation(value = "Create stream", authorizations = @Authorization(value = "master_key"))
+    @ApiOperation(value = "Create stream", authorizations = @Authorization(value = "master_key"), notes =
+            "Creates a new continuous query for specified SQL query.\n" +
+            "Rakam will process data in batches keep the result of query in-memory all the time.\n" +
+            "Compared to reports, continuous queries continuously aggregate the data on the fly and the result is always available either in-memory or disk.")
+    @ApiResponses(value = {@ApiResponse(code = 400, message = PARTITION_KEY_INVALID)})
     @Path("/create")
-    public CompletableFuture<JsonResponse> createQuery(@Named("project") String project, @BodyParam ContinuousQuery report) {
+    public CompletableFuture<SuccessMessage> createQuery(@Named("project") String project, @BodyParam ContinuousQuery report) {
         if (service.test(project, report.query)) {
-            CompletableFuture<JsonResponse> err = new CompletableFuture<>();
+            CompletableFuture<SuccessMessage> err = new CompletableFuture<>();
             // TODO: more readable message is needed.
-            err.completeExceptionally(new RakamException("Query is not valid.", HttpResponseStatus.BAD_REQUEST));
+            err.completeExceptionally(new RakamException("Query is not valid.", BAD_REQUEST));
         }
 
         CompletableFuture<List<SchemaField>> schemaFuture = queryExecutorService.metadata(project, report.query);
         return schemaFuture.thenApply(schema -> {
             if (report.partitionKeys.stream().filter(key -> !schema.stream().anyMatch(a -> a.getName().equals(key))).findAny().isPresent()) {
-                return JsonResponse.error("Partition keys are not valid.");
+                throw new RakamException(PARTITION_KEY_INVALID, BAD_REQUEST);
             }
             try {
                 QueryResult f = service.create(project, report, false).getResult().join();
-                return JsonResponse.map(f);
+                return SuccessMessage.map(f);
             } catch (IllegalArgumentException e) {
-                return JsonResponse.error(e.getMessage());
+                throw new RakamException(e.getMessage(), BAD_REQUEST);
             }
         });
     }
@@ -119,20 +121,22 @@ public class ContinuousQueryHttpService extends HttpService {
     @ApiOperation(value = "Delete stream", authorizations = @Authorization(value = "master_key"))
 
     @Path("/delete")
-    public CompletableFuture<JsonResponse> deleteQuery(@Named("project") String project,
+    public CompletableFuture<SuccessMessage> deleteQuery(@Named("project") String project,
                                                        @ApiParam("table_name") String tableName) {
         return service.delete(project, tableName).thenApply(success -> {
             if (success) {
-                return JsonResponse.success();
+                return SuccessMessage.success();
             } else {
-                return JsonResponse.error("Error while deleting.");
+                throw new RakamException("Error while deleting.", INTERNAL_SERVER_ERROR);
             }
         });
     }
 
     @ApiOperation(value = "Delete stream", authorizations = @Authorization(value = "master_key"))
     @Path("/refresh")
+    @Consumes("text/event-stream")
     @GET
+    @IgnoreApi
     public void refreshQuery(RakamHttpRequest request) {
         queryHttpService.handleServerSentQueryExecution(request, RefreshQuery.class,
                 (project, q) -> service.refresh(project, q.table_name),

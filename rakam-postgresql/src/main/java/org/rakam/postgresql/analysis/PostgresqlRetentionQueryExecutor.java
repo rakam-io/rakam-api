@@ -60,9 +60,9 @@ public class PostgresqlRetentionQueryExecutor
     private final Metastore metastore;
 
     @Inject
-    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor,
-            Metastore metastore)
+    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor, Metastore metastore)
     {
+        super('"');
         this.executor = executor;
         this.metastore = metastore;
     }
@@ -115,7 +115,7 @@ public class PostgresqlRetentionQueryExecutor
             LocalDate startDate, LocalDate endDate)
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
-        checkTableColumn(CONNECTOR_FIELD, "connector field");
+        checkTableColumn(CONNECTOR_FIELD, "connector field", '"');
 
         String timeColumn = getTimeExpression(dateUnit);
 
@@ -219,7 +219,7 @@ public class PostgresqlRetentionQueryExecutor
             Map<String, List<SchemaField>> collections = metastore.getCollections(project);
             if (!collections.entrySet().stream().anyMatch(e -> e.getValue().stream().anyMatch(s -> s.getName().equals("_user")))) {
                 return format("select _time, %s null as %s",
-                        dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
+                        dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
                         connectorField);
             }
 
@@ -249,13 +249,13 @@ public class PostgresqlRetentionQueryExecutor
             Optional<Expression> filter)
     {
         return format("select _time, %s %s from %s where _time %s %s",
-                dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
+                dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
                 isText.map(text -> format("cast(\"%s\" as varchar) as %s", connectorField, connectorField)).orElse(connectorField),
                 project + "." + checkCollection(collection),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();
-                }) : "");
+                }, '"') : "");
     }
 
     private static String PL_PGGSQL_RETENTION_AGGREGATE_FUNCTION = "create or replace function public.analyze_retention_intermediate(arr integer[], ff boolean[]) returns integer[] volatile language plpgsql as $$\n" +

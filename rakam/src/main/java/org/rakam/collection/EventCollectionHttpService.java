@@ -39,13 +39,16 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -66,6 +69,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -76,23 +80,26 @@ import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.plugin.EventStore.CopyType.AVRO;
 import static org.rakam.plugin.EventStore.CopyType.CSV;
 import static org.rakam.plugin.EventStore.CopyType.JSON;
+import static org.rakam.plugin.EventStore.SUCCESSFUL_BATCH;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
+import static org.rakam.util.StandardErrors.CONFLICT_COMMIT_MESSAGE;
+import static org.rakam.util.StandardErrors.PARTIAL_ERROR_MESSAGE;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 @Path("/event")
-@Api(value = "/event", nickname = "collectEvent", description = "Event collection module", tags = {"event"})
+@Api(value = "/event", nickname = "collectEvent", description = "Event collection", tags = {"collect"})
 public class EventCollectionHttpService
         extends HttpService
 {
     private final static Logger LOGGER = Logger.get(EventCollectionHttpService.class);
-    private static final int[] EMPTY_INT_ARRAY = new int[0];
-    private static final String PARTIAL_ERROR_MESSAGE = "Failed to collect some of the events in batch. Returns the indexes of events that are failed in batch.";
+
     private final byte[] OK_MESSAGE = "1".getBytes(UTF_8);
 
     private final ObjectMapper jsonMapper;
@@ -144,7 +151,7 @@ public class EventCollectionHttpService
     {
         List<Cookie> cookies = null;
         for (EventMapper mapper : eventMappers) {
-            // TODO: bound event mappers to Netty Channels and run them in separate thread
+            // TODO: bound event mappers to Netty Channels and runStatementSafe them in separate thread
             List<Cookie> mapperCookies = mapperFunction.apply(mapper);
             if (mapperCookies != null) {
                 if (cookies == null) {
@@ -165,9 +172,10 @@ public class EventCollectionHttpService
         request.response(errResponse).end();
     }
 
-    public static void setBrowser(HttpRequest request, HttpResponse response) {
+    public static void setBrowser(HttpRequest request, HttpResponse response)
+    {
         response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-        if(request.headers().contains(ORIGIN)) {
+        if (request.headers().contains(ORIGIN)) {
             response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
         }
         String headerList = getHeaderList(request.headers().iterator());
@@ -240,7 +248,7 @@ public class EventCollectionHttpService
             if (headerList != null) {
                 response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
             }
-            if(request.headers().contains(ORIGIN)) {
+            if (request.headers().contains(ORIGIN)) {
                 response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
             }
 
@@ -259,12 +267,12 @@ public class EventCollectionHttpService
     }
 
     @POST
-    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = JsonResponse.class, notes = "Bulk API requires master_key as api key and designed to handle large value of data. " +
+    @ApiOperation(value = "Collect Bulk events", request = EventList.class, response = SuccessMessage.class, notes = "Bulk API requires master_key as api key and designed to handle large value of data. " +
             "The endpoint also accepts application/avro and text/csv formats. You need need to set 'collection' and 'master_key' query parameters if the content-type is not application/json.")
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request)
     {
-        storeEvents(request,
+        storeEventsSync(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
                     if (contentType == null || "application/json".equals(contentType)) {
@@ -309,7 +317,7 @@ public class EventCollectionHttpService
                     }
 
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                            Unpooled.wrappedBuffer(encodeAsBytes(JsonResponse.success())),
+                            Unpooled.wrappedBuffer(encodeAsBytes(SuccessMessage.success())),
                             responseHeaders);
                 });
     }
@@ -356,7 +364,7 @@ public class EventCollectionHttpService
     public void bulkEventsRemote(RakamHttpRequest request)
             throws IOException
     {
-        storeEvents(request,
+        storeEventsSync(request,
                 buff -> {
                     BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
                     String masterKey = request.headers().get("master_key");
@@ -434,12 +442,23 @@ public class EventCollectionHttpService
         }
     }
 
+    @ApiOperation(value = "Commit Bulk events", authorizations = @Authorization(value = "master_key"))
+    @Path("/bulk/commit")
+    @ApiResponses(value = {@ApiResponse(code = 409, message = CONFLICT_COMMIT_MESSAGE)})
+    @JsonRequest
+    public SuccessMessage commitBulkEvents(@Named("project") String project, @BodyParam CommitRequest request)
+    {
+        commitInternal(project, request);
+        return SuccessMessage.success("Commit process started.");
+    }
+
     @GET
     @Consumes("text/event-stream")
     @IgnoreApi
     @ApiOperation(value = "Commit Bulk events", request = CommitRequest.class, authorizations = @Authorization(value = "master_key"))
+    @ApiResponses(value = {@ApiResponse(code = 409, message = CONFLICT_COMMIT_MESSAGE)})
     @Path("/bulk/commit")
-    public void commitBulkEvents(RakamHttpRequest request)
+    public void commitBulkEventsStream(RakamHttpRequest request)
     {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
@@ -467,6 +486,21 @@ public class EventCollectionHttpService
 
         CommitRequest commitRequest = JsonHelper.read(data.get(0), CommitRequest.class);
 
+        List<QueryExecution> queryExecutions;
+        try {
+            queryExecutions = commitInternal(project, commitRequest);
+        }
+        catch (UnsupportedOperationException e) {
+            response.send("result", encode(errorMessage("Commit feature is not supported but this event store. /bulk endpoint commits automatically.", PRECONDITION_FAILED))).end();
+            return;
+        }
+
+        queryHttpService.handleServerSentQueryExecution(request, new ChainQueryExecution(queryExecutions, null), false);
+    }
+
+    private List<QueryExecution> commitInternal(String project, CommitRequest commitRequest)
+            throws UnsupportedOperationException
+    {
         Collection<String> collections;
         if (commitRequest != null && commitRequest.collections != null && !commitRequest.collections.isEmpty()) {
             collections = commitRequest.collections;
@@ -475,23 +509,17 @@ public class EventCollectionHttpService
             collections = metastore.getCollectionNames(project);
         }
 
-        ImmutableList.Builder<QueryExecution> builder = ImmutableList.<QueryExecution>builder();
-        QueryExecution execution = null;
+        ImmutableList.Builder<QueryExecution> builder = ImmutableList.builder();
+        QueryExecution execution;
         for (String collection : collections) {
-            try {
-                execution = eventStore.commit(project, collection);
-                builder.add(execution);
-            }
-            catch (UnsupportedOperationException e) {
-                if (execution != null) {
-                    response.send("result", encode(errorMessage("Commit feature is not supported but this event store. /bulk endpoint commits automatically.", PRECONDITION_FAILED))).end();
-                    return;
-                }
-            }
+            execution = eventStore.commit(project, collection);
+            builder.add(execution);
         }
 
-        queryHttpService.handleServerSentQueryExecution(request, new ChainQueryExecution(builder.build(), null), false);
+        return builder.build();
     }
+
+    private static final int[] FAILED_SINGLE_EVENT = new int[] {0};
 
     @POST
     @ApiOperation(notes = "Returns 1 if the events are collected.", value = "Collect multiple events", request = EventList.class, response = Integer.class)
@@ -503,55 +531,64 @@ public class EventCollectionHttpService
     {
         storeEvents(request, buff -> jsonMapper.readValue(buff, EventList.class),
                 (events, responseHeaders) -> {
-                    int[] errorIndexes;
+                    CompletableFuture<int[]> errorIndexes;
 
                     if (events.size() > 0) {
                         boolean single = events.size() == 1;
                         try {
                             if (single) {
-                                errorIndexes = EMPTY_INT_ARRAY;
+                                errorIndexes = EventStore.COMPLETED_FUTURE_BATCH;
                                 if (events.size() == 1) {
-                                    eventStore.store(events.get(0));
+                                    errorIndexes = eventStore.storeAsync(events.get(0))
+                                            .handle((result, ex) -> (ex != null) ? FAILED_SINGLE_EVENT : SUCCESSFUL_BATCH);
                                 }
                             }
                             else {
-                                errorIndexes = eventStore.storeBatch(events);
+                                errorIndexes = eventStore.storeBatchAsync(events);
                             }
                         }
                         catch (Exception e) {
                             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
                             LOGGER.error(new RuntimeException("Error executing EventStore " + (single ? "store" : "batch") + " method: " + sample, e),
                                     "Error while storing event.");
-                            return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
+                            return completedFuture(new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                     Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
-                                    responseHeaders);
+                                    responseHeaders));
                         }
                     }
                     else {
-                        errorIndexes = EMPTY_INT_ARRAY;
+                        errorIndexes = EventStore.COMPLETED_FUTURE_BATCH;
                     }
 
-                    if (errorIndexes.length == 0) {
-                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
-                                Unpooled.wrappedBuffer(OK_MESSAGE), responseHeaders);
-                    }
-                    else {
-                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
-                                Unpooled.wrappedBuffer(encodeAsBytes(errorIndexes)), responseHeaders);
-                    }
+                    return errorIndexes.thenApply(result -> {
+                        if (result.length == 0) {
+                            return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
+                                    Unpooled.wrappedBuffer(OK_MESSAGE), responseHeaders);
+                        }
+                        else {
+                            return new HeaderDefaultFullHttpResponse(HTTP_1_1, CONFLICT,
+                                    Unpooled.wrappedBuffer(encodeAsBytes(result)), responseHeaders);
+                        }
+                    });
                 });
     }
 
-    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction)
+    public void storeEventsSync(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction)
+    {
+        storeEvents(request, mapper,
+                (events, entries) -> completedFuture(responseFunction.apply(events, entries)));
+    }
+
+    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, CompletableFuture<FullHttpResponse>> responseFunction)
     {
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
             responseHeaders.set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            if(request.headers().contains(ORIGIN)) {
+            if (request.headers().contains(ORIGIN)) {
                 responseHeaders.set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
             }
 
-            FullHttpResponse response;
+            CompletableFuture<FullHttpResponse> response;
             List<Cookie> entries;
             try {
                 EventList events = mapper.apply(buff);
@@ -608,7 +645,7 @@ public class EventCollectionHttpService
 
             responseHeaders.add(CONTENT_TYPE, "application/json");
 
-            request.response(response).end();
+            response.thenAccept(resp -> request.response(resp).end());
         });
     }
 

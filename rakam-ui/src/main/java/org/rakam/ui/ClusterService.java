@@ -15,7 +15,7 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -52,7 +52,7 @@ public class ClusterService extends HttpService {
     @JsonRequest
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
-    public JsonResponse create(@CookieParam("session") String session,
+    public SuccessMessage create(@CookieParam("session") String session,
                                @BodyParam Cluster cluster) {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
@@ -82,14 +82,14 @@ public class ClusterService extends HttpService {
             }
             in.close();
 
-            JsonResponse read;
+            boolean read;
             try {
-                read = JsonHelper.read(response.toString(), JsonResponse.class);
+                read = JsonHelper.read(response.toString(), Boolean.class);
             } catch (Exception e) {
                 throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
             }
 
-            if(!read.success && read.equals("invalid")) {
+            if(!read) {
                 throw new RakamException("Lock key is invalid.", FORBIDDEN);
             }
         } catch (IOException e) {
@@ -113,14 +113,14 @@ public class ClusterService extends HttpService {
                 throw e;
             }
 
-            return JsonResponse.success();
+            return SuccessMessage.success();
         }
     }
 
     @JsonRequest
     @ApiOperation(value = "Delete cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
-    public JsonResponse delete(@CookieParam("session") String session,
+    public SuccessMessage delete(@CookieParam("session") String session,
                                @ApiParam("api_url") String apiUrl) {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
@@ -128,7 +128,7 @@ public class ClusterService extends HttpService {
             handle.createStatement("DELETE FROM rakam_cluster WHERE (user_id, api_url) VALUES (:userId, :apiUrl)")
                     .bind("userId", id)
                     .bind("apiUrl", apiUrl).execute();
-            return JsonResponse.success();
+            return SuccessMessage.success();
         }
     }
 

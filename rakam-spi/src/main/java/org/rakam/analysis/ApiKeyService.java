@@ -11,9 +11,10 @@ public interface ApiKeyService {
 
     void revokeApiKeys(String project, String masterKey);
 
-    boolean checkPermission(String project, AccessKeyType type, String apiKey);
-
     void revokeAllKeys(String project);
+
+    default void setup() {
+    }
 
     @AutoValue
     abstract class ProjectApiKeys {

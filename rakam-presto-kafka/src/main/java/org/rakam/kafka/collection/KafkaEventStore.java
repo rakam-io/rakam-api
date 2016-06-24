@@ -25,6 +25,7 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.SyncEventStore;
 import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
@@ -40,7 +41,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
 @Singleton
-public class KafkaEventStore implements EventStore, LeaderSelectorListener {
+public class KafkaEventStore implements SyncEventStore, LeaderSelectorListener {
     private final static Logger LOGGER = Logger.get(KafkaEventStore.class);
     private final static String ZK_OFFSET_PATH = "/collectionOffsets";
 

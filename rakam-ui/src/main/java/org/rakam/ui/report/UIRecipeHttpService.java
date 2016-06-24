@@ -22,7 +22,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static java.lang.Boolean.TRUE;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/ui/recipe")
@@ -51,18 +52,18 @@ public class UIRecipeHttpService extends HttpService {
     }
 
     @ApiOperation(value = "Install recipe",
-            authorizations = @Authorization(value = "master_key")
+            authorizations = @Authorization(value = "master_key"), response = SuccessMessage.class
     )
     @POST
     @Path("/install")
-    public void install(RakamHttpRequest request, @HeaderParam("project") int project) {
+    public void installUIRecipe(RakamHttpRequest request, @HeaderParam("project") int project) {
         String contentType = request.headers().get(CONTENT_TYPE);
         ExportType exportType = Arrays.stream(ExportType.values())
                 .filter(f -> f.contentType.equals(contentType))
                 .findAny()
                 .orElse(ExportType.YAML);
 
-        boolean override = ImmutableList.of(Boolean.TRUE.toString()).equals(request.params().get("override"));
+        boolean override = ImmutableList.of(TRUE.toString()).equals(request.params().get("override"));
 
         request.bodyHandler(body -> {
             UIRecipe recipe;
@@ -76,7 +77,7 @@ public class UIRecipeHttpService extends HttpService {
 
             try {
                 installer.install(recipe, project, override);
-                request.response(JsonHelper.encode(JsonResponse.success())).end();
+                request.response(JsonHelper.encode(SuccessMessage.success())).end();
             } catch (Exception e) {
                 returnError(request, "Error loading recipe: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);
             }
@@ -89,7 +90,7 @@ public class UIRecipeHttpService extends HttpService {
     )
     @GET
     @Path("/export")
-    public void export(@HeaderParam("Accept") String contentType, @HeaderParam("project") int project, RakamHttpRequest request) throws JsonProcessingException {
+    public void exportUIRecipe(@HeaderParam("Accept") String contentType, @HeaderParam("project") int project, RakamHttpRequest request) throws JsonProcessingException {
         request.bodyHandler(s -> {
             UIRecipe export = installer.export(project);
 

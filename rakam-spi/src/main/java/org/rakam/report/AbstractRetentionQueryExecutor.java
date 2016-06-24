@@ -13,6 +13,12 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class AbstractRetentionQueryExecutor implements RetentionQueryExecutor {
+    private final char escapeIdentifier;
+
+    public AbstractRetentionQueryExecutor(char escapeIdentifier)
+    {
+        this.escapeIdentifier = escapeIdentifier;
+    }
 
     protected String getTableSubQuery(String collection,
                                       String connectorField,
@@ -23,13 +29,15 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
                                       Optional<Expression> filter) {
         return format("select %s as date, %s %s from %s where _time %s %s",
                 String.format(timeColumn, "_time"),
-                dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension") + " as dimension, " : "",
-                isText.map(text -> String.format("cast(\"%s\" as varchar) as %s", connectorField, connectorField)).orElse(connectorField),
+                dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
+                isText.map(text -> String.format("cast(%s as varchar) as %s",
+                        checkTableColumn(connectorField, escapeIdentifier),
+                        checkTableColumn(connectorField, escapeIdentifier))).orElse(connectorField),
                 checkCollection(collection),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();
-                }) : "",
+                }, escapeIdentifier) : "",
                 dimension.map(v -> ", 2").orElse(""));
     }
 

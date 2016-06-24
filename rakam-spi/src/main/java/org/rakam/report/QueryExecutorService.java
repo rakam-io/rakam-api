@@ -7,6 +7,7 @@ import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
 import org.rakam.analysis.metadata.Metastore;
@@ -35,19 +36,19 @@ public class QueryExecutorService {
     private final SqlParser parser = new SqlParser();
 
     private final QueryExecutor executor;
-    private final QueryMetadataStore queryMetadataStore;
     private final MaterializedViewService materializedViewService;
     private final Metastore metastore;
     private final Clock clock;
+    private final char escapeIdentifier;
     private volatile Set<String> projectCache;
 
     @Inject
-    public QueryExecutorService(QueryExecutor executor, QueryMetadataStore queryMetadataStore, Metastore metastore, MaterializedViewService materializedViewService, Clock clock) {
+    public QueryExecutorService(QueryExecutor executor, Metastore metastore, MaterializedViewService materializedViewService, Clock clock, @EscapeIdentifier char escapeIdentifier) {
         this.executor = executor;
-        this.queryMetadataStore = queryMetadataStore;
         this.materializedViewService = materializedViewService;
         this.metastore = metastore;
         this.clock = clock;
+        this.escapeIdentifier = escapeIdentifier;
     }
 
     public QueryExecution executeQuery(String project, String sqlQuery, int limit) {
@@ -153,9 +154,9 @@ public class QueryExecutorService {
         }
 
         // TODO: use fake StringBuilder for performance
-        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, true)).process(statement, 1);
+        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, true), escapeIdentifier).process(statement, 1);
 
-        new QueryFormatter(builder, tableNameMapper(project, materializedViews, false)).process(statement, 1);
+        new QueryFormatter(builder, tableNameMapper(project, materializedViews, false), escapeIdentifier).process(statement, 1);
 
         if (maxLimit != null) {
             Integer limit = null;
@@ -182,7 +183,7 @@ public class QueryExecutorService {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
                 MaterializedView materializedView;
                 try {
-                    materializedView = queryMetadataStore.getMaterializedView(project, node.getSuffix());
+                    materializedView = materializedViewService.get(project, node.getSuffix());
                 } catch (Exception e) {
                     throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
                 }
@@ -206,7 +207,7 @@ public class QueryExecutorService {
             throw new RakamException("Unable to parse query: " + e.getMessage(), BAD_REQUEST);
         }
 
-        new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName))
+        new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = executor

@@ -12,14 +12,15 @@ import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import org.rakam.analysis.RealtimeService;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.EventExplorer;
-import org.rakam.analysis.AbstractFunnelQueryExecutor;
+import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.analysis.RealtimeService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
@@ -54,6 +55,7 @@ import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
+
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
@@ -74,6 +76,8 @@ public class PostgresqlModule extends RakamModule {
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("store.adapter.postgresql"))
                 .toInstance(orCreateDataSource);
+
+        binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
 
         binder.bind(Metastore.class).to(PostgresqlMetastore.class).in(Scopes.SINGLETON);
         binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
@@ -124,7 +128,7 @@ public class PostgresqlModule extends RakamModule {
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
 
         if (userPluginConfig.isFunnelAnalysisEnabled()) {
-            binder.bind(AbstractFunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
+            binder.bind(FunnelQueryExecutor.class).to(PostgresqlFunnelQueryExecutor.class);
         }
 
         if (userPluginConfig.isRetentionAnalysisEnabled()) {

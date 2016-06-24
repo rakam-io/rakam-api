@@ -16,11 +16,12 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.CryptUtil;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import java.util.LinkedHashMap;
@@ -79,8 +80,9 @@ public class ProjectHttpService extends HttpService {
             authorizations = @Authorization(value = "master_key")
     )
     @JsonRequest
+    @DELETE
     @Path("/delete")
-    public JsonResponse deleteProject(@Named("project") String project) {
+    public SuccessMessage deleteProject(@Named("project") String project) {
         checkProject(project);
         metastore.deleteProject(project.toLowerCase(ENGLISH));
 
@@ -96,14 +98,13 @@ public class ProjectHttpService extends HttpService {
 
         apiKeyService.revokeAllKeys(project);
 
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @ApiOperation(value = "Get project stats")
     @JsonRequest
     @Path("/stats")
     public Map<String, Metastore.Stats> getStats(@BodyParam List<String> apiKeys) {
-
         Map<String, String> keys = new LinkedHashMap<>();
         for (String apiKey : apiKeys) {
             String project;
@@ -126,20 +127,11 @@ public class ProjectHttpService extends HttpService {
                 .collect(Collectors.toMap(e -> keys.get(e.getKey()), e -> e.getValue()));
     }
 
-    public static class Project {
-        public final String project;
-        public final String apiKey;
-
-        public Project(String project, String apiKey) {
-            this.project = project;
-            this.apiKey = apiKey;
-        }
-    }
-
     @ApiOperation(value = "List created projects",
             authorizations = @Authorization(value = "read_key")
     )
     @GET
+    @JsonRequest
     @Path("/list")
     public Set<String> getProjects() {
         return metastore.getProjects();
@@ -236,9 +228,10 @@ public class ProjectHttpService extends HttpService {
             authorizations = @Authorization(value = "master_key"))
 
     @Path("/revoke-api-keys")
-    public JsonResponse revokeApiKeys(@Named("project") String project, @HeaderParam("master_key") String masterKey) {
+    @DELETE
+    public SuccessMessage revokeApiKeys(@Named("project") String project, @HeaderParam("master_key") String masterKey) {
         apiKeyService.revokeApiKeys(project, masterKey);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     public static class Collection {

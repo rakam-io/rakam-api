@@ -9,13 +9,23 @@ import org.rakam.report.realtime.AggregationType;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public interface EventStore {
     int[] SUCCESSFUL_BATCH = new int[0];
+    CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
+    CompletableFuture<int[]> COMPLETED_FUTURE_BATCH = CompletableFuture.completedFuture(new int[]{});
 
-    void store(Event event);
+    default void store(Event event) {
+        storeAsync(event).join();
+    }
 
-    int[] storeBatch(List<Event> events);
+    default int[] storeBatch(List<Event> events) {
+        return storeBatchAsync(events).join();
+    }
+
+    CompletableFuture<int[]> storeBatchAsync(List<Event> events);
+    CompletableFuture<Void> storeAsync(Event event);
 
     default void storeBulk(List<Event> events) {
         storeBatch(events);

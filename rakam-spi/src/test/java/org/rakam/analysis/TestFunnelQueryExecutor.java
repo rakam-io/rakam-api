@@ -3,8 +3,8 @@ package org.rakam.analysis;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.EventBuilder;
-import org.rakam.analysis.AbstractFunnelQueryExecutor.FunnelStep;
-import org.rakam.analysis.AbstractFunnelQueryExecutor.FunnelWindow;
+import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
+import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.of;
-import static org.rakam.analysis.AbstractFunnelQueryExecutor.WindowType.DAY;
+import static org.rakam.analysis.FunnelQueryExecutor.WindowType.DAY;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
@@ -58,7 +58,7 @@ public abstract class TestFunnelQueryExecutor {
 
     public abstract Metastore getMetastore();
 
-    public abstract AbstractFunnelQueryExecutor getFunnelQueryExecutor();
+    public abstract FunnelQueryExecutor getFunnelQueryExecutor();
 
     @Test
     public void testSingleStep() throws Exception {

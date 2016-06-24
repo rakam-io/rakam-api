@@ -1,21 +1,9 @@
 package org.rakam.analysis.realtime;
 
-import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.QualifiedName;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.inject.Singleton;
-import io.airlift.units.Duration;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.RealtimeService;
 import org.rakam.analysis.RealtimeService.RealTimeQueryResult;
-import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.report.QueryExecutor;
-import org.rakam.report.realtime.AggregationType;
-import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.report.realtime.RealTimeReport;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
@@ -26,8 +14,7 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.JsonResponse;
-import org.rakam.util.NotImplementedException;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -36,19 +23,11 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -81,7 +60,7 @@ public class RealTimeHttpService
     @JsonRequest
     @ApiOperation(value = "Create report", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public CompletableFuture<JsonResponse> createTable(@Named("project") String project, @BodyParam RealTimeReport report)
+    public CompletableFuture<SuccessMessage> createTable(@Named("project") String project, @BodyParam RealTimeReport report)
     {
         return realtimeService.create(project, report);
     }
@@ -115,16 +94,16 @@ public class RealTimeHttpService
     @JsonRequest
     @ApiOperation(value = "Delete report", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
-    public CompletableFuture<JsonResponse> deleteTable(@Named("project") String project,
+    public CompletableFuture<SuccessMessage> deleteTable(@Named("project") String project,
             @ApiParam("table_name") String tableName)
     {
         // TODO: Check if it's a real-time report.
         return realtimeService.delete(project, tableName).thenApply(result -> {
             if (result) {
-                return JsonResponse.success();
+                return SuccessMessage.success();
             }
             else {
-                return JsonResponse.error("Couldn't delete report. Most probably it doesn't exist");
+                throw new RakamException("Couldn't delete report. It doesn't exist", BAD_REQUEST);
             }
         });
     }

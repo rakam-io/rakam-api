@@ -144,6 +144,6 @@ public abstract class AbstractMetastore implements Metastore {
 
     @Override
     public Map<String, Stats> getStats(Collection<String> projects) {
-        return null;
+        return projects.stream().collect(Collectors.toMap(e -> e, e -> new Stats()));
     }
 }

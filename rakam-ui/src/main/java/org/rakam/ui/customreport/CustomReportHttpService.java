@@ -24,7 +24,7 @@ import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.RakamUIModule;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -66,33 +66,33 @@ public class CustomReportHttpService extends HttpService {
 
 
     @ApiOperation(value = "Create reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"),
-            response = JsonResponse.class, request = CustomReport.class)
+            response = SuccessMessage.class, request = CustomReport.class)
     @JsonRequest
     @Path("/create")
-    public JsonResponse create(@HeaderParam("project") int project, @CookieParam("session") String session, @BodyParam CustomReport report) {
+    public SuccessMessage create(@HeaderParam("project") int project, @CookieParam("session") String session, @BodyParam CustomReport report) {
         int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         metadata.save(userId, project, report);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest
     @Path("/update")
     @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public JsonResponse update(@HeaderParam("project") int project, @BodyParam CustomReport report) {
+    public SuccessMessage update(@HeaderParam("project") int project, @BodyParam CustomReport report) {
         metadata.update(project, report);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest
     @Path("/delete")
     @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public JsonResponse delete(@HeaderParam("project") int project,
+    public SuccessMessage delete(@HeaderParam("project") int project,
                                @ApiParam("report_type") String reportType,
                                @ApiParam("name") String name) {
         metadata.delete(reportType, project, name);
 
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @JsonRequest

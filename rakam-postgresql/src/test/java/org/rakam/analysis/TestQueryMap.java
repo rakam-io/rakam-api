@@ -10,24 +10,17 @@ import org.testng.annotations.Test;
 
 import java.util.function.Function;
 
-public class TestQuery {
+public class TestQueryMap
+{
     @Test
     public void testName() throws Exception {
         String sql = "select selami:timestamp, melami:varchar from deneme where ali:timestamp is not null and veli is null group by demo";
         SqlParserOptions options = new SqlParserOptions().allowIdentifierSymbol(IdentifierSymbol.COLON);
         Statement statement = new SqlParser(options).createStatement(sql);
 
-        String s = RakamSqlFormatter.formatSql(statement, new Function<QualifiedName, String>() {
-            @Override
-            public String apply(QualifiedName name) {
-                return String.format("(SELECT * FROM events WHERE collection_name = '%s')", name.toString());
-            }
-        }, new Function<QualifiedName, String>() {
-            @Override
-            public String apply(QualifiedName name) {
-                return "\"$data\"['" + name + "']";
-            }
-        });
+        String s = RakamSqlFormatter.formatSql(statement,
+                name -> String.format("(SELECT * FROM events WHERE collection_name = '%s')", name.toString()),
+                name -> "\"$data\"['" + name + "']", '"');
         System.out.println(s);
     }
 }

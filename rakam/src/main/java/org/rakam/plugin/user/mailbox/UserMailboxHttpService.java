@@ -17,7 +17,7 @@ import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -79,20 +79,17 @@ public class UserMailboxHttpService extends HttpService {
     public void listenMails(RakamHttpRequest request) {
         RakamHttpRequest.StreamResponse response = request.streamResponse();
 
-        List<String> project = request.params().get("project");
-        if (project == null || project.isEmpty()) {
-            response.send("result", encode(HttpServer.errorMessage("project query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
+        List<String> apiKey = request.params().get("api_key");
+        if (apiKey == null || apiKey.isEmpty()) {
+            response.send("result", encode(HttpServer.errorMessage("api_key query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
             return;
         }
 
         List<String> api_key = request.params().get("read_key");
-        if (api_key == null || api_key.isEmpty() || !apiKeyService.checkPermission(project.get(0), org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY, api_key.get(0))) {
-            response.send("result", encode(HttpServer.errorMessage(HttpResponseStatus.FORBIDDEN.reasonPhrase(),
-                    HttpResponseStatus.FORBIDDEN))).end();
-            return;
-        }
+        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), ApiKeyService.AccessKeyType.READ_KEY);
 
-        UserMailboxStorage.MessageListener update = storage.listenAllUsers(project.get(0),
+
+        UserMailboxStorage.MessageListener update = storage.listenAllUsers(project,
                 data -> response.send("update", data.serialize()));
 
         response.listenClose(() -> update.shutdown());
@@ -106,12 +103,12 @@ public class UserMailboxHttpService extends HttpService {
     @ApiResponses(value = {@ApiResponse(code = 404, message = "Message does not exist."),
             @ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/mark_as_read")
-    public JsonResponse markAsRead(
+    public SuccessMessage markAsRead(
             @javax.inject.Named("project") String project,
             @ApiParam(value = "user", description = "User id") String user,
             @ApiParam(value = "message_ids", description = "The list of of message ids that will be marked as read") int[] message_ids) {
         storage.markMessagesAsRead(project, user, message_ids);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @Path("/get_online_users")

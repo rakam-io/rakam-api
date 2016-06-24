@@ -125,12 +125,6 @@ public class JDBCMetastore extends AbstractMetastore {
             return null;
         });
     }
-
-    @Override
-    public Map<String, Set<String>> getAllCollections() {
-        return Collections.unmodifiableMap(collectionCache.asMap());
-    }
-
     @Override
     public Map<String, List<SchemaField>> getCollections(String project) {
         try {
@@ -221,7 +215,7 @@ public class JDBCMetastore extends AbstractMetastore {
             Runnable task;
             if (currentFields.isEmpty()) {
                 if (!getProjects().contains(project)) {
-                    throw new NotExistsException("project", HttpResponseStatus.FORBIDDEN);
+                    throw new NotExistsException("Project");
                 }
                 String queryEnd = schemaFields.stream()
                         .map(f -> {

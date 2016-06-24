@@ -14,6 +14,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
@@ -35,7 +36,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-
+import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 @Singleton
 public class JDBCQueryMetadata implements QueryMetadataStore {
@@ -75,7 +77,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
                             .bind("name", key.collection)
                             .map(materializedViewMapper).first();
                     if (first == null) {
-                        throw new NotExistsException("materialized view", BAD_REQUEST);
+                        throw new NotExistsException("Materialized view");
                     }
                     return first;
                 }
@@ -212,7 +214,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
             ContinuousQuery first = handle.createQuery("SELECT name, table_name, query, partition_keys, options FROM continuous_query_metadata WHERE project = :project AND table_name = :name")
                     .bind("project", project).bind("name", tableName).map(continuousQueryMapper).first();
             if (first == null) {
-                throw new NotExistsException(String.format("Continuous query table continuous.%s", tableName), BAD_REQUEST);
+                throw new NotExistsException(format("Continuous query table continuous.%s", checkCollection(tableName)));
             }
             return first;
         }
@@ -241,21 +243,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT name, query, table_name, update_interval, last_updated, incremental, options from materialized_views WHERE project = :project")
                     .bind("project", project).map(materializedViewMapper).list();
-        }
-    }
-
-    @Override
-    public Map<String, Collection<ContinuousQuery>> getAllContinuousQueries() {
-        try (Handle handle = dbi.open()) {
-            HashMap<String, Collection<ContinuousQuery>> map = new HashMap<>();
-            handle.createQuery("SELECT project, name, table_name, query, partition_keys, options from continuous_query_metadata")
-                    .map((index, r, ctx) -> {
-                        return new AbstractMap.SimpleImmutableEntry<>(r.getString("project"), new ContinuousQuery(
-                                r.getString("table_name"), r.getString("name"), r.getString("query"),
-                                JsonHelper.read(r.getString("partition_keys"), List.class),
-                                JsonHelper.read(r.getString("options"), Map.class)));
-                    }).list().forEach(e -> map.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(e.getValue()));
-            return map;
         }
     }
 }

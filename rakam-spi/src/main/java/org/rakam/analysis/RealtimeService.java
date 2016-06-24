@@ -13,7 +13,7 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.report.realtime.RealTimeReport;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.NotImplementedException;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
@@ -32,7 +32,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -52,9 +51,10 @@ public class RealtimeService
     private final QueryExecutor executor;
     private final Duration window;
     private final List<AggregationType> aggregationTypes;
+    private final char escapeIdentifier;
 
     @Inject
-    public RealtimeService(ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction)
+    public RealtimeService(ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
     {
         this.service = service;
         this.timestampToEpochFunction = timestampToEpochFunction;
@@ -63,9 +63,10 @@ public class RealtimeService
         this.slide = realTimeConfig.getSlideInterval();
         this.aggregationTypes = aggregationTypes;
         this.executor = executor;
+        this.escapeIdentifier = escapeIdentifier;
     }
 
-    public CompletableFuture<JsonResponse> create(String project, RealTimeReport report)
+    public CompletableFuture<SuccessMessage> create(String project, RealTimeReport report)
     {
         String unsupportedMeasures = report.measures.stream()
                 .filter(e -> !aggregationTypes.contains(e.aggregation))
@@ -92,7 +93,7 @@ public class RealtimeService
                 sqlQuery,
                 ImmutableList.of(),
                 ImmutableMap.of("realtime", true, "aggregation", report.measures));
-        return service.create(project, query, false).getResult().thenApply(JsonResponse::map);
+        return service.create(project, query, false).getResult().thenApply(SuccessMessage::map);
     }
 
     public CompletableFuture<Boolean> delete(String project, String tableName)
@@ -131,13 +132,14 @@ public class RealtimeService
         String sqlQuery = format("select %s, %s %s from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol + " * cast(" + slide.toMillis() + " as bigint)",
                 !noDimension ? dimensions.stream().map(ValidationUtil::checkTableColumn).collect(Collectors.joining(", ")) + "," : "",
-                String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid")),
+                String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid", '"')),
                 executor.formatTableReference(project, QualifiedName.of("continuous", tableName)),
                 format("_time >= %d", previousWindow) +
                         (dateEnd == null ? "" :
                                 format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
                 !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(ValidationUtil::checkTableColumn).collect(Collectors.joining(", "))) : "",
-                (expression == null) ? "" : formatExpression(expression, reference -> executor.formatTableReference(project, reference)));
+                (expression == null) ? "" : formatExpression(expression,
+                        reference -> executor.formatTableReference(project, reference), escapeIdentifier));
 
         final boolean finalAggregate = aggregate;
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {

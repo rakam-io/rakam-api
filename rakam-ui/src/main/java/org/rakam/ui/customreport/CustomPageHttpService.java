@@ -37,7 +37,7 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.RakamUIModule;
 import org.rakam.ui.page.CustomPageDatabase;
-import org.rakam.util.JsonResponse;
+import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -117,27 +117,27 @@ public class CustomPageHttpService extends HttpService {
     @POST
     @JsonRequest
     @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"),
-            response = JsonResponse.class, request = CustomPageDatabase.Page.class)
-    public JsonResponse save(@CookieParam("session") String session, @HeaderParam("project") int project, @BodyParam CustomPageDatabase.Page report) {
+            response = SuccessMessage.class, request = CustomPageDatabase.Page.class)
+    public SuccessMessage save(@CookieParam("session") String session, @HeaderParam("project") int project, @BodyParam CustomPageDatabase.Page report) {
         java.util.Optional<Integer> user = java.util.Optional.ofNullable(session).map(cookie -> extractUserFromCookie(cookie, encryptionConfig.getSecretKey()));
         if (!user.isPresent()) {
             throw new RakamException(UNAUTHORIZED);
         } else {
             database.get().save(user.get(), project, report);
-            return JsonResponse.success();
+            return SuccessMessage.success();
         }
     }
 
     @Path("/delete")
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public JsonResponse delete(@HeaderParam("project") int project,
+    public SuccessMessage delete(@HeaderParam("project") int project,
                                @ApiParam("name") String name) {
         if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
         database.get().delete(project, name);
-        return JsonResponse.success();
+        return SuccessMessage.success();
     }
 
     @Path("/check")

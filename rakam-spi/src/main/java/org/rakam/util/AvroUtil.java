@@ -102,12 +102,15 @@ public final class AvroUtil
         return Schema.createUnion(Lists.newArrayList(Schema.create(NULL), getAvroSchema(field)));
     }
 
-    private static Schema getAvroSchema(FieldType type)
+    public static Schema getAvroSchema(FieldType type)
     {
         switch (type) {
             case STRING:
                 return Schema.create(Schema.Type.STRING);
+            case BINARY:
+                return Schema.create(Schema.Type.BYTES);
             case DOUBLE:
+            case DECIMAL:
                 return Schema.create(Schema.Type.DOUBLE);
             case BOOLEAN:
                 return Schema.create(Schema.Type.BOOLEAN);

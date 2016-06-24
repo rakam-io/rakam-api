@@ -91,7 +91,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                     .bind("requestedUser", requestedUserId)
                     .bind("slug", slug).map(mapper).first();
             if(report == null) {
-                throw new NotExistsException("Report", HttpResponseStatus.NOT_FOUND);
+                throw new NotExistsException("Report");
             }
             return report;
         }

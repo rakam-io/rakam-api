@@ -29,7 +29,7 @@ public class RealTimeModule extends RakamModule {
         mappers.permitDuplicates().addBinding().to(TimestampEventMapper.class);
 
         Multibinder.newSetBinder(binder, Tag.class).addBinding()
-                .toInstance( new Tag().name("realtime").description("")
+                .toInstance( new Tag().name("realtime").description("Realtime")
                         .externalDocs(MetadataConfig.centralDocs));
     }
 

@@ -1,4 +1,4 @@
-package org.rakam.aws;
+package org.rakam.aws.s3;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
@@ -19,6 +19,7 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.aws.AWSConfig;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;

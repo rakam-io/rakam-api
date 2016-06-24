@@ -19,7 +19,9 @@ public abstract class TestRealtimeModule {
 
     @Test
     public void testCreate() throws Exception {
-        RealtimeService service = new RealtimeService(getContinuousQueryService(), getQueryExecutor(), ImmutableList.of(COUNT), new RealTimeConfig(), getTimestampToEpochFunction());
+        RealtimeService service = new RealtimeService(getContinuousQueryService(),
+                getQueryExecutor(), ImmutableList.of(COUNT),
+                new RealTimeConfig(), getTimestampToEpochFunction(), '"');
         RealTimeReport report = new RealTimeReport("test", ImmutableList.of(new RealTimeReport.Measure("test", COUNT)), "test", ImmutableList.of("testcollection"), null, null);
         service.create("test", report);
 
@@ -36,7 +38,9 @@ public abstract class TestRealtimeModule {
 
     @Test
     public void testGet() throws Exception {
-        RealtimeService service = new RealtimeService(getContinuousQueryService(), getQueryExecutor(), ImmutableList.of(COUNT), new RealTimeConfig(), getTimestampToEpochFunction());
+        RealtimeService service = new RealtimeService(getContinuousQueryService(),
+                getQueryExecutor(), ImmutableList.of(COUNT),
+                new RealTimeConfig(), getTimestampToEpochFunction(), '"');
         RealTimeReport report = new RealTimeReport("test", ImmutableList.of(new RealTimeReport.Measure("test", COUNT)), "test", ImmutableList.of("testcollection"), null, null);
         service.create("test", report);
 
@@ -45,7 +49,8 @@ public abstract class TestRealtimeModule {
 
     @Test
     public void testDelete() throws Exception {
-        RealtimeService service = new RealtimeService(getContinuousQueryService(), getQueryExecutor(), ImmutableList.of(COUNT), new RealTimeConfig(), getTimestampToEpochFunction());
+        RealtimeService service = new RealtimeService(getContinuousQueryService(), getQueryExecutor(),
+                ImmutableList.of(COUNT), new RealTimeConfig(), getTimestampToEpochFunction(), '"');
         RealTimeReport report = new RealTimeReport("test", ImmutableList.of(new RealTimeReport.Measure("test", COUNT)), "test", ImmutableList.of("testcollection"), null, null);
         service.create("test", report);
         service.delete("test", "test");

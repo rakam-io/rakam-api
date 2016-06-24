@@ -84,7 +84,7 @@ public class WebServiceModule extends AbstractModule {
                         .url("http://www.apache.org/licenses/LICENSE-2.0.html"));
 
         Swagger swagger = new Swagger().info(info)
-                .host("https://app.rakam.io")
+                .host("app.rakam.io")
                 .basePath("/")
                 .tags(ImmutableList.copyOf(tags))
                 .securityDefinition("write_key", new ApiKeyAuthDefinition().in(In.HEADER).name("write_key"))

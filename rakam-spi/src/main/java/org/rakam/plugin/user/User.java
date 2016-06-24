@@ -15,7 +15,7 @@ public class User
     public final UserContext api;
 
     @JsonCreator
-    public User(@ApiParam("id") Object id,
+    public User(@ApiParam(value = "id", description = "The value may be a string or a numeric value.") Object id,
             @ApiParam("api") UserContext api,
             @ApiParam("properties") ObjectNode properties)
     {

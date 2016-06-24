@@ -96,7 +96,6 @@ public class JDBCApiKeyService
     @Override
     public ProjectApiKeys createApiKeys(String project)
     {
-
         String masterKey = CryptUtil.generateRandomKey(64);
         String readKey = CryptUtil.generateRandomKey(64);
         String writeKey = CryptUtil.generateRandomKey(64);
@@ -147,28 +146,6 @@ public class JDBCApiKeyService
             ps.execute();
         }
         catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public boolean checkPermission(String project, AccessKeyType type, String apiKey)
-    {
-        try {
-            if (apiKey == null) {
-                throw new RakamException("Api key is missing", FORBIDDEN);
-            }
-            if (project == null) {
-                throw new RakamException("Project id is missing", FORBIDDEN);
-            }
-            boolean exists = apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
-            if (!exists) {
-                apiKeyCache.refresh(project);
-                return apiKeyCache.get(project).get(type.ordinal()).contains(apiKey);
-            }
-            return true;
-        }
-        catch (ExecutionException e) {
             throw Throwables.propagate(e);
         }
     }

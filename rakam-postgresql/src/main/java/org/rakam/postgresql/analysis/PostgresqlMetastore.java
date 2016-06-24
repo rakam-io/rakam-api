@@ -101,12 +101,6 @@ public class PostgresqlMetastore
     }
 
     @Override
-    public Map<String, Set<String>> getAllCollections()
-    {
-        return Collections.unmodifiableMap(collectionCache.asMap());
-    }
-
-    @Override
     public Map<String, List<SchemaField>> getCollections(String project)
     {
         try {
@@ -220,7 +214,7 @@ public class PostgresqlMetastore
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
             if (currentFields.isEmpty()) {
                 if (!getProjects().contains(project)) {
-                    throw new NotExistsException("project", FORBIDDEN);
+                    throw new NotExistsException("Project");
                 }
                 String queryEnd = schemaFields.stream()
                         .map(f -> {

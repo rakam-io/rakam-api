@@ -31,7 +31,7 @@ public class FunnelAnalyzerModule extends RakamModule {
         httpServices.addBinding().to(FunnelAnalyzerHttpService.class);
 
         Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
-        tags.addBinding().toInstance(new Tag().name("funnel").description("Funnel Analyzer module").externalDocs(MetadataConfig.centralDocs));
+        tags.addBinding().toInstance(new Tag().name("funnel").description("Funnel Analyzer").externalDocs(MetadataConfig.centralDocs));
     }
 
     @Override

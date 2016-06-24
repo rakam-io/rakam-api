@@ -5,10 +5,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
+import org.rakam.plugin.EventStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.util.RakamException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -16,12 +22,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static com.google.common.collect.ImmutableList.of;
+import static org.apache.avro.Schema.Type.INT;
+import static org.apache.avro.Schema.Type.NULL;
+import static org.apache.avro.Schema.Type.STRING;
 
 public abstract class AbstractUserService {
-    private final UserStorage storage;
+    protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
+            new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
+            new Schema.Field("_user", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
+            new Schema.Field("created_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null),
+            new Schema.Field("merged_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null)
+    ));
 
-    public AbstractUserService(UserStorage storage) {
+    private final UserStorage storage;
+    private final UserPluginConfig config;
+    private final EventStore eventStore;
+
+    public AbstractUserService(UserStorage storage, UserPluginConfig config, EventStore eventStore) {
         this.storage = storage;
+        this.config = config;
+        this.eventStore = eventStore;
     }
 
     public Object create(String project, Object id, ObjectNode properties) {
@@ -75,7 +96,18 @@ public abstract class AbstractUserService {
         storage.unsetProperties(project, user, properties);
     }
 
-    public abstract void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt);
+    public void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt) {
+        if (!config.getEnableUserMapping()) {
+            throw new RakamException(HttpResponseStatus.NOT_IMPLEMENTED);
+        }
+        GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
+        properties.put(0, anonymousId);
+        properties.put(1, user);
+        properties.put(2, (int) Math.floorDiv(createdAt.getEpochSecond(), 86400));
+        properties.put(3, (int) Math.floorDiv(mergedAt.getEpochSecond(), 86400));
+
+        eventStore.store(new Event(project, "_anonymous_id_mapping", null, null, properties));
+    }
 
     public abstract QueryExecution precalculate(String project, PreCalculateQuery query);
 

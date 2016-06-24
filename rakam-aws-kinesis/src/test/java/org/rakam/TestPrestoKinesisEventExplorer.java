@@ -1,18 +1,18 @@
 package org.rakam;
 
 import org.rakam.aws.AWSConfig;
-import org.rakam.aws.AWSKinesisEventStore;
+import org.rakam.aws.kinesis.AWSKinesisPrestoEventStore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 
 public class TestPrestoKinesisEventExplorer extends TestPrestoEventExplorer {
-    private AWSKinesisEventStore testingPrestoEventStore;
+    private AWSKinesisPrestoEventStore testingPrestoEventStore;
 
     @Override
     public void setupInline() {
-        testingPrestoEventStore = new AWSKinesisEventStore(getAWSConfig(), getMetastore(),
+        testingPrestoEventStore = new AWSKinesisPrestoEventStore(getAWSConfig(), getMetastore(),
                 getMetastoreDataSource(),
-                getPrestoQueryExecutor(),  getQueryMetadataStore(),
+                getPrestoQueryExecutor(), getContinuousQueryService(),
                 getEnvironment().getPrestoConfig(),
                 new FieldDependencyBuilder().build());
     }

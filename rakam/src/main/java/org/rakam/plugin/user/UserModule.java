@@ -7,8 +7,10 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.airlift.configuration.ConfigBinder;
 import io.swagger.models.Tag;
 import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.InternalConfig;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
@@ -54,11 +56,14 @@ public class UserModule
         binder.bind(UserStorageListener.class).asEagerSingleton();
         binder.bind(UserPrecomputationListener.class).asEagerSingleton();
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
-        bindConfig(binder).to(EmailClientConfig.class);
+        ConfigBinder.configBinder(binder).bindConfig(EmailClientConfig.class);
 
         Multibinder<Tag> tagMultibinder = Multibinder.newSetBinder(binder, Tag.class);
         tagMultibinder.addBinding()
-                .toInstance(new Tag().name("user").description("User module for Rakam")
+                .toInstance(new Tag().name("user").description("User")
+                        .externalDocs(MetadataConfig.centralDocs));
+        tagMultibinder.addBinding()
+                .toInstance(new Tag().name("user-action").description("User Action")
                         .externalDocs(MetadataConfig.centralDocs));
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
@@ -135,16 +140,14 @@ public class UserModule
 
     public static class UserPrecomputationListener
     {
-        private final Metastore metastore;
         private final AbstractUserService service;
-        private final QueryMetadataStore metadataStore;
+        private final ContinuousQueryService continuousQueryService;
 
         @Inject
-        public UserPrecomputationListener(AbstractUserService service, QueryMetadataStore metadataStore, Metastore metastore)
+        public UserPrecomputationListener(AbstractUserService service, ContinuousQueryService continuousQueryService)
         {
             this.service = service;
-            this.metastore = metastore;
-            this.metadataStore = metadataStore;
+            this.continuousQueryService = continuousQueryService;
         }
 
         @Subscribe
@@ -168,7 +171,7 @@ public class UserModule
             try {
                 if (collection != null) {
                     try {
-                        metadataStore.getContinuousQuery(project, "_users_daily_" + collection);
+                        continuousQueryService.get(project, "_users_daily_" + collection);
                     }
                     catch (RakamException e) {
                         try {
@@ -180,7 +183,7 @@ public class UserModule
                 }
 
                 try {
-                    metadataStore.getContinuousQuery(project, "_users_daily");
+                    continuousQueryService.get(project, "_users_daily");
                 }
                 catch (RakamException e) {
                     try {

@@ -97,10 +97,10 @@
             <version>1.9.13</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.postgresql</groupId>-->
+            <!--<artifactId>postgresql</artifactId>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>com.zaxxer</groupId>
@@ -168,41 +168,60 @@
             <groupId>javax.mail</groupId>
             <artifactId>mail</artifactId>
         </dependency>
-
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>slice</artifactId>
-        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.4.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <artifactSet>
+                                <includes>
+                                    <include>com.facebook.presto:presto-parser</include>
+                                </includes>
+                            </artifactSet>
+                            <filter>
+                                <artifact>com.facebook.presto:presto-parser</artifact>
+                                <excludes>
+                                    <exclude>com/facebook/presto/sql/tree/QualifiedName.java</exclude>
+                                    <exclude>com/facebook/presto/sql/tree/Cast.java</exclude>
+                                </excludes>
+                            </filter>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
                     <version>2.10</version>
                     <executions>
                         <execution>
-                            <id>default</id>
-                            <phase>process-test-classes</phase>
+                            <id>unpack</id>
+                            <phase>package</phase>
                             <goals>
-                                <goal>analyze-only</goal>
-                                <goal>analyze-duplicate</goal>
-                                <goal>analyze-dep-mgt</goal>
+                                <goal>unpack</goal>
                             </goals>
                             <configuration>
-                                <failOnWarning>true</failOnWarning>
-
-                                <ignoredUnusedDeclaredDependencies>
-                                    <!-- The plugin complains that version 0.10 is in classpath but presto-parser needs 0.15
-                                         and dependency:tree has 0.10 version of io.airlift.slice even though presto-parser uses 0.15
-                                         TODO: I couldn't fix this problem and need help from someone. -->
-                                    <ignoredUnusedDeclaredDependency>io.airlift:slice</ignoredUnusedDeclaredDependency>
-                                    <!-- When I remove these dependencies maven throws usedUndeclaredDependency. Sure, I thought that it must be kidding. -->
-                                    <ignoredUnusedDeclaredDependency>com.fasterxml.jackson.core:jackson-core</ignoredUnusedDeclaredDependency>
-                                    <ignoredUnusedDeclaredDependency>com.fasterxml.jackson.core:jackson-databind</ignoredUnusedDeclaredDependency>
-                                    <ignoredUnusedDeclaredDependency>org.postgresql:postgresql</ignoredUnusedDeclaredDependency>
-                                </ignoredUnusedDeclaredDependencies>
+                                <artifactItems>
+                                    <artifactItem>
+                                        <groupId>com.facebook.presto</groupId>
+                                        <artifactId>presto-parser</artifactId>
+                                        <version>${presto.version}</version>
+                                        <type>jar</type>
+                                        <overWrite>false</overWrite>
+                                        <excludes>com/facebook/presto/sql/tree/QualifiedName.class,com/facebook/presto/sql/tree/Cast.class</excludes>
+                                    </artifactItem>
+                                </artifactItems>
+                                <outputDirectory>${project.build.outputDirectory}</outputDirectory>
                             </configuration>
                         </execution>
                     </executions>

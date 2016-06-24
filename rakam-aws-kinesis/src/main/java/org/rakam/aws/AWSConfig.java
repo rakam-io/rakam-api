@@ -6,6 +6,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
+import com.facebook.presto.rakam.stream.worker.kinesis.KinesisStreamSourceConfig;
 import io.airlift.configuration.Config;
 
 public class AWSConfig {
@@ -16,6 +17,7 @@ public class AWSConfig {
     private String eventStoreBulkS3Bucket;
     private String s3Endpoint;
     private String kinesisEndpoint;
+    private String dynamodbEndpoint;
 
     public String getEventStoreStreamName() {
         return eventStoreStreamName;
@@ -102,5 +104,17 @@ public class AWSConfig {
         }
 
         return new StaticCredentialsProvider(new BasicAWSCredentials(getAccessKey(), getSecretAccessKey()));
+    }
+
+    @Config("aws.dynamodb-endpoint")
+    public AWSConfig setDynamodbEndpoint(String dynamodbEndpoint)
+    {
+        this.dynamodbEndpoint = dynamodbEndpoint;
+        return this;
+    }
+
+    public String getDynamodbEndpoint()
+    {
+        return dynamodbEndpoint;
     }
 }

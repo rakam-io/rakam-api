@@ -14,9 +14,11 @@ import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.InvalidConfigurationException;
 import io.swagger.jackson.SwaggerAnnotationIntrospector_;
+import io.swagger.models.Tag;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
@@ -37,6 +39,11 @@ public class RecipeModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
         RecipeConfig recipes = buildConfigObject(RecipeConfig.class);
+
+
+        Multibinder.newSetBinder(binder, Tag.class).addBinding()
+                .toInstance( new Tag().name("recipe").description("Recipe")
+                        .externalDocs(MetadataConfig.centralDocs));
 
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(RecipeHttpService.class).in(Scopes.SINGLETON);

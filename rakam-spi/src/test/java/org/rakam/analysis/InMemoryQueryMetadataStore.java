@@ -82,9 +82,4 @@ public class InMemoryQueryMetadataStore implements QueryMetadataStore {
                 .filter(view -> project.equals(project) && view.tableName.equals(name))
                 .findAny().get();
     }
-
-    @Override
-    public Map<String, Collection<ContinuousQuery>> getAllContinuousQueries() {
-        return ImmutableMap.copyOf(continuousQueries);
-    }
 }

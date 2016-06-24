@@ -186,7 +186,7 @@ public class PreComputedTableSubQueryVisitor extends AstVisitor<String, Boolean>
                     node.getName().getParts().stream().collect(Collectors.joining(",")), HttpResponseStatus.BAD_REQUEST);
         }
         String tableColumn = ValidationUtil
-                .checkTableColumn(node.getName().getParts().get(0), "reference in filter");
+                .checkTableColumn(node.getName().getParts().get(0), "reference in filter", '"');
 
         Optional<String> preComputedTable = columnNameMapper.apply(tableColumn);
         if (preComputedTable.isPresent()) {

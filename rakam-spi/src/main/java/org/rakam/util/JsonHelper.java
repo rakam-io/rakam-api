@@ -20,6 +20,7 @@ import com.google.common.base.Throwables;
 import org.rakam.server.http.SwaggerJacksonAnnotationIntrospector;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Map;
@@ -138,6 +139,10 @@ public class JsonHelper {
     }
 
     public static <T> T readSafe(String json, Class<T> clazz) throws IOException {
+        return mapper.readValue(json, clazz);
+    }
+
+    public static <T> T read(InputStream json, Class<T> clazz) throws IOException {
         return mapper.readValue(json, clazz);
     }
 

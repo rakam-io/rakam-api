@@ -64,6 +64,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
+import static org.rakam.report.QueryResult.TOTAL_RESULT;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -479,7 +480,8 @@ public abstract class AbstractPostgresqlUserStorage
 
         QueryExecution query = (isEventFilterActive ? getExecutorForWithEventFilter() : queryExecutor)
                 .executeRawQuery(format("SELECT %s FROM %s %s %s LIMIT %s",
-                        columns, getUserTable(project, isEventFilterActive), filters.isEmpty() ? "" : " WHERE " + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
+                        columns, getUserTable(project, isEventFilterActive), filters.isEmpty() ? "" : " WHERE "
+                                + Joiner.on(" AND ").join(filters), orderBy, limit, offset));
 
         CompletableFuture<QueryResult> dataResult = query.getResult();
 
@@ -499,7 +501,7 @@ public abstract class AbstractPostgresqlUserStorage
                 if (ex == null && !data.isFailed() && !totalResultData.isFailed()) {
                     Object v1 = totalResultData.getResult().get(0).get(0);
                     result.complete(new QueryResult(data.getMetadata(), data.getResult(),
-                            ImmutableMap.of(QueryResult.TOTAL_RESULT, v1)));
+                            ImmutableMap.of(TOTAL_RESULT, v1)));
                 }
                 else if (ex != null) {
                     result.complete(QueryResult.errorResult(new QueryError(ex.getMessage(), null, 0, null, null)));

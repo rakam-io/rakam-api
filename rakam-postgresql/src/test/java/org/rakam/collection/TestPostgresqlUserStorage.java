@@ -3,10 +3,12 @@ package org.rakam.collection;
 import com.google.common.eventbus.EventBus;
 import org.rakam.TestingEnvironment;
 import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.InMemoryEventStore;
 import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.plugin.user.AbstractUserService;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.PostgresqlConfigManager;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
@@ -47,8 +49,9 @@ public class TestPostgresqlUserStorage
 
         configManager = new PostgresqlConfigManager(dataSource);
         configManager.setup();
+        InMemoryEventStore inMemoryEventStore = new InMemoryEventStore();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(materializedViewService, configManager, queryExecutor);
-        userService = new PostgresqlUserService(userStorage, metastore, queryExecutor);
+        userService = new PostgresqlUserService(userStorage, new UserPluginConfig(), inMemoryEventStore, metastore, queryExecutor);
         super.setUp();
     }
 

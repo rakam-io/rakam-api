@@ -1,7 +1,7 @@
 {
   "name": "Rakam",
   "description": "Your analytics service",
-  "website": "http://getrakam.com",
+  "website": "http://rakam.io",
   "repository": "https://github.com/rakam-io/rakam",
   "logo": "https://cdn0.iconfinder.com/data/icons/news-and-magazine/512/statistic-128.png",
   "success_url": "/",

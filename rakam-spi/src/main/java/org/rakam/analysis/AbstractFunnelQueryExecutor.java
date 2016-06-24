@@ -13,13 +13,7 @@
  */
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.RakamExpressionFormatter;
 import com.facebook.presto.sql.RakamSqlFormatter;
-import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.tree.Expression;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
@@ -44,20 +38,22 @@ import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
-import static org.rakam.util.ValidationUtil.checkCollection;
 
-public abstract class AbstractFunnelQueryExecutor
+public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
 {
     private static final String CONNECTOR_FIELD = "_user";
     private final QueryExecutor executor;
+    private char escape;
 
-    public AbstractFunnelQueryExecutor(QueryExecutor executor)
+    public AbstractFunnelQueryExecutor(QueryExecutor executor, char escape)
     {
         this.executor = executor;
+        this.escape = escape;
     }
 
     public abstract String getTemplate();
 
+    @Override
     public QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
@@ -139,63 +135,13 @@ public abstract class AbstractFunnelQueryExecutor
     {
         String table = project + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
-                name -> name.getParts().stream().map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining(".")),
-                name -> formatIdentifier("step" + idx) + "." + name.getParts().stream()
-                        .map(RakamExpressionFormatter::formatIdentifier).collect(Collectors.joining("."))));
+                name -> name.getParts().stream().map(e-> formatIdentifier(e, escape)).collect(Collectors.joining(".")),
+                name -> formatIdentifier("step" + idx, escape) + "." + name.getParts().stream()
+                        .map(e -> formatIdentifier(e, escape)).collect(Collectors.joining(".")), escape));
 
         return format("SELECT %s %s, %d as step, _time from %s %s %s",
                 dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), CONNECTOR_FIELD, idx + 1, table,
                 "step" + idx,
                 filterExp.map(v -> "where " + v).orElse(""));
-    }
-
-    private static SqlParser parser = new SqlParser();
-
-    public static class FunnelStep {
-        private final String collection;
-        private final Optional<String> filterExpression;
-
-        @JsonCreator
-        public FunnelStep(@JsonProperty("collection") String collection,
-                          @JsonProperty("filterExpression") Optional<String> filterExpression) {
-            checkCollection(collection);
-            this.collection = collection;
-            this.filterExpression = filterExpression == null ? Optional.<String>empty() : filterExpression;
-        }
-
-        public String getCollection() {
-            return collection;
-        }
-
-        @JsonIgnore
-        public synchronized Optional<Expression> getExpression() {
-            return filterExpression.map(value -> parser.createExpression(value));
-        }
-    }
-
-    public static enum WindowType {
-        DAY, WEEK, MONTH;
-
-        @JsonCreator
-        public static WindowType get(String name) {
-            return valueOf(name.toUpperCase());
-        }
-
-        @JsonProperty
-        public String value() {
-            return name();
-        }
-    }
-
-    public static class FunnelWindow {
-        public final int value;
-        public final WindowType type;
-
-        @JsonCreator
-        public FunnelWindow(@JsonProperty("value") int value,
-                            @JsonProperty("type") WindowType type) {
-            this.value = value;
-            this.type = type;
-        }
     }
 }
