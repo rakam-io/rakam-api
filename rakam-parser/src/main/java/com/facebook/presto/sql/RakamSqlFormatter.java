@@ -73,7 +73,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static com.facebook.presto.sql.ExpressionFormatter.*;
+import static com.facebook.presto.sql.ExpressionFormatter.formatStringLiteral;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Iterables.transform;

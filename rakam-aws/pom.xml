@@ -7,9 +7,9 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>rakam-aws-kinesis</artifactId>
-    <name>rakam-aws-kinesis</name>
-    <description>Rakam Presto Kinesis Module</description>
+    <artifactId>rakam-aws</artifactId>
+    <name>rakam-aws</name>
+    <description>Rakam AWS Module</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
@@ -106,10 +106,11 @@
             <version>${presto.version}</version>
             <scope>test</scope>
         </dependency>
-        <!--<dependency>-->
-            <!--<groupId>org.objenesis</groupId>-->
-            <!--<artifactId>objenesis</artifactId>-->
-        <!--</dependency>-->
+        <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-parser</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service</artifactId>
@@ -165,11 +166,7 @@
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-parser</artifactId>
-            <scope>provided</scope>
-        </dependency>
+
         <dependency>
             <artifactId>aws-java-sdk-kinesis</artifactId>
             <groupId>com.amazonaws</groupId>
@@ -329,11 +326,13 @@
                                 <failOnWarning>true</failOnWarning>
 
                                 <ignoredUnusedDeclaredDependencies>
-                                    <!-- maven resolves 1.3 version objenesis even though there is no reference and i couldn't fix it.-->
-                                    <ignoredUnusedDeclaredDependency>org.objenesis:objenesis</ignoredUnusedDeclaredDependency>
-                                    <ignoredUnusedDeclaredDependency>joda-time:joda-time</ignoredUnusedDeclaredDependency>
+                                    <ignoredUnusedDeclaredDependency>org.rakam:rakam-parser</ignoredUnusedDeclaredDependency>
                                     <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
                                 </ignoredUnusedDeclaredDependencies>
+
+                                <ignoredUsedUndeclaredDependencies>
+                                    <ignoredUsedUndeclaredDependency>com.facebook.presto:presto-parser</ignoredUsedUndeclaredDependency>
+                                </ignoredUsedUndeclaredDependencies>
                             </configuration>
                         </execution>
                     </executions>

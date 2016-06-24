@@ -57,12 +57,13 @@
         <module>rakam-presto</module>
         <module>rakam-clickhouse</module>
         <module>rakam-presto-kafka</module>
-        <module>rakam-aws-kinesis</module>
+        <module>rakam-aws</module>
         <module>rakam-postgresql</module>
         <module>rakam-ui</module>
         <module>mapper/rakam-mapper-geoip</module>
         <module>mapper/rakam-mapper-website</module>
         <module>rakam</module>
+        <module>rakam-parser</module>
     </modules>
 
     <properties>

@@ -34,7 +34,7 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
-            <artifactId>rakam-aws-kinesis</artifactId>
+            <artifactId>rakam-aws</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -92,8 +92,9 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-parser</artifactId>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-parser</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
@@ -338,7 +339,7 @@
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-postgresql
                                 </ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws-kinesis
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-aws
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-clickhouse
                                 </ignoredUnusedDeclaredDependency>

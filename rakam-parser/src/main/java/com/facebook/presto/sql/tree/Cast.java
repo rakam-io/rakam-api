@@ -16,7 +16,6 @@ package com.facebook.presto.sql.tree;
 import java.util.Objects;
 import java.util.Optional;
 
-import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 public final class Cast

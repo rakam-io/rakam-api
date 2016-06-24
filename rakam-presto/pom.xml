@@ -64,8 +64,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-parser</artifactId>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-parser</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>

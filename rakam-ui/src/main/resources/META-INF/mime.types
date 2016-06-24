@@ -1100,7 +1100,7 @@ application/x-sh				sh
 application/x-shar				shar
 application/x-shockwave-flash			swf
 application/x-silverlight-app			xap
-application/x-sql				sql
+application/x-com.facebook.presto.sql				com.facebook.presto.sql
 application/x-stuffit				sit
 application/x-stuffitx				sitx
 application/x-subrip				srt
