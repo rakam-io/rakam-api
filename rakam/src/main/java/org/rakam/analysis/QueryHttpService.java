@@ -18,6 +18,7 @@ import com.google.common.primitives.Ints;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.swagger.annotations.ApiModelProperty;
 import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
@@ -27,7 +28,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
-import org.rakam.server.http.annotations.ApiModelProperty;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
@@ -277,7 +277,7 @@ public class QueryHttpService
 
     public static class ExportQuery
     {
-        @ApiModelProperty(example = "SELECT 1")
+        @ApiModelProperty(example = "SELECT 1", value = "SQL query that will be executed on data-set")
         public final String query;
         public final Integer limit;
         public final CopyType exportType;
