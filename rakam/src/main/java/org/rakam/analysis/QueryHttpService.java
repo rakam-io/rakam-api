@@ -27,6 +27,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
+import org.rakam.server.http.annotations.ApiModelProperty;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
@@ -89,7 +90,9 @@ public class QueryHttpService
             authorizations = @Authorization(value = "read_key")
     )
     @JsonRequest
-    public CompletableFuture<QueryResult> execute(@Named("project") String project, @BodyParam ExportQuery query)
+    public CompletableFuture<QueryResult> execute(
+            @Named("project") String project,
+            @BodyParam ExportQuery query)
     {
         return executorService.executeQuery(project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
             if (result.isFailed()) {
@@ -272,31 +275,16 @@ public class QueryHttpService
         this.eventLoopGroup = eventLoopGroup;
     }
 
-    public static class ExecuteQuery
-    {
-        public final String query;
-        public final Integer limit;
-
-        @JsonCreator
-        public ExecuteQuery(@ApiParam("query") String query,
-                @ApiParam(value = "limit", required = false) Integer limit)
-        {
-            this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
-            if (limit != null && limit > 50000) {
-                throw new IllegalArgumentException("maximum value of limit is 50000");
-            }
-            this.limit = limit;
-        }
-    }
-
     public static class ExportQuery
     {
+        @ApiModelProperty(example = "SELECT 1")
         public final String query;
         public final Integer limit;
         public final CopyType exportType;
 
         @JsonCreator
-        public ExportQuery(@ApiParam("query") String query,
+        public ExportQuery(
+                @ApiParam("query") String query,
                 @ApiParam("export_type") CopyType exportType,
                 @ApiParam(value = "limit", required = false) Integer limit)
         {
