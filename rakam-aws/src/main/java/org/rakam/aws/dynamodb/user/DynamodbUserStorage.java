@@ -1,12 +1,15 @@
 package org.rakam.aws.dynamodb.user;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.dynamodbv2.model.AttributeAction;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.AttributeValueUpdate;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
 import com.amazonaws.services.dynamodbv2.model.Condition;
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
+import com.amazonaws.services.dynamodbv2.model.DeleteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
 import com.amazonaws.services.dynamodbv2.model.GetItemResult;
 import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
@@ -16,24 +19,9 @@ import com.amazonaws.services.dynamodbv2.model.PutRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryRequest;
 import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
+import com.amazonaws.services.dynamodbv2.model.UpdateItemRequest;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
-import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.BetweenPredicate;
-import com.facebook.presto.sql.tree.BooleanLiteral;
-import com.facebook.presto.sql.tree.ComparisonExpression;
-import com.facebook.presto.sql.tree.DecimalLiteral;
-import com.facebook.presto.sql.tree.DoubleLiteral;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.IsNotNullPredicate;
-import com.facebook.presto.sql.tree.IsNullPredicate;
-import com.facebook.presto.sql.tree.LikePredicate;
-import com.facebook.presto.sql.tree.Literal;
-import com.facebook.presto.sql.tree.LogicalBinaryExpression;
-import com.facebook.presto.sql.tree.LongLiteral;
-import com.facebook.presto.sql.tree.Node;
-import com.facebook.presto.sql.tree.NotExpression;
-import com.facebook.presto.sql.tree.QualifiedNameReference;
-import com.facebook.presto.sql.tree.StringLiteral;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.BooleanNode;
@@ -44,10 +32,14 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.aws.AWSConfig;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.user.User;
+import org.rakam.plugin.user.UserPropertyMapper;
+import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation;
+import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation.Data;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.report.QueryResult;
 import org.rakam.util.JsonHelper;
@@ -62,21 +54,21 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.amazonaws.services.dynamodbv2.model.AttributeAction.ADD;
 import static com.amazonaws.services.dynamodbv2.model.KeyType.HASH;
 import static com.amazonaws.services.dynamodbv2.model.KeyType.RANGE;
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.collection.FieldType.STRING;
 
 public class DynamodbUserStorage
         implements UserStorage
 {
-
     private final AmazonDynamoDBClient dynamoDBClient;
     private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(
             new KeySchemaElement().withKeyType(HASH).withAttributeName("project"),
@@ -136,9 +128,9 @@ public class DynamodbUserStorage
         builder.put("id", new AttributeValue(id.toString()));
 
         Map<String, AttributeValue> props = new HashMap<>();
-        Iterator<Map.Entry<String, JsonNode>> fields = properties.fields();
+        Iterator<Entry<String, JsonNode>> fields = properties.fields();
         while (fields.hasNext()) {
-            Map.Entry<String, JsonNode> next = fields.next();
+            Entry<String, JsonNode> next = fields.next();
 
             props.put(next.getKey(), convertAttributeValue(next.getValue()));
         }
@@ -167,9 +159,9 @@ public class DynamodbUserStorage
         }
         else if (value.isObject()) {
             Map<String, AttributeValue> map = new HashMap<>(value.size());
-            Iterator<Map.Entry<String, JsonNode>> fields = value.fields();
+            Iterator<Entry<String, JsonNode>> fields = value.fields();
             while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> next = fields.next();
+                Entry<String, JsonNode> next = fields.next();
                 map.put(next.getKey(), convertAttributeValue(next.getValue()));
             }
             attr.setM(map);
@@ -227,7 +219,7 @@ public class DynamodbUserStorage
 
         Set<String> set = new HashSet<>();
         for (Map<String, AttributeValue> entry : scan) {
-            for (Map.Entry<String, AttributeValue> property : entry.get("properties").getM().entrySet()) {
+            for (Entry<String, AttributeValue> property : entry.get("properties").getM().entrySet()) {
                 set.add(property.getKey());
             }
         }
@@ -255,7 +247,7 @@ public class DynamodbUserStorage
     @Override
     public void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval)
     {
-        //
+        throw new RakamException("Unsupported", HttpResponseStatus.BAD_REQUEST);
     }
 
     @Override
@@ -274,7 +266,7 @@ public class DynamodbUserStorage
             ));
             Map<String, AttributeValue> attrs = item.getItem().get("properties").getM();
             ObjectNode obj = JsonHelper.jsonObject();
-            for (Map.Entry<String, AttributeValue> entry : attrs.entrySet()) {
+            for (Entry<String, AttributeValue> entry : attrs.entrySet()) {
                 obj.set(entry.getKey(), getJsonValue(entry.getValue()));
             }
             return new User(userId, null, obj);
@@ -305,7 +297,7 @@ public class DynamodbUserStorage
         }
         else if (value.getM() != null) {
             ObjectNode obj = JsonHelper.jsonObject();
-            for (Map.Entry<String, AttributeValue> attributeValue : value.getM().entrySet()) {
+            for (Entry<String, AttributeValue> attributeValue : value.getM().entrySet()) {
                 obj.set(attributeValue.getKey(), getJsonValue(attributeValue.getValue()));
             }
 
@@ -357,197 +349,127 @@ public class DynamodbUserStorage
     @Override
     public void setUserPropertyOnce(String project, Object user, ObjectNode properties)
     {
+        applyOperations(project, new BatchUserOperation(user, null,
+                ImmutableList.of(new Data(null, properties, null, null, null))));
+    }
 
+    @Override
+    public void applyOperations(String project, BatchUserOperation operation)
+    {
+        Map<String, String> nameMap = new HashMap<>();
+        Map<String, AttributeValue> valueMap = new HashMap<>();
+        StringBuilder setBuilder = null;
+        StringBuilder addBuilder = null;
+        StringBuilder unsetBuilder = null;
+        List<UpdateItemRequest> setOnceBuilder = null;
+        char nameCur = 'a';
+        char valueCur = 'a';
+        for (Data data : operation.data) {
+            for (Entry<String, Double> entry : data.incrementProperties.entrySet()) {
+                if (addBuilder == null) {
+                    addBuilder = new StringBuilder();
+                }
+                else {
+                    addBuilder.append(", ");
+                }
+
+                String name = new String(new char[] {'#', nameCur++});
+                String value = new String(new char[] {':', valueCur++});
+                addBuilder.append("properties." + name + " " + value);
+
+                nameMap.put(name, entry.getKey());
+                valueMap.put(value, new AttributeValue().withN(entry.getValue().toString()));
+            }
+
+            Iterator<Entry<String, JsonNode>> fields = data.setProperties.fields();
+            while (fields.hasNext()) {
+                Entry<String, JsonNode> next = fields.next();
+                if (setBuilder == null) {
+                    setBuilder = new StringBuilder();
+                }
+                else {
+                    setBuilder.append(", ");
+                }
+
+                String name = new String(new char[] {'#', nameCur++});
+                String value = new String(new char[] {':', valueCur++});
+                addBuilder.append("properties." + name + " = " + value);
+
+                nameMap.put(name, next.getKey());
+                valueMap.put(value, convertAttributeValue(next.getValue()));
+            }
+
+            Iterator<Entry<String, JsonNode>> setOncefields = data.setProperties.fields();
+            while (setOncefields.hasNext()) {
+                Entry<String, JsonNode> next = fields.next();
+
+                if (setOnceBuilder == null) {
+                    setOnceBuilder = new ArrayList<>();
+                }
+
+                setOnceBuilder.add(new UpdateItemRequest()
+                        .withUpdateExpression("SET properties.#a = :a")
+                        .withExpressionAttributeNames(ImmutableMap.of("#a", next.getKey()))
+                        .withExpressionAttributeValues(ImmutableMap.of(":a", convertAttributeValue(next.getValue())))
+                        .withTableName(tableConfig.getTableName())
+                        .withKey(ImmutableMap.of("project", new AttributeValue(project), "id", new AttributeValue(operation.id.toString())))
+                );
+            }
+
+            for (String unsetProperty : data.unsetProperties) {
+                if (unsetBuilder == null) {
+                    unsetBuilder = new StringBuilder();
+                }
+                else {
+                    unsetBuilder.append(" , ");
+                }
+
+                String name = new String(new char[] {'#', nameCur++});
+                unsetBuilder.append("properties." + name);
+
+                nameMap.put(name, unsetProperty);
+            }
+        }
+
+        StringBuilder query = new StringBuilder();
+        if (setBuilder != null) {
+            query.append("SET ").append(setBuilder);
+        }
+        if (unsetBuilder != null) {
+            query.append("DELETE ").append(unsetBuilder);
+        }
+        if (addBuilder != null) {
+            query.append("ADD ").append(addBuilder);
+        }
+
+        dynamoDBClient.updateItem(new UpdateItemRequest()
+                .withTableName(tableConfig.getTableName())
+                .withKey(ImmutableMap.of("project", new AttributeValue(project), "id", new AttributeValue(operation.id.toString())))
+                .withUpdateExpression(query.toString()));
+
+        if (setOnceBuilder != null) {
+            setOnceBuilder.forEach(dynamoDBClient::updateItem);
+        }
     }
 
     @Override
     public void incrementProperty(String project, Object user, String property, double value)
     {
-
+        applyOperations(project, new BatchUserOperation(user, null,
+                ImmutableList.of(new Data(null, null, ImmutableMap.of(property, value), null, null))));
     }
 
     @Override
     public void dropProjectIfExists(String project)
     {
-
+        dynamoDBClient.deleteItem(new DeleteItemRequest()
+                .withKey(ImmutableMap.of("project", new AttributeValue(project))));
     }
 
     @Override
     public void unsetProperties(String project, Object user, List<String> properties)
     {
-
-    }
-
-    private static class DynamodbFilterQueryFormatter
-            extends AstVisitor<String, Boolean>
-    {
-        private final char[] variable;
-        private final ImmutableMap.Builder<String, String> nameBuilder;
-        private final ImmutableMap.Builder<String, AttributeValue> valueBuilder;
-
-        public DynamodbFilterQueryFormatter(char[] variable, ImmutableMap.Builder<String, String> nameBuilder, ImmutableMap.Builder<String, AttributeValue> valueBuilder)
-        {
-            this.variable = variable;
-            this.nameBuilder = nameBuilder;
-            this.valueBuilder = valueBuilder;
-        }
-
-        @Override
-        protected String visitIsNullPredicate(IsNullPredicate node, Boolean unmangleNames)
-        {
-            if (!(node.getValue() instanceof QualifiedNameReference)) {
-                throw new IllegalArgumentException("inlined expressions are not supported");
-            }
-
-            return format("attribute_not_exists(%s)", process(node.getValue(), unmangleNames));
-        }
-
-        @Override
-        protected String visitLogicalBinaryExpression(LogicalBinaryExpression node, Boolean context)
-        {
-            return '(' + process(node.getLeft(), context) + ' ' + node.getType().name() + ' ' + process(node.getRight(), context) + ')';
-        }
-
-        @Override
-        protected String visitNotExpression(NotExpression node, Boolean context)
-        {
-            return "(NOT " + process(node.getValue(), context) + ")";
-        }
-
-        @Override
-        protected String visitNode(Node node, Boolean context)
-        {
-            throw new RakamException("The filter syntax is not supported", BAD_REQUEST);
-        }
-
-        @Override
-        protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean unmangleNames)
-        {
-            String variableName = "#" + variable[0]++;
-            nameBuilder.put(variableName, node.getName().toString());
-            return variableName;
-        }
-
-        @Override
-        protected String visitStringLiteral(StringLiteral node, Boolean unmangleNames)
-        {
-            String variableName = ":" + variable[1]++;
-            valueBuilder.put(variableName, new AttributeValue(node.getValue()));
-            return variableName;
-        }
-
-        @Override
-        protected String visitBooleanLiteral(BooleanLiteral node, Boolean unmangleNames)
-        {
-            String variableName = ":" + variable[1]++;
-            valueBuilder.put(variableName, new AttributeValue().withBOOL(node.getValue()));
-            return variableName;
-        }
-
-        @Override
-        protected String visitLongLiteral(LongLiteral node, Boolean unmangleNames)
-        {
-            String variableName = ":" + variable[1]++;
-            valueBuilder.put(variableName, new AttributeValue().withN(Long.toString(node.getValue())));
-            return variableName;
-        }
-
-        @Override
-        protected String visitDoubleLiteral(DoubleLiteral node, Boolean unmangleNames)
-        {
-            String variableName = ":" + variable[1]++;
-            valueBuilder.put(variableName, new AttributeValue().withN(Double.toString(node.getValue())));
-            return variableName;
-        }
-
-        @Override
-        protected String visitDecimalLiteral(DecimalLiteral node, Boolean unmangleNames)
-        {
-            String variableName = ":" + variable[1]++;
-            valueBuilder.put(variableName, new AttributeValue().withN(node.getValue()));
-            return variableName;
-        }
-
-        @Override
-        protected String visitComparisonExpression(ComparisonExpression node, Boolean unmangleNames)
-        {
-            return '(' + process(node.getLeft(), unmangleNames) + ' '
-                    + node.getType().getValue() + ' '
-                    + process(node.getRight(), unmangleNames) + ')';
-        }
-
-        @Override
-        protected String visitIsNotNullPredicate(IsNotNullPredicate node, Boolean unmangleNames)
-        {
-            if (!(node.getValue() instanceof QualifiedNameReference)) {
-                throw new IllegalArgumentException("inlined expressions are not supported");
-            }
-
-            String variableName = "#" + variable[0]++;
-
-            nameBuilder.put(variableName, ((QualifiedNameReference) node.getValue()).getName().toString());
-
-            return format("attribute_exists(%s)", variableName);
-        }
-
-        @Override
-        protected String visitBetweenPredicate(BetweenPredicate node, Boolean unmangleNames)
-        {
-            if (!(node.getValue() instanceof QualifiedNameReference)) {
-                throw new IllegalArgumentException("inlined expressions are not supported");
-            }
-
-            if (!(node.getMin() instanceof Literal)) {
-                throw new IllegalArgumentException("inlined expressions are not supported");
-            }
-            if (!(node.getMax() instanceof Literal)) {
-                throw new IllegalArgumentException("inlined expressions are not supported");
-            }
-
-            String variableName = "#" + variable[0]++;
-            nameBuilder.put(variableName, ((QualifiedNameReference) node.getValue()).getName().toString());
-
-            return "(#" + variableName + " BETWEEN " +
-                    process(node.getMin(), unmangleNames) + " AND " + process(node.getMax(), unmangleNames) + ")";
-        }
-
-        @Override
-        protected String visitLikePredicate(LikePredicate node, Boolean unmangleNames)
-        {
-            StringBuilder builder = new StringBuilder();
-
-            if (!(node.getPattern() instanceof StringLiteral)) {
-                throw new RakamException("LIKE clause can only have string pattern", BAD_REQUEST);
-            }
-
-            String template;
-            String value;
-            String pattern = ((StringLiteral) node.getPattern()).getValue();
-            if (pattern.endsWith("%") && pattern.startsWith("%")) {
-                template = "contains(%s, %s)";
-                value = pattern.substring(1, pattern.length() - 2);
-            }
-            else if (pattern.endsWith("%s")) {
-                throw new UnsupportedOperationException();
-            }
-            else if (pattern.startsWith("%s")) {
-                value = pattern.substring(1, pattern.length() - 1);
-                template = "begins_with(%s, %s)";
-            }
-            else {
-                value = pattern;
-                template = "%s = %s";
-            }
-
-            if (node.getEscape() != null) {
-                throw new RakamException("ESCAPE is not supported LIKE statement", BAD_REQUEST);
-            }
-
-            builder.append(format(template,
-                    process(node.getValue(), unmangleNames),
-                    visitStringLiteral(new StringLiteral(value), false)));
-
-            return builder.toString();
-        }
+        applyOperations(project, new BatchUserOperation(user, null,
+                ImmutableList.of(new Data(null, null, null, properties, null))));
     }
 }

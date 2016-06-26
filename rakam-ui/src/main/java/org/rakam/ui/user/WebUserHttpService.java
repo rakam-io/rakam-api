@@ -203,25 +203,23 @@ public class WebUserHttpService extends HttpService {
     }
 
     @GET
+    @JsonRequest
     @Path("/me")
-    public void me(RakamHttpRequest request) {
+    public void me(RakamHttpRequest request, @CookieParam("session") String session) {
         String cookie = request.headers().get(COOKIE);
 
         List<String> jsonpParam = request.params().get("jsonp");
         Optional<String> jsonp = jsonpParam == null ? Optional.empty() : jsonpParam.stream().findAny();
 
         if (cookie != null) {
-            Set<Cookie> cookies = ServerCookieDecoder.STRICT.decode(cookie);
-            Optional<Cookie> session = cookies.stream().filter(c -> c.name().equals("session")).findAny();
-
             if (jsonp.isPresent() && !jsonp.get().matches("^[A-Za-z]+$")) {
                 throw new RakamException(BAD_REQUEST);
             }
 
-            if (session.isPresent()) {
+            if (session != null) {
                 Integer id = null;
                 try {
-                    id = extractUserFromCookie(session.get().value(), encryptionConfig.getSecretKey());
+                    id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
                 } catch (Exception e) {
                     request.response(unauthorized(jsonp)).end();
                 }
@@ -248,7 +246,9 @@ public class WebUserHttpService extends HttpService {
     }
 
     private FullHttpResponse unauthorized(Optional<String> jsonp) {
-        String encode = JsonHelper.encode(UNAUTHORIZED.reasonPhrase());
+        String encode = JsonHelper.jsonObject()
+                .put("success", false)
+                .put("message", UNAUTHORIZED.reasonPhrase()).toString();
         if (jsonp.isPresent()) {
             encode = jsonp.get() + "(" + encode + ")";
         }

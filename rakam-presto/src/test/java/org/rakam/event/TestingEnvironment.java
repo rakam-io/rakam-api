@@ -145,7 +145,9 @@ public class TestingEnvironment {
                                         () -> {
                                             try {
                                                 testingPostgresqlServer.close();
-                                                kinesisProcess.destroy();
+                                                if(kinesisProcess != null) {
+                                                    kinesisProcess.destroy();
+                                                }
                                                 dynamodbServer.destroy();
                                             } catch (IOException e) {
                                                 e.printStackTrace();
@@ -212,6 +214,10 @@ public class TestingEnvironment {
                 .start();
         return kinesisPort;
     }
+
+//    private int startKinesis() throws Exception {
+//        return 4567;
+//    }
 
     public int createDynamodb() throws Exception {
         int randomPort = randomPort();

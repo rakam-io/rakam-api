@@ -1,4 +1,3 @@
-[![Stories in Ready](https://badge.waffle.io/rakam-io/rakam.png?label=ready&title=Ready)](https://waffle.io/rakam-io/rakam)
 [![Build Status](https://travis-ci.org/rakam-io/rakam.svg?branch=master)](https://travis-ci.org/rakam-io/rakam)
 
 Rakam

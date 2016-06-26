@@ -40,6 +40,8 @@ public interface UserStorage {
 
     void setUserPropertyOnce(String project, Object user, ObjectNode properties);
 
+    void applyOperations(String project, UserPropertyMapper.BatchUserOperation operation);
+
     default void createProjectIfNotExists(String project, boolean isNumeric)
     {
 
