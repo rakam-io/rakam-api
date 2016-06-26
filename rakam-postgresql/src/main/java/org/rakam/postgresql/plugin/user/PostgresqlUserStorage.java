@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
 
@@ -14,6 +15,7 @@ import javax.inject.Inject;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;

@@ -40,8 +40,6 @@ public interface UserStorage {
 
     void setUserPropertyOnce(String project, Object user, ObjectNode properties);
 
-    void applyOperations(String project, UserPropertyMapper.BatchUserOperation operation);
-
     default void createProjectIfNotExists(String project, boolean isNumeric)
     {
 
@@ -52,6 +50,26 @@ public interface UserStorage {
     void dropProjectIfExists(String project);
 
     void unsetProperties(String project, Object user, List<String> properties);
+
+    default void applyOperations(String project, UserPropertyMapper.BatchUserOperation req)
+    {
+        for (UserPropertyMapper.BatchUserOperation.Data data : req.data) {
+            if (data.setProperties != null) {
+                setUserProperty(project, req.id, data.setProperties);
+            }
+            if (data.setPropertiesOnce != null) {
+                setUserPropertyOnce(project, req.id, data.setPropertiesOnce);
+            }
+            if (data.unsetProperties != null) {
+                unsetProperties(project, req.id, data.unsetProperties);
+            }
+            if (data.incrementProperties != null) {
+                for (Map.Entry<String, Double> entry : data.incrementProperties.entrySet()) {
+                    incrementProperty(project, req.id, entry.getKey(), entry.getValue());
+                }
+            }
+        }
+    }
 
     class Sorting {
         public final String column;
