@@ -26,8 +26,8 @@ public class TestDynamodbApiKeyService
     public TestDynamodbApiKeyService()
             throws Exception
     {
-//        int dynamodb = createDynamodb();
-        int dynamodb = 8000;
+        int dynamodb = createDynamodb();
+//        int dynamodb = 8000;
         service = new DynamodbApiKeyService(new AWSConfig()
                 .setAccessKey("test")
                 .setSecretAccessKey("test")
@@ -46,7 +46,7 @@ public class TestDynamodbApiKeyService
     public void tearDown()
             throws Exception
     {
-//        dynamodbServer.destroy();
+        dynamodbServer.destroy();
     }
 
     @Override
@@ -70,7 +70,7 @@ public class TestDynamodbApiKeyService
         return randomPort;
     }
 
-    private int randomPort()
+    private static int randomPort()
             throws IOException
     {
         try (ServerSocket socket = new ServerSocket(0)) {
