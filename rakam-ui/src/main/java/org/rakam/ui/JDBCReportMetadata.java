@@ -17,6 +17,7 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public class JDBCReportMetadata implements ReportMetadata {
     private final DBI dbi;
@@ -76,7 +77,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                 throw e;
             }
 
-            throw new AlreadyExistsException(String.format("Report '%s'", report.slug), HttpResponseStatus.BAD_REQUEST);
+            throw new AlreadyExistsException(String.format("Report '%s'", report.slug), BAD_REQUEST);
         }
     }
 
@@ -99,8 +100,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report update(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug AND " +
-                    "(SELECT p.master_key IS NOT NULL OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project_id = :project) WHERE r.slug = :slug AND r.project_id = :project)")
+            int execute = handle.createStatement("UPDATE reports SET name = :name, query = :query, category = :category, options = :options WHERE project_id = :project AND slug = :slug")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)
@@ -110,7 +110,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                     .bind("options", JsonHelper.encode(report.options, false))
                     .execute();
             if (execute == 0) {
-                throw new RakamException("Report does not exist", HttpResponseStatus.BAD_REQUEST);
+                throw new RakamException("Report does not exist", BAD_REQUEST);
             }
         }
         return report;

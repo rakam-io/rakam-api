@@ -293,7 +293,7 @@ public class WebUserService {
         try (Handle handle = dbi.open()) {
             try {
                 projectId = (Integer) handle.createStatement("INSERT INTO web_user_project " +
-                        "(project, api_url, created_user) " +
+                        "(project, api_url, user_id) " +
                         "VALUES (:project, :apiUrl, :userId)")
                         .bind("userId", user)
                         .bind("project", project)

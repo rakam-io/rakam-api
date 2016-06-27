@@ -3,8 +3,10 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
 public class ttes {
+    public static void main(String[] args)
+    {
 
-
+    }
 
     public static String encrypt(String plainText, String encryptionKey) throws Exception
     {

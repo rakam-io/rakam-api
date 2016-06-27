@@ -3,11 +3,12 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.avro.generic.GenericData;
 import org.rakam.collection.FieldType;
 
+import java.util.HashMap;
+
 import static org.rakam.util.AvroUtil.getAvroSchema;
 
 public class TestClickHouse
 {
-
     private Object generateSample(FieldType type)
     {
         switch (type) {
