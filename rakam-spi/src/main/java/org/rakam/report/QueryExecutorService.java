@@ -34,6 +34,7 @@ import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
 public class QueryExecutorService {
     private final SqlParser parser = new SqlParser();
+    public static final int MAX_QUERY_RESULT_LIMIT = 500000;
 
     private final QueryExecutor executor;
     private final MaterializedViewService materializedViewService;
@@ -120,7 +121,7 @@ public class QueryExecutorService {
     }
 
     public QueryExecution executeQuery(String project, String sqlQuery) {
-        return executeQuery(project, sqlQuery, 10000);
+        return executeQuery(project, sqlQuery, MAX_QUERY_RESULT_LIMIT);
     }
 
     public QueryExecution executeStatement(String project, String sqlQuery) {
@@ -168,7 +169,7 @@ public class QueryExecutorService {
             }
             if (limit != null) {
                 if (limit > maxLimit) {
-                    throw new IllegalArgumentException(format("The maximum value of LIMIT statement is %s", statement.getLimit().get()));
+                    throw new RakamException(format("The maximum value of LIMIT statement is %s", maxLimit), BAD_REQUEST);
                 }
             } else {
                 builder.append(" LIMIT ").append(maxLimit);

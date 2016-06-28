@@ -63,6 +63,7 @@ import static java.util.Objects.requireNonNull;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 import static org.rakam.plugin.EventStore.CopyType.AVRO;
 import static org.rakam.plugin.EventStore.CopyType.CSV;
+import static org.rakam.report.QueryExecutorService.MAX_QUERY_RESULT_LIMIT;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
@@ -94,7 +95,7 @@ public class QueryHttpService
             @Named("project") String project,
             @BodyParam ExportQuery query)
     {
-        return executorService.executeQuery(project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenApply(result -> {
+        return executorService.executeQuery(project, query.query, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenApply(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
@@ -110,7 +111,7 @@ public class QueryHttpService
     @JsonRequest
     public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam ExportQuery query)
     {
-        executorService.executeQuery(project, query.query, query.limit == null ? 5000 : query.limit).getResult().thenAccept(result -> {
+        executorService.executeQuery(project, query.query, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
@@ -142,7 +143,7 @@ public class QueryHttpService
     public void execute(RakamHttpRequest request)
     {
         handleServerSentQueryExecution(request, ExportQuery.class, (project, query) ->
-                executorService.executeQuery(project, query.query, query.limit == null ? 5000 : query.limit));
+                executorService.executeQuery(project, query.query, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction)
@@ -289,8 +290,8 @@ public class QueryHttpService
                 @ApiParam(value = "limit", required = false) Integer limit)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
-            if (limit != null && limit > 5000) {
-                throw new IllegalArgumentException("maximum value of limit is 5000");
+            if (limit != null && limit > MAX_QUERY_RESULT_LIMIT) {
+                throw new IllegalArgumentException("maximum value of limit is "+MAX_QUERY_RESULT_LIMIT);
             }
             this.exportType = exportType;
             this.limit = limit;

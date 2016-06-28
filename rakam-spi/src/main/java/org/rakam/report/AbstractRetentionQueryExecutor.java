@@ -30,7 +30,7 @@ public abstract class AbstractRetentionQueryExecutor implements RetentionQueryEx
         return format("select %s as date, %s %s from %s where _time %s %s",
                 String.format(timeColumn, "_time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
-                isText.map(text -> String.format("cast(%s as varchar) as %s",
+                isText.map(text -> String.format("%s as %s",
                         checkTableColumn(connectorField, escapeIdentifier),
                         checkTableColumn(connectorField, escapeIdentifier))).orElse(connectorField),
                 checkCollection(collection),

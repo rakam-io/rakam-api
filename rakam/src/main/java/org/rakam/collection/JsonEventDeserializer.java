@@ -61,7 +61,7 @@ public class JsonEventDeserializer
 
     private final Metastore metastore;
     private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(5, TimeUnit.MINUTES).build();
+            .expireAfterWrite(5, TimeUnit.MINUTES).build();
     private final Set<SchemaField> constantFields;
     private final ApiKeyService apiKeyService;
     private final ConfigManager configManager;

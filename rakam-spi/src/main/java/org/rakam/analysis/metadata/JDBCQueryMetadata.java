@@ -136,7 +136,6 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
 
     @Override
     public boolean updateMaterializedView(String project, MaterializedView view, CompletableFuture<Instant> releaseLock) {
-
         Handle handle = dbi.open();
         long lastUpdated = handle.createQuery("SELECT last_updated FROM materialized_views WHERE project = :project AND table_name = :table_name FOR UPDATE")
                 .bind("project", project)
@@ -203,7 +202,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public List<ContinuousQuery> getContinuousQueries(String project) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, table_name, query,  partition_keys, options FROM continuous_query_metadata WHERE project = :project")
+            return handle.createQuery("SELECT table_name, name, query,  partition_keys, options FROM continuous_query_metadata WHERE project = :project")
                     .bind("project", project).map(continuousQueryMapper).list();
         }
     }
@@ -211,7 +210,7 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     @Override
     public ContinuousQuery getContinuousQuery(String project, String tableName) {
         try (Handle handle = dbi.open()) {
-            ContinuousQuery first = handle.createQuery("SELECT name, table_name, query, partition_keys, options FROM continuous_query_metadata WHERE project = :project AND table_name = :name")
+            ContinuousQuery first = handle.createQuery("SELECT table_name, name, query, partition_keys, options FROM continuous_query_metadata WHERE project = :project AND table_name = :name")
                     .bind("project", project).bind("name", tableName).map(continuousQueryMapper).first();
             if (first == null) {
                 throw new NotExistsException(format("Continuous query table continuous.%s", checkCollection(tableName)));
