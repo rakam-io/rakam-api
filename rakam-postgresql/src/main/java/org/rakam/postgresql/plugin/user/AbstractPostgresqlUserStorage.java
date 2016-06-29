@@ -487,7 +487,7 @@ public abstract class AbstractPostgresqlUserStorage
 
         if (!isEventFilterActive) {
             StringBuilder builder = new StringBuilder();
-            builder.append("SELECT count(*) FROM " + getUserTable(project, false));
+            builder.append("SELECT count(*) FROM ").append(getUserTable(project, false));
             if (filterExpression != null) {
                 builder.append(" WHERE ").append(filters.get(0));
             }
