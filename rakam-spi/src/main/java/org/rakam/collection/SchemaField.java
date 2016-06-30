@@ -132,7 +132,10 @@ public class SchemaField
         if (this == o) {
             return true;
         }
-        if (!(o instanceof SchemaField)) {
+        if (o == null) {
+            return false;
+        }
+        if (this.getClass() != o.getClass()) {
             return false;
         }
 

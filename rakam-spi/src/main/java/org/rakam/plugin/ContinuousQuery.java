@@ -57,7 +57,7 @@ public class ContinuousQuery
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ContinuousQuery)) {
+        if (this.getClass() != o.getClass()) {
             return false;
         }
 

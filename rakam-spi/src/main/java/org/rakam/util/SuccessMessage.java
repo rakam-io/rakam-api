@@ -33,7 +33,8 @@ public class SuccessMessage
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof SuccessMessage)) return false;
+        if (o == null) return false;
+        if (this.getClass() != o.getClass()) return false;
 
         SuccessMessage that = (SuccessMessage) o;
 
