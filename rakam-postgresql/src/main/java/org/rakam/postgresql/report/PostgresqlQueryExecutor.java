@@ -3,6 +3,7 @@ package org.rakam.postgresql.report;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
@@ -11,6 +12,7 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.util.QueryFormatter;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -22,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
@@ -81,7 +84,7 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                 case "materialized":
                     return project + "." + checkCollection(MATERIALIZED_VIEW_PREFIX + name.getSuffix());
                 default:
-                    throw new IllegalArgumentException("Schema does not exist: " + name.getPrefix().get().toString());
+                    throw new RakamException("Schema does not exist: " + name.getPrefix().get().toString(), BAD_REQUEST);
             }
         }
 

@@ -162,7 +162,14 @@ public class JsonEventDeserializer
         if (schema == null) {
             List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
             if (rakamSchema.isEmpty()) {
-                rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, constantFields);
+                // new collection
+                FieldType userType = configManager.setConfigOnce(project, USER_TYPE.name(), FieldType.STRING);
+                Set<SchemaField> fields = ImmutableSet.<SchemaField>builder()
+                        .addAll(constantFields)
+                        .add(new SchemaField("_user", userType))
+                        .build();
+
+                rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, fields);
             }
 
             schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema, conditionalMagicFields));

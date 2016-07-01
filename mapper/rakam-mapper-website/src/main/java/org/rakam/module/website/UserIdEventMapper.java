@@ -12,7 +12,9 @@ import org.apache.avro.generic.GenericRecord;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.Event;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.AvroUtil;
@@ -25,6 +27,8 @@ import java.net.NetworkInterface;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.UUID;
+
+import static org.rakam.collection.FieldType.STRING;
 
 public class UserIdEventMapper
         implements EventMapper, UserPropertyMapper
@@ -42,7 +46,7 @@ public class UserIdEventMapper
             public FieldType load(String key)
                     throws Exception
             {
-                return configManager.setConfigOnce(key, InternalConfig.USER_TYPE.name(), FieldType.STRING);
+                return configManager.setConfigOnce(key, InternalConfig.USER_TYPE.name(), STRING);
             }
         });
     }
@@ -64,7 +68,10 @@ public class UserIdEventMapper
                     .map(e -> cast(type, e.value())).orElse(generate(type));
 
             properties.put("_user", anonymousUser);
-            return ImmutableList.of(new DefaultCookie("_anonymous_user", String.valueOf(anonymousUser)));
+            DefaultCookie cookie = new DefaultCookie("_anonymous_user", String.valueOf(anonymousUser));
+            cookie.setPath("/");
+
+            return ImmutableList.of(cookie);
         }
 
         return null;

@@ -2,6 +2,7 @@ package org.rakam.plugin.user;
 
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.netty.buffer.Unpooled;
@@ -28,6 +29,8 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.ApiResponse;
 import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
+import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.AllowCookie;
@@ -64,6 +67,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static java.lang.String.format;
@@ -231,24 +235,61 @@ public class UserHttpService
         return service.getUser(project, user);
     }
 
+    public static class MergeRequest {
+        public final  Object id;
+        public final  User.UserContext api;
+        public final  Object anonymousId;
+        public final  long createdAt;
+        public final  long mergedAt;
+
+        @JsonCreator
+        public MergeRequest(@ApiParam("id") Object id,
+                @ApiParam("api") User.UserContext api,
+                @ApiParam("anonymous_id") Object anonymousId,
+                @ApiParam("created_at") long createdAt,
+                @ApiParam("merged_at")long mergedAt)
+        {
+            this.id = id;
+            this.api = api;
+            this.anonymousId = anonymousId;
+            this.createdAt = createdAt;
+            this.mergedAt = mergedAt;
+        }
+    }
+
     @JsonRequest
-    @ApiOperation(value = "Merge user with anonymous id", authorizations = @Authorization(value = "read_key"))
+    @ApiOperation(value = "Merge user with anonymous id", authorizations = @Authorization(value = "write_key"))
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/merge")
+    @IgnoreApi
     @AllowCookie
-    public boolean mergeUser(@Named("project") String project,
-            @ApiParam("user") String user,
-            @ApiParam("api") User.UserContext api,
-            @ApiParam("anonymous_id") String anonymousId,
-            @ApiParam("created_at") Instant createdAt,
-            @ApiParam("merged_at") Instant mergedAt)
+    public void mergeUser(RakamHttpRequest request, @CookieParam("_anonymous_user") String anonymousIdFallback, @BodyParam MergeRequest mergeRequest)
     {
         // TODO: what if a user sends real user ids instead of its previous anonymous id?
         if (!config.getEnableUserMapping()) {
-            throw new RakamException("The feature is not supported", HttpResponseStatus.PRECONDITION_FAILED);
+            throw new RakamException("The feature is not supported", PRECONDITION_FAILED);
         }
-        service.merge(project, user, anonymousId, createdAt, mergedAt);
-        return true;
+
+        Object anonymousId = mergeRequest.anonymousId;
+
+        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK,
+                Unpooled.wrappedBuffer(OK_MESSAGE));
+        setBrowser(request, response);
+
+        if(anonymousId == null) {
+            if(anonymousIdFallback == null) {
+                request.response(response).end();
+                return;
+            }
+
+            anonymousId = anonymousIdFallback;
+        }
+
+        String project = apiKeyService.getProjectOfApiKey(mergeRequest.api.apiKey, WRITE_KEY);
+
+        service.merge(project, mergeRequest.id, anonymousId, Instant.ofEpochMilli(mergeRequest.createdAt),
+                Instant.ofEpochMilli(mergeRequest.mergedAt));
+        request.response(response).end();
     }
 
     @ApiOperation(value = "Batch operation user properties", response = Integer.class)
@@ -351,8 +392,7 @@ public class UserHttpService
 
                 List<Cookie> cookies = mapProperties(project, req, request);
                 if (cookies != null) {
-                    response.headers().add(SET_COOKIE,
-                            STRICT.encode(cookies));
+                    response.headers().add(SET_COOKIE, STRICT.encode(cookies));
                 }
                 String headerList = getHeaderList(response.headers().iterator());
                 if (headerList != null) {

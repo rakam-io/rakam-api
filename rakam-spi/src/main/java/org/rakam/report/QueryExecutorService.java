@@ -14,6 +14,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.util.NotExistsException;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 import org.rakam.util.SentryUtil;
@@ -54,7 +55,7 @@ public class QueryExecutorService {
 
     public QueryExecution executeQuery(String project, String sqlQuery, int limit) {
         if (!projectExists(project)) {
-            throw new IllegalArgumentException("Project is not valid");
+            throw new NotExistsException("Project");
         }
         HashMap<MaterializedView, MaterializedViewExecution> materializedViews = new HashMap<>();
         String query;

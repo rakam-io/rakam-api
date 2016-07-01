@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class ClickHouseQueryExecutor implements QueryExecutor
 {
@@ -70,7 +71,7 @@ public class ClickHouseQueryExecutor implements QueryExecutor
             if (!collections.isEmpty()) {
                 String sharedColumns = collections.get(0).getValue().stream()
                         .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
-                        .map(f -> f.getName())
+                        .map(f -> checkTableColumn(f.getName(), '`'))
                         .collect(Collectors.joining(", "));
 
                 return "(" + collections.stream().map(Map.Entry::getKey)
@@ -94,11 +95,11 @@ public class ClickHouseQueryExecutor implements QueryExecutor
         String table = project + "." + checkCollection(node.getSuffix(), '`');
 
         if (hotStoragePrefix != null) {
-            return "((select * from "+ checkCollection(coldStoragePrefix + table, '`') + " union all " +
-                    "select * from " + checkCollection(hotStoragePrefix + table, '`') + ")" +
+            return "((select * from "+ coldStoragePrefix + table + " union all " +
+                    "select * from " + hotStoragePrefix + table + ")" +
                     " as " + node.getSuffix() + ")";
         } else {
-            return checkCollection(coldStoragePrefix + table, '`');
+            return coldStoragePrefix + table;
         }
     }
 }

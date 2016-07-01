@@ -227,11 +227,14 @@ public class QueryHttpService
         }
         query.getResult().whenComplete((result, ex) -> {
             if (ex != null) {
+
                 LOGGER.error(ex, "Error while executing query");
                 response.send("result", encode(jsonObject()
                         .put("success", false)
                         .put("query", query.getQuery())
-                        .put("error", "Internal error"))).end();
+                        .put("error", ex.getCause() instanceof RakamException ?
+                                ex.getCause().getMessage() :
+                                "Internal error"))).end();
             }
             else if (result.isFailed()) {
                 response.send("result", encode(jsonObject()

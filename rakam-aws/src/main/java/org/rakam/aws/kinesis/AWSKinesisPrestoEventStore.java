@@ -6,6 +6,8 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.amazonaws.services.kinesis.producer.KinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.util.Base64;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -106,6 +108,11 @@ public class AWSKinesisPrestoEventStore
         this.dataSource = dataSource;
         this.continuousQueryService = continuousQueryService;
         this.bulkClient = new S3BulkEventStore(metastore, config, fieldDependency);
+
+        KinesisProducerConfiguration producerConfiguration = new KinesisProducerConfiguration()
+                .setRegion(config.getRegion())
+                .setCredentialsProvider(config.getCredentials());
+//        KinesisProducer producer = new KinesisProducer(producerConfiguration);
     }
 
     public int[] storeBatchInline(List<Event> events, int offset, int limit)
@@ -250,7 +257,6 @@ public class AWSKinesisPrestoEventStore
     @Override
     public int[] storeBatch(List<Event> events)
     {
-
         if (events.size() > BATCH_SIZE) {
             ArrayList<Integer> errors = null;
             int cursor = 0;

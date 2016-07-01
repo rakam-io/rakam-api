@@ -16,6 +16,7 @@ import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.DateTimeUtils;
 
 import javax.inject.Inject;
+
 import java.io.IOException;
 import java.time.LocalTime;
 import java.time.temporal.ChronoField;
@@ -38,7 +39,9 @@ import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class CsvEventDeserializer extends JsonDeserializer<EventList> {
+public class CsvEventDeserializer
+        extends JsonDeserializer<EventList>
+{
 
     private final Metastore metastore;
     private final Map<String, List<SchemaField>> conditionalMagicFields;
@@ -47,7 +50,8 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
 
     @Inject
     public CsvEventDeserializer(Metastore metastore, ConfigManager configManager,
-                                FieldDependency fieldDependency) {
+            FieldDependency fieldDependency)
+    {
         this.metastore = metastore;
 
         this.configManager = configManager;
@@ -56,7 +60,9 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
     }
 
     @Override
-    public EventList deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+    public EventList deserialize(JsonParser jp, DeserializationContext ctxt)
+            throws IOException
+    {
         String project = (String) ctxt.getAttribute("project");
         String collection = (String) ctxt.getAttribute("collection");
         String apiKey = (String) ctxt.getAttribute("apiKey");
@@ -97,7 +103,9 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
         return new EventList(Event.EventContext.apiKey(apiKey), project, list);
     }
 
-    public Map.Entry<List<SchemaField>, int[]> readHeader(CsvParser jp, String project, String collection) throws IOException {
+    public Map.Entry<List<SchemaField>, int[]> readHeader(CsvParser jp, String project, String collection)
+            throws IOException
+    {
         List<SchemaField> fields = metastore.getCollection(project, collection);
         if (fields.isEmpty()) {
             fields = ImmutableList.copyOf(constantFields);
@@ -134,7 +142,9 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
         return new AbstractMap.SimpleImmutableEntry<>(fields, indexes);
     }
 
-    public Object getValue(FieldType type, JsonParser jp) throws IOException {
+    public Object getValue(FieldType type, JsonParser jp)
+            throws IOException
+    {
         if (type == null) {
             return getValueOfMagicField(jp);
         }
@@ -160,13 +170,15 @@ public class CsvEventDeserializer extends JsonDeserializer<EventList> {
                 }
                 try {
                     return DateTimeUtils.parseTimestamp(jp.getValueAsString());
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     return null;
                 }
             case DATE:
                 try {
                     return DateTimeUtils.parseDate(jp.getValueAsString());
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     return null;
                 }
             default:

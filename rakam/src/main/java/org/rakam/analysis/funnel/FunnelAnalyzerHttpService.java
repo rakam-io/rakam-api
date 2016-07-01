@@ -14,7 +14,6 @@
 package org.rakam.analysis.funnel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
@@ -35,6 +34,7 @@ import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

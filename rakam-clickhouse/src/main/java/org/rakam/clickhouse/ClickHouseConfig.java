@@ -39,7 +39,7 @@ public class ClickHouseConfig
     }
 
     @Config("clickhouse.cold-storage-prefix")
-    public ClickHouseConfig setColdStoragePrefix(String hotStoragePrefix)
+    public ClickHouseConfig setColdStoragePrefix(String coldStoragePrefix)
     {
         this.coldStoragePrefix = coldStoragePrefix;
         return this;

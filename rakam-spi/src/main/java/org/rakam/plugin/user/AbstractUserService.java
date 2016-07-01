@@ -96,7 +96,7 @@ public abstract class AbstractUserService {
         storage.unsetProperties(project, user, properties);
     }
 
-    public void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt) {
+    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
         if (!config.getEnableUserMapping()) {
             throw new RakamException(HttpResponseStatus.NOT_IMPLEMENTED);
         }

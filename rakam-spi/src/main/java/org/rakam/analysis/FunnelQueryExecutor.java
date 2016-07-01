@@ -5,7 +5,9 @@ import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.report.QueryExecution;
+import org.rakam.util.RakamException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -71,7 +73,13 @@ public interface FunnelQueryExecutor
 
         @JsonIgnore
         public synchronized Optional<Expression> getExpression() {
-            return filterExpression.map(value -> parser.createExpression(value));
+            try {
+                return filterExpression.map(value -> parser.createExpression(value));
+            }
+            catch (Exception e) {
+                throw new RakamException("Unable to parse filter expression: " + filterExpression.get(),
+                        HttpResponseStatus.BAD_REQUEST);
+            }
         }
     }
 }

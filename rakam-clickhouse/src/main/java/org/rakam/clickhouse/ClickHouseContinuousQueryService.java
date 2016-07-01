@@ -7,20 +7,29 @@ import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
+import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.String.format;
+
 public class ClickHouseContinuousQueryService
         extends ContinuousQueryService
 {
+    private final QueryExecutor queryExecutor;
+
     @Inject
-    public ClickHouseContinuousQueryService(QueryMetadataStore database)
+    public ClickHouseContinuousQueryService(QueryExecutor queryExecutor, QueryMetadataStore database)
     {
         super(database);
+        this.queryExecutor = queryExecutor;
     }
 
     @Override
@@ -34,7 +43,15 @@ public class ClickHouseContinuousQueryService
     @Override
     public CompletableFuture<Boolean> delete(String project, String tableName)
     {
-        return null;
+        String prestoQuery = format("drop table %s.%s", project, ValidationUtil.checkCollection(tableName));
+        return queryExecutor.executeRawQuery(prestoQuery).getResult().thenApply(result -> {
+            if (result.getError() == null) {
+                database.deleteContinuousQuery(project, tableName);
+                return true;
+            } else {
+                throw new RakamException("Error while deleting continuous query:" + result.getError().message, BAD_REQUEST);
+            }
+        });
     }
 
     @Override

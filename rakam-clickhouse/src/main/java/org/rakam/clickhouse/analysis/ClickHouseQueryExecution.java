@@ -1,6 +1,5 @@
 package org.rakam.clickhouse.analysis;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.CharStreams;
 import com.google.common.net.HostAndPort;
@@ -36,6 +35,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -134,7 +134,59 @@ public class ClickHouseQueryExecution
     {
         List<SchemaField> columns = queryResult.meta.stream().map(f -> new SchemaField(f.name, parseClickhouseType(f.type)))
                 .collect(Collectors.toList());
-        return new QueryResult(columns, queryResult.data);
+        return new QueryResult(columns, transformResultData(columns, queryResult.data));
+    }
+
+    private List<List<Object>> transformResultData(List<SchemaField> columns, List<List<Object>> data) {
+        for (List<Object> objects : data) {
+            for (int i = 0; i < columns.size(); i++) {
+                String value = objects.get(i).toString();
+                if(value == null) {
+                    continue;
+                }
+
+                FieldType type = columns.get(i).getType();
+                switch (type) {
+                    case STRING:
+                        break;
+                    case LONG:
+                        objects.set(i, Long.parseLong(value));
+                        break;
+                    case INTEGER:
+                        objects.set(i, Integer.parseInt(value));
+                        break;
+                    case BOOLEAN:
+                        objects.set(i, value.equals("true"));
+                        break;
+                    case TIMESTAMP:
+                        objects.set(i, Instant.parse(value));
+                        break;
+                    case DATE:
+                        objects.set(i, LocalDate.parse(value));
+                        break;
+                    case TIME:
+                        objects.set(i, LocalTime.parse(value));
+                        break;
+                    case BINARY:
+                        objects.set(i, value.getBytes(StandardCharsets.UTF_8));
+                        break;
+                    case DECIMAL:
+                    case DOUBLE:
+                        objects.set(i, Double.parseDouble(value));
+                        break;
+                    default:
+                        if(type.isArray()) {
+
+                        }
+
+                        if(type.isMap()) {
+
+                        }
+                }
+            }
+        }
+
+        return data;
     }
 
     @Override
@@ -224,8 +276,11 @@ public class ClickHouseQueryExecution
             try {
                 completable.complete(listenableFuture.get());
             }
-            catch (InterruptedException | ExecutionException e) {
+            catch (InterruptedException e) {
                 completable.completeExceptionally(e);
+            }
+            catch (ExecutionException e) {
+                completable.completeExceptionally(e.getCause());
             }
         }, Runnable::run);
         return completable;

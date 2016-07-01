@@ -75,7 +75,7 @@ public class ClickHouseMetastore
         StringResponse resp = ClickHouseQueryExecution.runStatementSafe(config, format("CREATE DATABASE `%s`", project));
         if(resp.getStatusCode() != 200) {
             if(resp.getBody().startsWith("Code: 82")) {
-                throw new AlreadyExistsException("project", BAD_REQUEST);
+                throw new AlreadyExistsException("Project", BAD_REQUEST);
             }
             throw new RakamException(resp.getBody().split("\n", 2)[0], INTERNAL_SERVER_ERROR);
         }
@@ -108,7 +108,7 @@ public class ClickHouseMetastore
         return getOrCreateCollectionFields(project, collection, fields, fields.size());
     }
 
-    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, int tryCount)
+    public List<SchemaField> getOrCreateCollectionFields(String project, String collection, Set<SchemaField> fields, final int tryCount)
             throws NotExistsException
     {
         String query;
@@ -153,7 +153,7 @@ public class ClickHouseMetastore
             if (join.getStatusCode() != 200) {
                 if (join.getBody().startsWith("Code: 44") || join.getBody().startsWith("Code: 57")) {
                     if (tryCount > 0) {
-                        return getOrCreateCollectionFields(project, collection, fields, tryCount--);
+                        return getOrCreateCollectionFields(project, collection, fields, tryCount - 1);
                     } else {
                         throw new RakamException(String.format("Failed to add new fields to collection %s.%s: %s",
                                 project, collection, Arrays.toString(fields.toArray())),
@@ -178,7 +178,9 @@ public class ClickHouseMetastore
 
                         StringResponse join = ClickHouseQueryExecution.runStatementSafe(config, q);
                         if (join.getStatusCode() != 200) {
-                            throw new IllegalStateException(join.getBody());
+                            if (!getCollection(project, collection).stream().anyMatch(e -> e.getName().equals(f.getName()))) {
+                                throw new IllegalStateException(join.getBody());
+                            }
                         }
                     });
 

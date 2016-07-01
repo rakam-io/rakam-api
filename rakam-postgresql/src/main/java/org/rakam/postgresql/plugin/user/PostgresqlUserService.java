@@ -35,10 +35,10 @@ import static org.rakam.util.ValidationUtil.checkProject;
 public class PostgresqlUserService extends AbstractUserService {
     private final Metastore metastore;
     private final PostgresqlQueryExecutor executor;
-    private final UserStorage storage;
+    private final PostgresqlUserStorage storage;
 
     @Inject
-    public PostgresqlUserService(UserStorage storage, UserPluginConfig config, EventStore eventStore, Metastore metastore, PostgresqlQueryExecutor executor) {
+    public PostgresqlUserService(PostgresqlUserStorage storage, UserPluginConfig config, EventStore eventStore, Metastore metastore, PostgresqlQueryExecutor executor) {
         super(storage, config, eventStore);
         this.storage = storage;
         this.metastore = metastore;
@@ -78,13 +78,13 @@ public class PostgresqlUserService extends AbstractUserService {
     }
 
     @Override
-    public void merge(String project, String user, String anonymousId, Instant createdAt, Instant mergedAt) {
+    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
         try (Connection connection = executor.getConnection()) {
             for (String collectionName : metastore.getCollectionNames(project)) {
-                PreparedStatement ps = connection.prepareStatement(String.format("UPDATE %s SET _user = ? WHERE _user = ? WHERE _time BETWEEN ? and ?",
+                PreparedStatement ps = connection.prepareStatement(String.format("UPDATE %s SET _user = ? WHERE _user = ? AND _time BETWEEN ? and ?",
                         executor.formatTableReference(project, QualifiedName.of(collectionName))));
-                ps.setString(1, user);
-                ps.setString(2, anonymousId);
+                storage.setUserId(project, ps, user, 1);
+                storage.setUserId(project, ps, anonymousId, 2);
                 ps.setTimestamp(3, Timestamp.from(createdAt));
                 ps.setTimestamp(4, Timestamp.from(createdAt));
                 ps.executeUpdate();

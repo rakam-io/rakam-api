@@ -743,21 +743,8 @@ public abstract class AbstractPostgresqlUserStorage
                 }
                 statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
             }
-            Optional<FieldType> fieldType = userTypeCache.getUnchecked(project);
-            if (!fieldType.isPresent() || fieldType.get() == FieldType.STRING) {
-                statement.setString(i++, userId.toString());
-            }
-            else if (fieldType.get() == FieldType.INTEGER) {
-                statement.setInt(i++, (userId instanceof Number) ? ((Number) userId).intValue() :
-                        Integer.parseInt(userId.toString()));
-            }
-            else if (fieldType.get() == FieldType.LONG) {
-                statement.setLong(i++, (userId instanceof Number) ? ((Number) userId).longValue() :
-                        Integer.parseInt(userId.toString()));
-            }
-            else {
-                throw new IllegalStateException();
-            }
+
+            setUserId(project, statement, userId, i++);
 
             i = statement.executeUpdate();
             if (i == 0) {
@@ -766,6 +753,25 @@ public abstract class AbstractPostgresqlUserStorage
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
+        }
+    }
+
+    public void setUserId(String project, PreparedStatement statement, Object userId, int position)
+            throws SQLException
+    {
+        Optional<FieldType> fieldType = userTypeCache.getUnchecked(project);
+        if (!fieldType.isPresent() || fieldType.get() == FieldType.STRING) {
+            statement.setString(position, userId.toString());
+        }
+        else if (fieldType.get() == FieldType.INTEGER) {
+            statement.setInt(position, (userId instanceof Number) ? ((Number) userId).intValue() :
+                    Integer.parseInt(userId.toString()));
+        }
+        else if (fieldType.get() == FieldType.LONG) {
+            statement.setLong(position, (userId instanceof Number) ? ((Number) userId).longValue() :
+                    Integer.parseInt(userId.toString()));
+        } else {
+            throw new IllegalStateException();
         }
     }
 
