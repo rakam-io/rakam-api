@@ -68,17 +68,17 @@ public class UserUtilHttpService extends HttpService {
     public static class FilterQuery {
         public final String readKey;
         public final String filter;
-        public final List<UserStorage.EventFilter> event_filter;
+        public final List<UserStorage.EventFilter> eventFilter;
         public final UserStorage.Sorting sorting;
 
         @JsonCreator
         public FilterQuery(@ApiParam("read_key") String apiKey,
                            @ApiParam(value = "filter", required = false) String filter,
-                           @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                           @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> eventFilter,
                            @ApiParam(value = "sorting", required = false) UserStorage.Sorting sorting) {
             this.readKey = apiKey;
             this.filter = filter;
-            this.event_filter = event_filter;
+            this.eventFilter = eventFilter;
             this.sorting = sorting;
         }
     }
@@ -119,7 +119,7 @@ public class UserUtilHttpService extends HttpService {
         }
 
         final CompletableFuture<QueryResult> search = service.searchUsers(project, null, expression,
-                read.filterQuery.event_filter, read.filterQuery.sorting, 100000, null);
+                read.filterQuery.eventFilter, read.filterQuery.sorting, 100000, null);
         final CompletableFuture<byte[]> stream;
         switch (read.exportFormat) {
             case XLS:

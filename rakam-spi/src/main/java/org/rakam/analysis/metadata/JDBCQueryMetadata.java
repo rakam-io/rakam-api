@@ -46,14 +46,14 @@ public class JDBCQueryMetadata implements QueryMetadataStore {
     private final Clock clock;
 
     private ResultSetMapper<MaterializedView> materializedViewMapper = (index, r, ctx) -> {
-        Long update_interval = r.getLong("update_interval");
+        Long updateInterval = r.getLong("update_interval");
         MaterializedView materializedView = new MaterializedView(r.getString("table_name"), r.getString("name"), r.getString("query"),
-                update_interval != null ? Duration.ofMillis(update_interval) : null,
+                updateInterval != null ? Duration.ofMillis(updateInterval) : null,
                 r.getBoolean("incremental"),
                 r.getString("options") == null ? null : JsonHelper.read(r.getString("options"), Map.class));
-        Long last_updated = r.getLong("last_updated");
-        if (last_updated != null && last_updated != 0) {
-            materializedView.lastUpdate = Instant.ofEpochSecond(last_updated);
+        Long lastUpdated = r.getLong("last_updated");
+        if (lastUpdated != null && lastUpdated != 0) {
+            materializedView.lastUpdate = Instant.ofEpochSecond(lastUpdated);
         }
         return materializedView;
     };

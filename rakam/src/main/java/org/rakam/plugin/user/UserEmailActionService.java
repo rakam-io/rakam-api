@@ -55,12 +55,12 @@ public class UserEmailActionService extends UserActionService<UserEmailActionSer
     @Path("/batch")
     public CompletableFuture<Long> batch(@Named("project") String project,
                                          @ApiParam(value = "filter", required = false) String filter,
-                                         @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> event_filter,
+                                         @ApiParam(value = "event_filters", required = false) List<UserStorage.EventFilter> eventFilter,
                                          @ApiParam("config") EmailActionConfig config) {
         List<String> variables = new StringTemplate(config.content).getVariables();
         variables.add(config.columnName);
 
-        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, event_filter, null, null, 100000);
+        CompletableFuture<QueryResult> future = httpService.searchUsers(project, variables, filter, eventFilter, null, null, 100000);
         return batch(project, future, config);
     }
 

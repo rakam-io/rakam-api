@@ -307,7 +307,7 @@ public abstract class TestEventExplorer {
 
     @Test
     public void testReferenceGrouping() throws Exception {
-        Map<TimestampTransformation, Set> GROUPING = ImmutableMap.<TimestampTransformation, Set>builder()
+        Map<TimestampTransformation, Set> grouping = ImmutableMap.<TimestampTransformation, Set>builder()
                 .put(HOUR_OF_DAY, ImmutableSet.of(of(0L, "test", 36L), of(1L, "test", 36L), of(2L, "test", 28L)))
                 .put(DAY_OF_MONTH, ImmutableSet.of(of(1L, "test", 100L)))
                 .put(WEEK_OF_YEAR, ImmutableSet.of(of(1L, "test", 100L)))
@@ -333,7 +333,7 @@ public abstract class TestEventExplorer {
                                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
                         assertFalse(test.isFailed());
-                        assertEquals(copyOf(test.getResult()), GROUPING.get(trans.get()));
+                        assertEquals(copyOf(test.getResult()), grouping.get(trans.get()));
                     } else {
                         // TODO: implement
                     }

@@ -3,12 +3,10 @@ package org.rakam.report.eventexplorer;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.collection.SchemaField;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
@@ -16,7 +14,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -141,13 +138,13 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    private final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
+    private final Reference defaultSegment = new Reference(COLUMN, "_collection");
 
     @Override
     public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
             Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate)
     {
-        Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
+        Reference segment = segmentValue2 == null ? defaultSegment : segmentValue2;
 
         if (grouping != null && grouping.type == REFERENCE) {
             checkReference(grouping.value, startDate, endDate, collections.size());
@@ -355,7 +352,7 @@ public abstract class AbstractEventExplorer
             }
         }
         if (segment != null) {
-            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(segment, true) : "'" + stripName(collection) + "'") + " as "
+            selectBuilder.append((!segment.equals(defaultSegment) ? getColumnValue(segment, true) : "'" + stripName(collection) + "'") + " as "
                     + checkTableColumn(getColumnReference(segment) + "_segment"));
         }
         return selectBuilder.toString();

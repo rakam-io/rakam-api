@@ -52,7 +52,7 @@ public class RecipeModule extends RakamModule {
             return;
         }
 
-        boolean set_default = false;
+        boolean setDefault = false;
         for (String recipeConfig : recipes.getRecipes()) {
             URI recipeUri;
             try {
@@ -108,14 +108,14 @@ public class RecipeModule extends RakamModule {
 
             switch (recipe.getStrategy()) {
                 case DEFAULT:
-                    if (set_default) {
+                    if (setDefault) {
                         binder.addError("Only one recipe can use DEFAULT strategy.");
                         return;
                     }
                     binder.bind(Recipe.class).toInstance(recipe);
                     binder.bind(RecipeLoader.class).asEagerSingleton();
                     binder.bind(RecipeHandler.class).in(Scopes.SINGLETON);
-                    set_default = true;
+                    setDefault = true;
                     break;
                 case SPECIFIC:
 //                    Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
