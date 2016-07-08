@@ -35,6 +35,7 @@ import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.config.EncryptionConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.http.ForHttpServer;
@@ -188,6 +189,7 @@ public final class ServiceStarter {
 
             bindConfig(binder).to(HttpServerConfig.class);
             bindConfig(binder).to(ProjectConfig.class);
+            bindConfig(binder).to(EncryptionConfig.class);
 
             binder.bind(EventLoopGroup.class)
                     .annotatedWith(ForHttpServer.class)

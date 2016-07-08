@@ -35,7 +35,9 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -47,8 +49,8 @@ import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static java.time.ZoneOffset.UTC;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.rakam.clickhouse.collection.ClickHouseEventStore.readVarInt;
 import static org.rakam.report.QueryStats.State.FINISHED;
 import static org.rakam.report.QueryStats.State.RUNNING;
 
@@ -56,8 +58,10 @@ public class ClickHouseQueryExecution
         implements QueryExecution
 {
     private static final Logger LOGGER = Logger.get(ClickHouseQueryExecution.class);
-    private final CompletableFuture<ClickHouseQueryResult> result;
+    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    public static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
+    private final CompletableFuture<ClickHouseQueryResult> result;
     protected static final JettyHttpClient HTTP_CLIENT = new JettyHttpClient(
             new HttpClientConfig()
                     .setConnectTimeout(new Duration(10, SECONDS))
@@ -159,13 +163,13 @@ public class ClickHouseQueryExecution
                         objects.set(i, value.equals("true"));
                         break;
                     case TIMESTAMP:
-                        objects.set(i, Instant.parse(value));
+                        objects.set(i, LocalDateTime.parse(value, DATE_TIME_FORMATTER).toInstant(UTC));
                         break;
                     case DATE:
                         objects.set(i, LocalDate.parse(value));
                         break;
                     case TIME:
-                        objects.set(i, LocalTime.parse(value));
+                        objects.set(i, LocalTime.parse(value, TIME_FORMATTER));
                         break;
                     case BINARY:
                         objects.set(i, value.getBytes(StandardCharsets.UTF_8));
@@ -407,6 +411,24 @@ public class ClickHouseQueryExecution
                 else {
                     throw new IllegalStateException();
                 }
+        }
+    }
+
+    public static int readVarInt(DataInput input)
+            throws IOException
+    {
+        int size = 0;
+        for (int i = 0; ; i += 7) {
+            byte tmp = input.readByte();
+            if ((tmp & 0x80) == 0 && (i != 4 * 7 || tmp < 1 << 3)) {
+                return size | (tmp << i);
+            }
+            else if (i < 4 * 7) {
+                size |= (tmp & 0x7f) << i;
+            }
+            else {
+                throw new IllegalStateException("Not the varint representation of a signed int32");
+            }
         }
     }
 }

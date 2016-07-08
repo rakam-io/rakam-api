@@ -21,6 +21,7 @@ import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.aws.dynamodb.metastore.DynamodbMetastore;
 import org.rakam.clickhouse.analysis.ClickHouseEventExplorer;
 import org.rakam.clickhouse.analysis.ClickHouseFunnelQueryExecutor;
 import org.rakam.clickhouse.analysis.ClickHouseMetastore;
@@ -79,7 +80,6 @@ public class ClickHouseModule
                         APPROXIMATE_UNIQUE,
                         COUNT_UNIQUE));
 
-        binder.bind(Metastore.class).to(ClickHouseMetastore.class);
         binder.bind(AbstractUserService.class).to(ClickHouseUserService.class)
                 .in(Scopes.SINGLETON);
 

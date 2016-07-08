@@ -1,7 +1,5 @@
 package org.rakam.clickhouse.analysis;
 
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
@@ -13,11 +11,9 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

@@ -23,8 +23,21 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-aws</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>http-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>amazon-kinesis-producer</artifactId>
+        </dependency>
+        <dependency>
+            <artifactId>aws-java-sdk-kinesis</artifactId>
+            <groupId>com.amazonaws</groupId>
         </dependency>
         <dependency>
             <groupId>com.google.auto.service</groupId>

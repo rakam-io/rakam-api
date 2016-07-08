@@ -186,7 +186,7 @@ public class ClickHouseEventStore
         return null;
     }
 
-    private void writeValue(Object value, FieldType type, DataOutput out)
+    public static void writeValue(Object value, FieldType type, DataOutput out)
             throws IOException
     {
         switch (type) {
@@ -250,24 +250,6 @@ public class ClickHouseEventStore
         }
     }
 
-    public static int readVarInt(DataInput input)
-            throws IOException
-    {
-        int size = 0;
-        for (int i = 0; ; i += 7) {
-            byte tmp = input.readByte();
-            if ((tmp & 0x80) == 0 && (i != 4 * 7 || tmp < 1 << 3)) {
-                return size | (tmp << i);
-            }
-            else if (i < 4 * 7) {
-                size |= (tmp & 0x7f) << i;
-            }
-            else {
-                throw new IllegalStateException("Not the varint representation of a signed int32");
-            }
-        }
-    }
-
     public static void writeVarInt(int message, DataOutput output)
             throws IOException
     {
@@ -283,7 +265,7 @@ public class ClickHouseEventStore
         output.write((byte) value);
     }
 
-    private class BinaryRawGenerator
+    private static class BinaryRawGenerator
             implements BodyGenerator
     {
         private final List<Event> value;
