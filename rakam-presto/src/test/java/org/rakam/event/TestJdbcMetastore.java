@@ -7,7 +7,7 @@ import org.rakam.collection.TestMetastore;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.testng.annotations.BeforeMethod;
 
-public class TestJDBCMetastore
+public class TestJdbcMetastore
         extends TestMetastore
 {
     private AbstractMetastore metastore;
