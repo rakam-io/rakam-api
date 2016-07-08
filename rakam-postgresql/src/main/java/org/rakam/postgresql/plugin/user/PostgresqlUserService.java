@@ -5,6 +5,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
@@ -16,6 +17,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -32,13 +34,16 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PostgresqlUserService extends AbstractUserService {
+public class PostgresqlUserService
+        extends AbstractUserService
+{
     private final Metastore metastore;
     private final PostgresqlQueryExecutor executor;
     private final PostgresqlUserStorage storage;
 
     @Inject
-    public PostgresqlUserService(PostgresqlUserStorage storage, UserPluginConfig config, EventStore eventStore, Metastore metastore, PostgresqlQueryExecutor executor) {
+    public PostgresqlUserService(PostgresqlUserStorage storage, UserPluginConfig config, EventStore eventStore, Metastore metastore, PostgresqlQueryExecutor executor)
+    {
         super(storage, config, eventStore);
         this.storage = storage;
         this.metastore = metastore;
@@ -46,7 +51,8 @@ public class PostgresqlUserService extends AbstractUserService {
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime) {
+    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime)
+    {
         checkProject(project);
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
@@ -55,7 +61,7 @@ public class PostgresqlUserService extends AbstractUserService {
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
                 .map(entry ->
                         format("select '%s' as collection, row_to_json(coll) json, _time from \"%s\".\"%s\" coll where _user = '%s' %s",
-                                entry.getKey(), project, entry.getKey(), user, beforeThisTime == null ? "" : String.format("and _time < timestamp '%s'", beforeThisTime.toString())))
+                                entry.getKey(), project, entry.getKey(), user, beforeThisTime == null ? "" : format("and _time < timestamp '%s'", beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
         if (sqlQuery.isEmpty()) {
@@ -78,24 +84,30 @@ public class PostgresqlUserService extends AbstractUserService {
     }
 
     @Override
-    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
-        try (Connection connection = executor.getConnection()) {
-            for (String collectionName : metastore.getCollectionNames(project)) {
-                PreparedStatement ps = connection.prepareStatement(String.format("UPDATE %s SET _user = ? WHERE _user = ? AND _time BETWEEN ? and ?",
-                        executor.formatTableReference(project, QualifiedName.of(collectionName))));
+    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
+    {
+        for (Map.Entry<String, List<SchemaField>> entry : metastore.getCollections(project).entrySet()) {
+            if (!entry.getValue().stream().anyMatch(e -> e.getName().equals("_user"))) {
+                continue;
+            }
+            try (Connection connection = executor.getConnection()) {
+                PreparedStatement ps = connection.prepareStatement(format("UPDATE %s SET _user = ? WHERE _user = ? AND _time BETWEEN ? and ?",
+                        executor.formatTableReference(project, QualifiedName.of(entry.getKey()))));
                 storage.setUserId(project, ps, user, 1);
                 storage.setUserId(project, ps, anonymousId, 2);
                 ps.setTimestamp(3, Timestamp.from(createdAt));
                 ps.setTimestamp(4, Timestamp.from(createdAt));
                 ps.executeUpdate();
             }
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
+            catch (SQLException e) {
+                throw Throwables.propagate(e);
+            }
         }
     }
 
     @Override
-    public QueryExecution precalculate(String project, PreCalculateQuery query) {
+    public QueryExecution precalculate(String project, PreCalculateQuery query)
+    {
         // no-op
         return QueryExecution.completedQueryExecution(null, QueryResult.empty());
     }
