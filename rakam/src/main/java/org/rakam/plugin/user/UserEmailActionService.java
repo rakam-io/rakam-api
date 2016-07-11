@@ -11,8 +11,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.ApiResponse;
-import org.rakam.server.http.annotations.ApiResponses;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.MailSender;
@@ -24,6 +22,7 @@ import javax.inject.Named;
 import javax.mail.MessagingException;
 import javax.mail.internet.AddressException;
 import javax.ws.rs.Path;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

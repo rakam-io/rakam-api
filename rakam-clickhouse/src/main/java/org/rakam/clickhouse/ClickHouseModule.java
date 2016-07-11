@@ -26,6 +26,7 @@ import org.rakam.clickhouse.analysis.ClickHouseEventExplorer;
 import org.rakam.clickhouse.analysis.ClickHouseFunnelQueryExecutor;
 import org.rakam.clickhouse.analysis.ClickHouseMetastore;
 import org.rakam.clickhouse.analysis.ClickHouseRetentionQueryExecutor;
+import org.rakam.clickhouse.collection.AWSKinesisClickhouseEventStore;
 import org.rakam.clickhouse.collection.ClickHouseEventStore;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
@@ -64,7 +65,7 @@ public class ClickHouseModule
         binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('`');
 
         binder.bind(QueryExecutor.class).to(ClickHouseQueryExecutor.class);
-        binder.bind(EventStore.class).to(ClickHouseEventStore.class);
+        binder.bind(EventStore.class).to(AWSKinesisClickhouseEventStore.class);
         binder.bind(ContinuousQueryService.class).to(ClickHouseContinuousQueryService.class);
         binder.bind(MaterializedViewService.class).to(ClickHouseMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class)

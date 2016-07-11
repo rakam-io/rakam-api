@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.aws.AWSConfig;
@@ -74,9 +75,9 @@ public class DynamodbUserStorage
             new KeySchemaElement().withKeyType(HASH).withAttributeName("project"),
             new KeySchemaElement().withKeyType(RANGE).withAttributeName("id")
     );
-    private static final List<AttributeDefinition> ATTRIBUTES = ImmutableList.of(
-            new AttributeDefinition().withAttributeName("id").withAttributeType(ScalarAttributeType.S),
-            new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S)
+    private static final Set<AttributeDefinition> ATTRIBUTES = ImmutableSet.of(
+            new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S),
+            new AttributeDefinition().withAttributeName("id").withAttributeType(ScalarAttributeType.S)
     );
     private final DynamodbUserConfig tableConfig;
 
@@ -96,11 +97,9 @@ public class DynamodbUserStorage
         try {
             DescribeTableResult result = dynamoDBClient.describeTable(tableConfig.getTableName());
 
-            if (!result.getTable().getKeySchema().equals(PROJECT_KEYSCHEMA)) {
-                throw new IllegalStateException();
-            }
-            if (!result.getTable().getAttributeDefinitions().equals(ATTRIBUTES)) {
-                throw new IllegalStateException();
+            if (!result.getTable().getKeySchema().equals(PROJECT_KEYSCHEMA) || !ImmutableSet.copyOf(result.getTable().getAttributeDefinitions()).equals(ATTRIBUTES)) {
+                throw new IllegalStateException("Invalid schema for user storage dynamodb table. " +
+                        "Please remove existing table or change dynamodb table.");
             }
         }
         catch (ResourceNotFoundException e) {

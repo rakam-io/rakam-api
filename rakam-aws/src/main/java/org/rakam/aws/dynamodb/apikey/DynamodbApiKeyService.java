@@ -31,13 +31,16 @@ import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.services.dynamodbv2.model.KeyType.HASH;
 import static java.lang.String.format;
 
 public class DynamodbApiKeyService
         implements ApiKeyService
 {
     private final AmazonDynamoDBClient dynamoDBClient;
-    private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(new KeySchemaElement().withKeyType(KeyType.HASH).withAttributeName("project"));
+    private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(
+            new KeySchemaElement().withKeyType(HASH).withAttributeName("project")
+    );
     private static final List<AttributeDefinition> ATTRIBUTES = ImmutableList.of(
             new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S)
     );
