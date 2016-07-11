@@ -7,11 +7,8 @@ RUN echo '{ "allow_root": true }' > /root/.bowerrc
 
 WORKDIR /var/app
 
-RUN git clone https://github.com/buremba/rakam-ui.git
-RUN cd rakam-ui && npm install --unsafe-perm
-
 RUN git clone https://github.com/rakam-io/rakam.git
-RUN cd rakam && mvn install -DskipTests && cd rakam/target && tar -zxvf *-bundle.tar.gz
+RUN cd rakam && mvn install -DskipTests
 
 RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
@@ -42,9 +39,7 @@ http.server.address=0.0.0.0:9999\n\
 plugin.user.storage.identifier_column=id\n\
 plugin.user.mailbox.adapter=postgresql\n\
 store.adapter.postgresql.max_connection=20\n\
-plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n\
-ui.custom-page.backend=jdbc\n\
-ui.enable=true" > config.properties
+plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties
 
 WORKDIR /var/app/rakam
 
@@ -52,6 +47,6 @@ EXPOSE 9999
 
 #-Dlog.enable-console=false
 #-Dlog.output-file=../logs/app.log
-ENTRYPOINT ([ -f /etc/init.d/postgresql ] && /etc/init.d/postgresql start); java -Dlog.levels-file=../log.properties -Dui.directory=../rakam-ui/app -cp $(echo rakam/target/rakam-*-bundle/rakam-*/lib)/*: org.rakam.ServiceStarter ../config.properties
+ENTRYPOINT ([ -f /etc/init.d/postgresql ] && /etc/init.d/postgresql start); rakam/target/rakam-*-bundle/rakam-*/bin/launcher run --config ../config.properties
 
 RUN apt-get clean
