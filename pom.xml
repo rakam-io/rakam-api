@@ -552,6 +552,7 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>DynamoDBLocal</artifactId>
                 <version>1.10.5.1</version>
+                <scope>test</scope>
                 <exclusions>
                     <exclusion>
                         <groupId>com.amazonaws</groupId>
