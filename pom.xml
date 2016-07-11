@@ -72,6 +72,7 @@
         <air.check.skip-extended>true</air.check.skip-extended>
         <air.check.skip-license>true</air.check.skip-license>
         <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
+        <dep.slice.version>0.19</dep.slice.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
@@ -519,7 +520,7 @@
             <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>slice</artifactId>
-                <version>0.19</version>
+                <version>${dep.slice.version}</version>
             </dependency>
 
             <dependency>
