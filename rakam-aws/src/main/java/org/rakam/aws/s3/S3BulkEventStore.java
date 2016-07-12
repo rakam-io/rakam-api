@@ -126,7 +126,7 @@ public class S3BulkEventStore {
                         new SafeSliceInputStream(new BasicSliceInput(buffer.slice())),
                         objectMetadata);
 
-                ByteBuffer allocate = ByteBuffer.allocate(key.length() + 1 + 4);
+                ByteBuffer allocate = ByteBuffer.allocate(key.length() + 1 + 8);
                 allocate.put((byte) 1);
                 allocate.putLong(bulkSize);
                 allocate.put(key.getBytes(StandardCharsets.UTF_8));

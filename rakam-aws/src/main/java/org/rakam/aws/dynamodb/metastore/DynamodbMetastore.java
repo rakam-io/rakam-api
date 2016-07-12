@@ -23,6 +23,7 @@ import com.amazonaws.services.dynamodbv2.model.StreamViewType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -54,7 +55,7 @@ public class DynamodbMetastore
             new KeySchemaElement().withKeyType(KeyType.HASH).withAttributeName("project"),
             new KeySchemaElement().withKeyType(KeyType.RANGE).withAttributeName("id")
     );
-    private static final List<AttributeDefinition> ATTRIBUTES = ImmutableList.of(
+    private static final Set<AttributeDefinition> ATTRIBUTES = ImmutableSet.of(
             new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S),
             new AttributeDefinition().withAttributeName("id").withAttributeType(ScalarAttributeType.S)
     );
@@ -82,7 +83,7 @@ public class DynamodbMetastore
                 throw new IllegalStateException("Dynamodb table for query metadata store has invalid key schema");
             }
 
-            if (!table.getTable().getAttributeDefinitions().equals(ATTRIBUTES)) {
+            if (!ImmutableSet.copyOf(table.getTable().getAttributeDefinitions()).equals(ATTRIBUTES)) {
                 throw new IllegalStateException("Dynamodb table for query metadata store has invalid attribute schema");
             }
         }
