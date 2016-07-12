@@ -281,16 +281,18 @@ public class EventCollectionHttpService
                                 .readValue(buff);
                     }
                     else {
-                        String collection = getParam(request.params(), "collection");
-                        String apiKey = getParam(request.params(), MASTER_KEY.getKey());
-                        String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
-
-                        checkCollection(collection);
-
                         if ("application/avro".equals(contentType)) {
+                            String apiKey = getParam(request.params(), MASTER_KEY.getKey());
+                            String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
+                            String collection = getParam(request.params(), "collection");
+
                             return avroEventDeserializer.deserialize(project, collection, utf8Slice(buff));
                         }
                         else if ("text/csv".equals(contentType)) {
+                            String apiKey = getParam(request.params(), MASTER_KEY.getKey());
+                            String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
+                            String collection = getParam(request.params(), "collection");
+
                             return csvMapper.reader(EventList.class)
                                     .with(ContextAttributes.getEmpty()
                                             .withSharedAttribute("project", project)

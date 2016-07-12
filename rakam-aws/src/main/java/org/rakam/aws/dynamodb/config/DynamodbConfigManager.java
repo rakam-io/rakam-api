@@ -17,6 +17,7 @@ import com.amazonaws.services.dynamodbv2.model.ReturnValue;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.aws.AWSConfig;
@@ -29,6 +30,7 @@ import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.collect.ImmutableMap.of;
 
@@ -40,7 +42,7 @@ public class DynamodbConfigManager
             new KeySchemaElement().withKeyType(KeyType.HASH).withAttributeName("project"),
             new KeySchemaElement().withKeyType(KeyType.RANGE).withAttributeName("id")
     );
-    private static final List<AttributeDefinition> ATTRIBUTES = ImmutableList.of(
+    private static final Set<AttributeDefinition> ATTRIBUTES = ImmutableSet.of(
             new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S),
             new AttributeDefinition().withAttributeName("id").withAttributeType(ScalarAttributeType.S)
     );
@@ -66,8 +68,8 @@ public class DynamodbConfigManager
                 throw new IllegalStateException("Dynamodb table for config manager has invalid key schema");
             }
 
-            if (!table.getTable().getAttributeDefinitions().equals(ATTRIBUTES)) {
-                throw new IllegalStateException("Dynamodb table for config manager has invalid attribute schema");
+            if (!ImmutableSet.copyOf(table.getTable().getAttributeDefinitions()).equals(ATTRIBUTES)) {
+                throw new IllegalStateException("Dynamodb table for config manager has invalid attribute schema.");
             }
         }
         catch (ResourceNotFoundException e) {

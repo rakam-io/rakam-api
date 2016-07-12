@@ -5,6 +5,7 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClient;
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
+import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.google.common.base.Throwables;
@@ -24,8 +25,11 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +45,7 @@ public class S3BulkEventStore {
     private final AWSConfig config;
     private final int conditionalMagicFieldsSize;
     private final AmazonCloudWatchAsyncClient cloudWatchClient;
+    private final AmazonKinesisClient kinesis;
 
     public S3BulkEventStore(Metastore metastore, AWSConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
         this.metastore = metastore;
@@ -49,6 +54,12 @@ public class S3BulkEventStore {
         s3Client.setRegion(config.getAWSRegion());
         if (config.getS3Endpoint() != null) {
             s3Client.setEndpoint(config.getS3Endpoint());
+        }
+
+        kinesis = new AmazonKinesisClient(config.getCredentials());
+        kinesis.setRegion(config.getAWSRegion());
+        if (config.getKinesisEndpoint() != null) {
+            kinesis.setEndpoint(config.getKinesisEndpoint());
         }
 
         cloudWatchClient = new AmazonCloudWatchAsyncClient(config.getCredentials());
@@ -106,13 +117,23 @@ public class S3BulkEventStore {
                 }
 
                 ObjectMetadata objectMetadata = new ObjectMetadata();
-                objectMetadata.setContentLength(buffer.size());
+                int bulkSize = buffer.size();
+                objectMetadata.setContentLength(bulkSize);
                 String key = events.get(0).project() + "/" + entry.getKey() + "/" + batchId;
                 s3Client.putObject(
                         config.getEventStoreBulkS3Bucket(),
                         key,
                         new SafeSliceInputStream(new BasicSliceInput(buffer.slice())),
                         objectMetadata);
+
+                ByteBuffer allocate = ByteBuffer.allocate(key.length() + 1 + 4);
+                allocate.put((byte) 1);
+                allocate.putLong(bulkSize);
+                allocate.put(key.getBytes(StandardCharsets.UTF_8));
+                allocate.clear();
+
+                kinesis.putRecord(config.getEventStoreStreamName(), allocate,
+                        events.get(0).project() + "|" + entry.getKey());
                 uploadedFiles.add(key);
             }
 

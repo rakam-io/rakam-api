@@ -27,6 +27,7 @@ import org.rakam.aws.AWSConfig;
 import org.rakam.aws.s3.S3BulkEventStore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
@@ -95,7 +96,7 @@ public class AWSKinesisPrestoEventStore
             PrestoQueryExecutor executor,
             ContinuousQueryService continuousQueryService,
             PrestoConfig prestoConfig,
-            FieldDependencyBuilder.FieldDependency fieldDependency)
+            FieldDependency fieldDependency)
     {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
@@ -308,6 +309,7 @@ public class AWSKinesisPrestoEventStore
 
         int startPosition = out.position();
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
+        out.write(0);
 
         try {
             writer.write(event.properties(), encoder);

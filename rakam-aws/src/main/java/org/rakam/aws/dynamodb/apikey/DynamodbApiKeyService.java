@@ -19,6 +19,7 @@ import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.Select;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService;
@@ -30,6 +31,7 @@ import javax.annotation.PostConstruct;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.amazonaws.services.dynamodbv2.model.KeyType.HASH;
 import static java.lang.String.format;
@@ -41,7 +43,7 @@ public class DynamodbApiKeyService
     private static final List<KeySchemaElement> PROJECT_KEYSCHEMA = ImmutableList.of(
             new KeySchemaElement().withKeyType(HASH).withAttributeName("project")
     );
-    private static final List<AttributeDefinition> ATTRIBUTES = ImmutableList.of(
+    private static final Set<AttributeDefinition> ATTRIBUTES = ImmutableSet.of(
             new AttributeDefinition().withAttributeName("project").withAttributeType(ScalarAttributeType.S)
     );
     private final DynamodbApiKeyConfig apiKeyConfig;
@@ -66,7 +68,7 @@ public class DynamodbApiKeyService
                 throw new IllegalStateException("Dynamodb table for api key service has invalid key schema");
             }
 
-            if (!table.getTable().getAttributeDefinitions().equals(ATTRIBUTES)) {
+            if (!ImmutableSet.copyOf(table.getTable().getAttributeDefinitions()).equals(ATTRIBUTES)) {
                 throw new IllegalStateException("Dynamodb table for api key service has invalid attribute schema");
             }
         }
