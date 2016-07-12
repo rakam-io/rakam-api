@@ -20,7 +20,7 @@ class ClickHouseQueryResult
     public final List<ClickHouseColumn> meta;
     public final List<List<Object>> data;
     public final List<String> totals;
-    public final List<String> extremes;
+    public final List<Extreme> extremes;
     public final long rows;
     public final Long rowsBeforeLimitAtLeast;
 
@@ -29,7 +29,7 @@ class ClickHouseQueryResult
             @JsonProperty("meta") List<ClickHouseColumn> meta,
             @JsonProperty("data") List<List<Object>> data,
             @JsonProperty("totals") List<String> totals,
-            @JsonProperty("extremes") List<String> extremes,
+            @JsonProperty("extremes") List<Extreme> extremes,
             @JsonProperty("rows") long rows,
             @JsonProperty("rows_before_limit_at_least") Long rowsBeforeLimitAtLeast)
     {

@@ -141,11 +141,12 @@ public class ClickHouseQueryExecution
         return new QueryResult(columns, transformResultData(columns, queryResult.data));
     }
 
-    private List<List<Object>> transformResultData(List<SchemaField> columns, List<List<Object>> data) {
+    private List<List<Object>> transformResultData(List<SchemaField> columns, List<List<Object>> data)
+    {
         for (List<Object> objects : data) {
             for (int i = 0; i < columns.size(); i++) {
                 String value = objects.get(i).toString();
-                if(value == null) {
+                if (value == null) {
                     continue;
                 }
 
@@ -179,11 +180,11 @@ public class ClickHouseQueryExecution
                         objects.set(i, Double.parseDouble(value));
                         break;
                     default:
-                        if(type.isArray()) {
+                        if (type.isArray()) {
 
                         }
 
-                        if(type.isMap()) {
+                        if (type.isMap()) {
 
                         }
                 }
@@ -244,7 +245,9 @@ public class ClickHouseQueryExecution
                 return JsonHelper.read(response.getInputStream(), ClickHouseQueryResult.class);
             }
             catch (IOException e) {
-                throw new RakamException("An error occurred while reading query results", INTERNAL_SERVER_ERROR);
+                LOGGER.error(e, "An error occurred while reading query results");
+                throw new RakamException("An error occurred while reading query results: " + e.getMessage(),
+                        INTERNAL_SERVER_ERROR);
             }
         }
     }
