@@ -168,10 +168,9 @@ public class DynamodbMetastore
     @Override
     public Map<String, List<SchemaField>> getCollections(String project)
     {
-        QueryResult query = dynamoDBClient.query(new QueryRequest().withKeyConditions(ImmutableMap.of("project", new Condition()
-                .withComparisonOperator(EQ)
-                .withAttributeValueList(new AttributeValue(project)))).withTableName(tableConfig.getTableName())
-                .withQueryFilter(ImmutableMap.of("project", new Condition()
+        QueryResult query = dynamoDBClient.query(new QueryRequest()
+                .withTableName(tableConfig.getTableName())
+                .withKeyConditions(ImmutableMap.of("project", new Condition()
                         .withComparisonOperator(EQ)
                         .withAttributeValueList(new AttributeValue(project)))));
 
@@ -228,7 +227,9 @@ public class DynamodbMetastore
                 .withTableName(tableConfig.getTableName())
                 .withKeyConditions(ImmutableMap.of("project", new Condition().withComparisonOperator(EQ).withAttributeValueList(new AttributeValue(project))))
                 .withQueryFilter(
-                        ImmutableMap.of("collection", new Condition().withComparisonOperator(EQ).withAttributeValueList(new AttributeValue(collection)))));
+                        ImmutableMap.of("collection",
+                                new Condition().withComparisonOperator(EQ)
+                                        .withAttributeValueList(new AttributeValue(collection)))));
 
         return query.getItems().stream()
                 .filter(e -> !e.get("id").getS().equals("|"))
