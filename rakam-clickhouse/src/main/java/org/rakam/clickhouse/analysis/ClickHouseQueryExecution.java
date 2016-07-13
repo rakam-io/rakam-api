@@ -387,10 +387,9 @@ public class ClickHouseQueryExecution
                 return FieldType.STRING;
             case "Int32":
             case "UInt32":
-                return FieldType.INTEGER;
             case "UInt8":
             case "Int8":
-                return FieldType.BOOLEAN;
+                return FieldType.INTEGER;
             case "DateTime":
                 return FieldType.TIMESTAMP;
             case "Date":

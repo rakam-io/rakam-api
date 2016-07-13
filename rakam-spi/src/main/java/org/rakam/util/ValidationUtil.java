@@ -1,13 +1,9 @@
 package org.rakam.util;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Throwables;
-import org.apache.avro.Schema;
 import org.rakam.collection.SchemaField;
 
 import javax.annotation.Nullable;
 
-import java.lang.reflect.Field;
 import java.util.Locale;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -26,6 +22,12 @@ public final class ValidationUtil
         if (!project.matches("^[0-9A-Za-z_]+$")) {
             throw new IllegalArgumentException("Project id is not valid.");
         }
+    }
+
+    public static <T> T checkNotNull(T value, String name)
+    {
+        checkArgument(value != null, name+" is null");
+        return value;
     }
 
     public static String checkCollection(String collection)

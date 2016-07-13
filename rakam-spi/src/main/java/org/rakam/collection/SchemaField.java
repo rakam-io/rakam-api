@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import java.util.Locale;
 
@@ -29,8 +30,8 @@ public class SchemaField
             @JsonProperty("description") String description,
             @JsonProperty("category") String category)
     {
-        this.name = stripName(name);
-        this.type = type;
+        this.name = stripName(ValidationUtil.checkNotNull(name, "name"));
+        this.type = ValidationUtil.checkNotNull(type, "type");
         this.unique = unique;
         this.descriptiveName = descriptiveName;
         this.description = description;
