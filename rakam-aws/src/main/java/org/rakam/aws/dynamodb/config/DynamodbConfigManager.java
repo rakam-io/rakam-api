@@ -55,6 +55,9 @@ public class DynamodbConfigManager
         if (config.getDynamodbEndpoint() != null) {
             dynamoDBClient.setEndpoint(config.getDynamodbEndpoint());
         }
+        if(config.getAWSRegion() != null) {
+            config.setRegion(config.getRegion());
+        }
         this.tableConfig = tableConfig;
     }
 

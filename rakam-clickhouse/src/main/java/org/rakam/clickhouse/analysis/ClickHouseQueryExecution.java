@@ -8,6 +8,7 @@ import io.airlift.http.client.HttpClientConfig;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
+import io.airlift.http.client.StaticBodyGenerator;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.http.client.jetty.JettyIoPool;
@@ -47,8 +48,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.report.QueryStats.State.FINISHED;
@@ -67,6 +70,7 @@ public class ClickHouseQueryExecution
                     .setConnectTimeout(new Duration(10, SECONDS))
                     .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("rakam-clickhouse", new JettyIoPoolConfig()),
             ImmutableSet.of());
+
     private final String query;
     private final String queryId;
     private final ClickHouseConfig config;
@@ -78,11 +82,15 @@ public class ClickHouseQueryExecution
         this.config = config;
         URI uri = UriBuilder
                 .fromUri(config.getAddress())
-                .queryParam("query_id", queryId)
-                .queryParam("query", query + " format " + QueryResponseHandler.FORMAT).build();
+                .queryParam("query_id", queryId).build();
 
-        result = convertCompletableFuture(HTTP_CLIENT.executeAsync(Request.builder().setUri(uri)
-                .setMethod("GET").build(), new QueryResponseHandler()));
+        result = convertCompletableFuture(HTTP_CLIENT.executeAsync(
+                Request.builder()
+                        .setUri(uri)
+                        .setMethod("POST")
+                        .setBodyGenerator(createStaticBodyGenerator(query + " format " + QueryResponseHandler.FORMAT, UTF_8))
+                        .build(),
+                new QueryResponseHandler()));
     }
 
     public static String runStatement(ClickHouseConfig config, String query)
@@ -173,7 +181,7 @@ public class ClickHouseQueryExecution
                         objects.set(i, LocalTime.parse(value, TIME_FORMATTER));
                         break;
                     case BINARY:
-                        objects.set(i, value.getBytes(StandardCharsets.UTF_8));
+                        objects.set(i, value.getBytes(UTF_8));
                         break;
                     case DECIMAL:
                     case DOUBLE:
@@ -319,7 +327,7 @@ public class ClickHouseQueryExecution
                 case "String":
                     byte[] bytes = new byte[readVarInt(input)];
                     input.readFully(bytes);
-                    value = new String(bytes, StandardCharsets.UTF_8);
+                    value = new String(bytes, UTF_8);
                     break;
                 case "Int32":
                 case "UInt32":
@@ -345,7 +353,7 @@ public class ClickHouseQueryExecution
                             case "FixedString":
                                 bytes = new byte[variable];
                                 input.readFully(bytes);
-                                value = new String(bytes, StandardCharsets.UTF_8);
+                                value = new String(bytes, UTF_8);
                                 break;
                             case "Array":
                                 for (int i = 0; i < readVarInt(input); i++) {
