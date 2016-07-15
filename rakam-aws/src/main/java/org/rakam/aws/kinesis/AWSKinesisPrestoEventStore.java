@@ -175,8 +175,8 @@ public class AWSKinesisPrestoEventStore
     @Override
     public QueryExecution commit(String project, String collection)
     {
-//        if(true)
-//            return QueryExecution.completedQueryExecution(null, QueryResult.empty());
+        if(true)
+            return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         Instant now = Instant.ofEpochSecond(1468542315);
 
         Connection conn;
