@@ -3,21 +3,27 @@ package org.rakam.aws.dynamodb;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
+import org.rakam.DynamodbUtil;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.dynamodb.metastore.DynamodbMetastore;
 import org.rakam.aws.dynamodb.metastore.DynamodbMetastoreConfig;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.TestMetastore;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.AfterSuite;
 
-public class TestDynamodbMetastore extends TestMetastore
+public class TestDynamodbMetastore
+        extends TestMetastore
 {
     private final DynamodbMetastore metastore;
+    private final DynamodbUtil.DynamodbProcess dynamodbProcess;
 
     public TestDynamodbMetastore()
+            throws Exception
     {
-        metastore = new DynamodbMetastore(new AWSConfig().setDynamodbEndpoint("http://127.0.0.1:8000"),
+        dynamodbProcess = DynamodbUtil.createDynamodbProcess();
+        metastore = new DynamodbMetastore(new AWSConfig().setDynamodbEndpoint("http://127.0.0.1:" + dynamodbProcess.port),
                 new DynamodbMetastoreConfig(),
                 new FieldDependencyBuilder.FieldDependency(ImmutableSet.of(), ImmutableMap.of()),
                 new EventBus());
@@ -35,5 +41,6 @@ public class TestDynamodbMetastore extends TestMetastore
             throws Exception
     {
         metastore.deleteTable();
+        dynamodbProcess.process.destroy();
     }
 }

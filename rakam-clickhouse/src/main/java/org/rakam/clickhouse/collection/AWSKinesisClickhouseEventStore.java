@@ -8,66 +8,28 @@ import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.ByteStreams;
-import com.google.inject.name.Named;
+import com.google.common.io.LittleEndianDataOutputStream;
 import io.airlift.log.Logger;
-import io.netty.util.CharsetUtil;
-import org.apache.avro.generic.FilteredRecordWriter;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.io.EncoderFactory;
-import org.rakam.analysis.ContinuousQueryService;
-import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.kinesis.KinesisUtils;
 import org.rakam.clickhouse.ClickHouseConfig;
-import org.rakam.clickhouse.ClickHouseQueryExecutor;
 import org.rakam.collection.Event;
-import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.SchemaField;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
-import org.rakam.report.ChainQueryExecution;
-import org.rakam.report.DelegateQueryExecution;
-import org.rakam.report.QueryError;
-import org.rakam.report.QueryExecution;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.KByteArrayOutputStream;
-import org.rakam.util.QueryFormatter;
-import org.rakam.util.RakamException;
-import org.rakam.util.StandardErrors;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
-import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.ByteBuffer;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;
-import static java.lang.String.format;
 import static org.rakam.clickhouse.collection.ClickHouseEventStore.writeValue;
+import static org.rakam.clickhouse.collection.ClickHouseEventStore.writeVarInt;
 import static org.rakam.collection.FieldType.DATE;
 
 public class AWSKinesisClickhouseEventStore
@@ -90,9 +52,7 @@ public class AWSKinesisClickhouseEventStore
     };
 
     @Inject
-    public AWSKinesisClickhouseEventStore(AWSConfig config,
-            ClickHouseQueryExecutor executor,
-            ClickHouseConfig clickHouseConfig)
+    public AWSKinesisClickhouseEventStore(AWSConfig config, ClickHouseConfig clickHouseConfig)
     {
         kinesis = new AmazonKinesisClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
@@ -213,14 +173,16 @@ public class AWSKinesisClickhouseEventStore
     {
         KByteArrayOutputStream buffer = this.buffer.get();
         int position = buffer.position();
-        DataOutputStream out = new DataOutputStream(buffer);
+        LittleEndianDataOutputStream out = new LittleEndianDataOutputStream(buffer);
 
         GenericRecord record = event.properties();
         Object time = record.get("_time");
         try {
-            writeValue(time == null ? 0 : ((int) (((long) time) / 86400)), DATE, out);
+            int size = event.schema().size();
+            writeVarInt(size, out);
+            writeValue(time == null ? 0 : ((int) (((long) time) / 86400000)), DATE, out);
 
-            for (int i = 0; i < event.schema().size(); i++) {
+            for (int i = 0; i < size; i++) {
                 writeValue(record.get(i), event.schema().get(i).getType(), out);
             }
         }
@@ -237,6 +199,6 @@ public class AWSKinesisClickhouseEventStore
             buffer.position(0);
         }
 
-        return buffer.getBuffer(position, out.size());
+        return buffer.getBuffer(position, buffer.position() - position);
     }
 }

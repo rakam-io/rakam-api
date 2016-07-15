@@ -238,15 +238,6 @@ public class DynamodbMetastore
                 .collect(Collectors.toList());
     }
 
-    public static String getIncrementedString(String str)
-    {
-        StringBuilder sb = new StringBuilder();
-        for (char c : str.toCharArray()) {
-            sb.append(++c);
-        }
-        return sb.toString();
-    }
-
     @Override
     public void deleteProject(String project)
     {

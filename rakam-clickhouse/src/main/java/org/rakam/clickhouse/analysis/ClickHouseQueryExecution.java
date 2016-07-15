@@ -293,7 +293,7 @@ public class ClickHouseQueryExecution
         return completable;
     }
 
-    private static List<Object> readRowBinary(DataInput input, List<String> types)
+    public static List<Object> readRowBinary(DataInput input, List<String> types)
             throws IOException
     {
         ArrayList<Object> list = new ArrayList<>(types.size());
@@ -330,7 +330,7 @@ public class ClickHouseQueryExecution
                     value = (int) input.readByte();
                     break;
                 case "DateTime":
-                    value = Instant.ofEpochMilli(input.readInt());
+                    value = Instant.ofEpochMilli(input.readInt() * 1000);
                     break;
                 case "Date":
                     value = LocalDate.ofEpochDay(input.readShort());

@@ -54,11 +54,6 @@ public class JsonEventDeserializer
         extends JsonDeserializer<Event>
 {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
-
-    private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{4}\\-(0?[1-9]|1[012])\\-(0?[1-9]|[12][0-9]|3[01])$");
-    private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$");
-    private static final Pattern TIME_PATTERN = Pattern.compile("^([2][0-3]|[0-1][0-9]|[1-9]):[0-5][0-9]:([0-5][0-9]|[6][0])$");
-
     private final Metastore metastore;
     private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache = CacheBuilder.newBuilder()
             .expireAfterWrite(5, TimeUnit.MINUTES).build();
@@ -430,15 +425,22 @@ public class JsonEventDeserializer
                 return null;
             case VALUE_STRING:
                 String value = jp.getValueAsString();
-                if (DATE_PATTERN.matcher(value).matches()) {
-                    return FieldType.DATE;
-                }
-                if (TIMESTAMP_PATTERN.matcher(value).matches()) {
+
+                try {
+                    DateTimeUtils.parseTimestamp(value);
                     return FieldType.TIMESTAMP;
                 }
-//                if (TIME_PATTERN.matcher(value).matches()) {
-//                    return FieldType.TIME;
-//                }
+                catch (IllegalArgumentException e) {
+
+                }
+
+                try {
+                    DateTimeUtils.parseDate(value);
+                    return FieldType.DATE;
+                }
+                catch (IllegalArgumentException e) {
+
+                }
                 return FieldType.STRING;
             case VALUE_FALSE:
                 return FieldType.BOOLEAN;

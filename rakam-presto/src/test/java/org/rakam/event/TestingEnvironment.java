@@ -86,7 +86,7 @@ public class TestingEnvironment {
 
 
                     kinesisPort = startKinesis();
-                    int dynamodbPort = createDynamodb();
+                    int dynamodbPort = createDynamodbProcess();
 
                     StreamPlugin streamPlugin = new StreamPlugin("streaming", metastoreModule) {
                         @Override
@@ -215,16 +215,20 @@ public class TestingEnvironment {
         return kinesisPort;
     }
 
-//    private int startKinesis() throws Exception {
-//        return 4567;
-//    }
+    public static int randomPort()
+            throws IOException
+    {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        }
+    }
 
-    public int createDynamodb() throws Exception {
+    public int createDynamodbProcess() throws Exception {
         int randomPort = randomPort();
         Path mainDir = new File(getProperty("user.dir"), ".test/dynamodb").toPath();
 
         dynamodbServer = new ProcessBuilder(of("java", format("-Djava.library.path=%s",
-                        mainDir.resolve("DynamoDBLocal_lib").toFile().getAbsolutePath()),
+                mainDir.resolve("DynamoDBLocal_lib").toFile().getAbsolutePath()),
                 "-jar", mainDir.resolve("DynamoDBLocal.jar").toFile().getAbsolutePath(),
                 "-inMemory", "--port", Integer.toString(randomPort)))
                 .start();
@@ -232,12 +236,6 @@ public class TestingEnvironment {
         return randomPort;
     }
 
-    private static int randomPort()
-            throws IOException {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
-    }
 
     public int getKinesisPort() {
         return kinesisPort;

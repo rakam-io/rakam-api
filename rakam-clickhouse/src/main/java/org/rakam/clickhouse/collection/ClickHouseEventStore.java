@@ -27,6 +27,7 @@ import org.rakam.util.ProjectCollection;
 
 import javax.ws.rs.core.UriBuilder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;

@@ -37,12 +37,6 @@ public abstract class TestMetastore
     @Test
     public void testCreateCollection() throws Exception {
         getMetastore().createProject(PROJECT_NAME);
-        while (true) {
-            Thread.sleep(10000);
-            if(false) {
-                break;
-            }
-        }
 
         ImmutableSet<SchemaField> schema = ImmutableSet.of(new SchemaField("test", STRING));
         getMetastore().getOrCreateCollectionFields(PROJECT_NAME, "test", schema);

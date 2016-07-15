@@ -38,6 +38,7 @@ import org.rakam.report.ChainQueryExecution;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryResult;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.KByteArrayOutputStream;
 import org.rakam.util.QueryFormatter;
@@ -174,6 +175,8 @@ public class AWSKinesisPrestoEventStore
     @Override
     public QueryExecution commit(String project, String collection)
     {
+        if(true)
+            return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         Instant now = Instant.now();
 
         Connection conn;
