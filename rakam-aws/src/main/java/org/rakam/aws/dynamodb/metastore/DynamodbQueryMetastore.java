@@ -66,6 +66,7 @@ public class DynamodbQueryMetastore
         if (config.getDynamodbEndpoint() != null) {
             dynamoDBClient.setEndpoint(config.getDynamodbEndpoint());
         }
+        dynamoDBClient.setRegion(config.getAWSRegion());
         this.tableConfig = tableConfig;
     }
 

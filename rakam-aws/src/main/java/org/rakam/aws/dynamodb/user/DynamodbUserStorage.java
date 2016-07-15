@@ -88,9 +88,7 @@ public class DynamodbUserStorage
         if (config.getDynamodbEndpoint() != null) {
             dynamoDBClient.setEndpoint(config.getDynamodbEndpoint());
         }
-        if(config.getAWSRegion() != null) {
-            config.setRegion(config.getRegion());
-        }
+        dynamoDBClient.setRegion(config.getAWSRegion());
         this.tableConfig = tableConfig;
     }
 

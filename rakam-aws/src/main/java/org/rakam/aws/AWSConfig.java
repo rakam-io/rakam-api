@@ -6,7 +6,6 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
-import com.facebook.presto.rakam.stream.worker.kinesis.KinesisStreamSourceConfig;
 import io.airlift.configuration.Config;
 
 public class AWSConfig {
