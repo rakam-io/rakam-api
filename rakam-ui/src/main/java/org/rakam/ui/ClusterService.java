@@ -56,6 +56,7 @@ public class ClusterService extends HttpService {
                                @BodyParam Cluster cluster) {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
+        boolean unreachable;
         try {
             HttpURLConnection con = (HttpURLConnection) new URL(cluster.apiUrl + "/admin/lock_key")
                     .openConnection();
@@ -69,28 +70,29 @@ public class ClusterService extends HttpService {
             wr.flush();
             wr.close();
 
-            if (con.getResponseCode() != 200) {
-                throw new RakamException("The API is unreachable, server returned status code " + con.getResponseCode(), BAD_REQUEST);
-            }
+            unreachable = con.getResponseCode() == 0;
 
-            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
+            if(!unreachable) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                String inputLine;
+                StringBuffer response = new StringBuffer();
 
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
 
-            boolean read;
-            try {
-                read = JsonHelper.read(response.toString(), Boolean.class);
-            } catch (Exception e) {
-                throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
-            }
+                boolean read;
+                try {
+                    read = JsonHelper.read(response.toString(), Boolean.class);
+                }
+                catch (Exception e) {
+                    throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
+                }
 
-            if(!read) {
-                throw new RakamException("Lock key is invalid.", FORBIDDEN);
+                if(!read) {
+                    throw new RakamException("Lock key is invalid.", FORBIDDEN);
+                }
             }
         } catch (IOException e) {
             throw new RakamException("The API is unreachable.", BAD_REQUEST);
@@ -113,7 +115,9 @@ public class ClusterService extends HttpService {
                 throw e;
             }
 
-            return SuccessMessage.success();
+            return !unreachable ?
+                    SuccessMessage.success("The API is unreachable.") :
+                    SuccessMessage.success();
         }
     }
 

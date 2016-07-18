@@ -85,10 +85,11 @@ public class DynamodbUserStorage
     public DynamodbUserStorage(AWSConfig config, DynamodbUserConfig tableConfig)
     {
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
+        dynamoDBClient.setRegion(config.getAWSRegion());
+
         if (config.getDynamodbEndpoint() != null) {
             dynamoDBClient.setEndpoint(config.getDynamodbEndpoint());
         }
-        dynamoDBClient.setRegion(config.getAWSRegion());
         this.tableConfig = tableConfig;
     }
 

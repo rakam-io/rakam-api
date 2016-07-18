@@ -63,10 +63,11 @@ public class DynamodbQueryMetastore
     public DynamodbQueryMetastore(AWSConfig config, DynamodbQueryMetastoreConfig tableConfig)
     {
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
+        dynamoDBClient.setRegion(config.getAWSRegion());
+
         if (config.getDynamodbEndpoint() != null) {
             dynamoDBClient.setEndpoint(config.getDynamodbEndpoint());
         }
-        dynamoDBClient.setRegion(config.getAWSRegion());
         this.tableConfig = tableConfig;
     }
 

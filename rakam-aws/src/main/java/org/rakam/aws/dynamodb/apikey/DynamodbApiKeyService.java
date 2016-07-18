@@ -52,10 +52,10 @@ public class DynamodbApiKeyService
     public DynamodbApiKeyService(AWSConfig config, DynamodbApiKeyConfig apiKeyConfig)
     {
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
+        dynamoDBClient.setRegion(config.getAWSRegion());
         if (config.getDynamodbEndpoint() != null) {
             dynamoDBClient.setEndpoint(config.getDynamodbEndpoint());
         }
-        dynamoDBClient.setRegion(config.getAWSRegion());
         this.apiKeyConfig = apiKeyConfig;
     }
 

@@ -52,10 +52,10 @@ public class DynamodbConfigManager
     public DynamodbConfigManager(AWSConfig config, DynamodbConfigManagerConfig tableConfig)
     {
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
+        dynamoDBClient.setRegion(config.getAWSRegion());
         if (config.getDynamodbEndpoint() != null) {
             dynamoDBClient.setEndpoint(config.getDynamodbEndpoint());
         }
-        dynamoDBClient.setRegion(config.getAWSRegion());
         this.tableConfig = tableConfig;
     }
 
