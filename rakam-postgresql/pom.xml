@@ -6,7 +6,7 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>0.5-SNAPSHOT</version>
+        <version>0.6-SNAPSHOT</version>
     </parent>
 
     <artifactId>rakam-postgresql</artifactId>
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>com.impossibl.pgjdbc-ng</groupId>
             <artifactId>pgjdbc-ng</artifactId>
-            <version>0.5</version>
+            <version>0.6-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>

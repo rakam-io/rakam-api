@@ -1,7 +1,7 @@
 package org.rakam.ui;
 
-
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.Throwables;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
@@ -24,11 +24,15 @@ import org.skife.jdbi.v2.util.StringMapper;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
@@ -39,12 +43,15 @@ import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 @Path("/ui/cluster")
 @IgnoreApi
-public class ClusterService extends HttpService {
+public class ClusterService
+        extends HttpService
+{
     private final DBI dbi;
     private final EncryptionConfig encryptionConfig;
 
     @Inject
-    public ClusterService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, EncryptionConfig encryptionConfig) {
+    public ClusterService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, EncryptionConfig encryptionConfig)
+    {
         dbi = new DBI(dataSource);
         this.encryptionConfig = encryptionConfig;
     }
@@ -53,7 +60,8 @@ public class ClusterService extends HttpService {
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
     public SuccessMessage create(@CookieParam("session") String session,
-                               @BodyParam Cluster cluster) {
+            @BodyParam Cluster cluster)
+    {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         boolean unreachable;
@@ -72,7 +80,7 @@ public class ClusterService extends HttpService {
 
             unreachable = con.getResponseCode() == 0;
 
-            if(!unreachable) {
+            if (!unreachable) {
                 BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
                 String inputLine;
                 StringBuffer response = new StringBuffer();
@@ -90,12 +98,16 @@ public class ClusterService extends HttpService {
                     throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
                 }
 
-                if(!read) {
+                if (!read) {
                     throw new RakamException("Lock key is invalid.", FORBIDDEN);
                 }
             }
-        } catch (IOException e) {
-            throw new RakamException("The API is unreachable.", BAD_REQUEST);
+        }
+        catch (ConnectException e) {
+            unreachable = true;
+        }
+        catch (IOException e) {
+            throw Throwables.propagate(e);
         }
 
         try (Handle handle = dbi.open()) {
@@ -104,12 +116,12 @@ public class ClusterService extends HttpService {
                         .bind("userId", id)
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lockKey", cluster.lockKey).execute();
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 if (handle.createQuery("SELECT 1 FROM rakam_cluster WHERE (user_id, api_url, lock_key) = (:userId, :apiUrl, :lockKey)")
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lockKey", cluster.lockKey).bind("userId", id).first() != null) {
                     throw new AlreadyExistsException("Dashboard", BAD_REQUEST);
-
                 }
 
                 throw e;
@@ -125,7 +137,8 @@ public class ClusterService extends HttpService {
     @ApiOperation(value = "Delete cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/get")
     public SuccessMessage delete(@CookieParam("session") String session,
-                               @ApiParam("api_url") String apiUrl) {
+            @ApiParam("api_url") String apiUrl)
+    {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         try (Handle handle = dbi.open()) {
@@ -136,12 +149,12 @@ public class ClusterService extends HttpService {
         }
     }
 
-
     @JsonRequest
     @ApiOperation(value = "List cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/list")
     @GET
-    public List<String> list(@CookieParam("session") String session) {
+    public List<String> list(@CookieParam("session") String session)
+    {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
         try (Handle handle = dbi.open()) {
@@ -150,12 +163,14 @@ public class ClusterService extends HttpService {
         }
     }
 
-    public static class Cluster {
+    public static class Cluster
+    {
         public final String apiUrl;
         public final String lockKey;
 
         @JsonCreator
-        public Cluster(@ApiParam("api_url") String apiUrl, @ApiParam("lock_key") String lockKey) {
+        public Cluster(@ApiParam("api_url") String apiUrl, @ApiParam("lock_key") String lockKey)
+        {
             this.apiUrl = apiUrl;
             this.lockKey = lockKey;
         }
