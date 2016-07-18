@@ -53,7 +53,7 @@
         <dependency>
             <groupId>com.impossibl.pgjdbc-ng</groupId>
             <artifactId>pgjdbc-ng</artifactId>
-            <version>0.6-SNAPSHOT</version>
+            <version>0.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.netty</groupId>
