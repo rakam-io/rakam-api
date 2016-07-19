@@ -2,11 +2,13 @@ version: '2'
 services:
   db:
     image: postgres:9.5.3
+    ports:
+      - 5432:5432
     environment:
       - POSTGRES_PASSWORD=dummy
   api:
     build: .
     ports:
-      - "9999:9999"
+      - "9998:9998"
     depends_on:
       - db

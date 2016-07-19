@@ -17,7 +17,7 @@ RUN [ -s config.properties ] || apt-get update \
 							    && wget -P /tmp http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz \
 							    && gzip -d /tmp/GeoLite2-City.mmdb.gz \
 							    && echo "store.adapter=postgresql\n\
-store.adapter.postgresql.url=postgres://postgres:dummy@127.0.0.1:5432/rakam\n\
+store.adapter.postgresql.url=postgres://postgres:dummy@0.0.0.0:5432/rakam\n\
 plugin.user.enabled=true\n\
 plugin.user.mailbox.enable=true\n\
 real-time.enabled=true\n\
