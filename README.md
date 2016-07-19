@@ -38,7 +38,7 @@ You can easily deploy Rakam to Heroku using Heroku button, it adds Heroku Postgr
 
 Or use the Docker image:
 
-    docker-compose up
+    docker-compose run api -p 9999:9999
 
 After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.1:9999) and follow the instructions.
 You can directly use Rakam API with client libraries or register your Rakam cluster to Rakam BI at [app.rakam.io](https://rakam.io)

@@ -2,6 +2,8 @@ package org.rakam.config;
 
 import io.airlift.configuration.Config;
 
+import javax.validation.constraints.NotNull;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -17,6 +19,7 @@ public class JDBCConfig {
     private Long connectionIdleTimeout;
 
     @Config("url")
+    @NotNull
     public JDBCConfig setUrl(String url) throws URISyntaxException {
         if(url.startsWith("jdbc:")) {
             this.url = url;

@@ -1,16 +1,12 @@
 version: '2'
 services:
-  db:
+  rakam-db:
     image: postgres:9.5.3
-    ports:
-      - 5432:5432
     environment:
       - POSTGRES_PASSWORD=dummy
       - POSTGRES_USER=rakam
-  api:
+  rakam-api:
     build: .
-    volumes:
-      - .:/rakam
     ports:
       - "9999:9999"
     depends_on:

@@ -110,7 +110,7 @@
             <dependency>
                 <groupId>io.swagger</groupId>
                 <artifactId>swagger-models</artifactId>
-                <version>1.5.4</version>
+                <version>1.5.9</version>
                 <exclusions>
                     <exclusion>
                         <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -141,7 +141,7 @@
             <dependency>
                 <groupId>io.swagger</groupId>
                 <artifactId>swagger-annotations</artifactId>
-                <version>1.5.4</version>
+                <version>1.5.9</version>
                 <exclusions>
                     <exclusion>
                         <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -172,7 +172,7 @@
             <dependency>
                 <groupId>io.swagger</groupId>
                 <artifactId>swagger-core</artifactId>
-                <version>1.5.4</version>
+                <version>1.5.9</version>
                 <exclusions>
                     <exclusion>
                         <groupId>com.fasterxml.jackson.dataformat</groupId>
