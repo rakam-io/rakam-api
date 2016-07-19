@@ -11,7 +11,7 @@ io.netty=INFO' > log.properties
 
 RUN env | grep RAKAM_ | awk  '{gsub(/\_/,".",$0); print substr(tolower($0), 8)}' > config.properties
 
-RUN [ -s config.properties ] || apt-get update
+RUN [ -s config.properties ] || apt-get update \
 							    # Rakam can automatically download & extract the database but we do this
 							    # at compile time of the container because it increases the start time of the containers.
 							    && wget -P /tmp http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz \
