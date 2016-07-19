@@ -234,7 +234,8 @@ public class ProjectHttpService extends HttpService {
         return SuccessMessage.success();
     }
 
-    public static class Collection {
+    public static class Collection
+    {
         public final String name;
         public final List<SchemaField> fields;
 

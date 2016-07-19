@@ -79,7 +79,8 @@ public class RealTimeHttpService
     @ApiOperation(value = "Get report", authorizations = @Authorization(value = "read_key"))
     @ApiResponses(value = {@ApiResponse(code = 400, message = "Report does not exist.")})
     @Path("/get")
-    public CompletableFuture<RealTimeQueryResult> queryTable(@Named("project") String project,
+    public CompletableFuture<RealTimeQueryResult> queryTable(
+            @Named("project") String project,
             @ApiParam("table_name") String tableName,
             @ApiParam(value = "filter", required = false) String filter,
             @ApiParam("measure") RealTimeReport.Measure measure,

@@ -10,9 +10,6 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 
-import javax.inject.Inject;
-
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,13 +17,13 @@ import java.util.stream.Collectors;
 public class Recipe
 {
     private final Strategy strategy;
-    private final Map<String, Collection> collections;
+    private final Map<String, CollectionDefinition> collections;
     private final List<MaterializedView> materializedViews;
     private final List<ContinuousQuery> continuousQueries;
 
     @JsonCreator
     public Recipe(@JsonProperty("strategy") Strategy strategy,
-            @JsonProperty("collections") Map<String, Collection> collections,
+            @JsonProperty("collections") Map<String, CollectionDefinition> collections,
             @JsonProperty("materialized_views") List<MaterializedView> materializedQueries,
             @JsonProperty("continuous_queries") List<ContinuousQuery> continuousQueries)
     {
@@ -43,7 +40,7 @@ public class Recipe
     }
 
     @JsonProperty("collections")
-    public Map<String, Collection> getCollections()
+    public Map<String, CollectionDefinition> getCollections()
     {
         return collections;
     }
@@ -60,12 +57,12 @@ public class Recipe
         return continuousQueries;
     }
 
-    public static class Collection
+    public static class CollectionDefinition
     {
         public final List<Map<String, SchemaFieldInfo>> columns;
 
         @JsonCreator
-        public Collection(@JsonProperty("columns") List<Map<String, SchemaFieldInfo>> columns)
+        public CollectionDefinition(@JsonProperty("columns") List<Map<String, SchemaFieldInfo>> columns)
         {
             this.columns = columns;
         }

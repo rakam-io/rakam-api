@@ -3,6 +3,7 @@ package org.rakam.analysis;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ProjectHttpService.Collection;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecutorService;
@@ -105,16 +106,6 @@ public class ContinuousQueryHttpService extends HttpService {
             collectionStream = collectionStream.filter(a -> names.contains(a.name));
         }
         return collectionStream.collect(Collectors.toList());
-    }
-
-    public static class Collection {
-        public final String name;
-        public final List<SchemaField> fields;
-
-        public Collection(String name, List<SchemaField> fields) {
-            this.name = name;
-            this.fields = fields;
-        }
     }
 
     @JsonRequest

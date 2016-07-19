@@ -41,6 +41,7 @@ public class AWSKinesisClickhouseEventStore
     private final AWSConfig config;
     private static final int BATCH_SIZE = 500;
     private final ClickHouseEventStore bulkClient;
+//    private final KinesisProducer producer;
 
     private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>()
     {
@@ -65,7 +66,7 @@ public class AWSKinesisClickhouseEventStore
         KinesisProducerConfiguration producerConfiguration = new KinesisProducerConfiguration()
                 .setRegion(config.getRegion())
                 .setCredentialsProvider(config.getCredentials());
-//        KinesisProducer producer = new KinesisProducer(producerConfiguration);
+//        producer = new KinesisProducer(producerConfiguration);
     }
 
     public int[] storeBatchInline(List<Event> events, int offset, int limit)
@@ -123,6 +124,23 @@ public class AWSKinesisClickhouseEventStore
     }
 
     @Override
+    public void store(Event event)
+    {
+        try {
+            kinesis.putRecord(config.getEventStoreStreamName(),
+                    getBuffer(event, false), event.project() + "|" + event.collection());
+        }
+        catch (ResourceNotFoundException e) {
+            try {
+                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+            }
+            catch (Exception e1) {
+                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
+            }
+        }
+    }
+
+    @Override
     public int[] storeBatch(List<Event> events)
     {
         if (events.size() > BATCH_SIZE) {
@@ -149,23 +167,6 @@ public class AWSKinesisClickhouseEventStore
         }
         else {
             return storeBatchInline(events, 0, events.size());
-        }
-    }
-
-    @Override
-    public void store(Event event)
-    {
-        try {
-            kinesis.putRecord(config.getEventStoreStreamName(), getBuffer(event, false),
-                    event.project() + "|" + event.collection());
-        }
-        catch (ResourceNotFoundException e) {
-            try {
-                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-            }
-            catch (Exception e1) {
-                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-            }
         }
     }
 

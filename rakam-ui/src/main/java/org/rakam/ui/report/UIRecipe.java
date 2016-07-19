@@ -56,24 +56,6 @@ public class UIRecipe {
         return reports;
     }
 
-    public static class Collection {
-        public final List<Map<String, SchemaFieldInfo>> columns;
-
-        @JsonCreator
-        public Collection(@JsonProperty("columns") List<Map<String, SchemaFieldInfo>> columns) {
-            this.columns = columns;
-        }
-
-        @JsonIgnore
-        public List<SchemaField> build() {
-            return columns.stream()
-                    .map(column -> {
-                        Map.Entry<String, SchemaFieldInfo> next = column.entrySet().iterator().next();
-                        return new SchemaField(next.getKey(), next.getValue().type);
-                    }).collect(Collectors.toList());
-        }
-    }
-
     public static class DashboardBuilder {
         public final String name;
         public final List<DashboardService.DashboardItem> items;
@@ -84,18 +66,6 @@ public class UIRecipe {
                 @JsonProperty("items") List<DashboardService.DashboardItem> items) {
             this.name = name;
             this.items = items;
-        }
-    }
-
-    public static class SchemaFieldInfo {
-        public final String category;
-        public final FieldType type;
-
-        @JsonCreator
-        public SchemaFieldInfo(@JsonProperty("category") String category,
-                               @JsonProperty("type") FieldType type) {
-            this.category = category;
-            this.type = type;
         }
     }
 }

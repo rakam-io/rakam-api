@@ -21,6 +21,7 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.HeaderParam;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
 
@@ -35,6 +36,7 @@ import static java.lang.Boolean.TRUE;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/ui/recipe")
+@IgnoreApi
 @Api(value = "/ui/recipe", nickname = "recipe", description = "Recipe operations", tags = "recipe")
 public class UIRecipeHttpService extends HttpService {
     private static ObjectMapper yamlMapper;
@@ -85,12 +87,12 @@ public class UIRecipeHttpService extends HttpService {
         });
     }
 
-    @ApiOperation(value = "Export recipe", request = ExportRequest.class, response = UIRecipe.class,
+    @ApiOperation(value = "Export recipe", response = UIRecipe.class,
             authorizations = @Authorization(value = "master_key")
     )
     @GET
     @Path("/export")
-    public void exportUIRecipe(@HeaderParam("Accept") String contentType, @HeaderParam("project") int project, RakamHttpRequest request) throws JsonProcessingException {
+    public void exportUIRecipe(@HeaderParam("Accept") ExportType contentType, @HeaderParam("project") int project, RakamHttpRequest request) throws JsonProcessingException {
         request.bodyHandler(s -> {
             UIRecipe export = installer.export(project);
 
@@ -110,15 +112,6 @@ public class UIRecipeHttpService extends HttpService {
             response.headers().add(CONTENT_TYPE, exportType.contentType);
             request.response(response).end();
         });
-    }
-
-    public static class ExportRequest {
-        public final ExportType type;
-
-        @JsonCreator
-        public ExportRequest(@ApiParam(value = "type", required = false) ExportType type) {
-            this.type = type;
-        }
     }
 
     public enum ExportType {

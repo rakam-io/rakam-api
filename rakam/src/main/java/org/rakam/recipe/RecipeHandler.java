@@ -37,11 +37,11 @@ public class RecipeHandler
 
     public Recipe export(String project)
     {
-        final Map<String, Recipe.Collection> collections = metastore.getCollections(project).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> {
+        final Map<String, Recipe.CollectionDefinition> collections = metastore.getCollections(project).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> {
             List<Map<String, Recipe.SchemaFieldInfo>> map = e.getValue().stream()
                     .map(a -> ImmutableMap.of(a.getName(), new Recipe.SchemaFieldInfo(a.getCategory(), a.getType())))
                     .collect(Collectors.toList());
-            return new Recipe.Collection(map);
+            return new Recipe.CollectionDefinition(map);
         }));
         final List<MaterializedView> materializedViews = materializedViewService.list(project).stream()
                 .map(m -> new MaterializedView(m.tableName, m.name, m.query, m.updateInterval, m.incremental, m.options))
@@ -77,7 +77,7 @@ public class RecipeHandler
             if (!collisions.isEmpty()) {
                 String errMessage = collisions.stream().map(f -> {
                     SchemaField existingField = fields.stream().filter(field -> field.getName().equals(f.getName())).findAny().get();
-                    return String.format("Recipe: [%s : %s], Collection: [%s, %s]", f.getName(), f.getType(),
+                    return String.format("Recipe: [%s : %s], CollectionDefinition: [%s, %s]", f.getName(), f.getType(),
                             existingField.getName(), existingField.getType());
                 }).collect(Collectors.joining(", "));
                 String message = overrideExisting ? "Overriding collection fields is not possible." : "Collision in collection fields.";

@@ -9,7 +9,9 @@ services:
       - POSTGRES_USER=rakam
   api:
     build: .
+    volumes:
+      - .:/rakam
     ports:
-      - "9998:9998"
+      - "9999:9999"
     depends_on:
       - db

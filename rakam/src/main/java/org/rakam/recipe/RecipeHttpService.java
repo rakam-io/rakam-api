@@ -109,12 +109,12 @@ public class RecipeHttpService extends HttpService {
         });
     }
 
-    @ApiOperation(value = "Export recipe", request = ExportRequest.class, response = Recipe.class,
+    @ApiOperation(value = "Export recipe", response = Recipe.class,
             authorizations = @Authorization(value = "master_key")
     )
     @GET
     @Path("/export")
-    public void exportRecipe(@HeaderParam("Accept") String contentType, @Named("project") String project, RakamHttpRequest request) throws JsonProcessingException {
+    public void exportRecipe(@HeaderParam("Accept") ExportType contentType, @Named("project") String project, RakamHttpRequest request) throws JsonProcessingException {
         request.bodyHandler(s -> {
             Recipe export = installer.export(project);
 
@@ -136,15 +136,6 @@ public class RecipeHttpService extends HttpService {
 
             request.response(response).end();
         });
-    }
-
-    public static class ExportRequest {
-        public final ExportType type;
-
-        @JsonCreator
-        public ExportRequest(@ApiParam(value = "type", required = false) ExportType type) {
-            this.type = type;
-        }
     }
 
     public enum ExportType {
