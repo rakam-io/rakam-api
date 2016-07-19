@@ -1,7 +1,7 @@
 version: '2'
 services:
   db:
-    image: postgres/9.5.3
+    image: postgres/9.5
     environment:
       - POSTGRES_PASSWORD=dummy
   api:
