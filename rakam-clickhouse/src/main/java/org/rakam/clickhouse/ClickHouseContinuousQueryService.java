@@ -37,6 +37,7 @@ public class ClickHouseContinuousQueryService
             throws AlreadyExistsException
     {
         database.createContinuousQuery(project, report);
+        String.format("CREATE MATERIALIZED VIEW %s.%s ENGINE = AggregatingMergeTree(`$date`, (`$date`), 8192) AS %s");
         return QueryExecution.completedQueryExecution(null, QueryResult.empty());
     }
 

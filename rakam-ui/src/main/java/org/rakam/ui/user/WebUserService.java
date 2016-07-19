@@ -241,6 +241,10 @@ public class WebUserService {
                     .map(StringMapper.FIRST).first();
         }
 
+        if(true) {
+            throw new RakamException(JsonHelper.encode(lockKey), EXPECTATION_FAILED);
+        }
+
         try {
             HttpURLConnection con = (HttpURLConnection) new URL(apiUrl + "/project/create")
                     .openConnection();
@@ -286,7 +290,7 @@ public class WebUserService {
                 throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
             }
         } catch (IOException e) {
-            throw new RakamException("The API is unreachable.", BAD_REQUEST);
+            throw new RakamException(JsonHelper.encode(lockKey), EXPECTATION_FAILED);
         }
 
         int projectId;
@@ -425,6 +429,7 @@ public class WebUserService {
                     .bind("apiUrl", apiUrl)
                     .execute();
 
+            // TODO : BUGGG!!!
             handle.createStatement("DELETE FROM web_user_project WHERE project = :project AND api_url = :apiUrl " +
                     "AND (SELECT count(*) FROM web_user_api_key WHERE project_id = (SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl)) = 0")
                     .bind("userId", user)
@@ -439,7 +444,7 @@ public class WebUserService {
         try (Handle handle = dbi.open()) {
             try {
                 projectId = (Integer) handle.createStatement("INSERT INTO web_user_project " +
-                        "(project, api_url, created_user) " +
+                        "(project, api_url, user_id) " +
                         "VALUES (:project, :apiUrl, :userId)")
                         .bind("userId", user)
                         .bind("project", project)

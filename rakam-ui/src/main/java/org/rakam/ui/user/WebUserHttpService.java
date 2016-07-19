@@ -106,7 +106,6 @@ public class WebUserHttpService extends HttpService {
 
 
     @JsonRequest
-
     @Path("/delete-project")
     public SuccessMessage deleteProject(@ApiParam("name") String name,
                                       @ApiParam("api_url") String apiUrl,
