@@ -223,7 +223,7 @@ public class ClickHouseEventStore
                 break;
             default:
                 if (type.isArray()) {
-                    List list = value == null ? (List) value : ImmutableList.of();
+                    List list = value == null ? ImmutableList.of() : (List) value;
                     writeVarInt(list.size(), out);
                     FieldType arrayElementType = type.getArrayElementType();
 
