@@ -17,9 +17,7 @@ public class TestJS
             return true;
         }
     }
-
-
-    @org.testng.annotations.Test
+    
     public void testName()
             throws Exception
     {
