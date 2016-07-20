@@ -17,10 +17,10 @@ import org.rakam.clickhouse.ClickHouseConfig;
 import org.rakam.collection.Event;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
-import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -42,15 +42,6 @@ public class AWSKinesisClickhouseEventStore
     private static final int BATCH_SIZE = 500;
     private final ClickHouseEventStore bulkClient;
 //    private final KinesisProducer producer;
-
-    private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>()
-    {
-        @Override
-        protected KByteArrayOutputStream initialValue()
-        {
-            return new KByteArrayOutputStream(1000000);
-        }
-    };
 
     @Inject
     public AWSKinesisClickhouseEventStore(AWSConfig config, ClickHouseConfig clickHouseConfig)
@@ -76,7 +67,7 @@ public class AWSKinesisClickhouseEventStore
         for (int i = 0; i < limit; i++) {
             Event event = events.get(offset + i);
             PutRecordsRequestEntry putRecordsRequestEntry = new PutRecordsRequestEntry()
-                    .withData(getBuffer(event, false))
+                    .withData(getBuffer(event))
                     .withPartitionKey(event.project() + "|" + event.collection());
             records[i] = putRecordsRequestEntry;
         }
@@ -128,7 +119,7 @@ public class AWSKinesisClickhouseEventStore
     {
         try {
             kinesis.putRecord(config.getEventStoreStreamName(),
-                    getBuffer(event, false), event.project() + "|" + event.collection());
+                    getBuffer(event), event.project() + "|" + event.collection());
         }
         catch (ResourceNotFoundException e) {
             try {
@@ -170,10 +161,9 @@ public class AWSKinesisClickhouseEventStore
         }
     }
 
-    private ByteBuffer getBuffer(Event event, boolean flushed)
+    private ByteBuffer getBuffer(Event event)
     {
-        KByteArrayOutputStream buffer = this.buffer.get();
-        int position = buffer.position();
+        SharedByteArrayOutputStream buffer = new SharedByteArrayOutputStream(event.properties().getSchema().getFields().size() * 8);
         LittleEndianDataOutputStream out = new LittleEndianDataOutputStream(buffer);
 
         GenericRecord record = event.properties();
@@ -188,18 +178,21 @@ public class AWSKinesisClickhouseEventStore
             }
         }
         catch (IOException e) {
-            if (flushed) {
-                throw Throwables.propagate(e);
-            }
-
-            buffer.position(0);
-            return getBuffer(event, true);
+            throw Throwables.propagate(e);
         }
 
-        if (buffer.remaining() < 1000) {
-            buffer.position(0);
+        return buffer.toByteBuffer();
+    }
+
+    public static class SharedByteArrayOutputStream extends ByteArrayOutputStream {
+        public SharedByteArrayOutputStream(int estimatedSize)
+        {
+            super(estimatedSize);
         }
 
-        return buffer.getBuffer(position, buffer.position() - position);
+        public ByteBuffer toByteBuffer()
+        {
+            return ByteBuffer.wrap(buf, 0, count);
+        }
     }
 }

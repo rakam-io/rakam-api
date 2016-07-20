@@ -70,6 +70,7 @@ public class ClickHouseQueryExecution
                     .setConnectTimeout(new Duration(10, SECONDS))
                     .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("rakam-clickhouse", new JettyIoPoolConfig()),
             ImmutableSet.of());
+    private static Pattern CLICKHOUSE_TYPE_PATTERN = Pattern.compile("^([A-Za-z0-9]+)\\(([A-Za-z0-9]+)\\)$");
 
     private final String query;
     private final String queryId;
@@ -377,7 +378,6 @@ public class ClickHouseQueryExecution
 
     public static FieldType parseClickhouseType(String type)
     {
-
         switch (type) {
             case "Enum":
                 return FieldType.STRING;
@@ -403,7 +403,7 @@ public class ClickHouseQueryExecution
             case "Date":
                 return FieldType.DATE;
             default:
-                Matcher matcher = Pattern.compile("([A-Za-z0-9]+)\\(([0-9]+)\\)$").matcher(type);
+                Matcher matcher = CLICKHOUSE_TYPE_PATTERN.matcher(type);
                 if (matcher.find()) {
                     String actualType = matcher.group(1);
                     String group = matcher.group(2);
@@ -415,11 +415,11 @@ public class ClickHouseQueryExecution
                         case "Nested":
                             return FieldType.MAP_STRING;
                         default:
-                            throw new IllegalStateException();
+                            throw new IllegalStateException("The parametrized type cannot be identified: "+type);
                     }
                 }
                 else {
-                    throw new IllegalStateException();
+                    throw new IllegalStateException("The type cannot be identified: "+type);
                 }
         }
     }
