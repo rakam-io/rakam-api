@@ -33,6 +33,7 @@ import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
+import java.net.SocketException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
@@ -59,7 +60,7 @@ public class ClusterService
     @JsonRequest
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
-    public SuccessMessage create(@CookieParam("session") String session,
+    public SuccessMessage register(@CookieParam("session") String session,
             @BodyParam Cluster cluster)
     {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
@@ -103,7 +104,7 @@ public class ClusterService
                 }
             }
         }
-        catch (ConnectException e) {
+        catch (SocketException e) {
             unreachable = true;
         }
         catch (IOException e) {
