@@ -17,11 +17,10 @@ public class TestJS
             return true;
         }
     }
-    
+
     public void testName()
             throws Exception
     {
-
         ScriptEngine engine = new NashornScriptEngineFactory().getScriptEngine(new MyCF());
         engine.eval("quit(); var MyJavaClass = Java.type('java.lang.System'); MyJavaClass.exit(0); var module = function(a) { System.exit(0); return a}");
         Invocable invocable = (Invocable) engine;
