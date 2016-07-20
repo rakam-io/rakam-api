@@ -19,7 +19,6 @@ public class JDBCConfig {
     private Long connectionIdleTimeout;
 
     @Config("url")
-    @NotNull
     public JDBCConfig setUrl(String url) throws URISyntaxException {
         if(url.startsWith("jdbc:")) {
             this.url = url;
@@ -36,6 +35,7 @@ public class JDBCConfig {
         return this;
     }
 
+    @NotNull
     public String getUrl() {
         return url;
     }
