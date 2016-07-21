@@ -1,5 +1,6 @@
 package org.rakam.clickhouse.analysis;
 
+import com.facebook.presto.hadoop.$internal.com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.CharStreams;
 import com.google.common.net.HostAndPort;
@@ -49,6 +50,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -147,7 +149,17 @@ public class ClickHouseQueryExecution
     {
         List<SchemaField> columns = queryResult.meta.stream().map(f -> new SchemaField(f.name, parseClickhouseType(f.type)))
                 .collect(Collectors.toList());
-        return new QueryResult(columns, transformResultData(columns, queryResult.data));
+
+        ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
+        if (queryResult.totals != null) {
+            builder.put("totals", queryResult.totals);
+        }
+        if (queryResult.extremes != null) {
+            builder.put("extremes", queryResult.extremes);
+        }
+
+        return new QueryResult(columns, transformResultData(columns, queryResult.data),
+                builder.build());
     }
 
     private List<List<Object>> transformResultData(List<SchemaField> columns, List<List<Object>> data)
@@ -242,11 +254,12 @@ public class ClickHouseQueryExecution
         {
             if (response.getStatusCode() != 200) {
                 try {
-                    throw new RakamException(CharStreams.toString(
-                            new InputStreamReader(response.getInputStream())), INTERNAL_SERVER_ERROR);
+                    String message = CharStreams.toString(new InputStreamReader(response.getInputStream()));
+                    message = message.split(", Stack trace:\n", 2)[0];
+                    throw new RakamException(message, BAD_GATEWAY);
                 }
                 catch (IOException e) {
-                    throw new RakamException("An error occurred", INTERNAL_SERVER_ERROR);
+                    throw new RakamException("An error occurred", BAD_GATEWAY);
                 }
             }
 
@@ -415,11 +428,11 @@ public class ClickHouseQueryExecution
                         case "Nested":
                             return FieldType.MAP_STRING;
                         default:
-                            throw new IllegalStateException("The parametrized type cannot be identified: "+type);
+                            throw new IllegalStateException("The parametrized type cannot be identified: " + type);
                     }
                 }
                 else {
-                    throw new IllegalStateException("The type cannot be identified: "+type);
+                    throw new IllegalStateException("The type cannot be identified: " + type);
                 }
         }
     }

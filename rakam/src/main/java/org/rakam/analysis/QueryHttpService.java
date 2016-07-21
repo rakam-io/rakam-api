@@ -78,6 +78,7 @@ public class QueryHttpService
     private final QueryExecutorService executorService;
     private final ApiKeyService apiKeyService;
     private EventLoopGroup eventLoopGroup;
+    private final SqlParser sqlParser = new SqlParser();
 
     @Inject
     public QueryHttpService(ApiKeyService apiKeyService, QueryExecutorService executorService)
@@ -308,7 +309,9 @@ public class QueryHttpService
     {
         try {
             Query statement;
-            statement = (Query) new SqlParser().createStatement(query);
+            synchronized (sqlParser) {
+                statement = (Query) sqlParser.createStatement(query);
+            }
 
             if (statement.getQueryBody() instanceof QuerySpecification) {
                 return parseQuerySpecification((QuerySpecification) statement.getQueryBody());
@@ -326,7 +329,7 @@ public class QueryHttpService
             return new ResponseQuery(ImmutableList.of(), ImmutableList.of(),
                     statement.getLimit().map(l -> Long.parseLong(l)).orElse(null));
         }
-        catch (ParsingException | ClassCastException e) {
+        catch (Throwable e) {
             return ResponseQuery.UNKNOWN;
         }
     }

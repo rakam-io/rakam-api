@@ -1,13 +1,17 @@
 package org.rakam.clickhouse.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
+import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -19,18 +23,29 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.collection.FieldType.INTEGER;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class ClickHouseRetentionQueryExecutor
         implements RetentionQueryExecutor
 {
     private final QueryExecutor executor;
+    private final Metastore metastore;
 
     @Inject
-    public ClickHouseRetentionQueryExecutor(QueryExecutor executor)
+    public ClickHouseRetentionQueryExecutor(QueryExecutor executor, Metastore metastore)
     {
         this.executor = executor;
+        this.metastore = metastore;
+    }
+
+    private static String formatExpression(Expression value) {
+        return RakamSqlFormatter.formatExpression(value,
+                name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
+                name -> name.getParts().stream()
+                        .map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")), '`');
     }
 
     @Override
@@ -38,6 +53,14 @@ public class ClickHouseRetentionQueryExecutor
     {
         int startEpoch = (int) startDate.toEpochDay();
         int endEpoch = (int) endDate.toEpochDay();
+
+        String firstActionQuery = firstAction.map(action -> String.format("SELECT `$date`, _user, _time %s FROM %s.%s %s",
+                dimension.map(e -> "," + e).orElse(""), project, ValidationUtil.checkCollection(action.collection(), '`'),
+                action.filter().map(f -> "WHERE " + formatExpression(f)).orElse("")))
+                .orElseGet(() -> metastore.getCollectionNames(project).stream()
+                        .map(collection -> String.format("SELECT `$date`, _user, _time %s FROM %s.%s",
+                                dimension.map(e -> "," + e).orElse(""), project, ValidationUtil.checkCollection(collection, '`')))
+                        .collect(Collectors.joining(" UNION ALL ")));
 
         String query = IntStream.range(startEpoch, endEpoch).boxed().flatMap(epoch -> {
             LocalDate beginDate = LocalDate.ofEpochDay(epoch);
@@ -47,18 +70,17 @@ public class ClickHouseRetentionQueryExecutor
                     .orElse(LocalDate.ofEpochDay(endEpoch)).format(ISO_DATE);
 
             return Stream.of(String.format("select toDate('%s') as date, CAST(-1 AS Int64) as lead, uniq(_user) users from" +
-                            " %s where `$date` between toDate('%s')  and toDate('%s') " +
+                            " (%s) where `$date` between toDate('%s')  and toDate('%s') " +
                             " group by `$date`", date,
-                    project + "." + firstAction.get().collection(),
+                    firstActionQuery,
                     date, endDateStr),
-
-                    String.format("select toDate('%s') as date, (`$date` - toDate('%s')) - 1 as lead, sum(_user IN (select _user from %s WHERE `$date` = toDate('%s'))) as users from" +
-                            " %s where `$date` between toDate('%s') and toDate('%s') " +
-                            " group by `$date` order by `$date`", date, date,
-                    project + "." + firstAction.get().collection(),
-                    date,
-                    project + "." + returningAction.get().collection(),
-                    date, endDateStr));
+                    String.format("select toDate('%s') as date, (`$date` - toDate('%s')) - 1 as lead, sum(_user IN (select _user from (%s) WHERE `$date` = toDate('%s'))) as users from" +
+                                    " (%s) where `$date` between toDate('%s') and toDate('%s') " +
+                                    " group by `$date` order by `$date`", date, date,
+                            firstActionQuery,
+                            date,
+                            firstActionQuery,
+                            date, endDateStr));
         }).collect(Collectors.joining(" UNION ALL \n"));
 
         return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {

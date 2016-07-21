@@ -20,14 +20,24 @@ import java.util.function.Predicate;
 
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public final class ExpressionCompiler {
+public final class ExpressionCompiler
+{
 
-    private ExpressionCompiler() throws InstantiationException {
+    private static final SqlParser sqlParser = new SqlParser();
+
+    private ExpressionCompiler()
+            throws InstantiationException
+    {
         throw new InstantiationException("The class is not created for instantiation");
     }
 
-    public static Predicate<Event> compile(String expressionStr) throws UnsupportedOperationException {
-        final Expression expression = new SqlParser().createExpression(expressionStr);
+    public static Predicate<Event> compile(String expressionStr)
+            throws UnsupportedOperationException
+    {
+        final Expression expression;
+        synchronized (sqlParser) {
+            expression = sqlParser.createExpression(expressionStr);
+        }
         final String javaExp = new JavaSourceAstVisitor().process(expression, false);
         String className = "org.rakam.automation.compiled.Predicate1";
         String javaCode = String.format("package org.rakam.automation.compiled;\n" +
@@ -45,18 +55,23 @@ public final class ExpressionCompiler {
         try {
             Class aClass = CompilerUtils.CACHED_COMPILER.loadFromJava(className, javaCode);
             return (Predicate) aClass.newInstance();
-        } catch (ClassNotFoundException|InstantiationException|IllegalAccessException e) {
+        }
+        catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private static class JavaSourceAstVisitor extends AstVisitor<String, Boolean> {
-        public String visitLogicalBinaryExpression(LogicalBinaryExpression node, Boolean context) {
+    private static class JavaSourceAstVisitor
+            extends AstVisitor<String, Boolean>
+    {
+        public String visitLogicalBinaryExpression(LogicalBinaryExpression node, Boolean context)
+        {
             return formatBinaryExpression(getLogicalContext(node.getType()), node.getLeft(), node.getRight(), context);
         }
 
         @Override
-        protected String visitComparisonExpression(ComparisonExpression node, Boolean context) {
+        protected String visitComparisonExpression(ComparisonExpression node, Boolean context)
+        {
             return String.format(getComparisonFormat(node.getType()), process(node.getRight(), context), process(node.getLeft(), context));
         }
 
@@ -66,10 +81,11 @@ public final class ExpressionCompiler {
         }
 
         @Override
-        protected String visitLikePredicate(LikePredicate node, Boolean context) {
+        protected String visitLikePredicate(LikePredicate node, Boolean context)
+        {
             StringBuilder builder = new StringBuilder();
             // TODO: handle this in a proper way.
-            if(!(node.getPattern() instanceof StringLiteral)) {
+            if (!(node.getPattern() instanceof StringLiteral)) {
                 throw new UnsupportedOperationException();
             }
 
@@ -83,18 +99,24 @@ public final class ExpressionCompiler {
             boolean ends = false;
             int length = value.length();
             for (int i = -1; (i = value.indexOf('%', i + 1)) != -1; ) {
-                if(i == 0) starts = true;
-                else if(i + 1 == length) ends = true;
-                else throw new UnsupportedOperationException();
+                if (i == 0) {
+                    starts = true;
+                }
+                else if (i + 1 == length) {
+                    ends = true;
+                }
+                else {
+                    throw new UnsupportedOperationException();
+                }
             }
 
-            if(starts && ends) {
+            if (starts && ends) {
                 builder.append("contains(\"").append(value.substring(1, length - 1)).append("\")");
-            } else
-            if(ends) {
+            }
+            else if (ends) {
                 builder.append("endsWith(\"").append(value.substring(0, length - 1)).append("\")");
-            } else
-            if(starts) {
+            }
+            else if (starts) {
                 builder.append("startsWith(\"").append(value.substring(1, length - 2)).append("\")");
             }
 
@@ -108,20 +130,23 @@ public final class ExpressionCompiler {
         }
 
         @Override
-        protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean unmangleNames) {
+        protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean unmangleNames)
+        {
             if (node.getName().getPrefix().isPresent()) {
                 throw new IllegalArgumentException("field reference is invalid");
             }
             final String suffix = node.getName().getSuffix();
-            return "props.get(\""+checkTableColumn(suffix, "field reference is invalid", '"')+"\")";
+            return "props.get(\"" + checkTableColumn(suffix, "field reference is invalid", '"') + "\")";
         }
 
         @Override
-        protected String visitLiteral(Literal node, Boolean context) {
+        protected String visitLiteral(Literal node, Boolean context)
+        {
             return node.toString();
         }
 
-        private String getLogicalContext(LogicalBinaryExpression.Type type) {
+        private String getLogicalContext(LogicalBinaryExpression.Type type)
+        {
             switch (type) {
                 case AND:
                     return "&&";
@@ -132,7 +157,8 @@ public final class ExpressionCompiler {
             }
         }
 
-        private String getComparisonFormat(ComparisonExpression.Type type) {
+        private String getComparisonFormat(ComparisonExpression.Type type)
+        {
             switch (type) {
                 case EQUAL:
                     return "%2$s instanceof Comparable && ((Comparable) %2$s).equals(%1$s)";
@@ -152,17 +178,20 @@ public final class ExpressionCompiler {
         }
 
         @Override
-        protected String visitIsNotNullPredicate(IsNotNullPredicate node, Boolean context) {
+        protected String visitIsNotNullPredicate(IsNotNullPredicate node, Boolean context)
+        {
             return process(node.getValue(), context) + " != null";
         }
 
         @Override
-        protected String visitIsNullPredicate(IsNullPredicate node, Boolean context) {
+        protected String visitIsNullPredicate(IsNullPredicate node, Boolean context)
+        {
             return process(node.getValue(), context) + " == null";
         }
 
         @Override
-        protected String visitNode(Node node, Boolean context) {
+        protected String visitNode(Node node, Boolean context)
+        {
             throw new UnsupportedOperationException();
         }
     }

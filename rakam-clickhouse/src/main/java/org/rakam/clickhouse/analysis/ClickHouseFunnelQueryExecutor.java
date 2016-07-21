@@ -86,7 +86,7 @@ public class ClickHouseFunnelQueryExecutor
                     project + "." + checkCollection(collection, '`'),
                     startDate.format(ISO_DATE),
                     endDate.plusDays(1).format(ISO_DATE),
-                    funnelStep.getExpression().map(exp -> "AND " + RakamSqlFormatter.formatExpression(exp,
+                    funnelStep.getExpression().map(exp -> "AND " + ClickhouseExpressionFormatter.formatExpression(exp,
                             name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
                             name -> checkCollection(funnelStep.getCollection()) + "." + name.getParts().stream()
                                     .map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")), '`')).orElse(""));
@@ -106,7 +106,7 @@ public class ClickHouseFunnelQueryExecutor
                 dimension.map(v -> "dimension, ").orElse(""),
                 select,
                 dimension.map(v -> "dimension, ").orElse(""),
-                funnel,
+                !dimension.isPresent() && funnel.isEmpty() ? "1" : funnel,
                 computeQueries,
                 dimension.map(v -> ", dimension").orElse(""),
                 dimension.map(v -> "GROUP BY dimension WITH TOTALS ORDER BY " +
@@ -135,7 +135,7 @@ public class ClickHouseFunnelQueryExecutor
                     }
 
                     List<Object> totalsRow = result.getResult().get(totalsIndex);
-                    if(totalStep1 < ((Long) totalsRow.get(1))) {
+                    if (totalStep1 < ((Long) totalsRow.get(1))) {
                         for (int idx = 1; idx < totalsRow.size(); idx++) {
                             data.add(Arrays.asList("Step " + idx, "Others", totalsRow.get(idx)));
                         }

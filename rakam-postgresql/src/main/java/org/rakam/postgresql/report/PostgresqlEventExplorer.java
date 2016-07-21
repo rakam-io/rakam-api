@@ -69,7 +69,7 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
         }
 
         if (dimension.isPresent()) {
-            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
+            checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
         String timePredicate = format("\"_time\" between date '%s' and date '%s' + interval '1' day",

@@ -1,8 +1,15 @@
 package org.rakam.clickhouse.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ContinuousQueryService;
+import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.report.DelegateQueryExecution;
+import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.eventexplorer.AbstractEventExplorer;
@@ -12,17 +19,25 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 
 import java.time.LocalDate;
-import java.time.temporal.TemporalUnit;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.temporal.ChronoUnit.DAYS;
+import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
+import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.DAY;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.DAY_OF_MONTH;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.DAY_OF_WEEK;
@@ -30,39 +45,147 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR_OF_DAY;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.MONTH;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.MONTH_OF_YEAR;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.QUARTER_OF_YEAR;
-import static org.rakam.analysis.EventExplorer.TimestampTransformation.WEEK_OF_YEAR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.YEAR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromPrettyName;
+import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
+import static org.rakam.collection.SchemaField.stripName;
+import static org.rakam.report.eventexplorer.AbstractEventExplorer.checkReference;
+import static org.rakam.report.eventexplorer.AbstractEventExplorer.getColumnReference;
+import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class ClickHouseEventExplorer extends AbstractEventExplorer
+public class ClickHouseEventExplorer
+        implements EventExplorer
 {
+    protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
+
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
-            .put(HOUR_OF_DAY, "cast(extract(hour FROM %s) as UInt32)")
-            .put(DAY_OF_MONTH, "cast(extract(day FROM %s) as UInt32)")
-            .put(WEEK_OF_YEAR, "cast(extract(doy FROM %s) as UInt32)")
-            .put(MONTH_OF_YEAR, "cast(extract(month FROM %s) as UInt32)")
-            .put(QUARTER_OF_YEAR, "cast(extract(quarter FROM %s) as UInt32)")
-            .put(DAY_OF_WEEK, "cast(extract(dow FROM %s) as UInt32)")
-            .put(HOUR, "date_trunc('hour', %s)")
+            .put(HOUR_OF_DAY, "toHour(%s)")
+            .put(DAY_OF_MONTH, "toDayOfMonth(%s)")
+//            .put(WEEK_OF_YEAR, "cast(extract(doy FROM %s) as UInt32)")
+            .put(MONTH_OF_YEAR, "toMonth(%s)")
+//            .put(QUARTER_OF_YEAR, "cast(extract(quarter FROM %s) as UInt32)")
+            .put(DAY_OF_WEEK, "toDayOfWeek(%s)")
+            .put(HOUR, "toStartOfHour(%s)")
             .put(DAY, "cast(%s as Date)")
-            .put(MONTH, "date_trunc('month', %s)")
-            .put(YEAR, "date_trunc('year', %s)")
+            .put(MONTH, "toStartOfMonth(%s)")
+            .put(YEAR, "toStartOfYear(%s)")
             .build();
-    private final QueryExecutorService executorService;
+    private final QueryExecutor executor;
+    private final QueryExecutorService service;
+    private static final SqlParser sqlParser = new SqlParser();
 
     @Inject
-    public ClickHouseEventExplorer(QueryExecutorService service, MaterializedViewService materializedViewService,
-            ContinuousQueryService continuousQueryService) {
-        super(service, materializedViewService, continuousQueryService, timestampMapping);
-        this.executorService = service;
+    public ClickHouseEventExplorer(QueryExecutor executor, QueryExecutorService service)
+    {
+        this.executor = executor;
+        this.service = service;
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
+            Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate)
+    {
+        Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
+
+        if (grouping != null && grouping.type == REFERENCE) {
+            checkReference(timestampMapping, grouping.value, startDate, endDate, collections.size());
+        }
+        if (segment != null && segment.type == REFERENCE) {
+            checkReference(timestampMapping, segment.value, startDate, endDate, collections.size());
+        }
+
+        String groups = Arrays.asList(
+                new AbstractMap.SimpleEntry<>("segment", segment),
+                new AbstractMap.SimpleEntry<>("group", grouping)).stream()
+                .filter(e -> e != null)
+                .map(e -> getColumnReference(e.getValue()) + "_" + e.getKey())
+                .collect(Collectors.joining(", "));
+        String groupBy = groups.isEmpty() ? "" : ("GROUP BY " + groups + " WITH TOTALS");
+
+        String timeFilter = format(" _time between cast(toDate('%s') as DateTime) and cast(toDate('%s') as DateTime)",
+                startDate.format(ISO_LOCAL_DATE), endDate.plus(1, DAYS).format(ISO_LOCAL_DATE));
+
+        if (filterExpression != null) {
+            synchronized (sqlParser) {
+                Expression expression = sqlParser.createExpression(filterExpression);
+                filterExpression = formatExpression(expression);
+            }
+        }
+
+        String where = timeFilter + (filterExpression == null ? "" : (" AND " + filterExpression));
+
+        String measureAgg = convertSqlFunction(measure != null &&
+                measure.aggregation != null ? measure.aggregation : COUNT);
+        String measureColumn = measure != null &&
+                measure.column != null ? checkTableColumn(measure.column, '`') : "";
+
+        String computeQuery;
+        if (collections.size() == 1) {
+            String select = generateComputeQuery(grouping, segment, collections.get(0));
+            computeQuery = format("    select %s %s as value from %s.%s where %s %s",
+                    select.isEmpty() ? select : select + ",",
+                    format(measureAgg, measureColumn),
+                    project, checkCollection(collections.get(0), '`'),
+                    where, groupBy);
+        }
+        else {
+            String selectPart = (grouping == null ? "" : checkTableColumn(getColumnReference(grouping) + "_group", '`')) +
+                    (grouping == null ? "" : ", ") + checkTableColumn(getColumnReference(segment) + "_segment", '`');
+
+            String queries = collections.size() == 1 ? collections.get(0) : collections.stream()
+                    .map(collection -> {
+                        String select = generateComputeQuery(grouping, segment, collection);
+
+                        String format = format("select '%s' as _collection, %s %s from %s.%s where %s",
+                                checkLiteral(collection),
+                                measureColumn.isEmpty() ? select : measureColumn + ",",
+                                measureColumn,
+                                project, checkCollection(collection, '`'), where);
+                        return format;
+                    })
+                    .collect(Collectors.joining("\n union all "));
+
+            computeQuery = format("select %s %s as value from (\n" +
+                            "%s\n" +
+                            ") %s",
+                    selectPart.isEmpty() ? "" : selectPart + ",",
+                    format(measureAgg, measureColumn),
+                    queries,
+                    groupBy);
+        }
+
+        String query = format("select %s %s %s value from (\n" +
+                        "%s\n" +
+                        ") ORDER BY %s DESC LIMIT 500",
+                grouping == null ? "" : format(grouping.type == COLUMN ? checkTableColumn("%s_group", '`') : checkTableColumn("%s_group", '`'), getColumnReference(grouping)),
+                segment == null ? "" : ((grouping == null ? "" : ",") + format(segment.type == COLUMN ?
+                        checkTableColumn("%s_segment", '`') :
+                        checkTableColumn("%s_segment", '`'), getColumnReference(segment))),
+                grouping != null || segment != null ? "," : "",
+                computeQuery, segment != null && grouping != null ? 3 : 2);
+
+        return new DelegateQueryExecution(executor.executeRawQuery(query), result -> {
+            List<List<Object>> newResult = result.getResult();
+            return new QueryResult(result.getMetadata(), newResult, result.getProperties());
+        });
+    }
+
+    private static String formatExpression(Expression value)
+    {
+        return ClickhouseExpressionFormatter.formatExpression(value,
+                name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
+                name -> name.getParts().stream()
+                        .map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")), '`');
+    }
+
+    @Override
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    {
         checkProject(project);
 
         if (collections.isPresent() && collections.get().isEmpty()) {
@@ -70,14 +193,15 @@ public class ClickHouseEventExplorer extends AbstractEventExplorer
         }
 
         if (dimension.isPresent()) {
-            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
+            checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
         String timePredicate = format("_time between cast(toDate('%s') as DateTime) and cast(toDate('%s') as DateTime)",
                 startDate.format(ISO_DATE), endDate.plus(1, DAYS).format(ISO_DATE));
 
         String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> String.format("SELECT _time, cast('%s' as string) as \"$collection\" FROM %s", col, checkCollection(col, '\"'))).collect(Collectors.joining(", ")) + ") data")
+                .map(col -> String.format("SELECT _time, cast('%s' as string) as \"$collection\" FROM %s",
+                        col, checkCollection(col, '`'))).collect(Collectors.joining(", ")) + ") ")
                 .orElse("_all");
 
         String query;
@@ -92,16 +216,17 @@ public class ClickHouseEventExplorer extends AbstractEventExplorer
                     function,
                     aggregationMethod.get(), collectionQuery, timePredicate,
                     function, function);
-        } else {
+        }
+        else {
             query = String.format("select \"$collection\" as collection, count(*) total \n" +
                     " from %s where %s group by \"$collection\"", collectionQuery, timePredicate);
         }
 
-        return executorService.executeQuery(project, query, 20000).getResult();
+        return service.executeQuery(project, query).getResult();
     }
 
-    @Override
-    public String convertSqlFunction(AggregationType aggType) {
+    public String convertSqlFunction(AggregationType aggType)
+    {
         switch (aggType) {
             case AVERAGE:
                 return "avg(%s)";
@@ -120,5 +245,44 @@ public class ClickHouseEventExplorer extends AbstractEventExplorer
             default:
                 throw new IllegalArgumentException("aggregation type is not supported");
         }
+    }
+
+    protected String generateComputeQuery(Reference grouping, Reference segment, String collection)
+    {
+        StringBuilder selectBuilder = new StringBuilder();
+        if (grouping != null) {
+            selectBuilder.append(getColumnValue(grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group", '`'));
+            if (segment != null) {
+                selectBuilder.append(", ");
+            }
+        }
+        if (segment != null) {
+            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(segment, true) : "'" + stripName(collection) + "'") + " as "
+                    + checkTableColumn(getColumnReference(segment) + "_segment", '`'));
+        }
+        return selectBuilder.toString();
+    }
+
+    protected String getColumnValue(Reference ref, boolean format)
+    {
+        switch (ref.type) {
+            case COLUMN:
+                return format ? checkTableColumn(ref.value, '`') : ref.value;
+            case REFERENCE:
+                return format(timestampMapping.get(fromString(ref.value.replace(" ", "_"))), "_time");
+            default:
+                throw new IllegalArgumentException("Unknown reference type: " + ref.value);
+        }
+    }
+
+    @Override
+    public Map<String, List<String>> getExtraDimensions(String project)
+    {
+        Map<String, List<String>> builder = new HashMap<>();
+        for (TimestampTransformation transformation : timestampMapping.keySet()) {
+            builder.computeIfAbsent(transformation.getCategory(), k -> new ArrayList<>())
+                    .add(transformation.getPrettyName());
+        }
+        return builder;
     }
 }

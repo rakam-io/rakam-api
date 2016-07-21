@@ -50,8 +50,10 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public abstract class AbstractEventExplorer
         implements EventExplorer
 {
-    private final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
-    private static SqlParser sqlParser = new SqlParser();
+    protected final static String TIME_INTERVAL_ERROR_MESSAGE = "Date interval is too big. Please narrow the date range or use different date dimension.";
+    protected final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
+
+    protected static SqlParser sqlParser = new SqlParser();
     private final QueryExecutorService executor;
 
     private final Map<TimestampTransformation, String> timestampMapping;
@@ -69,7 +71,7 @@ public abstract class AbstractEventExplorer
         this.continuousQueryService = continuousQueryService;
     }
 
-    protected void checkReference(String refValue, LocalDate startDate, LocalDate endDate, int size)
+    public static void checkReference(Map<TimestampTransformation, String> timestampMapping, String refValue, LocalDate startDate, LocalDate endDate, int size)
     {
         switch (fromString(refValue.replace(" ", "_"))) {
             case HOUR_OF_DAY:
@@ -102,7 +104,7 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    private String getColumnValue(Reference ref, boolean format)
+    public static String getColumnValue(Map<TimestampTransformation, String> timestampMapping, Reference ref, boolean format)
     {
         switch (ref.type) {
             case COLUMN:
@@ -114,7 +116,7 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    private String getColumnReference(Reference ref)
+    public static String getColumnReference(Reference ref)
     {
         switch (ref.type) {
             case COLUMN:
@@ -141,8 +143,6 @@ public abstract class AbstractEventExplorer
         }
     }
 
-    private final Reference DEFAULT_SEGMENT = new Reference(COLUMN, "_collection");
-
     @Override
     public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
             Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate)
@@ -150,23 +150,23 @@ public abstract class AbstractEventExplorer
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
         if (grouping != null && grouping.type == REFERENCE) {
-            checkReference(grouping.value, startDate, endDate, collections.size());
+            checkReference(timestampMapping, grouping.value, startDate, endDate, collections.size());
         }
         if (segment != null && segment.type == REFERENCE) {
-            checkReference(segment.value, startDate, endDate, collections.size());
-        }
-
-        Expression filterExp;
-        if (filterExpression != null) {
-            synchronized (sqlParser) {
-                filterExp = sqlParser.createExpression(filterExpression);
-            }
-        }
-        else {
-            filterExp = null;
+            checkReference(timestampMapping, segment.value, startDate, endDate, collections.size());
         }
 
         Predicate<OLAPTable> groupedMetricsPredicate = options -> {
+            Expression filterExp;
+            if (filterExpression != null) {
+                synchronized (sqlParser) {
+                    filterExp = sqlParser.createExpression(filterExpression);
+                }
+            }
+            else {
+                filterExp = null;
+            }
+
             if (options.collections.containsAll(collections)) {
                 if (options.aggregations.contains(measure.aggregation)
                         && options.measures.contains(measure.column)
@@ -217,8 +217,8 @@ public abstract class AbstractEventExplorer
                     .collect(Collectors.joining(" and "));
 
             computeQuery = format("SELECT %s %s %s as value FROM %s WHERE %s %s",
-                    grouping != null ? (getColumnValue(grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group") + " ,") : "",
-                    segment != null ? (getColumnValue(segment, true) + " as " + checkTableColumn(getColumnReference(segment) + "_segment") + " ,") : "",
+                    grouping != null ? (getColumnValue(timestampMapping, grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group") + " ,") : "",
+                    segment != null ? (getColumnValue(timestampMapping, segment, true) + " as " + checkTableColumn(getColumnReference(segment) + "_segment") + " ,") : "",
                     format(getFinalForAggregationFunction(measure), measure.column + "_" + measure.aggregation.name().toLowerCase()),
                     checkCollection(preComputedTable.get().getValue()),
                     Stream.of(
@@ -296,12 +296,12 @@ public abstract class AbstractEventExplorer
                 boolean reference;
 
                 if (segment != null) {
-                    columnValue = getColumnValue(segment, false);
+                    columnValue = getColumnValue(timestampMapping, segment, false);
                     reference = segment.type == REFERENCE;
                     suffix = "segment";
                 }
                 else if (grouping != null) {
-                    columnValue = getColumnValue(grouping, false);
+                    columnValue = getColumnValue(timestampMapping, grouping, false);
                     reference = grouping.type == REFERENCE;
                     suffix = "group";
                 }
@@ -345,17 +345,17 @@ public abstract class AbstractEventExplorer
         });
     }
 
-    private String generateComputeQuery(Reference grouping, Reference segment, String collection)
+    protected String generateComputeQuery(Reference grouping, Reference segment, String collection)
     {
         StringBuilder selectBuilder = new StringBuilder();
         if (grouping != null) {
-            selectBuilder.append(getColumnValue(grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group"));
+            selectBuilder.append(getColumnValue(timestampMapping, grouping, true) + " as " + checkTableColumn(getColumnReference(grouping) + "_group"));
             if (segment != null) {
                 selectBuilder.append(", ");
             }
         }
         if (segment != null) {
-            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(segment, true) : "'" + stripName(collection) + "'") + " as "
+            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(timestampMapping, segment, true) : "'" + stripName(collection) + "'") + " as "
                     + checkTableColumn(getColumnReference(segment) + "_segment"));
         }
         return selectBuilder.toString();
@@ -417,7 +417,7 @@ public abstract class AbstractEventExplorer
         }
 
         if (dimension.isPresent()) {
-            checkReference(dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
+            checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
         String timePredicate = format("\"week\" between date_trunc('week', date '%s') and date_trunc('week', date '%s') and \n" +
