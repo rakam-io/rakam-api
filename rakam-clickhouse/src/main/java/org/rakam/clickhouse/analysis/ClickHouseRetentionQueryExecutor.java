@@ -24,9 +24,11 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
+import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.collection.FieldType.INTEGER;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class ClickHouseRetentionQueryExecutor
         implements RetentionQueryExecutor
@@ -41,7 +43,8 @@ public class ClickHouseRetentionQueryExecutor
         this.metastore = metastore;
     }
 
-    private static String formatExpression(Expression value) {
+    private static String formatExpression(Expression value)
+    {
         return RakamSqlFormatter.formatExpression(value,
                 name -> name.getParts().stream().map(e -> formatIdentifier(e, '`')).collect(Collectors.joining(".")),
                 name -> name.getParts().stream()
@@ -54,11 +57,11 @@ public class ClickHouseRetentionQueryExecutor
         int startEpoch = (int) startDate.toEpochDay();
         int endEpoch = (int) endDate.toEpochDay();
 
-        String firstActionQuery = firstAction.map(action -> String.format("SELECT `$date`, _user, _time %s FROM %s.%s %s",
+        String firstActionQuery = firstAction.map(action -> format("SELECT `$date`, _user, _time %s FROM %s.%s %s",
                 dimension.map(e -> "," + e).orElse(""), project, ValidationUtil.checkCollection(action.collection(), '`'),
                 action.filter().map(f -> "WHERE " + formatExpression(f)).orElse("")))
                 .orElseGet(() -> metastore.getCollectionNames(project).stream()
-                        .map(collection -> String.format("SELECT `$date`, _user, _time %s FROM %s.%s",
+                        .map(collection -> format("SELECT `$date`, _user, _time %s FROM %s.%s",
                                 dimension.map(e -> "," + e).orElse(""), project, ValidationUtil.checkCollection(collection, '`')))
                         .collect(Collectors.joining(" UNION ALL ")));
 
@@ -69,18 +72,23 @@ public class ClickHouseRetentionQueryExecutor
                     .map(e -> e.isAfter(endDate) ? endDate : e)
                     .orElse(LocalDate.ofEpochDay(endEpoch)).format(ISO_DATE);
 
-            return Stream.of(String.format("select toDate('%s') as date, CAST(-1 AS Int64) as lead, uniq(_user) users from" +
+            return Stream.of(format("select %s, CAST(-1 AS Int64) as lead, uniq(_user) users from" +
                             " (%s) where `$date` between toDate('%s')  and toDate('%s') " +
-                            " group by `$date`", date,
+                            " group by `$date` %s",
+                    dimension.map(e -> checkTableColumn(e, '`')).orElse(format("toDate('%s') as date", date)),
                     firstActionQuery,
-                    date, endDateStr),
-                    String.format("select toDate('%s') as date, (`$date` - toDate('%s')) - 1 as lead, sum(_user IN (select _user from (%s) WHERE `$date` = toDate('%s'))) as users from" +
+                    date, endDateStr, dimension.map(e -> "," + checkCollection(e, '`')).orElse("")),
+                    format("select %s, (`$date` - toDate('%s')) - 1 as lead, sum(_user IN (select _user from (%s) WHERE `$date` = toDate('%s'))) as users from" +
                                     " (%s) where `$date` between toDate('%s') and toDate('%s') " +
-                                    " group by `$date` order by `$date`", date, date,
+                                    " group by `$date` %s order by %s",
+                            dimension.map(e -> checkTableColumn(e, '`')).orElse(format("toDate('%s') as date", date)),
+                            date,
                             firstActionQuery,
                             date,
                             firstActionQuery,
-                            date, endDateStr));
+                            date, endDateStr,
+                            dimension.map(e -> ", " + checkCollection(e, '`')).orElse(""),
+                            dimension.map(e -> checkCollection(e, '`')).orElse("`$date`")));
         }).collect(Collectors.joining(" UNION ALL \n"));
 
         return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {
