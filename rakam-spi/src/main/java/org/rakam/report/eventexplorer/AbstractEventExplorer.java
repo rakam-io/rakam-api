@@ -320,13 +320,13 @@ public abstract class AbstractEventExplorer
                             computeQuery);
                 }
                 else {
-                    query = computeQuery + " ORDER BY 1 DESC LIMIT 100";
+                    query = computeQuery + " ORDER BY 1 DESC";
                 }
             }
         }
 
         if (query == null) {
-            query = format("select %s %s %s value from (%s) data ORDER BY %s DESC LIMIT 100",
+            query = format("select %s %s %s value from (%s) data ORDER BY %s DESC",
                     grouping == null ? "" : format(grouping.type == COLUMN ? "cast(" + checkTableColumn("%s_group") + " as varchar)" : checkTableColumn("%s_group"), getColumnReference(grouping)),
                     segment == null ? "" : ((grouping == null ? "" : ",") + format(segment.type == COLUMN ?
                             "cast(" + checkTableColumn("%s_segment") + " as varchar)" :
