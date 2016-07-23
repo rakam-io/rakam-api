@@ -37,7 +37,6 @@ import static org.rakam.plugin.user.UserHttpService.parseExpression;
 @Path("/user/action/mailbox")
 @Api(value = "/user/action/mailbox", nickname = "userMailboxAction", description = "Mailbox action", tags = "user-action")
 public class UserMailboxActionService extends UserActionService<UserMailboxActionService.MailAction> {
-    private final SqlParser sqlParser = new SqlParser();
     private final AbstractUserService userService;
     private final UserMailboxStorage mailboxStorage;
 

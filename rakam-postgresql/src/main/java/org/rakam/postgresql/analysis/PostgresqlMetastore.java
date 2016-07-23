@@ -12,6 +12,7 @@ import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
@@ -53,7 +54,7 @@ public class PostgresqlMetastore
     private final JDBCPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency)
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, FieldDependency fieldDependency)
     {
         super(fieldDependency, eventBus);
         this.connectionPool = connectionPool;

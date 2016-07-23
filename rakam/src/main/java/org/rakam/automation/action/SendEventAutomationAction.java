@@ -15,14 +15,6 @@ import java.util.function.Supplier;
 
 public class SendEventAutomationAction implements AutomationAction<SendEventAutomationAction.SendEventAction> {
 
-    private final Set<EventMapper> eventMappers;
-    private final EventStore eventStore;
-
-    @Inject
-    public SendEventAutomationAction(Set<EventMapper> eventMappers, EventStore eventStore) {
-        this.eventMappers = eventMappers;
-        this.eventStore = eventStore;
-    }
 
     public String process(String project, Supplier<User> user, SendEventAction sendEventAction) {
         new Event(project, sendEventAction.collection, null, null, null);

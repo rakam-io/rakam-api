@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
@@ -24,11 +25,11 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 
 public abstract class AbstractMetastore implements Metastore {
-    private final FieldDependencyBuilder.FieldDependency moduleFields;
+    private final FieldDependency moduleFields;
     private final EventBus eventBus;
     private final Set<String> sourceFields;
 
-    public AbstractMetastore(FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus) {
+    public AbstractMetastore(FieldDependency fieldDependency, EventBus eventBus) {
         this.moduleFields = fieldDependency;
         this.eventBus = eventBus;
         this.sourceFields = fieldDependency.dependentFields.keySet();

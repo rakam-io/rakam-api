@@ -54,7 +54,7 @@ public class UserModule
         webSocketServices.addBinding().to(MailBoxWebSocketService.class).in(Scopes.SINGLETON);
 
         binder.bind(UserStorageListener.class).asEagerSingleton();
-        binder.bind(UserPrecomputationListener.class).asEagerSingleton();
+//        binder.bind(UserPrecomputationListener.class).asEagerSingleton();
         UserPluginConfig userPluginConfig = buildConfigObject(UserPluginConfig.class);
         ConfigBinder.configBinder(binder).bindConfig(EmailClientConfig.class);
 

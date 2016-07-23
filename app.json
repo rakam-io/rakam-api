@@ -30,6 +30,10 @@
       "description": "Maxmind GeoIP database url. Community version of Maxmind GeoIP is used by default but you can also provide your database URL",
       "value": "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz"
     },
+    "GEOIP_CONNECTION_TYPE_URL": {
+      "description": "Maxmind GeoIP connection type url. Community version of Maxmind GeoIP is used by default but you can also provide your database URL",
+      "value": "https://github.com/maxmind/MaxMind-DB/blob/master/test-data/GeoIP2-Connection-Type-Test.mmdb?raw=true"
+    },
     "ENABLE_USER_PLUGIN": {
       "description": "User module is basically a CRM integrated with your analytics service.",
       "value": "true"
