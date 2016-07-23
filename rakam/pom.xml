@@ -235,6 +235,49 @@
         </dependency>
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>bundled-with-ui</id>
+            <activation>
+                <property>
+                    <!--
+     -                    Heroku specific environment variable to enable this profile with running Heroku button.
+     -                    Currently, Heroku doesn't provide a good way to pass custom variables to maven at compile time
+     -                    so this is a workaround until we solve this problem.
+     -                    Taken from: http://stackoverflow.com/a/19745561/689144
+     -                     -->
+                    <name>env.DYNO</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-clean-plugin</artifactId>
+                        <version>2.5</version>
+                        <executions>
+                            <execution>
+                                <id>clean-jar-artifacts</id>
+                                <phase>install</phase>
+                                <goals><goal>clean</goal></goals>
+                                <configuration>
+                                    <filesets>
+                                        <fileset>
+                                            <followSymlinks>false</followSymlinks>
+                                            <directory>${basedir}</directory>
+                                            <includes>
+                                                <include>${project.build.directory}/rakam-*-SNAPSHOT-bundle.tar.gz</include>
+                                            </includes>
+                                        </fileset>
+                                    </filesets>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <build>
         <plugins>
             <plugin>
