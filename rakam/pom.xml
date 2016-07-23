@@ -237,15 +237,15 @@
 
     <profiles>
         <profile>
-            <id>bundled-with-ui</id>
+            <id>delete-bundle</id>
             <activation>
                 <property>
                     <!--
-     -                    Heroku specific environment variable to enable this profile with running Heroku button.
-     -                    Currently, Heroku doesn't provide a good way to pass custom variables to maven at compile time
-     -                    so this is a workaround until we solve this problem.
-     -                    Taken from: http://stackoverflow.com/a/19745561/689144
-     -                     -->
+                         Heroku specific environment variable to enable this profile with running Heroku button.
+                         Currently, Heroku doesn't provide a good way to pass custom variables to maven at compile time
+                         so this is a workaround until we solve this problem.
+                         Taken from: http://stackoverflow.com/a/19745561/689144
+                          -->
                     <name>env.DYNO</name>
                 </property>
             </activation>
@@ -256,16 +256,20 @@
                         <version>2.5</version>
                         <executions>
                             <execution>
-                                <id>clean-jar-artifacts</id>
+                                <id>clean-bundle-archive</id>
                                 <phase>install</phase>
-                                <goals><goal>clean</goal></goals>
+                                <goals>
+                                    <goal>clean</goal>
+                                </goals>
                                 <configuration>
+                                    <excludeDefaultDirectories>true</excludeDefaultDirectories>
+
                                     <filesets>
                                         <fileset>
                                             <followSymlinks>false</followSymlinks>
-                                            <directory>${basedir}</directory>
+                                            <directory>${project.build.directory}</directory>
                                             <includes>
-                                                <include>${project.build.directory}/rakam-*-SNAPSHOT-bundle.tar.gz</include>
+                                                <include>rakam-*-SNAPSHOT-bundle.tar.gz</include>
                                             </includes>
                                         </fileset>
                                     </filesets>
