@@ -32,11 +32,13 @@ If your event data-set can fit in a single server, we recommend using Postgresql
 
 However Rakam is designed to be highly scalable in order to provide a solution for high work-loads. You can configure Rakam to send events to a distributed commit-log such as Apache Kafka or Amazon Kinesis in serialized Apache Avro format and process data in PrestoDB workers and store them in a distributed filesystem in a columnar format.
 
+### Heroku
+
 You can easily deploy Rakam to Heroku using Heroku button, it adds Heroku Postgresql add-on to your app and use Postgresql deployment type.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy)
 
-Or use Docker:
+### Docker
 
 Run the following command to start a Postgresql server in docker container and Rakam API in your local environment.
 
@@ -73,6 +75,18 @@ Dockerfile will generate `config.properties` file from environment variables in 
 In order to set environment variables for container, you may use `-e` flag for for `docker run` but we advice you to set all environment variables in a file and use  `--env-file` flag when starting your container.
 
 Then you can share same file among the Rakam containers. If Dockerfile can't find any environment variable starts with `RAKAM_`, it tries to connect Postgresql instance created with docker-compose.
+
+### AWS (Cloudformation)
+
+Cloudformation templates create a Opsworks stack in your AWS account for Rakam. You can easily monitor, scale and manage your Rakam cluster with with this Cloudformation templates.
+
+Cloudformation is the recommended way to deploy Rakam in production but unfortunately they're not open-source yet. Please request Cloudformation template so that [we can help you to deploy](https://rakam.io/contact/?topic=Request for Cloudformation template) Rakam in our AWS account with Cloudformation.
+
+### Custom
+
+Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/rakam/rakam/0.5/rakam-0.5-bundle.tar.gz), extract package, modify `etc/config.properties` file and run `bin/launcher start`.
+The launcher script can take the following arguments: `start|restart|stop|status|run`. 
+`bin/launcher run` will start Rakam in foreground.
 
 Web application
 ------------
