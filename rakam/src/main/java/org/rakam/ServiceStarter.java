@@ -75,10 +75,6 @@ public final class ServiceStarter {
             System.setProperty("config", args[0]);
         }
 
-        Flyway flyway = new Flyway();
-        flyway.setDataSource("jdbc:h2:file:./target/foobar", "sa", null);
-        flyway.migrate();
-
         Bootstrap app = new Bootstrap(getModules());
         app.requireExplicitBindings(false);
         Injector injector = app.strictConfig().initialize();
@@ -184,7 +180,6 @@ public final class ServiceStarter {
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
 
-
             Multibinder.newSetBinder(binder, WebSocketService.class);
 
             bindConfig(binder).to(HttpServerConfig.class);
@@ -198,9 +193,9 @@ public final class ServiceStarter {
 
             binder.bind(WebServiceModule.class);
         }
-
-
     }
+
+
 
     public static class ProjectPermissionParameterProvider implements Provider<CustomParameter> {
 

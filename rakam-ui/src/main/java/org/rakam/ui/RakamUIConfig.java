@@ -26,6 +26,7 @@ public class RakamUIConfig {
     private File customPageBackendDirectory;
     private boolean enableUi = true;
     private boolean hashPassword;
+    private String googleClientId;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -78,5 +79,15 @@ public class RakamUIConfig {
 
     public File getCustomPageBackendDirectory() {
         return customPageBackendDirectory;
+    }
+
+    @Config("ui.google-login-client-id")
+    public RakamUIConfig setGoogleClientId(String googleClientId) {
+        this.googleClientId = googleClientId;
+        return this;
+    }
+
+    public String getGoogleClientId() {
+        return googleClientId;
     }
 }

@@ -143,7 +143,7 @@ public class WebUserService {
         });
     }
 
-    public WebUser createUser(String email, String password, String name) {
+    public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId) {
         if (!PASSWORD_PATTERN.matcher(password).matches()) {
             throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
         }
@@ -163,9 +163,12 @@ public class WebUserService {
 
         try (Handle handle = dbi.open()) {
             try {
-                int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at) VALUES (:email, :password, :name, now())")
+                int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at, gender, user_locale, google_id) VALUES (:email, :password, :name, now(), :gender, :locale, :googleId)")
                         .bind("email", email)
                         .bind("name", name)
+                        .bind("gender", gender)
+                        .bind("locale", locale)
+                        .bind("googleId", googleId)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                 webuser = new WebUser(id, email, name, ImmutableList.of());
             } catch (UnableToExecuteStatementException e) {
@@ -613,6 +616,29 @@ public class WebUserService {
         return Optional.of(new WebUser(id, email, name, projects));
     }
 
+    public Optional<WebUser> getUserByEmail(String email)
+    {
+        String name;
+
+        List<WebUser.Project> projectDefinitions;
+
+        int id;
+        try (Handle handle = dbi.open()) {
+            final Map<String, Object> data = handle
+                    .createQuery("SELECT id, name, email FROM web_user WHERE email = :email")
+                    .bind("email", email).first();
+            if (data == null) {
+                return Optional.empty();
+            }
+            name = (String) data.get("name");
+            email = (String) data.get("email");
+            id = (int) data.get("id");
+
+            projectDefinitions = getUserApiKeys(handle, id);
+        }
+
+        return Optional.of(new WebUser(id, email, name, projectDefinitions));
+    }
 
     public Optional<WebUser> getUser(int id) {
         String name;

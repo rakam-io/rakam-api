@@ -11,6 +11,7 @@ import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.flywaydb.core.Flyway;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.config.EncryptionConfig;
@@ -80,6 +81,8 @@ public class RakamUIModule extends RakamModule {
 
         Multibinder<RequestPreProcessorItem> multibinder = Multibinder.newSetBinder(binder, RequestPreProcessorItem.class);
         multibinder.addBinding().toProvider(UIPermissionCheckProcessorProvider.class);
+
+        binder.bind(FlywayExecutor.class).asEagerSingleton();
 
         binder.bind(ProjectDeleteEventListener.class).asEagerSingleton();
         binder.bind(ReportMetadata.class).to(JDBCReportMetadata.class).in(Scopes.SINGLETON);
@@ -342,5 +345,17 @@ public class RakamUIModule extends RakamModule {
     @Target({ElementType.TYPE, ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     public @interface UIService {
+    }
+
+    public static class FlywayExecutor {
+
+        @Inject
+        public FlywayExecutor(@Named("ui.metadata.jdbc") JDBCConfig config)
+        {
+            Flyway flyway = new Flyway();
+            flyway.setBaselineOnMigrate(true);
+            flyway.setDataSource(config.getUrl(), config.getUsername(), config.getPassword());
+            flyway.migrate();
+        }
     }
 }
