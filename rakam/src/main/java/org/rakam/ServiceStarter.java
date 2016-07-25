@@ -22,7 +22,6 @@ import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Tag;
-import org.flywaydb.core.Flyway;
 import org.rakam.analysis.AdminHttpService;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ContinuousQueryHttpService;
@@ -52,6 +51,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 
 import javax.inject.Inject;
+
 import java.time.Clock;
 import java.util.ServiceLoader;
 import java.util.Set;
