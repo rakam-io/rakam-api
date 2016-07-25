@@ -88,6 +88,11 @@ Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/
 The launcher script can take the following arguments: `start|restart|stop|status|run`. 
 `bin/launcher run` will start Rakam in foreground.
 
+### Managed
+
+We're also working for managed Rakam cluster, we will deploy Rakam to our AWS accounts and manage it for you so that you don't need to worry about scaling, managing and software updates. We will do it for you.
+Please shoot us an email to `support@rakam.io` if you want to test our managed Rakam service.
+
 Web application
 ------------
 This repository contains Rakam API server that allows you to interact with Rakam using a REST interface. If you already have a frontend and developed a custom analytics service based on Rakam, it's all you need.

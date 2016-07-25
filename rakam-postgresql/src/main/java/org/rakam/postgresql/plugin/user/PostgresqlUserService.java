@@ -96,7 +96,7 @@ public class PostgresqlUserService
                 storage.setUserId(project, ps, user, 1);
                 storage.setUserId(project, ps, anonymousId, 2);
                 ps.setTimestamp(3, Timestamp.from(createdAt));
-                ps.setTimestamp(4, Timestamp.from(createdAt));
+                ps.setTimestamp(4, Timestamp.from(mergedAt));
                 ps.executeUpdate();
             }
             catch (SQLException e) {
