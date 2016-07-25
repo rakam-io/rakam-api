@@ -56,6 +56,7 @@ import java.time.Clock;
 import java.util.ServiceLoader;
 import java.util.Set;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.configuration.ConfigurationModule.bindConfig;
 import static java.lang.String.format;
 
@@ -182,9 +183,9 @@ public final class ServiceStarter {
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
 
-            bindConfig(binder).to(HttpServerConfig.class);
-            bindConfig(binder).to(ProjectConfig.class);
-            bindConfig(binder).to(EncryptionConfig.class);
+            configBinder(binder).bindConfig(HttpServerConfig.class);
+            configBinder(binder).bindConfig(ProjectConfig.class);
+            configBinder(binder).bindConfig(EncryptionConfig.class);
 
             binder.bind(EventLoopGroup.class)
                     .annotatedWith(ForHttpServer.class)
