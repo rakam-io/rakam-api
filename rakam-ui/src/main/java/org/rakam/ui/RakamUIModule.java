@@ -11,7 +11,9 @@ import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.cookie.Cookie;
 import org.flywaydb.core.Flyway;
+import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.config.EncryptionConfig;
@@ -22,6 +24,7 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.RequestPreprocessor;
 import org.rakam.ui.UIEvents.ProjectCreatedEvent;
+import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.customreport.CustomPageHttpService;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.customreport.CustomReportHttpService;
@@ -33,7 +36,9 @@ import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.Report;
 import org.rakam.ui.report.ReportHttpService;
 import org.rakam.ui.report.UIRecipeHttpService;
+import org.rakam.ui.user.WebUser;
 import org.rakam.ui.user.WebUserHttpService;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.ConditionalModule;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
@@ -41,6 +46,7 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.IntegerMapper;
 
 import javax.inject.Inject;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -49,13 +55,17 @@ import java.util.List;
 import java.util.Map;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
-
 @ConditionalModule(config = "ui.enable", value = "true")
-public class RakamUIModule extends RakamModule {
+public class RakamUIModule
+        extends RakamModule
+{
     @Override
-    protected void setup(Binder binder) {
+    protected void setup(Binder binder)
+    {
         configBinder(binder).bindConfig(EncryptionConfig.class);
 
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
@@ -72,15 +82,15 @@ public class RakamUIModule extends RakamModule {
             }
         }
 
+        Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
+        customParameters.addBinding().toProvider(UIPermissionParameterProvider.class);
+
         binder.bind(JDBCPoolDataSource.class)
                 .annotatedWith(Names.named("ui.metadata.jdbc"))
                 .toInstance(JDBCPoolDataSource.getOrCreateDataSource(buildConfigObject(JDBCConfig.class, "ui.metadata.jdbc")));
 
         Multibinder<InjectionHook> hooks = Multibinder.newSetBinder(binder, InjectionHook.class);
         hooks.addBinding().to(DatabaseScript.class);
-
-        Multibinder<RequestPreProcessorItem> multibinder = Multibinder.newSetBinder(binder, RequestPreProcessorItem.class);
-        multibinder.addBinding().toProvider(UIPermissionCheckProcessorProvider.class);
 
         binder.bind(FlywayExecutor.class).asEagerSingleton();
 
@@ -102,35 +112,42 @@ public class RakamUIModule extends RakamModule {
     }
 
     @Override
-    public String name() {
+    public String name()
+    {
         return "Web Interface for Rakam APIs";
     }
 
     @Override
-    public String description() {
+    public String description()
+    {
         return "Can be used as a BI tool and a tool that allows you to create your customized analytics service frontend.";
     }
 
-    public enum CustomPageBackend {
+    public enum CustomPageBackend
+    {
         FILE, JDBC
     }
 
-    public static class DefaultDashboardCreator {
+    public static class DefaultDashboardCreator
+    {
 
         private final DashboardService service;
 
         @Inject
-        public DefaultDashboardCreator(DashboardService service) {
+        public DefaultDashboardCreator(DashboardService service)
+        {
             this.service = service;
         }
 
         @Subscribe
-        public void onCreateProject(ProjectCreatedEvent event) {
-            service.create(event.project, "My dashboard", null);
+        public void onCreateProject(ProjectCreatedEvent event)
+        {
+            service.create(new Project(0, event.project), "My dashboard", null);
         }
     }
 
-    public static class ProjectDeleteEventListener {
+    public static class ProjectDeleteEventListener
+    {
 
         private final DashboardService dashboardService;
         private final CustomPageDatabase customPageDatabase;
@@ -139,9 +156,10 @@ public class RakamUIModule extends RakamModule {
 
         @Inject
         public ProjectDeleteEventListener(DashboardService dashboardService,
-                                          Optional<CustomPageDatabase> customPageDatabase,
-                                          ReportMetadata reportMetadata,
-                                          CustomReportMetadata customReportMetadata) {
+                Optional<CustomPageDatabase> customPageDatabase,
+                ReportMetadata reportMetadata,
+                CustomReportMetadata customReportMetadata)
+        {
             this.reportMetadata = reportMetadata;
             this.customReportMetadata = customReportMetadata;
             this.customPageDatabase = customPageDatabase.orNull();
@@ -149,9 +167,10 @@ public class RakamUIModule extends RakamModule {
         }
 
         @Subscribe
-        public void onDeleteProject(UIEvents.ProjectDeletedEvent event) {
-            for (DashboardService.Dashboard dashboard : dashboardService.list(event.project)) {
-                dashboardService.delete(event.project, dashboard.name);
+        public void onDeleteProject(UIEvents.ProjectDeletedEvent event)
+        {
+            for (DashboardService.Dashboard dashboard : dashboardService.list(new Project(0, event.project))) {
+                dashboardService.delete(new Project(0, event.project), dashboard.name);
             }
             if (customPageDatabase != null) {
                 for (CustomPageDatabase.Page page : customPageDatabase.list(event.project)) {
@@ -169,18 +188,22 @@ public class RakamUIModule extends RakamModule {
         }
     }
 
-    public static class DatabaseScript implements InjectionHook {
+    public static class DatabaseScript
+            implements InjectionHook
+    {
         private final DBI dbi;
         private final RakamUIConfig config;
 
         @Inject
-        public DatabaseScript(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, RakamUIConfig config) {
+        public DatabaseScript(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, RakamUIConfig config)
+        {
             dbi = new DBI(dataSource);
             this.config = config;
         }
 
         @Override
-        public void call() {
+        public void call()
+        {
             try (Handle handle = dbi.open()) {
 
                 handle.createStatement("CREATE TABLE IF NOT EXISTS web_user (" +
@@ -299,55 +322,8 @@ public class RakamUIModule extends RakamModule {
         }
     }
 
-    public static class UIPermissionCheckProcessorProvider implements Provider<RequestPreProcessorItem> {
-
-        private final DBI dbi;
-        private final EncryptionConfig encryptionConfig;
-
-        @Inject
-        public UIPermissionCheckProcessorProvider(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, EncryptionConfig encryptionConfig) {
-            dbi = new DBI(dataSource);
-            this.encryptionConfig = encryptionConfig;
-        }
-
-        @Override
-        public RequestPreProcessorItem get() {
-            return new RequestPreProcessorItem(method -> method.getDeclaringClass().isAnnotationPresent(UIService.class), new RequestPreprocessor() {
-                @Override
-                public void handle(RakamHttpRequest request, ObjectNode jsonNodes) {
-                    Integer userId = request.cookies().stream().filter(e -> e.name().equals("session"))
-                            .findFirst()
-                            .map(e -> extractUserFromCookie(e.value(), encryptionConfig.getSecretKey()))
-                            .orElseThrow(() -> new RakamException(HttpResponseStatus.FORBIDDEN));
-
-                    String projectId = request.headers().get("project");
-
-                    if (projectId == null) {
-                        new RakamException(HttpResponseStatus.FORBIDDEN);
-                    }
-
-                    try (Handle handle = dbi.open()) {
-                        int id = Integer.parseInt(projectId);
-                        boolean hasPermission = handle.createQuery("SELECT 1 FROM web_user_api_key key JOIN web_user_project project ON (key.project_id = project.id) WHERE key.user_id = :user AND project.id = :id")
-                                .map(IntegerMapper.FIRST)
-                                .bind("user", userId)
-                                .bind("id", id)
-                                .first() != null;
-                        if (!hasPermission) {
-                            new RakamException(HttpResponseStatus.FORBIDDEN);
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    @Target({ElementType.TYPE, ElementType.METHOD})
-    @Retention(RetentionPolicy.RUNTIME)
-    public @interface UIService {
-    }
-
-    public static class FlywayExecutor {
+    public static class FlywayExecutor
+    {
 
         @Inject
         public FlywayExecutor(@Named("ui.metadata.jdbc") JDBCConfig config)

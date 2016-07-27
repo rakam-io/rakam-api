@@ -18,28 +18,36 @@ import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
-import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
+import org.rakam.ui.ProtectEndpoint;
+import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
 
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+
 import java.io.IOException;
 import java.util.Arrays;
 
+import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.ORIGIN;
 import static java.lang.Boolean.TRUE;
 import static org.rakam.server.http.HttpServer.returnError;
 
 @Path("/ui/recipe")
 @IgnoreApi
 @Api(value = "/ui/recipe", nickname = "recipe", description = "Recipe operations", tags = "recipe")
-public class UIRecipeHttpService extends HttpService {
+public class UIRecipeHttpService
+        extends HttpService
+{
     private static ObjectMapper yamlMapper;
+
     static {
         yamlMapper = new ObjectMapper(new YAMLFactory());
         yamlMapper.registerModule(new JSR310Module());
@@ -49,16 +57,18 @@ public class UIRecipeHttpService extends HttpService {
     private final UIRecipeHandler installer;
 
     @Inject
-    public UIRecipeHttpService(UIRecipeHandler installer) {
+    public UIRecipeHttpService(UIRecipeHandler installer)
+    {
         this.installer = installer;
     }
 
-    @ApiOperation(value = "Install recipe",
-            authorizations = @Authorization(value = "master_key"), response = SuccessMessage.class
-    )
+    @ApiOperation(value = "Install recipe", response = SuccessMessage.class)
     @POST
+    @ProtectEndpoint(writeOperation = true)
     @Path("/install")
-    public void installUIRecipe(RakamHttpRequest request, @HeaderParam("project") int project) {
+    public void installUIRecipe(RakamHttpRequest request,
+            @Named("user_id") Project project)
+    {
         String contentType = request.headers().get(CONTENT_TYPE);
         ExportType exportType = Arrays.stream(ExportType.values())
                 .filter(f -> f.contentType.equals(contentType))
@@ -72,18 +82,19 @@ public class UIRecipeHttpService extends HttpService {
 
             try {
                 recipe = exportType.mapper.readValue(body, UIRecipe.class);
-            } catch (IOException e) {
+            }
+            catch (IOException e) {
                 returnError(request, e.getMessage(), HttpResponseStatus.BAD_REQUEST);
                 return;
             }
 
             try {
-                installer.install(recipe, project, override);
+                installer.install(recipe, project.userId, project.project, override);
                 request.response(JsonHelper.encode(SuccessMessage.success())).end();
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 returnError(request, "Error loading recipe: " + e.getMessage(), HttpResponseStatus.BAD_REQUEST);
             }
-
         });
     }
 
@@ -92,9 +103,11 @@ public class UIRecipeHttpService extends HttpService {
     )
     @GET
     @Path("/export")
-    public void exportUIRecipe(@HeaderParam("Accept") ExportType contentType, @HeaderParam("project") int project, RakamHttpRequest request) throws JsonProcessingException {
+    public void exportUIRecipe(@HeaderParam("Accept") String contentType, @Named("user_id") Project project, RakamHttpRequest request)
+            throws JsonProcessingException
+    {
         request.bodyHandler(s -> {
-            UIRecipe export = installer.export(project);
+            UIRecipe export = installer.export(project.userId, project.project);
 
             ExportType exportType = Arrays.stream(ExportType.values())
                     .filter(f -> f.contentType.equals(contentType))
@@ -104,29 +117,36 @@ public class UIRecipeHttpService extends HttpService {
             ByteBuf buffer;
             try {
                 buffer = Unpooled.wrappedBuffer(exportType.mapper.writeValueAsBytes(export));
-            } catch (JsonProcessingException e) {
+            }
+            catch (JsonProcessingException e) {
                 throw Throwables.propagate(e);
             }
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buffer);
             response.headers().add(CONTENT_TYPE, exportType.contentType);
+            if(request.headers().contains(ORIGIN)) {
+                response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            }
             request.response(response).end();
         });
     }
 
-    public enum ExportType {
+    public enum ExportType
+    {
         JSON(JsonHelper.getMapper(), "application/json"), YAML(yamlMapper, "application/x-yaml");
 
         private final ObjectMapper mapper;
         private final String contentType;
 
-        ExportType(ObjectMapper mapper, String contentType) {
+        ExportType(ObjectMapper mapper, String contentType)
+        {
             this.mapper = mapper;
             this.contentType = contentType;
         }
 
         @JsonCreator
-        public static ExportType get(String name) {
+        public static ExportType get(String name)
+        {
             return valueOf(name.toUpperCase());
         }
     }

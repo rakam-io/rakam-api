@@ -60,14 +60,16 @@ public class PrestoContinuousQueryService extends ContinuousQueryService {
         String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
                 project, report.tableName, query);
 
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
         PrestoQueryExecution prestoQueryExecution;
         if (!report.partitionKeys.isEmpty()) {
-            ImmutableMap<String, String> sessionParameter = ImmutableMap.of(config.getStreamingConnector() + ".partition_keys",
+            builder.put(config.getStreamingConnector() + ".partition_keys",
                     Joiner.on("|").join(report.partitionKeys));
-            prestoQueryExecution = executor.executeRawQuery(prestoQuery, sessionParameter, config.getStreamingConnector());
-        } else {
-            prestoQueryExecution = executor.executeRawQuery(prestoQuery, ImmutableMap.of(), config.getStreamingConnector());
         }
+
+        builder.put(config.getStreamingConnector() + ".process_historical_data", Boolean.toString(replayHistoricalData));
+
+        prestoQueryExecution = executor.executeRawQuery(prestoQuery, builder.build(), config.getStreamingConnector());
 
         QueryResult result = prestoQueryExecution.getResult().join();
 

@@ -13,6 +13,8 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.user.WebUser;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
@@ -37,9 +39,11 @@ import java.net.SocketException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 @Path("/ui/cluster")
@@ -49,11 +53,15 @@ public class ClusterService
 {
     private final DBI dbi;
     private final EncryptionConfig encryptionConfig;
+    private final WebUserService webUserService;
 
     @Inject
-    public ClusterService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, EncryptionConfig encryptionConfig)
+    public ClusterService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
+            WebUserService webUserService,
+            EncryptionConfig encryptionConfig)
     {
         dbi = new DBI(dataSource);
+        this.webUserService = webUserService;
         this.encryptionConfig = encryptionConfig;
     }
 
@@ -63,7 +71,12 @@ public class ClusterService
     public SuccessMessage register(@CookieParam("session") String session,
             @BodyParam Cluster cluster)
     {
-        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+        int userId = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+
+        Optional<WebUser> webUser = webUserService.getUser(userId);
+        if (webUser.get().readOnly) {
+            throw new RakamException("User is not allowed to register clusters", UNAUTHORIZED);
+        }
 
         boolean unreachable;
         try {
@@ -114,14 +127,14 @@ public class ClusterService
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO rakam_cluster (user_id, api_url, lock_key) VALUES (:userId, :apiUrl, :lockKey)")
-                        .bind("userId", id)
+                        .bind("userId", userId)
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lockKey", cluster.lockKey).execute();
             }
             catch (Exception e) {
                 if (handle.createQuery("SELECT 1 FROM rakam_cluster WHERE (user_id, api_url, lock_key) = (:userId, :apiUrl, :lockKey)")
                         .bind("apiUrl", cluster.apiUrl)
-                        .bind("lockKey", cluster.lockKey).bind("userId", id).first() != null) {
+                        .bind("lockKey", cluster.lockKey).bind("userId", userId).first() != null) {
                     throw new AlreadyExistsException("Dashboard", BAD_REQUEST);
                 }
 

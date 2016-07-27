@@ -170,7 +170,7 @@ public class WebUserService {
                         .bind("locale", locale)
                         .bind("googleId", googleId)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
-                webuser = new WebUser(id, email, name, ImmutableList.of());
+                webuser = new WebUser(id, email, name, false, ImmutableList.of());
             } catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
                 if (existingUser != null) {
@@ -183,7 +183,7 @@ public class WebUserService {
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                         if (id > 0) {
-                            webuser = new WebUser(id, email, name, ImmutableList.of());
+                            webuser = new WebUser(id, email, name, false, ImmutableList.of());
                         }
                     }
                 }
@@ -424,20 +424,18 @@ public class WebUserService {
         });
     }
 
-    public void deleteProject(int user, String apiUrl, String name) {
+    public void deleteProject(int user, int projectId) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM web_user_api_key WHERE user_id = :userId AND project_id = (SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl)")
+            handle.createStatement("DELETE FROM web_user_api_key WHERE user_id = :userId AND project_id = :id")
                     .bind("userId", user)
-                    .bind("project", name)
-                    .bind("apiUrl", apiUrl)
+                    .bind("project", projectId)
                     .execute();
 
             // TODO : BUGGG!!!
-            handle.createStatement("DELETE FROM web_user_project WHERE project = :project AND api_url = :apiUrl " +
-                    "AND (SELECT count(*) FROM web_user_api_key WHERE project_id = (SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl)) = 0")
+            handle.createStatement("DELETE FROM web_user_project WHERE id = :project " +
+                    "AND (SELECT count(*) FROM web_user_api_key WHERE project_id = :project) = 0")
                     .bind("userId", user)
-                    .bind("project", name)
-                    .bind("apiUrl", apiUrl)
+                    .bind("project", projectId)
                     .execute();
         }
     }
@@ -585,7 +583,6 @@ public class WebUserService {
 
     public Optional<WebUser> login(String email, String password) {
         String hashedPassword;
-        String name;
         int id;
 
         if (config.getHashPassword()) {
@@ -602,8 +599,9 @@ public class WebUserService {
                 return Optional.empty();
             }
             hashedPassword = (String) data.get("password");
-            name = (String) data.get("name");
+            String name = (String) data.get("name");
             id = (int) data.get("id");
+            boolean readOnly = (boolean) data.get("read_only");
 
             // TODO move this heavy operation outside of the connection scope.
             if (!SCryptUtil.check(password, hashedPassword)) {
@@ -611,56 +609,49 @@ public class WebUserService {
             }
 
             projects = getUserApiKeys(handle, id);
+            return Optional.of(new WebUser(id, email, name, readOnly, projects));
         }
-
-        return Optional.of(new WebUser(id, email, name, projects));
     }
 
     public Optional<WebUser> getUserByEmail(String email)
     {
-        String name;
-
         List<WebUser.Project> projectDefinitions;
 
-        int id;
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, email FROM web_user WHERE email = :email")
+                    .createQuery("SELECT id, name, read_only FROM web_user WHERE email = :email")
                     .bind("email", email).first();
             if (data == null) {
                 return Optional.empty();
             }
-            name = (String) data.get("name");
-            email = (String) data.get("email");
-            id = (int) data.get("id");
+            String name = (String) data.get("name");
+            int id = (int) data.get("id");
+            boolean readOnly = (boolean) data.get("read_only");
 
             projectDefinitions = getUserApiKeys(handle, id);
+            return Optional.of(new WebUser(id, email, name, readOnly, projectDefinitions));
         }
-
-        return Optional.of(new WebUser(id, email, name, projectDefinitions));
     }
 
     public Optional<WebUser> getUser(int id) {
-        String name;
-        String email;
-
         List<WebUser.Project> projectDefinitions;
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, email FROM web_user WHERE id = :id")
+                    .createQuery("SELECT id, name, email, read_only FROM web_user WHERE id = :id")
                     .bind("id", id).first();
             if (data == null) {
                 return Optional.empty();
             }
-            name = (String) data.get("name");
-            email = (String) data.get("email");
+            String name = (String) data.get("name");
+            String email = (String) data.get("email");
             id = (int) data.get("id");
 
             projectDefinitions = getUserApiKeys(handle, id);
+            return Optional.of(new WebUser(id, email, name,
+                    (Boolean) data.get("read_only"), projectDefinitions));
         }
 
-        return Optional.of(new WebUser(id, email, name, projectDefinitions));
     }
 
     private List<WebUser.Project> getUserApiKeys(Handle handle, int userId) {

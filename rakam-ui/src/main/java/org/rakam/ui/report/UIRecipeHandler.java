@@ -6,6 +6,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.ui.DashboardService;
 import org.rakam.ui.ReportMetadata;
+import org.rakam.ui.UIPermissionParameterProvider;
+import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.customreport.CustomReportMetadata;
 import org.rakam.ui.page.CustomPageDatabase;
@@ -13,12 +15,14 @@ import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
-public class UIRecipeHandler {
+public class UIRecipeHandler
+{
     private final Optional<ReportMetadata> reportMetadata;
     private final Optional<CustomReportMetadata> customReportMetadata;
     private final Optional<CustomPageDatabase> customPageDatabase;
@@ -26,89 +30,101 @@ public class UIRecipeHandler {
 
     @Inject
     public UIRecipeHandler(
-                         Optional<CustomReportMetadata> customReportMetadata,
-                         Optional<CustomPageDatabase> customPageDatabase,
-                         Optional<DashboardService> dashboardService,
-                         Optional<ReportMetadata> reportMetadata) {
+            Optional<CustomReportMetadata> customReportMetadata,
+            Optional<CustomPageDatabase> customPageDatabase,
+            Optional<DashboardService> dashboardService,
+            Optional<ReportMetadata> reportMetadata)
+    {
         this.customReportMetadata = customReportMetadata;
         this.customPageDatabase = customPageDatabase;
         this.reportMetadata = reportMetadata;
         this.dashboardService = dashboardService;
     }
 
-    public UIRecipe export(int project) {
+    public UIRecipe export(int userId, int project)
+    {
         final List<Report> reports;
-        if(reportMetadata.isPresent()) {
+        if (reportMetadata.isPresent()) {
             reports = reportMetadata.get()
                     .getReports(null, project).stream()
                     .map(r -> new Report(r.slug, r.name, r.category, r.query, r.options, r.shared))
                     .collect(Collectors.toList());
-        } else {
+        }
+        else {
             reports = ImmutableList.of();
         }
 
         final List<CustomReport> customReports;
-        if(customReportMetadata.isPresent()) {
+        if (customReportMetadata.isPresent()) {
             customReports = customReportMetadata.get().list(project).entrySet().stream().flatMap(a -> a.getValue().stream())
                     .map(r -> new CustomReport(r.reportType, r.name, r.data))
                     .collect(Collectors.toList());
-        } else {
+        }
+        else {
             customReports = ImmutableList.of();
         }
 
         final List<CustomPageDatabase.Page> customPages;
-        if(customPageDatabase.isPresent()) {
+        if (customPageDatabase.isPresent()) {
             customPages = customPageDatabase.get()
                     .list(project).stream()
                     .map(r -> new CustomPageDatabase.Page(r.name, r.slug, r.category, customPageDatabase.get().get(project, r.slug)))
                     .collect(Collectors.toList());
-        } else {
+        }
+        else {
             customPages = ImmutableList.of();
         }
 
         List<UIRecipe.DashboardBuilder> dashboards;
-        if(dashboardService.isPresent()) {
-            dashboards = dashboardService.get().list(project).stream()
-                    .map(a -> new UIRecipe.DashboardBuilder(a.name, dashboardService.get().get(project, a.name)))
+        if (dashboardService.isPresent()) {
+            dashboards = dashboardService.get().list(new Project(userId, project)).stream()
+                    .map(a -> new UIRecipe.DashboardBuilder(a.name, dashboardService.get().get(new Project(userId, project), a.name)))
                     .collect(Collectors.toList());
-        } else {
+        }
+        else {
             dashboards = ImmutableList.of();
         }
 
         return new UIRecipe(customReports, customPages, dashboards, reports);
     }
 
-    public void install(UIRecipe recipe, int project, boolean overrideExisting) {
-        installInternal(recipe, project, overrideExisting);
+    public void install(UIRecipe recipe, int userId, int project, boolean overrideExisting)
+    {
+        installInternal(recipe, userId, project, overrideExisting);
     }
 
-    public void installInternal(UIRecipe recipe, int project, boolean overrideExisting) {
+    public void installInternal(UIRecipe recipe, int userId, int project, boolean overrideExisting)
+    {
         recipe.getReports().stream()
                 .forEach(report -> {
                     try {
                         reportMetadata.get().save(null, project, report);
-                    } catch (AlreadyExistsException e) {
+                    }
+                    catch (AlreadyExistsException e) {
                         if (overrideExisting) {
                             reportMetadata.get().update(null, project, report);
-                        } else {
+                        }
+                        else {
                             throw Throwables.propagate(e);
                         }
                     }
                 });
 
+        Project p = new Project(userId, project);
         recipe.getDashboards().stream()
                 .forEach(report -> {
                     int dashboard;
                     try {
-                        dashboard = dashboardService.get().create(project, report.name, ImmutableMap.of()).id;
-                    } catch (AlreadyExistsException e) {
-                        dashboard = dashboardService.get().list(project).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
-                        dashboardService.get().delete(project, dashboard);
-                        dashboard = dashboardService.get().create(project, report.name, ImmutableMap.of()).id;
+                        dashboard = dashboardService.get().create(p, report.name, ImmutableMap.of()).id;
+                    }
+                    catch (AlreadyExistsException e) {
+                        dashboard = dashboardService.get().list(p).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
+                        dashboardService.get().delete(p, dashboard);
+                        dashboard = dashboardService.get().create(p, report.name, ImmutableMap.of()).id;
                     }
 
                     for (DashboardService.DashboardItem item : report.items) {
-                        dashboardService.get().addToDashboard(project, dashboard, item.name, item.directive, item.data);
+                        dashboardService.get().addToDashboard(p, dashboard, item.name, item.directive, item.data);
                     }
                 });
 
@@ -116,31 +132,35 @@ public class UIRecipeHandler {
                 .forEach(customReport -> {
                     try {
                         customReportMetadata.get().save(null, project, customReport);
-                    } catch (AlreadyExistsException e) {
+                    }
+                    catch (AlreadyExistsException e) {
                         if (overrideExisting) {
                             customReportMetadata.get().update(project, customReport);
-                        } else {
+                        }
+                        else {
                             throw Throwables.propagate(e);
                         }
                     }
                 });
 
-        if(customPageDatabase.isPresent()) {
+        if (customPageDatabase.isPresent()) {
             recipe.getCustomPages().stream()
                     .forEach(customReport -> {
                         try {
                             customPageDatabase.get().save(null, project, customReport);
-                        } catch (AlreadyExistsException e) {
+                        }
+                        catch (AlreadyExistsException e) {
                             if (overrideExisting) {
                                 customPageDatabase.get().delete(project, customReport.slug);
                                 customPageDatabase.get().save(null, project, customReport);
-                            } else {
+                            }
+                            else {
                                 throw Throwables.propagate(e);
                             }
                         }
                     });
-        } else
-        if(recipe.getCustomPages().size() > 0) {
+        }
+        else if (recipe.getCustomPages().size() > 0) {
             throw new RakamException("Custom page feature is not supported", BAD_REQUEST);
         }
     }

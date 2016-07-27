@@ -9,12 +9,14 @@ public class WebUser {
     public final int id;
     public final String email;
     public final String name;
+    public final boolean readOnly;
     public final List<Project> projects;
 
-    public WebUser(int id, String email, String name, List<Project> projects) {
+    public WebUser(int id, String email, String name, boolean readOnly, List<Project> projects) {
         this.id = id;
         this.email = email;
         this.name = name;
+        this.readOnly = readOnly;
         this.projects = projects;
     }
 

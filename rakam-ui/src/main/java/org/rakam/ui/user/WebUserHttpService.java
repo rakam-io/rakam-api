@@ -20,16 +20,19 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.CookieParam;
-import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.ProtectEndpoint;
 import org.rakam.ui.RakamUIConfig;
+import org.rakam.ui.UIPermissionParameterProvider;
 import org.rakam.ui.user.WebUser.UserApiKey;
+import org.rakam.ui.user.WebUserService.UserAccess;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
@@ -41,8 +44,14 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.netty.buffer.Unpooled.wrappedBuffer;
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.COOKIE;
+import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 
@@ -65,7 +74,6 @@ public class WebUserHttpService
     }
 
     @JsonRequest
-
     @Path("/register")
     public Response register(@ApiParam("email") String email,
             @ApiParam("name") String name,
@@ -78,35 +86,58 @@ public class WebUserHttpService
     }
 
     @JsonRequest
-
+    @ProtectEndpoint(writeOperation = true)
     @Path("/update/password")
     public SuccessMessage update(@ApiParam("oldPassword") String oldPassword,
             @ApiParam("newPassword") String newPassword,
             @CookieParam("session") String session)
     {
-        service.updateUserPassword(extractUserFromCookie(session, encryptionConfig.getSecretKey()), oldPassword, newPassword);
+        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+
+        Optional<WebUser> webUser = service.getUser(id);
+        if (webUser.get().readOnly) {
+            throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
+        }
+
+        service.updateUserPassword(id, oldPassword, newPassword);
         return SuccessMessage.success();
     }
 
     @JsonRequest
+    @ProtectEndpoint(writeOperation = true)
     @Path("/update/info")
     public SuccessMessage update(@ApiParam("name") String name, @CookieParam("session") String session)
     {
-        service.updateUserInfo(extractUserFromCookie(session, encryptionConfig.getSecretKey()), name);
+        int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+
+        Optional<WebUser> webUser = service.getUser(id);
+        if (webUser.get().readOnly) {
+            throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
+        }
+
+        service.updateUserInfo(id, name);
         return SuccessMessage.success();
     }
 
     @JsonRequest
+    @ProtectEndpoint(writeOperation = true)
     @Path("/create-project")
     public UserApiKey createProject(@ApiParam("name") String name,
             @ApiParam("api_url") String apiUrl,
             @CookieParam("session") String session)
     {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+
+        Optional<WebUser> webUser = service.getUser(user);
+        if (webUser.get().readOnly) {
+            throw new RakamException("User is not allowed to create projects", UNAUTHORIZED);
+        }
+
         return service.createProject(user, apiUrl, name);
     }
 
     @JsonRequest
+    @ProtectEndpoint(writeOperation = true)
     @Path("/register-project")
     public UserApiKey registerProject(@ApiParam("name") String name,
             @ApiParam("api_url") String apiUrl,
@@ -116,52 +147,56 @@ public class WebUserHttpService
             @CookieParam("session") String session)
     {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
+
+        Optional<WebUser> webUser = service.getUser(user);
+        if (webUser.get().readOnly) {
+            throw new RakamException("User is not allowed to register projects", UNAUTHORIZED);
+        }
+
         return service.registerProject(user, apiUrl, name, readKey, writeKey, masterKey);
     }
 
     @JsonRequest
+    @ProtectEndpoint(writeOperation = true)
     @Path("/delete-project")
-    public SuccessMessage deleteProject(@ApiParam("name") String name,
-            @ApiParam("api_url") String apiUrl,
-            @CookieParam("session") String session)
+    public SuccessMessage deleteProject(@Named("user_id") UIPermissionParameterProvider.Project project)
     {
-        int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
-        service.deleteProject(user, apiUrl, name);
+        service.deleteProject(project.userId, project.project);
         return SuccessMessage.success();
     }
 
     @JsonRequest
+    @ProtectEndpoint(writeOperation = true)
     @Path("/save-api-keys")
-    public ApiKeyService.ProjectApiKeys createApiKeys(@HeaderParam("project") int project,
-            @CookieParam("session") String session,
+    public ApiKeyService.ProjectApiKeys createApiKeys(
+            @Named("user_id") UIPermissionParameterProvider.Project project,
             @ApiParam("read_key") String readKey,
             @ApiParam("write_key") String writeKey,
             @ApiParam("master_key") String masterKey)
     {
-        service.saveApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, readKey, writeKey, masterKey);
+        service.saveApiKeys(project.userId, project.project, readKey, writeKey, masterKey);
         return ApiKeyService.ProjectApiKeys.create(masterKey, readKey, writeKey);
     }
 
     @JsonRequest
+    @ProtectEndpoint(writeOperation = true)
     @Path("/revoke-api-keys")
-    public SuccessMessage revokeApiKeys(@HeaderParam("project") int project, @ApiParam("master_key") String key, @CookieParam("session") String session)
+    public SuccessMessage revokeApiKeys(@ApiParam("master_key") String key, @Named("user_id") UIPermissionParameterProvider.Project project)
     {
-        service.revokeApiKeys(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project, key);
+        service.revokeApiKeys(project.userId, project.project, key);
         return SuccessMessage.success();
     }
 
     @JsonRequest
     @ApiOperation(value = "List users who can access to the project", authorizations = @Authorization(value = "master_key"))
     @Path("/user-access")
-    public List<WebUserService.UserAccess> getUserAccess(@CookieParam("session") String session,
-            @HeaderParam("project") int project)
+    public List<UserAccess> getUserAccess(@Named("user_id") UIPermissionParameterProvider.Project project)
     {
-        return service.getUserAccessForProject(extractUserFromCookie(session, encryptionConfig.getSecretKey()), project);
+        return service.getUserAccessForProject(project.userId, project.project);
     }
 
     @JsonRequest
     @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
-
     @Path("/prepare-recover-password")
     public SuccessMessage prepareRecoverPassword(@ApiParam("email") String email)
     {
@@ -171,7 +206,6 @@ public class WebUserHttpService
 
     @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
-
     @Path("/perform-recover-password")
     public SuccessMessage performRecoverPassword(@ApiParam("key") String key,
             @ApiParam("hash") String hash,
@@ -185,24 +219,20 @@ public class WebUserHttpService
 
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
-    public SuccessMessage revokeUserAccess(@CookieParam("session") String session,
-            @HeaderParam("project") int project,
+    @ProtectEndpoint(writeOperation = true)
+    public SuccessMessage revokeUserAccess(@Named("user_id") UIPermissionParameterProvider.Project project,
             @ApiParam("email") String email)
     {
-        Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
-        if (!user.isPresent()) {
-            throw new RakamException(BAD_REQUEST);
-        }
 
-        service.revokeUserAccess(user.get().id, project, email);
+        service.revokeUserAccess(project.userId, project.project, email);
         return SuccessMessage.success();
     }
 
     @JsonRequest
 
     @Path("/give-user-access")
-    public SuccessMessage giveUserAccess(@CookieParam("session") String session,
-            @HeaderParam("project") int project,
+    @ProtectEndpoint(writeOperation = true)
+    public SuccessMessage giveUserAccess(@Named("user_id") UIPermissionParameterProvider.Project project,
             @ApiParam("email") String email,
             @ApiParam(value = "scope_expression", required = false) String scopeExpression,
             @ApiParam(value = "keys") ApiKeyService.ProjectApiKeys keys,
@@ -210,14 +240,10 @@ public class WebUserHttpService
             @ApiParam(value = "write_permission") boolean writePermission,
             @ApiParam(value = "master_permission") boolean masterPermission)
     {
-        Optional<WebUser> user = service.getUser(extractUserFromCookie(session, encryptionConfig.getSecretKey()));
-        if (!user.isPresent()) {
-            throw new RakamException(BAD_REQUEST);
-        }
-
+        Optional<WebUser> user = service.getUser(project.userId);
         user.get().projects.stream().filter(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null));
 
-        service.giveAccessToUser(project, user.get().id, email, keys, scopeExpression,
+        service.giveAccessToUser(project.project, user.get().id, email, keys, scopeExpression,
                 readPermission, writePermission, masterPermission);
         return SuccessMessage.success();
     }
@@ -303,7 +329,7 @@ public class WebUserHttpService
 
     @JsonRequest
     @Path("/login_with_google")
-    public Response<WebUser> login_with_google(@ApiParam("access_token") String accessToken)
+    public Response<WebUser> loginWithGoogle(@ApiParam("access_token") String accessToken)
     {
         GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
         Oauth2 oauth2 = new Oauth2.Builder(new NetHttpTransport(),

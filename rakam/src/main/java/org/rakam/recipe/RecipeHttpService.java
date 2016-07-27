@@ -114,7 +114,7 @@ public class RecipeHttpService extends HttpService {
     )
     @GET
     @Path("/export")
-    public void exportRecipe(@HeaderParam("Accept") ExportType contentType, @Named("project") String project, RakamHttpRequest request) throws JsonProcessingException {
+    public void exportRecipe(@HeaderParam("Accept") String contentType, @Named("project") String project, RakamHttpRequest request) throws JsonProcessingException {
         request.bodyHandler(s -> {
             Recipe export = installer.export(project);
 
@@ -132,7 +132,9 @@ public class RecipeHttpService extends HttpService {
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, buffer);
             response.headers().add(CONTENT_TYPE, exportType.contentType);
-            response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            if(request.headers().contains(ORIGIN)) {
+                response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
+            }
 
             request.response(response).end();
         });

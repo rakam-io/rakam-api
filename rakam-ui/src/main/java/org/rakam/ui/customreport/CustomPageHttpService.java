@@ -31,47 +31,57 @@ import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.ui.RakamUIModule;
+import org.rakam.ui.ProtectEndpoint;
+import org.rakam.ui.UIPermissionParameterProvider;
 import org.rakam.ui.page.CustomPageDatabase;
-import org.rakam.util.SuccessMessage;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_IMPLEMENTED;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
-
 
 @Path("/ui/custom-page")
 @IgnoreApi
-@RakamUIModule.UIService
 @Api(value = "/ui/custom-page", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-public class CustomPageHttpService extends HttpService {
+public class CustomPageHttpService
+        extends HttpService
+{
     private final Optional<CustomPageDatabase> database;
     private final EncryptionConfig encryptionConfig;
+    private final WebUserService webUserService;
 
     @Inject
-    public CustomPageHttpService(Optional<CustomPageDatabase> database, EncryptionConfig encryptionConfig) {
+    public CustomPageHttpService(Optional<CustomPageDatabase> database,
+            WebUserService webUserService,
+            EncryptionConfig encryptionConfig)
+    {
         this.database = database;
+        this.webUserService = webUserService;
         this.encryptionConfig = encryptionConfig;
     }
 
     @Path("/frame")
     @GET
-    public void frame(RakamHttpRequest request) {
+    public void frame(RakamHttpRequest request)
+    {
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
         String data = "<!DOCTYPE html> \n" +
                 "<html>\n" +
@@ -116,51 +126,55 @@ public class CustomPageHttpService extends HttpService {
     @Path("/save")
     @POST
     @JsonRequest
+    @ProtectEndpoint(writeOperation = true)
     @ApiOperation(value = "Save Report", authorizations = @Authorization(value = "read_key"),
             response = SuccessMessage.class, request = CustomPageDatabase.Page.class)
-    public SuccessMessage save(@CookieParam("session") String session, @HeaderParam("project") int project, @BodyParam CustomPageDatabase.Page report) {
-        java.util.Optional<Integer> user = java.util.Optional.ofNullable(session).map(cookie -> extractUserFromCookie(cookie, encryptionConfig.getSecretKey()));
-        if (!user.isPresent()) {
-            throw new RakamException(UNAUTHORIZED);
-        } else {
-            database.get().save(user.get(), project, report);
-            return SuccessMessage.success();
-        }
+    public SuccessMessage save(
+            @Named("user_id") UIPermissionParameterProvider.Project project, @BodyParam CustomPageDatabase.Page report)
+    {
+        database.get().save(project.userId, project.project, report);
+        return SuccessMessage.success();
     }
 
     @Path("/delete")
     @ApiOperation(value = "Delete Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public SuccessMessage delete(@HeaderParam("project") int project,
-                               @ApiParam("name") String name) {
+    @ProtectEndpoint(writeOperation = true)
+    public SuccessMessage delete(@com.google.inject.name.Named("user_id") UIPermissionParameterProvider.Project project,
+            @ApiParam("name") String name)
+    {
         if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
-        database.get().delete(project, name);
+
+        database.get().delete(project.project, name);
         return SuccessMessage.success();
     }
 
     @Path("/check")
     @ApiOperation(value = "Check feature exists", authorizations = @Authorization(value = "read_key"))
     @GET
-    public boolean check() {
+    public boolean check()
+    {
         return !database.isPresent();
     }
 
     @Path("/get")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public Map<String, String> get(@HeaderParam("project") int project,
-                                   @ApiParam("slug") String slug) {
+    public Map<String, String> get(@com.google.inject.name.Named("user_id") UIPermissionParameterProvider.Project project,
+            @ApiParam("slug") String slug)
+    {
         if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
-        return database.get().get(project, slug);
+        return database.get().get(project.project, slug);
     }
 
     @Path("/display/*")
     @GET
-    public void display(RakamHttpRequest request) {
+    public void display(RakamHttpRequest request)
+    {
         if (!database.isPresent()) {
             throw new RakamException(NOT_IMPLEMENTED);
         }
@@ -173,7 +187,8 @@ public class CustomPageHttpService extends HttpService {
                 request.response(NOT_FOUND.reasonPhrase(), NOT_FOUND).end();
             }
             bytes = ByteStreams.toByteArray(file);
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw Throwables.propagate(e);
         }
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
@@ -192,10 +207,11 @@ public class CustomPageHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "Get Report", authorizations = @Authorization(value = "read_key"))
     @JsonRequest
-    public List<CustomPageDatabase.Page> list(@HeaderParam("project") int project) {
+    public List<CustomPageDatabase.Page> list(@Named("user_id") UIPermissionParameterProvider.Project project)
+    {
         if (!database.isPresent()) {
             return null;
         }
-        return database.get().list(project);
+        return database.get().list(project.project);
     }
 }

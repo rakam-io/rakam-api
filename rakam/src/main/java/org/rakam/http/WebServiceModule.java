@@ -123,7 +123,8 @@ public class WebServiceModule extends AbstractModule {
                     }
                 })
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
-                .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"), method -> method.isAnnotationPresent(AllowCookie.class));
+                .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"),
+                        method -> method.isAnnotationPresent(AllowCookie.class));
 
         requestPreProcessorItems.forEach(i -> httpServer.addJsonPreprocessor(i.processor, i.predicate));
 
