@@ -235,19 +235,20 @@ public class UserHttpService
         return service.getUser(project, user);
     }
 
-    public static class MergeRequest {
-        public final  Object id;
-        public final  User.UserContext api;
-        public final  Object anonymousId;
-        public final  long createdAt;
-        public final  long mergedAt;
+    public static class MergeRequest
+    {
+        public final Object id;
+        public final User.UserContext api;
+        public final Object anonymousId;
+        public final long createdAt;
+        public final long mergedAt;
 
         @JsonCreator
         public MergeRequest(@ApiParam("id") Object id,
                 @ApiParam("api") User.UserContext api,
                 @ApiParam("anonymous_id") Object anonymousId,
                 @ApiParam("created_at") long createdAt,
-                @ApiParam("merged_at")long mergedAt)
+                @ApiParam("merged_at") long mergedAt)
         {
             this.id = id;
             this.api = api;
@@ -276,8 +277,8 @@ public class UserHttpService
                 Unpooled.wrappedBuffer(OK_MESSAGE));
         setBrowser(request, response);
 
-        if(anonymousId == null) {
-            if(anonymousIdFallback == null) {
+        if (anonymousId == null) {
+            if (anonymousIdFallback == null) {
                 request.response(response).end();
                 return;
             }
@@ -336,13 +337,12 @@ public class UserHttpService
             }
 
             setBrowser(request, response);
-            if(cookies != null && !cookies.isEmpty()) {
+            if (cookies != null && !cookies.isEmpty()) {
                 response.headers().add(SET_COOKIE, STRICT.encode(cookies));
             }
             request.response(response).end();
         });
     }
-
 
     public List<Cookie> mapEvent(Function<UserPropertyMapper, List<Cookie>> mapperFunction)
     {
@@ -360,7 +360,6 @@ public class UserHttpService
 
         return cookies;
     }
-
 
     @ApiOperation(value = "Set user properties", request = User.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
@@ -408,7 +407,8 @@ public class UserHttpService
             }
             catch (HttpRequestException e) {
                 EventCollectionHttpService.returnError(request, e.getMessage(), e.getStatusCode());
-            } catch (Throwable t) {
+            }
+            catch (Throwable t) {
                 LOGGER.error(t);
                 EventCollectionHttpService.returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
             }

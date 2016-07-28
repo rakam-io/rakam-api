@@ -593,7 +593,7 @@ public class WebUserService {
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, password FROM web_user WHERE email = :email")
+                    .createQuery("SELECT id, name, password, read_only FROM web_user WHERE email = :email")
                     .bind("email", email).first();
             if (data == null) {
                 return Optional.empty();

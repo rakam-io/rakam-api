@@ -57,7 +57,9 @@ import static java.time.ZoneOffset.UTC;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.collection.FieldType.*;
 
-public class PrestoQueryExecution implements QueryExecution {
+public class PrestoQueryExecution
+        implements QueryExecution
+{
     private final static Logger LOGGER = Logger.get(PrestoQueryExecution.class);
     private static final JettyHttpClient HTTP_CLIENT = new JettyHttpClient(
             new HttpClientConfig()
@@ -79,19 +81,22 @@ public class PrestoQueryExecution implements QueryExecution {
     private StatementClient client;
     private final Instant startTime;
 
-    public PrestoQueryExecution(ClientSession session, String query) {
+    public PrestoQueryExecution(ClientSession session, String query)
+    {
         this.startTime = Instant.now();
 
         try {
             client = new StatementClient(HTTP_CLIENT, QUERY_RESULTS_JSON_CODEC, session, query);
-        } catch (RuntimeException e) {
-            LOGGER.warn(e, "Presto server is not active.");
-            throw new RakamException("Presto server is not active.", HttpResponseStatus.BAD_GATEWAY);
+        }
+        catch (RuntimeException e) {
+            LOGGER.warn(e, "Presto server is not active: " + e.getMessage());
+            throw new RakamException("Presto server is not active: " + e.getMessage(), HttpResponseStatus.BAD_GATEWAY);
         }
         QUERY_EXECUTOR.execute(new QueryTracker());
     }
 
-    public static FieldType fromPrestoType(String rawType, Iterator<String> parameter) {
+    public static FieldType fromPrestoType(String rawType, Iterator<String> parameter)
+    {
         switch (rawType) {
             case StandardTypes.BIGINT:
                 return LONG;
@@ -128,9 +133,10 @@ public class PrestoQueryExecution implements QueryExecution {
     }
 
     @Override
-    public QueryStats currentStats() {
+    public QueryStats currentStats()
+    {
 
-        if(client.isFailed()) {
+        if (client.isFailed()) {
             return new QueryStats(QueryStats.State.FAILED);
         }
 
@@ -150,25 +156,30 @@ public class PrestoQueryExecution implements QueryExecution {
     }
 
     @Override
-    public boolean isFinished() {
+    public boolean isFinished()
+    {
         return result.isDone();
     }
 
     @Override
-    public CompletableFuture<QueryResult> getResult() {
+    public CompletableFuture<QueryResult> getResult()
+    {
         return result;
     }
 
-    public String getQuery() {
+    public String getQuery()
+    {
         return client.getQuery();
     }
 
     @Override
-    public void kill() {
+    public void kill()
+    {
         client.close();
     }
 
-    private static HostAndPort getSystemSocksProxy() {
+    private static HostAndPort getSystemSocksProxy()
+    {
         URI uri = URI.create("socket://0.0.0.0:80");
         for (Proxy proxy : ProxySelector.getDefault().select(uri)) {
             if (proxy.type() == Proxy.Type.SOCKS &&
@@ -181,24 +192,30 @@ public class PrestoQueryExecution implements QueryExecution {
     }
 
     static class UserAgentRequestFilter
-            implements HttpRequestFilter {
+            implements HttpRequestFilter
+    {
         private final String userAgent;
 
-        public UserAgentRequestFilter(String userAgent) {
+        public UserAgentRequestFilter(String userAgent)
+        {
             this.userAgent = checkNotNull(userAgent, "userAgent is null");
         }
 
         @Override
-        public Request filterRequest(Request request) {
+        public Request filterRequest(Request request)
+        {
             return fromRequest(request)
                     .addHeader(HttpHeaders.USER_AGENT, userAgent)
                     .build();
         }
     }
 
-    private class QueryTracker implements Runnable {
+    private class QueryTracker
+            implements Runnable
+    {
         @Override
-        public void run() {
+        public void run()
+        {
             try {
                 while (client.isValid() && client.advance()) {
                     transformAndAdd(client.current());
@@ -214,7 +231,8 @@ public class PrestoQueryExecution implements QueryExecution {
                             errorLocation != null ? errorLocation.getColumnNumber() : null);
                     SentryUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
                     result.complete(QueryResult.errorResult(queryError));
-                } else {
+                }
+                else {
                     transformAndAdd(client.finalResults());
 
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
@@ -222,14 +240,16 @@ public class PrestoQueryExecution implements QueryExecution {
 
                     result.complete(new QueryResult(columns, data, stats));
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 QueryError queryError = QueryError.create(e.getMessage());
                 SentryUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
                 result.complete(QueryResult.errorResult(queryError));
             }
         }
 
-        private void transformAndAdd(QueryResults result) {
+        private void transformAndAdd(QueryResults result)
+        {
             if (result.getError() != null || result.getColumns() == null) {
                 return;
             }
@@ -260,21 +280,27 @@ public class PrestoQueryExecution implements QueryExecution {
                         if (type.equals(StandardTypes.TIMESTAMP)) {
                             try {
                                 row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_FORMAT).toInstant(UTC);
-                            } catch (Exception e) {
+                            }
+                            catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP.");
                             }
-                        } else if (type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
+                        }
+                        else if (type.equals(StandardTypes.TIMESTAMP_WITH_TIME_ZONE)) {
                             try {
                                 row[i] = LocalDateTime.parse((CharSequence) value, PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT).toInstant(UTC);
-                            } catch (Exception e) {
+                            }
+                            catch (Exception e) {
                                 LOGGER.error(e, "Error while parsing Presto TIMESTAMP WITH TIMEZONE.");
                             }
-                        } else if (type.equals(StandardTypes.DATE)) {
+                        }
+                        else if (type.equals(StandardTypes.DATE)) {
                             row[i] = LocalDate.parse((CharSequence) value);
-                        } else {
+                        }
+                        else {
                             row[i] = objects.get(i);
                         }
-                    } else {
+                    }
+                    else {
                         row[i] = objects.get(i);
                     }
                 }
