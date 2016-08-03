@@ -1,6 +1,5 @@
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.DefaultTraversalVisitor;
@@ -28,6 +27,7 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 
 import javax.inject.Inject;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -46,7 +46,7 @@ import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 
 public class PrestoMaterializedViewService extends MaterializedViewService {
-    public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
+    public final static String MATERIALIZED_VIEW_PREFIX = "$materialized_";
     public final static SqlParser sqlParser = new SqlParser();
     private final static Logger LOGGER = Logger.get(PrestoMaterializedViewService.class);
 

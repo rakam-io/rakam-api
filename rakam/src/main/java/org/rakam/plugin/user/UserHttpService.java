@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
@@ -506,7 +505,7 @@ public class UserHttpService
     public void precalculateUsers(RakamHttpRequest request)
     {
         queryService.handleServerSentQueryExecution(request, PreCalculateQuery.class,
-                service::precalculate, MASTER_KEY, false);
+                service::preCalculate, MASTER_KEY, false);
     }
 
     @JsonRequest

@@ -13,7 +13,6 @@
  */
 package org.rakam.presto.analysis;
 
-import com.facebook.presto.sql.RakamExpressionFormatter;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
@@ -23,12 +22,14 @@ import org.rakam.analysis.CalculatedUserSet;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.analysis.MaterializedViewService;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -43,6 +44,7 @@ import java.util.stream.IntStream;
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static org.rakam.plugin.user.AbstractUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PrestoFunnelQueryExecutor
@@ -52,14 +54,20 @@ public class PrestoFunnelQueryExecutor
     private static final String CONNECTOR_FIELD = "_user";
     private final MaterializedViewService materializedViewService;
     private final ContinuousQueryService continuousQueryService;
+    private final boolean userMappingEnabled;
 
     @Inject
-    public PrestoFunnelQueryExecutor(QueryExecutorService executorService, QueryExecutor executor, MaterializedViewService materializedViewService, ContinuousQueryService continuousQueryService)
+    public PrestoFunnelQueryExecutor(QueryExecutorService executorService,
+            QueryExecutor executor,
+            MaterializedViewService materializedViewService,
+            ContinuousQueryService continuousQueryService,
+            UserPluginConfig userPluginConfig)
     {
-        super(executor, '"');
+        super(executor);
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
         this.executorService = executorService;
+        this.userMappingEnabled = userPluginConfig.getEnableUserMapping();
     }
 
     @Override
@@ -84,7 +92,7 @@ public class PrestoFunnelQueryExecutor
                 .mapToObj(i -> convertFunnel(calculatedUserSets, project, CONNECTOR_FIELD, i, window, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(", "));
 
-        if(calculatedUserSets.size() == steps.size()){
+        if (calculatedUserSets.size() == steps.size()) {
             return super.query(project, steps, dimension, startDate, endDate, window);
         }
 
@@ -249,5 +257,25 @@ public class PrestoFunnelQueryExecutor
                 stepIdx, dimensionColumn.map(v -> format("step%d.dimension,", stepIdx)).orElse(""),
                 stepIdx, connectorField, schema, table, stepIdx,
                 joinPart.orElse(""), stepIdx, timePredicate);
+    }
+
+    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    {
+        Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
+                name -> name.getParts().stream().map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
+                name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
+                        .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
+
+        return format("SELECT %s %s, %d as step, %s._time from %s %s %s %s",
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> "step" + idx + "." + v + ",").orElse(""),
+                userMappingEnabled ? String.format("coalesce(mapping._user, %s.%s) as %s", "step" + idx, connectorField, connectorField) : ("step" + idx + "." + connectorField),
+                idx + 1,
+                "step" + idx,
+                project + "." + checkCollection(funnelStep.getCollection()),
+                "step" + idx,
+                userMappingEnabled ? String.format("join \"%s\".\"%s\" mapping on (mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s._user)", project, ANONYMOUS_ID_MAPPING,
+                        startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
+                        "step" + idx) : "",
+                filterExp.map(v -> "where " + v).orElse(""));
     }
 }

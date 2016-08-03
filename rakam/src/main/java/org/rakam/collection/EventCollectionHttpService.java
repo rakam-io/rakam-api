@@ -151,7 +151,8 @@ public class EventCollectionHttpService
     {
         List<Cookie> cookies = null;
         for (EventMapper mapper : eventMappers) {
-            // TODO: bound event mappers to Netty Channels and runStatementSafe them in separate thread
+            // TODO: bound event mappers to Netty Channels and
+            // runStatementSafe them in separate thread
             List<Cookie> mapperCookies = mapperFunction.apply(mapper);
             if (mapperCookies != null) {
                 if (cookies == null) {

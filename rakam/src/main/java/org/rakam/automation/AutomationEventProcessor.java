@@ -2,6 +2,7 @@ package org.rakam.automation;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Provider;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
@@ -12,6 +13,7 @@ import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.util.CryptUtil;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
@@ -21,12 +23,14 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public class AutomationEventProcessor implements EventMapper {
-
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";
 
-    private final UserAutomationService service;
-    private final UserStorage userStorage;
+    private final Provider<UserStorage> userStorageProvider;
+    private final Provider<UserAutomationService> serviceProvider;
+
+    private UserAutomationService service;
+    private UserStorage userStorage;
     private final EncryptionConfig encryptionConfig;
 
     private static final List<Cookie> clearData;
@@ -37,12 +41,21 @@ public class AutomationEventProcessor implements EventMapper {
         clearData = ImmutableList.of(defaultCookie);
     }
 
-
     @Inject
-    public AutomationEventProcessor(UserAutomationService service, UserStorage userStorage, EncryptionConfig encryptionConfig) {
-        this.service = service;
-        this.userStorage = userStorage;
+    public AutomationEventProcessor(
+            Provider<UserAutomationService> service,
+            Provider<UserStorage> storage,
+            EncryptionConfig encryptionConfig) {
         this.encryptionConfig = encryptionConfig;
+        this.userStorageProvider = storage;
+        this.serviceProvider = service;
+    }
+
+    @Override
+    public void init()
+    {
+        this.userStorage = userStorageProvider.get();
+        this.service = serviceProvider.get();
     }
 
     @Override

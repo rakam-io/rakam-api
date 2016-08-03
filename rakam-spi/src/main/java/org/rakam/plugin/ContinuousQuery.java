@@ -5,6 +5,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.server.http.annotations.ApiParam;
@@ -49,6 +50,30 @@ public class ContinuousQuery
             queryStatement = (Query) SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
         }
         return queryStatement;
+    }
+
+    @JsonProperty("table_name")
+    public String getTableName()
+    {
+        return tableName;
+    }
+
+    @JsonProperty("partition_keys")
+    public List<String> getPartitionKeys()
+    {
+        return partitionKeys;
+    }
+
+    @JsonProperty("options")
+    public Map<String, Object> getOptions()
+    {
+        return options;
+    }
+
+    @JsonProperty("name")
+    public String getName()
+    {
+        return name;
     }
 
     @Override

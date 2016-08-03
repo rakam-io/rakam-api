@@ -83,7 +83,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
                 return prestoConfig.getStreamingConnector() + ".\"" + project + "\".\"" + node.getSuffix() + '"';
             } else if (prefix.equals("materialized")) {
                 return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
-            } else if (prefix.equals("user")) {
+            } else if (prefix.equals("users")) {
                 return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
             } else if (!prefix.equals("collection")) {
                 throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
@@ -117,7 +117,7 @@ public class PrestoQueryExecutor implements QueryExecutor {
     }
 
     private String getTableReference(String project, QualifiedName node) {
-        QualifiedName prefix = new QualifiedName(prestoConfig.getColdStorageConnector());
+        QualifiedName prefix = QualifiedName.of(prestoConfig.getColdStorageConnector());
         String hotStorageConnector = prestoConfig.getHotStorageConnector();
         String table = '"' + project + "\".\"" + node.getSuffix() + '\"';
 

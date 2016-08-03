@@ -33,6 +33,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 
 import javax.inject.Named;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
@@ -159,6 +160,7 @@ public class WebUserHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/delete-project")
+    @DELETE
     public SuccessMessage deleteProject(@Named("user_id") UIPermissionParameterProvider.Project project)
     {
         service.deleteProject(project.userId, project.project);

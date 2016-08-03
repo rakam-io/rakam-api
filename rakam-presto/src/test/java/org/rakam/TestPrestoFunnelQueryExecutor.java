@@ -8,6 +8,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
@@ -53,7 +54,9 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
         QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore,
                 materializedViewService, Clock.system(ZoneId.of("UTC")), '"');
 
-        funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService, prestoQueryExecutor, materializedViewService, continuousQueryService);
+        funnelQueryExecutor = new PrestoFunnelQueryExecutor(queryExecutorService,
+                prestoQueryExecutor, materializedViewService,
+                continuousQueryService, new UserPluginConfig());
         testingPrestoEventStore = new TestingPrestoEventStore(prestoQueryExecutor, prestoConfig);
         Thread.sleep(1000);
         super.setup();

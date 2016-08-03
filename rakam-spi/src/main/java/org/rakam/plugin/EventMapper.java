@@ -33,6 +33,8 @@ public interface EventMapper {
     default void addFieldDependency(FieldDependencyBuilder builder) {
     }
 
+    default void init() {}
+
     interface RequestParams {
         RequestParams EMPTY_PARAMS = new RequestParams() {
             @Override

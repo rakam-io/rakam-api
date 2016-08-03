@@ -144,8 +144,14 @@ public abstract class AbstractEventExplorer
     }
 
     @Override
-    public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
-            Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate)
+    public QueryExecution analyze(
+            String project,
+            List<String> collections,
+            Measure measure, Reference grouping,
+            Reference segmentValue2,
+            String filterExpression,
+            LocalDate startDate,
+            LocalDate endDate)
     {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 

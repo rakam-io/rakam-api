@@ -103,7 +103,7 @@ public class ClickHouseUserService extends AbstractUserService
     }
 
     @Override
-    public QueryExecution precalculate(String project, PreCalculateQuery query)
+    public QueryExecution preCalculate(String project, PreCalculateQuery query)
     {
         return null;
     }

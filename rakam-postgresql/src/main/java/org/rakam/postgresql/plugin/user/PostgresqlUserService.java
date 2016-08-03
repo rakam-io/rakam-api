@@ -106,7 +106,7 @@ public class PostgresqlUserService
     }
 
     @Override
-    public QueryExecution precalculate(String project, PreCalculateQuery query)
+    public QueryExecution preCalculate(String project, PreCalculateQuery query)
     {
         // no-op
         return QueryExecution.completedQueryExecution(null, QueryResult.empty());

@@ -32,7 +32,7 @@ public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExec
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         metastore = new PostgresqlMetastore(dataSource, new EventBus(), build);
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, queryMetadataStore);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
         eventStore = new PostgresqlEventStore(dataSource, build);
 
         retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(queryExecutor, metastore);

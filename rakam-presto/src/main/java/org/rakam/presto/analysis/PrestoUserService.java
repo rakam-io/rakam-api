@@ -111,7 +111,7 @@ public class PrestoUserService extends AbstractUserService {
     }
 
     @Override
-    public QueryExecution precalculate(String project, PreCalculateQuery query) {
+    public QueryExecution preCalculate(String project, PreCalculateQuery query) {
         String tableName = "_users_daily" +
                 Optional.ofNullable(query.collection).map(value -> "_" + value).orElse("") +
                 Optional.ofNullable(query.dimension).map(value -> "_by_" + value).orElse("");

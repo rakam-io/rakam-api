@@ -11,7 +11,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>54</version>
+        <version>55</version>
     </parent>
 
     <name>rakam-root</name>
@@ -72,12 +72,12 @@
         <air.check.skip-extended>true</air.check.skip-extended>
         <air.check.skip-license>true</air.check.skip-license>
         <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
-        <dep.slice.version>0.19</dep.slice.version>
+        <dep.slice.version>0.22</dep.slice.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
-        <air.version>0.127</air.version>
-        <presto.version>0.146</presto.version>
+        <air.version>0.131</air.version>
+        <presto.version>0.151</presto.version>
         <java.version>1.8</java.version>
         <jackson.version>2.4.4</jackson.version>
         <aws.library>1.10.66</aws.library>
@@ -338,6 +338,12 @@
             </dependency>
 
             <dependency>
+                <groupId>org.glassfish.jersey.core</groupId>
+                <artifactId>jersey-common</artifactId>
+                <version>2.23.1</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.getsentry.raven</groupId>
                 <artifactId>raven</artifactId>
                 <version>7.2.2</version>
@@ -555,8 +561,16 @@
                 <scope>test</scope>
                 <exclusions>
                     <exclusion>
+                        <groupId>org.eclipse.jetty</groupId>
+                        <artifactId>jetty-server</artifactId>
+                    </exclusion>
+                    <exclusion>
                         <groupId>com.amazonaws</groupId>
                         <artifactId>aws-java-sdk-core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.eclipse.jetty.orbit</groupId>
+                        <artifactId>javax.servlet</artifactId>
                     </exclusion>
                     <exclusion>
                         <groupId>org.apache.commons</groupId>

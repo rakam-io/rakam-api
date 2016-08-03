@@ -47,7 +47,7 @@ public class UIRecipeHandler
         if (reportMetadata.isPresent()) {
             reports = reportMetadata.get()
                     .getReports(null, project).stream()
-                    .map(r -> new Report(r.slug, r.name, r.category, r.query, r.options, r.shared))
+                    .map(r -> new Report(r.slug, r.category, r.name, r.query, r.options, r.shared))
                     .collect(Collectors.toList());
         }
         else {
@@ -77,8 +77,8 @@ public class UIRecipeHandler
 
         List<UIRecipe.DashboardBuilder> dashboards;
         if (dashboardService.isPresent()) {
-            dashboards = dashboardService.get().list(new Project(userId, project)).stream()
-                    .map(a -> new UIRecipe.DashboardBuilder(a.name, dashboardService.get().get(new Project(userId, project), a.name)))
+            dashboards = dashboardService.get().list(new Project(project, userId)).stream()
+                    .map(a -> new UIRecipe.DashboardBuilder(a.name, dashboardService.get().get(new Project(project, userId), a.name)))
                     .collect(Collectors.toList());
         }
         else {
@@ -110,7 +110,7 @@ public class UIRecipeHandler
                     }
                 });
 
-        Project p = new Project(userId, project);
+        Project p = new Project(project, userId);
         recipe.getDashboards().stream()
                 .forEach(report -> {
                     int dashboard;

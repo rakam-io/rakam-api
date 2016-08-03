@@ -9,6 +9,8 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.user.AbstractUserService;
+import org.rakam.postgresql.plugin.user.PostgresqlUserService;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.util.QueryFormatter;
@@ -25,25 +27,31 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class PostgresqlQueryExecutor implements QueryExecutor {
+public class PostgresqlQueryExecutor
+        implements QueryExecutor
+{
     private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
-    public final static String MATERIALIZED_VIEW_PREFIX = "_materialized_";
+    public final static String MATERIALIZED_VIEW_PREFIX = "$materialized_";
 
     private final JDBCPoolDataSource connectionPool;
     protected static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
     private final QueryMetadataStore queryMetadataStore;
     private final Metastore metastore;
+    private final boolean userServiceIsPostgresql;
 
     @Inject
-    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, Metastore metastore, QueryMetadataStore queryMetadataStore) {
+    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, Metastore metastore, @Named("user.storage.postgresql") boolean userServiceIsPostgresql, QueryMetadataStore queryMetadataStore)
+    {
         this.connectionPool = connectionPool;
         this.queryMetadataStore = queryMetadataStore;
         this.metastore = metastore;
+        this.userServiceIsPostgresql = userServiceIsPostgresql;
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.createStatement().execute("CREATE OR REPLACE FUNCTION to_unixtime(timestamp) RETURNS double precision" +
@@ -51,23 +59,27 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     "    LANGUAGE SQL" +
                     "    IMMUTABLE" +
                     "    RETURNS NULL ON NULL INPUT");
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             LOGGER.error(e, "Error while creating required Postgresql procedures.");
         }
     }
 
     @Override
-    public QueryExecution executeRawQuery(String query) {
+    public QueryExecution executeRawQuery(String query)
+    {
         return new PostgresqlQueryExecution(connectionPool, query, false);
     }
 
     @Override
-    public QueryExecution executeRawStatement(String query) {
+    public QueryExecution executeRawStatement(String query)
+    {
         return new PostgresqlQueryExecution(connectionPool, query, true);
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName name) {
+    public String formatTableReference(String project, QualifiedName name)
+    {
         if (name.getPrefix().isPresent()) {
             switch (name.getPrefix().get().toString()) {
                 case "collection":
@@ -87,6 +99,12 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                     throw new RakamException("Schema does not exist: " + name.getPrefix().get().toString(), BAD_REQUEST);
             }
         }
+        else if (name.getSuffix().equals("_users")) {
+            if (userServiceIsPostgresql) {
+                return project + "._users";
+            }
+            throw new RakamException("User implementation is not supported", EXPECTATION_FAILED);
+        }
 
         if (name.getSuffix().equals("_all") && !name.getPrefix().isPresent()) {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
@@ -103,16 +121,19 @@ public class PostgresqlQueryExecutor implements QueryExecutor {
                                 sharedColumns.isEmpty() ? "" : (", " + sharedColumns),
                                 project + "." + checkCollection(collection)))
                         .collect(Collectors.joining(" union all \n")) + ") _all";
-            } else {
+            }
+            else {
                 return "(select cast(null as text) as collection, cast(null as text) as _user, cast(null as timestamp) as _time limit 0) _all";
             }
-
-        } else {
+        }
+        else {
             return project + "." + checkCollection(name.getSuffix());
         }
     }
 
-    public Connection getConnection() throws SQLException {
+    public Connection getConnection()
+            throws SQLException
+    {
         return connectionPool.getConnection();
     }
 }

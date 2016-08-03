@@ -21,6 +21,7 @@ import javax.inject.Inject;
 import java.lang.reflect.Method;
 import java.util.Optional;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 
@@ -63,7 +64,17 @@ public class UIPermissionParameterProvider
             boolean readOnly = !method.isAnnotationPresent(ProtectEndpoint.class) || !method.getAnnotation(ProtectEndpoint.class).writeOperation();
 
             return (objectNode, request) -> {
-                int project = Integer.parseInt(request.headers().get("project"));
+                String projectString = request.headers().get("project");
+                if(projectString == null) {
+                    throw new RakamException("Project header is null", BAD_REQUEST);
+                }
+                int project;
+                try {
+                    project = Integer.parseInt(projectString);
+                }
+                catch (NumberFormatException e) {
+                    throw new RakamException("Project header must be numberic", BAD_REQUEST);
+                }
                 Optional<Cookie> session = request.cookies().stream().filter(e -> e.name().equals("session")).findAny();
                 int userId = WebUserHttpService.extractUserFromCookie(session.orElseThrow(() -> new RakamException(UNAUTHORIZED)).value(),
                         encryptionConfig.getSecretKey());

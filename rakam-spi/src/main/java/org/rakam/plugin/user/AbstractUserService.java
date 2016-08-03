@@ -12,6 +12,7 @@ import org.rakam.collection.Event;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
@@ -28,6 +29,7 @@ import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.STRING;
 
 public abstract class AbstractUserService {
+    public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
     protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
             new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
             new Schema.Field("_user", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
@@ -106,10 +108,10 @@ public abstract class AbstractUserService {
         properties.put(2, (int) Math.floorDiv(createdAt.getEpochSecond(), 86400));
         properties.put(3, (int) Math.floorDiv(mergedAt.getEpochSecond(), 86400));
 
-        eventStore.store(new Event(project, "_anonymous_id_mapping", null, null, properties));
+        eventStore.store(new Event(project, ANONYMOUS_ID_MAPPING, null, null, properties));
     }
 
-    public abstract QueryExecution precalculate(String project, PreCalculateQuery query);
+    public abstract QueryExecution preCalculate(String project, PreCalculateQuery query);
 
     public static class CollectionEvent {
         public final String collection;

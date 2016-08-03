@@ -164,6 +164,10 @@ public class JsonEventDeserializer
                         .add(new SchemaField("_user", userType))
                         .build();
 
+                if (collection.startsWith("$")) {
+                    throw new RakamException("Collection names cannot start with $.", BAD_REQUEST);
+                }
+
                 rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, fields);
             }
 

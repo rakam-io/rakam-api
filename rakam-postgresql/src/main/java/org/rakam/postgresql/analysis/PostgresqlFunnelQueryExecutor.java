@@ -13,15 +13,23 @@
  */
 package org.rakam.postgresql.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.base.Throwables;
 import org.rakam.analysis.AbstractFunnelQueryExecutor;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
+import org.rakam.util.ValidationUtil;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
+import static java.lang.String.format;
 
 public class PostgresqlFunnelQueryExecutor
         extends AbstractFunnelQueryExecutor
@@ -31,7 +39,7 @@ public class PostgresqlFunnelQueryExecutor
     @Inject
     public PostgresqlFunnelQueryExecutor(PostgresqlQueryExecutor executor)
     {
-        super(executor, '"');
+        super(executor);
         this.executor = executor;
     }
 
@@ -64,6 +72,20 @@ public class PostgresqlFunnelQueryExecutor
                 "select %s array_agg(step order by _time) as steps from (%s) t WHERE _time between date '%s' and date '%s'\n" +
                 "group by %s %s\n" +
                 ") t group by 1 %s order by 1";
+    }
+
+    public String convertFunnel(String project, String CONNECTOR_FIELD, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    {
+        String table = project + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
+        Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
+                name -> name.getParts().stream().map(e-> formatIdentifier(e, '"')).collect(Collectors.joining(".")),
+                name -> formatIdentifier("step" + idx, '"') + "." + name.getParts().stream()
+                        .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
+
+        return format("SELECT %s %s, %d as step, _time from %s %s %s",
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), CONNECTOR_FIELD, idx + 1, table,
+                "step" + idx,
+                filterExp.map(v -> "where " + v).orElse(""));
     }
 }
 

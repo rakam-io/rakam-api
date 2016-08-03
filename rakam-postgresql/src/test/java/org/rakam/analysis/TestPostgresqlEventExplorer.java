@@ -16,7 +16,9 @@ import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
 
-public class TestPostgresqlEventExplorer extends TestEventExplorer {
+public class TestPostgresqlEventExplorer
+        extends TestEventExplorer
+{
 
     private TestingEnvironment testingPostgresqlServer;
     private PostgresqlMetastore metastore;
@@ -25,7 +27,9 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
 
     @Override
     @BeforeSuite
-    public void setup() throws Exception {
+    public void setup()
+            throws Exception
+    {
         testingPostgresqlServer = new TestingEnvironment();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
@@ -35,10 +39,10 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
         EventBus eventBus = new EventBus();
 
         metastore = new PostgresqlMetastore(dataSource, eventBus, build);
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, queryMetadataStore);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
 
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,
-                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore),  Clock.systemUTC(), '"');
+                new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');
         PostgresqlPseudoContinuousQueryService continuousQueryService = new PostgresqlPseudoContinuousQueryService(queryMetadataStore, executorService, queryExecutor);
 
         eventStore = new PostgresqlEventStore(dataSource, build);
@@ -51,17 +55,20 @@ public class TestPostgresqlEventExplorer extends TestEventExplorer {
     }
 
     @Override
-    public EventStore getEventStore() {
+    public EventStore getEventStore()
+    {
         return eventStore;
     }
 
     @Override
-    public Metastore getMetastore() {
+    public Metastore getMetastore()
+    {
         return metastore;
     }
 
     @Override
-    public EventExplorer getEventExplorer() {
+    public EventExplorer getEventExplorer()
+    {
         return eventExplorer;
     }
 }

@@ -38,6 +38,9 @@ public class PostgresqlUserModule extends RakamModule {
         binder.bind(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(UserStorage.class).to(AbstractPostgresqlUserStorage.class)
                 .in(Scopes.SINGLETON);
+
+        binder.bind(boolean.class).annotatedWith(Names.named("user.storage.postgresql"))
+                .toInstance("postgresql".equals(getConfig("plugin.user.storage")));
     }
 
     @Override

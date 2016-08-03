@@ -43,7 +43,7 @@ public class TestPostgresqlUserStorage
         EventBus eventBus = new EventBus();
         metastore = new PostgresqlMetastore(dataSource, eventBus, build);
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, queryMetadataStore);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
 
         PostgresqlMaterializedViewService materializedViewService = new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore);
 

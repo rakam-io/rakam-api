@@ -10,6 +10,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.JDBCConfig;
 import org.rakam.event.TestingEnvironment;
 import org.rakam.plugin.EventStore;
+import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
@@ -32,10 +33,8 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
     public void setup() throws Exception {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
-        JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 
-        JDBCPoolDataSource metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
         metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
                 new EventBus(), new FieldDependencyBuilder().build(), prestoConfig);
         metastore.setup();
@@ -47,7 +46,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
 
         QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
-        retentionQueryExecutor = new PrestoRetentionQueryExecutor(queryExecutorService, metastore, materializedViewService, continuousQueryService);
+        retentionQueryExecutor = new PrestoRetentionQueryExecutor(queryExecutorService, metastore, materializedViewService, new UserPluginConfig(), continuousQueryService);
         testingPrestoEventStore = new TestingPrestoEventStore(queryExecutor, prestoConfig);
 
         // TODO: Presto throws "No node available" error, find a way to avoid this ugly hack.

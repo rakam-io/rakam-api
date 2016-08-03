@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Stage;
 import com.google.inject.spi.Message;
@@ -24,6 +25,7 @@ import io.airlift.configuration.WarningsMonitor;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.airlift.log.LoggingConfiguration;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.util.ConditionalModule;
 
@@ -175,7 +177,7 @@ public class Bootstrap
         });
 
         moduleList.add(binder -> {
-            binder.disableCircularProxies();
+//            binder.disableCircularProxies();
             if(requireExplicitBindings) {
                 binder.requireExplicitBindings();
             }
@@ -211,6 +213,9 @@ public class Bootstrap
         if (lifeCycleManager.size() > 0) {
             lifeCycleManager.start();
         }
+
+        Set<EventMapper> eventMappers = injector.getInstance(new Key<Set<EventMapper>>() {});
+        eventMappers.forEach(EventMapper::init);
 
         return injector;
     }

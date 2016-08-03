@@ -278,7 +278,7 @@
                     <executions>
                         <execution>
                             <id>download-dynamodb</id>
-                            <phase>generate-test-resources</phase>
+                            <phase>test</phase>
                             <goals>
                                 <goal>wget</goal>
                             </goals>

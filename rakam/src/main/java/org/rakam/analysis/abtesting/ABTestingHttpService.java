@@ -50,7 +50,7 @@ public class ABTestingHttpService extends HttpService {
         return SuccessMessage.success();
     }
 
-    @Path("/list")
+    @Path("/data")
     @GET
     @IgnoreApi
     public void data(RakamHttpRequest request) {

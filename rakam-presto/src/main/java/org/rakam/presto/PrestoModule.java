@@ -27,6 +27,7 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.user.AbstractUserService;
@@ -55,6 +56,7 @@ import javax.inject.Inject;
 import java.util.List;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static org.rakam.plugin.user.AbstractUserService.ANONYMOUS_ID_MAPPING;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "presto")
@@ -148,8 +150,8 @@ public class PrestoModule extends RakamModule {
 
         @Subscribe
         public void onCreateProject(ProjectCreatedEvent event) {
-            executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, created_at DATE, merged_at DATE)",
-                    executor.formatTableReference(event.project, QualifiedName.of("_anonymous_id_mapping"))));
+            executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, created_at TIMESTAMP, merged_at TIMESTAMP)",
+                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING))));
         }
     }
 }

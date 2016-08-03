@@ -17,6 +17,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -201,6 +203,10 @@ public class PostgresqlMetastore
         List<SchemaField> currentFields = new ArrayList<>();
         String query;
         Runnable task;
+
+        if (collection.equals("_users")) {
+            throw new RakamException("_users is reserved and cannot be used as collection name", BAD_REQUEST);
+        }
 
         try (Connection connection = connectionPool.getConnection()) {
             connection.setAutoCommit(false);

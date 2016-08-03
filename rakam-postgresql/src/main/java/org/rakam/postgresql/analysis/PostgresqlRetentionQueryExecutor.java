@@ -62,7 +62,6 @@ public class PostgresqlRetentionQueryExecutor
     @Inject
     public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor, Metastore metastore)
     {
-        super('"');
         this.executor = executor;
         this.metastore = metastore;
     }

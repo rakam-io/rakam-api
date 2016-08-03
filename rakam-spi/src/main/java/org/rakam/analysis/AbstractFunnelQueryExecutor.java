@@ -13,7 +13,6 @@
  */
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
@@ -33,7 +32,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.collection.FieldType.LONG;
@@ -43,15 +41,15 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
 {
     private static final String CONNECTOR_FIELD = "_user";
     private final QueryExecutor executor;
-    private char escape;
 
-    public AbstractFunnelQueryExecutor(QueryExecutor executor, char escape)
+    public AbstractFunnelQueryExecutor(QueryExecutor executor)
     {
         this.executor = executor;
-        this.escape = escape;
     }
 
     public abstract String getTemplate();
+
+    public abstract String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate);
 
     @Override
     public QueryExecution query(String project,
@@ -63,7 +61,7 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
         }
         String ctes = IntStream.range(0, steps.size())
-                .mapToObj(i -> convertFunnel(project, CONNECTOR_FIELD, i, steps.get(i), dimension))
+                .mapToObj(i -> convertFunnel(project, CONNECTOR_FIELD, i, steps.get(i), dimension, startDate, endDate))
                 .collect(Collectors.joining(" UNION ALL "));
 
         String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
@@ -129,19 +127,5 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
                     }
                     return new QueryResult(metadata, newResult, result.getProperties());
                 });
-    }
-
-    private String convertFunnel(String project, String CONNECTOR_FIELD, int idx, FunnelStep funnelStep, Optional<String> dimension)
-    {
-        String table = project + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
-        Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
-                name -> name.getParts().stream().map(e-> formatIdentifier(e, escape)).collect(Collectors.joining(".")),
-                name -> formatIdentifier("step" + idx, escape) + "." + name.getParts().stream()
-                        .map(e -> formatIdentifier(e, escape)).collect(Collectors.joining(".")), escape));
-
-        return format("SELECT %s %s, %d as step, _time from %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), CONNECTOR_FIELD, idx + 1, table,
-                "step" + idx,
-                filterExp.map(v -> "where " + v).orElse(""));
     }
 }

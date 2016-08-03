@@ -2,45 +2,52 @@ package org.rakam.plugin.user;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.ConfigBinder;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.swagger.models.Tag;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.InternalConfig;
-import org.rakam.analysis.metadata.Metastore;
-import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.collection.Event;
 import org.rakam.collection.FieldType;
 import org.rakam.config.MetadataConfig;
+import org.rakam.plugin.ContinuousQuery;
+import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
 import org.rakam.plugin.user.mailbox.UserMailboxHttpService;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.report.EmailClientConfig;
+import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
-import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.ConditionalModule;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
+import java.net.InetAddress;
+import java.util.List;
 import java.util.Map;
 
-import static io.airlift.configuration.ConfigurationModule.bindConfig;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "plugin.user.enabled", value = "true")
 public class UserModule
         extends RakamModule
 {
-
     private Map<String, Class<? extends UserActionService>> actionList = ImmutableMap.<String, Class<? extends UserActionService>>builder()
             .put("email", UserEmailActionService.class)
             .build();
@@ -91,6 +98,14 @@ public class UserModule
             tagMultibinder.addBinding()
                     .toInstance(new Tag().name("user-mailbox").description("")
                             .externalDocs(MetadataConfig.centralDocs));
+        }
+
+        if (!userPluginConfig.getEnableUserMapping()) {
+            Multibinder<UserPropertyMapper> userPropertyMappers = Multibinder.newSetBinder(binder, UserPropertyMapper.class);
+            Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
+
+            eventMappers.addBinding().to(UserIdCheckEventMapper.class).in(Scopes.SINGLETON);
+            userPropertyMappers.addBinding().to(UserIdCheckEventMapper.class).in(Scopes.SINGLETON);
         }
     }
 
@@ -168,34 +183,54 @@ public class UserModule
 
         private void createInternal(String project, String collection)
         {
-            try {
-                if (collection != null) {
-                    try {
-                        continuousQueryService.get(project, "_users_daily_" + collection);
-                    }
-                    catch (RakamException e) {
-                        try {
-                            service.precalculate(project, new AbstractUserService.PreCalculateQuery(collection, null));
-                        }
-                        catch (RakamException e1) {
-                        }
-                    }
-                }
-
+            if (collection != null) {
                 try {
-                    continuousQueryService.get(project, "_users_daily");
+                    continuousQueryService.get(project, "_users_daily_" + collection);
                 }
                 catch (RakamException e) {
                     try {
-                        service.precalculate(project, new AbstractUserService.PreCalculateQuery(null, null));
+                        service.preCalculate(project, new AbstractUserService.PreCalculateQuery(collection, null));
                     }
                     catch (RakamException e1) {
                     }
                 }
             }
-            catch (Exception e) {
-                e.printStackTrace();
+
+            try {
+                continuousQueryService.get(project, "_users_daily");
             }
+            catch (RakamException e) {
+                try {
+                    service.preCalculate(project, new AbstractUserService.PreCalculateQuery(null, null));
+                }
+                catch (RakamException e1) {
+                }
+            }
+        }
+    }
+
+    public static class UserIdCheckEventMapper
+            implements EventMapper, UserPropertyMapper
+    {
+
+        @Override
+        public List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
+        {
+            if (event.properties().get("_user") == null) {
+                throw new RakamException("_user cannot be null", BAD_REQUEST);
+            }
+
+            return null;
+        }
+
+        @Override
+        public List<Cookie> map(String project, BatchUserOperation user, RequestParams requestParams, InetAddress sourceAddress)
+        {
+            if (user.id == null) {
+                throw new RakamException("_user cannot be null", BAD_REQUEST);
+            }
+
+            return null;
         }
     }
 }

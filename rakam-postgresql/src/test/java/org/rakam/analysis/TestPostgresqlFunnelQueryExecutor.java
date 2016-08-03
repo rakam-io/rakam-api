@@ -29,7 +29,7 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         metastore = new PostgresqlMetastore(dataSource, new EventBus(), build);
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, queryMetadataStore);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
         eventStore = new PostgresqlEventStore(dataSource, build);
         funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(queryExecutor);
         funnelQueryExecutor.setup();

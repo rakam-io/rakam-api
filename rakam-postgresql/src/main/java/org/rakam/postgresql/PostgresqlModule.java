@@ -10,6 +10,7 @@ import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
+import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.ApiKeyService;

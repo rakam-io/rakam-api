@@ -23,6 +23,8 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.isEmpty;
+import static com.google.common.collect.Iterables.transform;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 public class QualifiedName
@@ -33,20 +35,28 @@ public class QualifiedName
     public static QualifiedName of(String first, String... rest)
     {
         requireNonNull(first, "first is null");
-        return new QualifiedName(ImmutableList.copyOf(Lists.asList(first, rest)));
+        return of(ImmutableList.copyOf(Lists.asList(first, rest)));
     }
 
-    public QualifiedName(String name)
+    public static QualifiedName of(String name)
     {
-        this(ImmutableList.of(name));
+        requireNonNull(name, "name is null");
+        return of(ImmutableList.of(name));
     }
 
-    public QualifiedName(Iterable<String> parts)
+    public static QualifiedName of(Iterable<String> originalParts)
     {
-        requireNonNull(parts, "parts is null");
-        checkArgument(!isEmpty(parts), "parts is empty");
-        this.parts = ImmutableList.copyOf(parts);
-        this.originalParts = ImmutableList.copyOf(parts);
+        requireNonNull(originalParts, "originalParts is null");
+        checkArgument(!isEmpty(originalParts), "originalParts is empty");
+
+        return new QualifiedName(ImmutableList.copyOf(originalParts),
+                ImmutableList.copyOf(originalParts));
+    }
+
+    private QualifiedName(List<String> originalParts, List<String> parts)
+    {
+        this.originalParts = originalParts;
+        this.parts = parts;
     }
 
     public List<String> getParts()
@@ -75,7 +85,8 @@ public class QualifiedName
             return Optional.empty();
         }
 
-        return Optional.of(new QualifiedName(parts.subList(0, parts.size() - 1)));
+        List<String> subList = parts.subList(0, parts.size() - 1);
+        return Optional.of(new QualifiedName(subList, subList));
     }
 
     public boolean hasSuffix(QualifiedName suffix)

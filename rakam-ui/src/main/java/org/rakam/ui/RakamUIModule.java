@@ -142,7 +142,7 @@ public class RakamUIModule
         @Subscribe
         public void onCreateProject(ProjectCreatedEvent event)
         {
-            service.create(new Project(0, event.project), "My dashboard", null);
+            service.create(new Project(event.project, 0), "My dashboard", null);
         }
     }
 
@@ -170,7 +170,7 @@ public class RakamUIModule
         public void onDeleteProject(UIEvents.ProjectDeletedEvent event)
         {
             for (DashboardService.Dashboard dashboard : dashboardService.list(new Project(0, event.project))) {
-                dashboardService.delete(new Project(0, event.project), dashboard.name);
+                dashboardService.delete(new Project(event.project, 0), dashboard.name);
             }
             if (customPageDatabase != null) {
                 for (CustomPageDatabase.Page page : customPageDatabase.list(event.project)) {
