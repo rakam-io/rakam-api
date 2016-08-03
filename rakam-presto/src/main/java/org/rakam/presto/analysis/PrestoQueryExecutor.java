@@ -11,6 +11,7 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,14 +26,17 @@ import static java.time.ZoneOffset.UTC;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 
 @Singleton
-public class PrestoQueryExecutor implements QueryExecutor {
+public class PrestoQueryExecutor
+        implements QueryExecutor
+{
     private final PrestoConfig prestoConfig;
 
     private final Metastore metastore;
     private ClientSession defaultSession;
 
     @Inject
-    public PrestoQueryExecutor(PrestoConfig prestoConfig, Metastore metastore) {
+    public PrestoQueryExecutor(PrestoConfig prestoConfig, Metastore metastore)
+    {
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;
         this.defaultSession = new ClientSession(
@@ -49,15 +53,18 @@ public class PrestoQueryExecutor implements QueryExecutor {
     }
 
     @Override
-    public PrestoQueryExecution executeRawQuery(String query) {
+    public PrestoQueryExecution executeRawQuery(String query)
+    {
         return new PrestoQueryExecution(defaultSession, query);
     }
 
-    public PrestoQueryExecution executeRawQuery(String query, String transactionId) {
+    public PrestoQueryExecution executeRawQuery(String query, String transactionId)
+    {
         return new PrestoQueryExecution(withTransactionId(defaultSession, transactionId), query);
     }
 
-    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog) {
+    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog)
+    {
         return new PrestoQueryExecution(new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
@@ -71,21 +78,23 @@ public class PrestoQueryExecutor implements QueryExecutor {
     }
 
     @Override
-    public PrestoQueryExecution executeRawStatement(String sqlQuery) {
+    public PrestoQueryExecution executeRawStatement(String sqlQuery)
+    {
         return executeRawQuery(sqlQuery);
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName node) {
+    public String formatTableReference(String project, QualifiedName node)
+    {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();
             if (prefix.equals("continuous")) {
                 return prestoConfig.getStreamingConnector() + ".\"" + project + "\".\"" + node.getSuffix() + '"';
-            } else if (prefix.equals("materialized")) {
+            }
+            else if (prefix.equals("materialized")) {
                 return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
-            } else if (prefix.equals("users")) {
-                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
-            } else if (!prefix.equals("collection")) {
+            }
+            else if (!prefix.equals("collection")) {
                 throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
             }
         }
@@ -107,16 +116,21 @@ public class PrestoQueryExecutor implements QueryExecutor {
                                 sharedColumns.isEmpty() ? "1" : sharedColumns,
                                 getTableReference(project, QualifiedName.of(collection))))
                         .collect(Collectors.joining(" union all ")) + ") _all";
-            } else {
+            }
+            else {
                 return "(select null as \"$collection\", null as _user, null as _time limit 0) _all";
             }
-
-        } else {
+        }
+        else {
+            if (node.getSuffix().equals("users")) {
+                return prestoConfig.getUserConnector() + ".users." + project;
+            }
             return getTableReference(project, node);
         }
     }
 
-    private String getTableReference(String project, QualifiedName node) {
+    private String getTableReference(String project, QualifiedName node)
+    {
         QualifiedName prefix = QualifiedName.of(prestoConfig.getColdStorageConnector());
         String hotStorageConnector = prestoConfig.getHotStorageConnector();
         String table = '"' + project + "\".\"" + node.getSuffix() + '\"';
@@ -125,9 +139,9 @@ public class PrestoQueryExecutor implements QueryExecutor {
             return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
                     "select * from " + hotStorageConnector + "." + table + ")" +
                     " as " + node.getSuffix() + ")";
-        } else {
+        }
+        else {
             return prefix.getSuffix() + "." + table;
         }
     }
-
 }
