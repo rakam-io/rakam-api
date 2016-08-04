@@ -263,15 +263,15 @@ public abstract class AbstractPostgresqlUserStorage
         }
         switch (fieldType) {
             case BOOLEAN:
-                return "boolean";
+                return "bool";
             case STRING:
                 return "varchar";
             case DOUBLE:
-                return "double precision";
+                return "float8";
             case LONG:
-                return "bigint";
+                return "int8";
             case INTEGER:
-                return "int";
+                return "int4";
             case DECIMAL:
                 return "decimal";
             case TIMESTAMP:
