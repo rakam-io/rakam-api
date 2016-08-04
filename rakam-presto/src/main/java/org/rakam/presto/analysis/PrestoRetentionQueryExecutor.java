@@ -280,12 +280,12 @@ public class PrestoRetentionQueryExecutor
         String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
 
-        return format("select %s as date, %s (%s) from %s as data %s where data._time %s",
+        return format("select %s as date, %s %s from %s as data %s where data._time %s",
                 String.format(timeColumn, "data._time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "data.dimension", '"') + " as dimension, " : "",
-                userMappingEnabled ? String.format("case when data.%s is not null then data.%s else coalesce(mapping._user, data._device_id) as %s", userField, userField, userField) : ("data." + userField),
+                userMappingEnabled ? String.format("(case when data.%s is not null then data.%s else coalesce(mapping._user, data._device_id) end) as %s", userField, userField, userField) : ("data." + userField),
                 checkCollection(collection),
-                userMappingEnabled ? String.format("join \"%s\" mapping on (data._user is null && mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
+                userMappingEnabled ? String.format("join \"%s\" mapping on (data._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
                         ANONYMOUS_ID_MAPPING, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)) : "",
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
