@@ -292,10 +292,9 @@ public class UserHttpService
         request.response(response).end();
     }
 
-    @ApiOperation(value = "Batch operation user properties", response = Integer.class)
+    @ApiOperation(value = "Batch operation user properties", request = BatchUserOperation.class, response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/batch")
-    @IgnoreApi
     @JsonRequest
     public void batchOperations(RakamHttpRequest request)
     {
