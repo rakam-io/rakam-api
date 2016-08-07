@@ -224,11 +224,14 @@ public class UserModule
         }
 
         @Override
-        public List<Cookie> map(String project, BatchUserOperation user, RequestParams requestParams, InetAddress sourceAddress)
+        public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress)
         {
-            if (user.id == null) {
-                throw new RakamException("_user cannot be null", BAD_REQUEST);
+            for (ISingleUserBatchOperation operation : user) {
+                if (operation.getUser() == null) {
+                    throw new RakamException("_user cannot be null", BAD_REQUEST);
+                }
             }
+
 
             return null;
         }

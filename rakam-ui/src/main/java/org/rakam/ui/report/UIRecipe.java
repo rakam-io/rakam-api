@@ -9,6 +9,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.ui.DashboardService;
+import org.rakam.ui.DashboardService.DashboardItem;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.page.CustomPageDatabase.Page;
 import org.rakam.ui.report.Report;
@@ -58,12 +59,12 @@ public class UIRecipe {
 
     public static class DashboardBuilder {
         public final String name;
-        public final List<DashboardService.DashboardItem> items;
+        public final List<DashboardItem> items;
 
         @JsonCreator
         public DashboardBuilder(
                 @JsonProperty("name") String name,
-                @JsonProperty("items") List<DashboardService.DashboardItem> items) {
+                @JsonProperty("items") List<DashboardItem> items) {
             this.name = name;
             this.items = items;
         }

@@ -16,6 +16,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.AvroUtil;
 
@@ -116,20 +117,20 @@ public class UserIdEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, BatchUserOperation user, RequestParams requestParams, InetAddress sourceAddress)
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress)
     {
-        if (user.id == null) {
-            FieldType fieldType = userTypeCache.getUnchecked(project);
-            Schema field = AvroUtil.generateAvroSchema(fieldType);
-            Schema.Type type = field.getTypes().get(1).getType();
-            Object anonymousUser = requestParams.cookies().stream()
-                    .filter(e -> e.name().equals("_anonymous_user")).findAny()
-                    .map(e -> cast(type, e.value())).orElse(generate(type));
-
-            user.setId(anonymousUser);
-            return ImmutableList.of(new DefaultCookie("_anonymous_user", String.valueOf(anonymousUser)));
-        }
-
+//        if (user.id == null) {
+//            FieldType fieldType = userTypeCache.getUnchecked(project);
+//            Schema field = AvroUtil.generateAvroSchema(fieldType);
+//            Schema.Type type = field.getTypes().get(1).getType();
+//            Object anonymousUser = requestParams.cookies().stream()
+//                    .filter(e -> e.name().equals("_anonymous_user")).findAny()
+//                    .map(e -> cast(type, e.value())).orElse(generate(type));
+//
+//            user.setId(anonymousUser);
+//            return ImmutableList.of(new DefaultCookie("_anonymous_user", String.valueOf(anonymousUser)));
+//        }
+//
         return null;
     }
 

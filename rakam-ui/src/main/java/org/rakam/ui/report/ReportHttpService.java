@@ -68,10 +68,9 @@ public class ReportHttpService
     @Path("/get")
     public Report get(
             @ApiParam(value = "slug", description = "Report name") String slug,
-            @ApiParam(value = "user_id", required = false, description = "Report user id") Integer userId,
             @Named("user_id") Project project)
     {
-        return metadata.get(project.userId, userId, project.project, slug);
+        return metadata.get(project.userId, project.project, slug);
     }
 
     @ApiOperation(value = "Update report", authorizations = @Authorization(value = "read_key"))

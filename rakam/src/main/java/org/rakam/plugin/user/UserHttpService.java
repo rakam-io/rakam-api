@@ -13,10 +13,10 @@ import org.rakam.analysis.QueryHttpService;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventCollectionHttpService.HttpRequestParams;
 import org.rakam.collection.SchemaField;
+import org.rakam.plugin.user.AbstractUserService.BatchUserOperationRequest;
 import org.rakam.plugin.user.AbstractUserService.CollectionEvent;
 import org.rakam.plugin.user.AbstractUserService.PreCalculateQuery;
-import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation;
-import org.rakam.plugin.user.UserPropertyMapper.BatchUserOperation.Data;
+import org.rakam.plugin.user.AbstractUserService.SingleUserBatchOperationRequest;
 import org.rakam.plugin.user.UserStorage.Sorting;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpRequestException;
@@ -52,7 +52,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -292,16 +291,18 @@ public class UserHttpService
         request.response(response).end();
     }
 
-    @ApiOperation(value = "Batch operation user properties", request = BatchUserOperation.class, response = Integer.class)
+    @ApiOperation(value = "Batch operation on a single user properties",
+            request = SingleUserBatchOperationRequest.class, response = Integer.class,
+            authorizations = {@Authorization(value = "write_key")})
     @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
     @Path("/batch")
     @JsonRequest
-    public void batchOperations(RakamHttpRequest request)
+    public void batchSingleUserOperations(RakamHttpRequest request)
     {
         request.bodyHandler(s -> {
-            BatchUserOperation req;
+            SingleUserBatchOperationRequest req;
             try {
-                req = JsonHelper.read(s, BatchUserOperation.class);
+                req = JsonHelper.read(s, SingleUserBatchOperationRequest.class);
             }
             catch (Exception e) {
                 returnError(request, e.getMessage(), BAD_REQUEST);
@@ -315,24 +316,45 @@ public class UserHttpService
 
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
             List<Cookie> cookies = mapEvent(mapper ->
-                    mapper.map(project, req, new HttpRequestParams(request), socketAddress));
+                    mapper.map(project, req.data, new HttpRequestParams(request), socketAddress));
 
-            for (Data data : req.data) {
-                if (data.setProperties != null) {
-                    service.setUserProperties(project, req.id, data.setProperties);
-                }
-                if (data.setPropertiesOnce != null) {
-                    service.setUserPropertiesOnce(project, req.id, data.setPropertiesOnce);
-                }
-                if (data.unsetProperties != null) {
-                    service.unsetProperties(project, req.id, data.unsetProperties);
-                }
-                if (data.incrementProperties != null) {
-                    for (Map.Entry<String, Double> entry : data.incrementProperties.entrySet()) {
-                        service.incrementProperty(project, req.id, entry.getKey(), entry.getValue());
-                    }
-                }
+            service.batch(project, req.data);
+
+            setBrowser(request, response);
+            if (cookies != null && !cookies.isEmpty()) {
+                response.headers().add(SET_COOKIE, STRICT.encode(cookies));
             }
+            request.response(response).end();
+        });
+    }
+
+    @ApiOperation(value = "Batch operations on user properties", request = BatchUserOperationRequest.class,
+            response = Integer.class, authorizations = @Authorization(value = "master_key"))
+    @ApiResponses(value = {@ApiResponse(code = 404, message = "User does not exist.")})
+    @Path("/batch_operations")
+    @JsonRequest
+    public void batchUserOperations(RakamHttpRequest request)
+    {
+        request.bodyHandler(s -> {
+            BatchUserOperationRequest req;
+            try {
+                req = JsonHelper.read(s, BatchUserOperationRequest.class);
+            }
+            catch (Exception e) {
+                returnError(request, e.getMessage(), BAD_REQUEST);
+                return;
+            }
+
+            String project = apiKeyService.getProjectOfApiKey(req.api.apiKey, MASTER_KEY);
+
+            InetAddress socketAddress = ((InetSocketAddress) request.context().channel()
+                    .remoteAddress()).getAddress();
+
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
+            List<Cookie> cookies = mapEvent(mapper ->
+                    mapper.map(project, req.data, new HttpRequestParams(request), socketAddress));
+
+            service.batch(project, req.data);
 
             setBrowser(request, response);
             if (cookies != null && !cookies.isEmpty()) {
@@ -419,12 +441,12 @@ public class UserHttpService
                 .remoteAddress()).getAddress();
 
         List<Cookie> cookies = null;
-        BatchUserOperation op = new BatchUserOperation(req.id, req.api, ImmutableList.of(new Data(req.properties, null, null, null, null)));
-        req.id = op.id;
+        BatchUserOperationRequest op = new BatchUserOperationRequest(req.api,
+                ImmutableList.of(new BatchUserOperationRequest.BatchUserOperations(req.id, req.properties, null, null, null, null)));
 
         for (UserPropertyMapper mapper : mappers) {
             try {
-                List<Cookie> map = mapper.map(project, op, new HttpRequestParams(request), socketAddress);
+                List<Cookie> map = mapper.map(project, op.data, new HttpRequestParams(request), socketAddress);
                 if (map != null) {
                     if (cookies == null) {
                         cookies = new ArrayList<>();

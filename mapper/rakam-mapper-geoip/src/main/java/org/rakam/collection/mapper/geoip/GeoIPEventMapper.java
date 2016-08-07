@@ -21,6 +21,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.MapProxyGenericRecord;
 
@@ -162,14 +163,14 @@ public class GeoIPEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, BatchUserOperation user, RequestParams requestParams, InetAddress sourceAddress)
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress)
     {
-        for (BatchUserOperation.Data data : user.data) {
-            if (data.setProperties != null) {
-                mapInternal(project, data.setProperties, sourceAddress);
+        for (ISingleUserBatchOperation data : user) {
+            if (data.getSetProperties() != null) {
+                mapInternal(project, data.getSetProperties(), sourceAddress);
             }
-            if (data.setPropertiesOnce != null) {
-                mapInternal(project, data.setPropertiesOnce, sourceAddress);
+            if (data.getSetPropertiesOnce() != null) {
+                mapInternal(project, data.getSetPropertiesOnce(), sourceAddress);
             }
         }
 

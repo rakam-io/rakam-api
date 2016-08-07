@@ -44,7 +44,7 @@ import java.util.stream.IntStream;
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.rakam.plugin.user.AbstractUserService.ANONYMOUS_ID_MAPPING;
+import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PrestoFunnelQueryExecutor

@@ -22,6 +22,8 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.plugin.user.AbstractUserService;
+import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
@@ -201,8 +203,9 @@ public abstract class AbstractPostgresqlUserStorage
                 cols.append(", ").append(PRIMARY_KEY);
             }
 
-            PreparedStatement statement = conn.prepareStatement("INSERT INTO  " + getUserTable(project, false) + " (" + cols +
-                    ") values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
+            PreparedStatement statement = conn.prepareStatement(
+                    "INSERT INTO  " + getUserTable(project, false) + " (" + cols + ") " +
+                            "values (" + parametrizedValues + ") RETURNING " + PRIMARY_KEY);
 
             long createdAt = -1;
             int i = 1;
@@ -241,7 +244,7 @@ public abstract class AbstractPostgresqlUserStorage
             }
             catch (SQLException e) {
                 if (e.getMessage().contains("duplicate key value")) {
-                    setUserProperty(project, id, properties, false);
+                    setUserProperties(conn, project, id, properties, false);
                     return id;
                 }
                 else {
@@ -298,7 +301,6 @@ public abstract class AbstractPostgresqlUserStorage
             return null;
         }
         if (fieldType.isArray()) {
-
             if (value.isArray()) {
                 FieldType arrayType = fieldType.getArrayElementType();
 
@@ -605,7 +607,7 @@ public abstract class AbstractPostgresqlUserStorage
                             FieldType fieldType = PostgresqlMetastore.fromSql(metaData.getColumnType(i),
                                     metaData.getColumnTypeName(i));
                             JsonNode value = setValues(resultSet, i, fieldType);
-                            if(!value.equals(NullNode.getInstance())) {
+                            if (!value.equals(NullNode.getInstance())) {
                                 properties.set(key, value);
                             }
                         }
@@ -679,18 +681,29 @@ public abstract class AbstractPostgresqlUserStorage
     }
 
     @Override
-    public void setUserProperty(String project, Object userId, ObjectNode properties)
+    public void setUserProperties(String project, Object userId, ObjectNode properties)
     {
-        setUserProperty(project, userId, () -> properties.fields(), false);
+        try (Connection conn = queryExecutor.getConnection()) {
+            setUserProperties(conn, project, userId, () -> properties.fields(), false);
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
-    public void setUserPropertyOnce(String project, Object userId, ObjectNode properties)
+    public void setUserPropertiesOnce(String project, Object userId, ObjectNode properties)
     {
-        setUserProperty(project, userId, () -> properties.fields(), true);
+        try (Connection conn = queryExecutor.getConnection()) {
+            setUserProperties(conn, project, userId, () -> properties.fields(), true);
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
-    public void setUserProperty(String project, Object userId, Iterable<Map.Entry<String, JsonNode>> _properties, boolean onlyOnce)
+    public void setUserProperties(Connection connection, String project, Object userId, Iterable<Map.Entry<String, JsonNode>> _properties, boolean onlyOnce)
+            throws SQLException
     {
         if (userId == null) {
             throw new RakamException("User id is not set.", BAD_REQUEST);
@@ -731,28 +744,23 @@ public abstract class AbstractPostgresqlUserStorage
 
         builder.append(" where " + PRIMARY_KEY + " = ?");
 
-        try (Connection conn = queryExecutor.getConnection()) {
-            PreparedStatement statement = conn.prepareStatement(builder.toString());
-            int i = 1;
-            Iterator<Map.Entry<String, JsonNode>> fields = properties.iterator();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> entry = fields.next();
-                FieldType fieldType = columns.get(entry.getKey());
-                if (fieldType == null) {
-                    continue;
-                }
-                statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), conn));
+        PreparedStatement statement = connection.prepareStatement(builder.toString());
+        int i = 1;
+        Iterator<Map.Entry<String, JsonNode>> fields = properties.iterator();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> entry = fields.next();
+            FieldType fieldType = columns.get(entry.getKey());
+            if (fieldType == null) {
+                continue;
             }
-
-            setUserId(project, statement, userId, i++);
-
-            i = statement.executeUpdate();
-            if (i == 0) {
-                createInternal(project, userId, properties);
-            }
+            statement.setObject(i++, getJDBCValue(fieldType, entry.getValue(), connection));
         }
-        catch (SQLException e) {
-            throw Throwables.propagate(e);
+
+        setUserId(project, statement, userId, i++);
+
+        i = statement.executeUpdate();
+        if (i == 0) {
+            createInternal(project, userId, properties);
         }
     }
 
@@ -770,34 +778,9 @@ public abstract class AbstractPostgresqlUserStorage
         else if (fieldType.get() == FieldType.LONG) {
             statement.setLong(position, (userId instanceof Number) ? ((Number) userId).longValue() :
                     Integer.parseInt(userId.toString()));
-        } else {
-            throw new IllegalStateException();
-        }
-    }
-
-    private String getPostgresqlType(JsonNode clazz)
-    {
-        if (clazz.isTextual()) {
-            return "text";
-        }
-        else if (clazz.isFloat() || clazz.isDouble()) {
-            return "double precision";
-        }
-        else if (clazz.isNumber()) {
-            return "bigint";
-        }
-        else if (clazz.isBoolean()) {
-            return "bool";
-        }
-        else if (clazz.isArray()) {
-            ;
-            return getPostgresqlType(clazz.get(0)) + "[]";
-        }
-        else if (clazz.isObject()) {
-            return "jsonb";
         }
         else {
-            throw new IllegalArgumentException();
+            throw new IllegalStateException();
         }
     }
 
@@ -828,7 +811,29 @@ public abstract class AbstractPostgresqlUserStorage
     @Override
     public void unsetProperties(String project, Object user, List<String> properties)
     {
-        setUserProperty(project, user, Iterables.transform(properties, new com.google.common.base.Function<String, Map.Entry<String, JsonNode>>()
+        try (Connection conn = queryExecutor.getConnection()) {
+            unsetProperties(conn, project, user, properties);
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public void incrementProperty(String project, Object userId, String property, double value)
+    {
+        try (Connection conn = queryExecutor.getConnection()) {
+            incrementProperty(conn, project, userId, property, value);
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public void unsetProperties(Connection connection, String project, Object user, List<String> properties)
+            throws SQLException
+    {
+        setUserProperties(connection, project, user, Iterables.transform(properties, new com.google.common.base.Function<String, Map.Entry<String, JsonNode>>()
         {
             @Nullable
             public Map.Entry<String, JsonNode> apply(@Nullable String input)
@@ -838,8 +843,8 @@ public abstract class AbstractPostgresqlUserStorage
         }), false);
     }
 
-    @Override
-    public void incrementProperty(String project, Object userId, String property, double value)
+    public void incrementProperty(Connection conn, String project, Object userId, String property, double value)
+            throws SQLException
     {
         Map<String, FieldType> columns = createMissingColumns(project, userId, ImmutableList.of(new SimpleImmutableEntry<>(property, new DoubleNode(value))));
 
@@ -853,17 +858,72 @@ public abstract class AbstractPostgresqlUserStorage
                     BAD_REQUEST);
         }
 
+        String tableRef = checkTableColumn(stripName(property));
+        Statement statement = conn.createStatement();
+        int execute = statement.executeUpdate("update " + getUserTable(project, false) +
+                " set " + tableRef + " = " + value + " + coalesce(" + tableRef + ", 0)");
+        if (execute == 0) {
+            create(project, userId, JsonHelper.jsonObject().put(property, value));
+        }
+    }
+
+    public void batch(String project, List<? extends ISingleUserBatchOperation> operations)
+    {
         try (Connection conn = queryExecutor.getConnection()) {
-            String tableRef = checkTableColumn(stripName(property));
-            Statement statement = conn.createStatement();
-            int execute = statement.executeUpdate("update " + getUserTable(project, false) +
-                    " set " + tableRef + " = " + value + " + coalesce(" + tableRef + ", 0)");
-            if (execute == 0) {
-                create(project, userId, JsonHelper.jsonObject().put(property, value));
+            conn.setAutoCommit(false);
+
+            int i = 1;
+            for (ISingleUserBatchOperation operation : operations) {
+                    if (operation.getSetProperties() != null) {
+                        setUserProperties(conn, project, operation.getUser(), () -> operation.getSetProperties().fields(), false);
+                    }
+                    if (operation.getSetPropertiesOnce() != null) {
+                        setUserProperties(conn, project, operation.getUser(), () -> operation.getSetPropertiesOnce().fields(), true);
+                    }
+                    if (operation.getUnsetProperties() != null) {
+                        unsetProperties(conn, project, operation.getUser(), operation.getUnsetProperties());
+                    }
+                    if (operation.getIncrementProperties() != null) {
+                        for (Map.Entry<String, Double> entry : operation.getIncrementProperties().entrySet()) {
+                            incrementProperty(conn, project, operation.getUser(), entry.getKey(), entry.getValue());
+                        }
+                    }
+
+                    if (i++ % 5000 == 0) {
+                        conn.commit();
+                    }
             }
+
+            conn.commit();
+            conn.setAutoCommit(true);
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
+        }
+    }
+
+    private String getPostgresqlType(JsonNode clazz)
+    {
+        if (clazz.isTextual()) {
+            return "text";
+        }
+        else if (clazz.isFloat() || clazz.isDouble()) {
+            return "float8";
+        }
+        else if (clazz.isNumber()) {
+            return "int8";
+        }
+        else if (clazz.isBoolean()) {
+            return "bool";
+        }
+        else if (clazz.isArray()) {
+            return getPostgresqlType(clazz.get(0)) + "[]";
+        }
+        else if (clazz.isObject()) {
+            return "jsonb";
+        }
+        else {
+            throw new IllegalArgumentException();
         }
     }
 }

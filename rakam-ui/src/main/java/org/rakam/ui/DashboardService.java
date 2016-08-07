@@ -112,8 +112,9 @@ public class DashboardService extends HttpService {
             return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project_id = :project ORDER BY id")
                     .bind("project", project.project).map((i, resultSet, statementContext) -> {
                         String options = resultSet.getString(3);
+                        Map data = JsonHelper.read(options, Map.class);
                         return new Dashboard(resultSet.getInt(1), resultSet.getString(2),
-                                options == null ? null : JsonHelper.read(options, Map.class));
+                                options == null ? null : data);
                     }).list();
         }
     }

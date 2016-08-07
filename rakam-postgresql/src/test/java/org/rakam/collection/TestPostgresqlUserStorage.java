@@ -51,7 +51,7 @@ public class TestPostgresqlUserStorage
         configManager.setup();
         InMemoryEventStore inMemoryEventStore = new InMemoryEventStore();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(materializedViewService, configManager, queryExecutor);
-        userService = new PostgresqlUserService(userStorage, new UserPluginConfig(), inMemoryEventStore, metastore, queryExecutor);
+        userService = new PostgresqlUserService(userStorage, metastore, queryExecutor);
         super.setUp();
     }
 

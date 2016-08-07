@@ -18,6 +18,7 @@ import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.RealtimeService;
+import org.rakam.analysis.RealtimeService.RealtimeAggregations;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
@@ -49,6 +50,7 @@ import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.report.realtime.AggregationType;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.ConditionalModule;
 
 import javax.inject.Inject;
@@ -56,7 +58,7 @@ import javax.inject.Inject;
 import java.util.List;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static org.rakam.plugin.user.AbstractUserService.ANONYMOUS_ID_MAPPING;
+import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "presto")
@@ -75,10 +77,15 @@ public class PrestoModule extends RakamModule {
         JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));
-        binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
+        binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeAggregations.class)
+                .toInstance(ImmutableList.of(
+                        AggregationType.COUNT,
                 AggregationType.SUM,
                 AggregationType.MINIMUM,
-                AggregationType.MAXIMUM, AggregationType.APPROXIMATE_UNIQUE));
+                AggregationType.MAXIMUM,
+                AggregationType.APPROXIMATE_UNIQUE));
+
+        binder.bind(RealtimeService.class).to(PrestoRealtimeService.class);
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if(getConfig("report.metadata.store") == null) {
@@ -152,6 +159,22 @@ public class PrestoModule extends RakamModule {
         public void onCreateProject(ProjectCreatedEvent event) {
             executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, created_at TIMESTAMP, merged_at TIMESTAMP)",
                     executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING))));
+        }
+    }
+
+    public static class PrestoRealtimeService
+            extends RealtimeService
+    {
+        @Inject
+        public PrestoRealtimeService(ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
+        {
+            super(service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
+        }
+
+        @Override
+        public String timeColumn()
+        {
+            return "_shard_time";
         }
     }
 }

@@ -11,6 +11,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.util.MapProxyGenericRecord;
@@ -38,14 +39,16 @@ public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
     }
 
     @Override
-    public List<Cookie> map(String project, BatchUserOperation user, RequestParams requestParams, InetAddress sourceAddress) {
-        for (BatchUserOperation.Data data : user.data) {
-            if(data.setProperties != null) {
-                mapInternal(requestParams, new MapProxyGenericRecord(data.setProperties), data.setProperties.get("_user_agent"));
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams requestParams, InetAddress sourceAddress) {
+        for (ISingleUserBatchOperation data : user) {
+            if(data.getSetProperties() != null) {
+                mapInternal(requestParams, new MapProxyGenericRecord(data.getSetProperties()),
+                        data.getSetProperties().get("_user_agent"));
             }
 
-            if(data.setPropertiesOnce != null) {
-                mapInternal(requestParams, new MapProxyGenericRecord(data.setPropertiesOnce), data.setPropertiesOnce.get("_user_agent"));
+            if(data.getSetPropertiesOnce() != null) {
+                mapInternal(requestParams, new MapProxyGenericRecord(data.getSetPropertiesOnce()),
+                        data.getSetPropertiesOnce().get("_user_agent"));
             }
         }
         return null;

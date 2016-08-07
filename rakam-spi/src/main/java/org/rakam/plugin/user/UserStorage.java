@@ -36,9 +36,9 @@ public interface UserStorage {
 
     CompletableFuture<User> getUser(String project, Object userId);
 
-    void setUserProperty(String project, Object user, ObjectNode properties);
+    void setUserProperties(String project, Object user, ObjectNode properties);
 
-    void setUserPropertyOnce(String project, Object user, ObjectNode properties);
+    void setUserPropertiesOnce(String project, Object user, ObjectNode properties);
 
     default void createProjectIfNotExists(String project, boolean isNumeric)
     {
@@ -51,21 +51,21 @@ public interface UserStorage {
 
     void unsetProperties(String project, Object user, List<String> properties);
 
-    default void applyOperations(String project, UserPropertyMapper.BatchUserOperation req)
+    default void applyOperations(String project, List<? extends ISingleUserBatchOperation> req)
     {
-        for (UserPropertyMapper.BatchUserOperation.Data data : req.data) {
-            if (data.setProperties != null) {
-                setUserProperty(project, req.id, data.setProperties);
+        for (ISingleUserBatchOperation data : req) {
+            if (data.getSetProperties() != null) {
+                setUserProperties(project, data.getUser(), data.getSetPropertiesOnce());
             }
-            if (data.setPropertiesOnce != null) {
-                setUserPropertyOnce(project, req.id, data.setPropertiesOnce);
+            if (data.getSetProperties() != null) {
+                setUserPropertiesOnce(project, data.getUser(), data.getSetPropertiesOnce());
             }
-            if (data.unsetProperties != null) {
-                unsetProperties(project, req.id, data.unsetProperties);
+            if (data.getUnsetProperties() != null) {
+                unsetProperties(project, data.getUser(), data.getUnsetProperties());
             }
-            if (data.incrementProperties != null) {
-                for (Map.Entry<String, Double> entry : data.incrementProperties.entrySet()) {
-                    incrementProperty(project, req.id, entry.getKey(), entry.getValue());
+            if (data.getIncrementProperties() != null) {
+                for (Map.Entry<String, Double> entry : data.getIncrementProperties().entrySet()) {
+                    incrementProperty(project, data.getUser(), entry.getKey(), entry.getValue());
                 }
             }
         }

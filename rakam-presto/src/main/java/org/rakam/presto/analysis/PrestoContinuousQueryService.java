@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoQueryExecution.fromPrestoType;
 
@@ -83,6 +84,11 @@ public class PrestoContinuousQueryService
         }
 
         builder.put(config.getStreamingConnector() + ".process_historical_data", Boolean.toString(replayHistoricalData));
+
+        if (report.getOptions() != null && report.getOptions().get("realtime") != null) {
+            builder.put(config.getStreamingConnector() + ".window_duration",
+                    report.getOptions().get("realtime").toString());
+        }
 
         prestoQueryExecution = executor.executeRawQuery(prestoQuery, builder.build(), config.getStreamingConnector());
 

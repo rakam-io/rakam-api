@@ -11,6 +11,7 @@ import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.customreport.CustomReport;
 import org.rakam.ui.customreport.CustomReportMetadata;
 import org.rakam.ui.page.CustomPageDatabase;
+import org.rakam.ui.report.UIRecipe.DashboardBuilder;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
@@ -75,10 +76,10 @@ public class UIRecipeHandler
             customPages = ImmutableList.of();
         }
 
-        List<UIRecipe.DashboardBuilder> dashboards;
+        List<DashboardBuilder> dashboards;
         if (dashboardService.isPresent()) {
             dashboards = dashboardService.get().list(new Project(project, userId)).stream()
-                    .map(a -> new UIRecipe.DashboardBuilder(a.name, dashboardService.get().get(new Project(project, userId), a.name)))
+                    .map(a -> new DashboardBuilder(a.name, dashboardService.get().get(new Project(project, userId), a.name)))
                     .collect(Collectors.toList());
         }
         else {

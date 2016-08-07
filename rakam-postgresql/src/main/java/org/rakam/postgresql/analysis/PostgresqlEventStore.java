@@ -97,7 +97,8 @@ public class PostgresqlEventStore
                         ps.executeBatch();
                         int finalI = i;
                         successfulCollections
-                                .compute(entry.getKey(), (k, v) -> k == null ? finalI : v + finalI);
+                                .compute(entry.getKey(),
+                                        (k, v) -> k == null ? finalI : v + finalI);
                     }
                 }
 

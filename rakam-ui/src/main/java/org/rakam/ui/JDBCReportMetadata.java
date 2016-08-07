@@ -51,7 +51,10 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public void delete(Integer userId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM reports WHERE project_id = :project AND slug = :slug AND user_id = :user AND (SELECT p.masterKey is not null OR p.user_id = r.user_id FROM reports r JOIN web_user_project p ON (p.user_id = :user AND p.project_id = :project) WHERE r.slug = :slug AND r.user_id = :user AND r.project_id = :project)")
+            handle.createStatement("DELETE FROM reports WHERE project_id = :project AND slug = :slug" +
+                    " AND user_id = :user AND (SELECT p.user_id = r.user_id FROM reports r " +
+                    " JOIN web_user_project p ON (p.user_id = :user AND p.id = :project) " +
+                    " WHERE r.slug = :slug AND r.user_id = :user AND r.project_id = :project)")
                     .bind("project", project)
                     .bind("slug", slug)
                     .bind("user", userId).execute();
@@ -72,7 +75,7 @@ public class JDBCReportMetadata implements ReportMetadata {
                     .execute();
         } catch (UnableToExecuteStatementException e) {
             try {
-                get(null, userId, project, report.slug);
+                get(null, project, report.slug);
             } catch (NotExistsException ex) {
                 throw e;
             }
@@ -81,14 +84,14 @@ public class JDBCReportMetadata implements ReportMetadata {
         }
     }
 
-    public Report get(Integer requestedUserId, Integer userId, int project, String slug) {
+    public Report get(Integer requestedUserId, int project, String slug) {
         try (Handle handle = dbi.open()) {
+            // test this again
             Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
-                    " LEFT JOIN web_user_api_key permission ON (permission.user_id = :user AND permission.project_id = :project)" +
-                    " WHERE r.project_id = :project AND r.slug = :slug AND (:user IS NULL OR " +
-                    "(permission.user_id = :user AND (permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")
+                    " LEFT JOIN web_user_api_key permission ON (permission.project_id = :project)" +
+                    " WHERE r.project_id = :project AND r.slug = :slug AND (" +
+                    "((permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")
                     .bind("project", project)
-                    .bind("user", userId)
                     .bind("requestedUser", requestedUserId)
                     .bind("slug", slug).map(mapper).first();
             if(report == null) {

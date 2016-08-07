@@ -6,10 +6,8 @@ import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
-import org.rakam.plugin.user.UserPluginConfig;
-import org.rakam.plugin.user.UserStorage;
+import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
@@ -42,9 +40,9 @@ public class PostgresqlUserService
     private final PostgresqlUserStorage storage;
 
     @Inject
-    public PostgresqlUserService(PostgresqlUserStorage storage, UserPluginConfig config, EventStore eventStore, Metastore metastore, PostgresqlQueryExecutor executor)
+    public PostgresqlUserService(PostgresqlUserStorage storage, Metastore metastore, PostgresqlQueryExecutor executor)
     {
-        super(storage, config, eventStore);
+        super(storage);
         this.storage = storage;
         this.metastore = metastore;
         this.executor = executor;
@@ -110,5 +108,11 @@ public class PostgresqlUserService
     {
         // no-op
         return QueryExecution.completedQueryExecution(null, QueryResult.empty());
+    }
+
+    @Override
+    public void batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations)
+    {
+        storage.batch(project, batchUserOperations);
     }
 }

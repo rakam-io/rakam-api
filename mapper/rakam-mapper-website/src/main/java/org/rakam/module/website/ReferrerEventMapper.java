@@ -13,6 +13,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.MapProxyGenericRecord;
 
@@ -92,15 +93,19 @@ public class ReferrerEventMapper
     }
 
     @Override
-    public List<Cookie> map(String project, BatchUserOperation user, RequestParams extraProperties, InetAddress sourceAddress)
+    public List<Cookie> map(String project, List<? extends ISingleUserBatchOperation> user, RequestParams extraProperties, InetAddress sourceAddress)
     {
-        for (BatchUserOperation.Data data : user.data) {
-            if (data.setProperties != null) {
-                mapInternal(extraProperties, data.setProperties.get("_referrer"), data.setProperties.get("_host"), new MapProxyGenericRecord(data.setProperties));
+        for (ISingleUserBatchOperation data : user) {
+            if (data.getSetProperties() != null) {
+                mapInternal(extraProperties, data.getSetProperties().get("_referrer"),
+                        data.getSetProperties().get("_host"),
+                        new MapProxyGenericRecord(data.getSetProperties()));
             }
 
-            if (data.setPropertiesOnce != null) {
-                mapInternal(extraProperties, data.setPropertiesOnce.get("_referrer"), data.setPropertiesOnce.get("_host"), new MapProxyGenericRecord(data.setProperties));
+            if (data.getSetPropertiesOnce() != null) {
+                mapInternal(extraProperties, data.getSetPropertiesOnce().get("_referrer"),
+                        data.getSetPropertiesOnce().get("_host"),
+                        new MapProxyGenericRecord(data.getSetProperties()));
             }
         }
         return null;

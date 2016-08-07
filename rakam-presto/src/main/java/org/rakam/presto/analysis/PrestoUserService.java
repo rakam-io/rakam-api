@@ -3,6 +3,7 @@ package org.rakam.presto.analysis;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.Metastore;
@@ -32,26 +33,41 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static org.apache.avro.Schema.Type.INT;
+import static org.apache.avro.Schema.Type.NULL;
+import static org.apache.avro.Schema.Type.STRING;
 import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PrestoUserService extends AbstractUserService {
+    public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
+    protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
+            new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
+            new Schema.Field("_user", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
+            new Schema.Field("created_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null),
+            new Schema.Field("merged_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null)
+    ));
+
     private final Metastore metastore;
     private final PrestoConfig prestoConfig;
     private final PrestoQueryExecutor executor;
     private final ContinuousQueryService continuousQueryService;
+    private final UserPluginConfig config;
+    private final EventStore eventStore;
 
     @Inject
     public PrestoUserService(UserStorage storage, ContinuousQueryService continuousQueryService,
                              EventStore eventStore, Metastore metastore,
                              UserPluginConfig config,
                              PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
-        super(storage, config, eventStore);
+        super(storage);
         this.continuousQueryService = continuousQueryService;
         this.metastore = metastore;
         this.prestoConfig = prestoConfig;
         this.executor = executor;
+        this.config = config;
+        this.eventStore = eventStore;
     }
 
     @Override
@@ -144,5 +160,18 @@ public class PrestoUserService extends AbstractUserService {
             result.setProperty("preCalculated", new PreCalculatedTable(name, tableName));
             return result;
         });
+    }
+
+    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
+        if (!config.getEnableUserMapping()) {
+            throw new RakamException(HttpResponseStatus.NOT_IMPLEMENTED);
+        }
+        GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
+        properties.put(0, anonymousId);
+        properties.put(1, user);
+        properties.put(2, (int) Math.floorDiv(createdAt.getEpochSecond(), 86400));
+        properties.put(3, (int) Math.floorDiv(mergedAt.getEpochSecond(), 86400));
+
+        eventStore.store(new Event(project, ANONYMOUS_ID_MAPPING, null, null, properties));
     }
 }

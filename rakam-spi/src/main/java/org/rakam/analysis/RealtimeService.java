@@ -77,10 +77,10 @@ public class RealtimeService
         }
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(cast(" + timestampToEpochFunction + "(_time) as bigint) / %d) as _time, ", slide.roundTo(TimeUnit.SECONDS)))
+                .append(format("(cast(" + timestampToEpochFunction + "("+ checkTableColumn(timeColumn(), escapeIdentifier) + ") as bigint) / %d) as time, ", slide.roundTo(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.measures, report.dimensions))
                 .append(" FROM (" + report.collections.stream().map(col -> String.format("(SELECT %s FROM %s) as data",
-                        Stream.of("_time", report.dimensions.stream().collect(Collectors.joining(", ")),
+                        Stream.of(checkTableColumn(timeColumn(), escapeIdentifier), report.dimensions.stream().collect(Collectors.joining(", ")),
                                 report.measures.stream().map(e -> e.column).distinct().collect(Collectors.joining(", "))).filter(e -> !e.isEmpty()).collect(Collectors.joining(", ")), col
                 )).collect(Collectors.joining(" UNION ALL ")) + ")")
                 .append(report.filter == null ? "" : " where " + report.filter)
@@ -92,8 +92,16 @@ public class RealtimeService
         ContinuousQuery query = new ContinuousQuery(report.table_name, report.name,
                 sqlQuery,
                 ImmutableList.of(),
-                ImmutableMap.of("realtime", true, "aggregation", report.measures));
-        return service.create(project, query, false).getResult().thenApply(SuccessMessage::map);
+                ImmutableMap.of(
+                        "realtime", true,
+                        "aggregation", report.measures));
+
+        return service.create(project, query, false).getResult()
+                .thenApply(SuccessMessage::map);
+    }
+
+    public String timeColumn() {
+        return "_time";
     }
 
     public CompletableFuture<Boolean> delete(String project, String tableName)
@@ -124,20 +132,25 @@ public class RealtimeService
 
         boolean noDimension = dimensions == null || dimensions.isEmpty();
 
-        long last_update = Instant.now().toEpochMilli() - slide.toMillis();
+        long last_update = Instant.now().toEpochMilli() - (slide.toMillis() * 2);
         long previousWindow = (dateStart == null ? (last_update - window.toMillis()) : dateStart.toEpochMilli()) / (slide.toMillis());
         long currentWindow = (dateEnd == null ? last_update : dateEnd.toEpochMilli()) / slide.toMillis();
 
-        Object timeCol = aggregate ? currentWindow : "_time";
+        Object timeCol = aggregate ? currentWindow : "time";
         String sqlQuery = format("select %s, %s %s from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol + " * cast(" + slide.toMillis() + " as bigint)",
-                !noDimension ? dimensions.stream().map(ValidationUtil::checkTableColumn).collect(Collectors.joining(", ")) + "," : "",
-                String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid", '"')),
+                !noDimension ? dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier)).collect(Collectors.joining(", ")) + "," : "",
+                String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid", escapeIdentifier)),
                 executor.formatTableReference(project, QualifiedName.of("continuous", tableName)),
-                format("_time >= %d", previousWindow) +
+                format("%s >= %d", checkTableColumn("time", escapeIdentifier), previousWindow) +
                         (dateEnd == null ? "" :
-                                format("AND _time <", format("_time >= %d AND _time <= %d", previousWindow, currentWindow))),
-                !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(ValidationUtil::checkTableColumn).collect(Collectors.joining(", "))) : "",
+                                format("AND %s <", checkTableColumn("time", escapeIdentifier), format("%s >= %d AND %s <= %d",
+                                        checkTableColumn("time", escapeIdentifier),
+                                        previousWindow,
+                                        checkTableColumn("time",
+                                                escapeIdentifier),  currentWindow))),
+                !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
+                        .collect(Collectors.joining(", "))) : "",
                 (expression == null) ? "" : formatExpression(expression,
                         reference -> executor.formatTableReference(project, reference), escapeIdentifier));
 

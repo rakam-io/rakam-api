@@ -32,8 +32,8 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static java.lang.String.format;
-import static org.rakam.plugin.user.AbstractUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
+import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -86,7 +86,8 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                     eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), ValidationUtil.checkCollection(f.collection)))
                             .collect(Collectors.joining(" union all ")));
         } else {
-            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
+            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project)
+                    .entrySet().stream()
                     .filter(c -> c.getValue().stream().anyMatch(a -> a.getName().equals("_user")))
                     .collect(Collectors.toList());
 
@@ -94,14 +95,9 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                 return QueryExecution.completedQueryExecution(null, QueryResult.empty()).getResult();
             }
 
-            String sharedColumns = collections.get(0).getValue().stream()
-                    .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col) || col.getName().equals("_user")))
-                    .map(f -> ValidationUtil.checkTableColumn(f.getName()))
-                    .collect(Collectors.joining(", "));
-
             query = String.format("select distinct _user as %s from (%s)",
                     config.getIdentifierColumn(),
-                    collections.stream().map(c -> String.format("select %s from %s", sharedColumns,
+                    collections.stream().map(c -> String.format("select %s from %s where _user is not null", "_user",
                             ValidationUtil.checkCollection(c.getKey()))).collect(Collectors.joining(" union all ")));
         }
 
@@ -172,8 +168,10 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
                     ValidationUtil.checkCollection(ANONYMOUS_ID_MAPPING)));
         }
 
+        builder.append(" where ").append(" _user is not null ");
+
         if (!filterList.isEmpty()) {
-            builder.append(" where ").append(filterList.stream().collect(Collectors.joining(" AND ")));
+            builder.append(filterList.stream().collect(Collectors.joining(" AND ")));
         }
 
         if (filter.aggregation != null) {
