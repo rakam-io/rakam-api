@@ -97,9 +97,8 @@ public class RecipeHandler
                         if (ex.getCause() instanceof AlreadyExistsException) {
                             if (overrideExisting) {
                                 try {
-                                    continuousQueryService.delete(project, continuousQuery.tableName);
-                                    continuousQueryService.create(project, continuousQuery, false);
-                                    return QueryResult.empty();
+                                    continuousQueryService.delete(project, continuousQuery.tableName).join();
+                                    return continuousQueryService.create(project, continuousQuery, false).getResult().join();
                                 }
                                 catch (Throwable e) {
                                     return QueryResult.errorResult(
@@ -164,7 +163,7 @@ public class RecipeHandler
                 .map(e -> e.getError().toString())
                 .collect(Collectors.joining("\n"));
 
-        if (errors.isEmpty()) {
+        if (!errors.isEmpty()) {
             throw new RakamException(errors, INTERNAL_SERVER_ERROR);
         }
     }

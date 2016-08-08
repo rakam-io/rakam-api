@@ -99,7 +99,7 @@ public class PrestoContinuousQueryService
         prestoQueryExecution = executor.executeRawQuery(prestoQuery, builder.build(), config.getStreamingConnector());
 
         return new DelegateQueryExecution(prestoQueryExecution, result -> {
-            if (result.getError() == null) {
+            if (!result.isFailed()) {
                 try {
                     database.createContinuousQuery(project, report);
                 }
