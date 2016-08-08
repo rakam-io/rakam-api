@@ -262,7 +262,9 @@ public class UserHttpService
     @Path("/merge")
     @IgnoreApi
     @AllowCookie
-    public void mergeUser(RakamHttpRequest request, @CookieParam("_anonymous_user") String anonymousIdFallback, @BodyParam MergeRequest mergeRequest)
+    public void mergeUser(RakamHttpRequest request,
+            @CookieParam("_anonymous_user") String anonymousIdFallback,
+            @BodyParam MergeRequest mergeRequest)
     {
         // TODO: what if a user sends real user ids instead of its previous anonymous id?
         if (!config.getEnableUserMapping()) {

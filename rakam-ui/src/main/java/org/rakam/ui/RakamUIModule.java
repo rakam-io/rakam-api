@@ -232,9 +232,9 @@ public class RakamUIModule
                         "  project_id INTEGER REFERENCES web_user_project(id),\n" +
                         "  scope_expression TEXT,\n" +
                         "  user_id INT REFERENCES web_user(id),\n" +
-                        "  write_key TEXT NOT NULL,\n" +
-                        "  read_key TEXT NOT NULL,\n" +
-                        "  master_key TEXT DEFAULT false NOT NULL,\n" +
+                        "  write_key TEXT,\n" +
+                        "  read_key TEXT,\n" +
+                        "  master_key TEXT,\n" +
                         "  created_at timestamp DEFAULT now() NOT NULL," +
                         "  PRIMARY KEY (id)\n" +
                         "  )")

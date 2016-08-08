@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 
-public interface ApiKeyService {
+import javax.annotation.Nullable;
+
+public interface ApiKeyService
+{
     ProjectApiKeys createApiKeys(String project);
 
     String getProjectOfApiKey(String apiKey, AccessKeyType type);
@@ -13,23 +16,36 @@ public interface ApiKeyService {
 
     void revokeAllKeys(String project);
 
-    default void setup() {
+    default void setup()
+    {
     }
 
     @AutoValue
-    abstract class ProjectApiKeys {
-        @JsonProperty("master_key") public abstract String masterKey();
-        @JsonProperty("read_key") public abstract String readKey();
-        @JsonProperty("write_key") public abstract String writeKey();
+    abstract class ProjectApiKeys
+    {
+        @Nullable
+        @JsonProperty("master_key")
+        public abstract String masterKey();
+
+        @Nullable
+        @JsonProperty("read_key")
+        public abstract String readKey();
+
+        @Nullable
+        @JsonProperty("write_key")
+        public abstract String writeKey();
 
         @JsonCreator
-        public static ProjectApiKeys create(@JsonProperty("master_key") String masterKey,
-                                     @JsonProperty("read_key") String readKey,
-                                     @JsonProperty("write_key") String writeKey) {
+        public static ProjectApiKeys create(
+                @JsonProperty("master_key") String masterKey,
+                @JsonProperty("read_key") String readKey,
+                @JsonProperty("write_key") String writeKey)
+        {
             return new AutoValue_ApiKeyService_ProjectApiKeys(masterKey, readKey, writeKey);
         }
 
-        public String getKey(AccessKeyType accessKeyType) {
+        public String getKey(AccessKeyType accessKeyType)
+        {
             switch (accessKeyType) {
                 case WRITE_KEY:
                     return writeKey();
@@ -43,20 +59,24 @@ public interface ApiKeyService {
         }
     }
 
-    enum AccessKeyType {
+    enum AccessKeyType
+    {
         MASTER_KEY("master_key"), READ_KEY("read_key"), WRITE_KEY("write_key");
 
         private final String key;
 
-        AccessKeyType(String key) {
+        AccessKeyType(String key)
+        {
             this.key = key;
         }
 
-        public String getKey() {
+        public String getKey()
+        {
             return key;
         }
 
-        public static AccessKeyType fromKey(String key) {
+        public static AccessKeyType fromKey(String key)
+        {
             for (AccessKeyType accessKeyType : values()) {
                 if (accessKeyType.getKey().equals(key)) {
                     return accessKeyType;
