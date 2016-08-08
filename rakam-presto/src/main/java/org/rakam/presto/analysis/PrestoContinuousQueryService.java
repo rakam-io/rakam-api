@@ -12,6 +12,7 @@ import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.Statement;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.units.Duration;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
@@ -19,6 +20,7 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
@@ -30,11 +32,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.rakam.presto.analysis.PrestoQueryExecution.fromPrestoType;
 
 public class PrestoContinuousQueryService
@@ -45,14 +49,16 @@ public class PrestoContinuousQueryService
     private final PrestoQueryExecutor executor;
     private final PrestoConfig config;
     private final SqlParser sqlParser = new SqlParser();
+    private final RealTimeConfig realTimeConfig;
 
     @Inject
-    public PrestoContinuousQueryService(QueryMetadataStore database, PrestoQueryExecutor executor, PrestoConfig config)
+    public PrestoContinuousQueryService(QueryMetadataStore database, RealTimeConfig realTimeConfig, PrestoQueryExecutor executor, PrestoConfig config)
     {
         super(database);
         this.database = database;
         this.executor = executor;
         this.config = config;
+        this.realTimeConfig = realTimeConfig;
     }
 
     public String build(String project, Query query)
@@ -87,7 +93,7 @@ public class PrestoContinuousQueryService
 
         if (report.getOptions() != null && report.getOptions().get("realtime") != null) {
             builder.put(config.getStreamingConnector() + ".window_duration",
-                    report.getOptions().get("realtime").toString());
+                    Duration.succinctDuration(realTimeConfig.getWindowInterval().toMillis() * 2, MILLISECONDS).toString());
         }
 
         prestoQueryExecution = executor.executeRawQuery(prestoQuery, builder.build(), config.getStreamingConnector());
