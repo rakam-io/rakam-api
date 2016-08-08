@@ -426,14 +426,7 @@ public class WebUserService {
 
     public void deleteProject(int user, int projectId) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM web_user_api_key WHERE user_id = :userId AND project_id = :id")
-                    .bind("userId", user)
-                    .bind("project", projectId)
-                    .execute();
-
-            // TODO : BUGGG!!!
-            handle.createStatement("DELETE FROM web_user_project WHERE id = :project " +
-                    "AND (SELECT count(*) FROM web_user_api_key WHERE project_id = :project) = 0")
+            handle.createStatement("DELETE FROM web_user_project WHERE id = :project and user_id = :userId")
                     .bind("userId", user)
                     .bind("project", projectId)
                     .execute();

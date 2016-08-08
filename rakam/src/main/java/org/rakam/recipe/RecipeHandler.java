@@ -1,5 +1,6 @@
 package org.rakam.recipe;
 
+import autovalue.shaded.com.google.common.common.collect.ImmutableList;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -9,16 +10,23 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.report.QueryError;
+import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static java.lang.String.format;
+import static org.rakam.report.QueryError.create;
 
 public class RecipeHandler
 {
@@ -77,7 +85,7 @@ public class RecipeHandler
             if (!collisions.isEmpty()) {
                 String errMessage = collisions.stream().map(f -> {
                     SchemaField existingField = fields.stream().filter(field -> field.getName().equals(f.getName())).findAny().get();
-                    return String.format("Recipe: [%s : %s], CollectionDefinition: [%s, %s]", f.getName(), f.getType(),
+                    return format("Recipe: [%s : %s], CollectionDefinition: [%s, %s]", f.getName(), f.getType(),
                             existingField.getName(), existingField.getType());
                 }).collect(Collectors.joining(", "));
                 String message = overrideExisting ? "Overriding collection fields is not possible." : "Collision in collection fields.";
@@ -85,36 +93,81 @@ public class RecipeHandler
             }
         });
 
-        recipe.getContinuousQueryBuilders().stream()
-                .forEach(continuousQuery -> continuousQueryService.create(project, continuousQuery, false).getResult().whenComplete((res, ex) -> {
+        List<CompletableFuture<QueryResult>> continuousQueries = recipe.getContinuousQueryBuilders().stream()
+                .map(continuousQuery -> continuousQueryService.create(project, continuousQuery, false).getResult().handle((res, ex) -> {
                     if (ex != null) {
-                        if (ex instanceof AlreadyExistsException) {
+                        if (ex.getCause() instanceof AlreadyExistsException) {
                             if (overrideExisting) {
-                                continuousQueryService.delete(project, continuousQuery.tableName);
-                                continuousQueryService.create(project, continuousQuery, false);
+                                try {
+                                    continuousQueryService.delete(project, continuousQuery.tableName);
+                                    continuousQueryService.create(project, continuousQuery, false);
+                                    return QueryResult.empty();
+                                }
+                                catch (Exception e) {
+                                    return QueryResult.errorResult(
+                                            create(format("Error while re-creating materialized view %s: %s",
+                                                    continuousQuery.getTableName(), ex.getMessage())));
+                                }
                             }
                             else {
-                                throw Throwables.propagate(ex);
+                                return QueryResult.errorResult(create(format("Continuous query %s already exists",
+                                        continuousQuery.getTableName())));
                             }
                         }
-                        throw Throwables.propagate(ex);
-                    }
-                }));
 
-        recipe.getMaterializedViewBuilders().stream()
-                .forEach(materializedView -> materializedViewService.create(project, materializedView).whenComplete((res, ex) -> {
+                        return QueryResult.errorResult(
+                                create(format("Error while creating materialized view %s: %s",
+                                        continuousQuery.getTableName(), ex.getMessage())));
+                    }
+                    else {
+                        return res;
+                    }
+                })).collect(Collectors.toList());
+
+        List<CompletableFuture<QueryResult>> materializedViews = recipe.getMaterializedViewBuilders().stream()
+                .map(materializedView -> materializedViewService.create(project, materializedView).handle((res, ex) -> {
                     if (ex != null) {
                         if (ex instanceof AlreadyExistsException) {
                             if (overrideExisting) {
-                                materializedViewService.delete(project, materializedView.tableName);
-                                materializedViewService.create(project, materializedView);
+                                try {
+                                    materializedViewService.delete(project, materializedView.tableName);
+                                    materializedViewService.create(project, materializedView);
+                                    return QueryResult.empty();
+                                }
+                                catch (Exception e) {
+                                    return QueryResult.errorResult(
+                                            create(format("Error while re-creating materialized view %s: %s",
+                                                    materializedView.tableName, e.getMessage())));
+                                }
                             }
                             else {
-                                throw Throwables.propagate(ex);
+                                return QueryResult.errorResult(create(format("Materialized view %s already exists",
+                                        materializedView.tableName)));
                             }
                         }
-                        throw Throwables.propagate(ex);
+                        return QueryResult.errorResult(
+                                create(format("Error while creating materialized view %s: %s",
+                                        materializedView.tableName, ex.getMessage())));
                     }
-                }));
+                    else {
+                        return QueryResult.empty();
+                    }
+                })).collect(Collectors.toList());
+
+        CompletableFuture<QueryResult>[] futures = ImmutableList.builder().addAll(continuousQueries)
+                .addAll(materializedViews).build().stream()
+                .toArray(CompletableFuture[]::new);
+
+        CompletableFuture.allOf(futures).join();
+
+        String errors = Arrays.stream(futures)
+                .map(e -> e.join())
+                .filter(e -> e.isFailed())
+                .map(e -> e.getError().toString())
+                .collect(Collectors.joining("\n"));
+
+        if (errors.isEmpty()) {
+            throw new RakamException(errors, INTERNAL_SERVER_ERROR);
+        }
     }
 }

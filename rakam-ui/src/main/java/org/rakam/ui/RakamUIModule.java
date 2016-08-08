@@ -264,7 +264,7 @@ public class RakamUIModule
                         "  options TEXT," +
                         "  shared BOOLEAN NOT NULL DEFAULT false," +
                         "  created_at TIMESTAMP NOT NULL DEFAULT now()," +
-                        "  CONSTRAINT address UNIQUE(project_id, user_id, slug)" +
+                        "  CONSTRAINT address UNIQUE(project_id, slug)" +
                         "  )")
                         .execute();
 
