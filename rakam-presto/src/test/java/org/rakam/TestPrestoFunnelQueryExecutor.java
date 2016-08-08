@@ -17,6 +17,7 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -45,7 +46,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
 
-        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore,
+        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);
         eventBus.register(new EventExplorerListener(continuousQueryService));
 

@@ -18,6 +18,7 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -42,7 +43,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
                 queryExecutor, metastore, queryMetadataStore);
-        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, queryExecutor, prestoConfig);
+        PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(), queryExecutor, prestoConfig);
 
         QueryExecutorService queryExecutorService = new QueryExecutorService(queryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 

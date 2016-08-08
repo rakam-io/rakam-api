@@ -18,6 +18,7 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.report.QueryExecutorService;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
@@ -49,7 +50,7 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
 
         prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
 
-        continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore,
+        continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),

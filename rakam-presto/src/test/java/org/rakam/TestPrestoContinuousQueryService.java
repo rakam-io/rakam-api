@@ -10,6 +10,7 @@ import org.rakam.event.TestingEnvironment;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
 
 public class TestPrestoContinuousQueryService extends TestContinuousQueryService {
@@ -29,7 +30,7 @@ public class TestPrestoContinuousQueryService extends TestContinuousQueryService
 
         PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(testEnvironment.getPrestoConfig(), metastore);
 
-        continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore,
+        continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, testEnvironment.getPrestoConfig());
     }
 
