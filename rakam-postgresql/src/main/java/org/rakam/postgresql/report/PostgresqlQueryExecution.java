@@ -1,6 +1,5 @@
 package org.rakam.postgresql.report;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
@@ -14,7 +13,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.JsonHelper;
-import org.rakam.util.SentryUtil;
+import org.rakam.util.LogUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -79,7 +78,7 @@ public class PostgresqlQueryExecution
                 if (e instanceof SQLException) {
                     SQLException cause = (SQLException) e;
                     error = new QueryError(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(), null, null);
-                    SentryUtil.logQueryError(query, error, PostgresqlQueryExecutor.class);
+                    LogUtil.logQueryError(query, error, PostgresqlQueryExecutor.class);
                 }
                 else {
                     LOGGER.error(e, "Internal query execution error");

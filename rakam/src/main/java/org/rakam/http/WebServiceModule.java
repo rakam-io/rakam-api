@@ -38,7 +38,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.util.AllowCookie;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.SentryUtil;
+import org.rakam.util.LogUtil;
 
 import javax.inject.Inject;
 import java.lang.reflect.Method;
@@ -119,7 +119,7 @@ public class WebServiceModule extends AbstractModule {
                 .setProxyProtocol(config.getProxyProtocol())
                 .setExceptionHandler((request, ex) -> {
                     if (ex instanceof RakamException) {
-                        SentryUtil.logException(request, (RakamException) ex);
+                        LogUtil.logException(request, (RakamException) ex);
                     }
                 })
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))

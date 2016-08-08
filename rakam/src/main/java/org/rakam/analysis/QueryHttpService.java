@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
@@ -37,7 +36,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.ExportUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.SentryUtil;
+import org.rakam.util.LogUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -61,8 +60,6 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
-import static org.rakam.plugin.EventStore.CopyType.AVRO;
-import static org.rakam.plugin.EventStore.CopyType.CSV;
 import static org.rakam.report.QueryExecutorService.MAX_QUERY_RESULT_LIMIT;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
@@ -178,7 +175,7 @@ public class QueryHttpService
         List<String> apiKey = request.params().get(keyType.getKey());
         if (apiKey == null || data.isEmpty()) {
             String message = keyType.getKey() + " query parameter is required";
-            SentryUtil.logException(request, new RakamException(message, BAD_REQUEST));
+            LogUtil.logException(request, new RakamException(message, BAD_REQUEST));
             response.send("result", encode(errorMessage(message, BAD_REQUEST))).end();
             return;
         }
@@ -202,7 +199,7 @@ public class QueryHttpService
             execute = executorFunction.apply(project, query);
         }
         catch (RakamException e) {
-            SentryUtil.logException(request, e);
+            LogUtil.logException(request, e);
             response.send("result", encode(errorMessage("Couldn't execute query: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }

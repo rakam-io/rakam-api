@@ -36,7 +36,7 @@ import org.rakam.util.AllowCookie;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
-import org.rakam.util.SentryUtil;
+import org.rakam.util.LogUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -422,7 +422,7 @@ public class UserHttpService
                 request.response(response).end();
             }
             catch (RakamException e) {
-                SentryUtil.logException(request, e);
+                LogUtil.logException(request, e);
                 EventCollectionHttpService.returnError(request, e.getMessage(), e.getStatusCode());
             }
             catch (HttpRequestException e) {

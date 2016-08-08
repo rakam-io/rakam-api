@@ -29,7 +29,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.RakamException;
-import org.rakam.util.SentryUtil;
+import org.rakam.util.LogUtil;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -229,7 +229,7 @@ public class PrestoQueryExecution
                             error.getErrorCode(),
                             errorLocation != null ? errorLocation.getLineNumber() : null,
                             errorLocation != null ? errorLocation.getColumnNumber() : null);
-                    SentryUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
+                    LogUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
                     result.complete(QueryResult.errorResult(queryError));
                 }
                 else {
@@ -243,7 +243,7 @@ public class PrestoQueryExecution
             }
             catch (Exception e) {
                 QueryError queryError = QueryError.create(e.getMessage());
-                SentryUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
+                LogUtil.logQueryError(getQuery(), queryError, PrestoQueryExecutor.class);
                 result.complete(QueryResult.errorResult(queryError));
             }
         }

@@ -45,7 +45,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
-import org.rakam.util.SentryUtil;
+import org.rakam.util.LogUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -221,7 +221,7 @@ public class EventCollectionHttpService
                 return;
             }
             catch (RakamException e) {
-                SentryUtil.logException(request, e);
+                LogUtil.logException(request, e);
                 returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             }
@@ -230,7 +230,7 @@ public class EventCollectionHttpService
                 return;
             }
             catch (IllegalArgumentException e) {
-                SentryUtil.logException(request, e);
+                LogUtil.logException(request, e);
                 returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }
@@ -617,7 +617,7 @@ public class EventCollectionHttpService
                 return;
             }
             catch (RakamException e) {
-                SentryUtil.logException(request, e);
+                LogUtil.logException(request, e);
                 returnError(request, e.getMessage(), e.getStatusCode());
                 return;
             }
@@ -626,7 +626,7 @@ public class EventCollectionHttpService
                 return;
             }
             catch (IllegalArgumentException e) {
-                SentryUtil.logException(request, e);
+                LogUtil.logException(request, e);
                 returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }

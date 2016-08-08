@@ -11,13 +11,12 @@ import org.rakam.analysis.EscapeIdentifier;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
-import org.rakam.util.SentryUtil;
+import org.rakam.util.LogUtil;
 
 import java.time.Clock;
 import java.util.HashMap;
@@ -64,7 +63,7 @@ public class QueryExecutorService {
             query = buildQuery(project, sqlQuery, limit, materializedViews);
         } catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
-            SentryUtil.logQueryError(sqlQuery, error, executor.getClass());
+            LogUtil.logQueryError(sqlQuery, error, executor.getClass());
             return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.errorResult(error));
         }
 
@@ -102,7 +101,7 @@ public class QueryExecutorService {
                                     QueryError error = materializedQueryUpdateResult.getError();
                                     String message = String.format("Error while updating materialized table '%s': %s", queryExecution.computeQuery, error.message);
                                     QueryError error1 = new QueryError(message, error.sqlState, error.errorCode, error.errorLine, error.charPositionInLine);
-                                    SentryUtil.logQueryError(query, error1, executor.getClass());
+                                    LogUtil.logQueryError(query, error1, executor.getClass());
                                     return QueryResult.errorResult(error1);
                                 });
                     }
