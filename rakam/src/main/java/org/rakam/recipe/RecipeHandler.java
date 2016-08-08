@@ -1,7 +1,6 @@
 package org.rakam.recipe;
 
-import autovalue.shaded.com.google.common.common.collect.ImmutableList;
-import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.rakam.analysis.ContinuousQueryService;
@@ -10,7 +9,6 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.report.QueryError;
 import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
@@ -103,7 +101,7 @@ public class RecipeHandler
                                     continuousQueryService.create(project, continuousQuery, false);
                                     return QueryResult.empty();
                                 }
-                                catch (Exception e) {
+                                catch (Throwable e) {
                                     return QueryResult.errorResult(
                                             create(format("Error while re-creating materialized view %s: %s",
                                                     continuousQuery.getTableName(), ex.getMessage())));
@@ -134,7 +132,7 @@ public class RecipeHandler
                                     materializedViewService.create(project, materializedView);
                                     return QueryResult.empty();
                                 }
-                                catch (Exception e) {
+                                catch (Throwable e) {
                                     return QueryResult.errorResult(
                                             create(format("Error while re-creating materialized view %s: %s",
                                                     materializedView.tableName, e.getMessage())));
