@@ -867,6 +867,7 @@ public abstract class AbstractPostgresqlUserStorage
         }
     }
 
+    @Override
     public void batch(String project, List<? extends ISingleUserBatchOperation> operations)
     {
         try (Connection conn = queryExecutor.getConnection()) {

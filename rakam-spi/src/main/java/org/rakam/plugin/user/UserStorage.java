@@ -28,6 +28,25 @@ public interface UserStorage {
 
     List<Object> batchCreate(String project, List<User> users);
 
+    default void batch(String project, List<? extends ISingleUserBatchOperation> operations) {
+        for (ISingleUserBatchOperation operation : operations) {
+            if (operation.getSetPropertiesOnce() != null) {
+                setUserProperties(project, operation.getUser(), operation.getSetProperties());
+            }
+            if (operation.getSetPropertiesOnce() != null) {
+                setUserPropertiesOnce(project, operation.getUser(), operation.getSetPropertiesOnce());
+            }
+            if (operation.getUnsetProperties() != null) {
+                unsetProperties(project, operation.getUser(), operation.getUnsetProperties());
+            }
+            if (operation.getIncrementProperties() != null) {
+                for (Map.Entry<String, Double> entry : operation.getIncrementProperties().entrySet()) {
+                    incrementProperty(project, operation.getUser(), entry.getKey(), entry.getValue());
+                }
+            }
+        }
+    }
+
     CompletableFuture<QueryResult> searchUsers(String project, List<String> columns, Expression filterExpression, List<EventFilter> eventFilter, Sorting sortColumn, long limit, String offset);
 
     void createSegment(String project, String name, String tableName, Expression filterExpression, List<EventFilter> eventFilter, Duration interval);

@@ -83,22 +83,7 @@ public abstract class AbstractUserService {
     public abstract QueryExecution preCalculate(String project, PreCalculateQuery query);
 
     public void batch(String project, List<? extends ISingleUserBatchOperation> batchUserOperations) {
-        for (ISingleUserBatchOperation operation : batchUserOperations) {
-            if (operation.getSetPropertiesOnce() != null) {
-                setUserProperties(project, operation.getUser(), operation.getSetProperties());
-            }
-            if (operation.getSetPropertiesOnce() != null) {
-                setUserPropertiesOnce(project, operation.getUser(), operation.getSetPropertiesOnce());
-            }
-            if (operation.getUnsetProperties() != null) {
-                unsetProperties(project, operation.getUser(), operation.getUnsetProperties());
-            }
-            if (operation.getIncrementProperties() != null) {
-                for (Map.Entry<String, Double> entry : operation.getIncrementProperties().entrySet()) {
-                    incrementProperty(project, operation.getUser(), entry.getKey(), entry.getValue());
-                }
-            }
-        }
+        storage.batch(project, batchUserOperations);
     }
 
     public static class CollectionEvent {

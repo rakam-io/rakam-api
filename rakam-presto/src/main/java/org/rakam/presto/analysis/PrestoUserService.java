@@ -12,6 +12,7 @@ import org.rakam.collection.FieldType;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.user.AbstractUserService;
+import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.report.DelegateQueryExecution;

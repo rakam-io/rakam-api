@@ -36,6 +36,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.parser.Parser;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.annotations.QueryParam;
 
 import javax.annotation.PostConstruct;
 import javax.net.ssl.SSLException;
@@ -97,8 +98,8 @@ public class ProxyWebService extends HttpService {
 
     @Path("/")
     @GET
-    public void proxy(RakamHttpRequest request) throws InterruptedException {
-        URI url = UriBuilder.fromUri(request.params().get("u").get(0)).build();
+    public void proxy(RakamHttpRequest request, @QueryParam("u") String uri) throws InterruptedException {
+        URI url = UriBuilder.fromUri(uri).build();
 
         int port;
         if(url.getPort() != -1) {

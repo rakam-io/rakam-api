@@ -12,8 +12,8 @@ import org.rakam.util.ConditionalModule;
 
 import static org.rakam.postgresql.PostgresqlModule.getAsyncClientModule;
 
-@AutoService(RakamModule.class)
-@ConditionalModule(config="plugin.user.mailbox.adapter", value="postgresql")
+//@AutoService(RakamModule.class)
+//@ConditionalModule(config="plugin.user.mailbox.adapter", value="postgresql")
 public class PostgresqlUserMailboxModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {

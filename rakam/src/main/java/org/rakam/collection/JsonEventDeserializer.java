@@ -434,7 +434,7 @@ public class JsonEventDeserializer
                     DateTimeUtils.parseTimestamp(value);
                     return FieldType.TIMESTAMP;
                 }
-                catch (IllegalArgumentException e) {
+                catch (Exception e) {
 
                 }
 
@@ -442,9 +442,10 @@ public class JsonEventDeserializer
                     DateTimeUtils.parseDate(value);
                     return FieldType.DATE;
                 }
-                catch (IllegalArgumentException e) {
+                catch (Exception e) {
 
                 }
+
                 return FieldType.STRING;
             case VALUE_FALSE:
                 return FieldType.BOOLEAN;

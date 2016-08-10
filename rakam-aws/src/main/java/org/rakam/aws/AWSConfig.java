@@ -17,6 +17,7 @@ public class AWSConfig {
     private String s3Endpoint;
     private String kinesisEndpoint;
     private String dynamodbEndpoint;
+    private String lambdaEndpoint;
 
     public String getEventStoreStreamName() {
         return eventStoreStreamName;
@@ -86,6 +87,18 @@ public class AWSConfig {
     public String getKinesisEndpoint()
     {
         return kinesisEndpoint;
+    }
+
+    @Config("aws.lambda-endpoint")
+    public AWSConfig setLambdaEndpoint(String lambdaEndpoint)
+    {
+        this.lambdaEndpoint = lambdaEndpoint;
+        return this;
+    }
+
+    public String getLambdaEndpoint()
+    {
+        return lambdaEndpoint;
     }
 
     public Region getAWSRegion() {
