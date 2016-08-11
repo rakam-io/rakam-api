@@ -5,6 +5,7 @@ import org.rakam.aws.dynamodb.TestDynamodbMetastore;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
 import java.nio.file.Path;
 
@@ -37,6 +38,11 @@ public class DynamodbUtil
                 .start();
 
         LOGGER.info("Dynamodb local started at %d port", randomPort);
+        InputStream error = dynamodbServer.getErrorStream();
+        for (int i = 0; i < error.available(); i++) {
+            System.out.println("" + error.read());
+        }
+
         return new DynamodbProcess(dynamodbServer, randomPort);
     }
 

@@ -16,6 +16,8 @@ import org.testng.annotations.AfterSuite;
 public class TestDynamodbMetastore
         extends TestMetastore
 {
+    private final static Logger LOGGER = Logger.get(TestDynamodbMetastore.class);
+
     private final DynamodbMetastore metastore;
     private final DynamodbUtil.DynamodbProcess dynamodbProcess;
 
@@ -45,6 +47,11 @@ public class TestDynamodbMetastore
             throws Exception
     {
         metastore.deleteTable();
-        dynamodbProcess.process.destroy();
+        if(!dynamodbProcess.process.isAlive()) {
+            LOGGER.error("Dynamodb process exited with %d",
+                    dynamodbProcess.process.exitValue());
+        } else {
+            dynamodbProcess.process.destroy();
+        }
     }
 }
