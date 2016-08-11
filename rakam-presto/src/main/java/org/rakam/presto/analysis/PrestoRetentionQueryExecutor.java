@@ -280,7 +280,7 @@ public class PrestoRetentionQueryExecutor
         String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
 
-        return format("select %s as date, %s %s from %s as data %s where data._time %s",
+        return format("select %s as date, %s %s from %s as data %s where data._time %s %s",
                 String.format(timeColumn, "data._time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "data.dimension", '"') + " as dimension, " : "",
                 userMappingEnabled ? String.format("(case when data.%s is not null then data.%s else coalesce(mapping._user, data._device_id) end) as %s", userField, userField, userField) : ("data." + userField),
@@ -290,8 +290,7 @@ public class PrestoRetentionQueryExecutor
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();
-                }, '"') : "",
-                dimension.map(v -> ", 2").orElse(""));
+                }, '"') : "");
     }
 }
 
