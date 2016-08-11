@@ -42,6 +42,7 @@ import org.rakam.http.HttpServerConfig;
 import org.rakam.http.OptionMethodHttpService;
 import org.rakam.http.WebServiceModule;
 import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
+import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
@@ -136,6 +137,7 @@ public final class ServiceStarter {
             binder.bind(FieldDependencyBuilder.FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
             Multibinder.newSetBinder(binder, EventMapper.class);
+            OptionalBinder.newOptionalBinder(binder, CopyEvent.class);
             Multibinder.newSetBinder(binder, InjectionHook.class);
             OptionalBinder.newOptionalBinder(binder, AbstractUserService.class);
             OptionalBinder.newOptionalBinder(binder, ContinuousQueryService.class);

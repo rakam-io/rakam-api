@@ -181,12 +181,6 @@ public class ClickHouseEventStore
         return future;
     }
 
-    @Override
-    public QueryExecution copy(String project, String collection, List<URL> url, CopyType type, CompressionType compressionType, Map<String, String> options)
-    {
-        return null;
-    }
-
     public static void writeValue(Object value, FieldType type, DataOutput out)
             throws IOException
     {

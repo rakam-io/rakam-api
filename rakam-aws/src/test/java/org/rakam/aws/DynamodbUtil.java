@@ -24,7 +24,9 @@ public class DynamodbUtil
         }
     }
 
-    public static DynamodbProcess createDynamodbProcess() throws Exception {
+    public static DynamodbProcess createDynamodbProcess()
+            throws Exception
+    {
         int randomPort = randomPort();
         Path mainDir = new File(getProperty("user.dir"), ".test/dynamodb").toPath();
 
@@ -38,11 +40,13 @@ public class DynamodbUtil
         return new DynamodbProcess(dynamodbServer, randomPort);
     }
 
-    public static class DynamodbProcess {
+    public static class DynamodbProcess
+    {
         public final Process process;
-        public final  int port;
+        public final int port;
 
-        public DynamodbProcess(Process process, int port) {
+        public DynamodbProcess(Process process, int port)
+        {
             this.process = process;
             this.port = port;
         }

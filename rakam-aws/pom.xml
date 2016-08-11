@@ -83,20 +83,8 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.rakam</groupId>
-            <artifactId>rakam-presto</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.rakam</groupId>
-            <artifactId>rakam-presto</artifactId>
-            <type>test-jar</type>
-            <scope>test</scope>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
@@ -118,18 +106,6 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-main</artifactId>
-            <version>${presto.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-testing-server-launcher</artifactId>
-            <version>${presto.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -275,13 +251,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- Maven dependency plugin complains that there are two versions (2.8.2 and 2.9.1) of joda-time in classpath.
-        The problem is related with AWS library. -->
-        <!--<dependency>-->
-            <!--<groupId>joda-time</groupId>-->
-            <!--<artifactId>joda-time</artifactId>-->
-            <!--<version>2.8.2</version>-->
-        <!--</dependency>-->
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>node</artifactId>
@@ -296,56 +265,55 @@
     </dependencies>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>com.googlecode.maven-download-plugin</groupId>
-                    <artifactId>download-maven-plugin</artifactId>
-                    <version>1.3.0</version>
-                    <executions>
-                        <execution>
-                            <id>download-dynamodb</id>
-                            <phase>test</phase>
-                            <goals>
-                                <goal>wget</goal>
-                            </goals>
-                            <configuration>
-                                <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.zip</url>
-                                <unpack>true</unpack>
-                                <outputDirectory>${project.basedir}/.test/dynamodb</outputDirectory>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-dependency-plugin</artifactId>
-                    <version>2.10</version>
-                    <executions>
-                        <execution>
-                            <id>default</id>
-                            <phase>process-test-classes</phase>
-                            <goals>
-                                <goal>analyze-only</goal>
-                                <goal>analyze-duplicate</goal>
-                                <goal>analyze-dep-mgt</goal>
-                            </goals>
-                            <configuration>
-                                <failOnWarning>true</failOnWarning>
+        <plugins>
+            <plugin>
+                <groupId>com.googlecode.maven-download-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+                <version>1.3.0</version>
+                <executions>
+                    <execution>
+                        <id>download-dynamodb</id>
+                        <phase>generate-test-resources</phase>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <configuration>
+                            <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.zip</url>
+                            <unpack>true</unpack>
+                            <!--<skip>${skipTests}</skip>-->
+                            <outputDirectory>${project.basedir}/.test/dynamodb</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.10</version>
+                <executions>
+                    <execution>
+                        <id>default</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>analyze-only</goal>
+                            <goal>analyze-duplicate</goal>
+                            <goal>analyze-dep-mgt</goal>
+                        </goals>
+                        <configuration>
+                            <failOnWarning>true</failOnWarning>
 
-                                <ignoredUnusedDeclaredDependencies>
-                                    <ignoredUnusedDeclaredDependency>org.rakam:rakam-parser</ignoredUnusedDeclaredDependency>
-                                    <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
-                                </ignoredUnusedDeclaredDependencies>
+                            <ignoredUnusedDeclaredDependencies>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-parser</ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>io.airlift:node</ignoredUnusedDeclaredDependency>
+                            </ignoredUnusedDeclaredDependencies>
 
-                                <ignoredUsedUndeclaredDependencies>
-                                    <ignoredUsedUndeclaredDependency>com.facebook.presto:presto-parser</ignoredUsedUndeclaredDependency>
-                                </ignoredUsedUndeclaredDependencies>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
+                            <ignoredUsedUndeclaredDependencies>
+                                <ignoredUsedUndeclaredDependency>com.facebook.presto:presto-parser</ignoredUsedUndeclaredDependency>
+                            </ignoredUsedUndeclaredDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

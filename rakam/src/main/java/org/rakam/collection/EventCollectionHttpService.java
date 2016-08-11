@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -24,6 +25,7 @@ import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.EventStore.CopyType;
@@ -110,9 +112,13 @@ public class EventCollectionHttpService
     private final AvroEventDeserializer avroEventDeserializer;
     private final Metastore metastore;
     private final QueryHttpService queryHttpService;
+    private final Optional<CopyEvent> copyEvent;
 
     @Inject
-    public EventCollectionHttpService(EventStore eventStore, ApiKeyService apiKeyService,
+    public EventCollectionHttpService(
+            EventStore eventStore,
+            Optional<CopyEvent> copyEvent,
+            ApiKeyService apiKeyService,
             JsonEventDeserializer deserializer,
             QueryHttpService queryHttpService,
             AvroEventDeserializer avroEventDeserializer,
@@ -126,6 +132,7 @@ public class EventCollectionHttpService
         this.apiKeyService = apiKeyService;
         this.queryHttpService = queryHttpService;
         this.metastore = metastore;
+        this.copyEvent = copyEvent;
 
         jsonMapper = new ObjectMapper();
         SimpleModule module = new SimpleModule();
@@ -356,8 +363,11 @@ public class EventCollectionHttpService
     public void copyEventsRemote(RakamHttpRequest request)
             throws IOException
     {
+        if(!copyEvent.isPresent()) {
+            throw new RakamException("Copy feature is not supported", BAD_REQUEST);
+        }
         queryHttpService.handleServerSentQueryExecution(request, BulkEventRemote.class, (project, convert) ->
-                eventStore.copy(project, convert.collection, convert.urls, convert.type, convert.compression, convert.options), MASTER_KEY, false);
+                copyEvent.get().copy(project, convert.collection, convert.urls, convert.type, convert.compression, convert.options), MASTER_KEY, false);
     }
 
     @POST

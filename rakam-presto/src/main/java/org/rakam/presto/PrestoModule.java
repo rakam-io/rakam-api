@@ -8,6 +8,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
+import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Names;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
@@ -24,13 +25,17 @@ import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.aws.kinesis.ForStreamer;
 import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
+import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.plugin.TimestampEventMapper;
+import org.rakam.plugin.stream.EventStream;
+import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.JDBCApiKeyService;
@@ -39,12 +44,14 @@ import org.rakam.presto.analysis.MysqlConfigManager;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
 import org.rakam.presto.analysis.PrestoEventExplorer;
+import org.rakam.presto.analysis.PrestoEventStream;
 import org.rakam.presto.analysis.PrestoFunnelQueryExecutor;
 import org.rakam.presto.analysis.PrestoMaterializedViewService;
 import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.presto.analysis.PrestoUserService;
+import org.rakam.presto.collection.PrestoCopyEvent;
 import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
 import org.rakam.report.QueryExecutor;
@@ -58,6 +65,7 @@ import javax.inject.Inject;
 import java.util.List;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 
 @AutoService(RakamModule.class)
@@ -74,6 +82,13 @@ public class PrestoModule extends RakamModule {
         binder.bind(MaterializedViewService.class).to(PrestoMaterializedViewService.class);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
+        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
+            httpClientBinder(binder).bindHttpClient("streamer", ForStreamer.class);
+            binder.bind(EventStream.class).to(PrestoEventStream.class).in(Scopes.SINGLETON);
+        }
+
+        OptionalBinder.newOptionalBinder(binder, CopyEvent.class)
+                .setBinding().to(PrestoCopyEvent.class);
         JDBCPoolDataSource metadataDataSource = bindJDBCConfig(binder, "presto.metastore.jdbc");
 
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));

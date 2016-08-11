@@ -30,7 +30,6 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.aws.AWSConfig;
 import org.rakam.collection.FieldType;
@@ -44,6 +43,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 
 import java.time.Duration;
 import java.util.ArrayList;

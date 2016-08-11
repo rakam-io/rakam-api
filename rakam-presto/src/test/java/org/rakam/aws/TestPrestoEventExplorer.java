@@ -1,4 +1,4 @@
-package org.rakam;
+package org.rakam.aws;
 
 import com.google.common.eventbus.EventBus;
 import org.rakam.analysis.EventExplorer;
@@ -6,9 +6,11 @@ import org.rakam.analysis.InMemoryQueryMetadataStore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestEventExplorer;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.aws.kinesis.AWSKinesisEventStore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.JDBCConfig;
 import org.rakam.event.TestingEnvironment;
+import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.rakam.presto.analysis.PrestoContinuousQueryService;
@@ -23,8 +25,9 @@ import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
 
-public abstract class TestPrestoEventExplorer extends TestEventExplorer {
-
+public class TestPrestoEventExplorer
+        extends TestEventExplorer
+{
     private EventExplorer eventExplorer;
     private TestingEnvironment testingEnvironment;
     private PrestoMetastore metastore;
@@ -32,10 +35,13 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
     private InMemoryQueryMetadataStore queryMetadataStore;
     private JDBCPoolDataSource metastoreDataSource;
     private PrestoContinuousQueryService continuousQueryService;
+    private AWSKinesisEventStore testingPrestoEventStore;
 
     @BeforeSuite
     @Override
-    public void setup() throws Exception {
+    public void setup()
+            throws Exception
+    {
         testingEnvironment = new TestingEnvironment();
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         JDBCConfig postgresqlConfig = testingEnvironment.getPostgresqlConfig();
@@ -55,7 +61,7 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
 
         PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
                 prestoQueryExecutor, metastore, queryMetadataStore);
-        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService,  Clock.systemUTC(), '"');
+        QueryExecutorService queryExecutorService = new QueryExecutorService(prestoQueryExecutor, metastore, materializedViewService, Clock.systemUTC(), '"');
 
         eventExplorer = new PrestoEventExplorer(queryExecutorService, continuousQueryService, materializedViewService);
         setupInline();
@@ -65,31 +71,58 @@ public abstract class TestPrestoEventExplorer extends TestEventExplorer {
         Thread.sleep(20000);
     }
 
-    public PrestoQueryExecutor getPrestoQueryExecutor() {
+    @Override
+    public EventStore getEventStore()
+    {
+        return testingPrestoEventStore;
+    }
+
+    public PrestoQueryExecutor getPrestoQueryExecutor()
+    {
         return prestoQueryExecutor;
     }
 
-    public PrestoContinuousQueryService getContinuousQueryService() {
+    public PrestoContinuousQueryService getContinuousQueryService()
+    {
         return continuousQueryService;
     }
 
-    public JDBCPoolDataSource getMetastoreDataSource() {
+    public JDBCPoolDataSource getMetastoreDataSource()
+    {
         return metastoreDataSource;
     }
 
-    public abstract void setupInline();
+    public void setupInline()
+    {
+        testingPrestoEventStore = new AWSKinesisEventStore(
+                getAWSConfig(), getMetastore(),
+                new FieldDependencyBuilder().build());
+    }
+
+    protected AWSConfig getAWSConfig()
+    {
+        int kinesisPort = getEnvironment().getKinesisPort();
+        return new AWSConfig().setAccessKey("")
+                .setSecretAccessKey("")
+                .setRegion("eu-central-1")
+                .setKinesisEndpoint(kinesisPort == 0 ? null : "http://127.0.0.1:" + kinesisPort)
+                .setEventStoreStreamName("rakam-events");
+    }
 
     @Override
-    public Metastore getMetastore() {
+    public Metastore getMetastore()
+    {
         return metastore;
     }
 
     @Override
-    public EventExplorer getEventExplorer() {
+    public EventExplorer getEventExplorer()
+    {
         return eventExplorer;
     }
 
-    public TestingEnvironment getEnvironment() {
+    public TestingEnvironment getEnvironment()
+    {
         return testingEnvironment;
     }
 }
