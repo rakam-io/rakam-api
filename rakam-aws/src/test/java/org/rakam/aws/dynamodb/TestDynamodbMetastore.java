@@ -23,7 +23,11 @@ public class TestDynamodbMetastore
             throws Exception
     {
         dynamodbProcess = DynamodbUtil.createDynamodbProcess();
-        metastore = new DynamodbMetastore(new AWSConfig().setDynamodbEndpoint("http://127.0.0.1:" + dynamodbProcess.port),
+        AWSConfig config = new AWSConfig()
+                .setDynamodbEndpoint("http://127.0.0.1:" + dynamodbProcess.port)
+                .setAccessKey("test")
+                .setSecretAccessKey("test");
+        metastore = new DynamodbMetastore(config,
                 new DynamodbMetastoreConfig(),
                 new FieldDependencyBuilder.FieldDependency(ImmutableSet.of(), ImmutableMap.of()),
                 new EventBus());
