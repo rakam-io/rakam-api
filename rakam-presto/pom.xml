@@ -197,7 +197,7 @@
                         <configuration>
                             <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.zip</url>
                             <unpack>true</unpack>
-                            <!--<skip>${skipTests}</skip>-->
+                            <skip>${skipTests}</skip>
                             <outputDirectory>${project.basedir}/.test/dynamodb</outputDirectory>
                         </configuration>
                     </execution>
@@ -210,7 +210,7 @@
 
                 <configuration>
                     <workingDirectory>${project.basedir}/.test/kinesalite</workingDirectory>
-                    <!--<skip>${skipTests}</skip>-->
+                    <skip>${skipTests}</skip>
                 </configuration>
 
                 <executions>
@@ -254,7 +254,7 @@
                                     <directory>${basedir}/.test</directory>
                                 </fileset>
                             </filesets>
-                            <!--<skip>${skipTests}</skip>-->
+                            <skip>${skipTests}</skip>
                         </configuration>
                     </execution>
                 </executions>
