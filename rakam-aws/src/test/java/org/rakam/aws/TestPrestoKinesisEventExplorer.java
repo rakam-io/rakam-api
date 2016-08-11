@@ -1,11 +1,13 @@
-package org.rakam;
+package org.rakam.aws;
 
+import org.rakam.TestPrestoEventExplorer;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.kinesis.AWSKinesisPrestoEventStore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
 
-public class TestPrestoKinesisEventExplorer extends TestPrestoEventExplorer {
+public class TestPrestoKinesisEventExplorer extends TestPrestoEventExplorer
+{
     private AWSKinesisPrestoEventStore testingPrestoEventStore;
 
     @Override

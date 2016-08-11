@@ -3,14 +3,14 @@ package org.rakam.aws.dynamodb;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
-import org.rakam.DynamodbUtil;
+import io.airlift.log.Logger;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.aws.AWSConfig;
+import org.rakam.aws.DynamodbUtil;
 import org.rakam.aws.dynamodb.metastore.DynamodbMetastore;
 import org.rakam.aws.dynamodb.metastore.DynamodbMetastoreConfig;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.TestMetastore;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.AfterSuite;
 
 public class TestDynamodbMetastore

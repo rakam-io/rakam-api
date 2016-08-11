@@ -1,4 +1,7 @@
-package org.rakam;
+package org.rakam.aws;
+
+import io.airlift.log.Logger;
+import org.rakam.aws.dynamodb.TestDynamodbMetastore;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,6 +14,8 @@ import static java.lang.System.getProperty;
 
 public class DynamodbUtil
 {
+    private final static Logger LOGGER = Logger.get(TestDynamodbMetastore.class);
+
     public static int randomPort()
             throws IOException
     {
@@ -29,6 +34,7 @@ public class DynamodbUtil
                 "-inMemory", "--port", Integer.toString(randomPort)))
                 .start();
 
+        LOGGER.info("Dynamodb local started at %d port", randomPort);
         return new DynamodbProcess(dynamodbServer, randomPort);
     }
 
