@@ -39,6 +39,7 @@ import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.http.ForHttpServer;
 import org.rakam.http.HttpServerConfig;
+import org.rakam.http.OptionMethodHttpService;
 import org.rakam.http.WebServiceModule;
 import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
 import org.rakam.plugin.EventMapper;
@@ -180,6 +181,7 @@ public final class ServiceStarter {
             httpServices.addBinding().to(EventCollectionHttpService.class);
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
+            httpServices.addBinding().to(OptionMethodHttpService.class);
 
             Multibinder.newSetBinder(binder, WebSocketService.class);
 
