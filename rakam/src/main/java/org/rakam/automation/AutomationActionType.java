@@ -1,11 +1,15 @@
 package org.rakam.automation;
 
-import org.rakam.automation.action.ClientAutomationAction;
+import org.rakam.automation.action.ClientCodeAutomationAction;
+import org.rakam.automation.action.ClientMessageAutomationAction;
 import org.rakam.automation.action.SendEventAutomationAction;
 import org.rakam.automation.action.UserActionAutomationAction;
 
 public enum AutomationActionType {
-    client(ClientAutomationAction.class), user_action(UserActionAutomationAction.class), event(SendEventAutomationAction.class);
+    client_message(ClientMessageAutomationAction.class),
+    client_code(ClientCodeAutomationAction.class),
+    user_action(UserActionAutomationAction.class),
+    event(SendEventAutomationAction.class);
 
     private final Class<? extends AutomationAction> actionClazz;
 

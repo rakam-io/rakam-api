@@ -23,6 +23,7 @@ import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
@@ -37,15 +38,17 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PostgresqlEventExplorer extends AbstractEventExplorer {
+public class PostgresqlEventExplorer
+        extends AbstractEventExplorer
+{
     private static final Map<TimestampTransformation, String> timestampMapping = ImmutableMap.
             <TimestampTransformation, String>builder()
-            .put(HOUR_OF_DAY, "cast(extract(hour FROM %s) as bigint)")
-            .put(DAY_OF_MONTH, "cast(extract(day FROM %s) as bigint)")
-            .put(WEEK_OF_YEAR, "cast(extract(doy FROM %s) as bigint)")
-            .put(MONTH_OF_YEAR, "cast(extract(month FROM %s) as bigint)")
-            .put(QUARTER_OF_YEAR, "cast(extract(quarter FROM %s) as bigint)")
-            .put(DAY_OF_WEEK, "cast(extract(dow FROM %s) as bigint)")
+            .put(HOUR_OF_DAY, "lpad(cast(extract(hour FROM %s) as text), 2, '0')||':00'")
+            .put(DAY_OF_MONTH, "extract(day FROM %s)||'th day'")
+            .put(WEEK_OF_YEAR, "extract(doy FROM %s)||'th week'")
+            .put(MONTH_OF_YEAR, "rtrim(to_char(%s, 'Month'))")
+            .put(QUARTER_OF_YEAR, "extract(quarter FROM %s)||'th quarter'")
+            .put(DAY_OF_WEEK, "rtrim(to_char(%s, 'Day'))")
             .put(HOUR, "date_trunc('hour', %s)")
             .put(DAY, "cast(%s as date)")
             .put(MONTH, "date_trunc('month', %s)")
@@ -55,13 +58,15 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
 
     @Inject
     public PostgresqlEventExplorer(QueryExecutorService service, MaterializedViewService materializedViewService,
-                                   ContinuousQueryService continuousQueryService) {
+            ContinuousQueryService continuousQueryService)
+    {
         super(service, materializedViewService, continuousQueryService, timestampMapping);
         this.executorService = service;
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate) {
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    {
         checkProject(project);
 
         if (collections.isPresent() && collections.get().isEmpty()) {
@@ -89,7 +94,8 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
             query = format("select collection, %s as %s, count(*) from %s where %s group by 1, 2 order by 2 desc",
                     format(timestampMapping.get(aggregationMethod.get()), "_time"),
                     aggregationMethod.get(), collectionQuery, timePredicate);
-        } else {
+        }
+        else {
             query = String.format("select collection, count(*) total \n" +
                     " from %s where %s group by 1", collectionQuery, timePredicate);
         }
@@ -98,7 +104,8 @@ public class PostgresqlEventExplorer extends AbstractEventExplorer {
     }
 
     @Override
-    public String convertSqlFunction(AggregationType aggType) {
+    public String convertSqlFunction(AggregationType aggType)
+    {
         switch (aggType) {
             case AVERAGE:
                 return "avg(%s)";

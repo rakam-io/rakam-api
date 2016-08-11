@@ -9,7 +9,8 @@ import org.rakam.util.StringTemplate;
 import java.util.Map;
 import java.util.function.Supplier;
 
-public class ClientAutomationAction implements AutomationAction<ClientAutomationAction.Template> {
+public class ClientMessageAutomationAction
+        implements AutomationAction<ClientMessageAutomationAction.Template> {
 
     public String process(String project, Supplier<User> user, Template data) {
         StringTemplate template = new StringTemplate(data.template);

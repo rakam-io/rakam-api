@@ -37,12 +37,12 @@ public abstract class TestEventExplorer {
     protected static final String PROJECT_NAME = TestEventExplorer.class.getName().replace(".", "_").toLowerCase();
 
     private static final Map<TimestampTransformation, Set<List>> EVENT_STATISTICS_RESULTS = ImmutableMap.<TimestampTransformation, Set<List>>builder()
-            .put(HOUR_OF_DAY, ImmutableSet.of(of("test", 0L, 36L), of("test", 1L, 36L), of("test", 2L, 28L)))
-            .put(DAY_OF_MONTH, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(WEEK_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(MONTH_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(QUARTER_OF_YEAR, ImmutableSet.of(of("test", 1L, 100L)))
-            .put(DAY_OF_WEEK, ImmutableSet.of(of("test", 4L, 100L)))
+            .put(HOUR_OF_DAY, ImmutableSet.of(of("test", "00:00", 36L), of("test", "01:00", 36L), of("test", "02:00", 28L)))
+            .put(DAY_OF_MONTH, ImmutableSet.of(of("test", "1th day", 100L)))
+            .put(WEEK_OF_YEAR, ImmutableSet.of(of("test", "1th week", 100L)))
+            .put(MONTH_OF_YEAR, ImmutableSet.of(of("test", "January", 100L)))
+            .put(QUARTER_OF_YEAR, ImmutableSet.of(of("test", "1th quarter", 100L)))
+            .put(DAY_OF_WEEK, ImmutableSet.of(of("test", "Thursday", 100L)))
             .put(HOUR, ImmutableSet.of(of("test", parse("1970-01-01T00:00:00Z"), 36L), of("test", parse("1970-01-01T01:00:00Z"), 36L), of("test", parse("1970-01-01T02:00:00Z"), 28L)))
             .put(DAY, ImmutableSet.of(of("test", LocalDate.parse("1970-01-01"), 100L)))
             .put(WEEK, ImmutableSet.of(of("test", parse("1969-12-29T00:00:00Z"), 100L)))
@@ -308,12 +308,12 @@ public abstract class TestEventExplorer {
     @Test
     public void testReferenceGrouping() throws Exception {
         Map<TimestampTransformation, Set> GROUPING = ImmutableMap.<TimestampTransformation, Set>builder()
-                .put(HOUR_OF_DAY, ImmutableSet.of(of(0L, "test", 36L), of(1L, "test", 36L), of(2L, "test", 28L)))
-                .put(DAY_OF_MONTH, ImmutableSet.of(of(1L, "test", 100L)))
-                .put(WEEK_OF_YEAR, ImmutableSet.of(of(1L, "test", 100L)))
-                .put(MONTH_OF_YEAR, ImmutableSet.of(of(1L, "test", 100L)))
-                .put(QUARTER_OF_YEAR, ImmutableSet.of(of(1L, "test", 100L)))
-                .put(DAY_OF_WEEK, ImmutableSet.of(of(4L, "test", 100L)))
+                .put(HOUR_OF_DAY, ImmutableSet.of(of("00:00", "test", 36L), of("01:00", "test", 36L), of("02:00", "test", 28L)))
+                .put(DAY_OF_MONTH, ImmutableSet.of(of("1th day", "test", 100L)))
+                .put(WEEK_OF_YEAR, ImmutableSet.of(of("1th week", "test", 100L)))
+                .put(MONTH_OF_YEAR, ImmutableSet.of(of("January", "test", 100L)))
+                .put(QUARTER_OF_YEAR, ImmutableSet.of(of("1th quarter", "test", 100L)))
+                .put(DAY_OF_WEEK, ImmutableSet.of(of("Thursday", "test", 100L)))
                 .put(HOUR, ImmutableSet.of(of(parse("1970-01-01T00:00:00Z"), "test", 36L), of(parse("1970-01-01T01:00:00Z"), "test", 36L), of(parse("1970-01-01T02:00:00Z"), "test", 28L)))
                 .put(DAY, ImmutableSet.of(of(LocalDate.parse("1970-01-01"), "test", 100L)))
                 .put(WEEK, ImmutableSet.of(of(parse("1969-12-29T00:00:00Z"), "test", 100L)))
@@ -349,7 +349,7 @@ public abstract class TestEventExplorer {
                 null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
 
         assertFalse(test.isFailed());
-        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of(1L, 1L, 100L)));
+        assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("1th day", "1th day", 100L)));
     }
 }
 
