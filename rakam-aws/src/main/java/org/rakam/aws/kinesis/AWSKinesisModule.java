@@ -8,18 +8,13 @@ import io.airlift.log.Logger;
 import org.rakam.aws.AWSConfig;
 import org.rakam.util.ConditionalModule;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.stream.EventStream;
-import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.RakamModule;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config="event.store", value="kinesis")
 public class AWSKinesisModule extends RakamModule {
-    private final static Logger LOGGER = Logger.get(AWSKinesisModule.class);
-
     @Override
     protected void setup(Binder binder) {
         configBinder(binder).bindConfig(AWSConfig.class);
