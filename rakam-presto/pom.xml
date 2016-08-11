@@ -15,6 +15,7 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <skipTests>false</skipTests>
     </properties>
 
     <licenses>
@@ -176,19 +177,27 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>${skipTests}</skipTests>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>com.googlecode.maven-download-plugin</groupId>
                 <artifactId>download-maven-plugin</artifactId>
                 <version>1.3.0</version>
                 <executions>
                     <execution>
                         <id>download-dynamodb</id>
-                        <phase>test</phase>
+                        <phase>generate-test-resources</phase>
                         <goals>
                             <goal>wget</goal>
                         </goals>
                         <configuration>
                             <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.zip</url>
                             <unpack>true</unpack>
+                            <!--<skip>${skipTests}</skip>-->
                             <outputDirectory>${project.basedir}/.test/dynamodb</outputDirectory>
                         </configuration>
                     </execution>
@@ -201,6 +210,7 @@
 
                 <configuration>
                     <workingDirectory>${project.basedir}/.test/kinesalite</workingDirectory>
+                    <!--<skip>${skipTests}</skip>-->
                 </configuration>
 
                 <executions>
@@ -209,7 +219,7 @@
                         <goals>
                             <goal>install-node-and-npm</goal>
                         </goals>
-                        <phase>test</phase>
+                        <phase>generate-test-resources</phase>
                         <configuration>
                             <nodeVersion>v0.12.2</nodeVersion>
                             <npmVersion>2.7.6</npmVersion>
@@ -218,7 +228,7 @@
 
                     <execution>
                         <id>npm install</id>
-                        <phase>test</phase>
+                        <phase>generate-test-resources</phase>
 
                         <goals>
                             <goal>npm</goal>
@@ -244,6 +254,7 @@
                                     <directory>${basedir}/.test</directory>
                                 </fileset>
                             </filesets>
+                            <!--<skip>${skipTests}</skip>-->
                         </configuration>
                     </execution>
                 </executions>

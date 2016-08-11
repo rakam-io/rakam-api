@@ -249,7 +249,7 @@ public class DynamodbMetastore
                         new AbstractMap.SimpleEntry<>("project", new AttributeValue(project)),
                         new AbstractMap.SimpleEntry<>("id", new AttributeValue("|"))));
 
-        for (int _ = 0; _ < 100; _++) {
+        for (int i = 0; i < 100; i++) {
             List<Map<String, AttributeValue>> items = dynamoDBClient.query(new QueryRequest()
                     .withTableName(tableConfig.getTableName())
                     .withKeyConditions(ImmutableMap.of("project",

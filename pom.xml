@@ -566,6 +566,10 @@
                 <exclusions>
                     <exclusion>
                         <groupId>org.eclipse.jetty</groupId>
+                        <artifactId>jetty-client</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.eclipse.jetty</groupId>
                         <artifactId>jetty-server</artifactId>
                     </exclusion>
                     <exclusion>
