@@ -147,11 +147,12 @@ public class PrestoMetastore
             if (join.isFailed()) {
                 if (join.getError().message.contains("exists") || join.getError().message.equals("Failed to perform metadata operation")) {
                     if (tryCount > 0) {
-                        return getOrCreateCollectionFields(project, collection, fields, tryCount--);
+                        return getOrCreateCollectionFields(project, collection, fields, tryCount - 1);
                     }
                     else {
-                        throw new RakamException(String.format("Failed to add new fields to collection %s.%s: %s",
-                                project, collection, Arrays.toString(fields.toArray())),
+                        throw new RakamException(String.format("Failed to add new fields to collection %s.%s: %s: %s",
+                                project, collection, Arrays.toString(fields.toArray()),
+                                join.getError().toString()),
                                 INTERNAL_SERVER_ERROR);
                     }
                 }
@@ -176,7 +177,7 @@ public class PrestoMetastore
                         if (join.isFailed()) {
                             // FIXME: Presto Raptor connector has a bug when new columns are added concurrently.
                             if (join.getError().message.equals("Failed to perform metadata operation")) {
-                                getOrCreateCollectionFields(project, checkCollection(collection), ImmutableSet.of(f), 1);
+                                getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 1);
                             }
                             else if (!join.getError().message.contains("exists")) {
                                 throw new IllegalStateException(join.getError().message);
