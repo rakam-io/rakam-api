@@ -38,10 +38,6 @@ public class DynamodbUtil
                 .start();
 
         LOGGER.info("Dynamodb local started at %d port", randomPort);
-        InputStream error = dynamodbServer.getErrorStream();
-        for (int i = 0; i < error.available(); i++) {
-            System.out.println("" + error.read());
-        }
 
         return new DynamodbProcess(dynamodbServer, randomPort);
     }

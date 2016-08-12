@@ -99,11 +99,11 @@ public class UIRecipeHandler
         recipe.getReports().stream()
                 .forEach(report -> {
                     try {
-                        reportMetadata.get().save(null, project, report);
+                        reportMetadata.get().save(userId, project, report);
                     }
                     catch (AlreadyExistsException e) {
                         if (overrideExisting) {
-                            reportMetadata.get().update(null, project, report);
+                            reportMetadata.get().update(userId, project, report);
                         }
                         else {
                             throw Throwables.propagate(e);
@@ -132,7 +132,7 @@ public class UIRecipeHandler
         recipe.getCustomReports().stream()
                 .forEach(customReport -> {
                     try {
-                        customReportMetadata.get().save(null, project, customReport);
+                        customReportMetadata.get().save(userId, project, customReport);
                     }
                     catch (AlreadyExistsException e) {
                         if (overrideExisting) {
@@ -153,7 +153,7 @@ public class UIRecipeHandler
                         catch (AlreadyExistsException e) {
                             if (overrideExisting) {
                                 customPageDatabase.get().delete(project, customReport.slug);
-                                customPageDatabase.get().save(null, project, customReport);
+                                customPageDatabase.get().save(userId, project, customReport);
                             }
                             else {
                                 throw Throwables.propagate(e);

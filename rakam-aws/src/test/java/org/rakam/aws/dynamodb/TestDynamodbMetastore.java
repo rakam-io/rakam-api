@@ -13,6 +13,8 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.TestMetastore;
 import org.testng.annotations.AfterSuite;
 
+import java.io.InputStream;
+
 public class TestDynamodbMetastore
         extends TestMetastore
 {
@@ -47,6 +49,10 @@ public class TestDynamodbMetastore
             throws Exception
     {
         metastore.deleteTable();
+        InputStream error = dynamodbProcess.process.getErrorStream();
+        for (int i = 0; i < error.available(); i++) {
+            System.out.println("" + error.read());
+        }
         if(!dynamodbProcess.process.isAlive()) {
             LOGGER.error("Dynamodb process exited with %d",
                     dynamodbProcess.process.exitValue());
