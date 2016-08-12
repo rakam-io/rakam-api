@@ -32,7 +32,8 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
-public class QueryExecutorService {
+public class QueryExecutorService
+{
     private final SqlParser parser = new SqlParser();
     public static final int MAX_QUERY_RESULT_LIMIT = 500000;
 
@@ -44,7 +45,8 @@ public class QueryExecutorService {
     private volatile Set<String> projectCache;
 
     @Inject
-    public QueryExecutorService(QueryExecutor executor, Metastore metastore, MaterializedViewService materializedViewService, Clock clock, @EscapeIdentifier char escapeIdentifier) {
+    public QueryExecutorService(QueryExecutor executor, Metastore metastore, MaterializedViewService materializedViewService, Clock clock, @EscapeIdentifier char escapeIdentifier)
+    {
         this.executor = executor;
         this.materializedViewService = materializedViewService;
         this.metastore = metastore;
@@ -52,7 +54,8 @@ public class QueryExecutorService {
         this.escapeIdentifier = escapeIdentifier;
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, int limit) {
+    public QueryExecution executeQuery(String project, String sqlQuery, int limit)
+    {
         if (!projectExists(project)) {
             throw new NotExistsException("Project");
         }
@@ -61,7 +64,8 @@ public class QueryExecutorService {
 
         try {
             query = buildQuery(project, sqlQuery, limit, materializedViews);
-        } catch (ParsingException e) {
+        }
+        catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
             LogUtil.logQueryError(sqlQuery, error, executor.getClass());
             return QueryExecution.completedQueryExecution(sqlQuery, QueryResult.errorResult(error));
@@ -73,24 +77,24 @@ public class QueryExecutorService {
                 .filter(m -> m.queryExecution != null)
                 .collect(Collectors.toList());
 
-
         if (queryExecutions.isEmpty()) {
             QueryExecution execution = executor.executeRawQuery(query);
             if (materializedViews.isEmpty()) {
                 return execution;
-            } else {
+            }
+            else {
                 Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().tableName, v -> v.getKey().lastUpdate != null ? v.getKey().lastUpdate.toEpochMilli() : -1));
                 return new DelegateQueryExecution(execution, result -> {
                     result.setProperty("materializedViews", collect);
                     return result;
                 });
             }
-        } else {
+        }
+        else {
             List<QueryExecution> executions = queryExecutions.stream()
                     .filter(e -> e.queryExecution != null)
                     .map(e -> e.queryExecution)
                     .collect(Collectors.toList());
-
 
             return new DelegateQueryExecution(new ChainQueryExecution(executions, query, (results) -> {
                 for (MaterializedViewExecution queryExecution : queryExecutions) {
@@ -120,19 +124,23 @@ public class QueryExecutorService {
         }
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery) {
+    public QueryExecution executeQuery(String project, String sqlQuery)
+    {
         return executeQuery(project, sqlQuery, MAX_QUERY_RESULT_LIMIT);
     }
 
-    public QueryExecution executeStatement(String project, String sqlQuery) {
+    public QueryExecution executeStatement(String project, String sqlQuery)
+    {
         return executeQuery(project, sqlQuery);
     }
 
-    private synchronized void updateProjectCache() {
+    private synchronized void updateProjectCache()
+    {
         projectCache = metastore.getProjects();
     }
 
-    private boolean projectExists(String project) {
+    private boolean projectExists(String project)
+    {
         if (projectCache == null) {
             updateProjectCache();
         }
@@ -147,7 +155,8 @@ public class QueryExecutorService {
         return true;
     }
 
-    public String buildQuery(String project, String query, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews) {
+    public String buildQuery(String project, String query, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews)
+    {
         StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {
@@ -171,7 +180,8 @@ public class QueryExecutorService {
                 if (limit > maxLimit) {
                     throw new RakamException(format("The maximum value of LIMIT statement is %s", maxLimit), BAD_REQUEST);
                 }
-            } else {
+            }
+            else {
                 builder.append(" LIMIT ").append(maxLimit);
             }
         }
@@ -179,19 +189,22 @@ public class QueryExecutorService {
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, boolean fetchReference) {
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, boolean fetchReference)
+    {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
                 MaterializedView materializedView;
                 try {
                     materializedView = materializedViewService.get(project, node.getSuffix());
-                } catch (Exception e) {
+                }
+                catch (Exception e) {
                     throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
                 }
                 if (fetchReference) {
                     materializedViews.computeIfAbsent(materializedView, (key) -> materializedViewService.lockAndUpdateView(project, materializedView));
                     return "";
-                } else {
+                }
+                else {
                     return materializedViews.get(materializedView).computeQuery;
                 }
             }
@@ -199,12 +212,14 @@ public class QueryExecutorService {
         };
     }
 
-    public CompletableFuture<List<SchemaField>> metadata(String project, String query) {
+    public CompletableFuture<List<SchemaField>> metadata(String project, String query)
+    {
         StringBuilder builder = new StringBuilder();
         Query queryStatement;
         try {
             queryStatement = (Query) parser.createStatement(checkNotNull(query, "query is required"));
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw new RakamException("Unable to parse query: " + e.getMessage(), BAD_REQUEST);
         }
 
@@ -217,7 +232,8 @@ public class QueryExecutorService {
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 f.completeExceptionally(new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR));
-            } else {
+            }
+            else {
                 f.complete(result.getMetadata());
             }
         });

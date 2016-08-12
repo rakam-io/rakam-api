@@ -141,7 +141,8 @@ public class QueryHttpService
     public void execute(RakamHttpRequest request)
     {
         handleServerSentQueryExecution(request, ExportQuery.class, (project, query) ->
-                executorService.executeQuery(project, query.query, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
+                executorService.executeQuery(project, query.query,
+                        query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction)
