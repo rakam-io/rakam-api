@@ -68,7 +68,7 @@ public class TestPrestoEventExplorer
         super.setup();
         new EventExplorerListener(continuousQueryService).onCreateProject(new ProjectCreatedEvent(PROJECT_NAME));
         // todo find a better way of handling this
-        Thread.sleep(20000);
+        Thread.sleep(30000);
     }
 
     @Override
