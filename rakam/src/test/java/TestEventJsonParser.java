@@ -123,6 +123,7 @@ public class TestEventJsonParser {
 
         assertEquals(ImmutableSet.copyOf(metastore.getCollection("test", "test")), ImmutableSet.of(
                 new SchemaField("test", FieldType.DOUBLE),
+                new SchemaField("_user", FieldType.STRING),
                 new SchemaField("test1", FieldType.BOOLEAN),
                 new SchemaField("test2", FieldType.TIMESTAMP),
                 new SchemaField("test3", FieldType.STRING),

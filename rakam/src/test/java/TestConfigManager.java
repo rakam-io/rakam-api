@@ -21,8 +21,8 @@ public class TestConfigManager implements ConfigManager {
 
     @Override
     public synchronized <T> T setConfigOnce(String project, String configName, T clazz) {
-        table.column(project).putIfAbsent(configName, clazz);
-        return null;
+        Object o = table.column(project).putIfAbsent(configName, clazz);
+        return o == null ? clazz : (T) o;
     }
 
     @Override

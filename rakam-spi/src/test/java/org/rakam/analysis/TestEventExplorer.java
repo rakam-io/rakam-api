@@ -341,7 +341,7 @@ public abstract class TestEventExplorer {
     }
 
     @Test
-    public void tesMultipleReferenceGrouping() throws Exception {
+    public void testMultipleReferenceGrouping() throws Exception {
         QueryResult test = getEventExplorer().analyze(PROJECT_NAME,
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),

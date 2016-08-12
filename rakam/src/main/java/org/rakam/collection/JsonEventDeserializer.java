@@ -431,16 +431,16 @@ public class JsonEventDeserializer
                 String value = jp.getValueAsString();
 
                 try {
-                    DateTimeUtils.parseTimestamp(value);
-                    return FieldType.TIMESTAMP;
+                    DateTimeUtils.parseDate(value);
+                    return FieldType.DATE;
                 }
                 catch (Exception e) {
 
                 }
 
                 try {
-                    DateTimeUtils.parseDate(value);
-                    return FieldType.DATE;
+                    DateTimeUtils.parseTimestamp(value);
+                    return FieldType.TIMESTAMP;
                 }
                 catch (Exception e) {
 
