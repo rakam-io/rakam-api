@@ -127,7 +127,7 @@ public abstract class TestEventExplorer {
         });
     }
 
-//    @Test
+    @Test
     public void testStatisticsDates() throws Exception {
         QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.empty(), Optional.empty(),
