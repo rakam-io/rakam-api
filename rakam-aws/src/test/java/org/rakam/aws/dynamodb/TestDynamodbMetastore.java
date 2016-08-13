@@ -12,6 +12,7 @@ import org.rakam.aws.dynamodb.metastore.DynamodbMetastoreConfig;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.TestMetastore;
 import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 
 import java.io.InputStream;
 
@@ -20,15 +21,22 @@ public class TestDynamodbMetastore
 {
     private final static Logger LOGGER = Logger.get(TestDynamodbMetastore.class);
 
-    private final DynamodbMetastore metastore;
-    private final DynamodbUtil.DynamodbProcess dynamodbProcess;
+    private DynamodbMetastore metastore;
+    private DynamodbUtil.DynamodbProcess dynamodbProcess;
 
-    public TestDynamodbMetastore()
+    @Override
+    public AbstractMetastore getMetastore()
+    {
+        return metastore;
+    }
+
+    @BeforeSuite
+    public void tearUp()
             throws Exception
     {
         dynamodbProcess = DynamodbUtil.createDynamodbProcess();
         AWSConfig config = new AWSConfig()
-                .setDynamodbEndpoint("http://127.0.0.1:" + dynamodbProcess.port)
+                .setDynamodbEndpoint("http://localhost:" + dynamodbProcess.port)
                 .setAccessKey("test")
                 .setSecretAccessKey("test");
         metastore = new DynamodbMetastore(config,
@@ -38,25 +46,17 @@ public class TestDynamodbMetastore
         metastore.setup();
     }
 
-    @Override
-    public AbstractMetastore getMetastore()
-    {
-        return metastore;
-    }
-
     @AfterSuite
     public void tearDown()
             throws Exception
     {
         metastore.deleteTable();
-        InputStream error = dynamodbProcess.process.getErrorStream();
-        for (int i = 0; i < error.available(); i++) {
-            System.out.println("" + error.read());
-        }
-        if(!dynamodbProcess.process.isAlive()) {
+
+        if (!dynamodbProcess.process.isAlive()) {
             LOGGER.error("Dynamodb process exited with %d",
                     dynamodbProcess.process.exitValue());
-        } else {
+        }
+        else {
             dynamodbProcess.process.destroy();
         }
     }
