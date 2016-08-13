@@ -182,7 +182,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-raptor</artifactId>
-            <version>${presto.version}</version>
+            <version>0.151.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>
@@ -199,10 +199,27 @@
             <artifactId>DynamoDBLocal</artifactId>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-streaming</artifactId>
+            <version>0.151.2</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jdbi</groupId>
+                    <artifactId>jdbi</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>junit</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
+
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-raptor</artifactId>
