@@ -133,7 +133,8 @@ public abstract class TestEventExplorer {
                 Optional.empty(), Optional.empty(),
                 LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(101)).join();
 
-        assertFalse(!test.isFailed(), test.getError().toString());
+        assertFalse(!test.isFailed(),
+                test.getError() != null ? test.getError().toString() : null);
         assertEquals(test.getResult(), of());
     }
 
