@@ -142,9 +142,9 @@ public class WebUserHttpService
     @Path("/register-project")
     public UserApiKey registerProject(@ApiParam("name") String name,
             @ApiParam("api_url") String apiUrl,
-            @ApiParam("read_key") String readKey,
-            @ApiParam("write_key") String writeKey,
-            @ApiParam("master_key") String masterKey,
+            @ApiParam(value = "read_key") String readKey,
+            @ApiParam(value = "write_key", required = false) String writeKey,
+            @ApiParam(value = "master_key", required = false) String masterKey,
             @CookieParam("session") String session)
     {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
@@ -253,7 +253,7 @@ public class WebUserHttpService
     @GET
     @JsonRequest
     @Path("/me")
-    public void me(RakamHttpRequest request, @CookieParam("session") String session)
+    public void me(RakamHttpRequest request, @CookieParam(value = "session", required = false) String session)
     {
         String cookie = request.headers().get(COOKIE);
 

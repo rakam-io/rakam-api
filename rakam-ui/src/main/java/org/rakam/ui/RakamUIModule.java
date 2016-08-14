@@ -1,28 +1,22 @@
 package org.rakam.ui;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
-import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.cookie.Cookie;
 import org.flywaydb.core.Flyway;
 import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpService;
-import org.rakam.server.http.RakamHttpRequest;
-import org.rakam.server.http.RequestPreprocessor;
 import org.rakam.ui.UIEvents.ProjectCreatedEvent;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.customreport.CustomPageHttpService;
@@ -36,30 +30,20 @@ import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.Report;
 import org.rakam.ui.report.ReportHttpService;
 import org.rakam.ui.report.UIRecipeHttpService;
-import org.rakam.ui.user.WebUser;
 import org.rakam.ui.user.WebUserHttpService;
-import org.rakam.ui.user.WebUserService;
 import org.rakam.util.ConditionalModule;
-import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.util.IntegerMapper;
 
 import javax.inject.Inject;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Map;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
-import static org.rakam.ui.user.WebUserHttpService.extractUserFromCookie;
 
 @ConditionalModule(config = "ui.enable", value = "true")
+@AutoService(RakamModule.class)
 public class RakamUIModule
         extends RakamModule
 {
@@ -70,17 +54,22 @@ public class RakamUIModule
 
         RakamUIConfig rakamUIConfig = buildConfigObject(RakamUIConfig.class);
 
-        OptionalBinder<CustomPageDatabase> customPageDb = OptionalBinder.newOptionalBinder(binder, CustomPageDatabase.class);
+        OptionalBinder.newOptionalBinder(binder, DashboardService.class);
+        OptionalBinder.newOptionalBinder(binder, ReportMetadata.class);
+        OptionalBinder.newOptionalBinder(binder, CustomPageDatabase.class);
+        OptionalBinder.newOptionalBinder(binder, CustomReportMetadata.class);
+
         if (rakamUIConfig.getCustomPageBackend() != null) {
             switch (rakamUIConfig.getCustomPageBackend()) {
                 case FILE:
-                    customPageDb.setBinding().to(FileBackedCustomPageDatabase.class).in(Scopes.SINGLETON);
+                    binder.bind(FileBackedCustomPageDatabase.class).in(Scopes.SINGLETON);
                     break;
                 case JDBC:
-                    customPageDb.setBinding().to(JDBCCustomPageDatabase.class).in(Scopes.SINGLETON);
+                    binder.bind(JDBCCustomPageDatabase.class).in(Scopes.SINGLETON);
                     break;
             }
         }
+
 
         Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
         customParameters.addBinding().toProvider(UIPermissionParameterProvider.class);
@@ -102,13 +91,13 @@ public class RakamUIModule
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(WebUserHttpService.class);
         httpServices.addBinding().to(ReportHttpService.class);
-        httpServices.addBinding().to(UIRecipeHttpService.class);
+        httpServices.addBinding().to(DashboardService.class);
         httpServices.addBinding().to(CustomReportHttpService.class);
         httpServices.addBinding().to(CustomPageHttpService.class);
-        httpServices.addBinding().to(DashboardService.class);
         httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(RakamUIWebService.class);
         httpServices.addBinding().to(ClusterService.class);
+        httpServices.addBinding().to(UIRecipeHttpService.class);
     }
 
     @Override

@@ -274,7 +274,7 @@ public class PrestoFunnelQueryExecutor
                 project + "." + checkCollection(funnelStep.getCollection()),
                 "step" + idx,
                 userMappingEnabled ? String.format("left join \"%s\".\"%s\" mapping on (%s._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = %s._user)",
-                        "step" + idx, project, ANONYMOUS_ID_MAPPING,
+                        "step" + idx, project, checkCollection(ANONYMOUS_ID_MAPPING),
                         startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE),
                         "step" + idx) : "",
                 filterExp.map(v -> "where " + v).orElse(""));

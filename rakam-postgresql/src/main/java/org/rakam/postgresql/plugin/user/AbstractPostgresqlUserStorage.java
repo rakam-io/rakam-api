@@ -22,7 +22,6 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;

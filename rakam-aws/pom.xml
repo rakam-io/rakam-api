@@ -13,6 +13,7 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <skipTests>false</skipTests>
     </properties>
 
     <dependencies>
@@ -255,6 +256,13 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>${skipTests}</skipTests>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>com.googlecode.maven-download-plugin</groupId>
                 <artifactId>download-maven-plugin</artifactId>
                 <version>1.3.0</version>
@@ -268,7 +276,7 @@
                         <configuration>
                             <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.zip</url>
                             <unpack>true</unpack>
-                            <!--<skip>${skipTests}</skip>-->
+                            <skip>${skipTests}</skip>
                             <outputDirectory>${project.basedir}/.test/dynamodb</outputDirectory>
                         </configuration>
                     </execution>

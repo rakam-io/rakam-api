@@ -36,7 +36,7 @@ public class QueryStats {
         this(null, state, null, null, null, null, null, null);
     }
 
-    public enum  State {
+    public enum State {
         /**
          * Query has been accepted and is awaiting execution.
          */
@@ -53,6 +53,10 @@ public class QueryStats {
          * Query has at least one running task.
          */
         RUNNING(false),
+        /**
+         * Query is finishing (e.g. commit for autocommit queries)
+         */
+        FINISHING(false),
         /**
          * Query has finished executing and all output has been consumed.
          */

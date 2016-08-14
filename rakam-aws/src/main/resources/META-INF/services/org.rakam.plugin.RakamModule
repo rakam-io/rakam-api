@@ -1,1 +1,6 @@
+org.rakam.aws.dynamodb.apikey.DynamodbApiKeyModule
+org.rakam.aws.dynamodb.config.DynamodbConfigManagerModule
+org.rakam.aws.dynamodb.metastore.DynamodbMetastoreModule
+org.rakam.aws.dynamodb.metastore.DynamodbQueryMetastoreModule
+org.rakam.aws.dynamodb.user.DynamodbUserStorageModule
 org.rakam.aws.kinesis.AWSKinesisModule

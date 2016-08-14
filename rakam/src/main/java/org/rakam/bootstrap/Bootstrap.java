@@ -72,12 +72,12 @@ public class Bootstrap
         Preconditions.checkState(!initialized, "Already initialized");
         initialized = true;
         Logging logging = null;
-        if(this.initializeLogging) {
+        if (this.initializeLogging) {
             java.util.logging.Logger rootLogger = java.util.logging.Logger.getLogger("");
             Handler[] handlers = rootLogger.getHandlers();
             logging = Logging.initialize();
             for (Handler handler : handlers) {
-                if(handler instanceof ConsoleHandler) {
+                if (handler instanceof ConsoleHandler) {
                     continue;
                 }
                 rootLogger.addHandler(handler);
@@ -113,7 +113,7 @@ public class Bootstrap
 
         configurationFactory = new ConfigurationFactory(properties);
 
-        if(logging != null) {
+        if (logging != null) {
             this.log.info("Initializing logging");
             LoggingConfiguration messages1 = configurationFactory.build(LoggingConfiguration.class);
             logging.configure(messages1);
@@ -128,12 +128,12 @@ public class Bootstrap
         // initialize configuration factory
         for (Module module : modules) {
             ConditionalModule annotation = module.getClass().getAnnotation(ConditionalModule.class);
-            if(annotation != null) {
+            if (annotation != null) {
                 String value = configurationFactory.getProperties().get(annotation.config());
                 String annValue = annotation.value();
                 configurationFactory.consumeProperty(annotation.config());
-                if(!((annValue.isEmpty() && value != null) || annValue.equals(value))) {
-                   continue;
+                if (!((annValue.isEmpty() && value != null) || annValue.equals(value))) {
+                    continue;
                 }
             }
             if (module instanceof ConfigurationAwareModule) {
@@ -149,8 +149,8 @@ public class Bootstrap
 
         try {
             messages = SystemRegistry.validate(configurationFactory, installedModules, warningsMonitor);
-            ;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw Throwables.propagate(e);
         }
 
@@ -178,7 +178,7 @@ public class Bootstrap
 
         moduleList.add(binder -> {
 //            binder.disableCircularProxies();
-            if(requireExplicitBindings) {
+            if (requireExplicitBindings) {
                 binder.requireExplicitBindings();
             }
         });
@@ -202,7 +202,8 @@ public class Bootstrap
         Injector injector;
         try {
             injector = Guice.createInjector(Stage.PRODUCTION, moduleList.build());
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw Throwables.propagate(e);
         }
 
@@ -220,19 +221,19 @@ public class Bootstrap
         return injector;
     }
 
-    private void verifyUniqueModuleNames() {
+    private void verifyUniqueModuleNames()
+    {
         HashMap<String, Module> strings = new HashMap<>();
 
         for (Module module : modules) {
-            if(module instanceof RakamModule) {
+            if (module instanceof RakamModule) {
                 String name = ((RakamModule) module).name();
-                if(strings.containsKey(name)) {
+                if (strings.containsKey(name)) {
                     throw new IllegalStateException(String.format("Multiple modules with same name found: %s and %s have the same name %s",
                             module.getClass().getName(), strings.get(name).getClass().getName(), name));
                 }
             }
         }
-
     }
 
     private void logConfiguration(ConfigurationFactory configurationFactory, Map<String, String> unusedProperties)

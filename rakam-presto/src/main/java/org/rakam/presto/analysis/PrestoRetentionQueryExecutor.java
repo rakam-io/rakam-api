@@ -27,6 +27,7 @@ import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -285,8 +286,8 @@ public class PrestoRetentionQueryExecutor
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "data.dimension", '"') + " as dimension, " : "",
                 userMappingEnabled ? String.format("(case when data.%s is not null then data.%s else coalesce(mapping._user, data._device_id) end) as %s", userField, userField, userField) : ("data." + userField),
                 checkCollection(collection),
-                userMappingEnabled ? String.format("left join \"%s\" mapping on (data._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
-                        ANONYMOUS_ID_MAPPING, startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)) : "",
+                userMappingEnabled ? String.format("left join %s mapping on (data._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
+                        checkCollection(ANONYMOUS_ID_MAPPING), startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)) : "",
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
                     throw new UnsupportedOperationException();
