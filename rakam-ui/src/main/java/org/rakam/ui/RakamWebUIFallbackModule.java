@@ -1,5 +1,6 @@
 package org.rakam.ui;
 
+import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
@@ -13,6 +14,7 @@ import org.rakam.ui.page.CustomPageDatabase;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
+@AutoService(RakamModule.class)
 public class RakamWebUIFallbackModule extends RakamModule {
     @Override
     protected void setup(Binder binder) {
