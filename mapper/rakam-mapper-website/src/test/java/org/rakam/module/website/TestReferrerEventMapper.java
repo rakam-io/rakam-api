@@ -180,8 +180,14 @@ public class TestReferrerEventMapper {
         assertNull(event.getAttribute("_referrer_source"));
         assertNull(event.getAttribute("_referrer_term"));
         assertEquals("internal", event.getAttribute("_referrer_medium"));
-        assertEquals("test.com", event.getAttribute("_referrer_domain"));
-        assertEquals("/", event.getAttribute("_referrer_path"));
         GenericData.get().validate(properties.getSchema(), properties);
+    }
+
+    @Test
+    public void testSameHostReferrer()
+            throws Exception
+    {
+
+
     }
 }

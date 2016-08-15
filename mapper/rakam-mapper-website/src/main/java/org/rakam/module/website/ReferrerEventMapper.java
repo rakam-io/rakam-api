@@ -3,6 +3,7 @@ package org.rakam.module.website;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.snowplowanalytics.refererparser.CorruptYamlException;
+import com.snowplowanalytics.refererparser.Medium;
 import com.snowplowanalytics.refererparser.Parser;
 import com.snowplowanalytics.refererparser.Referer;
 import io.airlift.log.Logger;
@@ -22,7 +23,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.List;
 
 public class ReferrerEventMapper
@@ -46,20 +46,28 @@ public class ReferrerEventMapper
     {
         String hostUrl, referrerUrl;
         if (referrer instanceof Boolean && ((Boolean) referrer).booleanValue()) {
-            hostUrl = extraProperties.headers().get("Origin");
             referrerUrl = extraProperties.headers().get("Referer");
         }
         else if (referrer instanceof String) {
             referrerUrl = (String) referrer;
-            if (host instanceof String) {
-                hostUrl = (String) host;
-            }
-            else {
-                hostUrl = null;
-            }
         }
         else {
             return;
+        }
+
+        if (host instanceof String) {
+            hostUrl = host.toString();
+        }
+        else {
+            hostUrl = extraProperties.headers().get("Origin");
+            if (hostUrl != null) {
+                try {
+                    hostUrl = new URI(hostUrl).getHost();
+                }
+                catch (URISyntaxException e) {
+                    //
+                }
+            }
         }
 
         Referer parse;
@@ -96,13 +104,15 @@ public class ReferrerEventMapper
                 record.put("_referrer_term", parse.term);
             }
 
-            if (record.get("_referrer_domain") == null) {
-                record.put("_referrer_domain", referrerUri.getHost());
-            }
+            if (parse.medium != Medium.INTERNAL) {
+                if (record.get("_referrer_domain") == null) {
+                    record.put("_referrer_domain", referrerUri.getHost());
+                }
 
-            if (record.get("_referrer_path") == null) {
-                record.put("_referrer_path", referrerUri.getPath() +
-                        (referrerUri.getQuery() == null ? "" : ("?" + referrerUri.getQuery())));
+                if (record.get("_referrer_path") == null) {
+                    record.put("_referrer_path", referrerUri.getPath() +
+                            (referrerUri.getQuery() == null ? "" : ("?" + referrerUri.getQuery())));
+                }
             }
         }
     }

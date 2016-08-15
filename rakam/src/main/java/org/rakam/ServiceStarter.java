@@ -59,7 +59,6 @@ import java.util.ServiceLoader;
 import java.util.Set;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.configuration.ConfigurationModule.bindConfig;
 import static java.lang.String.format;
 
 
@@ -98,6 +97,7 @@ public final class ServiceStarter {
 
     public static Set<Module> getModules() {
         ImmutableSet.Builder<Module> builder = ImmutableSet.builder();
+
         ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
         for (Module module : modules) {
             if (!(module instanceof RakamModule)) {
