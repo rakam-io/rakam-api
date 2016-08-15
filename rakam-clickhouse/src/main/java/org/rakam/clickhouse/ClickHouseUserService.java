@@ -22,6 +22,7 @@ import org.rakam.util.ValidationUtil;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -63,7 +64,7 @@ public class ClickHouseUserService extends AbstractUserService
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime)
+    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
     {
 
         checkProject(project);
@@ -82,8 +83,7 @@ public class ClickHouseUserService extends AbstractUserService
                                     }
                                     return true;
                                 })
-                                // for performance reasons, restrict this.
-                                .filter(field -> field.getName().equals("_session_id"))
+                                .filter(field -> !properties.isPresent() || properties.get().contains(field.getName()))
                                 .filter(field -> field.getType() != BINARY)
                                 .map(field -> {
                                     if (field.getType().isNumeric()) {

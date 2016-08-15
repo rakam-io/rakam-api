@@ -13,6 +13,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -24,12 +25,14 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlUserService
@@ -49,7 +52,7 @@ public class PostgresqlUserService
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime)
+    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
     {
         checkProject(project);
         checkNotNull(user);
@@ -58,8 +61,9 @@ public class PostgresqlUserService
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_user")))
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
                 .map(entry ->
-                        format("select '%s' as collection, row_to_json(coll) json, _time from \"%s\".\"%s\" coll where _user = '%s' %s",
-                                entry.getKey(), project, entry.getKey(), user, beforeThisTime == null ? "" : format("and _time < timestamp '%s'", beforeThisTime.toString())))
+                        format("select '%s' as collection, row_to_json(coll) json, _time from %s.%s coll where _user = '%s' %s",
+                                entry.getKey(), checkCollection(project), checkCollection(entry.getKey()), user,
+                                beforeThisTime == null ? "" : format("and _time < timestamp '%s'", beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
         if (sqlQuery.isEmpty()) {
@@ -73,9 +77,12 @@ public class PostgresqlUserService
             }
 
             List<CollectionEvent> events = new ArrayList(result.getResult().size());
-            for (List<Object> objects : result.getResult()) {
-                events.add(new CollectionEvent((String) objects.get(0), JsonHelper.read(objects.get(1).toString(), Map.class)));
-            }
+            events.addAll(result.getResult().stream()
+                    .map(objects -> {
+                        Map<String, Object> read = JsonHelper.read(objects.get(1).toString(), Map.class);
+                        return new CollectionEvent((String) objects.get(0), read);
+                    })
+                    .collect(Collectors.toList()));
 
             return events;
         });

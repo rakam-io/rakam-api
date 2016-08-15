@@ -3,6 +3,7 @@ package org.rakam.automation;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Provider;
+import com.google.inject.Singleton;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
@@ -22,6 +23,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.function.Supplier;
 
+@Singleton
 public class AutomationEventProcessor implements EventMapper {
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";

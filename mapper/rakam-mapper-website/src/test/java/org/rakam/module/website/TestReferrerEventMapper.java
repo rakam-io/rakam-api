@@ -58,6 +58,8 @@ public class TestReferrerEventMapper {
         assertEquals("Google", event.getAttribute("_referrer_source"));
         assertEquals("test", event.getAttribute("_referrer_term"));
         assertEquals("search", event.getAttribute("_referrer_medium"));
+        assertEquals("google.com", event.getAttribute("_referrer_domain"));
+        assertEquals("/?q=test", event.getAttribute("_referrer_path"));
         assertNull(resp);
         GenericData.get().validate(properties.getSchema(), properties);
     }
@@ -116,6 +118,8 @@ public class TestReferrerEventMapper {
         assertNull(event.getAttribute("_referrer_source"));
         assertNull(event.getAttribute("_referrer_term"));
         assertEquals("unknown", event.getAttribute("_referrer_medium"));
+        assertEquals("test.com", event.getAttribute("_referrer_domain"));
+        assertEquals("", event.getAttribute("_referrer_path"));
     }
 
     @Test()
@@ -160,7 +164,8 @@ public class TestReferrerEventMapper {
         ImmutableList<Schema.Field> build = ImmutableList.<Schema.Field>builder()
                 .addAll(fields.stream()
                         .map(AvroUtil::generateAvroField).collect(Collectors.toList()))
-                .add(new Schema.Field("_referrer", Schema.create(NULL), null, null), new Schema.Field("_host", Schema.create(NULL), null, null))
+                .add(new Schema.Field("_referrer", Schema.create(NULL), null, null),
+                        new Schema.Field("_host", Schema.create(NULL), null, null))
                 .build();
 
         GenericData.Record properties = new GenericData.Record(Schema.createRecord(build));
@@ -175,6 +180,8 @@ public class TestReferrerEventMapper {
         assertNull(event.getAttribute("_referrer_source"));
         assertNull(event.getAttribute("_referrer_term"));
         assertEquals("internal", event.getAttribute("_referrer_medium"));
+        assertEquals("test.com", event.getAttribute("_referrer_domain"));
+        assertEquals("/", event.getAttribute("_referrer_path"));
         GenericData.get().validate(properties.getSchema(), properties);
     }
 }

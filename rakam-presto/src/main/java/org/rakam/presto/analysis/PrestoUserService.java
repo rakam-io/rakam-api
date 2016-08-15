@@ -21,6 +21,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,9 @@ import static org.rakam.collection.FieldType.BINARY;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
-public class PrestoUserService extends AbstractUserService {
+public class PrestoUserService
+        extends AbstractUserService
+{
     public static final String ANONYMOUS_ID_MAPPING = "$anonymous_id_mapping";
     protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
             new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
@@ -59,9 +62,10 @@ public class PrestoUserService extends AbstractUserService {
 
     @Inject
     public PrestoUserService(UserStorage storage, ContinuousQueryService continuousQueryService,
-                             EventStore eventStore, Metastore metastore,
-                             UserPluginConfig config,
-                             PrestoConfig prestoConfig, PrestoQueryExecutor executor) {
+            EventStore eventStore, Metastore metastore,
+            UserPluginConfig config,
+            PrestoConfig prestoConfig, PrestoQueryExecutor executor)
+    {
         super(storage);
         this.continuousQueryService = continuousQueryService;
         this.metastore = metastore;
@@ -72,7 +76,8 @@ public class PrestoUserService extends AbstractUserService {
     }
 
     @Override
-    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime) {
+    public CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime)
+    {
         checkProject(project);
         checkNotNull(user);
         checkArgument(limit <= 1000, "Maximum 1000 events can be fetched at once.");
@@ -90,13 +95,12 @@ public class PrestoUserService extends AbstractUserService {
                                     }
                                     return true;
                                 })
-                                // for performance reasons, restrict this.
-                                .filter(field -> field.getName().equals("_session_id"))
+                                .filter(field -> properties.isPresent() ? properties.get().contains(field.getName())
+                                        : (field.getName().equals("_time") || field.getName().equals("_session_id")))
                                 .filter(field -> field.getType() != BINARY)
                                 .map(field -> {
                                     if (field.getType().isNumeric()) {
                                         return format("\"%1$s\": '|| COALESCE(cast(%1$s as varchar), 'null')||'", field.getName());
-
                                     }
                                     if (field.getType().isArray() || field.getType().isMap()) {
                                         return format("\"%1$s\": '|| json_format(try_cast(%1$s as json)) ||'", field.getName());
@@ -110,7 +114,7 @@ public class PrestoUserService extends AbstractUserService {
                                         beforeThisTime == null ? "" : format("and _time < from_iso8601_timestamp('%s')", beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 
-        if(sqlQuery.isEmpty()) {
+        if (sqlQuery.isEmpty()) {
             return CompletableFuture.completedFuture(ImmutableList.of());
         }
 
@@ -128,7 +132,8 @@ public class PrestoUserService extends AbstractUserService {
     }
 
     @Override
-    public QueryExecution preCalculate(String project, PreCalculateQuery query) {
+    public QueryExecution preCalculate(String project, PreCalculateQuery query)
+    {
         String tableName = "_users_daily" +
                 Optional.ofNullable(query.collection).map(value -> "_" + value).orElse("") +
                 Optional.ofNullable(query.dimension).map(value -> "_by_" + value).orElse("");
@@ -142,7 +147,8 @@ public class PrestoUserService extends AbstractUserService {
             table = String.format("SELECT cast(_time as date) as date, %s _user FROM _all",
                     Optional.ofNullable(query.dimension).map(v -> v + ",").orElse(""));
             dateColumn = "date";
-        } else {
+        }
+        else {
             table = "\"" + query.collection + "\"";
             dateColumn = "cast(_time as date)";
         }
@@ -163,7 +169,8 @@ public class PrestoUserService extends AbstractUserService {
         });
     }
 
-    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt) {
+    public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
+    {
         if (!config.getEnableUserMapping()) {
             throw new RakamException(HttpResponseStatus.NOT_IMPLEMENTED);
         }

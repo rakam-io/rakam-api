@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.collect.ImmutableList.of;
@@ -68,7 +69,7 @@ public abstract class AbstractUserService {
         storage.setUserPropertiesOnce(project, user, properties);
     }
 
-    public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, int limit, Instant beforeThisTime);
+    public abstract CompletableFuture<List<CollectionEvent>> getEvents(String project, String user, Optional<List<String>> properties, int limit, Instant beforeThisTime);
 
     public void incrementProperty(String project, Object user, String property, double value) {
         storage.incrementProperty(project, user, property, value);

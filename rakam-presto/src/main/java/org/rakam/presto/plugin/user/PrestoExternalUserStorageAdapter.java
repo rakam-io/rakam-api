@@ -171,7 +171,9 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         builder.append(" where ").append(" _user is not null ");
 
         if (!filterList.isEmpty()) {
-            builder.append(filterList.stream().collect(Collectors.joining(" AND ")));
+            builder.append("and ")
+                    .append(filterList.stream()
+                            .collect(Collectors.joining(" AND ")));
         }
 
         if (filter.aggregation != null) {

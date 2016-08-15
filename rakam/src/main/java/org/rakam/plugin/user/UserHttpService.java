@@ -52,6 +52,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -191,9 +192,12 @@ public class UserHttpService
     public CompletableFuture<List<CollectionEvent>> getEvents(@Named("project") String project,
             @ApiParam("user") String user,
             @ApiParam(value = "limit", required = false) Integer limit,
+            @ApiParam(value = "properties", required = false) List<String> properties,
             @ApiParam(value = "offset", required = false) Instant offset)
     {
-        return service.getEvents(project, user, limit == null ? 15 : limit, offset);
+        return service.getEvents(project, user,
+                properties == null ? Optional.empty() : Optional.of(properties),
+                limit == null ? 15 : limit, offset);
     }
 
     @POST
