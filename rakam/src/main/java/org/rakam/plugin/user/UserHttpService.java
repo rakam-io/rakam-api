@@ -293,7 +293,8 @@ public class UserHttpService
 
         String project = apiKeyService.getProjectOfApiKey(mergeRequest.api.apiKey, WRITE_KEY);
 
-        service.merge(project, mergeRequest.id, anonymousId, Instant.ofEpochMilli(mergeRequest.createdAt),
+        service.merge(project, mergeRequest.id, anonymousId,
+                Instant.ofEpochMilli(mergeRequest.createdAt),
                 Instant.ofEpochMilli(mergeRequest.mergedAt));
         request.response(response).end();
     }

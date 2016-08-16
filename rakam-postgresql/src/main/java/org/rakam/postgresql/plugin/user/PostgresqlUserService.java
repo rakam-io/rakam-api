@@ -96,7 +96,7 @@ public class PostgresqlUserService
                 continue;
             }
             try (Connection connection = executor.getConnection()) {
-                PreparedStatement ps = connection.prepareStatement(format("UPDATE %s SET _user = ? WHERE _user = ? AND _time BETWEEN ? and ?",
+                PreparedStatement ps = connection.prepareStatement(format("UPDATE %s SET _user = ? WHERE _device_id = ? AND _user is NULL AND _time BETWEEN ? and ?",
                         executor.formatTableReference(project, QualifiedName.of(entry.getKey()))));
                 storage.setUserId(project, ps, user, 1);
                 storage.setUserId(project, ps, anonymousId, 2);
