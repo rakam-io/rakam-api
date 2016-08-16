@@ -9,6 +9,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import org.postgresql.core.BaseConnection;
+import org.postgresql.jdbc2.AbstractJdbc2DatabaseMetaData;
+import org.postgresql.jdbc4.AbstractJdbc4DatabaseMetaData;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -18,6 +21,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -45,6 +49,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -84,18 +89,26 @@ public class PostgresqlMetastore
                     throws Exception
             {
                 try (Connection conn = connectionPool.getConnection()) {
-                    HashSet<String> tables = new HashSet<>();
+                    ResultSet resultSet = conn.createStatement().executeQuery(
+                            format("SELECT c.relname\n" +
+                                    "FROM pg_catalog.pg_class c\n" +
+                                    "    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace\n" +
+                                    "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
+                                    "    WHERE n.nspname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
+                                    "    AND n.nspname <> 'pg_catalog'\n" +
+                                    "    AND n.nspname <> 'information_schema'\n" +
+                                    "    AND n.nspname !~ '^pg_toast'",
+                            checkLiteral(project)));
 
-                    ResultSet tableRs = conn.getMetaData().getTables("", project, null, new String[] {"TABLE"});
-                    while (tableRs.next()) {
-                        String tableName = tableRs.getString("table_name");
-
-                        if (!tableName.startsWith("_")) {
-                            tables.add(tableName);
+                    ImmutableSet.Builder<String> builder = ImmutableSet.builder();
+                    while (resultSet.next()) {
+                        String tableName = resultSet.getString(1);
+                        if(tableName.startsWith("_")) {
+                            continue;
                         }
+                        builder.add(tableName);
                     }
-
-                    return tables;
+                    return builder.build();
                 }
             }
         });
@@ -138,7 +151,7 @@ public class PostgresqlMetastore
         try (Connection connection = connectionPool.getConnection()) {
             final Statement statement = connection.createStatement();
             statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + project);
-            statement.executeUpdate(String.format("CREATE OR REPLACE FUNCTION %s.to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
+            statement.executeUpdate(format("CREATE OR REPLACE FUNCTION %s.to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -180,13 +193,28 @@ public class PostgresqlMetastore
     private List<SchemaField> getSchema(Connection connection, String project, String collection)
             throws SQLException
     {
+        BaseConnection pgConnection = (BaseConnection) connection;
         List<SchemaField> schemaFields = Lists.newArrayList();
-        ResultSet dbColumns = connection.getMetaData().getColumns("", project, collection.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_"), null);
-        while (dbColumns.next()) {
-            String columnName = dbColumns.getString("COLUMN_NAME");
+
+        ResultSet resultSet = pgConnection.execSQLQuery(format("SELECT a.attname, typname\n" +
+                        "FROM pg_catalog.pg_class c\n" +
+                        "    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace\n" +
+                        "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
+                        "    JOIN pg_attribute a ON (a.attrelid=c.oid)\n" +
+                        "    JOIN pg_type t ON (a.atttypid = t.oid)\n" +
+                        "    WHERE n.nspname = '%s' and c.relname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
+                        "    AND n.nspname <> 'pg_catalog'\n" +
+                        "    AND n.nspname <> 'information_schema'\n" +
+                        "    AND n.nspname !~ '^pg_toast'     \n" +
+                        "    AND a.attnum > 0 AND NOT a.attisdropped",
+                checkLiteral(project), checkLiteral(collection)));
+
+        while (resultSet.next()) {
+            String columnName = resultSet.getString(1);
             FieldType fieldType;
             try {
-                fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
+                fieldType = fromSql(pgConnection.getTypeInfo().getSQLType(resultSet.getString(2)),
+                        resultSet.getString(2));
             }
             catch (IllegalStateException e) {
                 continue;
@@ -400,7 +428,7 @@ public class PostgresqlMetastore
                 return FieldType.STRING;
             }
 
-            throw new UnsupportedOperationException(String.format("type '%s' is not supported.", typeName));
+            throw new UnsupportedOperationException(format("type '%s' is not supported.", typeName));
         });
     }
 

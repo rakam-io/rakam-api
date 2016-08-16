@@ -59,6 +59,7 @@ import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.ConditionalModule;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -66,6 +67,7 @@ import java.util.List;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 
 @AutoService(RakamModule.class)
@@ -190,7 +192,55 @@ public class PrestoModule extends RakamModule {
         @Override
         public String timeColumn()
         {
-            return "_shard_time";
+            return "_time";
+        }
+
+        @Override
+        public String getIntermediateFunction(AggregationType type) {
+            String format;
+            switch (type) {
+                case MAXIMUM:
+                    format = "max(%s)";
+                    break;
+                case MINIMUM:
+                    format = "min(%s)";
+                    break;
+                case COUNT:
+                    format = "count(%s)";
+                    break;
+                case SUM:
+                    format = "sum(%s)";
+                    break;
+                case APPROXIMATE_UNIQUE:
+                    format = "approx_set(%s)";
+                    break;
+                case COUNT_UNIQUE:
+                    format = "set(%s)";
+                    break;
+                default:
+                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
+            }
+
+            return format;
+        }
+        @Override
+        public String combineFunction(AggregationType aggregationType)
+        {
+            switch (aggregationType) {
+                case COUNT:
+                case SUM:
+                    return "sum(%s)";
+                case MINIMUM:
+                    return "min(%s)";
+                case MAXIMUM:
+                    return "max(%s)";
+                case APPROXIMATE_UNIQUE:
+                    return "cardinality(merge(%s))";
+                case COUNT_UNIQUE:
+                    return "cardinality(merge(%s))";
+                default:
+                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
+            }
         }
     }
 }

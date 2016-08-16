@@ -53,7 +53,9 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.report.realtime.AggregationType;
+import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.ConditionalModule;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -61,6 +63,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -92,10 +95,13 @@ public class PostgresqlModule extends RakamModule {
             binder.bind(EventStream.class).to(PostgresqlEventStream.class);
         }
 
+        binder.bind(RealtimeService.class).to(PostgresqlRealtimeService.class);
+
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
         binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
                 AggregationType.SUM,
                 AggregationType.MINIMUM,
+                AggregationType.APPROXIMATE_UNIQUE,
                 AggregationType.MAXIMUM));
 
         binder.install(getAsyncClientModule(config));
@@ -244,5 +250,71 @@ public class PostgresqlModule extends RakamModule {
         private Set<FieldType> brinSupportedTypes = ImmutableSet.of(FieldType.DATE, FieldType.DECIMAL,
                 FieldType.DOUBLE, FieldType.INTEGER, FieldType.LONG,
                 FieldType.STRING, FieldType.TIMESTAMP, FieldType.TIME);
+    }
+
+    public static class PostgresqlRealtimeService
+            extends RealtimeService
+    {
+        @Inject
+        public PostgresqlRealtimeService(ContinuousQueryService service, QueryExecutor executor, @RealtimeAggregations List<AggregationType> aggregationTypes, RealTimeConfig config, @TimestampToEpochFunction String timestampToEpochFunction, @EscapeIdentifier char escapeIdentifier)
+        {
+            super(service, executor, aggregationTypes, config, timestampToEpochFunction, escapeIdentifier);
+            executor.executeRawStatement("CREATE EXTENSION IF NOT EXISTS intarray").getResult().join();
+            executor.executeRawStatement("CREATE AGGREGATE array_agg_int (int[]) (\n" +
+                    "    SFUNC    = _int_union\n" +
+                    "   ,STYPE    = int[]\n" +
+                    "   ,INITCOND = '{}'\n" +
+                    ");").getResult().join();
+        }
+
+        @Override
+        public String timeColumn()
+        {
+            return "_time";
+        }
+
+        @Override
+        public String getIntermediateFunction(AggregationType type) {
+            String format;
+            switch (type) {
+                case MAXIMUM:
+                    format = "max(%s)";
+                    break;
+                case MINIMUM:
+                    format = "min(%s)";
+                    break;
+                case COUNT:
+                    format = "count(%s)";
+                    break;
+                case SUM:
+                    format = "sum(%s)";
+                    break;
+                case APPROXIMATE_UNIQUE:
+                    format = "array_agg(distinct hashtext(%s))";
+                    break;
+                default:
+                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
+            }
+
+            return format;
+        }
+
+        @Override
+        public String combineFunction(AggregationType aggregationType)
+        {
+            switch (aggregationType) {
+                case COUNT:
+                case SUM:
+                    return "sum(%s)";
+                case MINIMUM:
+                    return "min(%s)";
+                case MAXIMUM:
+                    return "max(%s)";
+                case APPROXIMATE_UNIQUE:
+                    return "array_length(array_agg_int(%s), 1)";
+                default:
+                    throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
+            }
+        }
     }
 }

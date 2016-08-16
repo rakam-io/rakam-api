@@ -42,7 +42,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
-public class RealtimeService
+public abstract class RealtimeService
 {
     private final String timestampToEpochFunction;
     private final SqlParser sqlParser = new SqlParser();
@@ -213,6 +213,9 @@ public class RealtimeService
         });
     }
 
+
+    public abstract String getIntermediateFunction(AggregationType type);
+
     private String createFinalSelect(List<RealTimeReport.Measure> measures, List<String> dimensions)
     {
         StringBuilder builder = new StringBuilder();
@@ -225,27 +228,7 @@ public class RealtimeService
                 throw new RakamException("Average aggregation is not supported in realtime service.", BAD_REQUEST);
             }
 
-            String format;
-            switch (measures.get(i).aggregation) {
-                case MAXIMUM:
-                    format = "max(%s)";
-                    break;
-                case MINIMUM:
-                    format = "min(%s)";
-                    break;
-                case COUNT:
-                    format = "count(%s)";
-                    break;
-                case SUM:
-                    format = "sum(%s)";
-                    break;
-                case APPROXIMATE_UNIQUE:
-                    format = "approx_set(%s)";
-                    break;
-                default:
-                    throw new IllegalArgumentException("aggregation type couldn't found.");
-            }
-
+            String format = getIntermediateFunction(measures.get(i).aggregation);
             builder.append(String.format(format + " as %s_%s ", measures.get(i).column,
                     measures.get(i).column, measures.get(i).aggregation.name().toLowerCase()));
             if (i < measures.size() - 1) {
@@ -256,22 +239,7 @@ public class RealtimeService
         return builder.toString();
     }
 
-    private String combineFunction(AggregationType aggregationType)
-    {
-        switch (aggregationType) {
-            case COUNT:
-            case SUM:
-                return "sum(%s)";
-            case MINIMUM:
-                return "min(%s)";
-            case MAXIMUM:
-                return "max(%s)";
-            case APPROXIMATE_UNIQUE:
-                return "cardinality(merge(%s))";
-            default:
-                throw new NotImplementedException();
-        }
-    }
+    public abstract String combineFunction(AggregationType aggregationType);
 
     public List<ContinuousQuery> list(String project)
     {

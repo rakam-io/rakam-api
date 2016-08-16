@@ -79,9 +79,9 @@ public class PostgresqlEventExplorer
 
         String timePredicate = format("\"_time\" between date '%s' and date '%s' + interval '1' day",
                 startDate.format(ISO_DATE), endDate.format(ISO_DATE));
-        // TODO: com.facebook.presto.sql injection
+
         String collectionQuery = collections.map(v -> "(" + v.stream()
-                .map(col -> String.format("SELECT _time, cast('%s' as text) as collection FROM %s", col, checkCollection(col))).collect(Collectors.joining(", ")) + ") data")
+                .map(col -> String.format("SELECT _time, cast('%s' as text) as \"$collection\" FROM %s", col, checkCollection(col))).collect(Collectors.joining(", ")) + ") data")
                 .orElse("_all");
 
         String query;
@@ -91,12 +91,12 @@ public class PostgresqlEventExplorer
                 throw new RakamException(BAD_REQUEST);
             }
 
-            query = format("select collection, %s as %s, count(*) from %s where %s group by 1, 2 order by 2 desc",
+            query = format("select \"$collection\", %s as %s, count(*) from %s where %s group by 1, 2 order by 2 desc",
                     format(timestampMapping.get(aggregationMethod.get()), "_time"),
                     aggregationMethod.get(), collectionQuery, timePredicate);
         }
         else {
-            query = String.format("select collection, count(*) total \n" +
+            query = String.format("select \"$collection\", count(*) total \n" +
                     " from %s where %s group by 1", collectionQuery, timePredicate);
         }
 

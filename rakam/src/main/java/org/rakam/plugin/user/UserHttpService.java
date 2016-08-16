@@ -110,7 +110,8 @@ public class UserHttpService
     @POST
     public void createUser(RakamHttpRequest request)
     {
-        setPropertiesInline(request, (project, user) -> service.create(project, user.id, user.properties));
+        setPropertiesInline(request, (project, user) ->
+                service.create(project, user.id, user.properties));
     }
 
     @JsonRequest
