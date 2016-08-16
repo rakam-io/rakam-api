@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -36,6 +37,7 @@ import static com.google.common.collect.ImmutableList.of;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.apache.avro.Schema.Type.INT;
+import static org.apache.avro.Schema.Type.LONG;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.STRING;
 import static org.rakam.collection.FieldType.BINARY;
@@ -49,8 +51,8 @@ public class PrestoUserService
     protected static final Schema ANONYMOUS_USER_MAPPING_SCHEMA = Schema.createRecord(of(
             new Schema.Field("id", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
             new Schema.Field("_user", Schema.createUnion(of(Schema.create(NULL), Schema.create(STRING))), null, null),
-            new Schema.Field("created_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null),
-            new Schema.Field("merged_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(INT))), null, null)
+            new Schema.Field("created_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(LONG))), null, null),
+            new Schema.Field("merged_at", Schema.createUnion(of(Schema.create(NULL), Schema.create(LONG))), null, null)
     ));
 
     private final Metastore metastore;
@@ -177,8 +179,8 @@ public class PrestoUserService
         GenericData.Record properties = new GenericData.Record(ANONYMOUS_USER_MAPPING_SCHEMA);
         properties.put(0, anonymousId);
         properties.put(1, user);
-        properties.put(2, (int) Math.floorDiv(createdAt.getEpochSecond(), 86400));
-        properties.put(3, (int) Math.floorDiv(mergedAt.getEpochSecond(), 86400));
+        properties.put(2, createdAt.toEpochMilli());
+        properties.put(3, mergedAt.toEpochMilli());
 
         eventStore.store(new Event(project, ANONYMOUS_ID_MAPPING, null, null, properties));
     }

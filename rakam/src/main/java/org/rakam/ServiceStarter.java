@@ -113,8 +113,8 @@ public final class ServiceStarter {
 
         builder.add(new ServiceRecipe());
 //        builder.add(new PostgresqlModule());
-        builder.add(new GeoIPModule());
-        builder.add(new PostgresqlUserModule());
+//        builder.add(new GeoIPModule());
+//        builder.add(new PostgresqlUserModule());
         return builder.build();
     }
 
