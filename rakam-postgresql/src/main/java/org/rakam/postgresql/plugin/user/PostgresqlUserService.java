@@ -92,7 +92,8 @@ public class PostgresqlUserService
     public void merge(String project, Object user, Object anonymousId, Instant createdAt, Instant mergedAt)
     {
         for (Map.Entry<String, List<SchemaField>> entry : metastore.getCollections(project).entrySet()) {
-            if (!entry.getValue().stream().anyMatch(e -> e.getName().equals("_user"))) {
+            if (!entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")) &&
+                    !entry.getValue().stream().anyMatch(e -> e.getName().equals("_device_id"))) {
                 continue;
             }
             try (Connection connection = executor.getConnection()) {
