@@ -26,6 +26,7 @@ import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
+import org.rakam.server.http.Response;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
@@ -89,15 +90,15 @@ public class QueryHttpService
             authorizations = @Authorization(value = "read_key")
     )
     @JsonRequest
-    public CompletableFuture<QueryResult> execute(
+    public CompletableFuture<Response<QueryResult>> execute(
             @Named("project") String project,
             @BodyParam ExportQuery query)
     {
         return executorService.executeQuery(project, query.query, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenApply(result -> {
             if (result.isFailed()) {
-                throw new RakamException(result.getError().toString(), BAD_REQUEST);
+                return Response.value(result, BAD_REQUEST);
             }
-            return result;
+            return Response.ok(result);
         });
     }
 

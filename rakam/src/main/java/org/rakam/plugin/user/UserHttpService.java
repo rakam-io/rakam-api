@@ -268,7 +268,6 @@ public class UserHttpService
     @IgnoreApi
     @AllowCookie
     public void mergeUser(RakamHttpRequest request,
-            @CookieParam("_anonymous_user") String anonymousIdFallback,
             @BodyParam MergeRequest mergeRequest)
     {
         // TODO: what if a user sends real user ids instead of its previous anonymous id?
@@ -283,12 +282,7 @@ public class UserHttpService
         setBrowser(request, response);
 
         if (anonymousId == null) {
-            if (anonymousIdFallback == null) {
-                request.response(response).end();
-                return;
-            }
-
-            anonymousId = anonymousIdFallback;
+            throw new RakamException("Anonymous id is required", BAD_REQUEST);
         }
 
         String project = apiKeyService.getProjectOfApiKey(mergeRequest.api.apiKey, WRITE_KEY);
