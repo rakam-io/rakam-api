@@ -313,7 +313,6 @@ public class RakamUIModule
 
     public static class FlywayExecutor
     {
-
         @Inject
         public FlywayExecutor(@Named("ui.metadata.jdbc") JDBCConfig config)
         {

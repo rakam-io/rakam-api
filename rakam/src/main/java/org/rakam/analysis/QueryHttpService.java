@@ -94,12 +94,15 @@ public class QueryHttpService
             @Named("project") String project,
             @BodyParam ExportQuery query)
     {
-        return executorService.executeQuery(project, query.query, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenApply(result -> {
-            if (result.isFailed()) {
-                return Response.value(result, BAD_REQUEST);
-            }
-            return Response.ok(result);
-        });
+        QueryExecution queryExecution = executorService.executeQuery(project, query.query,
+                query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit);
+        return queryExecution
+                .getResult().thenApply(result -> {
+                    if (result.isFailed()) {
+                        return Response.value(result, BAD_REQUEST);
+                    }
+                    return Response.ok(result);
+                });
     }
 
     @Path("/export")
@@ -294,7 +297,7 @@ public class QueryHttpService
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
             if (limit != null && limit > MAX_QUERY_RESULT_LIMIT) {
-                throw new IllegalArgumentException("maximum value of limit is "+MAX_QUERY_RESULT_LIMIT);
+                throw new IllegalArgumentException("maximum value of limit is " + MAX_QUERY_RESULT_LIMIT);
             }
             this.exportType = exportType;
             this.limit = limit;

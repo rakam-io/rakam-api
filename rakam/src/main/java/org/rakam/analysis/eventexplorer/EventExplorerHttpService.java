@@ -39,6 +39,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -54,18 +55,21 @@ import static org.rakam.util.ValidationUtil.checkArgument;
 
 @Path("/event-explorer")
 @Api(value = "/event-explorer", nickname = "eventExplorer", description = "Event explorer module", tags = "event-explorer")
-public class EventExplorerHttpService extends HttpService {
+public class EventExplorerHttpService
+        extends HttpService
+{
     private final EventExplorer eventExplorer;
     private final QueryHttpService queryService;
-    private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
 
     @Inject
-    public EventExplorerHttpService(EventExplorer eventExplorer, ContinuousQueryService continuousQueryService,
-                                    MaterializedViewService materializedViewService, QueryHttpService queryService) {
+    public EventExplorerHttpService(
+            EventExplorer eventExplorer,
+            MaterializedViewService materializedViewService,
+            QueryHttpService queryService)
+    {
         this.eventExplorer = eventExplorer;
         this.queryService = queryService;
-        this.continuousQueryService = continuousQueryService;
         this.materializedViewService = materializedViewService;
     }
 
@@ -75,13 +79,13 @@ public class EventExplorerHttpService extends HttpService {
     @JsonRequest
     @Path("/statistics")
     public CompletableFuture<QueryResult> getEventStatistics(@Named("project") String project,
-                                                             @ApiParam(value = "collections", required = false) Set<String> collections,
-                                                             @ApiParam(value = "dimension", required = false) String dimension,
-                                                             @ApiParam("startDate") LocalDate startDate,
-                                                             @ApiParam("endDate") LocalDate endDate) {
+            @ApiParam(value = "collections", required = false) Set<String> collections,
+            @ApiParam(value = "dimension", required = false) String dimension,
+            @ApiParam("startDate") LocalDate startDate,
+            @ApiParam("endDate") LocalDate endDate)
+    {
         return eventExplorer.getEventStatistics(project, Optional.ofNullable(collections), Optional.ofNullable(dimension), startDate, endDate);
     }
-
 
     @GET
     @ApiOperation(value = "Event statistics",
@@ -89,7 +93,8 @@ public class EventExplorerHttpService extends HttpService {
     )
     @Path("/extra_dimensions")
     @JsonRequest
-    public Map<String, List<String>> getExtraDimensions(@Named("project") String project) {
+    public Map<String, List<String>> getExtraDimensions(@Named("project") String project)
+    {
         return eventExplorer.getExtraDimensions(project);
     }
 
@@ -98,7 +103,8 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @BodyParam AnalyzeRequest analyzeRequest) {
+    public CompletableFuture<QueryResult> analyzeEvents(@Named("project") String project, @BodyParam AnalyzeRequest analyzeRequest)
+    {
         checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
         checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
 
@@ -108,11 +114,13 @@ public class EventExplorerHttpService extends HttpService {
                 analyzeRequest.startDate, analyzeRequest.endDate).getResult();
     }
 
-    public static class PrecalculatedTable {
+    public static class PrecalculatedTable
+    {
         public final String name;
         public final String tableName;
 
-        public PrecalculatedTable(String name, String tableName) {
+        public PrecalculatedTable(String name, String tableName)
+        {
             this.name = name;
             this.tableName = tableName;
         }
@@ -123,7 +131,8 @@ public class EventExplorerHttpService extends HttpService {
     )
     @JsonRequest
     @Path("/pre_calculate")
-    public CompletableFuture<PrecalculatedTable> createPrecomputedTable(@Named("project") String project, @BodyParam OLAPTable table) {
+    public CompletableFuture<PrecalculatedTable> createPrecomputedTable(@Named("project") String project, @BodyParam OLAPTable table)
+    {
         String metrics = table.measures.stream().map(column -> table.aggregations.stream()
                 .map(agg -> getAggregationColumn(agg, table.aggregations).map(e -> String.format(e, column) + " as " + column + "_" + agg.name().toLowerCase()))
                 .filter(Optional::isPresent).map(Optional::get).collect(Collectors.joining(", ")))
@@ -133,13 +142,15 @@ public class EventExplorerHttpService extends HttpService {
         String dimensions = table.dimensions.stream().collect(Collectors.joining(", "));
         if (table.collections.size() == 1) {
             subQuery = table.collections.iterator().next();
-        } else if (table.collections.size() > 1) {
+        }
+        else if (table.collections.size() > 1) {
             subQuery = table.collections.stream().map(collection -> String.format("SELECT '%s' as collection, _time %s %s FROM %s",
                     collection,
                     dimensions.isEmpty() ? "" : ", " + dimensions,
                     table.measures.isEmpty() ? "" : ", " + table.measures.stream().collect(Collectors.joining(", ")), collection))
                     .collect(Collectors.joining(" UNION ALL "));
-        } else {
+        }
+        else {
             throw new RakamException("collections is empty", HttpResponseStatus.BAD_REQUEST);
         }
 
@@ -159,7 +170,8 @@ public class EventExplorerHttpService extends HttpService {
                 .thenApply(v -> new PrecalculatedTable(name, table.tableName));
     }
 
-    private Optional<String> getAggregationColumn(AggregationType agg, Set<AggregationType> aggregations) {
+    private Optional<String> getAggregationColumn(AggregationType agg, Set<AggregationType> aggregations)
+    {
         switch (agg) {
             case AVERAGE:
                 aggregations.add(COUNT);
@@ -192,10 +204,11 @@ public class EventExplorerHttpService extends HttpService {
     @GET
     @IgnoreApi
     @Path("/analyze")
-    public void analyzeEvents(RakamHttpRequest request) {
+    public void analyzeEvents(RakamHttpRequest request)
+    {
         queryService.handleServerSentQueryExecution(request, AnalyzeRequest.class, (project, analyzeRequest) -> {
             checkArgument(!analyzeRequest.collections.isEmpty(), "collections array is empty");
-            if(analyzeRequest.measure.column != null) {
+            if (analyzeRequest.measure.column != null) {
                 checkArgument(!analyzeRequest.measure.column.equals("_time"), "measure column value cannot be '_time'");
             }
 
@@ -206,7 +219,8 @@ public class EventExplorerHttpService extends HttpService {
         });
     }
 
-    public static class AnalyzeRequest {
+    public static class AnalyzeRequest
+    {
         public final EventExplorer.Measure measure;
         public final EventExplorer.Reference grouping;
         public final EventExplorer.Reference segment;
@@ -217,12 +231,13 @@ public class EventExplorerHttpService extends HttpService {
 
         @JsonCreator
         public AnalyzeRequest(@ApiParam(value = "measure", required = false) EventExplorer.Measure measure,
-                              @ApiParam(value = "grouping", required = false) EventExplorer.Reference grouping,
-                              @ApiParam(value = "segment", required = false) EventExplorer.Reference segment,
-                              @ApiParam(value = "filterExpression", required = false) String filterExpression,
-                              @ApiParam("startDate") LocalDate startDate,
-                              @ApiParam("endDate") LocalDate endDate,
-                              @ApiParam("collections") List<String> collections) {
+                @ApiParam(value = "grouping", required = false) EventExplorer.Reference grouping,
+                @ApiParam(value = "segment", required = false) EventExplorer.Reference segment,
+                @ApiParam(value = "filterExpression", required = false) String filterExpression,
+                @ApiParam("startDate") LocalDate startDate,
+                @ApiParam("endDate") LocalDate endDate,
+                @ApiParam("collections") List<String> collections)
+        {
             this.measure = measure;
             this.grouping = grouping;
             this.segment = segment;
