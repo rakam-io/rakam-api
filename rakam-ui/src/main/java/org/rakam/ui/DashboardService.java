@@ -48,7 +48,7 @@ public class DashboardService
     private final DBI dbi;
 
     @Inject
-    public DashboardService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, WebUserService webUserService)
+    public DashboardService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
     {
         dbi = new DBI(dataSource);
     }
@@ -57,7 +57,8 @@ public class DashboardService
     @ApiOperation(value = "Create dashboard")
     @Path("/create")
     @ProtectEndpoint(writeOperation = true)
-    public Dashboard create(@Named("user_id") Project project,
+    public Dashboard create(
+            @Named("user_id") Project project,
             @ApiParam("name") String name,
             @ApiParam(value = "options", required = false) Map<String, Object> options)
     {

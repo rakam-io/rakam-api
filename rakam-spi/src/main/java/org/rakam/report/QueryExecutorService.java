@@ -19,9 +19,11 @@ import org.rakam.util.RakamException;
 import org.rakam.util.LogUtil;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -114,7 +116,10 @@ public class QueryExecutorService
                 return executor.executeRawQuery(query);
             }), result -> {
                 if (!result.isFailed()) {
-                    Map<String, Long> collect = materializedViews.entrySet().stream().collect(Collectors.toMap(v -> v.getKey().tableName, v -> v.getKey().lastUpdate.toEpochMilli()));
+                    Map<String, Long> collect = materializedViews.entrySet().stream()
+                            .collect(Collectors.toMap(
+                                    v -> v.getKey().tableName,
+                                    v -> Optional.ofNullable(v.getKey().lastUpdate).map(Instant::toEpochMilli).orElse(0L)));
                     result.setProperty("materializedViews", collect);
                     result.setProperty(EXECUTION_TIME, System.currentTimeMillis() - startTime);
                 }

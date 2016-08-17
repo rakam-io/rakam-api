@@ -35,6 +35,7 @@ import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.report.realtime.AggregationType.COUNT;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStorage {
@@ -83,7 +84,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         if (eventFilter != null && !eventFilter.isEmpty()) {
             query = String.format("select distinct _user as %s from (%s) ",
                     config.getIdentifierColumn(),
-                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), ValidationUtil.checkCollection(f.collection)))
+                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), checkCollection(f.collection)))
                             .collect(Collectors.joining(" union all ")));
         } else {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project)
@@ -97,8 +98,8 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
 
             query = String.format("select distinct _user as %s from (%s)",
                     config.getIdentifierColumn(),
-                    collections.stream().map(c -> String.format("select %s from %s where _user is not null", "_user",
-                            ValidationUtil.checkCollection(c.getKey()))).collect(Collectors.joining(" union all ")));
+                    collections.stream().map(c -> String.format("select %s from %s collection where collection._user is not null", "_user",
+                            checkCollection(c.getKey()))).collect(Collectors.joining(" union all ")));
         }
 
 //        if(sortColumn == null) {
@@ -154,7 +155,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         if (filter.timeframe != null) {
             if (filter.timeframe.start != null) {
                 filterList.add(String.format("collection._time > cast('%s' as timestamp)",
-                        PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.start.atZone(ZoneId.of("UTC")))));
+                         PRESTO_TIMESTAMP_FORMAT.format(filter.timeframe.start.atZone(ZoneId.of("UTC")))));
             }
             if (filter.timeframe.end != null) {
                 filterList.add(String.format("collection._time < cast('%s' as timestamp)",
@@ -163,12 +164,12 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }
 
         if (config.getEnableUserMapping()) {
-            // and collection.user is not null and mapping.created_at <= max and mapping.merged_at > min
-            builder.append(String.format(" left join %s mapping on (mapping.id = collection._device_id)",
-                    ValidationUtil.checkCollection(ANONYMOUS_ID_MAPPING)));
+            // mapping.created_at <= max and mapping.merged_at > min
+            builder.append(String.format(" left join %s mapping on (collection._user is null and mapping.id = collection._device_id)",
+                    checkCollection(ANONYMOUS_ID_MAPPING)));
         }
 
-        builder.append(" where ").append(" _user is not null ");
+        builder.append(" where ").append(" collection._user is not null ");
 
         if (!filterList.isEmpty()) {
             builder.append("and ")
