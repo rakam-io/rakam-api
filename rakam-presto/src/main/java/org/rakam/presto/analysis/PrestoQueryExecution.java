@@ -31,8 +31,6 @@ import org.rakam.report.QueryStats;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
 
-import javax.annotation.Nullable;
-
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
@@ -94,7 +92,7 @@ public class PrestoQueryExecution
     public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS z");
 
-    private @Nullable StatementClient client;
+    private StatementClient client;
     private final Instant startTime;
 
     public PrestoQueryExecution(ClientSession session, String query)
