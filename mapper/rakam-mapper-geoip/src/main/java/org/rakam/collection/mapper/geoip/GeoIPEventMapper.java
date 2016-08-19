@@ -14,7 +14,6 @@ import com.maxmind.geoip2.model.IspResponse;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
@@ -32,7 +31,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.rakam.collection.FieldType.STRING;

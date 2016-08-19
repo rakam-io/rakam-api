@@ -38,6 +38,10 @@ public class QueryStats {
 
     public enum State {
         /**
+         * Query is waiting for available thread and not yet sent to the database.
+         */
+        WAITING_FOR_AVAILABLE_THREAD(false),
+        /**
          * Query has been accepted and is awaiting execution.
          */
         QUEUED(false),

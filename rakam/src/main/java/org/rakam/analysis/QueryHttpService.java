@@ -3,6 +3,7 @@ package org.rakam.analysis;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
+import com.facebook.presto.sql.tree.NodeLocation;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
@@ -11,8 +12,10 @@ import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
 import com.facebook.presto.sql.tree.Union;
+import com.facebook.presto.sql.tree.WithQuery;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
@@ -48,11 +51,13 @@ import javax.ws.rs.Produces;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -310,13 +315,19 @@ public class QueryHttpService
     public ResponseQuery explain(@ApiParam(value = "query", description = "Query") String query)
     {
         try {
-            Query statement;
-            synchronized (sqlParser) {
-                statement = (Query) sqlParser.createStatement(query);
-            }
+            Query statement = (Query) sqlParser.createStatement(query);
+
+            Map<String, NodeLocation> map = statement.getWith().map(with -> {
+                ImmutableMap.Builder<String, NodeLocation> builder = ImmutableMap.builder();
+                with.getQueries().stream()
+                        .forEach(withQuery ->
+                                builder.put(withQuery.getName(), withQuery.getQuery().getLocation().orElse(null)));
+                return builder.build();
+            }).orElse(null);
 
             if (statement.getQueryBody() instanceof QuerySpecification) {
-                return parseQuerySpecification((QuerySpecification) statement.getQueryBody());
+                return parseQuerySpecification((QuerySpecification) statement.getQueryBody(),
+                        statement.getLimit(), statement.getOrderBy(), map);
             }
             else if (statement.getQueryBody() instanceof Union) {
                 Relation relation = ((Union) statement.getQueryBody()).getRelations().get(0);
@@ -325,10 +336,14 @@ public class QueryHttpService
                 }
 
                 if (relation instanceof QuerySpecification) {
-                    return parseQuerySpecification((QuerySpecification) relation);
+                    return parseQuerySpecification((QuerySpecification) relation,
+                            statement.getLimit(), statement.getOrderBy(), map);
                 }
             }
-            return new ResponseQuery(ImmutableList.of(), ImmutableList.of(),
+
+            return new ResponseQuery(map,
+                    statement.getQueryBody().getLocation().orElse(null),
+                    ImmutableList.of(), ImmutableList.of(),
                     statement.getLimit().map(l -> Long.parseLong(l)).orElse(null));
         }
         catch (Throwable e) {
@@ -345,7 +360,7 @@ public class QueryHttpService
         return executorService.metadata(project, query);
     }
 
-    private ResponseQuery parseQuerySpecification(QuerySpecification queryBody)
+    private ResponseQuery parseQuerySpecification(QuerySpecification queryBody, Optional<String> limitOutside, List<SortItem> orderByOutside, Map<String, NodeLocation> with)
     {
         Function<Node, Integer> mapper = item -> {
             if (item instanceof QualifiedNameReference) {
@@ -363,11 +378,20 @@ public class QueryHttpService
                 .map(item -> new GroupBy(mapper.apply(item), item.toString()))
                 .collect(Collectors.toList())).orElse(ImmutableList.of());
 
-        List<Ordering> orderBy = queryBody.getOrderBy().stream().map(item ->
-                new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
-                .collect(Collectors.toList());
+        List<Ordering> orderBy;
+        if (orderByOutside != null) {
+            orderBy = orderByOutside.stream()
+                    .map(e -> new Ordering(e.getOrdering(), mapper.apply(e.getSortKey()), e.getSortKey().toString()))
+                    .collect(Collectors.toList());
+        }
+        else {
+            orderBy = queryBody.getOrderBy().stream().map(item ->
+                    new Ordering(item.getOrdering(), mapper.apply(item.getSortKey()), item.getSortKey().toString()))
+                    .collect(Collectors.toList());
+        }
 
-        String limitStr = queryBody.getLimit().orElse(null);
+
+        String limitStr = limitOutside.orElse(queryBody.getLimit().orElse(null));
         Long limit = null;
         if (limitStr != null) {
             try {
@@ -377,7 +401,7 @@ public class QueryHttpService
             }
         }
 
-        return new ResponseQuery(groupBy, orderBy, limit);
+        return new ResponseQuery(with, queryBody.getLocation().orElse(null), groupBy, orderBy, limit);
     }
 
     private Optional<Integer> findSelectIndex(List<SelectItem> selectItems, String reference)
@@ -398,15 +422,23 @@ public class QueryHttpService
 
     public static class ResponseQuery
     {
-        public static final ResponseQuery UNKNOWN = new ResponseQuery(ImmutableList.of(), ImmutableList.of(), null);
+        public static final ResponseQuery UNKNOWN = new ResponseQuery(null, null, ImmutableList.of(), ImmutableList.of(), null);
 
+        public final Map<String, NodeLocation> with;
         public final List<GroupBy> groupBy;
         public final List<Ordering> orderBy;
         public final Long limit;
+        public final NodeLocation queryLocation;
 
         @JsonCreator
-        public ResponseQuery(List<GroupBy> groupBy, List<Ordering> orderBy, Long limit)
+        public ResponseQuery
+                (Map<String, NodeLocation> with,
+                NodeLocation queryLocation,
+                List<GroupBy> groupBy,
+                List<Ordering> orderBy, Long limit)
         {
+            this.with = with;
+            this.queryLocation = queryLocation;
             this.groupBy = groupBy;
             this.orderBy = orderBy;
             this.limit = limit;

@@ -28,8 +28,10 @@ import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
-import org.rakam.util.RakamException;
 import org.rakam.util.LogUtil;
+import org.rakam.util.RakamException;
+
+import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -45,17 +47,29 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.airlift.http.client.Request.Builder.fromRequest;
 import static com.facebook.presto.jdbc.internal.airlift.json.JsonCodec.jsonCodec;
 import static com.facebook.presto.jdbc.internal.guava.base.Preconditions.checkNotNull;
 import static com.facebook.presto.jdbc.internal.spi.type.ParameterKind.TYPE;
+import static com.google.common.base.Throwables.propagate;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.time.ZoneOffset.UTC;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.rakam.collection.FieldType.*;
+import static org.rakam.collection.FieldType.BINARY;
+import static org.rakam.collection.FieldType.BOOLEAN;
+import static org.rakam.collection.FieldType.DATE;
+import static org.rakam.collection.FieldType.DECIMAL;
+import static org.rakam.collection.FieldType.DOUBLE;
+import static org.rakam.collection.FieldType.INTEGER;
+import static org.rakam.collection.FieldType.LONG;
+import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.collection.FieldType.TIME;
+import static org.rakam.collection.FieldType.TIMESTAMP;
 
 public class PrestoQueryExecution
         implements QueryExecution
@@ -67,32 +81,27 @@ public class PrestoQueryExecution
                     .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
             ImmutableSet.of(new UserAgentRequestFilter("rakam")));
 
-    // doesn't seem to be a good way but presto client uses a synchronous http client
-    // so it blocks the thread when executing queries
-    private static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
+    private static final ThreadPoolExecutor QUERY_EXECUTOR = new ThreadPoolExecutor(0, 60,
+            300L, TimeUnit.SECONDS,
+            new SynchronousQueue<>());
+
     private final List<List<Object>> data = Lists.newArrayList();
     private static final com.facebook.presto.jdbc.internal.airlift.json.JsonCodec<QueryResults> QUERY_RESULTS_JSON_CODEC = jsonCodec(QueryResults.class);
+    private final String query;
     private List<SchemaField> columns;
 
     private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
     public static final DateTimeFormatter PRESTO_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     public static final DateTimeFormatter PRESTO_TIMESTAMP_WITH_TIMEZONE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS z");
 
-    private StatementClient client;
+    private @Nullable StatementClient client;
     private final Instant startTime;
 
     public PrestoQueryExecution(ClientSession session, String query)
     {
         this.startTime = Instant.now();
-
-        try {
-            client = new StatementClient(HTTP_CLIENT, QUERY_RESULTS_JSON_CODEC, session, query);
-        }
-        catch (RuntimeException e) {
-            LOGGER.warn(e, "Presto server is not active: " + e.getMessage());
-            throw new RakamException("Presto server is not active: " + e.getMessage(), HttpResponseStatus.BAD_GATEWAY);
-        }
-        QUERY_EXECUTOR.execute(new QueryTracker());
+        this.query = query;
+        QUERY_EXECUTOR.execute(new QueryTracker(session));
     }
 
     public static FieldType fromPrestoType(String rawType, Iterator<String> parameter)
@@ -135,6 +144,9 @@ public class PrestoQueryExecution
     @Override
     public QueryStats currentStats()
     {
+        if (client == null) {
+            return new QueryStats(QueryStats.State.WAITING_FOR_AVAILABLE_THREAD);
+        }
 
         if (client.isFailed()) {
             return new QueryStats(QueryStats.State.FAILED);
@@ -169,7 +181,7 @@ public class PrestoQueryExecution
 
     public String getQuery()
     {
-        return client.getQuery();
+        return query;
     }
 
     @Override
@@ -213,11 +225,30 @@ public class PrestoQueryExecution
     private class QueryTracker
             implements Runnable
     {
+        private final ClientSession session;
+
+        public QueryTracker(ClientSession session)
+        {
+            this.session = session;
+        }
+
         @Override
         public void run()
         {
             try {
+                client = new StatementClient(HTTP_CLIENT, QUERY_RESULTS_JSON_CODEC, session, query);
+            }
+            catch (RuntimeException e) {
+                LOGGER.warn(e, "Presto server is not active: " + e.getMessage());
+                throw new RakamException("Presto server is not active: " + e.getMessage(), HttpResponseStatus.BAD_GATEWAY);
+            }
+
+            try {
                 while (client.isValid() && client.advance()) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        client.close();
+                        throw propagate(new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR));
+                    }
                     transformAndAdd(client.current());
                 }
 
