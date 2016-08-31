@@ -224,12 +224,17 @@ public class QueryHttpService
             return;
         }
 
-        handleServerSentQueryExecution(request, execute, killOnConnectionClose);
+        handleServerSentQueryExecutionInternal(response, execute, killOnConnectionClose);
     }
 
     public void handleServerSentQueryExecution(RakamHttpRequest request, QueryExecution query, boolean killOnConnectionClose)
     {
         RakamHttpRequest.StreamResponse response = request.streamResponse(RETRY_DURATION);
+        handleServerSentQueryExecutionInternal(response, query, killOnConnectionClose);
+    }
+
+    private void handleServerSentQueryExecutionInternal(RakamHttpRequest.StreamResponse response, QueryExecution query, boolean killOnConnectionClose)
+    {
         if (query == null) {
             // TODO: custom message
             response.send("result", encode(jsonObject()
