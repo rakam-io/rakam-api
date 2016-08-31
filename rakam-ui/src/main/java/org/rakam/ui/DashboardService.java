@@ -20,11 +20,9 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
-import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
-import org.rakam.ui.user.WebUserService;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.SuccessMessage;
@@ -104,7 +102,7 @@ public class DashboardService
             @ApiParam("name") String name)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, directive, data FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND name = :name)")
+            return handle.createQuery("SELECT id, name, directive, options FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND name = :name)")
                     .bind("project", project.project)
                     .bind("name", name)
                     .map((i, r, statementContext) -> {
@@ -121,10 +119,9 @@ public class DashboardService
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project_id = :project ORDER BY id")
                     .bind("project", project.project).map((i, resultSet, statementContext) -> {
-                        String options = resultSet.getString(3);
-                        Map data = JsonHelper.read(options, Map.class);
+                        Map options = JsonHelper.read(resultSet.getString(3), Map.class);
                         return new Dashboard(resultSet.getInt(1), resultSet.getString(2),
-                                options == null ? null : data);
+                                options == null ? null : options);
                     }).list();
         }
     }
@@ -176,12 +173,12 @@ public class DashboardService
             @ApiParam("data") Map data)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO dashboard_items (dashboard, name, directive, data) VALUES (:dashboard, :name, :directive, :data)")
+            handle.createStatement("INSERT INTO dashboard_items (dashboard, name, directive, options) VALUES (:dashboard, :name, :directive, :options)")
                     .bind("project", project.project)
                     .bind("dashboard", dashboard)
                     .bind("name", itemName)
                     .bind("directive", directive)
-                    .bind("data", JsonHelper.encode(data)).execute();
+                    .bind("options", JsonHelper.encode(data)).execute();
         }
         return SuccessMessage.success();
     }
@@ -199,11 +196,11 @@ public class DashboardService
         dbi.inTransaction((handle, transactionStatus) -> {
             for (DashboardItem item : items) {
                 // TODO: verify dashboard is in project
-                handle.createStatement("UPDATE dashboard_items SET name = :name, directive = :directive, data = :data WHERE id = :id")
+                handle.createStatement("UPDATE dashboard_items SET name = :name, directive = :directive, options = :options WHERE id = :id")
                         .bind("id", item.id)
                         .bind("name", item.name)
                         .bind("directive", item.directive)
-                        .bind("data", JsonHelper.encode(item.data)).execute();
+                        .bind("options", JsonHelper.encode(item.data)).execute();
             }
             return null;
         });

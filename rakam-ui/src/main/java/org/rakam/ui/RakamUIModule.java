@@ -10,6 +10,7 @@ import com.google.inject.multibindings.OptionalBinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
 import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
@@ -319,7 +320,12 @@ public class RakamUIModule
             Flyway flyway = new Flyway();
             flyway.setBaselineOnMigrate(true);
             flyway.setDataSource(config.getUrl(), config.getUsername(), config.getPassword());
-            flyway.migrate();
+            try {
+                flyway.migrate();
+            }
+            catch (FlywayException e) {
+                flyway.repair();
+            }
         }
     }
 }

@@ -1,9 +1,12 @@
 package org.rakam.analysis;
 
 import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.GroupingElement;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NodeLocation;
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
@@ -12,7 +15,6 @@ import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
 import com.facebook.presto.sql.tree.Union;
-import com.facebook.presto.sql.tree.WithQuery;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -50,14 +52,15 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -159,6 +162,8 @@ public class QueryHttpService
         handleServerSentQueryExecution(request, clazz, executorFunction, READ_KEY, true);
     }
 
+    private static Duration RETRY_DURATION = Duration.ofSeconds(600);
+
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction, ApiKeyService.AccessKeyType keyType, boolean killOnConnectionClose)
     {
         if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
@@ -166,7 +171,7 @@ public class QueryHttpService
             return;
         }
 
-        RakamHttpRequest.StreamResponse response = request.streamResponse();
+        RakamHttpRequest.StreamResponse response = request.streamResponse(RETRY_DURATION);
         List<String> data = request.params().get("data");
         if (data == null || data.isEmpty()) {
             response.send("result", encode(errorMessage("data query parameter is required", BAD_REQUEST))).end();
@@ -224,7 +229,7 @@ public class QueryHttpService
 
     public void handleServerSentQueryExecution(RakamHttpRequest request, QueryExecution query, boolean killOnConnectionClose)
     {
-        RakamHttpRequest.StreamResponse response = request.streamResponse();
+        RakamHttpRequest.StreamResponse response = request.streamResponse(RETRY_DURATION);
         if (query == null) {
             // TODO: custom message
             response.send("result", encode(jsonObject()
@@ -363,8 +368,8 @@ public class QueryHttpService
     private ResponseQuery parseQuerySpecification(QuerySpecification queryBody, Optional<String> limitOutside, List<SortItem> orderByOutside, Map<String, NodeLocation> with)
     {
         Function<Node, Integer> mapper = item -> {
-            if (item instanceof QualifiedNameReference) {
-                return findSelectIndex(queryBody.getSelect().getSelectItems(), item.toString()).orElse(null);
+            if (item instanceof GroupingElement) {
+                return findSelectIndex(((GroupingElement) item).enumerateGroupingSets(), queryBody.getSelect().getSelectItems()).orElse(null);
             }
             else if (item instanceof LongLiteral) {
                 return Ints.checkedCast(((LongLiteral) item).getValue());
@@ -375,7 +380,7 @@ public class QueryHttpService
         };
 
         List<GroupBy> groupBy = queryBody.getGroupBy().map(value -> value.getGroupingElements().stream()
-                .map(item -> new GroupBy(mapper.apply(item), item.toString()))
+                .map(item -> new GroupBy(mapper.apply(item), item.enumerateGroupingSets().toString()))
                 .collect(Collectors.toList())).orElse(ImmutableList.of());
 
         List<Ordering> orderBy;
@@ -390,7 +395,6 @@ public class QueryHttpService
                     .collect(Collectors.toList());
         }
 
-
         String limitStr = limitOutside.orElse(queryBody.getLimit().orElse(null));
         Long limit = null;
         if (limitStr != null) {
@@ -404,19 +408,28 @@ public class QueryHttpService
         return new ResponseQuery(with, queryBody.getLocation().orElse(null), groupBy, orderBy, limit);
     }
 
-    private Optional<Integer> findSelectIndex(List<SelectItem> selectItems, String reference)
+    private Optional<Integer> findSelectIndex(List<Set<Expression>> items, List<SelectItem> selectItems)
     {
-        for (int i = 0; i < selectItems.size(); i++) {
-            SelectItem selectItem = selectItems.get(i);
-            if (selectItem instanceof SingleColumn) {
-                SingleColumn selectItem1 = (SingleColumn) selectItem;
-                Optional<String> alias = selectItem1.getAlias();
-                if ((alias.isPresent() && alias.get().equals(reference)) ||
-                        selectItem1.getExpression().toString().equals(reference)) {
-                    return Optional.of(i + 1);
+        if (items.size() == 1) {
+            Set<Expression> item = items.get(0);
+            if (item.size() == 1) {
+                Expression next = item.iterator().next();
+                if (next instanceof LongLiteral) {
+                    return Optional.of(((int) ((LongLiteral) next).getValue()));
                 }
+                else if (next instanceof QualifiedNameReference) {
+                    for (int i = 0; i < selectItems.size(); i++) {
+                        if (selectItems.get(i) instanceof SingleColumn) {
+                            if (((SingleColumn) selectItems.get(i)).getExpression().equals(next)) {
+                                return Optional.of(i + 1);
+                            }
+                        }
+                    }
+                }
+                return Optional.empty();
             }
         }
+
         return Optional.empty();
     }
 
@@ -433,9 +446,9 @@ public class QueryHttpService
         @JsonCreator
         public ResponseQuery
                 (Map<String, NodeLocation> with,
-                NodeLocation queryLocation,
-                List<GroupBy> groupBy,
-                List<Ordering> orderBy, Long limit)
+                        NodeLocation queryLocation,
+                        List<GroupBy> groupBy,
+                        List<Ordering> orderBy, Long limit)
         {
             this.with = with;
             this.queryLocation = queryLocation;
