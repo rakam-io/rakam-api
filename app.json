@@ -19,7 +19,7 @@
   ],
   "env": {
     "LOCK_KEY": {
-      "description": "Lock key for creating projects",
+      "description": "Lock key for creating projects. You will need this key when you create a project in your Rakam cluster",
       "required": true
     },
     "ENABLE_GEOIP_PLUGIN": {

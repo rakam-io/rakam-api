@@ -13,3 +13,9 @@ notifications:
     on_success: change  # options: [always|never|change] default: always
     on_failure: always  # options: [always|never|change] default: always
     on_start: false     # default: false
+after_success:
+- >
+  [ "$TRAVIS_BRANCH" == "master" ]
+  && curl -X POST -H "Content-Type: application/json"
+  --data '{"docker_tag_name": "latest"}'
+  https://registry.hub.docker.com/u/buremba/rakam/trigger/$DOCKER_HUB_TOKEN/
