@@ -89,7 +89,7 @@ public class WebUserHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/update/password")
-    public SuccessMessage update(@ApiParam("oldPassword") String oldPassword,
+    public SuccessMessage updatePassword(@ApiParam("oldPassword") String oldPassword,
             @ApiParam("newPassword") String newPassword,
             @CookieParam("session") String session)
     {
@@ -107,7 +107,10 @@ public class WebUserHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/update/info")
-    public SuccessMessage update(@ApiParam("name") String name, @CookieParam("session") String session)
+    public SuccessMessage update(
+            @ApiParam("name") String name,
+            @ApiParam("timezone") String timezone,
+            @CookieParam("session") String session)
     {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
 
@@ -116,7 +119,7 @@ public class WebUserHttpService
             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
         }
 
-        service.updateUserInfo(id, name);
+        service.updateUserInfo(id, name, timezone);
         return SuccessMessage.success();
     }
 

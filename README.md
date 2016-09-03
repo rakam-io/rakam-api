@@ -42,7 +42,7 @@ You can easily deploy Rakam to Heroku using Heroku button, it adds Heroku Postgr
 
 Run the following command to start a Postgresql server in docker container and Rakam API in your local environment.
 
-    docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.5.3 && docker run -d --name rakam -p 9999:9999 buremba/rakam
+    docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.5.3 && docker run --link rakam-db --name rakam -p 9999:9999 buremba/rakam
 
 After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.1:9999) and follow the instructions.
 You can directly use Rakam API with client libraries or register your Rakam cluster to Rakam BI at [app.rakam.io](https://rakam.io)

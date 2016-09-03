@@ -19,7 +19,6 @@ RUN [ -s config.properties ] || apt-get update \
 							    && echo "store.adapter=postgresql\n\
 store.adapter.postgresql.url=postgres://rakam:dummy@rakam-db:5432/rakam\n\
 plugin.user.enabled=true\n\
-plugin.user.mailbox.enable=true\n\
 real-time.enabled=true\n\
 event.stream.enabled=true\n\
 event-explorer.enabled=true\n\
@@ -29,7 +28,6 @@ plugin.geoip.enabled=true\n\
 plugin.user.storage=postgresql\n\
 http.server.address=0.0.0.0:9999\n\
 plugin.user.storage.identifier_column=id\n\
-plugin.user.mailbox.adapter=postgresql\n\
 store.adapter.postgresql.max_connection=20\n\
 plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties
 

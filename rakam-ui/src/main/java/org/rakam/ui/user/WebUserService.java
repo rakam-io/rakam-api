@@ -200,11 +200,13 @@ public class WebUserService {
         return webuser;
     }
 
-    public void updateUserInfo(int id, String name) {
+    public void updateUserInfo(int id, String name, String timezone) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE web_user SET name = :name WHERE id = :id")
+            handle.createStatement("UPDATE web_user SET name = :name, timezone = :timezone WHERE id = :id")
                     .bind("id", id)
-                    .bind("name", name).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+                    .bind("name", name)
+                    .bind("timezone", timezone)
+                    .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
         }
     }
 
