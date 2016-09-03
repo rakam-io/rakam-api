@@ -18,9 +18,9 @@
     "heroku-postgresql:hobby-dev"
   ],
   "env": {
-    "ENABLE_UI": {
-      "description": "Install web application for Rakam. If you disable it, only API server will be installed",
-      "value": "true"
+    "LOCK_KEY": {
+      "description": "Lock key for creating projects",
+      "required": true
     },
     "ENABLE_GEOIP_PLUGIN": {
       "description": "GeoIP attaches location information to collections that has 'ip' attribute.",
@@ -36,10 +36,6 @@
     },
     "ENABLE_USER_PLUGIN": {
       "description": "User module is basically a CRM integrated with your analytics service.",
-      "value": "true"
-    },
-    "ENABLE_USER_MAILBOX_PLUGIN": {
-      "description": "User mailbox module setups a mailbox for each user and allows you to send message to users and receive message from them.",
       "value": "true"
     },
     "ENABLE_REALTIME_PLUGIN": {

@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableList;
 import com.maxmind.db.Reader;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.AddressNotFoundException;
+import com.maxmind.geoip2.exception.GeoIp2Exception;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.model.ConnectionTypeResponse;
 import com.maxmind.geoip2.model.IspResponse;
@@ -142,6 +143,9 @@ public class GeoIPEventMapper
             addr = sourceAddress;
         }
         else {
+            // Cloudflare country code header (Only works when the request passed through CF servers)
+            String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
+            event.properties().put("_country_code", countryCode);
             return null;
         }
 
@@ -177,35 +181,35 @@ public class GeoIPEventMapper
 
     public void mapInternal(String project, ObjectNode data, InetAddress sourceAddress)
     {
-            Object ip = data.get("_ip");
+        Object ip = data.get("_ip");
 
-            if (ip == null) {
+        if (ip == null) {
+            return;
+        }
+
+        if ((ip instanceof String)) {
+            try {
+                // it may be slow because java performs reverse hostname lookup.
+                sourceAddress = Inet4Address.getByName((String) ip);
+            }
+            catch (UnknownHostException e) {
                 return;
             }
+        }
 
-            if ((ip instanceof String)) {
-                try {
-                    // it may be slow because java performs reverse hostname lookup.
-                    sourceAddress = Inet4Address.getByName((String) ip);
-                }
-                catch (UnknownHostException e) {
-                    return;
-                }
-            }
+        GenericRecord record = new MapProxyGenericRecord(data);
 
-            GenericRecord record = new MapProxyGenericRecord(data);
+        if (connectionTypeLookup != null) {
+            setConnectionType(sourceAddress, record);
+        }
 
-            if (connectionTypeLookup != null) {
-                setConnectionType(sourceAddress, record);
-            }
+        if (ispLookup != null) {
+            setIsp(sourceAddress, record);
+        }
 
-            if (ispLookup != null) {
-                setIsp(sourceAddress, record);
-            }
-
-            if (cityLookup != null) {
-                setGeoFields(sourceAddress, record);
-            }
+        if (cityLookup != null) {
+            setGeoFields(sourceAddress, record);
+        }
     }
 
     @Override

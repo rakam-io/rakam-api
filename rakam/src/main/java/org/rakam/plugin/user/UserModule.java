@@ -90,15 +90,15 @@ public class UserModule
             httpServices.addBinding().to(UserHttpService.class).in(Scopes.SINGLETON);
         }
 
-        if (userPluginConfig.isMailboxEnabled()) {
-            httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);
-            httpServices.addBinding().to(UserMailboxActionService.class).in(Scopes.SINGLETON);
-            userAction.addBinding().to(UserMailboxActionService.class);
-
-            tagMultibinder.addBinding()
-                    .toInstance(new Tag().name("user-mailbox").description("")
-                            .externalDocs(MetadataConfig.centralDocs));
-        }
+//        if (userPluginConfig.isMailboxEnabled()) {
+//            httpServices.addBinding().to(UserMailboxHttpService.class).in(Scopes.SINGLETON);
+//            httpServices.addBinding().to(UserMailboxActionService.class).in(Scopes.SINGLETON);
+//            userAction.addBinding().to(UserMailboxActionService.class);
+//
+//            tagMultibinder.addBinding()
+//                    .toInstance(new Tag().name("user-mailbox").description("")
+//                            .externalDocs(MetadataConfig.centralDocs));
+//        }
 
         if (!userPluginConfig.getEnableUserMapping()) {
             Multibinder<UserPropertyMapper> userPropertyMappers = Multibinder.newSetBinder(binder, UserPropertyMapper.class);

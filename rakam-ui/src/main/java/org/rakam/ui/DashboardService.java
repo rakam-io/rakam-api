@@ -34,6 +34,8 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.Path;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -102,12 +104,36 @@ public class DashboardService
             @ApiParam("name") String name)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, directive, options FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND name = :name)")
+            return handle.createQuery("SELECT id, name, directive, options, refresh_interval, last_updated" +
+                    "(case when now() - last_updated > refresh_interval * INTERVAL '1 second' then null else data end)" +
+                    " FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND name = :name)")
                     .bind("project", project.project)
                     .bind("name", name)
                     .map((i, r, statementContext) -> {
-                        return new DashboardItem(r.getInt(1), r.getString(2), r.getString(3), JsonHelper.read(r.getString(4), Map.class));
+                        return new DashboardItem(r.getInt(1),
+                                r.getString(2), r.getString(3),
+                                JsonHelper.read(r.getString(4), Map.class),
+                                Duration.ofSeconds(r.getInt(5)),
+                                r.getTimestamp(6).toInstant(), r.getBytes(7));
                     }).list();
+        }
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Cache report data")
+    @Path("/cache-item-data")
+    public SuccessMessage cache(
+            @Named("user_id") Project project,
+            @ApiParam("item_id") int item_id,
+            @ApiParam("data") byte[] data)
+    {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("UPDATE dashboard_items SET data = :data, last_updated = now() WHERE id = :id AND" +
+                    " (SELECT project_id FROM dashboard_items item JOIN dashboard ON (dashboard.id = item.dashboard) WHERE item.id = :id AND dashboard.project_id = :project) is not null")
+                    .bind("id", item_id)
+                    .bind("project", project.project)
+                    .bind("data", data).execute();
+            return SuccessMessage.success();
         }
     }
 
@@ -132,6 +158,7 @@ public class DashboardService
         public final String name;
         public final Map<String, Object> options;
 
+        @JsonCreator
         public Dashboard(int id, String name, Map<String, Object> options)
         {
             this.id = id;
@@ -143,20 +170,34 @@ public class DashboardService
     public static class DashboardItem
     {
         public final Integer id;
-        public final Map data;
+        public final Map options;
+        public final Duration refreshInterval;
         public final String directive;
         public final String name;
+        public final Instant lastUpdated;
+        public final byte[] data;
 
         @JsonCreator
         public DashboardItem(
                 @JsonProperty("id") Integer id,
                 @JsonProperty("name") String name,
                 @JsonProperty("directive") String directive,
-                @JsonProperty("data") Map data)
+                @JsonProperty("data") Map options,
+                @JsonProperty("refreshInterval") Duration refreshInterval,
+                @JsonProperty("data") byte[] data)
+        {
+            this(id, name, directive, options, refreshInterval, null, data);
+        }
+
+        public DashboardItem(Integer id, String name, String directive, Map options, Duration refreshInterval,
+                Instant lastUpdated, byte[] data)
         {
             this.id = id;
+            this.options = options;
+            this.refreshInterval = refreshInterval;
             this.directive = directive;
             this.name = name;
+            this.lastUpdated = lastUpdated;
             this.data = data;
         }
     }

@@ -86,9 +86,8 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report get(Integer requestedUserId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            // test this again
             Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
-                    " LEFT JOIN web_user_api_key permission ON (permission.project_id = :project)" +
+                    " LEFT JOIN web_user_api_key permission ON (permission.project_id = r.project_id)" +
                     " WHERE r.project_id = :project AND r.slug = :slug AND (" +
                     "((permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")
                     .bind("project", project)

@@ -125,7 +125,7 @@ public class UIRecipeHandler
                     }
 
                     for (DashboardService.DashboardItem item : report.items) {
-                        dashboardService.get().addToDashboard(p, dashboard, item.name, item.directive, item.data);
+                        dashboardService.get().addToDashboard(p, dashboard, item.name, item.directive, item.options);
                     }
                 });
 
