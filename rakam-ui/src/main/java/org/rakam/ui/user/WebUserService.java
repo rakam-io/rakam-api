@@ -38,6 +38,7 @@ import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.mail.MessagingException;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -68,7 +69,8 @@ import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static java.lang.String.format;
 
-public class WebUserService {
+public class WebUserService
+{
     private final static Logger LOGGER = Logger.get(WebUserService.class);
 
     private final DBI dbi;
@@ -107,27 +109,32 @@ public class WebUserService {
                     WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
             welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
                     WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome_title.txt");
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
     @Inject
     public WebUserService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
-                          Metastore metastore,
-                          EventBus eventBus,
-                          RakamUIConfig config,
-                          EncryptionConfig encryptionConfig,
-                          EmailClientConfig mailConfig) {
+            Metastore metastore,
+            EventBus eventBus,
+            RakamUIConfig config,
+            EncryptionConfig encryptionConfig,
+            EmailClientConfig mailConfig)
+    {
         dbi = new DBI(dataSource);
         this.metastore = metastore;
         this.eventBus = eventBus;
         this.config = config;
         this.encryptionConfig = encryptionConfig;
         this.mailConfig = mailConfig;
-        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, Project>() {
+        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, Project>()
+        {
             @Override
-            public Project load(ApiKey apiKey) throws Exception {
+            public Project load(ApiKey apiKey)
+                    throws Exception
+            {
                 try (Connection conn = dbi.open().getConnection()) {
                     PreparedStatement ps = conn.prepareStatement(format("SELECT project, api_url FROM web_user_api_key WHERE %s = ?", apiKey.type.name()));
                     ps.setString(1, apiKey.key);
@@ -136,14 +143,16 @@ public class WebUserService {
                         throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
                     }
                     return new Project(resultSet.getString(1), resultSet.getString(2));
-                } catch (SQLException e) {
+                }
+                catch (SQLException e) {
                     throw Throwables.propagate(e);
                 }
             }
         });
     }
 
-    public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId) {
+    public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId)
+    {
         if (!PASSWORD_PATTERN.matcher(password).matches()) {
             throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
         }
@@ -171,12 +180,14 @@ public class WebUserService {
                         .bind("googleId", googleId)
                         .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
                 webuser = new WebUser(id, email, name, false, ImmutableList.of());
-            } catch (UnableToExecuteStatementException e) {
+            }
+            catch (UnableToExecuteStatementException e) {
                 Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
                 if (existingUser != null) {
                     if (existingUser.get("created_at") != null) {
                         throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
-                    } else {
+                    }
+                    else {
                         // somebody gave access for a project to this email address
                         int id = handle.createStatement("UPDATE web_user SET password = :password, name = :name, created_at = now() WHERE email = :email")
                                 .bind("email", email)
@@ -200,17 +211,18 @@ public class WebUserService {
         return webuser;
     }
 
-    public void updateUserInfo(int id, String name, String timezone) {
+    public void updateUserInfo(int id, String name)
+    {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE web_user SET name = :name, timezone = :timezone WHERE id = :id")
+            handle.createStatement("UPDATE web_user SET name = :name WHERE id = :id")
                     .bind("id", id)
                     .bind("name", name)
-                    .bind("timezone", timezone)
                     .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
         }
     }
 
-    public void updateUserPassword(int id, String oldPassword, String newPassword) {
+    public void updateUserPassword(int id, String oldPassword, String newPassword)
+    {
         final String scrypt = SCryptUtil.scrypt(newPassword, 2 << 14, 8, 1);
 
         if (!PASSWORD_PATTERN.matcher(newPassword).matches()) {
@@ -236,7 +248,8 @@ public class WebUserService {
         }
     }
 
-    public WebUser.UserApiKey createProject(int user, String apiUrl, String project) {
+    public WebUser.UserApiKey createProject(int user, String apiUrl, String project)
+    {
         String lockKey;
         ProjectApiKeys apiKeys;
 
@@ -246,10 +259,11 @@ public class WebUserService {
                     .map(StringMapper.FIRST).first();
         }
 
-        if(true) {
+        if (true) {
             throw new RakamException(JsonHelper.encode(lockKey), EXPECTATION_FAILED);
         }
 
+        // TODO: we should not have access to the server anyway, remove this.
         try {
             HttpURLConnection con = (HttpURLConnection) new URL(apiUrl + "/project/create")
                     .openConnection();
@@ -291,10 +305,12 @@ public class WebUserService {
 
             try {
                 apiKeys = JsonHelper.read(response.toString(), ProjectApiKeys.class);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
             }
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw new RakamException(JsonHelper.encode(lockKey), EXPECTATION_FAILED);
         }
 
@@ -308,7 +324,8 @@ public class WebUserService {
                         .bind("project", project)
                         .bind("apiUrl", apiUrl)
                         .executeAndReturnGeneratedKeys().first().get("id");
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 projectId = handle.createQuery("SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl")
                         .bind("project", project)
                         .bind("apiUrl", apiUrl).map(IntegerMapper.FIRST).first();
@@ -330,7 +347,8 @@ public class WebUserService {
                 apiKeys.masterKey());
     }
 
-    public void revokeUserAccess(int userId, int project, String email) {
+    public void revokeUserAccess(int userId, int project, String email)
+    {
         if (!getUser(userId).get().projects.stream().anyMatch(a -> a.id == project)) {
             throw new RakamException(FORBIDDEN);
         }
@@ -343,7 +361,8 @@ public class WebUserService {
         }
     }
 
-    public void performRecoverPassword(String key, String hash, String newPassword) {
+    public void performRecoverPassword(String key, String hash, String newPassword)
+    {
         if (!PASSWORD_PATTERN.matcher(newPassword).matches()) {
             throw new RakamException("Password is not valid. " +
                     "Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
@@ -362,7 +381,8 @@ public class WebUserService {
             if (Instant.ofEpochSecond(Long.parseLong(split[0])).compareTo(Instant.now()) > 0) {
                 throw new RakamException("Token expired", UNAUTHORIZED);
             }
-        } catch (NumberFormatException e) {
+        }
+        catch (NumberFormatException e) {
             throw new RakamException("Invalid token", UNAUTHORIZED);
         }
 
@@ -375,7 +395,8 @@ public class WebUserService {
         }
     }
 
-    public void prepareRecoverPassword(String email) {
+    public void prepareRecoverPassword(String email)
+    {
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
@@ -389,14 +410,16 @@ public class WebUserService {
             scopes = ImmutableMap.of("product_name", "Rakam",
                     "action_url", String.format("%s/perform-recover-password?key=%s&hash=%s",
                             mailConfig.getSiteUrl(), URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8")));
-        } catch (UnsupportedEncodingException e) {
+        }
+        catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
 
         sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes).join();
     }
 
-    private CompletableFuture sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data) {
+    private CompletableFuture sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data)
+    {
         StringWriter writer;
 
         writer = new StringWriter();
@@ -420,13 +443,15 @@ public class WebUserService {
         return CompletableFuture.runAsync(() -> {
             try {
                 mailSender.sendMail(email, title, txtContent, Optional.of(htmlContent));
-            } catch (MessagingException e) {
+            }
+            catch (MessagingException e) {
                 LOGGER.error(e, "Unable to send mail");
             }
         });
     }
 
-    public void deleteProject(int user, int projectId) {
+    public void deleteProject(int user, int projectId)
+    {
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM web_user_project WHERE id = :project and user_id = :userId")
                     .bind("userId", user)
@@ -435,7 +460,8 @@ public class WebUserService {
         }
     }
 
-    public WebUser.UserApiKey registerProject(int user, String apiUrl, String project, String readKey, String writeKey, String masterKey) {
+    public WebUser.UserApiKey registerProject(int user, String apiUrl, String project, String readKey, String writeKey, String masterKey)
+    {
         int projectId;
         try (Handle handle = dbi.open()) {
             try {
@@ -446,7 +472,8 @@ public class WebUserService {
                         .bind("project", project)
                         .bind("apiUrl", apiUrl)
                         .executeAndReturnGeneratedKeys().first().get("id");
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 projectId = handle.createQuery("SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl")
                         .bind("project", project)
                         .bind("apiUrl", apiUrl).map(IntegerMapper.FIRST).first();
@@ -467,7 +494,8 @@ public class WebUserService {
         return new WebUser.UserApiKey(projectId, readKey, writeKey, masterKey);
     }
 
-    public static class UserAccess {
+    public static class UserAccess
+    {
         @JsonProperty("project")
         public final int project;
         @JsonProperty("email")
@@ -481,7 +509,8 @@ public class WebUserService {
         @JsonProperty("master_key")
         public final boolean masterKey;
 
-        public UserAccess(int project, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey) {
+        public UserAccess(int project, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey)
+        {
             this.project = project;
             this.email = email;
             this.scope_expression = scope_expression;
@@ -491,7 +520,8 @@ public class WebUserService {
         }
     }
 
-    public List<UserAccess> getUserAccessForProject(int user, int project) {
+    public List<UserAccess> getUserAccessForProject(int user, int project)
+    {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT web_user.email, keys.scope_expression, " +
                     "read_permission, write_permission, master_permission " +
@@ -508,7 +538,8 @@ public class WebUserService {
         }
     }
 
-    public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression, boolean readPermission, boolean writePermission, boolean masterPermisson) {
+    public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression, boolean readPermission, boolean writePermission, boolean masterPermisson)
+    {
         if (!getUser(userId).get().projects.stream().anyMatch(a -> a.id == projectId)) {
             throw new RakamException(FORBIDDEN);
         }
@@ -518,7 +549,8 @@ public class WebUserService {
             try {
                 newUserId = handle.createStatement("INSERT INTO web_user (email) VALUES (:email)")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
                         .map(IntegerMapper.FIRST).first();
             }
@@ -553,7 +585,8 @@ public class WebUserService {
         });
     }
 
-    public Integer saveApiKeys(int user, int projectId, String readKey, String writeKey, String masterKey) {
+    public Integer saveApiKeys(int user, int projectId, String readKey, String writeKey, String masterKey)
+    {
         try (Handle handle = dbi.open()) {
             Optional<String> any = getUserApiKeys(handle, user).stream()
                     .filter(a -> a.id == projectId && a.apiKeys.stream().anyMatch(e -> e.masterKey() != null))
@@ -575,8 +608,8 @@ public class WebUserService {
         }
     }
 
-
-    public Optional<WebUser> login(String email, String password) {
+    public Optional<WebUser> login(String email, String password)
+    {
         String hashedPassword;
         int id;
 
@@ -628,7 +661,8 @@ public class WebUserService {
         }
     }
 
-    public Optional<WebUser> getUser(int id) {
+    public Optional<WebUser> getUser(int id)
+    {
         List<WebUser.Project> projectDefinitions;
 
         try (Handle handle = dbi.open()) {
@@ -646,10 +680,10 @@ public class WebUserService {
             return Optional.of(new WebUser(id, email, name,
                     (Boolean) data.get("read_only"), projectDefinitions));
         }
-
     }
 
-    private List<WebUser.Project> getUserApiKeys(Handle handle, int userId) {
+    private List<WebUser.Project> getUserApiKeys(Handle handle, int userId)
+    {
         List<WebUser.Project> list = new ArrayList<>();
         handle.createQuery("SELECT project.id, project.project, project.api_url, api_key.master_key, api_key.read_key, api_key.write_key " +
                 " FROM web_user_project project " +
@@ -673,7 +707,8 @@ public class WebUserService {
         return list;
     }
 
-    public void revokeApiKeys(int user, int project, String masterKey) {
+    public void revokeApiKeys(int user, int project, String masterKey)
+    {
         try (Handle handle = dbi.open()) {
             boolean hasPermission = getUserApiKeys(handle, user).stream()
                     .anyMatch(e -> e.id == project && e.apiKeys.stream().anyMatch(a -> a.masterKey() != null));
@@ -688,7 +723,8 @@ public class WebUserService {
                         .bind("user_id", user)
                         .bind("project", project)
                         .bind("masterKey", masterKey).execute();
-            } catch (Throwable e) {
+            }
+            catch (Throwable e) {
                 if (e.getMessage().contains("web_user_api_key_permission")) {
                     List<String> list = handle.createQuery("SELECT web_user.email FROM web_user_api_key_permission permission " +
                             "JOIN web_user ON (web_user.id = permission.user_id) " +
@@ -706,39 +742,50 @@ public class WebUserService {
         }
     }
 
-    public static final class Project {
+    public static final class Project
+    {
         public final String project;
         public final String apiUrl;
 
-        public Project(String project, String apiUrl) {
+        public Project(String project, String apiUrl)
+        {
             this.project = project;
             this.apiUrl = apiUrl;
         }
     }
 
-    public static final class ApiKey {
+    public static final class ApiKey
+    {
         public final String key;
         public final AccessKeyType type;
 
-        public ApiKey(String key, AccessKeyType type) {
+        public ApiKey(String key, AccessKeyType type)
+        {
             this.key = key;
             this.type = type;
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof ApiKey)) return false;
+        public boolean equals(Object o)
+        {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ApiKey)) {
+                return false;
+            }
 
             ApiKey apiKey = (ApiKey) o;
 
-            if (!key.equals(apiKey.key)) return false;
+            if (!key.equals(apiKey.key)) {
+                return false;
+            }
             return type == apiKey.type;
-
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             int result = key.hashCode();
             result = 31 * result + type.hashCode();
             return result;

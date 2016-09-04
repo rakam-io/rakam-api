@@ -135,7 +135,7 @@ public class ClusterService
                 if (handle.createQuery("SELECT 1 FROM rakam_cluster WHERE (user_id, api_url, lock_key) = (:userId, :apiUrl, :lockKey)")
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lockKey", cluster.lockKey).bind("userId", userId).first() != null) {
-                    throw new AlreadyExistsException("Dashboard", BAD_REQUEST);
+                    throw new AlreadyExistsException("Cluster", BAD_REQUEST);
                 }
 
                 throw e;

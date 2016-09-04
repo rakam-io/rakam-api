@@ -1,24 +1,20 @@
 package org.rakam.clickhouse.analysis;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
-import org.rakam.analysis.MaterializedViewService;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.report.eventexplorer.AbstractEventExplorer;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +44,7 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.MONTH_OF_
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.YEAR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromPrettyName;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
+import static org.rakam.clickhouse.analysis.ClickHouseQueryExecution.DATE_TIME_FORMATTER;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.report.eventexplorer.AbstractEventExplorer.checkReference;
 import static org.rakam.report.eventexplorer.AbstractEventExplorer.getColumnReference;
@@ -88,7 +85,7 @@ public class ClickHouseEventExplorer
 
     @Override
     public QueryExecution analyze(String project, List<String> collections, Measure measure, Reference grouping,
-            Reference segmentValue2, String filterExpression, LocalDate startDate, LocalDate endDate)
+            Reference segmentValue2, String filterExpression, Instant startDate, Instant endDate)
     {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
@@ -107,8 +104,8 @@ public class ClickHouseEventExplorer
                 .collect(Collectors.joining(", "));
         String groupBy = groups.isEmpty() ? "" : ("GROUP BY " + groups + " WITH TOTALS");
 
-        String timeFilter = format(" _time between cast(toDate('%s') as DateTime) and cast(toDate('%s') as DateTime)",
-                startDate.format(ISO_LOCAL_DATE), endDate.plus(1, DAYS).format(ISO_LOCAL_DATE));
+        String timeFilter = format(" _time between toDateTime('%s') and toDateTime('%s')",
+                DATE_TIME_FORMATTER.format(startDate), DATE_TIME_FORMATTER.format(endDate.plus(1, DAYS)));
 
         if (filterExpression != null) {
             synchronized (sqlParser) {
@@ -184,7 +181,7 @@ public class ClickHouseEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate)
     {
         checkProject(project);
 
@@ -196,8 +193,9 @@ public class ClickHouseEventExplorer
             checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("_time between cast(toDate('%s') as DateTime) and cast(toDate('%s') as DateTime)",
-                startDate.format(ISO_DATE), endDate.plus(1, DAYS).format(ISO_DATE));
+        String timePredicate = format("_time between toDateTime('%s') and toDateTime('%s')",
+                DATE_TIME_FORMATTER.format(startDate),
+                DATE_TIME_FORMATTER.format(endDate.plus(1, DAYS)));
 
         String collectionQuery = collections.map(v -> "(" + v.stream()
                 .map(col -> String.format("SELECT _time, cast('%s' as string) as \"$collection\" FROM %s",

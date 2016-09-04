@@ -23,6 +23,7 @@ import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ProtectEndpoint;
 import org.rakam.ui.UIPermissionParameterProvider;
+import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
@@ -51,7 +52,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/list")
     @ApiOperation(value = "List reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public List<CustomReport> list(@ApiParam("report_type") String reportType,
-            @Named("user_id") UIPermissionParameterProvider.Project project) {
+            @Named("user_id") Project project) {
         return metadata.list(reportType, project.project);
     }
 
@@ -59,7 +60,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/types")
     @JsonRequest
     @ApiOperation(value = "List report types", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public List<String> types(@Named("user_id") UIPermissionParameterProvider.Project project) {
+    public List<String> types(@Named("user_id") Project project) {
         return metadata.types(project.project);
     }
 
@@ -69,7 +70,7 @@ public class CustomReportHttpService extends HttpService {
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/create")
-    public SuccessMessage create(@Named("user_id") UIPermissionParameterProvider.Project project, @BodyParam CustomReport report) {
+    public SuccessMessage create(@Named("user_id") Project project, @BodyParam CustomReport report) {
         metadata.save(project.userId, project.project, report);
         return SuccessMessage.success();
     }
@@ -78,7 +79,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/update")
     @ProtectEndpoint(writeOperation = true)
     @ApiOperation(value = "Update reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
-    public SuccessMessage update(@Named("user_id") UIPermissionParameterProvider.Project project, @BodyParam CustomReport report) {
+    public SuccessMessage update(@Named("user_id") Project project, @BodyParam CustomReport report) {
         metadata.update(project.project, report);
         return SuccessMessage.success();
     }
@@ -87,7 +88,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/delete")
     @ApiOperation(value = "Delete reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     @ProtectEndpoint(writeOperation = true)
-    public SuccessMessage delete(@Named("user_id") UIPermissionParameterProvider.Project project,
+    public SuccessMessage delete(@Named("user_id") Project project,
                                @ApiParam("report_type") String reportType,
                                @ApiParam("name") String name) {
         metadata.delete(reportType, project.project, name);
@@ -99,7 +100,7 @@ public class CustomReportHttpService extends HttpService {
     @Path("/get")
     @ApiOperation(value = "Get reports", tags = "rakam-ui", authorizations = @Authorization(value = "read_key"))
     public Object get(@ApiParam("report_type") String reportType,
-            @Named("user_id") UIPermissionParameterProvider.Project project,
+            @Named("user_id") Project project,
                       @ApiParam(value = "name") String name) {
         return metadata.get(reportType, project.project, name);
     }

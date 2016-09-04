@@ -193,7 +193,7 @@ public class PostgresqlMetastore
     private List<SchemaField> getSchema(Connection connection, String project, String collection)
             throws SQLException
     {
-        BaseConnection pgConnection = (BaseConnection) connection;
+        BaseConnection pgConnection = connection.unwrap(BaseConnection.class);
         List<SchemaField> schemaFields = Lists.newArrayList();
 
         ResultSet resultSet = pgConnection.execSQLQuery(format("SELECT a.attname, typname\n" +

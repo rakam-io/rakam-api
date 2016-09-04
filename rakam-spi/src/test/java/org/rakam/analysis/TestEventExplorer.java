@@ -16,6 +16,7 @@ import org.testng.annotations.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -82,7 +83,8 @@ public abstract class TestEventExplorer {
     public void testTotalStatistics() throws Exception {
         QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.empty(), Optional.empty(),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+                Instant.ofEpochSecond(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
@@ -92,7 +94,8 @@ public abstract class TestEventExplorer {
     public void testCollectionSingleName() throws Exception {
         QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.of(ImmutableSet.of("test")), Optional.empty(),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+                Instant.ofEpochSecond(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("test", 100L)));
@@ -102,7 +105,7 @@ public abstract class TestEventExplorer {
     public void testCollectionNotExisting() throws Exception {
         QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.of(ImmutableSet.of()), Optional.empty(),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+                Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).join();
 
         assertFalse(test.isFailed());
         assertEquals(test.getResult(), of());
@@ -114,7 +117,7 @@ public abstract class TestEventExplorer {
         dimensions.stream().flatMap(e -> e.stream()).forEach(dimension -> {
             QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                     Optional.empty(), Optional.of(dimension),
-                    LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).join();
+                    Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).join();
 
             assertFalse(test.isFailed());
 
@@ -131,7 +134,7 @@ public abstract class TestEventExplorer {
     public void testStatisticsDates() throws Exception {
         QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.empty(), Optional.empty(),
-                LocalDate.ofEpochDay(100), LocalDate.ofEpochDay(101)).join();
+                Instant.ofEpochSecond(100), LocalDate.ofEpochDay(101).atStartOfDay().toInstant(ZoneOffset.UTC)).join();
 
         assertTrue(!test.isFailed(),
                 test.getError() != null ? test.getError().toString() : null);
@@ -144,7 +147,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 new EventExplorer.Reference(COLUMN, "testnumber"),
                 new EventExplorer.Reference(COLUMN, "testbool"),
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(test.getResult().size(), 17);
@@ -166,7 +169,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 new EventExplorer.Reference(COLUMN, "testnumber"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(test.getResult().size(), 16);
@@ -181,7 +184,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 null,
                 null,
-                "testbool", LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                "testbool", Instant.ofEpochSecond(0),LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(test.getResult().get(0), of("test", 50L));
@@ -193,7 +196,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure(null, COUNT),
                 null,
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed(), test.isFailed() ? test.getError().message : null);
         assertEquals(test.getResult().get(0), of("test", 100L));
@@ -205,7 +208,8 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("testnumber", SUM),
                 null,
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null,Instant.ofEpochSecond(0),
+                LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(test.getResult().get(0), of("test", 4950.0));
@@ -217,7 +221,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("teststr", AVERAGE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertTrue(test.isFailed());
     }
@@ -228,7 +232,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("testnumber", AVERAGE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 49.0), of("false", "test", 50.0)));
@@ -240,7 +244,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("testnumber", MAXIMUM),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 98.0), of("false", "test", 99.0)));
@@ -252,7 +256,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT_UNIQUE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 new EventExplorer.Reference(COLUMN, "testbool"),
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "true", 50L), of("false", "false", 50L)));
@@ -264,7 +268,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("testnumber", AggregationType.COUNT_UNIQUE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 50L), of("false", "test", 50L)));
@@ -276,7 +280,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("testnumber", COUNT),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 50L), of("false", "test", 50L)));
@@ -288,7 +292,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("testnumber", MINIMUM),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 0.0), of("false", "test", 1.0)));
@@ -300,7 +304,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                 new EventExplorer.Reference(COLUMN, "testbool"),
                 null,
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null,Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("true", "test", 50L), of("false", "test", 50L)));
@@ -331,7 +335,7 @@ public abstract class TestEventExplorer {
                                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, trans.get().getPrettyName()),
                                 null,
-                                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
                         assertFalse(test.isFailed());
                         assertEquals(copyOf(test.getResult()), GROUPING.get(trans.get()));
@@ -347,7 +351,7 @@ public abstract class TestEventExplorer {
                 of("test"), new EventExplorer.Measure("teststr", AggregationType.APPROXIMATE_UNIQUE),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),
                 new EventExplorer.Reference(EventExplorer.ReferenceType.REFERENCE, DAY_OF_MONTH.getPrettyName()),
-                null, LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR)).getResult().join();
+                null, Instant.ofEpochSecond(0), LocalDate.ofEpochDay(SCALE_FACTOR).atStartOfDay().toInstant(ZoneOffset.UTC)).getResult().join();
 
         assertFalse(test.isFailed());
         assertEquals(copyOf(test.getResult()), ImmutableSet.of(of("1th day", "1th day", 100L)));

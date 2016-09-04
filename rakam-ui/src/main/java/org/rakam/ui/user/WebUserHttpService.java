@@ -109,7 +109,6 @@ public class WebUserHttpService
     @Path("/update/info")
     public SuccessMessage update(
             @ApiParam("name") String name,
-            @ApiParam("timezone") String timezone,
             @CookieParam("session") String session)
     {
         int id = extractUserFromCookie(session, encryptionConfig.getSecretKey());
@@ -119,7 +118,7 @@ public class WebUserHttpService
             throw new RakamException("User is not allowed to perform this operation", UNAUTHORIZED);
         }
 
-        service.updateUserInfo(id, name, timezone);
+        service.updateUserInfo(id, name);
         return SuccessMessage.success();
     }
 

@@ -16,7 +16,6 @@ package org.rakam.analysis.eventexplorer;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.EventExplorer.OLAPTable;
 import org.rakam.analysis.MaterializedViewService;
@@ -41,6 +40,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -81,10 +81,13 @@ public class EventExplorerHttpService
     public CompletableFuture<QueryResult> getEventStatistics(@Named("project") String project,
             @ApiParam(value = "collections", required = false) Set<String> collections,
             @ApiParam(value = "dimension", required = false) String dimension,
-            @ApiParam("startDate") LocalDate startDate,
-            @ApiParam("endDate") LocalDate endDate)
+            @ApiParam("startDate") Instant startDate,
+            @ApiParam("endDate") Instant endDate)
     {
-        return eventExplorer.getEventStatistics(project, Optional.ofNullable(collections), Optional.ofNullable(dimension), startDate, endDate);
+        return eventExplorer.getEventStatistics(project,
+                Optional.ofNullable(collections),
+                Optional.ofNullable(dimension),
+                startDate, endDate);
     }
 
     @GET
@@ -225,8 +228,8 @@ public class EventExplorerHttpService
         public final EventExplorer.Reference grouping;
         public final EventExplorer.Reference segment;
         public final String filterExpression;
-        public final LocalDate startDate;
-        public final LocalDate endDate;
+        public final Instant startDate;
+        public final Instant endDate;
         public final List<String> collections;
 
         @JsonCreator
@@ -234,8 +237,8 @@ public class EventExplorerHttpService
                 @ApiParam(value = "grouping", required = false) EventExplorer.Reference grouping,
                 @ApiParam(value = "segment", required = false) EventExplorer.Reference segment,
                 @ApiParam(value = "filterExpression", required = false) String filterExpression,
-                @ApiParam("startDate") LocalDate startDate,
-                @ApiParam("endDate") LocalDate endDate,
+                @ApiParam("startDate") Instant startDate,
+                @ApiParam("endDate") Instant endDate,
                 @ApiParam("collections") List<String> collections)
         {
             this.measure = measure;

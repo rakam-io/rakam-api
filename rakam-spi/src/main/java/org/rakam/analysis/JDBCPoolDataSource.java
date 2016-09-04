@@ -65,7 +65,7 @@ public class JDBCPoolDataSource implements DataSource {
 
     @Override
     public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+        return dataSource.getConnection();
     }
 
     @Override

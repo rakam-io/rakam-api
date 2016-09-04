@@ -24,7 +24,7 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
-import java.time.LocalDate;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -65,7 +65,7 @@ public class PostgresqlEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate)
     {
         checkProject(project);
 
@@ -77,8 +77,8 @@ public class PostgresqlEventExplorer
             checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("\"_time\" between date '%s' and date '%s' + interval '1' day",
-                startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+        String timePredicate = format("\"_time\" between timestamp '%s' and timestamp '%s' + interval '1' day",
+                FORMATTER.format(startDate), FORMATTER.format(endDate));
 
         String collectionQuery = collections.map(v -> "(" + v.stream()
                 .map(col -> String.format("SELECT _time, cast('%s' as text) as \"$collection\" FROM %s", col, checkCollection(col))).collect(Collectors.joining(", ")) + ") data")

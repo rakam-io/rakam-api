@@ -41,15 +41,19 @@ import org.rakam.util.RakamException;
 import org.rakam.util.LogUtil;
 
 import javax.inject.Inject;
+
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 
 @Singleton
-public class WebServiceModule extends AbstractModule {
+public class WebServiceModule
+        extends AbstractModule
+{
     private final Set<WebSocketService> webSocketServices;
     private final Set<HttpService> httpServices;
     private final HttpServerConfig config;
@@ -59,11 +63,12 @@ public class WebServiceModule extends AbstractModule {
 
     @Inject
     public WebServiceModule(Set<HttpService> httpServices,
-                            Set<Tag> tags,
-                            Set<CustomParameter> customParameters,
-                            Set<RequestPreProcessorItem> requestPreProcessorItems,
-                            Set<WebSocketService> webSocketServices,
-                            HttpServerConfig config) {
+            Set<Tag> tags,
+            Set<CustomParameter> customParameters,
+            Set<RequestPreProcessorItem> requestPreProcessorItems,
+            Set<WebSocketService> webSocketServices,
+            HttpServerConfig config)
+    {
         this.httpServices = httpServices;
         this.webSocketServices = webSocketServices;
         this.requestPreProcessorItems = requestPreProcessorItems;
@@ -73,7 +78,8 @@ public class WebServiceModule extends AbstractModule {
     }
 
     @Override
-    protected void configure() {
+    protected void configure()
+    {
         Info info = new Info()
                 .title("Rakam API Documentation")
                 .version(ServiceStarter.RAKAM_VERSION)
@@ -94,7 +100,8 @@ public class WebServiceModule extends AbstractModule {
         EventLoopGroup eventExecutors;
         if (Epoll.isAvailable()) {
             eventExecutors = new EpollEventLoopGroup();
-        } else {
+        }
+        else {
             eventExecutors = new NioEventLoopGroup();
         }
 
@@ -140,7 +147,8 @@ public class WebServiceModule extends AbstractModule {
         HostAndPort address = config.getAddress();
         try {
             build.bind(address.getHostText(), address.getPort());
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             addError(e);
             return;
         }
@@ -148,26 +156,33 @@ public class WebServiceModule extends AbstractModule {
         binder().bind(HttpServer.class).toInstance(build);
     }
 
-    public static class ProjectPermissionParameterFactory implements IRequestParameterFactory {
+    public static class ProjectPermissionParameterFactory
+            implements IRequestParameterFactory
+    {
 
         private final ApiKeyService service;
 
-        public ProjectPermissionParameterFactory(ApiKeyService service) {
+        public ProjectPermissionParameterFactory(ApiKeyService service)
+        {
             this.service = service;
         }
 
         @Override
-        public IRequestParameter create(Method method) {
+        public IRequestParameter create(Method method)
+        {
             return new ProjectPermissionIRequestParameter(service, method);
         }
     }
 
-    private static class ProjectPermissionIRequestParameter implements IRequestParameter {
+    private static class ProjectPermissionIRequestParameter
+            implements IRequestParameter
+    {
 
         private final ApiKeyService.AccessKeyType type;
         private final ApiKeyService apiKeyService;
 
-        public ProjectPermissionIRequestParameter(ApiKeyService apiKeyService, Method method) {
+        public ProjectPermissionIRequestParameter(ApiKeyService apiKeyService, Method method)
+        {
             final ApiOperation annotation = method.getAnnotation(ApiOperation.class);
             Authorization[] authorizations = annotation == null ?
                     new Authorization[0] :
@@ -197,13 +212,19 @@ public class WebServiceModule extends AbstractModule {
         }
 
         @Override
-        public Object extract(ObjectNode node, RakamHttpRequest request) {
+        public Object extract(ObjectNode node, RakamHttpRequest request)
+        {
             String apiKey = request.headers().get(type.getKey());
             if (apiKey == null) {
-                throw new RakamException(type.getKey() + " header parameter is missing.", FORBIDDEN);
+                List<String> apiKeyList = request.params().get(type.getKey());
+                if (apiKeyList != null && !apiKeyList.isEmpty()) {
+                    apiKey = apiKeyList.get(0);
+                }
+                else {
+                    throw new RakamException(type.getKey() + " header or query parameter is missing.", FORBIDDEN);
+                }
             }
             return apiKeyService.getProjectOfApiKey(apiKey, type);
         }
     }
-
 }

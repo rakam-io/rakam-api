@@ -73,7 +73,7 @@ public class UIPermissionParameterProvider
                     project = Integer.parseInt(projectString);
                 }
                 catch (NumberFormatException e) {
-                    throw new RakamException("Project header must be numberic", BAD_REQUEST);
+                    throw new RakamException("Project header must be numeric", BAD_REQUEST);
                 }
                 Optional<Cookie> session = request.cookies().stream().filter(e -> e.name().equals("session")).findAny();
                 int userId = WebUserHttpService.extractUserFromCookie(session.orElseThrow(() -> new RakamException(UNAUTHORIZED)).value(),

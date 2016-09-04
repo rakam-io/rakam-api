@@ -3,12 +3,10 @@ package org.rakam.report.eventexplorer;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.EventExplorer;
 import org.rakam.analysis.MaterializedViewService;
-import org.rakam.collection.SchemaField;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
@@ -16,9 +14,11 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
-import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -71,7 +71,7 @@ public abstract class AbstractEventExplorer
         this.continuousQueryService = continuousQueryService;
     }
 
-    public static void checkReference(Map<TimestampTransformation, String> timestampMapping, String refValue, LocalDate startDate, LocalDate endDate, int size)
+    public static void checkReference(Map<TimestampTransformation, String> timestampMapping, String refValue, Instant startDate, Instant endDate, int size)
     {
         switch (fromString(refValue.replace(" ", "_"))) {
             case HOUR_OF_DAY:
@@ -82,7 +82,7 @@ public abstract class AbstractEventExplorer
             case DAY_OF_WEEK:
                 return;
             case HOUR:
-                if (startDate.atStartOfDay().until(endDate.plus(1, DAYS).atStartOfDay(), ChronoUnit.HOURS) > 30000 / size) {
+                if (startDate.until(endDate.plus(1, DAYS), ChronoUnit.HOURS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
@@ -150,8 +150,8 @@ public abstract class AbstractEventExplorer
             Measure measure, Reference grouping,
             Reference segmentValue2,
             String filterExpression,
-            LocalDate startDate,
-            LocalDate endDate)
+            Instant startDate,
+            Instant endDate)
     {
         Reference segment = segmentValue2 == null ? DEFAULT_SEGMENT : segmentValue2;
 
@@ -200,8 +200,8 @@ public abstract class AbstractEventExplorer
                     .map(view -> new AbstractMap.SimpleImmutableEntry<>(view, "continuous." + view.tableName));
         }
 
-        String timeFilter = format(" _time between date '%s' and date '%s' + interval '1' day",
-                startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
+        String timeFilter = format(" _time between timestamp '%s' and timestamp '%s' + interval '1' day",
+                FORMATTER.format(startDate), FORMATTER.format(endDate));
 
         String groupBy;
         if (segment != null && grouping != null) {
@@ -414,7 +414,7 @@ public abstract class AbstractEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate)
     {
         checkProject(project);
 
@@ -426,10 +426,10 @@ public abstract class AbstractEventExplorer
             checkReference(timestampMapping, dimension.get(), startDate, endDate, collections.map(v -> v.size()).orElse(10));
         }
 
-        String timePredicate = format("\"week\" between date_trunc('week', date '%s') and date_trunc('week', date '%s') and \n" +
-                        "\"_time\" between date '%s' and date '%s' + interval '1' day",
-                startDate.format(ISO_DATE), endDate.format(ISO_DATE),
-                startDate.format(ISO_DATE), endDate.format(ISO_DATE));
+        String timePredicate = format("\"week\" between cast(date_trunc('week', timestamp '%s') as date) and cast(date_trunc('week', timestamp '%s') as date) and \n" +
+                        "\"_time\" between timestamp '%s' and timestamp '%s' + interval '1' day",
+                FORMATTER.format(startDate), FORMATTER.format(endDate),
+                FORMATTER.format(startDate), FORMATTER.format(endDate));
 
         String query;
         if (dimension.isPresent()) {
@@ -460,6 +460,8 @@ public abstract class AbstractEventExplorer
         }
         return builder;
     }
+
+    protected static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
     public abstract String convertSqlFunction(AggregationType aggType);
 }

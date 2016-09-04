@@ -123,7 +123,7 @@ public class PostgresqlQueryExecutor
                         .collect(Collectors.joining(" union all \n")) + ") _all";
             }
             else {
-                return "(select cast(null as text) as collection, cast(null as text) as _user, cast(null as timestamp) as _time limit 0) _all";
+                return "(select cast(null as text) as \"$collection\", cast(null as text) as _user, cast(null as timestamp) as _time limit 0) _all";
             }
         }
         else {
