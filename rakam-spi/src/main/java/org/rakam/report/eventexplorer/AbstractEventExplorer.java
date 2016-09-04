@@ -82,22 +82,22 @@ public abstract class AbstractEventExplorer
             case DAY_OF_WEEK:
                 return;
             case HOUR:
-                if (startDate.until(endDate.plus(1, DAYS), ChronoUnit.HOURS) > 30000 / size) {
+                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), ChronoUnit.HOURS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case DAY:
-                if (startDate.until(endDate.plus(1, DAYS), DAYS) > 30000 / size) {
+                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), DAYS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case MONTH:
-                if (startDate.until(endDate.plus(1, DAYS), ChronoUnit.MONTHS) > 30000 / size) {
+                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), ChronoUnit.MONTHS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;
             case YEAR:
-                if (startDate.until(endDate.plus(1, DAYS), ChronoUnit.YEARS) > 30000 / size) {
+                if (startDate.atZone(ZoneOffset.UTC).until(endDate.atZone(ZoneOffset.UTC), ChronoUnit.YEARS) > 30000 / size) {
                     throw new RakamException(TIME_INTERVAL_ERROR_MESSAGE, BAD_REQUEST);
                 }
                 break;

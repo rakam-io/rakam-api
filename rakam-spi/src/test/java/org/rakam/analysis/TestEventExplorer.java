@@ -134,7 +134,8 @@ public abstract class TestEventExplorer {
     public void testStatisticsDates() throws Exception {
         QueryResult test = getEventExplorer().getEventStatistics(PROJECT_NAME,
                 Optional.empty(), Optional.empty(),
-                Instant.ofEpochSecond(100), LocalDate.ofEpochDay(101).atStartOfDay().toInstant(ZoneOffset.UTC)).join();
+                LocalDate.ofEpochDay(100).atStartOfDay().toInstant(ZoneOffset.UTC),
+                LocalDate.ofEpochDay(101).atStartOfDay().toInstant(ZoneOffset.UTC)).join();
 
         assertTrue(!test.isFailed(),
                 test.getError() != null ? test.getError().toString() : null);
