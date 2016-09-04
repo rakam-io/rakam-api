@@ -143,9 +143,14 @@ public class GeoIPEventMapper
             addr = sourceAddress;
         }
         else {
-            // Cloudflare country code header (Only works when the request passed through CF servers)
-            String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
-            event.properties().put("_country_code", countryCode);
+            if (cityLookup != null) {
+                // Cloudflare country code header (Only works when the request passed through CF servers)
+                String countryCode = extraProperties.headers().get("HTTP_CF_IPCOUNTRY");
+                if(countryCode != null) {
+                    event.properties().put("_country_code", countryCode);
+                }
+            }
+
             return null;
         }
 
