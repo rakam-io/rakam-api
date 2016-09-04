@@ -463,7 +463,7 @@ public class JsonEventDeserializer
                 }
                 FieldType type = getType(jp);
                 if (type.isArray() || type.isMap()) {
-                    throw new RakamException("Nested properties is not supported", BAD_REQUEST);
+                    throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                 }
                 return type.convertToArrayType();
             case START_OBJECT:
@@ -480,7 +480,7 @@ public class JsonEventDeserializer
                 type = getType(jp);
 
                 if (type.isArray() || type.isMap()) {
-                    throw new RakamException("Nested properties is not supported", BAD_REQUEST);
+                    throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                 }
                 return type.convertToMapValueType();
             default:

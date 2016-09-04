@@ -114,7 +114,7 @@ public class DashboardService
                                 r.getString(2), r.getString(3),
                                 JsonHelper.read(r.getString(4), Map.class),
                                 Duration.ofSeconds(r.getInt(5)),
-                                r.getTimestamp(6).toInstant(), r.getBytes(7));
+                                r.getTimestamp(6) != null ? r.getTimestamp(6).toInstant() : null, r.getBytes(7));
                     }).list();
         }
     }

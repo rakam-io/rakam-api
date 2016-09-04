@@ -44,6 +44,7 @@ public class JDBCPoolDataSource implements DataSource {
 
         hikariConfig.setConnectionTimeout(15000);
         hikariConfig.setMaxLifetime(Duration.ofMinutes(10).toMillis());
+        hikariConfig.setLeakDetectionThreshold(5000);
 
         hikariConfig.setAutoCommit(true);
         hikariConfig.setPoolName("generic-jdbc-query-executor");

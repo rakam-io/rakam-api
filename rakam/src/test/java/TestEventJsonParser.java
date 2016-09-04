@@ -217,7 +217,7 @@ public class TestEventJsonParser {
         mapper.readValue(bytes, Event.class);
     }
 
-    @Test(expectedExceptions = RakamException.class, expectedExceptionsMessageRegExp = "Nested properties is not supported")
+    @Test(expectedExceptions = RakamException.class, expectedExceptionsMessageRegExp = "Nested properties are not supported")
     public void testInvalidMapRecursiveType() throws Exception {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
