@@ -75,7 +75,7 @@ public class PrestoFunnelQueryExecutor
     public String getTemplate()
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
-                "select %s array_agg(step) as steps from (select * from (%s) order by _time) t WHERE _time between date '%s' and date '%s'\n" +
+                "select %s array_agg(step) as steps from (select * from (%s) order by _time) t WHERE _time between timestamp '%s' and timestamp '%s'\n" +
                 "group by %s %s\n" +
                 ") t group by 1 %s order by 1";
     }
