@@ -14,6 +14,8 @@
 package org.rakam.analysis.funnel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelStep;
 import org.rakam.analysis.FunnelQueryExecutor.FunnelWindow;
@@ -28,6 +30,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -36,6 +39,8 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -45,12 +50,15 @@ import static com.google.common.base.Preconditions.checkState;
 
 @Path("/funnel")
 @Api(value = "/funnel", nickname = "funnelAnalyzer", tags = "funnel")
-public class FunnelAnalyzerHttpService extends HttpService {
+public class FunnelAnalyzerHttpService
+        extends HttpService
+{
     private final FunnelQueryExecutor funnelQueryExecutor;
     private final QueryHttpService queryService;
 
     @Inject
-    public FunnelAnalyzerHttpService(FunnelQueryExecutor funnelQueryExecutor, QueryHttpService queryService) {
+    public FunnelAnalyzerHttpService(FunnelQueryExecutor funnelQueryExecutor, QueryHttpService queryService)
+    {
         this.funnelQueryExecutor = funnelQueryExecutor;
         this.queryService = queryService;
     }
@@ -65,14 +73,16 @@ public class FunnelAnalyzerHttpService extends HttpService {
     @GET
     @IgnoreApi
     @Path("/analyze")
-    public void analyzeFunnel(RakamHttpRequest request) {
+    public void analyzeFunnel(RakamHttpRequest request)
+    {
         queryService.handleServerSentQueryExecution(request, FunnelQuery.class, (project, query) ->
                 funnelQueryExecutor.query(project,
                         query.steps,
                         Optional.ofNullable(query.dimension),
                         query.startDate,
                         query.endDate,
-                        Optional.ofNullable(query.window)));
+                        Optional.ofNullable(query.window),
+                        query.timezone));
     }
 
     @ApiOperation(value = "Execute query",
@@ -82,32 +92,39 @@ public class FunnelAnalyzerHttpService extends HttpService {
     @POST
     @JsonRequest
     @Path("/analyze")
-    public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") String project, @BodyParam FunnelQuery query) {
-         return funnelQueryExecutor.query(project,
-                        query.steps,
-                        Optional.ofNullable(query.dimension),
-                        query.startDate,
-                        query.endDate, Optional.ofNullable(query.window)).getResult();
+    public CompletableFuture<QueryResult> analyzeFunnel(@Named("project") String project, @BodyParam FunnelQuery query)
+    {
+        return funnelQueryExecutor.query(project,
+                query.steps,
+                Optional.ofNullable(query.dimension),
+                query.startDate,
+                query.endDate, Optional.ofNullable(query.window),
+                query.timezone).getResult();
     }
 
-    private static class FunnelQuery {
+    private static class FunnelQuery
+    {
         public final List<FunnelStep> steps;
         public final String dimension;
         public final LocalDate startDate;
         public final FunnelWindow window;
         public final LocalDate endDate;
+        public final ZoneId timezone;
 
         @JsonCreator
         public FunnelQuery(@ApiParam("steps") List<FunnelStep> steps,
-                           @ApiParam(value = "dimension", required = false) String dimension,
-                           @ApiParam("startDate") LocalDate startDate,
-                           @ApiParam(value = "window", required = false) FunnelWindow window,
-                           @ApiParam("endDate") LocalDate endDate) {
+                @ApiParam(value = "dimension", required = false) String dimension,
+                @ApiParam("startDate") LocalDate startDate,
+                @ApiParam(value = "window", required = false) FunnelWindow window,
+                @ApiParam("endDate") LocalDate endDate,
+                @ApiParam(value = "timezone", required = false) ZoneId timezone)
+        {
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;
             this.window = window;
+            this.timezone = Optional.ofNullable(timezone).orElse(ZoneOffset.UTC);
             checkState(!steps.isEmpty(), "steps field cannot be empty.");
         }
     }

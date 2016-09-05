@@ -43,6 +43,7 @@ import static org.rakam.analysis.EventExplorer.TimestampTransformation.HOUR;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.fromString;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.report.realtime.AggregationType.COUNT;
+import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -201,7 +202,7 @@ public abstract class AbstractEventExplorer
         }
 
         String timeFilter = format(" _time between timestamp '%s' and timestamp '%s' + interval '1' day",
-                FORMATTER.format(startDate), FORMATTER.format(endDate));
+                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String groupBy;
         if (segment != null && grouping != null) {
@@ -428,8 +429,8 @@ public abstract class AbstractEventExplorer
 
         String timePredicate = format("\"week\" between cast(date_trunc('week', timestamp '%s') as date) and cast(date_trunc('week', timestamp '%s') as date) and \n" +
                         "\"_time\" between timestamp '%s' and timestamp '%s' + interval '1' day",
-                FORMATTER.format(startDate), FORMATTER.format(endDate),
-                FORMATTER.format(startDate), FORMATTER.format(endDate));
+                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate),
+                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String query;
         if (dimension.isPresent()) {
@@ -460,8 +461,6 @@ public abstract class AbstractEventExplorer
         }
         return builder;
     }
-
-    protected static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
     public abstract String convertSqlFunction(AggregationType aggType);
 }

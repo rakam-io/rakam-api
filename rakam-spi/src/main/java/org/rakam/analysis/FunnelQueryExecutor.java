@@ -10,6 +10,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.util.RakamException;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,7 +21,7 @@ public interface FunnelQueryExecutor
     QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window);
+            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId);
 
     enum WindowType
     {

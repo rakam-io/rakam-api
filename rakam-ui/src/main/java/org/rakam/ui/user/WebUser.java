@@ -3,6 +3,7 @@ package org.rakam.ui.user;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 
+import java.time.ZoneId;
 import java.util.List;
 
 public class WebUser {
@@ -38,11 +39,13 @@ public class WebUser {
         public final int id;
         public final String name;
         public final String apiUrl;
+        public final ZoneId timezone;
         public final List<ProjectApiKeys> apiKeys;
 
-        public Project(int id, String name, String apiUrl, List<ProjectApiKeys> apiKeys) {
+        public Project(int id, String name, String apiUrl, ZoneId zoneId, List<ProjectApiKeys> apiKeys) {
             this.id = id;
             this.name = name;
+            this.timezone = zoneId;
             this.apiKeys = apiKeys;
             this.apiUrl = apiUrl;
         }

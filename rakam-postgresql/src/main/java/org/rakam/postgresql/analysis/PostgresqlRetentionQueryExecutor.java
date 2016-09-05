@@ -16,7 +16,6 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.primitives.Ints;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
@@ -31,6 +30,7 @@ import javax.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
@@ -43,12 +43,13 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
+import static com.google.common.primitives.Ints.checkedCast;
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.collection.FieldType.INTEGER;
 import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -111,7 +112,7 @@ public class PostgresqlRetentionQueryExecutor
     public QueryExecution query(String project, Optional<RetentionAction> firstAction,
             Optional<RetentionAction> returningAction, DateUnit dateUnit,
             Optional<String> dimension, Optional<Integer> period,
-            LocalDate startDate, LocalDate endDate)
+            LocalDate startDate, LocalDate endDate, ZoneId zoneId)
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
         checkTableColumn(CONNECTOR_FIELD, "connector field", '"');
@@ -134,7 +135,8 @@ public class PostgresqlRetentionQueryExecutor
             end = endDate;
         }
 
-        Optional<Integer> range = period.map(v -> Math.min(v, Ints.checkedCast(dateUnit.getTemporalUnit().between(start, end))));
+        Optional<Integer> range = period.map(v ->
+                Math.min(v, checkedCast(dateUnit.getTemporalUnit().between(start, end))));
 
         if (range.isPresent() && range.get() < 0) {
             throw new IllegalArgumentException("startDate must be before endDate.");
@@ -144,8 +146,8 @@ public class PostgresqlRetentionQueryExecutor
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
-        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
-        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate);
+        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, zoneId);
+        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, zoneId);
 
         String query = format("select %s, collect_retention(bits) from (\n" +
                         "select %s, (case when (not is_first %s) then \n" +
@@ -178,9 +180,9 @@ public class PostgresqlRetentionQueryExecutor
                 dimension.map(v -> ", 2").orElse(""),
 
                 dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
-                dateUnit.name().toLowerCase(Locale.ENGLISH), startDate.format(ISO_LOCAL_DATE),
-                dateUnit.name().toLowerCase(Locale.ENGLISH), endDate.format(ISO_LOCAL_DATE),
-                dateUnit.name().toLowerCase(Locale.ENGLISH))));
+                        dateUnit.name().toLowerCase(Locale.ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
+                        dateUnit.name().toLowerCase(Locale.ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
+                        dateUnit.name().toLowerCase(Locale.ENGLISH))));
 
         return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {
             if (result.isFailed()) {
@@ -191,7 +193,7 @@ public class PostgresqlRetentionQueryExecutor
                 Object date = objects.get(0);
                 Integer[] days = (Integer[]) objects.get(1);
                 for (int i = 0; i < days.length; i++) {
-                    if(days[i] != null) {
+                    if (days[i] != null) {
                         rows.add(Arrays.asList(date, i == 0 ? null : ((long) i - 1), (long) days[i]));
                     }
                 }
@@ -209,10 +211,12 @@ public class PostgresqlRetentionQueryExecutor
             String timeColumn,
             Optional<String> dimension,
             LocalDate startDate,
-            LocalDate endDate)
+            LocalDate endDate,
+            ZoneId zoneId)
     {
-        String timePredicate = format("between date '%s' and date '%s' + interval '1' day",
-                startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
+        String timePredicate = format("between timestamp '%s' and timestamp '%s' + interval '1' day",
+                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
+                TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)));
 
         if (!retentionAction.isPresent()) {
             Map<String, List<SchemaField>> collections = metastore.getCollections(project);
@@ -281,43 +285,43 @@ public class PostgresqlRetentionQueryExecutor
 
     private static String PL_PGGSQL_RETENTION_TIMELINE_FUNCTION =
             "create or replace function public.generate_timeline(start date, arr date[], durationmillis bigint, max_step integer) returns boolean[] volatile language plpgsql as $$\n" +
-            "DECLARE \n" +
-            " steps boolean[];\n" +
-            " value int;\n" +
-            " gap int;\n" +
-            " item date;\n" +
-            "BEGIN\n" +
-            " if arr is null then\n" +
-            "  return null;\n" +
-            " end if;\n" +
-            "\n" +
-            "-- substracting dates returns an integer that represents date diff\n" +
-            "durationmillis := durationmillis / 86400000; \n" +
-            "FOREACH item IN ARRAY arr\n" +
-            "LOOP\n" +
-            "   value := (item - start);\n" +
-            "\n" +
-            "   if value < 0 then \n" +
-            "      continue; \n" +
-            "   end if;\n" +
-            "   \n" +
-            "   gap := value / durationmillis;\n" +
-            "   if gap > max_step then \n" +
-            "      EXIT; \n" +
-            "   end if;\n" +
-            "\n" +
-            "   if steps is null then\n" +
-            "       steps = cast(ARRAY[] as boolean[]);\n" +
-            "       --steps = new Array(Math.min(max_step, arr.length))\n" +
-            "   end if;\n" +
-            "\n" +
-            "   steps[gap+1] := true;\n" +
-            "\n" +
-            " END LOOP;\n" +
-            "\n" +
-            " return steps;\n" +
-            "END\n" +
-            "$$;";
+                    "DECLARE \n" +
+                    " steps boolean[];\n" +
+                    " value int;\n" +
+                    " gap int;\n" +
+                    " item date;\n" +
+                    "BEGIN\n" +
+                    " if arr is null then\n" +
+                    "  return null;\n" +
+                    " end if;\n" +
+                    "\n" +
+                    "-- substracting dates returns an integer that represents date diff\n" +
+                    "durationmillis := durationmillis / 86400000; \n" +
+                    "FOREACH item IN ARRAY arr\n" +
+                    "LOOP\n" +
+                    "   value := (item - start);\n" +
+                    "\n" +
+                    "   if value < 0 then \n" +
+                    "      continue; \n" +
+                    "   end if;\n" +
+                    "   \n" +
+                    "   gap := value / durationmillis;\n" +
+                    "   if gap > max_step then \n" +
+                    "      EXIT; \n" +
+                    "   end if;\n" +
+                    "\n" +
+                    "   if steps is null then\n" +
+                    "       steps = cast(ARRAY[] as boolean[]);\n" +
+                    "       --steps = new Array(Math.min(max_step, arr.length))\n" +
+                    "   end if;\n" +
+                    "\n" +
+                    "   steps[gap+1] := true;\n" +
+                    "\n" +
+                    " END LOOP;\n" +
+                    "\n" +
+                    " return steps;\n" +
+                    "END\n" +
+                    "$$;";
 
     private static String V8_RETENTION_FUNCTIONS = "CREATE EXTENSION IF NOT EXISTS plv8;\n" +
             "create or replace function analyze_retention_intermediate(arr integer[], ff boolean[]) returns integer[] volatile language plv8 as $$\n" +

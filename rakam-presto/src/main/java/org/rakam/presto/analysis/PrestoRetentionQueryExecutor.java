@@ -27,11 +27,11 @@ import org.rakam.report.PreComputedTableSubQueryVisitor;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,6 +51,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.*;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
+import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
@@ -83,7 +85,8 @@ public class PrestoRetentionQueryExecutor
             DateUnit dateUnit,
             Optional<String> dimension,
             Optional<Integer> period,
-            LocalDate startDate, LocalDate endDate)
+            LocalDate startDate, LocalDate endDate,
+            ZoneId zoneId)
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
 
@@ -120,9 +123,9 @@ public class PrestoRetentionQueryExecutor
         Set<CalculatedUserSet> missingPreComputedTables = new HashSet<>();
 
         String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension,
-                startDate, endDate, missingPreComputedTables);
+                startDate, endDate, missingPreComputedTables, zoneId);
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension,
-                startDate, endDate, missingPreComputedTables);
+                startDate, endDate, missingPreComputedTables, zoneId);
 
         if (firstActionQuery == null || returningActionQuery == null) {
             return QueryExecution.completedQueryExecution("", QueryResult.empty());
@@ -169,15 +172,17 @@ public class PrestoRetentionQueryExecutor
             Optional<String> dimension,
             LocalDate startDate,
             LocalDate endDate,
-            Set<CalculatedUserSet> missingPreComputedTables)
+            Set<CalculatedUserSet> missingPreComputedTables,
+            ZoneId zoneId)
     {
 
-        String timePredicate = String.format("between date '%s' and date '%s' + interval '1' day",
-                startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE));
+        String timePredicate = String.format("between timestamp '%s' and timestamp '%s' + interval '1' day",
+                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
+                TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)));
 
         if (!retentionAction.isPresent()) {
             Optional<String> preComputedTable = getPreComputedTable(project, timePredicate, timeColumn, Optional.empty(),
-                    dimension, Optional.empty(), missingPreComputedTables, dimension.isPresent());
+                    dimension, Optional.empty(), missingPreComputedTables, dimension.isPresent(), zoneId);
 
             if (preComputedTable.isPresent()) {
                 return preComputedTable.get();
@@ -204,7 +209,7 @@ public class PrestoRetentionQueryExecutor
             String collection = retentionAction.get().collection();
 
             Optional<String> preComputedTable = getPreComputedTable(project, timePredicate, timeColumn, Optional.of(collection), dimension,
-                    retentionAction.get().filter(), missingPreComputedTables, dimension.isPresent());
+                    retentionAction.get().filter(), missingPreComputedTables, dimension.isPresent(), zoneId);
 
             if (preComputedTable.isPresent()) {
                 return preComputedTable.get();
@@ -217,9 +222,11 @@ public class PrestoRetentionQueryExecutor
         }
     }
 
-    private Optional<String> getPreComputedTable(String project, String timePredicate, String timeColumn, Optional<String> collection, Optional<String> dimension,
+    private Optional<String> getPreComputedTable(
+            String project, String timePredicate,
+            String timeColumn, Optional<String> collection, Optional<String> dimension,
             Optional<Expression> filter, Set<CalculatedUserSet> missingPreComputedTables,
-            boolean dimensionRequired)
+            boolean dimensionRequired, ZoneId zoneId)
     {
         String tableName = "_users_daily" + collection.map(value -> "_" + value).orElse("") + dimension.map(value -> "_by_" + value).orElse("");
 
@@ -227,10 +234,12 @@ public class PrestoRetentionQueryExecutor
             try {
                 String preComputedTablePrefix = tableName + "_by_";
                 return Optional.of(new PreComputedTableSubQueryVisitor(columnName -> {
-                    if (continuousQueryService.list(project).stream().anyMatch(e -> e.tableName.equals(preComputedTablePrefix + columnName))) {
+                    if (continuousQueryService.list(project).stream().anyMatch(e ->
+                            e.tableName.equals(preComputedTablePrefix + columnName) && Objects.equals(zoneId.getId(), e.getOptions().get("timezone")))) {
                         return Optional.of("continuous." + preComputedTablePrefix + columnName);
                     }
-                    else if (materializedViewService.list(project).stream().anyMatch(e -> e.tableName.equals(preComputedTablePrefix + columnName))) {
+                    else if (materializedViewService.list(project).stream().anyMatch(
+                            e -> e.tableName.equals(preComputedTablePrefix + columnName) && Objects.equals(zoneId.getId(), e.options.get("timezone")))) {
                         return Optional.of("materialized." + preComputedTablePrefix + columnName);
                     }
 
@@ -254,7 +263,10 @@ public class PrestoRetentionQueryExecutor
         return Optional.empty();
     }
 
-    private String generatePreCalculatedTableSql(Optional<String> tableNameSuffix, String schema, String timePredicate, String timeColumn, boolean dimensionRequired)
+    private String generatePreCalculatedTableSql(
+            Optional<String> tableNameSuffix,
+            String schema, String timePredicate, String timeColumn,
+            boolean dimensionRequired)
     {
         return String.format("select %s as date, %s _user_set from %s where date %s",
                 String.format(timeColumn, "date"),

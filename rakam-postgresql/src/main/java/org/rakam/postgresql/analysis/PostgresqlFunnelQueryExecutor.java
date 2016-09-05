@@ -69,12 +69,12 @@ public class PostgresqlFunnelQueryExecutor
     public String getTemplate()
     {
         return "select %s get_funnel_step(steps) step, count(*) total from (\n" +
-                "select %s array_agg(step order by _time) as steps from (%s) t WHERE _time between date '%s' and date '%s'\n" +
+                "select %s array_agg(step order by _time) as steps from (%s) t WHERE _time between timestamp '%s' and timestamp '%s'\n" +
                 "group by %s %s\n" +
                 ") t group by 1 %s order by 1";
     }
 
-    public String convertFunnel(String project, String CONNECTOR_FIELD, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
+    public String convertFunnel(String project, String connectorField, int idx, FunnelStep funnelStep, Optional<String> dimension, LocalDate startDate, LocalDate endDate)
     {
         String table = project + "." + ValidationUtil.checkCollection(funnelStep.getCollection());
         Optional<String> filterExp = funnelStep.getExpression().map(value -> RakamSqlFormatter.formatExpression(value,
@@ -83,7 +83,7 @@ public class PostgresqlFunnelQueryExecutor
                         .map(e -> formatIdentifier(e, '"')).collect(Collectors.joining(".")), '"'));
 
         return format("SELECT %s %s, %d as step, _time from %s %s %s",
-                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), CONNECTOR_FIELD, idx + 1, table,
+                dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ",").orElse(""), connectorField, idx + 1, table,
                 "step" + idx,
                 filterExp.map(v -> "where " + v).orElse(""));
     }

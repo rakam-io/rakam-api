@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
@@ -39,7 +40,7 @@ public class JDBCApiKeyService
     {
         this.connectionPool = connectionPool;
 
-        apiKeyCache = CacheBuilder.newBuilder().build(new CacheLoader<String, List<Set<String>>>()
+        apiKeyCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<String, List<Set<String>>>()
         {
             @Override
             public List<Set<String>> load(String project)

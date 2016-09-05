@@ -38,6 +38,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 // todo check permissions
 @Path("/ui/dashboard")
@@ -182,7 +183,7 @@ public class DashboardService
                 @JsonProperty("id") Integer id,
                 @JsonProperty("name") String name,
                 @JsonProperty("directive") String directive,
-                @JsonProperty("data") Map options,
+                @JsonProperty("options") Map options,
                 @JsonProperty("refreshInterval") Duration refreshInterval,
                 @JsonProperty("data") byte[] data)
         {
@@ -211,15 +212,17 @@ public class DashboardService
             @ApiParam("dashboard") int dashboard,
             @ApiParam("name") String itemName,
             @ApiParam("directive") String directive,
-            @ApiParam("data") Map data)
+            @ApiParam(value = "refresh_interval", required = false) Duration refreshInterval,
+            @ApiParam("options") Map options)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO dashboard_items (dashboard, name, directive, options) VALUES (:dashboard, :name, :directive, :options)")
+            handle.createStatement("INSERT INTO dashboard_items (dashboard, name, directive, options, refresh_interval) VALUES (:dashboard, :name, :directive, :options, :refreshInterval)")
                     .bind("project", project.project)
                     .bind("dashboard", dashboard)
                     .bind("name", itemName)
                     .bind("directive", directive)
-                    .bind("options", JsonHelper.encode(data)).execute();
+                    .bind("refreshInterval", Optional.ofNullable(refreshInterval).map(e -> e.getSeconds()).orElse(null))
+                    .bind("options", JsonHelper.encode(options)).execute();
         }
         return SuccessMessage.success();
     }
@@ -241,7 +244,8 @@ public class DashboardService
                         .bind("id", item.id)
                         .bind("name", item.name)
                         .bind("directive", item.directive)
-                        .bind("options", JsonHelper.encode(item.data)).execute();
+                        .bind("options", JsonHelper.encode(item.options))
+                        .execute();
             }
             return null;
         });

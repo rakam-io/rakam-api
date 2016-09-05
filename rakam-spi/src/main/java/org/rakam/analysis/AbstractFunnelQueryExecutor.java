@@ -24,6 +24,7 @@ import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -36,6 +37,7 @@ import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 
 public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
 {
@@ -55,7 +57,7 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
     public QueryExecution query(String project,
             List<FunnelStep> steps,
             Optional<String> dimension, LocalDate startDate,
-            LocalDate endDate, Optional<FunnelWindow> window)
+            LocalDate endDate, Optional<FunnelWindow> window, ZoneId zoneId)
     {
         if (dimension.isPresent() && CONNECTOR_FIELD.equals(dimension.get())) {
             throw new RakamException("Dimension and connector field cannot be equal", HttpResponseStatus.BAD_REQUEST);
@@ -66,8 +68,8 @@ public abstract class AbstractFunnelQueryExecutor implements FunnelQueryExecutor
 
         String dimensionCol = dimension.map(ValidationUtil::checkTableColumn).map(v -> v + ", ").orElse("");
         String query = format(getTemplate(), dimensionCol, dimensionCol, ctes,
-                startDate.format(ISO_LOCAL_DATE),
-                endDate.format(ISO_LOCAL_DATE),
+                TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
+                TIMESTAMP_FORMATTER.format(endDate.plusDays(1).atStartOfDay(zoneId)),
                 dimensionCol, CONNECTOR_FIELD,
                 dimension.map(v -> ", 2").orElse(""));
         if(dimension.isPresent()) {

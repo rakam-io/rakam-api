@@ -35,6 +35,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
+import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
 
@@ -78,7 +79,7 @@ public class PostgresqlEventExplorer
         }
 
         String timePredicate = format("\"_time\" between timestamp '%s' and timestamp '%s' + interval '1' day",
-                FORMATTER.format(startDate), FORMATTER.format(endDate));
+                TIMESTAMP_FORMATTER.format(startDate), TIMESTAMP_FORMATTER.format(endDate));
 
         String collectionQuery = collections.map(v -> "(" + v.stream()
                 .map(col -> String.format("SELECT _time, cast('%s' as text) as \"$collection\" FROM %s", col, checkCollection(col))).collect(Collectors.joining(", ")) + ") data")

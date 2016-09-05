@@ -1,5 +1,6 @@
 package org.rakam.ui.user;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
@@ -23,6 +24,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.report.EmailClientConfig;
+import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.ui.UIEvents;
 import org.rakam.util.AlreadyExistsException;
@@ -54,6 +56,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -91,6 +94,47 @@ public class WebUserService
     private static final Mustache welcomeTxtCompiler;
     private static final Mustache resetPasswordTitleCompiler;
     private static final Mustache welcomeTitleCompiler;
+
+    public ProjectConfiguration getProjectConfigurations(int userId, int project)
+    {
+        try (Connection conn = dbi.open().getConnection()) {
+            PreparedStatement ps = conn.prepareStatement("SELECT timezone FROM web_user_project WHERE user_id = ? and id = ?");
+            ps.setInt(1, userId);
+            ps.setInt(2, project);
+            ResultSet resultSet = ps.executeQuery();
+            if (!resultSet.next()) {
+                throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
+            }
+            return new ProjectConfiguration(resultSet.getString(1));
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public void updateProjectConfigurations(int userId, int project, ProjectConfiguration configuration)
+    {
+        try (Connection conn = dbi.open().getConnection()) {
+            PreparedStatement ps = conn.prepareStatement("UPDATE web_user_project SET timezone = ? WHERE user_id = ? and id = ?");
+            ps.setString(1, configuration.timezone);
+            ps.setInt(2, userId);
+            ps.setInt(3, project);
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public static class ProjectConfiguration
+    {
+        public final String timezone;
+
+        @JsonCreator
+        public ProjectConfiguration(@ApiParam(value = "timezone", required = false) String timezone) {
+            this.timezone = timezone;
+        }
+    }
 
     static {
         try {
@@ -685,7 +729,7 @@ public class WebUserService
     private List<WebUser.Project> getUserApiKeys(Handle handle, int userId)
     {
         List<WebUser.Project> list = new ArrayList<>();
-        handle.createQuery("SELECT project.id, project.project, project.api_url, api_key.master_key, api_key.read_key, api_key.write_key " +
+        handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key " +
                 " FROM web_user_project project " +
                 " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
                 " WHERE api_key.user_id = :user ORDER BY project.id, api_key.master_key NULLS LAST")
@@ -694,13 +738,14 @@ public class WebUserService
                     int id = r.getInt(1);
                     String name = r.getString(2);
                     String url = r.getString(3);
+                    ZoneId zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
                     WebUser.Project p = list.stream().filter(e -> e.id == id).findFirst()
                             .orElseGet(() -> {
-                                WebUser.Project project = new WebUser.Project(id, name, url, new ArrayList<>());
+                                WebUser.Project project = new WebUser.Project(id, name, url, zoneId, new ArrayList<>());
                                 list.add(project);
                                 return project;
                             });
-                    p.apiKeys.add(ProjectApiKeys.create(r.getString(4), r.getString(5), r.getString(6)));
+                    p.apiKeys.add(ProjectApiKeys.create(r.getString(5), r.getString(6), r.getString(7)));
                     return null;
                 }).list();
 

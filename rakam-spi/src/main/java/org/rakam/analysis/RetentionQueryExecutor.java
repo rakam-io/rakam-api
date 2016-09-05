@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import org.rakam.report.QueryExecution;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
@@ -32,13 +33,13 @@ public interface RetentionQueryExecutor {
     String CONNECTOR_FIELD = "_user";
 
     QueryExecution query(String project,
-                         Optional<RetentionAction> firstAction,
-                         Optional<RetentionAction> returningAction,
-                         DateUnit dateUnit,
-                         Optional<String> dimension,
-                         Optional<Integer> period,
-                         LocalDate startDate,
-                         LocalDate endDate);
+            Optional<RetentionAction> firstAction,
+            Optional<RetentionAction> returningAction,
+            DateUnit dateUnit,
+            Optional<String> dimension,
+            Optional<Integer> period,
+            LocalDate startDate,
+            LocalDate endDate, ZoneId zoneId);
 
     @AutoValue
     abstract class RetentionAction {

@@ -2,22 +2,16 @@ package org.rakam.clickhouse.analysis;
 
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.tree.Expression;
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.collection.SchemaField;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryResult;
 import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,7 +20,6 @@ import java.util.stream.Stream;
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_DATE;
-import static org.rakam.collection.FieldType.INTEGER;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
@@ -52,7 +45,7 @@ public class ClickHouseRetentionQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, Optional<Integer> period, LocalDate startDate, LocalDate endDate)
+    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, Optional<Integer> period, LocalDate startDate, LocalDate endDate, ZoneId zoneIf)
     {
         int startEpoch = (int) startDate.toEpochDay();
         int endEpoch = (int) endDate.toEpochDay();

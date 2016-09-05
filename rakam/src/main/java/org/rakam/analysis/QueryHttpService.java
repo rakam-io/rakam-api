@@ -182,7 +182,7 @@ public class QueryHttpService
         try {
             query = JsonHelper.readSafe(data.get(0), clazz);
         }
-        catch (IOException e) {
+        catch (Exception e) {
             response.send("result", encode(errorMessage("JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST))).end();
             return;
         }

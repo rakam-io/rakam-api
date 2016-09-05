@@ -19,13 +19,15 @@ import org.rakam.server.http.Response;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.CookieParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.ProtectEndpoint;
 import org.rakam.ui.RakamUIConfig;
-import org.rakam.ui.UIPermissionParameterProvider;
+import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.ui.user.WebUser.UserApiKey;
+import org.rakam.ui.user.WebUserService.ProjectConfiguration;
 import org.rakam.ui.user.WebUserService.UserAccess;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
@@ -49,7 +51,6 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.COOKIE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
@@ -163,7 +164,7 @@ public class WebUserHttpService
     @ProtectEndpoint(writeOperation = true)
     @Path("/delete-project")
     @DELETE
-    public SuccessMessage deleteProject(@Named("user_id") UIPermissionParameterProvider.Project project)
+    public SuccessMessage deleteProject(@Named("user_id") Project project)
     {
         service.deleteProject(project.userId, project.project);
         return SuccessMessage.success();
@@ -173,7 +174,7 @@ public class WebUserHttpService
     @ProtectEndpoint(writeOperation = true)
     @Path("/save-api-keys")
     public ApiKeyService.ProjectApiKeys createApiKeys(
-            @Named("user_id") UIPermissionParameterProvider.Project project,
+            @Named("user_id") Project project,
             @ApiParam("read_key") String readKey,
             @ApiParam("write_key") String writeKey,
             @ApiParam("master_key") String masterKey)
@@ -185,18 +186,35 @@ public class WebUserHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/revoke-api-keys")
-    public SuccessMessage revokeApiKeys(@ApiParam("master_key") String key, @Named("user_id") UIPermissionParameterProvider.Project project)
+    public SuccessMessage revokeApiKeys(@ApiParam("master_key") String key, @Named("user_id") Project project)
     {
         service.revokeApiKeys(project.userId, project.project, key);
         return SuccessMessage.success();
     }
 
-    @JsonRequest
-    @ApiOperation(value = "List users who can access to the project", authorizations = @Authorization(value = "master_key"))
+    @GET
+    @ApiOperation(value = "List users who can access to the project")
     @Path("/user-access")
-    public List<UserAccess> getUserAccess(@Named("user_id") UIPermissionParameterProvider.Project project)
+    public List<UserAccess> getUserAccess(@Named("user_id") Project project)
     {
         return service.getUserAccessForProject(project.userId, project.project);
+    }
+
+    @GET
+    @ApiOperation(value = "Get project configurations")
+    @Path("/project-configuration")
+    public ProjectConfiguration getProjectPreferences(@Named("user_id") Project project)
+    {
+        return service.getProjectConfigurations(project.userId, project.project);
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Update project configurations")
+    @Path("/project-configuration")
+    public SuccessMessage updateProjectPreferences(@Named("user_id") Project project, @BodyParam ProjectConfiguration configuration)
+    {
+        service.updateProjectConfigurations(project.userId, project.project, configuration);
+        return SuccessMessage.success();
     }
 
     @JsonRequest
@@ -224,7 +242,7 @@ public class WebUserHttpService
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
     @ProtectEndpoint(writeOperation = true)
-    public SuccessMessage revokeUserAccess(@Named("user_id") UIPermissionParameterProvider.Project project,
+    public SuccessMessage revokeUserAccess(@Named("user_id") Project project,
             @ApiParam("email") String email)
     {
 
@@ -236,7 +254,7 @@ public class WebUserHttpService
 
     @Path("/give-user-access")
     @ProtectEndpoint(writeOperation = true)
-    public SuccessMessage giveUserAccess(@Named("user_id") UIPermissionParameterProvider.Project project,
+    public SuccessMessage giveUserAccess(@Named("user_id") Project project,
             @ApiParam("email") String email,
             @ApiParam(value = "scope_expression", required = false) String scopeExpression,
             @ApiParam(value = "keys") ApiKeyService.ProjectApiKeys keys,
