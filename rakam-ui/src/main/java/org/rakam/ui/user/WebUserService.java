@@ -58,6 +58,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.time.zone.ZoneRulesException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -738,7 +739,13 @@ public class WebUserService
                     int id = r.getInt(1);
                     String name = r.getString(2);
                     String url = r.getString(3);
-                    ZoneId zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
+                    ZoneId zoneId;
+                    try {
+                        zoneId = r.getString(4) != null ? ZoneId.of(r.getString(4)) : null;
+                    }
+                    catch (ZoneRulesException e) {
+                        zoneId = null;
+                    }
                     WebUser.Project p = list.stream().filter(e -> e.id == id).findFirst()
                             .orElseGet(() -> {
                                 WebUser.Project project = new WebUser.Project(id, name, url, zoneId, new ArrayList<>());
