@@ -24,10 +24,17 @@ import org.testng.annotations.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.AbstractMap;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 
-public class TestEventJsonParser {
+public class TestEventJsonParser
+{
     private ObjectMapper mapper;
     private ApiKeyService.ProjectApiKeys apiKeys;
     private EventBuilder eventBuilder;
@@ -36,7 +43,9 @@ public class TestEventJsonParser {
     private InMemoryApiKeyService apiKeyService;
 
     @BeforeSuite
-    public void setUp() throws Exception {
+    public void setUp()
+            throws Exception
+    {
         FieldDependencyBuilder.FieldDependency fieldDependency = new FieldDependencyBuilder().build();
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
@@ -52,20 +61,26 @@ public class TestEventJsonParser {
     }
 
     @AfterMethod
-    public void tearDownMethod() throws Exception {
+    public void tearDownMethod()
+            throws Exception
+    {
         metastore.deleteProject("test");
         eventDeserializer.cleanCache();
         eventBuilder.cleanCache();
     }
 
     @BeforeMethod
-    public void setupMethod() throws Exception {
+    public void setupMethod()
+            throws Exception
+    {
         metastore.createProject("test");
         apiKeys = apiKeyService.createApiKeys("test");
     }
 
     @Test
-    public void testSimple() throws Exception {
+    public void testSimple()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -82,7 +97,9 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testSimpleWithoutProject() throws Exception {
+    public void testSimpleWithoutProject()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -99,7 +116,9 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testPrimitiveTypes() throws Exception {
+    public void testPrimitiveTypes()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> properties = ImmutableMap.of(
                 "test", 1L,
@@ -131,7 +150,9 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testMapType() throws Exception {
+    public void testMapType()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> properties = ImmutableMap.of("test0", "test",
                 "test1", ImmutableMap.of("a", 4.0, "b", 5.0, "c", 6.0, "d", 7.0),
@@ -151,7 +172,9 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testArrayType() throws Exception {
+    public void testArrayType()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> properties = ImmutableMap.of("test0", "test",
                 "test1", ImmutableList.of("test", "test"),
@@ -170,7 +193,9 @@ public class TestEventJsonParser {
                 .createEvent("test", properties).properties(), event.properties());
     }
 
-    public void testInvalidOrder() throws Exception {
+    public void testInvalidOrder()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "properties", ImmutableMap.of("test0", "test",
@@ -183,7 +208,9 @@ public class TestEventJsonParser {
     }
 
     @Test(expectedExceptions = RakamException.class)
-    public void testInvalidField() throws Exception {
+    public void testInvalidField()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -205,7 +232,9 @@ public class TestEventJsonParser {
     }
 
     @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Nested properties are not supported. \\(\'test1\\' field\\)")
-    public void testInvalidArrayRecursiveType() throws Exception {
+    public void testInvalidArrayRecursiveType()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -218,7 +247,9 @@ public class TestEventJsonParser {
     }
 
     @Test(expectedExceptions = RakamException.class, expectedExceptionsMessageRegExp = "Nested properties are not supported")
-    public void testInvalidMapRecursiveType() throws Exception {
+    public void testInvalidMapRecursiveType()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -231,7 +262,9 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testInvalidArray() throws Exception {
+    public void testInvalidArray()
+            throws Exception
+    {
 
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
@@ -249,7 +282,9 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testInvalidMap() throws Exception {
+    public void testInvalidMap()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
@@ -262,12 +297,62 @@ public class TestEventJsonParser {
         assertEquals("test", event.collection());
         assertEquals(api, event.api());
         assertEquals(eventBuilder
-                .createEvent("test",  ImmutableMap.of("test1", ImmutableMap.of("test", 1.0, "test2", 0.0))).properties(),
+                        .createEvent("test", ImmutableMap.of("test1", ImmutableMap.of("test", 1.0, "test2", 0.0))).properties(),
                 event.properties());
     }
 
     @Test
-    public void testBatch() throws Exception {
+    public void testEmptyArray()
+            throws Exception
+    {
+        Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
+                "collection", "test",
+                "api", api,
+                "properties", ImmutableMap.of("test", 1, "test2",
+                        Arrays.asList(null, null), "test20", Arrays.asList(), "test3", true)));
+
+        Event event = mapper.readValue(bytes, Event.class);
+
+        assertEquals("test", event.project());
+        assertEquals("test", event.collection());
+        assertEquals(api, event.api());
+        assertEquals(eventBuilder
+                        .createEvent("test", ImmutableMap.of("test", 1.0, "test3", true)).properties(),
+                event.properties());
+    }
+
+    @Test
+    public void testEmptyMap()
+            throws Exception
+    {
+        Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
+                "collection", "test",
+                "api", api,
+                "properties", ImmutableMap.of("test", 1, "test2",
+                        new HashMap<String, String>()
+                        {
+                            {
+                                put("a", null);
+                            }
+                        }),
+                "test20", ImmutableMap.of(), "test3", true));
+
+        Event event = mapper.readValue(bytes, Event.class);
+
+        assertEquals("test", event.project());
+        assertEquals("test", event.collection());
+        assertEquals(api, event.api());
+        assertEquals(eventBuilder
+                        .createEvent("test", ImmutableMap.of("test", 1.0, "test3", true)).properties(),
+                event.properties());
+    }
+
+    @Test
+    public void testBatch()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> props = ImmutableMap.of(
                 "test0", "test",
@@ -292,7 +377,9 @@ public class TestEventJsonParser {
     }
 
     @Test
-    public void testBatchWithoutProject() throws Exception {
+    public void testBatchWithoutProject()
+            throws Exception
+    {
         Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
         ImmutableMap<String, Object> props = ImmutableMap.of(
                 "test0", "test",

@@ -39,6 +39,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import static com.fasterxml.jackson.core.JsonToken.END_ARRAY;
+import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
+import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
@@ -118,11 +121,12 @@ public class JsonEventDeserializer
                         if (project == null) {
                             project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                         }
+
                         properties = parseProperties(project, collection, jp);
 
                         t = jp.getCurrentToken();
 
-                        if (t != JsonToken.END_OBJECT) {
+                        if (jp.getCurrentToken() != END_OBJECT) {
                             if (t == JsonToken.START_OBJECT) {
                                 throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                             }
@@ -137,7 +141,7 @@ public class JsonEventDeserializer
             }
         }
         if (properties == null) {
-            if(propertiesBuffer != null) {
+            if (propertiesBuffer != null) {
                 if (project == null) {
                     project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                 }
@@ -145,7 +149,8 @@ public class JsonEventDeserializer
                 // pass START_OBJECT
                 fakeJp.nextToken();
                 properties = parseProperties(project, collection, fakeJp);
-            } else {
+            }
+            else {
                 throw new JsonMappingException("properties is null");
             }
         }
@@ -236,6 +241,7 @@ public class JsonEventDeserializer
                     }
                     else {
                         // the type is null or an empty array
+                        t = jp.getCurrentToken();
                         continue;
                     }
                 }
@@ -465,7 +471,14 @@ public class JsonEventDeserializer
                     return null;
                 }
                 FieldType type = getType(jp);
-                if(type == null) {
+                if (type == null) {
+                    // TODO: what if the other values are not null?
+                    while (t != END_ARRAY) {
+                        if (!t.isScalarValue()) {
+                            throw new RakamException("Nested properties are not supported", BAD_REQUEST);
+                        }
+                        t = jp.nextToken();
+                    }
                     return null;
                 }
                 if (type.isArray() || type.isMap()) {
@@ -482,9 +495,18 @@ public class JsonEventDeserializer
                 if (t != JsonToken.FIELD_NAME) {
                     throw new IllegalArgumentException();
                 }
-                jp.nextToken();
+                t = jp.nextToken();
                 type = getType(jp);
-                if(type == null) {
+                if (type == null) {
+                    // TODO: what if the other values are not null?
+                    while (t != END_OBJECT) {
+                        if (!t.isScalarValue()) {
+                            throw new RakamException("Nested properties are not supported", BAD_REQUEST);
+                        }
+                        t = jp.nextToken();
+                    }
+                    jp.nextToken();
+
                     return null;
                 }
 
