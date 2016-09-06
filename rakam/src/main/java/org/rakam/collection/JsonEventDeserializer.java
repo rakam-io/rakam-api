@@ -141,7 +141,10 @@ public class JsonEventDeserializer
                 if (project == null) {
                     project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                 }
-                properties = parseProperties(project, collection, propertiesBuffer.asParser(jp));
+                JsonParser fakeJp = propertiesBuffer.asParser(jp);
+                // pass START_OBJECT
+                fakeJp.nextToken();
+                properties = parseProperties(project, collection, fakeJp);
             } else {
                 throw new JsonMappingException("properties is null");
             }
@@ -462,6 +465,9 @@ public class JsonEventDeserializer
                     return null;
                 }
                 FieldType type = getType(jp);
+                if(type == null) {
+                    return null;
+                }
                 if (type.isArray() || type.isMap()) {
                     throw new RakamException("Nested properties are not supported", BAD_REQUEST);
                 }
@@ -478,6 +484,9 @@ public class JsonEventDeserializer
                 }
                 jp.nextToken();
                 type = getType(jp);
+                if(type == null) {
+                    return null;
+                }
 
                 if (type.isArray() || type.isMap()) {
                     throw new RakamException("Nested properties are not supported", BAD_REQUEST);
