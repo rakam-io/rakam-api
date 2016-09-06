@@ -245,7 +245,7 @@ public abstract class TestUserStorage
         User test = getUserService().getUser(PROJECT_NAME, 3).join();
         assertEquals(test.id, 3);
         ObjectNode builder = JsonHelper.jsonObject();
-        builder.put("created_at", Instant.ofEpochMilli(100).toString());
+        builder.put("created_at", Instant.ofEpochMilli(10).toString());
         for (String object : objects) {
             builder.put(object, 10.0);
         }
