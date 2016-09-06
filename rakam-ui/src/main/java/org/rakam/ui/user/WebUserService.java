@@ -746,9 +746,10 @@ public class WebUserService
                     catch (ZoneRulesException e) {
                         zoneId = null;
                     }
+                    ZoneId finalZoneId = zoneId;
                     WebUser.Project p = list.stream().filter(e -> e.id == id).findFirst()
                             .orElseGet(() -> {
-                                WebUser.Project project = new WebUser.Project(id, name, url, zoneId, new ArrayList<>());
+                                WebUser.Project project = new WebUser.Project(id, name, url, finalZoneId, new ArrayList<>());
                                 list.add(project);
                                 return project;
                             });
