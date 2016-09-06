@@ -223,7 +223,7 @@ public abstract class TestUserStorage
 
         Set<String> objects = new ConcurrentSkipListSet<>();
 
-        getUserService().setUserProperties(PROJECT_NAME, 3, JsonHelper.jsonObject().put("created_at", 100));
+        getUserService().setUserProperties(PROJECT_NAME, 3, JsonHelper.jsonObject().put("created_at", 10));
         CountDownLatch countDownLatch = new CountDownLatch(1000);
 
         for (int x = 0; x < 1000; x++) {

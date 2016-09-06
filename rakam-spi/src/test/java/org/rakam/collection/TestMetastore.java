@@ -147,7 +147,7 @@ public abstract class TestMetastore
     public void testConcurrentSchemaChanges() throws Exception {
         getMetastore().createProject("test");
 
-        List<List<SchemaField>> collect = IntStream.range(0, 2).parallel().mapToObj(i ->
+        List<List<SchemaField>> collect = IntStream.range(0, 10).parallel().mapToObj(i ->
                 getMetastore().getOrCreateCollectionFieldList("test", "test", ImmutableSet.of(new SchemaField("test" + i, STRING))))
                 .collect(Collectors.toList());
 
