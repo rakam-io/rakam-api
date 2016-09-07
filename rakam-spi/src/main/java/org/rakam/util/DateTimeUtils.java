@@ -84,10 +84,4 @@ public class DateTimeUtils {
             }
         }
     }
-
-    public static void main(String[] args)
-    {
-        parseTimestamp("2014-06-23T01:05:30-07:00");
-    }
-
 }

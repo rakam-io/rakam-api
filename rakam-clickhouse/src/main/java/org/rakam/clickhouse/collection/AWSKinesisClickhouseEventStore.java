@@ -111,6 +111,9 @@ public class AWSKinesisClickhouseEventStore
     @Override
     public void storeBulk(List<Event> events)
     {
+        if (events.isEmpty()) {
+            return;
+        }
         bulkClient.storeBatch(events);
     }
 

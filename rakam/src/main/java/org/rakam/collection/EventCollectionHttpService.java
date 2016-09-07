@@ -313,17 +313,19 @@ public class EventCollectionHttpService
                     throw new RakamException("Unsupported content type: " + contentType, BAD_REQUEST);
                 },
                 (events, responseHeaders) -> {
-                    try {
-                        eventStore.storeBulk(events);
-                    }
-                    catch (Exception e) {
-                        List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
-                        LOGGER.error(new RuntimeException("Error executing EventStore bulk method: " + sample, e),
-                                "Error while storing event.");
+                    if(events.size() > 0) {
+                        try {
+                            eventStore.storeBulk(events);
+                        }
+                        catch (Exception e) {
+                            List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
+                            LOGGER.error(new RuntimeException("Error executing EventStore bulk method: " + sample, e),
+                                    "Error while storing event.");
 
-                        return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
-                                Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
-                                responseHeaders);
+                            return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
+                                    Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
+                                    responseHeaders);
+                        }
                     }
 
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,

@@ -121,6 +121,9 @@ public class AWSKinesisEventStore
     @Override
     public void storeBulk(List<Event> events)
     {
+        if (events.isEmpty()) {
+            return;
+        }
         String project = events.get(0).project();
         bulkClient.upload(project, events);
     }

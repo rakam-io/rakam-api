@@ -33,6 +33,9 @@ public interface EventStore
 
     default void storeBulk(List<Event> events)
     {
+        if (events.isEmpty()) {
+            return;
+        }
         storeBatch(events);
     }
 
