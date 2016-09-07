@@ -72,16 +72,22 @@ public class DateTimeUtils {
 
     public static long parseTimestamp(String timestampWithTimeZone) {
         // If it's in ISO format the last character must be 'Z'
-        if (timestampWithTimeZone.charAt(timestampWithTimeZone.length() - 1) == 'Z') {
+        try {
             return ISODateTimeFormat.dateTimeParser().parseMillis(timestampWithTimeZone);
         }
-        try {
-            return TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
-        }
         catch (Exception e) {
-            return TIMESTAMP_WITH_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
+            try {
+                return TIMESTAMP_WITHOUT_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
+            }
+            catch (Exception ex) {
+                return TIMESTAMP_WITH_TIME_ZONE_FORMATTER.parseMillis(timestampWithTimeZone);
+            }
         }
     }
 
+    public static void main(String[] args)
+    {
+        parseTimestamp("2014-06-23T01:05:30-07:00");
+    }
 
 }
