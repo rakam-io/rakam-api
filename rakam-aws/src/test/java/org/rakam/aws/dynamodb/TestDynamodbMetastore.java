@@ -18,16 +18,15 @@ import org.testng.annotations.Test;
 
 import java.io.InputStream;
 
-@Test(enabled = false)
 public class TestDynamodbMetastore
-        extends TestMetastore
+//        extends TestMetastore
 {
     private final static Logger LOGGER = Logger.get(TestDynamodbMetastore.class);
 
     private DynamodbMetastore metastore;
     private DynamodbUtil.DynamodbProcess dynamodbProcess;
 
-    @Override
+//    @Override
     public AbstractMetastore getMetastore()
     {
         return metastore;
