@@ -37,11 +37,17 @@ public final class ValidationUtil
 
     public static String checkCollection(String collection, char character)
     {
+        checkCollectionValid(collection);
+        return character + collection.replaceAll("\"", "").toLowerCase(Locale.ENGLISH) + character;
+    }
+
+    public static void checkCollectionValid(String collection)
+    {
         checkArgument(collection != null, "collection is null");
+        checkArgument(collection.isEmpty(), "collection is empty string");
         if (collection.length() > 250) {
             throw new IllegalArgumentException("Collection name must have maximum 250 characters.");
         }
-        return character + collection.replaceAll("\"", "").toLowerCase(Locale.ENGLISH) + character;
     }
 
     public static String checkTableColumn(String column, char escape)

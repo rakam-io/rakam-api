@@ -36,6 +36,10 @@ public class SchemaField
         this.descriptiveName = descriptiveName;
         this.description = description;
         this.category = category;
+        if (this.name.isEmpty()) {
+            throw new RakamException(String.format("Field name (%s) can't be empty string", this.name),
+                    HttpResponseStatus.BAD_REQUEST);
+        }
     }
 
     public static String stripName(String name)

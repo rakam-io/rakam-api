@@ -10,6 +10,7 @@ import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -95,6 +96,7 @@ public abstract class AbstractMetastore implements Metastore {
     @Override
     public List<SchemaField> getOrCreateCollectionFieldList(String project, String collection, Set<SchemaField> fieldList) throws NotExistsException {
         HashSet<SchemaField> fields = new HashSet<>(fieldList);
+        ValidationUtil.checkCollectionValid(collection);
 
         Iterator<SchemaField> it = fields.iterator();
         while (it.hasNext()) {
