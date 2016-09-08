@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import io.airlift.log.Logger;
+import org.junit.Ignore;
 import org.rakam.analysis.metadata.AbstractMetastore;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.DynamodbUtil;
@@ -13,9 +14,11 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.TestMetastore;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.Test;
 
 import java.io.InputStream;
 
+@Test(enabled = false)
 public class TestDynamodbMetastore
         extends TestMetastore
 {
