@@ -44,7 +44,7 @@ public final class ValidationUtil
     public static void checkCollectionValid(String collection)
     {
         checkArgument(collection != null, "collection is null");
-        checkArgument(collection.isEmpty(), "collection is empty string");
+        checkArgument(!collection.isEmpty(), "collection is empty string");
         if (collection.length() > 250) {
             throw new IllegalArgumentException("Collection name must have maximum 250 characters.");
         }
