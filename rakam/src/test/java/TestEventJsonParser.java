@@ -247,7 +247,7 @@ public class TestEventJsonParser
     }
 
     @Test(expectedExceptions = RakamException.class,
-            expectedExceptionsMessageRegExp = "Nested properties are not supported. (non-scalar value in object property)")
+            expectedExceptionsMessageRegExp = "Nested properties are not supported\\. \\(non-scalar value in object property\\)")
     public void testInvalidMapRecursiveType()
             throws Exception
     {
