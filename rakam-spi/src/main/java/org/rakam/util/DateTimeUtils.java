@@ -71,7 +71,6 @@ public class DateTimeUtils {
     }
 
     public static long parseTimestamp(String timestampWithTimeZone) {
-        // If it's in ISO format the last character must be 'Z'
         try {
             return ISODateTimeFormat.dateTimeParser().parseMillis(timestampWithTimeZone);
         }

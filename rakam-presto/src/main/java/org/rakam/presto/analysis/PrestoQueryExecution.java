@@ -237,8 +237,10 @@ public class PrestoQueryExecution
                 client = new StatementClient(HTTP_CLIENT, QUERY_RESULTS_JSON_CODEC, session, query);
             }
             catch (RuntimeException e) {
-                LOGGER.warn(e, "Presto server is not active: " + e.getMessage());
-                throw new RakamException("Presto server is not active: " + e.getMessage(), HttpResponseStatus.BAD_GATEWAY);
+                String message = "Presto server is not active: " + e.getMessage();
+                LOGGER.warn(e, message);
+                result.complete(QueryResult.errorResult(QueryError.create(message)));
+                return;
             }
 
             try {

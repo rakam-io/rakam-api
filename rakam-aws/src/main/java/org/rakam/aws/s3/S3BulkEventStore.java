@@ -8,6 +8,7 @@ import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.google.common.base.Throwables;
 import io.airlift.log.Logger;
 import io.airlift.slice.BasicSliceInput;
@@ -25,7 +26,6 @@ import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -120,11 +120,12 @@ public class S3BulkEventStore {
                 int bulkSize = buffer.size();
                 objectMetadata.setContentLength(bulkSize);
                 String key = events.get(0).project() + "/" + entry.getKey() + "/" + batchId;
-                s3Client.putObject(
-                        config.getEventStoreBulkS3Bucket(),
+                PutObjectRequest putObjectRequest = new PutObjectRequest(config.getEventStoreBulkS3Bucket(),
                         key,
-                        new SafeSliceInputStream(new BasicSliceInput(buffer.slice())),
-                        objectMetadata);
+                        new SafeSliceInputStream(new BasicSliceInput(buffer.slice())), objectMetadata);
+                putObjectRequest.getRequestClientOptions().setReadLimit(bulkSize);
+
+                s3Client.putObject(putObjectRequest);
 
                 ByteBuffer allocate = ByteBuffer.allocate(key.length() + 1 + 8);
                 allocate.put((byte) 1);

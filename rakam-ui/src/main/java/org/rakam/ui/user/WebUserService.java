@@ -293,103 +293,13 @@ public class WebUserService
         }
     }
 
-    public WebUser.UserApiKey createProject(int user, String apiUrl, String project)
+    public String getLockKeyForAPI(int user, String apiUrl)
     {
-        String lockKey;
-        ProjectApiKeys apiKeys;
-
         try (Handle handle = dbi.open()) {
-            lockKey = handle.createQuery("SELECT lock_key FROM rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
+            return handle.createQuery("SELECT lock_key FROM rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
                     .bind("userId", user).bind("apiUrl", apiUrl)
                     .map(StringMapper.FIRST).first();
         }
-
-        if (true) {
-            throw new RakamException(JsonHelper.encode(lockKey), EXPECTATION_FAILED);
-        }
-
-        // TODO: we should not have access to the server anyway, remove this.
-        try {
-            HttpURLConnection con = (HttpURLConnection) new URL(apiUrl + "/project/create")
-                    .openConnection();
-            con.setRequestMethod("POST");
-
-            con.setDoOutput(true);
-            DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-            HashMap<Object, Object> obj = new HashMap<>();
-            obj.put("lock_key", lockKey);
-            obj.put("name", project);
-            wr.write(JsonHelper.encodeAsBytes(obj));
-            wr.flush();
-            wr.close();
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(
-                    con.getResponseCode() == 200 ? con.getInputStream() : con.getErrorStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-
-            if (con.getResponseCode() != 200) {
-                if (con.getResponseCode() == 403) {
-                    throw new RakamException("The lock key is not valid.", BAD_REQUEST);
-                }
-                if (con.getResponseCode() == 0) {
-                    throw new RakamException("The API is unreachable.", BAD_REQUEST);
-                }
-                if (con.getResponseCode() == 400) {
-                    Map<String, Object> message = JsonHelper.read(response.toString(), Map.class);
-                    throw new RakamException(message.get("error").toString(), BAD_REQUEST);
-                }
-
-                throw new RakamException("The API returned invalid status code " + con.getResponseCode(), BAD_REQUEST);
-            }
-
-            try {
-                apiKeys = JsonHelper.read(response.toString(), ProjectApiKeys.class);
-            }
-            catch (Exception e) {
-                throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
-            }
-        }
-        catch (IOException e) {
-            throw new RakamException(JsonHelper.encode(lockKey), EXPECTATION_FAILED);
-        }
-
-        int projectId;
-        try (Handle handle = dbi.open()) {
-            try {
-                projectId = (Integer) handle.createStatement("INSERT INTO web_user_project " +
-                        "(project, api_url, user_id) " +
-                        "VALUES (:project, :apiUrl, :userId)")
-                        .bind("userId", user)
-                        .bind("project", project)
-                        .bind("apiUrl", apiUrl)
-                        .executeAndReturnGeneratedKeys().first().get("id");
-            }
-            catch (Exception e) {
-                projectId = handle.createQuery("SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl")
-                        .bind("project", project)
-                        .bind("apiUrl", apiUrl).map(IntegerMapper.FIRST).first();
-            }
-
-            handle.createStatement("INSERT INTO web_user_api_key " +
-                    "(user_id, project_id, read_key, write_key, master_key) " +
-                    "VALUES (:userId, :project, :readKey, :writeKey, :masterKey)")
-                    .bind("userId", user)
-                    .bind("project", projectId)
-                    .bind("readKey", apiKeys.readKey())
-                    .bind("writeKey", apiKeys.writeKey())
-                    .bind("masterKey", apiKeys.masterKey())
-                    .execute();
-        }
-
-        eventBus.post(new UIEvents.ProjectCreatedEvent(projectId));
-        return new WebUser.UserApiKey(projectId, apiKeys.readKey(), apiKeys.writeKey(),
-                apiKeys.masterKey());
     }
 
     public void revokeUserAccess(int userId, int project, String email)

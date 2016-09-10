@@ -128,7 +128,7 @@ public class JsonEventDeserializer
 
                         if (jp.getCurrentToken() != END_OBJECT) {
                             if (t == JsonToken.START_OBJECT) {
-                                throw new RakamException("Nested properties are not supported", BAD_REQUEST);
+                                throw new RakamException("Nested properties are not supported.", BAD_REQUEST);
                             }
                             else {
                                 throw new RakamException("Error while de-serializing event", INTERNAL_SERVER_ERROR);
@@ -475,14 +475,14 @@ public class JsonEventDeserializer
                     // TODO: what if the other values are not null?
                     while (t != END_ARRAY) {
                         if (!t.isScalarValue()) {
-                            throw new RakamException("Nested properties are not supported", BAD_REQUEST);
+                            throw new RakamException("Nested properties are not supported. (non-scalar value in array property)", BAD_REQUEST);
                         }
                         t = jp.nextToken();
                     }
                     return null;
                 }
                 if (type.isArray() || type.isMap()) {
-                    throw new RakamException("Nested properties are not supported", BAD_REQUEST);
+                    throw new RakamException("Nested properties are not supported. (non-scalar value in array property)", BAD_REQUEST);
                 }
                 return type.convertToArrayType();
             case START_OBJECT:
@@ -501,7 +501,7 @@ public class JsonEventDeserializer
                     // TODO: what if the other values are not null?
                     while (t != END_OBJECT) {
                         if (!t.isScalarValue()) {
-                            throw new RakamException("Nested properties are not supported", BAD_REQUEST);
+                            throw new RakamException("Nested properties are not supported. (non-scalar value in object property)", BAD_REQUEST);
                         }
                         t = jp.nextToken();
                     }
@@ -511,11 +511,11 @@ public class JsonEventDeserializer
                 }
 
                 if (type.isArray() || type.isMap()) {
-                    throw new RakamException("Nested properties are not supported", BAD_REQUEST);
+                    throw new RakamException("Nested properties are not supported. (non-scalar value in object property)", BAD_REQUEST);
                 }
                 return type.convertToMapValueType();
             default:
-                throw new JsonMappingException(format("the type is not supported: %s", jp.getValueAsString()));
+                throw new JsonMappingException(format("The type is not supported: %s", jp.getValueAsString()));
         }
     }
 
