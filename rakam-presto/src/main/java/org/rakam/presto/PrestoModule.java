@@ -115,7 +115,7 @@ public class PrestoModule extends RakamModule {
                     .in(Scopes.SINGLETON);
         }
 
-        binder.bind(Metastore.class).to(PrestoMetastore.class);
+        binder.bind(Metastore.class).to(PrestoMetastore.class).in(Scopes.SINGLETON);
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {
             binder.bind(AbstractPostgresqlUserStorage.class).to(PrestoExternalUserStorageAdapter.class)
                     .in(Scopes.SINGLETON);
