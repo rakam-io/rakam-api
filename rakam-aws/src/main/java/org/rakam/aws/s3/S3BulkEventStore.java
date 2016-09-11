@@ -71,7 +71,7 @@ public class S3BulkEventStore {
     public void upload(String project, List<Event> events) {
         GenericData data = GenericData.get();
 
-        DynamicSliceOutput buffer = new DynamicSliceOutput(events.size() * 100);
+        DynamicSliceOutput buffer = new DynamicSliceOutput(events.size() * 30);
 
         Map<String, List<Event>> map = new HashMap<>();
         events.forEach(event -> map.computeIfAbsent(event.collection(),

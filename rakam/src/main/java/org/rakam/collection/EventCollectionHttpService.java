@@ -317,7 +317,7 @@ public class EventCollectionHttpService
                         try {
                             eventStore.storeBulk(events);
                         }
-                        catch (Exception e) {
+                        catch (Throwable e) {
                             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
                             LOGGER.error(new RuntimeException("Error executing EventStore bulk method: " + sample, e),
                                     "Error while storing event.");

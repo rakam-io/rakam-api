@@ -134,6 +134,10 @@ public class AWSKinesisEventStore
             LOGGER.error(e, "OOM error while uploading bulk");
             throw new RakamException("Too much data", HttpResponseStatus.BAD_REQUEST);
         }
+        catch (Throwable e) {
+            LOGGER.error(e);
+            throw new RakamException("An error occurred while storing events", HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
