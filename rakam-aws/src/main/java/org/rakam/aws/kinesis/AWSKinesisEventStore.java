@@ -8,6 +8,7 @@ import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
@@ -23,6 +24,7 @@ import org.rakam.plugin.SyncEventStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.util.KByteArrayOutputStream;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -125,7 +127,13 @@ public class AWSKinesisEventStore
             return;
         }
         String project = events.get(0).project();
-        bulkClient.upload(project, events);
+        try {
+            bulkClient.upload(project, events);
+        }
+        catch (OutOfMemoryError e) {
+            LOGGER.error(e, "OOM error while uploading bulk");
+            throw new RakamException("Too much data", HttpResponseStatus.BAD_REQUEST);
+        }
     }
 
     @Override
