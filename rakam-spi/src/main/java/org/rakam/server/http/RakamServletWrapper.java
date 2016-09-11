@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -251,6 +252,7 @@ public class RakamServletWrapper implements HttpServletRequest {
 
     @Override
     public Map<String, String[]> getParameterMap() {
+//        return ImmutableMap.of("raw", new String[]{new String(request.getBody(), StandardCharsets.UTF_8)});
         return ImmutableMap.of("raw", new String[]{request.getBody()});
     }
 

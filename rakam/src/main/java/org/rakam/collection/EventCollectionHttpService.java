@@ -1,6 +1,7 @@
 package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -62,6 +64,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -294,7 +297,8 @@ public class EventCollectionHttpService
                             String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
                             String collection = getParam(request.params(), "collection");
 
-                            return avroEventDeserializer.deserialize(project, collection, utf8Slice(buff));
+//                            return avroEventDeserializer.deserialize(project, collection, Slices.wrappedBuffer(buff));
+                            return avroEventDeserializer.deserialize(project, collection, Slices.utf8Slice(buff));
                         }
                         else if ("text/csv".equals(contentType)) {
                             String apiKey = getParam(request.params(), MASTER_KEY.getKey());
@@ -620,7 +624,7 @@ public class EventCollectionHttpService
 
                 response = responseFunction.apply(events.events, responseHeaders);
             }
-            catch (JsonMappingException e) {
+            catch (JsonMappingException|JsonParseException e) {
                 returnError(request, "JSON couldn't parsed: " + e.getOriginalMessage(), BAD_REQUEST);
                 return;
             }
@@ -696,7 +700,7 @@ public class EventCollectionHttpService
             return false;
         }
 
-        if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(UTF_8))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
+        if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(StandardCharsets.UTF_8))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
             returnError(request, "Checksum is invalid", BAD_REQUEST);
             return false;
         }
