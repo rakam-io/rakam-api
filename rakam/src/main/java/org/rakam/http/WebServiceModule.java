@@ -98,18 +98,17 @@ public class WebServiceModule
                 .securityDefinition("master_key", new ApiKeyAuthDefinition().in(In.HEADER).name("master_key"));
 
         EventLoopGroup eventExecutors;
-//        if (Epoll.isAvailable()) {
-//            eventExecutors = new EpollEventLoopGroup();
-//        }
-//        else {
+        if (Epoll.isAvailable()) {
+            eventExecutors = new EpollEventLoopGroup();
+        }
+        else {
             eventExecutors = new NioEventLoopGroup();
-//        }
+        }
 
         HttpServerBuilder httpServer = new HttpServerBuilder()
                 .setHttpServices(httpServices)
                 .setWebsockerServices(webSocketServices)
                 .setSwagger(swagger)
-                .setUseEpollIfPossible(false)
                 .setEventLoopGroup(eventExecutors)
                 .setSwaggerOperationProcessor((method, operation) -> {
                     ApiOperation annotation = method.getAnnotation(ApiOperation.class);
