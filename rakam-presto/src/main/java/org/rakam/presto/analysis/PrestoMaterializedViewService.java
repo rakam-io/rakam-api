@@ -110,13 +110,13 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         }, null);
 
         StringBuilder builder = new StringBuilder();
-        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName), '"')
+        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty()), '"')
                 .process(statement, 1);
 
         QueryExecution execution = queryExecutor
                 .executeRawQuery(format("create table %s as %s limit 0",
                         queryExecutor.formatTableReference(project,
-                                QualifiedName.of("materialized", materializedView.tableName)), builder.toString()));
+                                QualifiedName.of("materialized", materializedView.tableName), Optional.empty()), builder.toString(), Optional.empty()));
 
         return execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
@@ -132,7 +132,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     public CompletableFuture<QueryResult> delete(String project, String name) {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
-        String reference = queryExecutor.formatTableReference(project, QualifiedName.of("materialized", materializedView.tableName));
+        String reference = queryExecutor.formatTableReference(project, QualifiedName.of("materialized", materializedView.tableName), Optional.empty());
         return queryExecutor.executeRawQuery(format("DROP TABLE %s",
                 reference)).getResult().thenApply(result -> {
             if (result.isFailed()) {
@@ -147,7 +147,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         CompletableFuture<Instant> f = new CompletableFuture<>();
 
         String tableName = queryExecutor.formatTableReference(project,
-                QualifiedName.of("materialized", materializedView.tableName));
+                QualifiedName.of("materialized", materializedView.tableName), Optional.empty());
         Query statement;
         synchronized (sqlParser) {
             statement = (Query) sqlParser.createStatement(materializedView.query);
@@ -162,7 +162,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                 throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
             }
             StringBuilder builder = new StringBuilder();
-            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name), '"').process(statement, 1);
+            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty()), '"').process(statement, 1);
             QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()));
             return new MaterializedViewExecution(execution, tableName);
         } else {
@@ -185,7 +185,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             if (needsUpdate && database.updateMaterializedView(project, materializedView, f)) {
                 String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s WHERE \"_shard_time\" between timestamp '%s' and timestamp '%s')",
-                                queryExecutor.formatTableReference(project, name),
+                                queryExecutor.formatTableReference(project, name, Optional.empty()),
                                 ISO_INSTANT.format(lastUpdated), ISO_INSTANT.format(now)), '"');
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query));
@@ -202,7 +202,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             } else {
                 String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s WHERE \"_shard_time\" > timestamp '%s'",
-                                queryExecutor.formatTableReference(project, name),
+                                queryExecutor.formatTableReference(project, name, Optional.empty()),
                                 ISO_INSTANT.format(lastUpdated)), '"');
 
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);

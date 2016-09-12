@@ -1,9 +1,7 @@
 package org.rakam.clickhouse.analysis;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.FunnelQueryExecutor;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
@@ -12,18 +10,15 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;

@@ -14,9 +14,7 @@ import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.report.realtime.RealTimeReport;
 import org.rakam.util.SuccessMessage;
-import org.rakam.util.NotImplementedException;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Qualifier;
 
@@ -26,6 +24,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -141,7 +140,7 @@ public abstract class RealtimeService
                 timeCol + " * cast(" + slide.toMillis() + " as bigint)",
                 !noDimension ? dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier)).collect(Collectors.joining(", ")) + "," : "",
                 String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid", escapeIdentifier)),
-                executor.formatTableReference(project, QualifiedName.of("continuous", tableName)),
+                executor.formatTableReference(project, QualifiedName.of("continuous", tableName), Optional.empty()),
                 format("%s >= %d", checkTableColumn("time", escapeIdentifier), previousWindow) +
                         (dateEnd == null ? "" :
                                 format("AND %s <", checkTableColumn("time", escapeIdentifier), format("%s >= %d AND %s <= %d",
@@ -152,7 +151,7 @@ public abstract class RealtimeService
                 !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
                         .collect(Collectors.joining(", "))) : "",
                 (expression == null) ? "" : formatExpression(expression,
-                        reference -> executor.formatTableReference(project, reference), escapeIdentifier));
+                        reference -> executor.formatTableReference(project, reference, Optional.empty()), escapeIdentifier));
 
         final boolean finalAggregate = aggregate;
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {

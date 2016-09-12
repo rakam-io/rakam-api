@@ -13,6 +13,7 @@ import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
+import org.rakam.report.QueryExecutor.Sample;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
@@ -56,7 +57,7 @@ public class QueryExecutorService
         this.escapeIdentifier = escapeIdentifier;
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, int limit)
+    public QueryExecution executeQuery(String project, String sqlQuery, Optional<Sample> sample, int limit)
     {
         if (!projectExists(project)) {
             throw new NotExistsException("Project");
@@ -65,7 +66,7 @@ public class QueryExecutorService
         String query;
 
         try {
-            query = buildQuery(project, sqlQuery, limit, materializedViews);
+            query = buildQuery(project, sqlQuery, sample, limit, materializedViews);
         }
         catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
@@ -131,7 +132,7 @@ public class QueryExecutorService
 
     public QueryExecution executeQuery(String project, String sqlQuery)
     {
-        return executeQuery(project, sqlQuery, MAX_QUERY_RESULT_LIMIT);
+        return executeQuery(project, sqlQuery, Optional.empty(), MAX_QUERY_RESULT_LIMIT);
     }
 
     public QueryExecution executeStatement(String project, String sqlQuery)
@@ -160,7 +161,7 @@ public class QueryExecutorService
         return true;
     }
 
-    public String buildQuery(String project, String query, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews)
+    public String buildQuery(String project, String query, Optional<Sample> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews)
     {
         StringBuilder builder = new StringBuilder();
         Query statement;
@@ -169,9 +170,9 @@ public class QueryExecutorService
         }
 
         // TODO: use fake StringBuilder for performance
-        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, true), escapeIdentifier).process(statement, 1);
+        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, sample, true), escapeIdentifier).process(statement, 1);
 
-        new QueryFormatter(builder, tableNameMapper(project, materializedViews, false), escapeIdentifier).process(statement, 1);
+        new QueryFormatter(builder, tableNameMapper(project, materializedViews, sample, false), escapeIdentifier).process(statement, 1);
 
         if (maxLimit != null) {
             Integer limit = null;
@@ -194,7 +195,7 @@ public class QueryExecutorService
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, boolean fetchReference)
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<Sample> sample, boolean fetchReference)
     {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
@@ -213,7 +214,7 @@ public class QueryExecutorService
                     return materializedViews.get(materializedView).computeQuery;
                 }
             }
-            return executor.formatTableReference(project, node);
+            return executor.formatTableReference(project, node, sample);
         };
     }
 
@@ -228,7 +229,7 @@ public class QueryExecutorService
             throw new RakamException("Unable to parse query: " + e.getMessage(), BAD_REQUEST);
         }
 
-        new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName), escapeIdentifier)
+        new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName, Optional.empty()), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = executor
@@ -244,6 +245,4 @@ public class QueryExecutorService
         });
         return f;
     }
-
-    ;
 }

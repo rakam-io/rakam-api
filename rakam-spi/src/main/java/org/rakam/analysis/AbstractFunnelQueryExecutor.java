@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;

@@ -7,9 +7,9 @@ import org.rakam.clickhouse.analysis.ClickHouseQueryExecution;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,7 @@ public class ClickHouseQueryExecutor implements QueryExecutor
 
     @SuppressWarnings("Duplicates")
     @Override
-    public String formatTableReference(String project, QualifiedName node)
+    public String formatTableReference(String project, QualifiedName node, Optional<Sample> sample)
     {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();

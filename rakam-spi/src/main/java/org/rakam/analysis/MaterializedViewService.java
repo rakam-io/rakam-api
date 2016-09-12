@@ -90,7 +90,7 @@ public abstract class MaterializedViewService {
         StringBuilder builder = new StringBuilder();
         Query queryStatement = (Query) sqlParser.createStatement(checkNotNull(query, "query is required"));
 
-        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName), escapeIdentifier)
+        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty()), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = queryExecutor

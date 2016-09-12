@@ -27,6 +27,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -135,7 +136,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     @Override
     public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter) {
         return eventFilter.stream().map(f -> String.format("id in (%s)",
-                String.format(getEventFilterQuery(f), executor.formatTableReference(project, QualifiedName.of(f.collection)))))
+                String.format(getEventFilterQuery(f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty()))))
                 .collect(Collectors.toList());
     }
 

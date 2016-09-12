@@ -13,7 +13,6 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -70,7 +69,8 @@ public class PostgresqlUserService
             return CompletableFuture.completedFuture(ImmutableList.<CollectionEvent>of());
         }
 
-        CompletableFuture<QueryResult> queryResult = executor.executeRawQuery(format("select collection, json from (%s) data order by _time desc limit %d", sqlQuery, limit)).getResult();
+        CompletableFuture<QueryResult> queryResult = executor.executeRawQuery(format("select collection, json from (%s) data order by _time desc limit %d",
+                sqlQuery, limit)).getResult();
         return queryResult.thenApply(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -98,7 +98,7 @@ public class PostgresqlUserService
             }
             try (Connection connection = executor.getConnection()) {
                 PreparedStatement ps = connection.prepareStatement(format("UPDATE %s SET _user = ? WHERE _device_id = ? AND _user is NULL AND _time BETWEEN ? and ?",
-                        executor.formatTableReference(project, QualifiedName.of(entry.getKey()))));
+                        executor.formatTableReference(project, QualifiedName.of(entry.getKey()), Optional.empty())));
                 storage.setUserId(project, ps, user, 1);
                 storage.setUserId(project, ps, anonymousId, 2);
                 ps.setTimestamp(3, Timestamp.from(createdAt));

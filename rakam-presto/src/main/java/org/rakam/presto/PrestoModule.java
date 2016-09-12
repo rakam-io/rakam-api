@@ -64,6 +64,7 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 
 import java.util.List;
+import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
@@ -176,7 +177,7 @@ public class PrestoModule extends RakamModule {
         public void onCreateProject(ProjectCreatedEvent event) {
             executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, " +
                     "created_at TIMESTAMP, merged_at TIMESTAMP)",
-                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING))));
+                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty())));
         }
     }
 

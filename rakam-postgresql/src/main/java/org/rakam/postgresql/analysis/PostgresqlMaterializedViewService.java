@@ -14,6 +14,7 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
@@ -44,7 +45,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             statement = (Query) parser.createStatement(materializedView.query);
         }
 
-        new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name), '"').process(statement, 1);
+        new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty()), '"').process(statement, 1);
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
                 project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();

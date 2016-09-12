@@ -14,7 +14,6 @@ import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryResult;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;

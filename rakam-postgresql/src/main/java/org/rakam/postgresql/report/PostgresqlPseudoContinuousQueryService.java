@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,7 +44,7 @@ public class PostgresqlPseudoContinuousQueryService
     @Override
     public QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData)
     {
-        String query = service.buildQuery(project, report.query, null, new HashMap<>());
+        String query = service.buildQuery(project, report.query, Optional.empty(), null, new HashMap<>());
         String format = String.format("CREATE VIEW \"%s\".\"%s\" AS %s", project, report.tableName, query);
         return new DelegateQueryExecution(executor.executeRawStatement(format), result -> {
             if (!result.isFailed()) {
@@ -75,7 +76,7 @@ public class PostgresqlPseudoContinuousQueryService
     {
         Stream<Entry<ContinuousQuery, QueryExecution>> continuous = database.getContinuousQueries(project).stream()
                 .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " +
-                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName)) + " limit 0")));
+                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty()) + " limit 0")));
         return continuous
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
                     QueryResult join = entry.getValue().getResult().join();
@@ -100,7 +101,7 @@ public class PostgresqlPseudoContinuousQueryService
 
         StringBuilder builder = new StringBuilder();
         new QueryFormatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName), '"')
+                executor.formatTableReference(project, qualifiedName, Optional.empty()), '"')
                 .process(continuousQuery.getQuery(), 1);
 
         QueryExecution execution = executor

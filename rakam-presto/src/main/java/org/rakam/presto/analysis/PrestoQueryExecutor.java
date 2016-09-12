@@ -8,13 +8,16 @@ import com.google.inject.Singleton;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -24,6 +27,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 @Singleton
 public class PrestoQueryExecutor
@@ -84,15 +88,18 @@ public class PrestoQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName node)
+    public String formatTableReference(String project, QualifiedName node, Optional<Sample> sample)
     {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();
             if (prefix.equals("continuous")) {
-                return prestoConfig.getStreamingConnector() + ".\"" + project + "\".\"" + node.getSuffix() + '"';
+                return prestoConfig.getStreamingConnector() + "." +
+                        checkCollection(project) + "." +
+                        checkCollection(node.getSuffix());
             }
             else if (prefix.equals("materialized")) {
-                return prestoConfig.getColdStorageConnector() + ".\"" + project + "\".\"" + MATERIALIZED_VIEW_PREFIX + node.getSuffix() + '"';
+                return prestoConfig.getColdStorageConnector() + "." +
+                        getTableReference(project, MATERIALIZED_VIEW_PREFIX + node.getSuffix(), sample);
             }
             else if (!prefix.equals("collection")) {
                 throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
@@ -114,7 +121,7 @@ public class PrestoQueryExecutor
                         .map(collection -> format("select '%s' as \"$collection\", %s from %s",
                                 collection,
                                 sharedColumns.isEmpty() ? "1" : sharedColumns,
-                                getTableReference(project, QualifiedName.of(collection))))
+                                getTableReference(project, collection, sample)))
                         .collect(Collectors.joining(" union all ")) + ") _all";
             }
             else {
@@ -125,23 +132,23 @@ public class PrestoQueryExecutor
             if (node.getSuffix().equals("users")) {
                 return prestoConfig.getUserConnector() + ".users." + project;
             }
-            return getTableReference(project, node);
+            return getTableReference(project, node.getSuffix(), sample);
         }
     }
 
-    private String getTableReference(String project, QualifiedName node)
+    private String getTableReference(String project, String tableName, Optional<Sample> sample)
     {
-        QualifiedName prefix = QualifiedName.of(prestoConfig.getColdStorageConnector());
         String hotStorageConnector = prestoConfig.getHotStorageConnector();
-        String table = '"' + project + "\".\"" + node.getSuffix() + '\"';
+        String table = checkCollection(project) + "." + checkCollection(tableName) +
+                sample.map(e -> " TABLESAMPLE " + e.method.name() + "(" + e.percentage + ")").orElse("");
 
         if (hotStorageConnector != null) {
-            return "((select * from " + prefix.getSuffix() + "." + table + " union all " +
+            return "((select * from " + prestoConfig.getColdStorageConnector() + "." + table + " union all " +
                     "select * from " + hotStorageConnector + "." + table + ")" +
-                    " as " + node.getSuffix() + ")";
+                    " as " + tableName + ")";
         }
         else {
-            return prefix.getSuffix() + "." + table;
+            return prestoConfig.getColdStorageConnector() + "." + table;
         }
     }
 }

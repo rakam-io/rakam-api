@@ -31,12 +31,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.rakam.presto.analysis.PrestoQueryExecution.fromPrestoType;
@@ -69,7 +68,7 @@ public class PrestoContinuousQueryService
             if (name.getSuffix().equals("_all") && name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
                 return format("_all.%s", project);
             }
-            return executor.formatTableReference(project, name);
+            return executor.formatTableReference(project, name, Optional.empty());
         }, '"').process(query, 1);
 
         return builder.toString();

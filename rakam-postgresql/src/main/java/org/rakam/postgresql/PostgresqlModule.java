@@ -10,7 +10,6 @@ import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
-import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.ApiKeyService;
@@ -61,6 +60,7 @@ import javax.inject.Inject;
 
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;

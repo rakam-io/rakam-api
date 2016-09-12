@@ -3,16 +3,14 @@ package org.rakam.postgresql.report;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
-import org.rakam.plugin.user.AbstractUserService;
-import org.rakam.postgresql.plugin.user.PostgresqlUserService;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
+import org.rakam.report.QueryExecutorService;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
@@ -22,6 +20,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -78,18 +77,19 @@ public class PostgresqlQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName name)
+    public String formatTableReference(String project, QualifiedName name, Optional<Sample> sample)
     {
         if (name.getPrefix().isPresent()) {
             switch (name.getPrefix().get().toString()) {
                 case "collection":
-                    return project + "." + checkCollection(name.getSuffix());
+                    return project + "." + checkCollection(name.getSuffix()) +
+                        sample.map(e -> " TABLESAMPLE " + e.method.name() + "(" + e.percentage + ")").orElse("");
                 case "continuous":
                     final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, name.getSuffix());
                     StringBuilder builder = new StringBuilder();
 
                     new QueryFormatter(builder,
-                            qualifiedName -> this.formatTableReference(project, qualifiedName), '"')
+                            qualifiedName -> this.formatTableReference(project, qualifiedName, sample), '"')
                             .process(report.getQuery(), 1);
 
                     return "(" + builder.toString() + ") as " + name.getSuffix();

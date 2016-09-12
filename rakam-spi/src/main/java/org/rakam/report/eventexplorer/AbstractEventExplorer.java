@@ -16,9 +16,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -34,8 +32,6 @@ import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_DATE;
-import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.rakam.analysis.EventExplorer.ReferenceType.COLUMN;
 import static org.rakam.analysis.EventExplorer.ReferenceType.REFERENCE;
@@ -415,7 +411,9 @@ public abstract class AbstractEventExplorer
     }
 
     @Override
-    public CompletableFuture<QueryResult> getEventStatistics(String project, Optional<Set<String>> collections, Optional<String> dimension, Instant startDate, Instant endDate)
+    public CompletableFuture<QueryResult> getEventStatistics(String project,
+            Optional<Set<String>> collections,
+            Optional<String> dimension, Instant startDate, Instant endDate)
     {
         checkProject(project);
 
@@ -448,7 +446,7 @@ public abstract class AbstractEventExplorer
                     " from continuous._event_explorer_metrics where %s group by 1", timePredicate);
         }
 
-        return executor.executeQuery(project, query, 20000).getResult();
+        return executor.executeQuery(project, query, Optional.empty(), 20000).getResult();
     }
 
     @Override

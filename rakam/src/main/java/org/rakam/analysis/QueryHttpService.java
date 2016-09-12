@@ -6,7 +6,6 @@ import com.facebook.presto.sql.tree.GroupingElement;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NodeLocation;
-import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
@@ -27,6 +26,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.server.http.HttpService;
@@ -51,7 +51,6 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +72,7 @@ import static org.rakam.report.QueryExecutorService.MAX_QUERY_RESULT_LIMIT;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 import static org.rakam.util.JsonHelper.jsonObject;
+import static org.rakam.util.JsonHelper.readSafe;
 
 @Path("/query")
 @Api(value = "/query", nickname = "query", description = "Execute query", tags = {"query"})
@@ -100,10 +100,10 @@ public class QueryHttpService
     @JsonRequest
     public CompletableFuture<Response<QueryResult>> execute(
             @Named("project") String project,
-            @BodyParam ExportQuery query)
+            @BodyParam QueryRequest query)
     {
         QueryExecution queryExecution = executorService.executeQuery(project, query.query,
-                query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit);
+                query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit);
         return queryExecution
                 .getResult().thenApply(result -> {
                     if (result.isFailed()) {
@@ -119,9 +119,10 @@ public class QueryHttpService
     )
     @IgnoreApi
     @JsonRequest
-    public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam ExportQuery query)
+    public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam QueryRequest query)
     {
-        executorService.executeQuery(project, query.query, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
+        executorService.executeQuery(project, query.query,
+               query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
@@ -146,15 +147,15 @@ public class QueryHttpService
     @GET
     @Consumes("text/event-stream")
     @IgnoreApi
-    @ApiOperation(value = "Analyze events asynchronously", request = ExportQuery.class,
+    @ApiOperation(value = "Analyze events asynchronously", request = QueryRequest.class,
             authorizations = @Authorization(value = "read_key")
     )
     @Path("/execute")
     public void execute(RakamHttpRequest request)
     {
-        handleServerSentQueryExecution(request, ExportQuery.class, (project, query) ->
+        handleServerSentQueryExecution(request, QueryRequest.class, (project, query) ->
                 executorService.executeQuery(project, query.query,
-                        query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
+                        query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction)
@@ -297,17 +298,19 @@ public class QueryHttpService
         this.eventLoopGroup = eventLoopGroup;
     }
 
-    public static class ExportQuery
+    public static class QueryRequest
     {
         @ApiModelProperty(example = "SELECT 1", value = "SQL query that will be executed on data-set")
         public final String query;
         public final Integer limit;
+        public final Optional<QueryExecutor.Sample> sample;
         public final CopyType exportType;
 
         @JsonCreator
-        public ExportQuery(
+        public QueryRequest(
                 @ApiParam("query") String query,
                 @ApiParam("export_type") CopyType exportType,
+                @ApiParam("sample") Optional<QueryExecutor.Sample> sample,
                 @ApiParam(value = "limit", required = false) Integer limit)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
@@ -315,6 +318,7 @@ public class QueryHttpService
                 throw new IllegalArgumentException("maximum value of limit is " + MAX_QUERY_RESULT_LIMIT);
             }
             this.exportType = exportType;
+            this.sample = sample;
             this.limit = limit;
         }
     }

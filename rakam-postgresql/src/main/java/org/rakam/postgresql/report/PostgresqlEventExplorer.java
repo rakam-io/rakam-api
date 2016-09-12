@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_DATE;
 import static org.rakam.analysis.EventExplorer.TimestampTransformation.*;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -101,7 +100,7 @@ public class PostgresqlEventExplorer
                     " from %s where %s group by 1", collectionQuery, timePredicate);
         }
 
-        return executorService.executeQuery(project, query, 20000).getResult();
+        return executorService.executeQuery(project, query, Optional.empty(), 20000).getResult();
     }
 
     @Override
