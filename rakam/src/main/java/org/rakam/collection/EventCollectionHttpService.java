@@ -10,7 +10,10 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
+import io.airlift.slice.BasicSliceInput;
+import io.airlift.slice.InputStreamSliceInput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.netty.buffer.ByteBuf;
@@ -60,6 +63,7 @@ import javax.ws.rs.Path;
 import javax.xml.bind.DatatypeConverter;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLConnection;
@@ -297,8 +301,7 @@ public class EventCollectionHttpService
                             String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
                             String collection = getParam(request.params(), "collection");
 
-//                            return avroEventDeserializer.deserialize(project, collection, Slices.wrappedBuffer(buff));
-                            return avroEventDeserializer.deserialize(project, collection, Slices.utf8Slice(buff));
+                            return avroEventDeserializer.deserialize(project, collection, new InputStreamSliceInput(buff));
                         }
                         else if ("text/csv".equals(contentType)) {
                             String apiKey = getParam(request.params(), MASTER_KEY.getKey());
@@ -415,8 +418,8 @@ public class EventCollectionHttpService
                         conn.setReadTimeout(5000);
                         conn.connect();
 
-                        Slice slice = wrappedBuffer(toByteArray(conn.getInputStream()));
-                        return avroEventDeserializer.deserialize(project, query.collection, slice);
+                        return avroEventDeserializer.deserialize(project, query.collection,
+                                new InputStreamSliceInput(conn.getInputStream()));
                     }
 
                     throw new RakamException("Unsupported or missing type.", BAD_REQUEST);
@@ -689,7 +692,8 @@ public class EventCollectionHttpService
         return builder == null ? null : builder.toString();
     }
 
-    private boolean validateChecksum(RakamHttpRequest request, String checksum, String expected)
+    private boolean validateChecksum(RakamHttpRequest request, String checksum, InputStream expected)
+            throws IOException
     {
         MessageDigest md;
         try {
@@ -700,7 +704,10 @@ public class EventCollectionHttpService
             return false;
         }
 
-        if (!DatatypeConverter.printHexBinary(md.digest(expected.getBytes(StandardCharsets.UTF_8))).equals(checksum.toUpperCase(Locale.ENGLISH))) {
+        byte[] bytes = ByteStreams.toByteArray(expected);
+        expected.reset();
+        if (!DatatypeConverter.printHexBinary(md.digest(bytes))
+                .equals(checksum.toUpperCase(Locale.ENGLISH))) {
             returnError(request, "Checksum is invalid", BAD_REQUEST);
             return false;
         }
@@ -710,7 +717,7 @@ public class EventCollectionHttpService
 
     interface ThrowableFunction
     {
-        EventList apply(String buffer)
+        EventList apply(InputStream buffer)
                 throws IOException;
     }
 

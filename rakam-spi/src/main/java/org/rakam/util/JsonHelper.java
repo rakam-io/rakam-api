@@ -146,6 +146,10 @@ public class JsonHelper {
         return mapper.readValue(json, clazz);
     }
 
+    public static <T> T readSafe(InputStream json, Class<T> clazz) throws IOException {
+        return mapper.readValue(json, clazz);
+    }
+
     public static <T> T read(InputStream json, Class<T> clazz) throws IOException {
         return mapper.readValue(json, clazz);
     }

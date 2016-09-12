@@ -2,6 +2,7 @@ package org.rakam.collection;
 
 import io.airlift.slice.BasicSliceInput;
 import io.airlift.slice.Slice;
+import io.airlift.slice.SliceInput;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -24,8 +25,7 @@ public class AvroEventDeserializer {
         this.metastore = metastore;
     }
 
-    public EventList deserialize(String project, String collection, Slice buff) throws IOException {
-        BasicSliceInput slice = buff.getInput();
+    public EventList deserialize(String project, String collection, SliceInput slice) throws IOException {
         String json = slice.readSlice(slice.readInt()).toStringUtf8();
         Schema schema = new Schema.Parser().parse(json);
         int records = slice.readInt();
