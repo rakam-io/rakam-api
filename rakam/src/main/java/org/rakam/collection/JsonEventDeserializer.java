@@ -343,6 +343,10 @@ public class JsonEventDeserializer
         }
 
         if (jp.getCurrentToken().isScalarValue() && !passInitialToken) {
+            if(jp.getCurrentToken() == VALUE_NULL) {
+                return null;
+            }
+
             switch (type) {
                 case STRING:
                     return jp.getValueAsString();
@@ -354,7 +358,14 @@ public class JsonEventDeserializer
                 case INTEGER:
                     return jp.getValueAsInt();
                 case TIME:
-                    return (long) LocalTime.parse(jp.getValueAsString()).get(ChronoField.MILLI_OF_DAY);
+                    try {
+                        return (long) LocalTime.parse(jp.getValueAsString())
+                                .get(ChronoField.MILLI_OF_DAY);
+                    }
+                    catch (Exception e) {
+                        throw new RakamException(String.format("Unable to parse TIME value '%s'", jp.getValueAsString()),
+                                BAD_REQUEST);
+                    }
                 case DOUBLE:
                     return jp.getValueAsDouble();
                 case TIMESTAMP:
@@ -365,19 +376,18 @@ public class JsonEventDeserializer
                         return DateTimeUtils.parseTimestamp(jp.getValueAsString());
                     }
                     catch (Exception e) {
-                        return null;
+                        throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s'", jp.getValueAsString()),
+                                BAD_REQUEST);
                     }
                 case DATE:
                     try {
                         return DateTimeUtils.parseDate(jp.getValueAsString());
                     }
                     catch (Exception e) {
-                        return null;
+                        throw new RakamException(String.format("Unable to parse DATE value '%s'", jp.getValueAsString()),
+                                BAD_REQUEST);
                     }
                 default:
-                    if(jp.getCurrentToken() == VALUE_NULL) {
-                        return null;
-                    }
                     throw new JsonMappingException(format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
                             jp.getValueAsString(), type.name(), field.name()));
             }
