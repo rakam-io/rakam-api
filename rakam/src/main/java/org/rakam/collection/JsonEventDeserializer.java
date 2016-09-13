@@ -44,6 +44,7 @@ import java.util.regex.Pattern;
 import static com.fasterxml.jackson.core.JsonToken.END_ARRAY;
 import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
 import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
+import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
@@ -374,6 +375,9 @@ public class JsonEventDeserializer
                         return null;
                     }
                 default:
+                    if(jp.getCurrentToken() == VALUE_NULL) {
+                        return null;
+                    }
                     throw new JsonMappingException(format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
                             jp.getValueAsString(), type.name(), field.name()));
             }

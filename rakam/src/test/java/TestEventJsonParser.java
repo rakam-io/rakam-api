@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 public class TestEventJsonParser
 {
@@ -457,5 +458,25 @@ public class TestEventJsonParser
                 "properties", props));
 
         mapper.readValue(bytes, Event.class);
+    }
+
+    public void testNullSentToObjectValue()
+            throws Exception
+    {
+        metastore.getOrCreateCollectionFields("test", "test",
+                ImmutableSet.of(new SchemaField("test", FieldType.ARRAY_BOOLEAN)));
+
+        Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
+
+        HashMap<String, Object> props = new HashMap<>();
+        props.put("test", null);
+
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
+                "api", api,
+                "collection", "test",
+                "properties", props));
+
+        Event event = mapper.readValue(bytes, Event.class);
+        assertNull(event.properties().get("test"));
     }
 }
