@@ -1,5 +1,6 @@
 package org.rakam.collection;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -21,6 +22,7 @@ import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.AvroUtil;
 import org.rakam.util.DateTimeUtils;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
@@ -339,94 +341,106 @@ public class JsonEventDeserializer
             return getValueOfMagicField(jp);
         }
 
-        switch (type) {
-            case STRING:
-                return jp.getValueAsString();
-            case BOOLEAN:
-                return jp.getValueAsBoolean();
-            case LONG:
-            case DECIMAL:
-                return jp.getValueAsLong();
-            case INTEGER:
-                return jp.getValueAsInt();
-            case TIME:
-                return (long) LocalTime.parse(jp.getValueAsString()).get(ChronoField.MILLI_OF_DAY);
-            case DOUBLE:
-                return jp.getValueAsDouble();
-            case TIMESTAMP:
-                if (jp.getCurrentToken() == JsonToken.VALUE_NUMBER_INT) {
+        if (jp.getCurrentToken().isScalarValue() && !passInitialToken) {
+            switch (type) {
+                case STRING:
+                    return jp.getValueAsString();
+                case BOOLEAN:
+                    return jp.getValueAsBoolean();
+                case LONG:
+                case DECIMAL:
                     return jp.getValueAsLong();
-                }
-                try {
-                    return DateTimeUtils.parseTimestamp(jp.getValueAsString());
-                }
-                catch (Exception e) {
-                    return null;
-                }
-            case DATE:
-                try {
-                    return DateTimeUtils.parseDate(jp.getValueAsString());
-                }
-                catch (Exception e) {
-                    return null;
-                }
-            default:
-                Schema actualSchema = field.schema().getTypes().get(1);
-                if (type.isMap()) {
-                    JsonToken t = jp.getCurrentToken();
+                case INTEGER:
+                    return jp.getValueAsInt();
+                case TIME:
+                    return (long) LocalTime.parse(jp.getValueAsString()).get(ChronoField.MILLI_OF_DAY);
+                case DOUBLE:
+                    return jp.getValueAsDouble();
+                case TIMESTAMP:
+                    if (jp.getCurrentToken() == JsonToken.VALUE_NUMBER_INT) {
+                        return jp.getValueAsLong();
+                    }
+                    try {
+                        return DateTimeUtils.parseTimestamp(jp.getValueAsString());
+                    }
+                    catch (Exception e) {
+                        return null;
+                    }
+                case DATE:
+                    try {
+                        return DateTimeUtils.parseDate(jp.getValueAsString());
+                    }
+                    catch (Exception e) {
+                        return null;
+                    }
+                default:
+                    throw new JsonMappingException(format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
+                            jp.getValueAsString(), type.name(), field.name()));
+            }
+        }
+        else {
+            Schema actualSchema = field.schema().getTypes().get(1);
+            if (type.isMap()) {
+                JsonToken t = jp.getCurrentToken();
 
-                    Map<String, Object> map = new HashMap<>();
+                Map<String, Object> map = new HashMap<>();
 
-                    if (!passInitialToken) {
-                        if (t != JsonToken.START_OBJECT) {
-                            return null;
-                        }
-                        else {
-                            t = jp.nextToken();
-                        }
+                if (!passInitialToken) {
+                    if (t != JsonToken.START_OBJECT) {
+                        return null;
                     }
                     else {
-                        // In order to determine the value type of map, getType method performed an extra
-                        // jp.nextToken() so the cursor should be at VALUE_STRING token.
-                        String key = jp.getParsingContext().getCurrentName();
-                        map.put(key, getValue(jp, type.getMapValueType(), null, false));
                         t = jp.nextToken();
                     }
-
-                    for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
-                        String key = jp.getCurrentName();
-
-                        if (!jp.nextToken().isScalarValue()) {
-                            throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
-                        }
-
-                        map.put(key, getValue(jp, type.getMapValueType(), null, false));
-                    }
-                    return map;
                 }
-                if (type.isArray()) {
-                    JsonToken t = jp.getCurrentToken();
-                    // if the passStartArrayToken is true, we already performed jp.nextToken
-                    // so there is no need to check if the current token is
-                    if (!passInitialToken) {
-                        if (t != JsonToken.START_ARRAY) {
-                            return null;
-                        }
-                        else {
-                            t = jp.nextToken();
-                        }
+                else {
+                    // In order to determine the value type of map, getType method performed an extra
+                    // jp.nextToken() so the cursor should be at VALUE_STRING token.
+                    String key = jp.getParsingContext().getCurrentName();
+                    map.put(key, getValue(jp, type.getMapValueType(), null, false));
+                    t = jp.nextToken();
+                }
+
+                for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
+                    String key = jp.getCurrentName();
+
+                    if (!jp.nextToken().isScalarValue()) {
+                        throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
                     }
 
-                    List<Object> objects = new ArrayList<>();
-                    for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
-                        if (!t.isScalarValue()) {
-                            throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
-                        }
-                        objects.add(getValue(jp, type.getArrayElementType(), null, false));
-                    }
-                    return new GenericData.Array(actualSchema, objects);
+                    map.put(key, getValue(jp, type.getMapValueType(), null, false));
                 }
-                throw new JsonMappingException(format("type is not supported."));
+                return map;
+            }
+            else if (type.isArray()) {
+                JsonToken t = jp.getCurrentToken();
+                // if the passStartArrayToken is true, we already performed jp.nextToken
+                // so there is no need to check if the current token is
+                if (!passInitialToken) {
+                    if (t != JsonToken.START_ARRAY) {
+                        return null;
+                    }
+                    else {
+                        t = jp.nextToken();
+                    }
+                }
+
+                List<Object> objects = new ArrayList<>();
+                for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
+                    if (!t.isScalarValue()) {
+                        throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
+                    }
+                    objects.add(getValue(jp, type.getArrayElementType(), null, false));
+                }
+                return new GenericData.Array(actualSchema, objects);
+            }
+            else {
+                if (type == FieldType.STRING) {
+                    return JsonHelper.encode(jp.readValueAs(TokenBuffer.class));
+                } else {
+                    throw new JsonMappingException(String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
+                }
+            }
         }
     }
 

@@ -403,4 +403,59 @@ public class TestEventJsonParser
             assertEquals(eventBuilder.createEvent("test", props).properties(), event.properties());
         }
     }
+
+    @Test
+    public void testObjectSentToScalarValue()
+            throws Exception
+    {
+        metastore.getOrCreateCollectionFields("test", "test",
+                ImmutableSet.of(new SchemaField("test", FieldType.STRING)));
+
+        Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
+        ImmutableMap<String, Object> props = ImmutableMap.of(
+                "test", ImmutableList.of("test"));
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
+                "api", api,
+                "collection", "test",
+                "properties", props));
+
+        Event events = mapper.readValue(bytes, Event.class);
+        assertEquals(events.properties().get("test"), "[\"test\"]");
+    }
+
+    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp="Cannot cast object to INTEGER for 'test' field")
+    public void testObjectSentToInvalidScalarValue()
+            throws Exception
+    {
+        metastore.getOrCreateCollectionFields("test", "test",
+                ImmutableSet.of(new SchemaField("test", FieldType.INTEGER)));
+
+        Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
+        ImmutableMap<String, Object> props = ImmutableMap.of(
+                "test", ImmutableList.of("test"));
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
+                "api", api,
+                "collection", "test",
+                "properties", props));
+
+        mapper.readValue(bytes, Event.class);
+    }
+
+    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Scalar value 'test' cannot be cast to ARRAY_BOOLEAN type for 'test' field.")
+    public void testScalarSentToObjectValue()
+            throws Exception
+    {
+        metastore.getOrCreateCollectionFields("test", "test",
+                ImmutableSet.of(new SchemaField("test", FieldType.ARRAY_BOOLEAN)));
+
+        Event.EventContext api = Event.EventContext.apiKey(apiKeys.writeKey());
+        ImmutableMap<String, Object> props = ImmutableMap.of(
+                "test", "test");
+        byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
+                "api", api,
+                "collection", "test",
+                "properties", props));
+
+        mapper.readValue(bytes, Event.class);
+    }
 }
