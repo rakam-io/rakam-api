@@ -29,7 +29,6 @@ import org.rakam.ui.RakamUIConfig;
 import org.rakam.ui.UIEvents;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.CryptUtil;
-import org.rakam.util.JsonHelper;
 import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
@@ -41,15 +40,10 @@ import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.mail.MessagingException;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -61,7 +55,6 @@ import java.time.temporal.ChronoUnit;
 import java.time.zone.ZoneRulesException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,7 +63,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Charsets.UTF_8;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 
 public class WebUserService
