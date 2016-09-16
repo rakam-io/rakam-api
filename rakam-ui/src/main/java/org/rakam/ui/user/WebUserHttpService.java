@@ -126,7 +126,7 @@ public class WebUserHttpService
     @JsonRequest
     @ProtectEndpoint(writeOperation = true)
     @Path("/get-lock-key")
-    public String createProject(@ApiParam("api_url") String apiUrl,
+    public String getLockKey(@ApiParam("api_url") String apiUrl,
             @CookieParam("session") String session)
     {
         int user = extractUserFromCookie(session, encryptionConfig.getSecretKey());
