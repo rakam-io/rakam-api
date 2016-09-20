@@ -34,14 +34,18 @@ public class JDBCPoolDataSource implements DataSource {
 
         if (config.getConnectionIdleTimeout() != null) {
             hikariConfig.setIdleTimeout(config.getConnectionIdleTimeout());
+        } else {
+            hikariConfig.setIdleTimeout(1000);
         }
 
         if (config.getMaxConnection() != null) {
             hikariConfig.setMaximumPoolSize(config.getMaxConnection());
+        } else {
+            hikariConfig.setMaximumPoolSize(30);
         }
 
         hikariConfig.setConnectionTimeout(15000);
-        hikariConfig.setLeakDetectionThreshold(5000);
+        hikariConfig.setLeakDetectionThreshold(2000);
 
         hikariConfig.setAutoCommit(true);
         hikariConfig.setPoolName("generic-jdbc-query-executor");

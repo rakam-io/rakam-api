@@ -4,6 +4,7 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
+import org.rakam.report.realtime.AggregationType;
 
 import java.util.Optional;
 
@@ -31,7 +32,17 @@ public interface QueryExecutor
 
         public enum SampleMethod
         {
-            BERNOULLI, SYSTEM
+            BERNOULLI, SYSTEM;
+
+            @JsonCreator
+            public static SampleMethod get(String name) {
+                return valueOf(name.toUpperCase());
+            }
+
+            @JsonProperty
+            public String value() {
+                return name();
+            }
         }
     }
 }

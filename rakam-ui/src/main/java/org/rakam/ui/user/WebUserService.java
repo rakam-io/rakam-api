@@ -33,6 +33,8 @@ import org.rakam.util.MailSender;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.Query;
+import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.util.IntegerMapper;
@@ -149,7 +151,7 @@ public class WebUserService
             welcomeTxtCompiler = mf.compile(new StringReader(Resources.toString(
                     WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
             welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
-                    WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome_title.txt");
+                    WebUserService.class.getResource("/mail/welcome/title.txt"), UTF_8)), "welcome_title.txt");
         }
         catch (IOException e) {
             throw Throwables.propagate(e);
@@ -636,7 +638,7 @@ public class WebUserService
     private List<WebUser.Project> getUserApiKeys(Handle handle, int userId)
     {
         List<WebUser.Project> list = new ArrayList<>();
-        handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key " +
+        ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key " +
                 " FROM web_user_project project " +
                 " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
                 " WHERE api_key.user_id = :user ORDER BY project.id, api_key.master_key NULLS LAST")
@@ -653,7 +655,8 @@ public class WebUserService
                         zoneId = null;
                     }
                     ZoneId finalZoneId = zoneId;
-                    WebUser.Project p = list.stream().filter(e -> e.id == id).findFirst()
+                    WebUser.Project p = list.stream().filter(e -> e.id == id)
+                            .findFirst()
                             .orElseGet(() -> {
                                 WebUser.Project project = new WebUser.Project(id, name, url, finalZoneId, new ArrayList<>());
                                 list.add(project);
@@ -661,7 +664,11 @@ public class WebUserService
                             });
                     p.apiKeys.add(ProjectApiKeys.create(r.getString(5), r.getString(6), r.getString(7)));
                     return null;
-                }).list();
+                }).iterator();
+
+        while (user.hasNext()) {
+            user.next();
+        }
 
         return list;
     }
