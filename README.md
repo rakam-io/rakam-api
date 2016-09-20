@@ -42,7 +42,7 @@ You can easily deploy Rakam to Heroku using Heroku button, it adds Heroku Postgr
 
 Run the following command to start a Postgresql server in docker container and Rakam API in your local environment.
 
-    docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.5.3 && docker run --link rakam-db --name rakam -p 9999:9999 -e RAKAM_LOCK_KEY=mylockkey buremba/rakam
+    docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.5.3 && docker run --link rakam-db --name rakam -p 9999:9999 -e RAKAM_CONFIG_LOCK-KEY=mylockkey buremba/rakam
 
 After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.1:9999) and follow the instructions. You can also register your local Rakam API to Rakam BI at
 [http://app.rakam.io/cluster/register](http://app.rakam.io/cluster/register?apiUrl=http:%2F%2F127.0.0.1:9999&lockKey=mylockKey)
@@ -64,14 +64,14 @@ We also provide docker-compose definition for Postgresql backend. Create a `dock
         depends_on:
           - db
 
-You can set config variables for Rakam instance using environment variables. All properties in config.properties file can be set via environment variable `RAKAM_property_name_dots_replaced_by_underscore`.
-For example, if you want to set `store.adapter=postgresql` you need to set environment variable `RAKAM_STORE_ADAPTER=postgresql`.
+You can set config variables for Rakam instance using environment variables. All properties in config.properties file can be set via environment variable `RAKAM_CONFIG_property_name_dots_replaced_by_underscore`.
+For example, if you want to set `store.adapter=postgresql` you need to set environment variable `RAKAM_CONFIG_STORE_ADAPTER=postgresql`.
 
-Dockerfile will generate `config.properties` file from environment variables in docker container that start with `RAKAM_` prefix.
+Dockerfile will generate `config.properties` file from environment variables in docker container that start with `RAKAM_CONFIG` prefix.
 
 In order to set environment variables for container, you may use `-e` flag for for `docker run` but we advice you to set all environment variables in a file and use  `--env-file` flag when starting your container.
 
-Then you can share same file among the Rakam containers. If Dockerfile can't find any environment variable starts with `RAKAM_`, it tries to connect Postgresql instance created with docker-compose.
+Then you can share same file among the Rakam containers. If Dockerfile can't find any environment variable starts with `RAKAM_CONFIG`, it tries to connect Postgresql instance created with docker-compose.
 
 ### AWS (Cloudformation)
 

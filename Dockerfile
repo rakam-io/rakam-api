@@ -9,7 +9,7 @@ RUN cd rakam && mvn install -DskipTests
 RUN echo 'org.rakam=INFO\n\
 io.netty=INFO' > log.properties
 
-RUN echo "store.adapter=postgresql\n\
+RUN [ -s config.properties ] || echo "store.adapter=postgresql\n\
     store.adapter.postgresql.url=postgres://rakam:dummy@rakam-db:5432/rakam\n\
     plugin.user.enabled=true\n\
     real-time.enabled=true\n\
@@ -24,9 +24,9 @@ RUN echo "store.adapter=postgresql\n\
     store.adapter.postgresql.max-connection=20\n\
     plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties
 
-RUN env | grep RAKAM_ | awk  '{gsub(/\_/,".",$0); print substr(tolower($0), 8)}' >> config.properties
+RUN [ -s config.properties ] || env | grep RAKAM_CONFIG_ | awk  '{gsub(/\_/,".",$0); print substr(tolower($0), 14)}' >> config.properties
 
-RUN [ -s config.properties ] || apt-get update \
+RUN apt-get update \
 							    # Rakam can automatically download & extract the database but we do this
 							    # at compile time of the container because it increases the start time of the containers.
 							    && wget -P /tmp http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz \
