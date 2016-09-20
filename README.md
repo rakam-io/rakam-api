@@ -44,9 +44,9 @@ Run the following command to start a Postgresql server in docker container and R
 
     docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.5.3 && docker run --link rakam-db --name rakam -p 9999:9999 -e RAKAM_LOCK_KEY=mylockkey buremba/rakam
 
-After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.1:9999) and follow the instructions. You can also register your local Rakam API to Rakam BI. 
+After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.1:9999) and follow the instructions. You can also register your local Rakam API to Rakam BI at
 [http://app.rakam.io/cluster/register](http://app.rakam.io/cluster/register?apiUrl=http:%2F%2F127.0.0.1:9999&lockKey=mylockKey)
-You can directly use Rakam API with client libraries or register your Rakam cluster to Rakam BI at [app.rakam.io](https://rakam.io)
+or directly use Rakam API. [API documentation](http://api.rakam.io)
 
 We also provide docker-compose definition for Postgresql backend. Create a `docker-compose.yml` with from this definition and run the command  `docker-compose run api -p 9999:9999 -f docker-compose.yml`.
 
