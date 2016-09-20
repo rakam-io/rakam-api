@@ -17,5 +17,5 @@ after_success:
 - >
   [ "$TRAVIS_BRANCH" == "master" ]
   && curl -X POST -H "Content-Type: application/json"
-  --data '{"docker_tag_name": "latest"}'
+  --data '{"docker_tag_name": ${TRAVIS_TAG:=latest}}'
   https://registry.hub.docker.com/u/buremba/rakam/trigger/$DOCKER_HUB_TOKEN/
