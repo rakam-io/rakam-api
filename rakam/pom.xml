@@ -33,6 +33,10 @@
             <artifactId>slice</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-aws</artifactId>
             <version>${project.version}</version>
@@ -371,6 +375,8 @@
                             <failOnWarning>true</failOnWarning>
 
                             <ignoredUnusedDeclaredDependencies>
+                                <ignoredUnusedDeclaredDependency>org.slf4j:slf4j-api
+                                </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>com.getsentry.raven:raven

@@ -468,11 +468,17 @@
                 <artifactId>HikariCP</artifactId>
                 <version>2.5.1</version>
                 <exclusions>
-                    <!--<exclusion>-->
-                        <!--<groupId>org.slf4j</groupId>-->
-                        <!--<artifactId>slf4j-api</artifactId>-->
-                    <!--</exclusion>-->
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
                 </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.21</version>
             </dependency>
 
             <dependency>
@@ -644,6 +650,10 @@
                 <artifactId>netty-rest</artifactId>
                 <version>${netty.rest.version}</version>
                 <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
                     <exclusion>
                         <groupId>org.slf4j</groupId>
                         <artifactId>slf4j-log4j12</artifactId>
