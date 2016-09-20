@@ -61,7 +61,7 @@ public class JDBCConfig {
     }
 
 
-    @Config("max_connection")
+    @Config("max-connection")
     public JDBCConfig setMaxConnection(Integer maxConnection) {
         this.maxConnection = maxConnection;
         return this;
