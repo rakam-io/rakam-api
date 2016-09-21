@@ -209,8 +209,8 @@ public class ProjectHttpService extends HttpService {
         } else {
             return ProjectApiKeys.create(
                     CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
-                    CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()),
-                    CryptUtil.encryptAES(apiKeys.masterKey(), projectConfig.getPassphrase()));
+                    CryptUtil.encryptAES(apiKeys.readKey(), projectConfig.getPassphrase()),
+                    CryptUtil.encryptAES(apiKeys.writeKey(), projectConfig.getPassphrase()));
         }
     }
 

@@ -31,6 +31,13 @@ public final class CryptUtil {
         return key;
     }
 
+    public static void main(String[] args)
+    {
+        String hello = encryptAES("hello", "123456");
+        System.out.println(hello);
+        System.out.println(decryptAES(hello, "123456"));
+    }
+
     public static String encryptWithHMacSHA1(String data, String secret) {
         try {
             SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), "HmacSHA1");

@@ -21,13 +21,13 @@ public class UserPluginConfig {
     private boolean automationEnabled;
     private boolean abTestingEnabled;
 
-    @Config("plugin.user.storage.identifier_column")
+    @Config("plugin.user.storage.identifier-column")
     public UserPluginConfig setIdentifierColumn(String colName) {
         this.identifierColumn = colName;
         return this;
     }
 
-    @Config("plugin.user.enable_user_mapping")
+    @Config("plugin.user.enable-user-mapping")
     public void setEnableUserMapping(boolean enableUserMapping) {
         this.enableUserMapping = enableUserMapping;
     }
@@ -50,7 +50,7 @@ public class UserPluginConfig {
         return actions;
     }
 
-    @Config("user.storage.session_column")
+    @Config("user.storage.session-column")
     public void setSessionColumn(String sessionColumn) {
         this.sessionColumn = sessionColumn;
     }
@@ -102,7 +102,7 @@ public class UserPluginConfig {
         return retentionAnalysisEnabled;
     }
 
-    @Config("plugin.user.storage.hide_columns")
+    @Config("plugin.user.storage.hide-columns")
     public void setHiddenColumns(String hiddenColumns) {
         this.hiddenColumns = ImmutableList.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(hiddenColumns));
     }

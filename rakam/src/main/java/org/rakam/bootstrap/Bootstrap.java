@@ -33,6 +33,7 @@ import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -109,9 +110,16 @@ public class Bootstrap
         }
         properties.putAll(requiredProperties);
         properties.putAll(fromProperties(System.getProperties()));
-        properties = ImmutableSortedMap.copyOf(properties);
+        String envPrefix = System.getProperty("env");
+        if (envPrefix != null) {
+            System.getenv().entrySet().stream()
+                    .filter(e -> e.getKey().startsWith(envPrefix))
+                    .forEach(e -> properties.put(e.getKey().substring(envPrefix.length() + 1)
+                            .toLowerCase(Locale.ENGLISH).replace("_", "."),
+                            e.getValue()));
+        }
 
-        configurationFactory = new ConfigurationFactory(properties);
+        configurationFactory = new ConfigurationFactory(ImmutableSortedMap.copyOf(properties));
 
         if (logging != null) {
             this.log.info("Initializing logging");

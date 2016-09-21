@@ -20,7 +20,7 @@ public class PrestoConfig {
         return this;
     }
 
-    @Config("presto.user_connector")
+    @Config("presto.user-connector")
     public PrestoConfig setUserConnector(String userConnector)
     {
 
@@ -28,7 +28,7 @@ public class PrestoConfig {
         return this;
     }
 
-    @Config("presto.bulk_connector")
+    @Config("presto.bulk-connector")
     public PrestoConfig setBulkConnector(String bulkConnector)
     {
 
@@ -44,14 +44,14 @@ public class PrestoConfig {
         return address;
     }
 
-    @Config("presto.cold_storage_connector")
+    @Config("presto.cold-storage-connector")
     public PrestoConfig setColdStorageConnector(String connectorName)
     {
         this.dataConnectorName = connectorName;
         return this;
     }
 
-    @Config("presto.streaming_connector")
+    @Config("presto.streaming-connector")
     public PrestoConfig setStreamingConnector(String connectorName)
     {
         this.streamingConnector = connectorName;
@@ -66,7 +66,7 @@ public class PrestoConfig {
         return dataConnectorName;
     }
 
-    @Config("presto.hot_storage_connector")
+    @Config("presto.hot-storage-connector")
     public PrestoConfig setHotStorageConnector(String streamConnectorName)
     {
         this.hotStorageConnectorName = streamConnectorName;

@@ -39,7 +39,7 @@ public class AWSConfig {
         return eventStoreBulkS3Bucket;
     }
 
-    @Config("aws.access_key")
+    @Config("aws.access-key")
     public AWSConfig setAccessKey(String accessKey) {
         this.accessKey = accessKey;
         return this;
@@ -49,7 +49,7 @@ public class AWSConfig {
         return accessKey;
     }
 
-    @Config("aws.secret_access_key")
+    @Config("aws.secret-access-key")
     public AWSConfig setSecretAccessKey(String secretAccessKey) {
         this.secretAccessKey = secretAccessKey;
         return this;
