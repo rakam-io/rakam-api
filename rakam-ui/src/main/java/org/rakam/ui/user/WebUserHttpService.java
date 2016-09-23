@@ -366,7 +366,7 @@ public class WebUserHttpService
             Optional<WebUser> userByEmail = service.getUserByEmail(userinfo.getEmail());
             WebUser user = userByEmail.orElseGet(() ->
                     service.createUser(userinfo.getEmail(),
-                            userinfo.getGivenName(), null,
+                            null, userinfo.getGivenName(),
                             userinfo.getGender(), userinfo.getLocale(), userinfo.getId()));
             return getLoginResponseForUser(user);
         }

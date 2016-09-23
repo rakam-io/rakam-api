@@ -130,7 +130,8 @@ public class WebUserService
         public final String timezone;
 
         @JsonCreator
-        public ProjectConfiguration(@ApiParam(value = "timezone", required = false) String timezone) {
+        public ProjectConfiguration(@ApiParam(value = "timezone", required = false) String timezone)
+        {
             this.timezone = timezone;
         }
     }
@@ -196,14 +197,24 @@ public class WebUserService
 
     public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId)
     {
-        if (!PASSWORD_PATTERN.matcher(password).matches()) {
-            throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
-        }
+        final String scrypt;
+        if (password != null) {
+            if (!PASSWORD_PATTERN.matcher(password).matches()) {
+                throw new RakamException("Password is not valid. Your password must contain at least one lowercase character, uppercase character and digit and be at least 8 characters. ", BAD_REQUEST);
+            }
 
-        if (config.getHashPassword()) {
-            password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
+            if (config.getHashPassword()) {
+                password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
+            }
+            scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
         }
-        final String scrypt = SCryptUtil.scrypt(password, 2 << 14, 8, 1);
+        else {
+            if (googleId == null) {
+                throw new RakamException("Password id empty", BAD_REQUEST);
+            }
+
+            scrypt = null;
+        }
 
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new RakamException("Email is not valid", BAD_REQUEST);
