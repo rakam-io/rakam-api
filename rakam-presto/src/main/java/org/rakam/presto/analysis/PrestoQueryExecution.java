@@ -155,9 +155,8 @@ public class PrestoQueryExecution
 
         int totalSplits = stats.getTotalSplits();
         int percentage = totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits;
-        QueryStats.State state = QueryStats.State.valueOf(stats.getState().toUpperCase(Locale.ENGLISH));
-        return new QueryStats(state == QueryStats.State.FINISHED ? 100 : percentage,
-                state,
+        return new QueryStats(percentage,
+                QueryStats.State.valueOf(stats.getState().toUpperCase(Locale.ENGLISH)),
                 stats.getNodes(),
                 stats.getProcessedRows(),
                 stats.getProcessedBytes(),
@@ -245,24 +244,15 @@ public class PrestoQueryExecution
             }
 
             try {
-                while (client.isValid() && (client.current().getData() == null)) {
+                while (client.isValid() && client.advance()) {
                     if (Thread.currentThread().isInterrupted()) {
                         client.close();
                         throw propagate(new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR));
                     }
                     transformAndAdd(client.current());
-                    client.advance();
                 }
 
-                if (client.isClosed()) {
-                    QueryError queryError = QueryError.create("Query aborted by user");
-                    result.complete(QueryResult.errorResult(queryError));
-                }
-                else if (client.isGone()) {
-                    QueryError queryError = QueryError.create("Query is gone (server restarted?)");
-                    result.complete(QueryResult.errorResult(queryError));
-                }
-                else if (client.isFailed()) {
+                if (client.isFailed()) {
                     com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
                     ErrorLocation errorLocation = error.getErrorLocation();
                     QueryError queryError = new QueryError(error.getFailureInfo().getMessage(),
@@ -274,8 +264,7 @@ public class PrestoQueryExecution
                     result.complete(QueryResult.errorResult(queryError));
                 }
                 else {
-                    QueryResults results = client.isValid() ? client.current() : client.finalResults();
-                    transformAndAdd(results);
+                    transformAndAdd(client.finalResults());
 
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
                             QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS));
