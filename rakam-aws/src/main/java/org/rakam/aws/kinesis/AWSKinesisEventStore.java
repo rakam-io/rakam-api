@@ -117,7 +117,7 @@ public class AWSKinesisEventStore
     public int[] storeBatch(List<Event> events)
     {
         storeBatchInline(events);
-        return null;
+        return EventStore.SUCCESSFUL_BATCH;
     }
 
     @Override
