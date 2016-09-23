@@ -79,7 +79,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import static com.facebook.presto.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN;
@@ -291,6 +290,11 @@ public class EventCollectionHttpService
     @Path("/bulk")
     public void bulkEvents(RakamHttpRequest request)
     {
+        bulkEvents(request, true);
+    }
+
+    public void bulkEvents(RakamHttpRequest request, boolean mapEvents)
+    {
         storeEventsSync(request,
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
@@ -313,17 +317,17 @@ public class EventCollectionHttpService
                             String collection = getParam(request.params(), "collection");
 
                             CsvSchema.Builder builder = CsvSchema.builder();
-                            if (request.headers().get("column_separator") != null) {
-                                String column_seperator = request.headers().get("column_separator");
-                                if (column_seperator.length() != 1) {
+                            if (request.params().get("column_separator") != null) {
+                                List<String> column_seperator = request.params().get("column_separator");
+                                if (column_seperator != null && column_seperator.get(0).length() != 1) {
                                     throw new RakamException("Invalid column separator", BAD_REQUEST);
                                 }
-                                builder.setColumnSeparator(column_seperator.charAt(0));
+                                builder.setColumnSeparator(column_seperator.get(0).charAt(0));
                             }
 
                             boolean useHeader = false;
-                            if (request.headers().get("use_header") != null) {
-                                useHeader = Boolean.valueOf(request.headers().get("use_header"));
+                            if (request.params().get("use_header") != null) {
+                                useHeader = Boolean.valueOf(request.params().get("use_header").get(0));
                                 // do not set CsvSchema setUseHeader, it has extra overhead and the deserializer cannot handle that.
                             }
 
@@ -340,7 +344,7 @@ public class EventCollectionHttpService
                     throw new RakamException("Unsupported content type: " + contentType, BAD_REQUEST);
                 },
                 (events, responseHeaders) -> {
-                    if(events.size() > 0) {
+                    if (events.size() > 0) {
                         try {
                             eventStore.storeBulk(events);
                         }
@@ -358,47 +362,32 @@ public class EventCollectionHttpService
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
                             Unpooled.wrappedBuffer(encodeAsBytes(SuccessMessage.success())),
                             responseHeaders);
-                });
-    }
-
-    public static class BulkEventRemote
-    {
-        public final String collection;
-        public final List<URL> urls;
-        public final CopyType type;
-        public final EventStore.CompressionType compression;
-        public final Map<String, String> options;
-
-        @JsonCreator
-        public BulkEventRemote(@ApiParam("collection") String collection,
-                @ApiParam("urls") List<URL> urls,
-                @ApiParam("type") CopyType type,
-                @ApiParam("compression") EventStore.CompressionType compression,
-                @ApiParam("options") Map<String, String> options)
-        {
-            this.collection = collection;
-            this.urls = urls;
-            this.type = type;
-            this.compression = compression;
-            this.options = options;
-        }
+                }, mapEvents);
     }
 
     @GET
     @Consumes("text/event-stream")
     @IgnoreApi
     @ApiOperation(value = "Copy events from remote", request = BulkEventRemote.class, response = Integer.class)
-    @Path("/copy")
+    @Path("/copy/remote")
     public void copyEventsRemote(RakamHttpRequest request)
-            throws IOException
     {
-        if(!copyEvent.isPresent()) {
-            throw new RakamException("Copy feature is not supported", BAD_REQUEST);
+        if (!copyEvent.isPresent()) {
+            bulkEventsRemote(request, false);
         }
+        else {
+            queryHttpService.handleServerSentQueryExecution(request, BulkEventRemote.class, (project, convert) ->
+                    copyEvent.get().copy(project, convert.collection, convert.urls, convert.type,
+                            convert.compression, convert.options), MASTER_KEY, false);
+        }
+    }
 
-        queryHttpService.handleServerSentQueryExecution(request, BulkEventRemote.class, (project, convert) ->
-                copyEvent.get().copy(project, convert.collection, convert.urls, convert.type,
-                        convert.compression, convert.options), MASTER_KEY, false);
+    @POST
+    @ApiOperation(value = "Copy events directly to database", request = EventList.class, response = Integer.class)
+    @Path("/copy")
+    public void copyEvents(RakamHttpRequest request)
+    {
+        bulkEvents(request, false);
     }
 
     @POST
@@ -406,7 +395,11 @@ public class EventCollectionHttpService
     @ApiResponses(value = {@ApiResponse(code = 409, message = PARTIAL_ERROR_MESSAGE, response = int[].class)})
     @Path("/bulk/remote")
     public void bulkEventsRemote(RakamHttpRequest request)
-            throws IOException
+    {
+        bulkEventsRemote(request, true);
+    }
+
+    public void bulkEventsRemote(RakamHttpRequest request, boolean mapEvents)
     {
         storeEventsSync(request,
                 buff -> {
@@ -479,7 +472,7 @@ public class EventCollectionHttpService
                     return new HeaderDefaultFullHttpResponse(HTTP_1_1, OK,
                             Unpooled.wrappedBuffer(OK_MESSAGE),
                             responseHeaders);
-                });
+                }, mapEvents);
     }
 
     private String getParam(Map<String, List<String>> params, String param)
@@ -631,16 +624,16 @@ public class EventCollectionHttpService
                                     Unpooled.wrappedBuffer(encodeAsBytes(result)), responseHeaders);
                         }
                     });
-                });
+                }, true);
     }
 
-    public void storeEventsSync(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction)
+    public void storeEventsSync(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, FullHttpResponse> responseFunction, boolean mapEvents)
     {
         storeEvents(request, mapper,
-                (events, entries) -> completedFuture(responseFunction.apply(events, entries)));
+                (events, entries) -> completedFuture(responseFunction.apply(events, entries)), mapEvents);
     }
 
-    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, CompletableFuture<FullHttpResponse>> responseFunction)
+    public void storeEvents(RakamHttpRequest request, ThrowableFunction mapper, BiFunction<List<Event>, HttpHeaders, CompletableFuture<FullHttpResponse>> responseFunction, boolean mapEvents)
     {
         request.bodyHandler(buff -> {
             DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
@@ -661,12 +654,17 @@ public class EventCollectionHttpService
 
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
-                entries = mapEvent((m) -> m.map(events, new HttpRequestParams(request),
-                        remoteAddress, responseHeaders));
+                if (mapEvents) {
+                    entries = mapEvent((m) -> m.map(events, new HttpRequestParams(request),
+                            remoteAddress, responseHeaders));
+                }
+                else {
+                    entries = null;
+                }
 
                 response = responseFunction.apply(events.events, responseHeaders);
             }
-            catch (JsonMappingException|JsonParseException e) {
+            catch (JsonMappingException | JsonParseException e) {
                 returnError(request, "JSON couldn't parsed: " + e.getOriginalMessage(), BAD_REQUEST);
                 return;
             }
@@ -780,6 +778,29 @@ public class EventCollectionHttpService
         public HttpHeaders headers()
         {
             return request.headers();
+        }
+    }
+
+    public static class BulkEventRemote
+    {
+        public final String collection;
+        public final List<URL> urls;
+        public final CopyType type;
+        public final EventStore.CompressionType compression;
+        public final Map<String, String> options;
+
+        @JsonCreator
+        public BulkEventRemote(@ApiParam("collection") String collection,
+                @ApiParam("urls") List<URL> urls,
+                @ApiParam("type") CopyType type,
+                @ApiParam("compression") EventStore.CompressionType compression,
+                @ApiParam("options") Map<String, String> options)
+        {
+            this.collection = collection;
+            this.urls = urls;
+            this.type = type;
+            this.compression = compression;
+            this.options = options;
         }
     }
 }

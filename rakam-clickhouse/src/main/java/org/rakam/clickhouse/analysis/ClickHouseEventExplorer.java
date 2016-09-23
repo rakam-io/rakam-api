@@ -253,7 +253,7 @@ public class ClickHouseEventExplorer
             }
         }
         if (segment != null) {
-            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(segment, true) : "'" + stripName(collection) + "'") + " as "
+            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(segment, true) : "'" + stripName(collection, "collection") + "'") + " as "
                     + checkTableColumn(getColumnReference(segment) + "_segment", '`'));
         }
         return selectBuilder.toString();

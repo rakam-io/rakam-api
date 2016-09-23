@@ -30,7 +30,7 @@ public class SchemaField
             @JsonProperty("description") String description,
             @JsonProperty("category") String category)
     {
-        this.name = stripName(ValidationUtil.checkNotNull(name, "name"));
+        this.name = stripName(ValidationUtil.checkNotNull(name, "name"), "field name");
         this.type = ValidationUtil.checkNotNull(type, "type");
         this.unique = unique;
         this.descriptiveName = descriptiveName;
@@ -42,8 +42,12 @@ public class SchemaField
         }
     }
 
-    public static String stripName(String name)
+    public static String stripName(String name, String type)
     {
+        if(name.isEmpty()) {
+            throw new RakamException(type+" is empty", HttpResponseStatus.BAD_REQUEST);
+        }
+
         StringBuilder builder = new StringBuilder(name.length());
         for (int i = 0; i < name.length(); i++) {
             char charAt = name.charAt(i);
@@ -66,7 +70,7 @@ public class SchemaField
         }
 
         if(builder.length() == 0) {
-            throw new RakamException("Invalid collection: "+name, HttpResponseStatus.BAD_REQUEST);
+            throw new RakamException("Invalid "+type+": "+name, HttpResponseStatus.BAD_REQUEST);
         }
 
         int lastIdx = builder.length() - 1;

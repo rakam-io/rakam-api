@@ -358,7 +358,7 @@ public abstract class AbstractEventExplorer
             }
         }
         if (segment != null) {
-            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(timestampMapping, segment, true) : "'" + stripName(collection) + "'") + " as "
+            selectBuilder.append((!segment.equals(DEFAULT_SEGMENT) ? getColumnValue(timestampMapping, segment, true) : "'" + stripName(collection, "collection") + "'") + " as "
                     + checkTableColumn(getColumnReference(segment) + "_segment"));
         }
         return selectBuilder.toString();

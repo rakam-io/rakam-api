@@ -50,6 +50,7 @@ public class AdminHttpService extends HttpService {
     @ApiOperation(value = "Get types",
             authorizations = @Authorization(value = "master_key")
     )
+
     @GET
     @JsonRequest
     @Path("/types")

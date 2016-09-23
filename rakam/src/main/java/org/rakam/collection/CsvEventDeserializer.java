@@ -8,12 +8,14 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
 import com.google.common.collect.ImmutableList;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.DateTimeUtils;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
@@ -68,9 +70,10 @@ public class CsvEventDeserializer
         boolean useheader = (boolean) ctxt.getAttribute("useHeader");
 
         Map.Entry<List<SchemaField>, int[]> header;
-        if(useheader) {
+        if (useheader) {
             header = readHeader((CsvParser) jp, project, collection);
-        } else {
+        }
+        else {
             List<SchemaField> vall = metastore.getCollection(project, collection);
             header = new AbstractMap.SimpleImmutableEntry<>(vall, IntStream.range(0, vall.size()).toArray());
         }
@@ -101,6 +104,9 @@ public class CsvEventDeserializer
                 case JsonTokenId.ID_END_ARRAY:
                     continue;
                 default:
+                    if (idx >= indexes.length) {
+                        throw new RakamException(String.format("Table has %d columns but CSV has more than %d columns", indexes.length, indexes.length), HttpResponseStatus.BAD_REQUEST);
+                    }
                     record.put(indexes[idx], getValue(types.get(idx), jp));
                     idx += 1;
                     break;
@@ -121,7 +127,7 @@ public class CsvEventDeserializer
 
         Set<SchemaField> newFields = new HashSet<>();
         while (jp.nextToken() == VALUE_STRING) {
-            String name = SchemaField.stripName(jp.getValueAsString());
+            String name = SchemaField.stripName(jp.getValueAsString(), "header name");
 
             Optional<SchemaField> existingField = fields.stream()
                     .filter(f -> f.getName().equals(name)).findAny();

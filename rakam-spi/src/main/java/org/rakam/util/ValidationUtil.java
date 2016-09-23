@@ -71,7 +71,7 @@ public final class ValidationUtil
             throw new IllegalArgumentException(type + " is null");
         }
 
-        return escape + SchemaField.stripName(column) + escape;
+        return escape + SchemaField.stripName(column, "field name") + escape;
     }
 
     public static void checkArgument(boolean expression, @Nullable String errorMessage)

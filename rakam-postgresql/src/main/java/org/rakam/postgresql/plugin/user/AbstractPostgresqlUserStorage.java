@@ -146,7 +146,7 @@ public abstract class AbstractPostgresqlUserStorage
         ObjectNode properties = JsonHelper.jsonObject();
 
         for (Map.Entry<String, JsonNode> entry : fields) {
-            String key = stripName(entry.getKey());
+            String key = stripName(entry.getKey(), "property");
             if (key.equals("id")) {
                 continue;
             }
@@ -857,7 +857,7 @@ public abstract class AbstractPostgresqlUserStorage
                     BAD_REQUEST);
         }
 
-        String tableRef = checkTableColumn(stripName(property));
+        String tableRef = checkTableColumn(stripName(property, "table column"));
         Statement statement = conn.createStatement();
         int execute = statement.executeUpdate("update " + getUserTable(project, false) +
                 " set " + tableRef + " = " + value + " + coalesce(" + tableRef + ", 0)");

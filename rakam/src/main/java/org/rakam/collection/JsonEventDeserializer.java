@@ -201,7 +201,7 @@ public class JsonEventDeserializer
             jp.nextToken();
 
             if (field == null) {
-                field = avroSchema.getField(stripName(fieldName));
+                field = avroSchema.getField(stripName(fieldName, "field name"));
 
                 if (field == null) {
                     FieldType type = getType(jp);
@@ -369,7 +369,7 @@ public class JsonEventDeserializer
                 case DOUBLE:
                     return jp.getValueAsDouble();
                 case TIMESTAMP:
-                    if (jp.getCurrentToken() == JsonToken.VALUE_NUMBER_INT) {
+                    if (jp.getCurrentToken().isNumeric()) {
                         return jp.getValueAsLong();
                     }
                     try {
