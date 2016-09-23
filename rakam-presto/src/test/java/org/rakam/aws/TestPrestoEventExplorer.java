@@ -102,8 +102,9 @@ public class TestPrestoEventExplorer
     protected AWSConfig getAWSConfig()
     {
         int kinesisPort = getEnvironment().getKinesisPort();
-        return new AWSConfig().setAccessKey("")
-                .setSecretAccessKey("")
+        return new AWSConfig()
+                .setAccessKey("AKIAIOSFODNN7EXAMPLE")
+                .setSecretAccessKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
                 .setRegion("eu-central-1")
                 .setKinesisEndpoint(kinesisPort == 0 ? null : "http://127.0.0.1:" + kinesisPort)
                 .setEventStoreStreamName("rakam-events");

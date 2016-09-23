@@ -29,8 +29,8 @@ public class TestDynamodbConfigManager
         int dynamodb = createDynamodb();
 //        int dynamodb = 8000;
         service = new DynamodbConfigManager(new AWSConfig()
-                .setAccessKey("test")
-                .setSecretAccessKey("test")
+                .setAccessKey("AKIAIOSFODNN7EXAMPLE")
+                .setSecretAccessKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
                 .setDynamodbEndpoint("http://127.0.0.1:" + dynamodb),
                 new DynamodbConfigManagerConfig().setTableName("config-manager"));
     }

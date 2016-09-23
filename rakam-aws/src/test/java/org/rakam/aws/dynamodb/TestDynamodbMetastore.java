@@ -39,8 +39,8 @@ public class TestDynamodbMetastore
         dynamodbProcess = DynamodbUtil.createDynamodbProcess();
         AWSConfig config = new AWSConfig()
                 .setDynamodbEndpoint("http://localhost:" + dynamodbProcess.port)
-                .setAccessKey("test")
-                .setSecretAccessKey("test");
+                .setAccessKey("AKIAIOSFODNN7EXAMPLE")
+                .setSecretAccessKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY");
         metastore = new DynamodbMetastore(config,
                 new DynamodbMetastoreConfig(),
                 new FieldDependencyBuilder.FieldDependency(ImmutableSet.of(), ImmutableMap.of()),

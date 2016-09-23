@@ -29,8 +29,8 @@ public class TestDynamodbApiKeyService
         int dynamodb = createDynamodb();
 //        int dynamodb = 8000;
         service = new DynamodbApiKeyService(new AWSConfig()
-                .setAccessKey("test")
-                .setSecretAccessKey("test")
+                .setAccessKey("AKIAIOSFODNN7EXAMPLE")
+                .setSecretAccessKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
                 .setDynamodbEndpoint("http://127.0.0.1:" + dynamodb),
                 new DynamodbApiKeyConfig().setTableName("test"));
     }
