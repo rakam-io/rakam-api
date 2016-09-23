@@ -1,6 +1,5 @@
 package org.rakam.plugin.user.mailbox;
 
-import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -25,13 +24,13 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static java.lang.String.format;
 import static org.rakam.plugin.user.UserHttpService.parseExpression;
 
 @Path("/user/action/mailbox")

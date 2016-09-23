@@ -1,6 +1,5 @@
 package org.rakam.collection;
 
-import com.facebook.presto.spi.PrestoException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.Version;
@@ -317,7 +316,7 @@ public class EventCollectionHttpService
                             if (request.headers().get("column_separator") != null) {
                                 String column_seperator = request.headers().get("column_separator");
                                 if (column_seperator.length() != 1) {
-                                    throw new PrestoException(GENERIC_USER_ERROR, "Invalid column separator");
+                                    throw new RakamException("Invalid column separator", BAD_REQUEST);
                                 }
                                 builder.setColumnSeparator(column_seperator.charAt(0));
                             }
@@ -433,7 +432,7 @@ public class EventCollectionHttpService
                         if (request.headers().get("column_separator") != null) {
                             String column_seperator = request.headers().get("column_separator");
                             if (column_seperator.length() != 1) {
-                                throw new PrestoException(GENERIC_USER_ERROR, "Invalid column separator");
+                                throw new RakamException("Invalid column separator", BAD_REQUEST);
                             }
                             builder.setColumnSeparator(column_seperator.charAt(0));
                         }
