@@ -6,6 +6,7 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -43,6 +44,7 @@ public class AWSKinesisEventStore
     private final AWSConfig config;
     private static final int BATCH_SIZE = 500;
     private final S3BulkEventStore bulkClient;
+    private final KinesisProducer producer;
 
     private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>()
     {
@@ -69,55 +71,20 @@ public class AWSKinesisEventStore
         KinesisProducerConfiguration producerConfiguration = new KinesisProducerConfiguration()
                 .setRegion(config.getRegion())
                 .setCredentialsProvider(config.getCredentials());
-//        KinesisProducer producer = new KinesisProducer(producerConfiguration);
+        if (config.getKinesisEndpoint() != null) {
+            producerConfiguration.setCustomEndpoint(config.getKinesisEndpoint());
+        }
+        producer = new KinesisProducer(producerConfiguration);
     }
 
-    public int[] storeBatchInline(List<Event> events, int offset, int limit)
+    public void storeBatchInline(List<Event> events)
     {
-        PutRecordsRequestEntry[] records = new PutRecordsRequestEntry[limit];
-
-        for (int i = 0; i < limit; i++) {
-            Event event = events.get(offset + i);
-            PutRecordsRequestEntry putRecordsRequestEntry = new PutRecordsRequestEntry()
-                    .withData(getBuffer(event))
-                    .withPartitionKey(event.project() + "|" + event.collection());
-            records[i] = putRecordsRequestEntry;
+        for (Event event : events) {
+            producer.addUserRecord(config.getEventStoreStreamName(),
+                    event.project() + "|" + event.collection(), getBuffer(event));
         }
 
-        try {
-            PutRecordsResult putRecordsResult = kinesis.putRecords(new PutRecordsRequest()
-                    .withRecords(records)
-                    .withStreamName(config.getEventStoreStreamName()));
-            if (putRecordsResult.getFailedRecordCount() > 0) {
-                int[] failedRecordIndexes = new int[putRecordsResult.getFailedRecordCount()];
-                int idx = 0;
-
-                Map<String, Integer> errors = new HashMap<>();
-
-                List<PutRecordsResultEntry> recordsResponse = putRecordsResult.getRecords();
-                for (int i = 0; i < recordsResponse.size(); i++) {
-                    if (recordsResponse.get(i).getErrorCode() != null) {
-                        failedRecordIndexes[idx++] = i;
-                        errors.compute(recordsResponse.get(i).getErrorMessage(), (k, v) -> v == null ? 1 : v++);
-                    }
-                }
-
-                LOGGER.warn("Error in Kinesis putRecords: %d records.", putRecordsResult.getFailedRecordCount(), errors.toString());
-                return failedRecordIndexes;
-            }
-            else {
-                return EventStore.SUCCESSFUL_BATCH;
-            }
-        }
-        catch (ResourceNotFoundException e) {
-            try {
-                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-                return storeBatchInline(events, offset, limit);
-            }
-            catch (Exception e1) {
-                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-            }
-        }
+        producer.flushSync();
     }
 
     @Override
@@ -149,31 +116,8 @@ public class AWSKinesisEventStore
     @Override
     public int[] storeBatch(List<Event> events)
     {
-        if (events.size() > BATCH_SIZE) {
-            ArrayList<Integer> errors = null;
-            int cursor = 0;
-
-            while (cursor < events.size()) {
-                int loopSize = Math.min(BATCH_SIZE, events.size() - cursor);
-
-                int[] errorIndexes = storeBatchInline(events, cursor, loopSize);
-                if (errorIndexes.length > 0) {
-                    if (errors == null) {
-                        errors = new ArrayList<>(errorIndexes.length);
-                    }
-
-                    for (int errorIndex : errorIndexes) {
-                        errors.add(errorIndex + cursor);
-                    }
-                }
-                cursor += loopSize;
-            }
-
-            return errors == null ? EventStore.SUCCESSFUL_BATCH : errors.stream().mapToInt(Integer::intValue).toArray();
-        }
-        else {
-            return storeBatchInline(events, 0, events.size());
-        }
+        storeBatchInline(events);
+        return null;
     }
 
     @Override
