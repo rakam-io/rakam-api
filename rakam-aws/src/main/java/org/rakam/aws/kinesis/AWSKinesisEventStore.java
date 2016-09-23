@@ -76,7 +76,7 @@ public class AWSKinesisEventStore
         if (config.getKinesisEndpoint() != null) {
             try {
                 URL url = new URL(config.getKinesisEndpoint());
-                producerConfiguration.setKinesisEndpoint(url.getHost());
+                producerConfiguration.setCustomEndpoint(url.getHost());
                 producerConfiguration.setKinesisPort(url.getPort());
             }
             catch (MalformedURLException e) {
