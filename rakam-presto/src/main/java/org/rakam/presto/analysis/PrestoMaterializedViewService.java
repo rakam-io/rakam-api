@@ -154,9 +154,10 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         }
 
         if (!materializedView.incremental) {
-            if (!materializedView.needsUpdate(Clock.systemUTC())) {
+            if (!materializedView.needsUpdate(Clock.systemUTC()) || !database.updateMaterializedView(project, materializedView, f)) {
                 return new MaterializedViewExecution(null, tableName);
             }
+
             QueryResult join = queryExecutor.executeRawQuery(format("DELETE FROM %s", tableName)).getResult().join();
             if (join.isFailed()) {
                 throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
@@ -164,6 +165,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             StringBuilder builder = new StringBuilder();
             new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty()), '"').process(statement, 1);
             QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()));
+            execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
             return new MaterializedViewExecution(execution, tableName);
         } else {
             List<String> referencedCollections = new ArrayList<>();
@@ -189,8 +191,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                                 ISO_INSTANT.format(lastUpdated), ISO_INSTANT.format(now)), '"');
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query));
-                final Instant finalLastUpdated = lastUpdated;
-                queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? finalLastUpdated : null));
+                queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
             } else {
                 queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
                 f.complete(lastUpdated);

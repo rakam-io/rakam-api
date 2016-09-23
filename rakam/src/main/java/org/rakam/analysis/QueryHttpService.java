@@ -29,6 +29,7 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
+import org.rakam.report.QueryStats;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
@@ -283,8 +284,8 @@ public class QueryHttpService
                 }
                 else if (!query.isFinished()) {
                     if (!response.isClosed()) {
-                        String encode = encode(query.currentStats());
-                        response.send("stats", encode);
+                        QueryStats stats = query.currentStats();
+                        response.send("stats", encode(stats));
                     }
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
                 }

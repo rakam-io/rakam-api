@@ -44,6 +44,8 @@ public class JDBCPoolDataSource implements DataSource {
             hikariConfig.setMaximumPoolSize(30);
         }
 
+        hikariConfig.setMaxLifetime(60000);
+
         hikariConfig.setConnectionTimeout(15000);
         hikariConfig.setLeakDetectionThreshold(2000);
 

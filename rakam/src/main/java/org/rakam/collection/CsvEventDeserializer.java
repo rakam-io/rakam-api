@@ -1,5 +1,7 @@
 package org.rakam.collection;
 
+import com.facebook.presto.rakam.middleware.PageCsvDeserializer;
+import com.facebook.presto.spi.ColumnMetadata;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
@@ -29,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static java.lang.String.format;
@@ -44,7 +47,6 @@ public class CsvEventDeserializer
 {
 
     private final Metastore metastore;
-    private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Set<SchemaField> constantFields;
     private final ConfigManager configManager;
 
@@ -55,7 +57,6 @@ public class CsvEventDeserializer
         this.metastore = metastore;
 
         this.configManager = configManager;
-        this.conditionalMagicFields = fieldDependency.dependentFields;
         this.constantFields = fieldDependency.constantFields;
     }
 
@@ -67,7 +68,16 @@ public class CsvEventDeserializer
         String collection = (String) ctxt.getAttribute("collection");
         String apiKey = (String) ctxt.getAttribute("apiKey");
 
-        Map.Entry<List<SchemaField>, int[]> header = readHeader((CsvParser) jp, project, collection);
+        boolean useheader = (boolean) ctxt.getAttribute("useHeader");
+
+        Map.Entry<List<SchemaField>, int[]> header;
+        if(useheader) {
+            header = readHeader((CsvParser) jp, project, collection);
+        } else {
+            List<SchemaField> vall = metastore.getCollection(project, collection);
+            header = new AbstractMap.SimpleImmutableEntry<>(vall, IntStream.range(0, vall.size()).toArray());
+        }
+
         List<SchemaField> fields = header.getKey();
         int[] indexes = header.getValue();
         List<FieldType> types = Arrays.stream(indexes)

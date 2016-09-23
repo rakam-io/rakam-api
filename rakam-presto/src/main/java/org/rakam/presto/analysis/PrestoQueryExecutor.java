@@ -98,8 +98,7 @@ public class PrestoQueryExecutor
                         checkCollection(node.getSuffix());
             }
             else if (prefix.equals("materialized")) {
-                return prestoConfig.getColdStorageConnector() + "." +
-                        getTableReference(project, MATERIALIZED_VIEW_PREFIX + node.getSuffix(), sample);
+                return getTableReference(project, MATERIALIZED_VIEW_PREFIX + node.getSuffix(), sample);
             }
             else if (!prefix.equals("collection")) {
                 throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);

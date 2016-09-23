@@ -1,5 +1,6 @@
 package org.rakam.collection;
 
+import com.facebook.presto.spi.PrestoException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.Version;
@@ -8,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
@@ -82,6 +84,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static com.facebook.presto.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static io.airlift.slice.Slices.utf8Slice;
@@ -308,12 +311,28 @@ public class EventCollectionHttpService
                             String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
                             String collection = getParam(request.params(), "collection");
 
+                            CsvSchema.Builder builder = CsvSchema.builder();
+                            if (request.headers().get("column_separator") != null) {
+                                String column_seperator = request.headers().get("column_separator");
+                                if (column_seperator.length() != 1) {
+                                    throw new PrestoException(GENERIC_USER_ERROR, "Invalid column separator");
+                                }
+                                builder.setColumnSeparator(column_seperator.charAt(0));
+                            }
+
+                            boolean useHeader = false;
+                            if (request.headers().get("use_header") != null) {
+                                useHeader = Boolean.valueOf(request.headers().get("use_header"));
+                                // do not set CsvSchema setUseHeader, it has extra overhead and the deserializer cannot handle that.
+                            }
+
                             return csvMapper.reader(EventList.class)
                                     .with(ContextAttributes.getEmpty()
                                             .withSharedAttribute("project", project)
+                                            .withSharedAttribute("useHeader", useHeader)
                                             .withSharedAttribute("collection", collection)
-                                            .withSharedAttribute("apiKey", apiKey)
-                                    ).readValue(buff);
+                                            .withSharedAttribute("apiKey", apiKey))
+                                    .with(builder.build()).readValue(buff);
                         }
                     }
 
@@ -375,8 +394,10 @@ public class EventCollectionHttpService
         if(!copyEvent.isPresent()) {
             throw new RakamException("Copy feature is not supported", BAD_REQUEST);
         }
+
         queryHttpService.handleServerSentQueryExecution(request, BulkEventRemote.class, (project, convert) ->
-                copyEvent.get().copy(project, convert.collection, convert.urls, convert.type, convert.compression, convert.options), MASTER_KEY, false);
+                copyEvent.get().copy(project, convert.collection, convert.urls, convert.type,
+                        convert.compression, convert.options), MASTER_KEY, false);
     }
 
     @POST
@@ -406,11 +427,28 @@ public class EventCollectionHttpService
                         return jsonMapper.readValue(url, EventList.class);
                     }
                     else if (query.type == CSV) {
-                        return csvMapper.reader(EventList.class).with(ContextAttributes.getEmpty()
-                                .withSharedAttribute("project", project)
-                                .withSharedAttribute("collection", query.collection)
-                                .withSharedAttribute("apiKey", masterKey)
-                        ).readValue(url);
+                        CsvSchema.Builder builder = CsvSchema.builder();
+                        if (request.headers().get("column_separator") != null) {
+                            String column_seperator = request.headers().get("column_separator");
+                            if (column_seperator.length() != 1) {
+                                throw new PrestoException(GENERIC_USER_ERROR, "Invalid column separator");
+                            }
+                            builder.setColumnSeparator(column_seperator.charAt(0));
+                        }
+
+                        boolean useHeader = false;
+                        if (request.headers().get("use_header") != null) {
+                            useHeader = Boolean.valueOf(request.headers().get("use_header"));
+                            // do not set CsvSchema setUseHeader, it has extra overhead and the deserializer cannot handle that.
+                        }
+
+                        return csvMapper.reader(EventList.class)
+                                .with(ContextAttributes.getEmpty()
+                                        .withSharedAttribute("project", project)
+                                        .withSharedAttribute("useHeader", useHeader)
+                                        .withSharedAttribute("collection", query.collection)
+                                        .withSharedAttribute("apiKey", masterKey))
+                                .with(builder.build()).readValue(buff);
                     }
                     else if (query.type == AVRO) {
                         URLConnection conn = url.openConnection();
