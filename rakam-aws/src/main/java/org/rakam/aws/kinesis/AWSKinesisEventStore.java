@@ -29,6 +29,8 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -72,7 +74,14 @@ public class AWSKinesisEventStore
                 .setRegion(config.getRegion())
                 .setCredentialsProvider(config.getCredentials());
         if (config.getKinesisEndpoint() != null) {
-            producerConfiguration.setCustomEndpoint(config.getKinesisEndpoint());
+            try {
+                URL url = new URL(config.getKinesisEndpoint());
+                producerConfiguration.setKinesisEndpoint(url.getHost());
+                producerConfiguration.setKinesisPort(url.getPort());
+            }
+            catch (MalformedURLException e) {
+                throw new IllegalStateException(String.format("Kinesis endpoint is invalid: %s", config.getKinesisEndpoint()));
+            }
         }
         producer = new KinesisProducer(producerConfiguration);
     }
