@@ -1,7 +1,5 @@
 package org.rakam.collection;
 
-import com.facebook.presto.rakam.middleware.PageCsvDeserializer;
-import com.facebook.presto.spi.ColumnMetadata;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
@@ -40,7 +38,6 @@ import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class CsvEventDeserializer
         extends JsonDeserializer<EventList>
