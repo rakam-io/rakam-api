@@ -7,6 +7,7 @@ import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.TestEventExplorer;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.aws.kinesis.AWSKinesisEventStore;
+import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.config.JDBCConfig;
 import org.rakam.event.TestingEnvironment;
@@ -24,6 +25,7 @@ import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
 
 import java.time.Clock;
+import java.util.List;
 
 public class TestPrestoEventExplorer
         extends TestEventExplorer
@@ -96,7 +98,13 @@ public class TestPrestoEventExplorer
     {
         testingPrestoEventStore = new AWSKinesisEventStore(
                 getAWSConfig(), getMetastore(),
-                new FieldDependencyBuilder().build());
+                new FieldDependencyBuilder().build()) {
+            @Override
+            public int[] storeBatch(List<Event> events)
+            {
+                events.forEach(this::store);
+            }
+        };
     }
 
     protected AWSConfig getAWSConfig()
