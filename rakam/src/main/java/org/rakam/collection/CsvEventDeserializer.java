@@ -67,7 +67,7 @@ public class CsvEventDeserializer
         String collection = (String) ctxt.getAttribute("collection");
         String apiKey = (String) ctxt.getAttribute("apiKey");
 
-        boolean useheader = (boolean) ctxt.getAttribute("useHeader");
+        boolean useheader = Boolean.TRUE == ctxt.getAttribute("useHeader");
 
         Map.Entry<List<SchemaField>, int[]> header;
         if (useheader) {
