@@ -46,7 +46,6 @@ public abstract class TestFunnelQueryExecutor {
 
             getEventStore().storeBatch(events);
         }
-        Thread.sleep(20000);
     }
 
     @AfterSuite

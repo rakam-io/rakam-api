@@ -231,6 +231,17 @@ public class PrestoQueryExecution
             this.session = session;
         }
 
+        private void waitForData()
+        {
+            while (client.isValid() && (client.current().getData() == null)) {
+                if (Thread.currentThread().isInterrupted()) {
+                    client.close();
+                    throw propagate(new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR));
+                }
+                client.advance();
+            }
+        }
+
         @Override
         public void run()
         {
@@ -245,14 +256,7 @@ public class PrestoQueryExecution
             }
 
             try {
-                while (client.isValid() && (client.current().getData() == null)) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        client.close();
-                        throw propagate(new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR));
-                    }
-                    transformAndAdd(client.current());
-                    client.advance();
-                }
+                waitForData();
 
                 if (client.isClosed()) {
                     QueryError queryError = QueryError.create("Query aborted by user");
