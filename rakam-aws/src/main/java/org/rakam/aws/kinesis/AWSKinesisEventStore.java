@@ -44,7 +44,6 @@ public class AWSKinesisEventStore
 
     private final AmazonKinesisClient kinesis;
     private final AWSConfig config;
-    private static final int BATCH_SIZE = 500;
     private final S3BulkEventStore bulkClient;
     private final KinesisProducer producer;
 
@@ -78,6 +77,7 @@ public class AWSKinesisEventStore
                 URL url = new URL(config.getKinesisEndpoint());
                 producerConfiguration.setCustomEndpoint(url.getHost());
                 producerConfiguration.setPort(url.getPort());
+                producerConfiguration.setVerifyCertificate(false);
             }
             catch (MalformedURLException e) {
                 throw new IllegalStateException(String.format("Kinesis endpoint is invalid: %s", config.getKinesisEndpoint()));
