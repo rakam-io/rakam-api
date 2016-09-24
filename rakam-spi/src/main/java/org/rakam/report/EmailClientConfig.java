@@ -17,7 +17,7 @@ public class EmailClientConfig {
     private String user;
     private String password;
     private boolean useTls;
-    private String fromAddress = "noreply@rakam.io";
+    private String fromAddress = "emre@rakam.io";
     private String fromName = "Rakam.io";
     private URL siteUrl;
 
