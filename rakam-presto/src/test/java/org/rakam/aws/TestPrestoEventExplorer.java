@@ -99,10 +99,12 @@ public class TestPrestoEventExplorer
         testingPrestoEventStore = new AWSKinesisEventStore(
                 getAWSConfig(), getMetastore(),
                 new FieldDependencyBuilder().build()) {
+            // KCL doesn't work with Kinesalite. See: https://github.com/mhart/kinesalite/issues/16
             @Override
             public int[] storeBatch(List<Event> events)
             {
                 events.forEach(this::store);
+                return SUCCESSFUL_BATCH;
             }
         };
     }
