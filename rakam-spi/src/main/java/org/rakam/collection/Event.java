@@ -83,7 +83,8 @@ public class Event {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Event)) return false;
+        if (o == null) return false;
+        if (this.getClass() != o.getClass()) return false;
 
         Event event = (Event) o;
 
@@ -188,7 +189,8 @@ public class Event {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof EventContext)) return false;
+            if (o == null) return false;
+            if (this.getClass() != o.getClass()) return false;
 
             EventContext context = (EventContext) o;
 

@@ -42,7 +42,8 @@ public class EventList {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof EventList)) return false;
+        if (o == null) return false;
+        if (this.getClass() != o.getClass()) return false;
 
         EventList eventList = (EventList) o;
 

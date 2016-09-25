@@ -116,7 +116,10 @@ public class QueryResult
         if (this == o) {
             return true;
         }
-        if (!(o instanceof QueryResult)) {
+        if (o == null) {
+            return false;
+        }
+        if (this.getClass() != o.getClass()) {
             return false;
         }
 
