@@ -233,11 +233,13 @@ public class PrestoQueryExecution
 
         private void waitForData()
         {
-            while (client.isValid() && (client.current().getData() == null)) {
+            while (client.isValid()) {
                 if (Thread.currentThread().isInterrupted()) {
                     client.close();
                     throw propagate(new RakamException("Query executor thread was interrupted", INTERNAL_SERVER_ERROR));
                 }
+                transformAndAdd(client.current());
+
                 client.advance();
             }
         }
@@ -278,8 +280,7 @@ public class PrestoQueryExecution
                     result.complete(QueryResult.errorResult(queryError));
                 }
                 else {
-                    QueryResults results = client.isValid() ? client.current() : client.finalResults();
-                    transformAndAdd(results);
+                    transformAndAdd(client.finalResults());
 
                     ImmutableMap<String, Object> stats = ImmutableMap.of(
                             QueryResult.EXECUTION_TIME, startTime.until(Instant.now(), ChronoUnit.MILLIS));
