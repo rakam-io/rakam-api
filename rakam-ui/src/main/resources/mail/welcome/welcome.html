@@ -1,215 +1,112 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html xmlns="http://www.w3.org/1999/xhtml" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Welcome to Rakam, {{name}}!</title>
-    <style type="text/css" rel="stylesheet" media="all">
-        /* Base ------------------------------ */
-        *:not(br):not(tr):not(html) {
-            font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
-            -webkit-box-sizing: border-box;
-            box-sizing: border-box;
-        }
-        body {
-            width: 100% !important;
-            height: 100%;
-            margin: 0;
-            line-height: 1.4;
-            background-color: #F2F4F6;
-            color: #74787E;
-            -webkit-text-size-adjust: none;
-        }
-        a {
-            color: #3869D4;
-        }
-        /* Layout ------------------------------ */
-        .email-wrapper {
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            background-color: #F2F4F6;
-        }
-        .email-content {
-            width: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        /* Masthead ----------------------- */
-        .email-masthead {
-            padding: 25px 0;
-            text-align: center;
-        }
-        .email-masthead_logo {
-            max-width: 400px;
-            border: 0;
-        }
-        .email-masthead_name {
-            font-size: 33px;
-            font-weight: bold;
-            color: #7e868e;
-            text-decoration: none;
-            text-shadow: 0 1px 0 white;
-        }
-        /* Body ------------------------------ */
-        .email-body {
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            border-top: 1px solid #EDEFF2;
-            border-bottom: 1px solid #EDEFF2;
-            background-color: #FFF;
-        }
-        .email-body_inner {
-            width: 570px;
-            margin: 0 auto;
-            padding: 0;
-        }
-        .email-footer {
-            width: 570px;
-            margin: 0 auto;
-            padding: 0;
-            text-align: center;
-        }
-        .email-footer p {
-            color: #AEAEAE;
-        }
-        .body-action {
-            width: 100%;
-            margin: 30px auto;
-            padding: 0;
-            text-align: center;
-        }
-        .body-sub {
-            margin-top: 25px;
-            padding-top: 25px;
-            border-top: 1px solid #EDEFF2;
-        }
-        .content-cell {
-            padding: 35px;
-        }
-        .align-right {
-            text-align: right;
-        }
-        /* Type ------------------------------ */
-        h1 {
-            margin-top: 0;
-            color: #2F3133;
-            font-size: 19px;
-            font-weight: bold;
-            text-align: left;
-        }
-        h2 {
-            margin-top: 0;
-            color: #2F3133;
-            font-size: 16px;
-            font-weight: bold;
-            text-align: left;
-        }
-        h3 {
-            margin-top: 0;
-            color: #2F3133;
-            font-size: 14px;
-            font-weight: bold;
-            text-align: left;
-        }
-        p {
-            margin-top: 0;
-            color: #74787E;
-            font-size: 16px;
-            line-height: 1.5em;
-            text-align: left;
-        }
-        p.sub {
-            font-size: 12px;
-        }
-        p.center {
-            text-align: center;
-        }
-        /* Buttons ------------------------------ */
-        .button {
-            display: inline-block;
-            width: 200px;
-            background-color: #3869D4;
-            border-radius: 3px;
-            color: #ffffff;
-            font-size: 15px;
-            line-height: 45px;
-            text-align: center;
-            text-decoration: none;
-            -webkit-text-size-adjust: none;
-            mso-hide: all;
-        }
-        .button--blue {
-            background-color: #009fca;
-        }
-        /*Media Queries ------------------------------ */
-        @media only screen and (max-width: 600px) {
-            .email-body_inner,
-            .email-footer {
-                width: 100% !important;
-            }
-        }
-        @media only screen and (max-width: 500px) {
-            .button {
-                width: 100% !important;
-            }
-        }
-    </style>
-</head>
-<body>
-<table class="email-wrapper" width="100%" cellpadding="0" cellspacing="0">
-    <tr>
-        <td align="center">
-            <table class="email-content" width="100%" cellpadding="0" cellspacing="0">
-                <!-- Logo -->
-                <tr>
-                    <td class="email-masthead">
-                        <a class="email-masthead_name">
-                            <img style="margin:-8px 5px" src="data:image/png;base64,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" />
-                            Rakam</a><br>
-                        <span style="font-size:11px">Create your custom analytics services easily. It's just one-click.</span>
-                    </td>
-                </tr>
-                <!-- Email Body -->
-                <tr>
-                    <td class="email-body" width="100%">
-                        <table class="email-body_inner" align="center" width="570" cellpadding="0" cellspacing="0">
-                            <!-- Body content -->
-                            <tr>
-                                <td class="content-cell">
-                                    <h1>Hi {{name}},</h1>
-                                    <p>I'm Burak Emre, the developer of Rakam API and Rakam BI.
-                                        Thanks for signing up for Rakam. We’re very excited to have you on board.</p>
-                                    <p>Rakam is currently in beta and actively developed. If you have and suggestion or just found a bug, feel free to reach me by relying this email. This is my personal e-email address.</p>
-                                    <p>Also, I would appreciate if you can share your use-case of Rakam. I can help you to use Rakam efficiently and try to provide solutions for your problems.</p>
+    <title>Rakam open-source analytics platform</title>
 
-                                    <p>Thanks,<br>Burak Emre</p>
-                                    <p><strong>P.S.</strong> Need help getting started? Check out our help <a href="https://rakam.io/doc/">documentation</a>. Or, just reply to this email with any questions or issues you have. The Rakam support team is always excited to help you.</p>
-                                </td>
-                            </tr>
-                        </table>
+
+    <style type="text/css">
+img {
+max-width: 100%;
+}
+body {
+-webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; width: 100% !important; height: 100%; line-height: 1.6em;
+}
+body {
+background-color: #f6f6f6;
+}
+@media only screen and (max-width: 640px) {
+  body {
+    padding: 0 !important;
+  }
+  h1 {
+    font-weight: 800 !important; margin: 20px 0 5px !important;
+  }
+  h2 {
+    font-weight: 800 !important; margin: 20px 0 5px !important;
+  }
+  h3 {
+    font-weight: 800 !important; margin: 20px 0 5px !important;
+  }
+  h4 {
+    font-weight: 800 !important; margin: 20px 0 5px !important;
+  }
+  h1 {
+    font-size: 22px !important;
+  }
+  h2 {
+    font-size: 18px !important;
+  }
+  h3 {
+    font-size: 16px !important;
+  }
+  .container {
+    padding: 0 !important; width: 100% !important;
+  }
+  .content {
+    padding: 0 !important;
+  }
+  .content-wrap {
+    padding: 10px !important;
+  }
+  .invoice {
+    width: 100% !important;
+  }
+  .email-masthead_name {
+    width:600px;
+  }
+}
+</style>
+</head>
+
+<body itemscope itemtype="http://schema.org/EmailMessage" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: none; width: 100% !important; height: 100%; line-height: 1.6em; background-color: #f6f6f6; margin: 0;" bgcolor="#f6f6f6">
+
+<table class="body-wrap" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; width: 100%; background-color: #f6f6f6; margin: 0;" bgcolor="#f6f6f6"><tr style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;"><td style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;" valign="top"></td>
+    <td class="container" width="600" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; display: block !important; max-width: 600px !important; clear: both !important; margin: 0 auto;" valign="top">
+        <div class="content" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; max-width: 600px; display: block; margin: 0 auto; padding: 20px;">
+            <table class="email-masthead_name" style="margin: 0 auto;">
+                <tr style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; margin: 0;">
+                    <td class="content-block" style="width:100px;font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; vertical-align: top; text-align:center; margin: 0; padding: 0 0 10px;">
+                        <img style="vertical-align:middle; " src="https://rakam.io/assets/logo.png" />
+
+                        <a href="https://rakam.io" style="font-size: 30px; margin-left:5px; text-decoration:none; vertical-align:middle; color: #5a5a5a; font-weight:bold">Rakam</a>
                     </td>
                 </tr>
-                <tr>
-                    <td>
-                        <table class="email-footer" align="center" width="570" cellpadding="0" cellspacing="0">
-                            <tr>
-                                <td class="content-cell">
-                                    <p class="sub center">&copy; 2016 Rakam. All rights reserved.</p>
-                                    <p class="sub center">
-                                        <a href="https://rakam.io" style="margin-right:10px">Rakam.io</a>
-                                        <a href="https://app.rakam.io">Rakam BI</a><br>
-                                        <a href="%tag_unsubscribe_url%" style="opacity:.4">Unsubscribe</a>
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
+
+                <tr style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;"><td class="content-block" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 10px;" valign="top">
+                    <span style="font-size:11px;color:gray">Create your custom analytics services easily. It's just one-click.</span>
+                    </a>
+                </td>
                 </tr>
             </table>
-        </td>
-    </tr>
-</table>
-</body>
+            <table class="main" width="100%" cellpadding="0" cellspacing="0" itemprop="action" itemscope itemtype="http://schema.org/ConfirmAction" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; border-radius: 3px; background-color: #fff; margin: 0; border: 1px solid #e9e9e9;" bgcolor="#fff"><tr style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;"><td class="content-wrap" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 20px;" valign="top">
+                <meta itemprop="name" content="Confirm Email" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;" /><table width="100%" cellpadding="0" cellspacing="0" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;"><tr style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;">
+                <td class="content-block" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+
+                    <h1>Hi {{name}},</h1>
+                    <p>I'm Burak Emre, the developer of Rakam API and Rakam BI.
+                        Thanks for signing up for Rakam. We’re very excited to have you on board.</p>
+                    <p>Rakam is currently in beta and actively developed. If you have and suggestion or just found a bug, feel free to reach me by relying this email. This is my personal e-email address.</p>
+                    <p>Also, I would appreciate if you can share your use-case of Rakam. I can help you to use Rakam efficiently and try to provide solutions for your problems.</p>
+
+                    <p>Thanks,<br>Burak Emre</p>
+                    <p><strong>P.S.</strong> Need help getting started? Check out our help <a href="https://rakam.io/doc/">documentation</a>. Or, just reply to this email with any questions or issues you have. The Rakam support team is always excited to help you.</p>
+                </td>
+            </tr><tr style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;"><td class="content-block" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
+                &mdash; Thanks, Burak Emre
+            </td>
+            </tr>
+
+            </table></td>
+            </tr></table><div class="footer" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; width: 100%; clear: both; color: #999; margin: 0; padding: 20px;">
+            <table width="100%" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;"><tr style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; margin: 0;"><td class="aligncenter content-block" style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 12px; vertical-align: top; color: #999; text-align: center; margin: 0; padding: 0 0 20px;" align="center" valign="top">
+
+                <a href="https://rakam.io" style="margin-right:10px;color:gray">Rakam.io</a>
+                <a style="color:gray" href="https://app.rakam.io">Rakam BI</a><br>
+            </td>
+            </tr></table></div></div>
+    </td>
+    <td style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;" valign="top"></td>
+</tr></table></body>
 </html>
