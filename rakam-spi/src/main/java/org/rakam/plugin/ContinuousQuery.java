@@ -8,7 +8,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.server.http.annotations.ApiParam;
+import org.rakam.util.RakamException;
 
 import java.util.List;
 import java.util.Map;
@@ -47,7 +49,13 @@ public class ContinuousQuery
     public synchronized Query getQuery()
     {
         if (queryStatement == null) {
-            queryStatement = (Query) SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
+            try {
+                queryStatement = (Query) SQL_PARSER.createStatement(checkNotNull(query, "query is required"));
+            }
+            catch (Exception e) {
+                throw new RakamException("Unable to parse continuous query: " + e.getMessage(),
+                        HttpResponseStatus.BAD_REQUEST);
+            }
         }
         return queryStatement;
     }

@@ -26,7 +26,7 @@ public class JDBCPoolDataSource
     private final HikariDataSource dataSource;
     private final JDBCConfig config;
 
-    private JDBCPoolDataSource(JDBCConfig config, Optional<String> initialString)
+    private JDBCPoolDataSource(JDBCConfig config, Optional<String> initialQuery)
     {
         this.config = config;
         checkArgument(config.getUrl() != null, "JDBC url is required");
@@ -52,9 +52,9 @@ public class JDBCPoolDataSource
 //        hikariConfig.setLeakDetectionThreshold(2000);
 
         hikariConfig.setAutoCommit(true);
-        hikariConfig.setPoolName("generic-jdbc-query-executor");
-        if (initialString.isPresent()) {
-            hikariConfig.setConnectionInitSql(initialString.get());
+        hikariConfig.setPoolName(config.toString());
+        if (initialQuery.isPresent()) {
+            hikariConfig.setConnectionInitSql(initialQuery.get());
         }
         dataSource = new HikariDataSource(hikariConfig);
     }
