@@ -424,7 +424,7 @@ public class TestEventJsonParser
         assertEquals(events.properties().get("test"), "[\"test\"]");
     }
 
-    @Test(enabled = false, expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field")
+    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field")
     public void testObjectSentToInvalidScalarValue()
             throws Exception
     {
