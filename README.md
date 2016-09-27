@@ -88,7 +88,7 @@ Cloudformation is the recommended way to deploy Rakam in production because we h
 
 ### Custom
 
-Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/rakam/rakam/0.5/rakam-0.5-bundle.tar.gz), extract package, modify `etc/config.properties` file and run `bin/launcher start`.
+Download latest version from [Bintray](https://dl.bintray.com/buremba/maven/org/rakam/rakam), ([VERSION]/rakam-[VERSION]-.bundle.tar.gz) extract package, modify `etc/config.properties` file and run `bin/launcher start`.
 The launcher script can take the following arguments: `start|restart|stop|status|run`. 
 `bin/launcher run` will start Rakam in foreground.
 
