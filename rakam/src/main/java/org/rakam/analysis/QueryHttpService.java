@@ -26,10 +26,10 @@ import org.rakam.collection.SchemaField;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.EventStore.CopyType;
 import org.rakam.report.QueryExecution;
-import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
+import org.rakam.report.QuerySampling;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.Response;
@@ -265,12 +265,13 @@ public class QueryHttpService
             else {
                 List<? extends SchemaField> metadata = result.getMetadata();
 
-                response.send("result", encode(jsonObject()
+                String encode = encode(jsonObject()
                         .put("success", true)
                         .putPOJO("query", query.getQuery())
                         .putPOJO("properties", result.getProperties())
                         .putPOJO("result", result.getResult())
-                        .putPOJO("metadata", metadata))).end();
+                        .putPOJO("metadata", metadata));
+                response.send("result", encode).end();
             }
         });
 
@@ -304,22 +305,22 @@ public class QueryHttpService
         @ApiModelProperty(example = "SELECT 1", value = "SQL query that will be executed on data-set")
         public final String query;
         public final Integer limit;
-        public final Optional<QueryExecutor.Sample> sample;
+        public final Optional<QuerySampling> sample;
         public final CopyType exportType;
 
         @JsonCreator
         public QueryRequest(
                 @ApiParam("query") String query,
                 @ApiParam("export_type") CopyType exportType,
-                @ApiParam("sample") Optional<QueryExecutor.Sample> sample,
+                @ApiParam("sampling") QuerySampling sample,
                 @ApiParam(value = "limit", required = false) Integer limit)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
             if (limit != null && limit > MAX_QUERY_RESULT_LIMIT) {
-                throw new IllegalArgumentException("maximum value of limit is " + MAX_QUERY_RESULT_LIMIT);
+                throw new IllegalArgumentException("Maximum value of limit is " + MAX_QUERY_RESULT_LIMIT);
             }
             this.exportType = exportType;
-            this.sample = sample;
+            this.sample = Optional.ofNullable(sample);
             this.limit = limit;
         }
     }

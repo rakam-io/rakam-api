@@ -117,14 +117,19 @@ public class FunnelAnalyzerHttpService
                 @ApiParam("startDate") LocalDate startDate,
                 @ApiParam(value = "window", required = false) FunnelWindow window,
                 @ApiParam("endDate") LocalDate endDate,
-                @ApiParam(value = "timezone", required = false) ZoneId timezone)
+                @ApiParam(value = "timezone", required = false) String timezone)
         {
             this.steps = checkNotNull(steps, "steps field is required");
             this.dimension = dimension;
             this.startDate = startDate;
             this.endDate = endDate;
             this.window = window;
-            this.timezone = Optional.ofNullable(timezone).orElse(ZoneOffset.UTC);
+            try {
+                this.timezone = Optional.ofNullable(ZoneId.of(timezone)).orElse(ZoneOffset.UTC);
+            }
+            catch (Exception e) {
+                throw new RakamException("Timezone is invalid", HttpResponseStatus.BAD_REQUEST);
+            }
             checkState(!steps.isEmpty(), "steps field cannot be empty.");
         }
     }

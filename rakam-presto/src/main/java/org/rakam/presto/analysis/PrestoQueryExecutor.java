@@ -8,12 +8,12 @@ import com.google.inject.Singleton;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryExecutorService;
+import org.rakam.report.QuerySampling;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -88,7 +88,7 @@ public class PrestoQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName node, Optional<Sample> sample)
+    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample)
     {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();
@@ -135,7 +135,7 @@ public class PrestoQueryExecutor
         }
     }
 
-    private String getTableReference(String project, String tableName, Optional<Sample> sample)
+    private String getTableReference(String project, String tableName, Optional<QuerySampling> sample)
     {
         String hotStorageConnector = prestoConfig.getHotStorageConnector();
         String table = checkCollection(project) + "." + checkCollection(tableName) +

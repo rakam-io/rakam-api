@@ -10,7 +10,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
-import org.rakam.report.QueryExecutorService;
+import org.rakam.report.QuerySampling;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
@@ -77,7 +77,7 @@ public class PostgresqlQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName name, Optional<Sample> sample)
+    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample)
     {
         if (name.getPrefix().isPresent()) {
             switch (name.getPrefix().get().toString()) {

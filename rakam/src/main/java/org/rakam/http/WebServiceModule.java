@@ -221,7 +221,8 @@ public class WebServiceModule
                     apiKey = apiKeyList.get(0);
                 }
                 else {
-                    throw new RakamException(type.getKey() + " header or query parameter is missing.", FORBIDDEN);
+                    throw new RakamException(type.getKey() + " header or " +
+                            "query parameter is missing.", FORBIDDEN);
                 }
             }
             return apiKeyService.getProjectOfApiKey(apiKey, type);

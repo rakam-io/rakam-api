@@ -14,6 +14,7 @@
 package org.rakam.analysis.retention;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.RetentionQueryExecutor;
 import org.rakam.analysis.RetentionQueryExecutor.DateUnit;
@@ -28,6 +29,7 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -113,7 +115,7 @@ public class RetentionAnalyzerHttpService
                 @ApiParam("date_unit") DateUnit dateUnit,
                 @ApiParam(value = "period", required = false) Integer period,
                 @ApiParam("startDate") LocalDate startDate,
-                @ApiParam("timezone") ZoneId timezone,
+                @ApiParam("timezone") String timezone,
                 @ApiParam("endDate") LocalDate endDate)
         {
             this.firstAction = firstAction;
@@ -123,7 +125,12 @@ public class RetentionAnalyzerHttpService
             this.period = period;
             this.startDate = startDate;
             this.endDate = endDate;
-            this.timezone = Optional.ofNullable(timezone).orElse(ZoneOffset.UTC);
+            try {
+                this.timezone = Optional.ofNullable(ZoneId.of(timezone)).orElse(ZoneOffset.UTC);
+            }
+            catch (Exception e) {
+                throw new RakamException("Timezone is invalid", HttpResponseStatus.BAD_REQUEST);
+            }
         }
     }
 }

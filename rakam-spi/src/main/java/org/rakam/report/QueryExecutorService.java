@@ -13,7 +13,6 @@ import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.report.QueryExecutor.Sample;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
@@ -57,7 +56,7 @@ public class QueryExecutorService
         this.escapeIdentifier = escapeIdentifier;
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, Optional<Sample> sample, int limit)
+    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, int limit)
     {
         if (!projectExists(project)) {
             throw new NotExistsException("Project");
@@ -161,7 +160,7 @@ public class QueryExecutorService
         return true;
     }
 
-    public String buildQuery(String project, String query, Optional<Sample> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews)
+    public String buildQuery(String project, String query, Optional<QuerySampling> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews)
     {
         StringBuilder builder = new StringBuilder();
         Query statement;
@@ -195,7 +194,7 @@ public class QueryExecutorService
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<Sample> sample, boolean fetchReference)
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, boolean fetchReference)
     {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
