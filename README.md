@@ -58,7 +58,7 @@ We also provide docker-compose definition for Postgresql backend. Create a `dock
           - POSTGRES_PASSWORD=dummy
           - POSTGRES_USER=rakam
       rakam-api:
-        build: buremba:rakam
+        image: buremba/rakam
         ports:
           - "9999:9999"
         depends_on:
