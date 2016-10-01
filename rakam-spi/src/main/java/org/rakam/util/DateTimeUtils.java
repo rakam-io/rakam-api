@@ -86,6 +86,10 @@ public class DateTimeUtils
 
     public static long parseTimestamp(String timestampWithTimeZone)
     {
+        if (timestampWithTimeZone.length() <= 12) {
+            throw new IllegalArgumentException();
+        }
+
         try {
             return ISODateTimeFormat.dateTimeParser().parseMillis(timestampWithTimeZone);
         }

@@ -686,12 +686,6 @@ public class EventCollectionHttpService
                 returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }
-            catch (OutOfMemoryError e) {
-                LOGGER.error(e, "Error while collecting event");
-
-                returnError(request, "OOM error", BAD_REQUEST);
-                return;
-            }
             catch (Throwable e) {
                 LOGGER.error(e, "Error while collecting event");
 
