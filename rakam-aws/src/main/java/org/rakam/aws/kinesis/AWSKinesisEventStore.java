@@ -1,20 +1,23 @@
 package org.rakam.aws.kinesis;
 
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.model.PutRecordsRequest;
-import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
-import com.amazonaws.services.kinesis.model.PutRecordsResult;
-import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufOutputStream;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.util.ByteBufferOutputStream;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.s3.S3BulkEventStore;
@@ -24,18 +27,19 @@ import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
-import org.rakam.util.KByteArrayOutputStream;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
+import static io.netty.buffer.PooledByteBufAllocator.DEFAULT;
 
 public class AWSKinesisEventStore
         implements SyncEventStore
@@ -46,15 +50,6 @@ public class AWSKinesisEventStore
     private final AWSConfig config;
     private final S3BulkEventStore bulkClient;
     private final KinesisProducer producer;
-
-    private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>()
-    {
-        @Override
-        protected KByteArrayOutputStream initialValue()
-        {
-            return new KByteArrayOutputStream(1000000);
-        }
-    };
 
     @Inject
     public AWSKinesisEventStore(AWSConfig config,
@@ -88,12 +83,26 @@ public class AWSKinesisEventStore
 
     public void storeBatchInline(List<Event> events)
     {
-        for (Event event : events) {
-            producer.addUserRecord(config.getEventStoreStreamName(),
-                    event.project() + "|" + event.collection(), getBuffer(event));
-        }
+        ByteBuf[] byteBufs = new ByteBuf[events.size()];
 
-        producer.flushSync();
+        try {
+            for (int i = 0; i < events.size(); i++) {
+                Event event = events.get(i);
+                ByteBuf buffer = getBuffer(event);
+                producer.addUserRecord(config.getEventStoreStreamName(),
+                        event.project() + "|" + event.collection(), buffer.nioBuffer());
+                byteBufs[i] = buffer;
+            }
+
+            producer.flushSync();
+        }
+        finally {
+            for (ByteBuf byteBuf : byteBufs) {
+                if (byteBuf != null) {
+                    byteBuf.release();
+                }
+            }
+        }
     }
 
     @Override
@@ -132,8 +141,9 @@ public class AWSKinesisEventStore
     @Override
     public void store(Event event)
     {
+        ByteBuf buffer = getBuffer(event);
         try {
-            kinesis.putRecord(config.getEventStoreStreamName(), getBuffer(event),
+            kinesis.putRecord(config.getEventStoreStreamName(), buffer.nioBuffer(),
                     event.project() + "|" + event.collection());
         }
         catch (ResourceNotFoundException e) {
@@ -144,16 +154,18 @@ public class AWSKinesisEventStore
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
             }
         }
+        finally {
+            buffer.release();
+        }
     }
 
-    private ByteBuffer getBuffer(Event event)
+    private ByteBuf getBuffer(Event event)
     {
         DatumWriter writer = new FilteredRecordWriter(event.properties().getSchema(), GenericData.get());
-        KByteArrayOutputStream out = buffer.get();
+        ByteBuf buffer = DEFAULT.buffer(100);
 
-        int startPosition = out.position();
-        BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
-        out.write(0);
+        BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(
+                new ByteBufOutputStream(buffer), null);
 
         try {
             writer.write(event.properties(), encoder);
@@ -162,13 +174,52 @@ public class AWSKinesisEventStore
             throw new RuntimeException("Couldn't serialize event", e);
         }
 
-        int endPosition = out.position();
-        // TODO: find a way to make it zero-copy
+        return buffer;
+    }
 
-        if (out.remaining() < 1000) {
-            out.position(0);
+    public static class ByteBufferOutputStream
+            extends OutputStream
+    {
+        private final ByteBuffer buffer;
+
+        public ByteBufferOutputStream(ByteBuffer buffer)
+        {
+            this.buffer = buffer;
         }
 
-        return out.getBuffer(startPosition, endPosition - startPosition);
+        @Override
+        public void write(int b)
+                throws IOException
+        {
+            buffer.put((byte) b);
+        }
+
+        @Override
+        public void write(byte[] b)
+                throws IOException
+        {
+            buffer.put(b);
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len)
+                throws IOException
+        {
+            buffer.put(b, off, len);
+        }
+
+        @Override
+        public void flush()
+                throws IOException
+        {
+            super.flush();
+        }
+
+        @Override
+        public void close()
+                throws IOException
+        {
+            super.close();
+        }
     }
 }
