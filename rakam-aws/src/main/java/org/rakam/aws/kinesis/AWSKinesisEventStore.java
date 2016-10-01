@@ -163,6 +163,7 @@ public class AWSKinesisEventStore
     {
         DatumWriter writer = new FilteredRecordWriter(event.properties().getSchema(), GenericData.get());
         ByteBuf buffer = DEFAULT.buffer(100);
+        buffer.writeByte(0);
 
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(
                 new ByteBufOutputStream(buffer), null);

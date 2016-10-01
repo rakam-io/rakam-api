@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoQueryExecution.PRESTO_TIMESTAMP_FORMAT;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
@@ -120,7 +122,8 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             query = String.format("select distinct _user as id from (%s) t",
                     eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
         } else {
-            throw new RakamException("User segment must use event filters", HttpResponseStatus.BAD_GATEWAY);
+
+            throw new RakamException("User segment must have at least one event filter", BAD_REQUEST);
         }
 
         materializedViewService.create(project, new MaterializedView(tableName,
