@@ -6,6 +6,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
+import io.netty.buffer.Unpooled;
 import kafka.common.FailedToSendMessageException;
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
@@ -26,7 +29,6 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.SyncEventStore;
-import org.rakam.util.KByteArrayOutputStream;
 
 import javax.inject.Inject;
 import java.util.List;
@@ -48,13 +50,6 @@ public class KafkaEventStore implements SyncEventStore, LeaderSelectorListener {
     private final Producer<byte[], byte[]> producer;
     private final Set<String> sourceFields;
     private ScheduledExecutorService executorService;
-
-    private ThreadLocal<KByteArrayOutputStream> buffer = new ThreadLocal<KByteArrayOutputStream>() {
-        @Override
-        protected KByteArrayOutputStream initialValue() {
-            return new KByteArrayOutputStream(50000);
-        }
-    };
 
     @Inject
     public KafkaEventStore(@Named("event.store.kafka") KafkaConfig config, FieldDependencyBuilder.FieldDependency fieldDependency) {
@@ -87,10 +82,10 @@ public class KafkaEventStore implements SyncEventStore, LeaderSelectorListener {
     @Override
     public void store(Event event) {
         GenericDatumWriter writer = new SourceFilteredRecordWriter(event.properties().getSchema(), GenericData.get(), sourceFields);
-        KByteArrayOutputStream out = buffer.get();
+        ByteBuf buffer = Unpooled.buffer(100);
 
-        int startPosition = out.position();
-        BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
+        BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(
+                new ByteBufOutputStream(buffer), null);
 
         try {
             writer.write(event.properties(), encoder);
@@ -98,15 +93,8 @@ public class KafkaEventStore implements SyncEventStore, LeaderSelectorListener {
             throw new RuntimeException("Couldn't serialize event", e);
         }
 
-        int endPosition = out.position();
-        // TODO: find a way to make it zero-copy
-        byte[] copy = out.copy(startPosition, endPosition);
-
-        if(out.remaining() < 1000) {
-            out.position(0);
-        }
         try {
-            producer.send(new KeyedMessage<>(event.project()+"_"+event.collection(), copy));
+            producer.send(new KeyedMessage<>(event.project()+"_"+event.collection(), buffer.array()));
         } catch (FailedToSendMessageException e) {
             throw new RuntimeException("Couldn't send event to Kafka", e);
         }
