@@ -27,6 +27,7 @@ public class RakamUIConfig {
     private boolean enableUi = true;
     private boolean hashPassword;
     private String googleClientId;
+    private String stripeKey;
 
     @Config("ui.directory")
     public RakamUIConfig setUIDirectory(File uiDirectory) {
@@ -55,6 +56,17 @@ public class RakamUIConfig {
     public RakamUIConfig setEnableUI(boolean enableUi) {
         this.enableUi = enableUi;
         return this;
+    }
+
+    @Config("stripe.key")
+    public RakamUIConfig setStripeKey(String stripeKey) {
+        this.stripeKey = stripeKey;
+        return this;
+    }
+
+    public String getStripeKey()
+    {
+        return stripeKey;
     }
 
     public File getUIDirectory() {

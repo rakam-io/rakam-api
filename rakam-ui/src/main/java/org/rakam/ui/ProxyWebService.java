@@ -79,7 +79,7 @@ public class ProxyWebService extends HttpService {
                 ch.pipeline().addLast(sslHandler)
                         .addLast(new HttpClientCodec())
                         .addLast(new HttpContentDecompressor())
-                        .addLast(new HttpObjectAggregator(1048576))
+                        .addLast(new HttpObjectAggregator(10048576))
                         .addLast(new ProxyChannelInboundHandler());
             }
         });
@@ -90,7 +90,7 @@ public class ProxyWebService extends HttpService {
             protected void initChannel(SocketChannel ch) throws Exception {
                 ch.pipeline().addLast(new HttpClientCodec())
                         .addLast(new HttpContentDecompressor())
-                        .addLast(new HttpObjectAggregator(1048576))
+                        .addLast(new HttpObjectAggregator(10048576))
                         .addLast(new ProxyChannelInboundHandler());
             }
         });

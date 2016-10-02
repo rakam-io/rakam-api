@@ -109,6 +109,7 @@ public class WebServiceModule
                 .setHttpServices(httpServices)
                 .setWebsockerServices(webSocketServices)
                 .setSwagger(swagger)
+                .setMaximumBody(Runtime.getRuntime().maxMemory() / 10)
                 .setEventLoopGroup(eventExecutors)
                 .setSwaggerOperationProcessor((method, operation) -> {
                     ApiOperation annotation = method.getAnnotation(ApiOperation.class);

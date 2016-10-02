@@ -34,7 +34,6 @@ import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.mapper.geoip.GeoIPModule;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
@@ -50,8 +49,6 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
-import org.rakam.postgresql.PostgresqlModule;
-import org.rakam.postgresql.plugin.user.PostgresqlUserModule;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
 

@@ -68,7 +68,12 @@
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
-            <artifactId>rakam-mapper-geoip</artifactId>
+            <artifactId>rakam-mapper-geoip-maxmind</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.rakam</groupId>
+            <artifactId>rakam-mapper-geoip-ip2location</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -370,7 +375,9 @@
                             <failOnWarning>true</failOnWarning>
 
                             <ignoredUnusedDeclaredDependencies>
-                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip-maxmind
+                                </ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip-ip2location
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>com.getsentry.raven:raven
                                 </ignoredUnusedDeclaredDependency>

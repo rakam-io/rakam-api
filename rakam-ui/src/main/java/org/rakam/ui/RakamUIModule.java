@@ -31,6 +31,7 @@ import org.rakam.ui.page.JDBCCustomPageDatabase;
 import org.rakam.ui.report.Report;
 import org.rakam.ui.report.ReportHttpService;
 import org.rakam.ui.report.UIRecipeHttpService;
+import org.rakam.ui.user.UserSubscriptionHttpService;
 import org.rakam.ui.user.WebUserHttpService;
 import org.rakam.util.ConditionalModule;
 import org.skife.jdbi.v2.DBI;
@@ -71,7 +72,6 @@ public class RakamUIModule
             }
         }
 
-
         Multibinder<CustomParameter> customParameters = Multibinder.newSetBinder(binder, CustomParameter.class);
         customParameters.addBinding().toProvider(UIPermissionParameterProvider.class);
 
@@ -99,6 +99,9 @@ public class RakamUIModule
         httpServices.addBinding().to(RakamUIWebService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);
+        if (rakamUIConfig.getStripeKey() != null) {
+            httpServices.addBinding().to(UserSubscriptionHttpService.class);
+        }
     }
 
     @Override

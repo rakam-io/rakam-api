@@ -105,7 +105,7 @@ public class CsvEventDeserializer
                     continue;
                 default:
                     if (idx >= indexes.length) {
-                        throw new RakamException(String.format("Table has %d columns but CSV has more than %d columns", indexes.length, indexes.length), HttpResponseStatus.BAD_REQUEST);
+                        throw new RakamException(String.format("Table has %d columns but csv file has more than %d columns", indexes.length, indexes.length), HttpResponseStatus.BAD_REQUEST);
                     }
                     record.put(indexes[idx], getValue(types.get(idx), jp));
                     idx += 1;

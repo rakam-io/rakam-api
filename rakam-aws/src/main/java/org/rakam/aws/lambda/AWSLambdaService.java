@@ -105,9 +105,4 @@ public class AWSLambdaService
         }
     }
 
-//
-//    public static class TaskDefinition {
-//        public final String description;
-//        public final Duration duration;
-//    }
 }

@@ -124,6 +124,19 @@ public class WebUserService
         }
     }
 
+    public void setStripeId(int userId, String stripeId)
+    {
+        try (Handle handle = dbi.open()) {
+            int execute = handle
+                    .createStatement("UPDATE web_user SET stripe_id = :stripeId WHERE id = :userId")
+                    .bind("stripeId", stripeId)
+                    .bind("userId", userId).execute();
+            if (execute != 1) {
+                throw new IllegalStateException();
+            }
+        }
+    }
+
     public static class ProjectConfiguration
     {
         public final String timezone;
@@ -642,6 +655,15 @@ public class WebUserService
             projectDefinitions = getUserApiKeys(handle, id);
             return Optional.of(new WebUser(id, email, name,
                     (Boolean) data.get("read_only"), projectDefinitions));
+        }
+    }
+
+    public String getUserStripeId(int id)
+    {
+        try (Handle handle = dbi.open()) {
+            return handle
+                    .createQuery("SELECT stripe_id FROM web_user WHERE id = :id")
+                    .bind("id", id).map(StringMapper.FIRST).first();
         }
     }
 
