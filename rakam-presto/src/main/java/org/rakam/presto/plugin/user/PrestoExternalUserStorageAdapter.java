@@ -87,7 +87,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         if (eventFilter != null && !eventFilter.isEmpty()) {
             query = String.format("select distinct _user as %s from (%s) ",
                     config.getIdentifierColumn(),
-                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), checkCollection(f.collection)))
+                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), checkCollection(f.collection)))
                             .collect(Collectors.joining(" union all ")));
         } else {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project)
@@ -120,7 +120,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         String query;
         if (filterExpression == null) {
             query = String.format("select distinct _user as id from (%s) t",
-                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
+                    eventFilter.stream().map(f -> String.format(getEventFilterQuery(project, f), f.collection)).collect(Collectors.joining(" UNION ALL ")));
         } else {
 
             throw new RakamException("User segment must have at least one event filter", BAD_REQUEST);
@@ -139,11 +139,11 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     @Override
     public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter) {
         return eventFilter.stream().map(f -> String.format("id in (%s)",
-                String.format(getEventFilterQuery(f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty()))))
+                String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty()))))
                 .collect(Collectors.toList());
     }
 
-    public String getEventFilterQuery(EventFilter filter) {
+    public String getEventFilterQuery(String project, EventFilter filter) {
         StringBuilder builder = new StringBuilder();
 
         builder.append("select ")
@@ -167,7 +167,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
             }
         }
 
-        if (config.getEnableUserMapping()) {
+        if (config.getEnableUserMapping() && getHasDeviceId(project, filter.collection)) {
             // mapping.created_at <= max and mapping.merged_at > min
             builder.append(String.format(" left join %s mapping on (collection._user is null and mapping.id = collection._device_id)",
                     checkCollection(ANONYMOUS_ID_MAPPING)));
@@ -209,6 +209,12 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
         }
 
         return builder.toString();
+    }
+
+    private boolean getHasDeviceId(String project, String collection)
+    {
+        return metastore.getCollection(project, collection).stream()
+                .anyMatch(f -> f.getName().equals("_device_id"));
     }
 
     @Override

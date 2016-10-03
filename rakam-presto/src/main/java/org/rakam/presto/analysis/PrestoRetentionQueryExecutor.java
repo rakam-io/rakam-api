@@ -200,7 +200,7 @@ public class PrestoRetentionQueryExecutor
                     dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
                     collections.entrySet().stream()
                             .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
-                            .map(collection -> getTableSubQuery(collection.getKey(), connectorField,
+                            .map(collection -> getTableSubQuery(collection.getValue().stream().anyMatch(e -> e.getName().equals("_device_id")), collection.getKey(), connectorField,
                                     Optional.of(isText),
                                     timeColumn, dimension, startDate, endDate, Optional.empty()))
                             .collect(Collectors.joining(" union all ")), dimension.isPresent() ? ", 2" : "");
@@ -217,7 +217,9 @@ public class PrestoRetentionQueryExecutor
 
             return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
                     dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
-                    getTableSubQuery(collection, connectorField, Optional.empty(),
+                    getTableSubQuery(
+                            metastore.getCollection(project, collection).stream().anyMatch(e -> e.getName().equals("_device_id")),
+                            collection, connectorField, Optional.empty(),
                             timeColumn, dimension, startDate, endDate, retentionAction.get().filter()), dimension.isPresent() ? ", 2" : "");
         }
     }
@@ -280,7 +282,9 @@ public class PrestoRetentionQueryExecutor
                 dateUnit.name().toLowerCase(), start, end);
     }
 
-    protected String getTableSubQuery(String collection,
+    protected String getTableSubQuery(
+            boolean mappingEnabled,
+            String collection,
             String connectorField,
             Optional<Boolean> isText,
             String timeColumn,
@@ -296,9 +300,9 @@ public class PrestoRetentionQueryExecutor
         return format("select %s as date, %s %s from %s as data %s where data._time %s %s",
                 String.format(timeColumn, "data._time"),
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "data.dimension", '"') + " as dimension, " : "",
-                userMappingEnabled ? String.format("(case when data.%s is not null then data.%s else coalesce(mapping._user, data._device_id) end) as %s", userField, userField, userField) : ("data." + userField),
+                (userMappingEnabled && mappingEnabled) ? String.format("(case when data.%s is not null then data.%s else coalesce(mapping._user, data._device_id) end) as %s", userField, userField, userField) : ("data." + userField),
                 checkCollection(collection),
-                userMappingEnabled ? String.format("left join %s mapping on (data._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
+                (userMappingEnabled && mappingEnabled) ? String.format("left join %s mapping on (data._user is null and mapping.created_at >= date '%s' and mapping.merged_at <= date '%s' and mapping.id = data._user)",
                         checkCollection(ANONYMOUS_ID_MAPPING), startDate.format(ISO_LOCAL_DATE), endDate.format(ISO_LOCAL_DATE)) : "",
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {
