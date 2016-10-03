@@ -126,7 +126,9 @@ public class RetentionAnalyzerHttpService
             this.startDate = startDate;
             this.endDate = endDate;
             try {
-                this.timezone = Optional.ofNullable(ZoneId.of(timezone)).orElse(ZoneOffset.UTC);
+                this.timezone = Optional.ofNullable(timezone)
+                        .map(t -> ZoneId.of(t))
+                        .orElse(ZoneOffset.UTC);
             }
             catch (Exception e) {
                 throw new RakamException("Timezone is invalid", HttpResponseStatus.BAD_REQUEST);

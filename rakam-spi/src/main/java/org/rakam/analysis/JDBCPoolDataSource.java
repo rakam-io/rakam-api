@@ -68,7 +68,7 @@ public class JDBCPoolDataSource
     public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config)
     {
         return pools.computeIfAbsent(config,
-                key -> new JDBCPoolDataSource(config, Optional.empty()));
+                   key -> new JDBCPoolDataSource(config, Optional.empty()));
     }
 
     @Override
