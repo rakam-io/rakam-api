@@ -8,8 +8,10 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.postgresql.util.PGobject;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventStore;
@@ -52,7 +54,7 @@ public class PostgresqlEventStore
     public static final Calendar UTC_CALENDAR = Calendar.getInstance(TimeZone.getTimeZone(ZoneId.of("UTC")));
 
     @Inject
-    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, FieldDependencyBuilder.FieldDependency fieldDependency)
+    public PostgresqlEventStore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, FieldDependency fieldDependency)
     {
         this.connectionPool = connectionPool;
         this.sourceFields = fieldDependency.dependentFields.keySet();
@@ -85,13 +87,15 @@ public class PostgresqlEventStore
                 connection.setAutoCommit(false);
                 // last event must have the last schema
                 List<Event> eventsForCollection = entry.getValue();
-                Event lastEvent = eventsForCollection.get(eventsForCollection.size() - 1);
+                Event lastEvent = getLastEvent(eventsForCollection);
+
                 PreparedStatement ps = connection.prepareStatement(getQuery(lastEvent.project(),
                         entry.getKey(), lastEvent.properties().getSchema()));
 
                 for (int i = 0; i < eventsForCollection.size(); i++) {
                     Event event = eventsForCollection.get(i);
-                    bindParam(connection, ps, event.schema(), event.properties());
+                    GenericRecord properties = event.properties();
+                    bindParam(connection, ps, event.schema(), properties);
                     ps.addBatch();
                     if (i > 0 && i % 5000 == 0) {
                         ps.executeBatch();
@@ -124,6 +128,19 @@ public class PostgresqlEventStore
                         groupedByCollection.get(event.collection()).indexOf(event) > checkpointPosition;
             }).toArray();
         }
+    }
+
+    // get the event with the last schema
+    private Event getLastEvent(List<Event> eventsForCollection)
+    {
+        Event event = eventsForCollection.get(0);
+        for (int i = 1; i < eventsForCollection.size(); i++) {
+            Event newEvent = eventsForCollection.get(i);
+            if (newEvent.schema().size() > event.schema().size()) {
+                event = newEvent;
+            }
+        }
+        return event;
     }
 
     private void bindParam(Connection connection, PreparedStatement ps, List<SchemaField> fields, GenericRecord record)
