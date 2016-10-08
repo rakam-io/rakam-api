@@ -18,6 +18,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Random;
 
 public final class CryptUtil {
@@ -48,6 +49,21 @@ public final class CryptUtil {
             byte[] rawHmac = mac.doFinal(data.getBytes("UTF-8"));
 
             return DatatypeConverter.printBase64Binary(rawHmac);
+        } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    public static String encryptToHex(String data, String secret, String hashType) {
+        try {
+            SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), hashType);
+
+            Mac mac = Mac.getInstance(hashType);
+            mac.init(signingKey);
+
+            byte[] rawHmac = mac.doFinal(data.getBytes("UTF-8"));
+
+            return DatatypeConverter.printHexBinary(rawHmac).toLowerCase(Locale.ENGLISH);
         } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }

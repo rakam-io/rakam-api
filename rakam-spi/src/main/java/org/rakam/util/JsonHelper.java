@@ -1,5 +1,6 @@
 package org.rakam.util;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -36,6 +37,7 @@ public class JsonHelper {
         prettyMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
         mapper.registerModule(new JSR310Module());
         mapper.registerModule(new Jdk8Module());
+        mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
 
         SwaggerJacksonAnnotationIntrospector ai = new SwaggerJacksonAnnotationIntrospector();
 

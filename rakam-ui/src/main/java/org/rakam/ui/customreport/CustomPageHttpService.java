@@ -65,17 +65,11 @@ public class CustomPageHttpService
         extends HttpService
 {
     private final Optional<CustomPageDatabase> database;
-    private final EncryptionConfig encryptionConfig;
-    private final WebUserService webUserService;
 
     @Inject
-    public CustomPageHttpService(Optional<CustomPageDatabase> database,
-            WebUserService webUserService,
-            EncryptionConfig encryptionConfig)
+    public CustomPageHttpService(Optional<CustomPageDatabase> database)
     {
         this.database = database;
-        this.webUserService = webUserService;
-        this.encryptionConfig = encryptionConfig;
     }
 
     @Path("/frame")

@@ -1,6 +1,5 @@
 package org.rakam.collection;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -39,11 +38,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 import static com.fasterxml.jackson.core.JsonToken.END_ARRAY;
 import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
-import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -84,7 +81,8 @@ public class JsonEventDeserializer
     public Event deserialize(JsonParser jp, DeserializationContext ctx)
             throws IOException
     {
-        return deserializeWithProject(jp, null, null);
+        Object project = ctx.getAttribute("project");
+        return deserializeWithProject(jp, project != null ? project.toString() : null, null);
     }
 
     public Event deserializeWithProject(JsonParser jp, String project, EventContext api)
@@ -122,6 +120,9 @@ public class JsonEventDeserializer
                     }
                     else {
                         if (project == null) {
+                            if (api.apiKey == null) {
+                                throw new RakamException("api.api_key is null", BAD_REQUEST);
+                            }
                             project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                         }
 
@@ -343,7 +344,7 @@ public class JsonEventDeserializer
         }
 
         if (jp.getCurrentToken().isScalarValue() && !passInitialToken) {
-            if(jp.getCurrentToken() == VALUE_NULL) {
+            if (jp.getCurrentToken() == VALUE_NULL) {
                 return null;
             }
 
@@ -451,7 +452,8 @@ public class JsonEventDeserializer
             else {
                 if (type == FieldType.STRING) {
                     return JsonHelper.encode(jp.readValueAs(TokenBuffer.class));
-                } else {
+                }
+                else {
                     throw new JsonMappingException(String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
                 }
             }

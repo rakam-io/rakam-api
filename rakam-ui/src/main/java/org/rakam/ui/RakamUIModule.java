@@ -97,6 +97,7 @@ public class RakamUIModule
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(RakamUIWebService.class);
+        httpServices.addBinding().to(WebHookUIHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);
         if (rakamUIConfig.getStripeKey() != null) {

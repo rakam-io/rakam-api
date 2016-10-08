@@ -24,7 +24,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
@@ -92,6 +91,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.plugin.EventStore.CopyType.AVRO;
@@ -259,8 +259,7 @@ public class EventCollectionHttpService
             }
 
             if (cookies != null) {
-                response.headers().add(HttpHeaders.Names.SET_COOKIE,
-                        ServerCookieEncoder.STRICT.encode(cookies));
+                response.headers().add(SET_COOKIE, STRICT.encode(cookies));
             }
             String headerList = getHeaderList(response.headers().iterator());
             if (headerList != null) {
@@ -694,7 +693,7 @@ public class EventCollectionHttpService
             }
 
             if (entries != null) {
-                responseHeaders.add(HttpHeaders.Names.SET_COOKIE, ServerCookieEncoder.STRICT.encode(entries));
+                responseHeaders.add(SET_COOKIE, STRICT.encode(entries));
             }
 
             String headerList = getHeaderList(responseHeaders.iterator());

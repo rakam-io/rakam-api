@@ -72,6 +72,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.ExpressionFormatter.formatStringLiteral;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -124,7 +125,16 @@ public final class RakamSqlFormatter {
 
         @Override
         protected Void visitUnnest(Unnest node, Integer indent) {
-            builder.append(node.toString());
+            builder.append("UNNEST(");
+
+            builder.append(node.getExpressions().stream().map(e ->
+                    formatExpression(e, tableNameMapper, columnNameMapper,
+                            escapeIdentifier)).collect(Collectors.joining(", ")));
+            builder.append(")");
+
+            if(node.isWithOrdinality()) {
+                builder.append(" WITH ORDINALITY");
+            }
             return null;
         }
 

@@ -1,5 +1,6 @@
 package org.rakam.aws.lambda;
 
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.lambda.AWSLambdaClient;
 import com.amazonaws.services.lambda.model.CreateFunctionRequest;
 import com.amazonaws.services.lambda.model.FunctionCode;
@@ -24,6 +25,11 @@ public class AWSLambdaService
     private final AWSLambdaClient client;
     private final AWSLambdaConfig awsLambdaConfig;
     private final AmazonS3Client awsS3Client;
+
+    public static void main(String[] args)
+    {
+        new AWSLambdaService(new AWSConfig(), new AWSLambdaConfig());
+    }
 
     @Inject
     public AWSLambdaService(AWSConfig awsConfig, AWSLambdaConfig awsLambdaConfig)
