@@ -2,6 +2,7 @@ package org.rakam.presto.analysis;
 
 import com.facebook.presto.jdbc.internal.client.ClientSession;
 import com.facebook.presto.raptor.metadata.MetadataDao;
+import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.block.Block;
@@ -26,10 +27,10 @@ import org.rakam.report.QueryResult;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.TransactionStatus;
+import org.skife.jdbi.v2.exceptions.DBIException;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.annotation.PostConstruct;
@@ -50,14 +51,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.raptor.metadata.DatabaseShardManager.maxColumn;
+import static com.facebook.presto.raptor.metadata.DatabaseShardManager.minColumn;
+import static com.facebook.presto.raptor.metadata.DatabaseShardManager.shardIndexTable;
+import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
-import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public class PrestoMetastore
         extends AbstractMetastore
@@ -122,7 +127,8 @@ public class PrestoMetastore
         String query;
         List<SchemaField> schemaFields = getCollection(project, collection);
         List<SchemaField> lastFields;
-        if (schemaFields.isEmpty() && dao.getTableInformation(project, collection) == null) {
+        Table tableInformation = dao.getTableInformation(project, collection);
+        if (schemaFields.isEmpty() && tableInformation == null) {
             List<SchemaField> currentFields = new ArrayList<>();
 
             if (!getProjects().contains(project)) {
@@ -170,17 +176,15 @@ public class PrestoMetastore
                     .filter(field -> schemaFields.stream().noneMatch(f -> f.getName().equals(field.getName())))
                     .forEach(f -> {
                         newFields.add(f);
-                        String q = format("ALTER TABLE %s.%s.%s ADD COLUMN %s %s",
-                                prestoConfig.getColdStorageConnector(), project, checkCollection(collection),
-                                checkTableColumn(f.getName()), toSql(f.getType()));
-                        QueryResult join = new PrestoQueryExecution(defaultSession, q).getResult().join();
-                        if (join.isFailed()) {
-                            // FIXME: Presto Raptor connector has a bug when new columns are added concurrently.
-                            if (join.getError().message.equals("Failed to perform metadata operation")) {
+                        try {
+                            addColumn(tableInformation, project, collection, f.getName(), f.getType());
+                        }
+                        catch (Exception e) {
+                            if (e.getMessage().equals("Failed to perform metadata operation")) {
                                 getOrCreateCollectionFields(project, collection, ImmutableSet.of(f), 1);
                             }
-                            else if (!join.getError().message.contains("exists")) {
-                                throw new IllegalStateException(join.getError().message);
+                            else if (!e.getMessage().contains("exists")) {
+                                throw new IllegalStateException(e.getMessage());
                             }
                         }
                     });
@@ -190,6 +194,51 @@ public class PrestoMetastore
 
         super.onCreateCollection(project, collection, schemaFields);
         return lastFields;
+    }
+
+    private void addColumn(Table table, String schema, String tableName, String columnName, FieldType fieldType)
+    {
+        List<TableColumn> existingColumns = dao.listTableColumns(schema, tableName);
+        TableColumn lastColumn = existingColumns.get(existingColumns.size() - 1);
+        long columnId = lastColumn.getColumnId() + 1;
+        int ordinalPosition = existingColumns.size();
+
+        String type = TypeSignature.parseTypeSignature(toSql(fieldType)).toString();
+
+        dao.insertColumn(table.getTableId(), columnId, columnName, ordinalPosition, type, null, null);
+
+        String columnType = sqlColumnType(fieldType);
+        if (columnType == null) {
+            return;
+        }
+
+        String sql = format("ALTER TABLE %s ADD COLUMN (%s %s, %s %s)",
+                shardIndexTable(table.getTableId()),
+                minColumn(columnId), columnType,
+                maxColumn(columnId), columnType);
+
+        try (Handle handle = dbi.open()) {
+            handle.execute(sql);
+        }
+        catch (DBIException e) {
+            throw metadataError(e);
+        }
+    }
+
+    private static String sqlColumnType(FieldType type)
+    {
+        switch (type) {
+            case BOOLEAN:
+                return "boolean";
+            case LONG:
+                return "bigint";
+            case DOUBLE:
+                return "double";
+            case INTEGER:
+                return "int";
+        }
+
+        return null;
     }
 
     @Override
