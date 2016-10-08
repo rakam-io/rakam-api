@@ -89,6 +89,7 @@ public class ProjectHttpService
     @Path("/delete")
     public SuccessMessage deleteProject(@Named("project") String project)
     {
+        // TODO: we don't really want to delete project data.
         if (true) {
             return SuccessMessage.success();
         }
@@ -144,8 +145,12 @@ public class ProjectHttpService
     @GET
     @JsonRequest
     @Path("/list")
-    public Set<String> getProjects()
+    public Set<String> getProjects(@ApiParam(value = "lock_key", required = false) String lockKey)
     {
+        if (!Objects.equals(projectConfig.getLockKey(), lockKey)) {
+            throw new RakamException("Lock key is invalid", FORBIDDEN);
+        }
+
         return metastore.getProjects();
     }
 
