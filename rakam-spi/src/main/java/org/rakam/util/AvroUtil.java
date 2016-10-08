@@ -14,7 +14,6 @@
 package org.rakam.util;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
 import org.codehaus.jackson.node.NullNode;

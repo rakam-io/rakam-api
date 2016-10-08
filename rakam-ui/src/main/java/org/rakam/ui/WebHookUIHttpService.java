@@ -1,8 +1,9 @@
 package org.rakam.ui;
 
-import org.codehaus.jackson.annotate.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.IgnoreApi;
@@ -18,7 +19,7 @@ import javax.ws.rs.Path;
 import java.util.List;
 
 @IgnoreApi
-@Path("/ui/webhook")
+@Api(value = "/ui/webhook")
 public class WebHookUIHttpService
         extends HttpService
 {
