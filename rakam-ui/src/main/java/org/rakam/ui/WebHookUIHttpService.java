@@ -19,6 +19,7 @@ import javax.ws.rs.Path;
 import java.util.List;
 
 @IgnoreApi
+@Path("/ui/webhook")
 @Api(value = "/ui/webhook")
 public class WebHookUIHttpService
         extends HttpService
