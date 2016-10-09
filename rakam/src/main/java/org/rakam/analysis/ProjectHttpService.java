@@ -142,7 +142,6 @@ public class ProjectHttpService
     @ApiOperation(value = "List created projects",
             authorizations = @Authorization(value = "read_key")
     )
-    @GET
     @JsonRequest
     @Path("/list")
     public Set<String> getProjects(@ApiParam(value = "lock_key", required = false) String lockKey)
