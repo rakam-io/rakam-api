@@ -602,8 +602,8 @@ public class EventCollectionHttpService
                         }
                         catch (Exception e) {
                             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
-                            LOGGER.error(new RuntimeException("Error executing EventStore " + (single ? "store" : "batch") + " method: " + sample, e),
-                                    "Error while storing event.");
+                            LOGGER.error("Error executing EventStore " + (single ? "store" : "batch") + " method.",
+                                    new RuntimeException(sample.toString(), e));
                             return completedFuture(new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                     Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
                                     responseHeaders));

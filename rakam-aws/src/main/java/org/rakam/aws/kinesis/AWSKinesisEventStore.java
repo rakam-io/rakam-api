@@ -6,18 +6,13 @@ import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.avro.generic.FilteredRecordWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.util.ByteBufferOutputStream;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.aws.AWSConfig;
 import org.rakam.aws.s3.S3BulkEventStore;
@@ -31,12 +26,8 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
-import java.io.IOException;
-import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 
 import static io.netty.buffer.PooledByteBufAllocator.DEFAULT;
@@ -141,6 +132,11 @@ public class AWSKinesisEventStore
     @Override
     public void store(Event event)
     {
+        store(event, 3);
+    }
+
+    public void store(Event event, int tryCount)
+    {
         ByteBuf buffer = getBuffer(event);
         try {
             kinesis.putRecord(config.getEventStoreStreamName(), buffer.nioBuffer(),
@@ -153,6 +149,12 @@ public class AWSKinesisEventStore
             catch (Exception e1) {
                 throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
             }
+        }
+        catch (Exception e) {
+            if (tryCount == 0) {
+                throw e;
+            }
+            store(event, tryCount - 1);
         }
         finally {
             buffer.release();
@@ -176,51 +178,5 @@ public class AWSKinesisEventStore
         }
 
         return buffer;
-    }
-
-    public static class ByteBufferOutputStream
-            extends OutputStream
-    {
-        private final ByteBuffer buffer;
-
-        public ByteBufferOutputStream(ByteBuffer buffer)
-        {
-            this.buffer = buffer;
-        }
-
-        @Override
-        public void write(int b)
-                throws IOException
-        {
-            buffer.put((byte) b);
-        }
-
-        @Override
-        public void write(byte[] b)
-                throws IOException
-        {
-            buffer.put(b);
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len)
-                throws IOException
-        {
-            buffer.put(b, off, len);
-        }
-
-        @Override
-        public void flush()
-                throws IOException
-        {
-            super.flush();
-        }
-
-        @Override
-        public void close()
-                throws IOException
-        {
-            super.close();
-        }
     }
 }
