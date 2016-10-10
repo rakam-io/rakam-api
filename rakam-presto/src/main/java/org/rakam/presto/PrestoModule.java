@@ -70,6 +70,11 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
+import static org.rakam.report.realtime.AggregationType.APPROXIMATE_UNIQUE;
+import static org.rakam.report.realtime.AggregationType.COUNT;
+import static org.rakam.report.realtime.AggregationType.MAXIMUM;
+import static org.rakam.report.realtime.AggregationType.MINIMUM;
+import static org.rakam.report.realtime.AggregationType.SUM;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "store.adapter", value = "presto")
@@ -97,11 +102,7 @@ public class PrestoModule extends RakamModule {
         binder.bind(ApiKeyService.class).toInstance(new JDBCApiKeyService(metadataDataSource));
         binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeAggregations.class)
                 .toInstance(ImmutableList.of(
-                        AggregationType.COUNT,
-                AggregationType.SUM,
-                AggregationType.MINIMUM,
-                AggregationType.MAXIMUM,
-                AggregationType.APPROXIMATE_UNIQUE));
+                        COUNT, SUM, MINIMUM, MAXIMUM, APPROXIMATE_UNIQUE));
 
         binder.bind(RealtimeService.class).to(PrestoRealtimeService.class);
 

@@ -60,6 +60,7 @@ import static com.facebook.presto.spi.type.ParameterKind.TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static java.util.Locale.ENGLISH;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -91,7 +92,7 @@ public class PrestoMetastore
                 prestoConfig.getColdStorageConnector(),
                 "default",
                 TimeZone.getTimeZone(ZoneOffset.UTC).getID(),
-                Locale.ENGLISH,
+                ENGLISH,
                 ImmutableMap.<String, String>of(),
                 null,
                 false, new com.facebook.presto.jdbc.internal.airlift.units.Duration(1, TimeUnit.MINUTES));
@@ -203,7 +204,7 @@ public class PrestoMetastore
         long columnId = lastColumn.getColumnId() + 1;
         int ordinalPosition = existingColumns.size();
 
-        String type = TypeSignature.parseTypeSignature(toSql(fieldType)).toString();
+        String type = TypeSignature.parseTypeSignature(toSql(fieldType)).toString().toLowerCase(ENGLISH);
 
         dao.insertColumn(table.getTableId(), columnId, columnName, ordinalPosition, type, null, null);
 
