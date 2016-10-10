@@ -249,12 +249,9 @@ public class ProjectHttpService
     }
 
     @JsonRequest
-    @ApiOperation(value = "Revoke API Keys",
-            authorizations = @Authorization(value = "master_key"))
-
+    @ApiOperation(value = "Revoke API Keys")
     @Path("/revoke-api-keys")
-    @DELETE
-    public SuccessMessage revokeApiKeys(@Named("project") String project, @HeaderParam("master_key") String masterKey)
+    public SuccessMessage revokeApiKeys(@ApiParam("project") String project, @ApiParam("master_key") String masterKey)
     {
         apiKeyService.revokeApiKeys(project, masterKey);
         return SuccessMessage.success();
