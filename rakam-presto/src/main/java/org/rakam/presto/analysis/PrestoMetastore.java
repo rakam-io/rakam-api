@@ -36,13 +36,13 @@ import org.skife.jdbi.v2.util.StringMapper;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import java.sql.JDBCType;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 import static com.facebook.presto.raptor.metadata.DatabaseShardManager.maxColumn;
 import static com.facebook.presto.raptor.metadata.DatabaseShardManager.minColumn;
 import static com.facebook.presto.raptor.metadata.DatabaseShardManager.shardIndexTable;
+import static com.facebook.presto.raptor.storage.ShardStats.MAX_BINARY_INDEX_SIZE;
 import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
@@ -228,17 +229,45 @@ public class PrestoMetastore
 
     private static String sqlColumnType(FieldType type)
     {
-        switch (type) {
-            case BOOLEAN:
-                return "boolean";
-            case LONG:
-                return "bigint";
-            case DOUBLE:
-                return "double";
-            case INTEGER:
-                return "int";
+        JDBCType jdbcType = jdbcType(type);
+        if (jdbcType != null) {
+            switch (type) {
+                case BOOLEAN:
+                    return "boolean";
+                case LONG:
+                    return "bigint";
+                case DOUBLE:
+                    return "double";
+                case INTEGER:
+                    return "int";
+                case BINARY:
+                    return format("varbinary(%s)", MAX_BINARY_INDEX_SIZE);
+            }
         }
 
+        return null;
+    }
+
+    public static JDBCType jdbcType(FieldType type)
+    {
+        if (type.equals(FieldType.BOOLEAN)) {
+            return JDBCType.BOOLEAN;
+        }
+        if (type.equals(FieldType.LONG) || type.equals(FieldType.TIMESTAMP)) {
+            return JDBCType.BIGINT;
+        }
+        if (type.equals(FieldType.INTEGER)) {
+            return JDBCType.INTEGER;
+        }
+        if (type.equals(FieldType.DOUBLE)) {
+            return JDBCType.DOUBLE;
+        }
+        if (type.equals(FieldType.DATE)) {
+            return JDBCType.INTEGER;
+        }
+        if (type.equals(FieldType.STRING)) {
+            return JDBCType.VARBINARY;
+        }
         return null;
     }
 

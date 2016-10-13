@@ -168,7 +168,9 @@ public class WebHookHttpService
                 //                "readLine = function() {};\n" +
                 //                "load = function() {};\n" +
                 "loadWithNewGlobal = function() {};\n" +
-                "var scoped = function(queryParams, body) { return JSON.stringify(module(queryParams, body, " + params + "))};\n" +
+                "var scoped = function(queryParams, body) { \n" +
+                "   return JSON.stringify(module(queryParams, JSON.parse(body), " + params + ")); \n" +
+                "};\n" +
                 "");
 
         return engine;
@@ -317,15 +319,15 @@ public class WebHookHttpService
             throw new RakamException("Unable to compile JS code", INTERNAL_SERVER_ERROR);
         }
 
-        handleFunction(request, project, () -> {
+        Future<Object> f = executor.submit(() -> {
             try {
                 Object finalBody;
                 if (APPLICATION_JSON.equals(contentType)) {
-                    finalBody = JsonHelper.read(body.toString());
+                    finalBody = body;
                 }
                 else if (APPLICATION_FORM_URLENCODED.equals(contentType)) {
                     QueryStringDecoder decoder = new QueryStringDecoder(body.toString(), false);
-                    finalBody = decoder.parameters();
+                    finalBody = JsonHelper.encode(decoder.parameters());
                 }
                 else {
                     finalBody = body;
@@ -334,7 +336,7 @@ public class WebHookHttpService
                         Optional.ofNullable(params).orElse(ImmutableMap.of()),
                         finalBody);
                 if (scoped == null) {
-                    request.response("1", NO_CONTENT).end();
+                    request.response(script, NO_CONTENT).end();
                 }
                 return scoped;
             }
@@ -349,7 +351,31 @@ public class WebHookHttpService
             }
 
             return null;
-        }, false);
+        });
+
+        f.addListener(new FutureListener<Object>()
+        {
+
+            @Override
+            public void operationComplete(Future<Object> future)
+                    throws Exception
+            {
+                if (future.await(1, TimeUnit.SECONDS)) {
+                    Object body = future.getNow();
+                    if (body == null) {
+                        return;
+                    }
+
+                    request.response(body.toString()).end();
+                }
+                else {
+                    byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
+                            INTERNAL_SERVER_ERROR));
+
+                    request.response(bytes, INTERNAL_SERVER_ERROR).end();
+                }
+            }
+        });
     }
 
     private void handleFunction(RakamHttpRequest request, String project, Callable<Object> callable, boolean store)

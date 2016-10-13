@@ -45,6 +45,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -76,7 +77,8 @@ public class PrestoQueryExecution
     private static final JettyHttpClient HTTP_CLIENT = new JettyHttpClient(
             new HttpClientConfig()
                     .setConnectTimeout(new Duration(10, SECONDS))
-                    .setSocksProxy(getSystemSocksProxy()), new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
+                    .setSocksProxy(getSystemSocksProxy()),
+            new JettyIoPool("presto-jdbc", new JettyIoPoolConfig()),
             ImmutableSet.of(new UserAgentRequestFilter("rakam")));
 
     private static final ThreadPoolExecutor QUERY_EXECUTOR = new ThreadPoolExecutor(0, 60,
@@ -99,7 +101,13 @@ public class PrestoQueryExecution
     {
         this.startTime = Instant.now();
         this.query = query;
-        QUERY_EXECUTOR.execute(new QueryTracker(session));
+        try {
+            QUERY_EXECUTOR.execute(new QueryTracker(session));
+        }
+        catch (RejectedExecutionException e) {
+            // TODO: make this configurable and optional
+            throw new RakamException("There are already 60 running queries. Please calm down.", HttpResponseStatus.TOO_MANY_REQUESTS);
+        }
     }
 
     public static FieldType fromPrestoType(String rawType, Iterator<String> parameter)

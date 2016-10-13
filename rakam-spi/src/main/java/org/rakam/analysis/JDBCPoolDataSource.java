@@ -11,7 +11,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -75,8 +74,8 @@ public class JDBCPoolDataSource
     public Connection getConnection()
             throws SQLException
     {
-//        return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
-        return dataSource.getConnection();
+        return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+//        return dataSource.getConnection();
     }
 
     @Override

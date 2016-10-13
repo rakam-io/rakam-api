@@ -31,11 +31,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static org.rakam.report.realtime.AggregationType.COUNT;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
-
-public interface EventExplorer {
+public interface EventExplorer
+{
 
     QueryExecution analyze(String project, List<String> collections, Measure measureType, Reference grouping, Reference segment, String filterExpression, Instant startDate, Instant endDate);
 
@@ -43,15 +44,18 @@ public interface EventExplorer {
 
     Map<String, List<String>> getExtraDimensions(String project);
 
-    default String getIntermediateForApproximateUniqueFunction() {
+    default String getIntermediateForApproximateUniqueFunction()
+    {
         throw new UnsupportedOperationException();
     }
 
-    default String getFinalForApproximateUniqueFunction() {
+    default String getFinalForApproximateUniqueFunction()
+    {
         throw new UnsupportedOperationException();
     }
 
-    enum TimestampTransformation {
+    enum TimestampTransformation
+    {
         HOUR_OF_DAY("Date category", "Hour of day"),
         DAY_OF_MONTH("Date category", "Day of month"),
         WEEK_OF_YEAR("Date category", "Week of year"),
@@ -67,27 +71,37 @@ public interface EventExplorer {
         private final String prettyName;
         private final String category;
 
-        TimestampTransformation(String category, String name) {
+        TimestampTransformation(String category, String name)
+        {
             this.prettyName = name;
             this.category = category;
         }
 
         @JsonCreator
-        public static TimestampTransformation fromString(String key) {
-            return key == null ? null : valueOf(key.toUpperCase());
+        public static TimestampTransformation fromString(String key)
+        {
+            try {
+                return key == null ? null : valueOf(key.toUpperCase());
+            }
+            catch (IllegalArgumentException e) {
+                throw new RakamException("Invalid date range value: " + key, BAD_REQUEST);
+            }
         }
 
-        public String getPrettyName() {
+        public String getPrettyName()
+        {
             return prettyName;
         }
 
-        public String getCategory() {
+        public String getCategory()
+        {
             return category;
         }
 
-        public static Optional<TimestampTransformation> fromPrettyName(String name) {
+        public static Optional<TimestampTransformation> fromPrettyName(String name)
+        {
             for (TimestampTransformation transformation : values()) {
-                if(transformation.getPrettyName().equals(name)) {
+                if (transformation.getPrettyName().equals(name)) {
                     return Optional.of(transformation);
                 }
             }
@@ -95,14 +109,16 @@ public interface EventExplorer {
         }
     }
 
-    class Measure {
+    class Measure
+    {
         public final String column;
         public final AggregationType aggregation;
 
         @JsonCreator
         public Measure(@JsonProperty("column") String column,
-                       @JsonProperty("aggregation") AggregationType aggregation) {
-            if(column == null && aggregation != COUNT) {
+                @JsonProperty("aggregation") AggregationType aggregation)
+        {
+            if (column == null && aggregation != COUNT) {
                 throw new IllegalArgumentException("measure column is required if aggregation is not COUNT");
             }
             this.column = column;
@@ -110,33 +126,39 @@ public interface EventExplorer {
         }
     }
 
-    class Reference {
+    class Reference
+    {
         public final ReferenceType type;
         public final String value;
 
         @JsonCreator
         public Reference(@JsonProperty("type") ReferenceType type,
-                         @JsonProperty("value") String value) {
+                @JsonProperty("value") String value)
+        {
             this.type = checkNotNull(type, "type is null");
             this.value = checkNotNull(value, "value is null");
         }
     }
 
-    enum ReferenceType {
+    enum ReferenceType
+    {
         COLUMN, REFERENCE;
 
         @JsonCreator
-        public static ReferenceType get(String name) {
+        public static ReferenceType get(String name)
+        {
             return valueOf(name.toUpperCase());
         }
 
         @JsonProperty
-        public String value() {
+        public String value()
+        {
             return name();
         }
     }
 
-    class OLAPTable {
+    class OLAPTable
+    {
         public final Set<String> collections;
         public final Set<String> dimensions;
         public final Set<AggregationType> aggregations;
@@ -145,13 +167,14 @@ public interface EventExplorer {
 
         @JsonCreator
         public OLAPTable(@ApiParam("collections") Set<String> collections,
-                         @ApiParam("dimensions") Set<String> dimensions,
-                         @ApiParam("aggregations") Set<AggregationType> aggregations,
-                         @ApiParam("measures") Set<String> measures,
-                         @ApiParam("tableName") String tableName) {
+                @ApiParam("dimensions") Set<String> dimensions,
+                @ApiParam("aggregations") Set<AggregationType> aggregations,
+                @ApiParam("measures") Set<String> measures,
+                @ApiParam("tableName") String tableName)
+        {
             checkCollection(tableName);
-            if(measures.isEmpty()) {
-                throw new RakamException("There must be at least one measure", HttpResponseStatus.BAD_REQUEST);
+            if (measures.isEmpty()) {
+                throw new RakamException("There must be at least one measure", BAD_REQUEST);
             }
 
             this.collections = collections;
