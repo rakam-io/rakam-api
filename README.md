@@ -109,3 +109,7 @@ Contribution
 ------------
 Currently I'm actively working on Rakam. If you want to contribute the project or suggest an idea feel free to fork it or create a ticket for your suggestion. I promise to respond you ASAP.
 The purpose of Rakam is being generic data analysis tool that can be a solution for many use cases. Rakam still needs too much work and will be evolved based on people's needs so your thoughts are important.
+
+Acknowledgment
+--------------
+[[![YourKit](https://www.yourkit.com/images/yklogo.png)](https://www.yourkit.com/java/profiler/index.jsp)
