@@ -1,5 +1,6 @@
 package org.rakam.presto.analysis.datasource;
 
+import com.facebook.presto.jdbc.internal.guava.base.Function;
 import com.facebook.presto.rakam.externaldata.DataManager;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.presto.analysis.datasource.CustomDataSource.ExternalFileCustomDataSource;
