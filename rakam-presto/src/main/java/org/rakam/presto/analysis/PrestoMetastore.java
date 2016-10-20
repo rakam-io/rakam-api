@@ -1,6 +1,7 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.jdbc.internal.client.ClientSession;
+import com.facebook.presto.jdbc.internal.spi.type.StandardTypes;
 import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
@@ -61,6 +62,7 @@ import static com.facebook.presto.spi.type.ParameterKind.TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static java.sql.JDBCType.VARBINARY;
 import static java.util.Locale.ENGLISH;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -231,16 +233,16 @@ public class PrestoMetastore
     {
         JDBCType jdbcType = jdbcType(type);
         if (jdbcType != null) {
-            switch (type) {
+            switch (jdbcType) {
                 case BOOLEAN:
                     return "boolean";
-                case LONG:
+                case BIGINT:
                     return "bigint";
                 case DOUBLE:
                     return "double";
                 case INTEGER:
                     return "int";
-                case BINARY:
+                case VARBINARY:
                     return format("varbinary(%s)", MAX_BINARY_INDEX_SIZE);
             }
         }
@@ -266,7 +268,7 @@ public class PrestoMetastore
             return JDBCType.INTEGER;
         }
         if (type.equals(FieldType.STRING)) {
-            return JDBCType.VARBINARY;
+            return VARBINARY;
         }
         return null;
     }
@@ -513,23 +515,20 @@ public class PrestoMetastore
     public static String toSql(FieldType type)
     {
         switch (type) {
-            case INTEGER:
-                return "INTEGER";
-            case DECIMAL:
-                return "DECIMAL";
             case LONG:
-                return "BIGINT";
+                return StandardTypes.BIGINT;
             case STRING:
-                return "VARCHAR";
+                return StandardTypes.VARCHAR;
             case BINARY:
-                return "VARBINARY";
+                return StandardTypes.VARBINARY;
+            case DECIMAL:
+            case INTEGER:
             case BOOLEAN:
             case DATE:
             case TIME:
+            case DOUBLE:
             case TIMESTAMP:
                 return type.name();
-            case DOUBLE:
-                return "DOUBLE";
             default:
                 if (type.isArray()) {
                     return "ARRAY<" + toSql(type.getArrayElementType()) + ">";

@@ -124,6 +124,15 @@ public class JsonHelper {
             throw Throwables.propagate(e);
         }
     }
+
+    public static <T> T read(byte[] json, TypeReference<T> typeReference){
+        try {
+            return (T) mapper.readValue(json, typeReference);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
     public static <T> T read(String json, TypeReference<T> typeReference){
         try {
             return (T) mapper.readValue(json, typeReference);

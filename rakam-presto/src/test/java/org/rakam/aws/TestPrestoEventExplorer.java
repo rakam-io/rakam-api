@@ -56,7 +56,7 @@ public class TestPrestoEventExplorer
                 new EventBus(), build, prestoConfig);
         metastore.setup();
 
-        prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
+        prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, null, metastore);
 
         continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);

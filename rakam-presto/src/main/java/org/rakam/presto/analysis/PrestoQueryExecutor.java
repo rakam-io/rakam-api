@@ -2,18 +2,27 @@ package org.rakam.presto.analysis;
 
 import com.facebook.presto.jdbc.internal.airlift.units.Duration;
 import com.facebook.presto.jdbc.internal.client.ClientSession;
+import com.facebook.presto.rakam.externaldata.DataManager;
+import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
 import com.facebook.presto.sql.tree.QualifiedName;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.presto.analysis.datasource.CustomDataSource;
+import org.rakam.presto.analysis.datasource.CustomDataSource.DataSource;
+import org.rakam.presto.analysis.datasource.CustomDataSourceHttpService;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
-import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,7 +35,10 @@ import static com.facebook.presto.jdbc.internal.client.ClientSession.withTransac
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
+import static java.util.Base64.getDecoder;
+import static java.util.Base64.getEncoder;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
+import static org.rakam.util.JsonHelper.encodeAsBytes;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
 @Singleton
@@ -36,13 +48,15 @@ public class PrestoQueryExecutor
     private final PrestoConfig prestoConfig;
 
     private final Metastore metastore;
+    private final CustomDataSourceHttpService customDataSource;
     private ClientSession defaultSession;
 
     @Inject
-    public PrestoQueryExecutor(PrestoConfig prestoConfig, Metastore metastore)
+    public PrestoQueryExecutor(PrestoConfig prestoConfig, CustomDataSourceHttpService customDataSource, Metastore metastore)
     {
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;
+        this.customDataSource = customDataSource;
         this.defaultSession = new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
@@ -60,6 +74,12 @@ public class PrestoQueryExecutor
     public PrestoQueryExecution executeRawQuery(String query)
     {
         return new PrestoQueryExecution(defaultSession, query);
+    }
+
+    @Override
+    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties)
+    {
+        return executeRawQuery(query, sessionProperties, null);
     }
 
     public PrestoQueryExecution executeRawQuery(String query, String transactionId)
@@ -90,6 +110,12 @@ public class PrestoQueryExecutor
     @Override
     public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample)
     {
+        return formatTableReference(project, node, sample, ImmutableMap.of());
+    }
+
+    @Override
+    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
+    {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();
             if (prefix.equals("continuous")) {
@@ -101,7 +127,29 @@ public class PrestoQueryExecutor
                 return getTableReference(project, MATERIALIZED_VIEW_PREFIX + node.getSuffix(), sample);
             }
             else if (!prefix.equals("collection")) {
-                throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
+                try {
+                    String encodedKey = sessionParameters.get("external.source_options");
+                    Map<String, DataManager.DataSourceType> params;
+                    if (encodedKey != null) {
+                        params = JsonHelper.read(getDecoder().decode(encodedKey), Map.class);
+                    }
+                    else {
+                        params = new HashMap<>();
+                    }
+
+                    if(!params.containsKey(prefix)) {
+                        CustomDataSource dataSource = customDataSource.get(project, prefix);
+                        params.put(prefix, new DataManager.DataSourceType(dataSource.type, dataSource.options));
+                        sessionParameters.put("external.source_options", getEncoder().encodeToString(encodeAsBytes(params)));
+                    }
+
+                    return "external." +
+                            checkCollection(prefix) + "." +
+                            checkCollection(node.getSuffix());
+                }
+                catch (RakamException e) {
+                    throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
+                }
             }
         }
 

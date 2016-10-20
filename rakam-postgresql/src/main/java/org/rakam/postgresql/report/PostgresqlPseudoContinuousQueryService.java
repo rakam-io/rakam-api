@@ -44,7 +44,7 @@ public class PostgresqlPseudoContinuousQueryService
     @Override
     public QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData)
     {
-        String query = service.buildQuery(project, report.query, Optional.empty(), null, new HashMap<>());
+        String query = service.buildQuery(project, report.query, Optional.empty(), null, new HashMap<>(), new HashMap<>());
         String format = String.format("CREATE VIEW \"%s\".\"%s\" AS %s", project, report.tableName, query);
         return new DelegateQueryExecution(executor.executeRawStatement(format), result -> {
             if (!result.isFailed()) {

@@ -44,7 +44,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
                 eventBus, new FieldDependencyBuilder().build(), prestoConfig);
         metastore.setup();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, metastore);
+        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, null, metastore);
 
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(inMemoryQueryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, prestoConfig);

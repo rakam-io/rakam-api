@@ -252,7 +252,19 @@ public class WebHookHttpService
     @JsonRequest
     public void create(@Named("project") String project, @BodyParam WebHook hook)
     {
-
+        try (Handle handle = dbi.open()) {
+            try {
+                handle.createStatement("INSERT INTO webbook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, true, :parameters)")
+                        .bind("project", project)
+                        .bind("identifier", hook.identifier)
+                        .bind("code", hook.code)
+                        .bind("parameters", JsonHelper.encode(hook.parameters))
+                        .execute();
+            }
+            catch (Exception e) {
+                throw new RakamException(e.getMessage(), BAD_REQUEST);
+            }
+        }
     }
 
     @ApiOperation(value = "Delete hook", authorizations = @Authorization(value = "master_key"))
@@ -269,7 +281,7 @@ public class WebHookHttpService
     public WebHook get(@Named("project") String project, @ApiParam("identifier") String identifier)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT code, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
+            return handle.createQuery("SELECT code, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
                     .bind("identifier", identifier)
                     .map(new ResultSetMapper<WebHook>()
@@ -278,7 +290,7 @@ public class WebHookHttpService
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
                                 throws SQLException
                         {
-                            return new WebHook(identifier, r.getString(1), JsonHelper.read(r.getString(2), Map.class));
+                            return new WebHook(identifier, r.getString(1), r.getBoolean(2), JsonHelper.read(r.getString(3), Map.class));
                         }
                     }).first();
         }
@@ -286,7 +298,7 @@ public class WebHookHttpService
 
     @ApiOperation(value = "Get hook", authorizations = @Authorization(value = "master_key"))
     @Path("/list")
-    @JsonRequest
+    @GET
     public List<WebHookIdentifier> list(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
@@ -463,6 +475,7 @@ public class WebHookHttpService
     public static class WebHook
     {
         public final String identifier;
+        public final boolean active;
         public final String code;
         public final Map<String, String> parameters;
 
@@ -470,9 +483,11 @@ public class WebHookHttpService
         public WebHook(
                 @ApiParam("identifier") String identifier,
                 @ApiParam("code") String code,
+                @ApiParam("active") boolean active,
                 @ApiParam("parameters") Map<String, String> parameters)
         {
             this.identifier = identifier;
+            this.active = active;
             this.code = code;
             this.parameters = parameters;
         }

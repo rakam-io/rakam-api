@@ -5,6 +5,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EscapeIdentifier;
@@ -62,10 +63,12 @@ public class QueryExecutorService
             throw new NotExistsException("Project");
         }
         HashMap<MaterializedView, MaterializedViewExecution> materializedViews = new HashMap<>();
+        Map<String, String> sessionParameters = new HashMap<>();
+
         String query;
 
         try {
-            query = buildQuery(project, sqlQuery, sample, limit, materializedViews);
+            query = buildQuery(project, sqlQuery, sample, limit, materializedViews, sessionParameters);
         }
         catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
@@ -80,7 +83,7 @@ public class QueryExecutorService
                 .collect(Collectors.toList());
 
         if (queryExecutions.isEmpty()) {
-            QueryExecution execution = executor.executeRawQuery(query);
+            QueryExecution execution = executor.executeRawQuery(query, sessionParameters);
             if (materializedViews.isEmpty()) {
                 return execution;
             }
@@ -113,7 +116,7 @@ public class QueryExecutorService
                     }
                 }
 
-                return executor.executeRawQuery(query);
+                return executor.executeRawQuery(query, sessionParameters);
             }), result -> {
                 if (!result.isFailed()) {
                     Map<String, Long> collect = materializedViews.entrySet().stream()
@@ -160,7 +163,7 @@ public class QueryExecutorService
         return true;
     }
 
-    public String buildQuery(String project, String query, Optional<QuerySampling> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews)
+    public String buildQuery(String project, String query, Optional<QuerySampling> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters)
     {
         StringBuilder builder = new StringBuilder();
         Query statement;
@@ -169,9 +172,10 @@ public class QueryExecutorService
         }
 
         // TODO: use fake StringBuilder for performance
-        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, sample, true), escapeIdentifier).process(statement, 1);
+        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, sample, true, new HashMap<>()), escapeIdentifier)
+                .process(statement, 1);
 
-        new QueryFormatter(builder, tableNameMapper(project, materializedViews, sample, false), escapeIdentifier).process(statement, 1);
+        new QueryFormatter(builder, tableNameMapper(project, materializedViews, sample, false, sessionParameters), escapeIdentifier).process(statement, 1);
 
         if (maxLimit != null) {
             Integer limit = null;
@@ -194,7 +198,7 @@ public class QueryExecutorService
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, boolean fetchReference)
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, boolean fetchReference, Map<String, String> sessionParameters)
     {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
@@ -213,7 +217,8 @@ public class QueryExecutorService
                     return materializedViews.get(materializedView).computeQuery;
                 }
             }
-            return executor.formatTableReference(project, node, sample);
+
+            return executor.formatTableReference(project, node, sample, sessionParameters);
         };
     }
 
@@ -228,7 +233,8 @@ public class QueryExecutorService
             throw new RakamException("Unable to parse query: " + e.getMessage(), BAD_REQUEST);
         }
 
-        new QueryFormatter(builder, qualifiedName -> executor.formatTableReference(project, qualifiedName, Optional.empty()), escapeIdentifier)
+        new QueryFormatter(builder, qualifiedName ->
+                executor.formatTableReference(project, qualifiedName, Optional.empty()), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = executor

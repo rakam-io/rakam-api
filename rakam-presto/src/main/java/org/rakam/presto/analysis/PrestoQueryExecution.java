@@ -69,6 +69,7 @@ import static org.rakam.collection.FieldType.LONG;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.FieldType.TIME;
 import static org.rakam.collection.FieldType.TIMESTAMP;
+import static org.rakam.report.QueryStats.State.FINISHED;
 
 public class PrestoQueryExecution
         implements QueryExecution
@@ -162,9 +163,10 @@ public class PrestoQueryExecution
                 .getStats();
 
         int totalSplits = stats.getTotalSplits();
-        int percentage = totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits;
         QueryStats.State state = QueryStats.State.valueOf(stats.getState().toUpperCase(Locale.ENGLISH));
-        return new QueryStats(state == QueryStats.State.FINISHED ? 100 : percentage,
+
+        int percentage = state == FINISHED ? 100 : (totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits);
+        return new QueryStats(stats.isScheduled() ? null : percentage,
                 state,
                 stats.getNodes(),
                 stats.getProcessedRows(),
