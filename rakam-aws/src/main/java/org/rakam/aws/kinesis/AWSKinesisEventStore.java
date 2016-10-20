@@ -1,6 +1,9 @@
 package org.rakam.aws.kinesis;
 
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.handlers.AsyncHandler;
+import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
+import com.amazonaws.services.kinesis.model.PutRecordRequest;
+import com.amazonaws.services.kinesis.model.PutRecordResult;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -19,7 +22,6 @@ import org.rakam.aws.s3.S3BulkEventStore;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.plugin.EventStore;
-import org.rakam.plugin.SyncEventStore;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
@@ -29,15 +31,18 @@ import javax.inject.Inject;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static io.netty.buffer.PooledByteBufAllocator.DEFAULT;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.valueOf;
 
 public class AWSKinesisEventStore
-        implements SyncEventStore
+        implements EventStore
 {
     private final static Logger LOGGER = Logger.get(AWSKinesisEventStore.class);
 
-    private final AmazonKinesisClient kinesis;
+    private final AmazonKinesisAsyncClient kinesis;
     private final AWSConfig config;
     private final S3BulkEventStore bulkClient;
     private final KinesisProducer producer;
@@ -47,7 +52,7 @@ public class AWSKinesisEventStore
             Metastore metastore,
             FieldDependency fieldDependency)
     {
-        kinesis = new AmazonKinesisClient(config.getCredentials());
+        kinesis = new AmazonKinesisAsyncClient(config.getCredentials());
         kinesis.setRegion(config.getAWSRegion());
         if (config.getKinesisEndpoint() != null) {
             kinesis.setEndpoint(config.getKinesisEndpoint());
@@ -72,7 +77,7 @@ public class AWSKinesisEventStore
         producer = new KinesisProducer(producerConfiguration);
     }
 
-    public void storeBatchInline(List<Event> events)
+    public CompletableFuture<int[]> storeBatchInline(List<Event> events)
     {
         ByteBuf[] byteBufs = new ByteBuf[events.size()];
 
@@ -85,7 +90,8 @@ public class AWSKinesisEventStore
                 byteBufs[i] = buffer;
             }
 
-            producer.flushSync();
+            // TODO: callback?
+            producer.flush();
         }
         finally {
             for (ByteBuf byteBuf : byteBufs) {
@@ -94,6 +100,8 @@ public class AWSKinesisEventStore
                 }
             }
         }
+
+        return EventStore.COMPLETED_FUTURE_BATCH;
     }
 
     @Override
@@ -112,7 +120,7 @@ public class AWSKinesisEventStore
         }
         catch (Throwable e) {
             LOGGER.error(e);
-            throw new RakamException("An error occurred while storing events", HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            throw new RakamException("An error occurred while storing events", INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -123,42 +131,54 @@ public class AWSKinesisEventStore
     }
 
     @Override
-    public int[] storeBatch(List<Event> events)
+    public CompletableFuture<int[]> storeBatchAsync(List<Event> events)
     {
-        storeBatchInline(events);
-        return EventStore.SUCCESSFUL_BATCH;
+        return storeBatchInline(events);
     }
 
     @Override
-    public void store(Event event)
+    public CompletableFuture<Void> storeAsync(Event event)
     {
-        store(event, 3);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        store(event, future, 3);
+        return future;
     }
 
-    public void store(Event event, int tryCount)
+    public void store(Event event, CompletableFuture<Void> future, int tryCount)
     {
         ByteBuf buffer = getBuffer(event);
-        try {
-            kinesis.putRecord(config.getEventStoreStreamName(), buffer.nioBuffer(),
-                    event.project() + "|" + event.collection());
-        }
-        catch (ResourceNotFoundException e) {
-            try {
-                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
-            }
-            catch (Exception e1) {
-                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
-            }
-        }
-        catch (Exception e) {
-            if (tryCount == 0) {
-                throw e;
-            }
-            store(event, tryCount - 1);
-        }
-        finally {
-            buffer.release();
-        }
+        kinesis.putRecordAsync(config.getEventStoreStreamName(), buffer.nioBuffer(),
+                event.project() + "|" + event.collection(), new AsyncHandler<PutRecordRequest, PutRecordResult>()
+                {
+                    @Override
+                    public void onError(Exception e)
+                    {
+                        if (e instanceof ResourceNotFoundException) {
+                            try {
+                                KinesisUtils.createAndWaitForStreamToBecomeAvailable(kinesis, config.getEventStoreStreamName(), 1);
+                            }
+                            catch (Exception e1) {
+                                throw new RuntimeException("Couldn't send event to Amazon Kinesis", e);
+                            }
+                        }
+
+                        LOGGER.error(e);
+                        if (tryCount > 0) {
+                            store(event, future, tryCount - 1);
+                        }
+                        else {
+                            buffer.release();
+                            future.completeExceptionally(new RakamException(INTERNAL_SERVER_ERROR));
+                        }
+                    }
+
+                    @Override
+                    public void onSuccess(PutRecordRequest request, PutRecordResult putRecordResult)
+                    {
+                        buffer.release();
+                        future.complete(null);
+                    }
+                });
     }
 
     private ByteBuf getBuffer(Event event)
