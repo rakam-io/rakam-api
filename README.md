@@ -112,4 +112,5 @@ The purpose of Rakam is being generic data analysis tool that can be a solution 
 
 Acknowledgment
 --------------
-[[![YourKit](https://www.yourkit.com/images/yklogo.png)](https://www.yourkit.com/java/profiler/index.jsp)
+![YourKit](https://www.yourkit.com/images/yklogo.png)](https://www.yourkit.com/java/profiler/index.jsp)
+We use YourKit Java Profiler in order to monitor the JVM instances and identify the bugs and potential bottlenecks. Kudos to YourKit for supporting Rakam with your full-featured Java Profile.
