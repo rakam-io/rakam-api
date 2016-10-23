@@ -99,8 +99,6 @@ public class ContinuousQueryHttpService extends HttpService {
             throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
         }
         Stream<Collection> collectionStream = schemas.entrySet().stream()
-                // ignore system tables
-//                    .filter(entry -> !entry.getKey().startsWith("_"))
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()));
         if (names != null) {
             collectionStream = collectionStream.filter(a -> names.contains(a.name));

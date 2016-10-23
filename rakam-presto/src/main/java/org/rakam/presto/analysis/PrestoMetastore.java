@@ -133,6 +133,9 @@ public class PrestoMetastore
         List<SchemaField> lastFields;
         Table tableInformation = dao.getTableInformation(project, collection);
         if (schemaFields.isEmpty() && tableInformation == null) {
+            if (collection.startsWith("$materialized")) {
+                throw new RakamException("Collections cannot start with $materialized prefix", BAD_REQUEST);
+            }
             List<SchemaField> currentFields = new ArrayList<>();
 
             if (!getProjects().contains(project)) {

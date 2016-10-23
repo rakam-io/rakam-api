@@ -32,6 +32,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,10 +43,13 @@ import java.util.stream.Stream;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 
-public class PrestoMaterializedViewService extends MaterializedViewService {
+public class PrestoMaterializedViewService
+        extends MaterializedViewService
+{
     public final static String MATERIALIZED_VIEW_PREFIX = "$materialized_";
     public final static SqlParser sqlParser = new SqlParser();
     private final static Logger LOGGER = Logger.get(PrestoMaterializedViewService.class);
@@ -57,9 +61,10 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
 
     @Inject
     public PrestoMaterializedViewService(@Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
-                                         QueryExecutor queryExecutor,
-                                         PrestoMetastore metastore,
-                                         QueryMetadataStore database) {
+            QueryExecutor queryExecutor,
+            PrestoMetastore metastore,
+            QueryMetadataStore database)
+    {
         super(database, queryExecutor, '"');
         this.database = database;
         this.queryExecutor = queryExecutor;
@@ -68,7 +73,8 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     }
 
     @Override
-    public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names) {
+    public Map<String, List<SchemaField>> getSchemas(String project, Optional<List<String>> names)
+    {
         Stream<Map.Entry<String, List<SchemaField>>> views = metastore.getTables(project,
                 tableColumn -> tableColumn.getTable().getTableName().startsWith(MATERIALIZED_VIEW_PREFIX)).entrySet().stream();
         if (names.isPresent()) {
@@ -79,16 +85,22 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     }
 
     @Override
-    public List<SchemaField> getSchema(String project, String tableName) {
+    public List<SchemaField> getSchema(String project, String tableName)
+    {
         return metastore.getCollection(project, MATERIALIZED_VIEW_PREFIX + tableName);
     }
 
     @Override
-    public CompletableFuture<Void> create(String project, MaterializedView materializedView) {
+    public CompletableFuture<Void> create(String project, MaterializedView materializedView)
+    {
+        database.createMaterializedView(project, materializedView);
+
         Statement statement = sqlParser.createStatement(materializedView.query);
-        statement.accept(new DefaultTraversalVisitor<Void, Void>() {
+        statement.accept(new DefaultTraversalVisitor<Void, Void>()
+        {
             @Override
-            protected Void visitSelect(Select node, Void context) {
+            protected Void visitSelect(Select node, Void context)
+            {
                 for (SelectItem selectItem : node.getSelectItems()) {
                     if (selectItem instanceof AllColumns) {
                         throw new RakamException("Wildcard in select items is not supported in materialized views.", BAD_REQUEST);
@@ -98,7 +110,8 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                         if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)
                                 && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
                             throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
-                        } else {
+                        }
+                        else {
                             continue;
                         }
                     }
@@ -110,26 +123,26 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
         }, null);
 
         StringBuilder builder = new StringBuilder();
-        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty()), '"')
+        HashMap<String, String> map = new HashMap<>();
+        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), map), '"')
                 .process(statement, 1);
 
         QueryExecution execution = queryExecutor
                 .executeRawQuery(format("create table %s as %s limit 0",
                         queryExecutor.formatTableReference(project,
-                                QualifiedName.of("materialized", materializedView.tableName), Optional.empty()), builder.toString(), Optional.empty()));
+                                QualifiedName.of("materialized", materializedView.tableName), Optional.empty()), builder.toString(), Optional.empty()), map);
 
         return execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
+                database.deleteMaterializedView(project, materializedView.tableName);
                 throw new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR);
-            } else {
-                database.createMaterializedView(project, materializedView);
-                return;
             }
         });
     }
 
     @Override
-    public CompletableFuture<QueryResult> delete(String project, String name) {
+    public CompletableFuture<QueryResult> delete(String project, String name)
+    {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
         String reference = queryExecutor.formatTableReference(project, QualifiedName.of("materialized", materializedView.tableName), Optional.empty());
@@ -143,7 +156,8 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
     }
 
     @Override
-    public MaterializedViewExecution lockAndUpdateView(String project, MaterializedView materializedView) {
+    public MaterializedViewExecution lockAndUpdateView(String project, MaterializedView materializedView)
+    {
         CompletableFuture<Instant> f = new CompletableFuture<>();
 
         String tableName = queryExecutor.formatTableReference(project,
@@ -153,6 +167,7 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             statement = (Query) sqlParser.createStatement(materializedView.query);
         }
 
+        Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
             if (!materializedView.needsUpdate(Clock.systemUTC()) || !database.updateMaterializedView(project, materializedView, f)) {
                 return new MaterializedViewExecution(null, tableName);
@@ -163,11 +178,13 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                 throw new RakamException("Failed to delete table: " + join.getError().toString(), INTERNAL_SERVER_ERROR);
             }
             StringBuilder builder = new StringBuilder();
-            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty()), '"').process(statement, 1);
-            QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()));
+
+            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties), '"').process(statement, 1);
+            QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
             execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
             return new MaterializedViewExecution(execution, tableName);
-        } else {
+        }
+        else {
             List<String> referencedCollections = new ArrayList<>();
 
             formatSql(statement, name -> {
@@ -190,9 +207,10 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
                                 queryExecutor.formatTableReference(project, name, Optional.empty()),
                                 ISO_INSTANT.format(lastUpdated), ISO_INSTANT.format(now)), '"');
 
-                queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query));
+                queryExecution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
                 queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
-            } else {
+            }
+            else {
                 queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
                 f.complete(lastUpdated);
             }
@@ -200,7 +218,8 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             String reference;
             if (!needsUpdate) {
                 reference = materializedTableReference;
-            } else {
+            }
+            else {
                 String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s WHERE \"_shard_time\" > timestamp '%s'",
                                 queryExecutor.formatTableReference(project, name, Optional.empty()),
@@ -212,5 +231,4 @@ public class PrestoMaterializedViewService extends MaterializedViewService {
             return new MaterializedViewExecution(queryExecution, reference);
         }
     }
-
 }

@@ -233,12 +233,13 @@ public class QueryExecutorService
             throw new RakamException("Unable to parse query: " + e.getMessage(), BAD_REQUEST);
         }
 
+        Map<String, String> map = new HashMap<>();
         new QueryFormatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName, Optional.empty()), escapeIdentifier)
+                executor.formatTableReference(project, qualifiedName, Optional.empty(), map), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = executor
-                .executeRawQuery(builder.toString() + " limit 0");
+                .executeRawQuery(builder.toString() + " limit 0", map);
         CompletableFuture<List<SchemaField>> f = new CompletableFuture<>();
         execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {

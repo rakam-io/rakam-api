@@ -241,7 +241,7 @@ public class PrestoQueryExecution
             this.session = session;
         }
 
-        private void waitForData()
+        private void waitForQuery()
         {
             while (client.isValid()) {
                 if (Thread.currentThread().isInterrupted()) {
@@ -268,7 +268,7 @@ public class PrestoQueryExecution
             }
 
             try {
-                waitForData();
+                waitForQuery();
 
                 if (client.isClosed()) {
                     QueryError queryError = QueryError.create("Query aborted by user");

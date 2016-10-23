@@ -123,7 +123,7 @@ public class QueryHttpService
     public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam QueryRequest query)
     {
         executorService.executeQuery(project, query.query,
-               query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
+                query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
@@ -174,7 +174,15 @@ public class QueryHttpService
         }
 
         RakamHttpRequest.StreamResponse response = request.streamResponse(RETRY_DURATION);
-        List<String> data = request.params().get("data");
+        List<String> data;
+        try {
+            data = request.params().get("data");
+        }
+        catch (Exception e) {
+            response.send("result", encode(errorMessage("enable to parse data parameter: " + e.getMessage(), BAD_REQUEST))).end();
+            return;
+        }
+
         if (data == null || data.isEmpty()) {
             response.send("result", encode(errorMessage("data query parameter is required", BAD_REQUEST))).end();
             return;
@@ -280,14 +288,19 @@ public class QueryHttpService
             @Override
             public void run()
             {
-                if (response.isClosed() && !query.isFinished() && killOnConnectionClose) {
+                boolean finished = query.isFinished();
+                if (response.isClosed() && !finished && killOnConnectionClose) {
                     query.kill();
                 }
-                else if (!query.isFinished()) {
+                else if (!finished) {
                     if (!response.isClosed()) {
                         QueryStats stats = query.currentStats();
                         response.send("stats", encode(stats));
+                        if (stats.state == QueryStats.State.FINISHED) {
+                            return;
+                        }
                     }
+
                     eventLoopGroup.schedule(this, 500, TimeUnit.MILLISECONDS);
                 }
             }

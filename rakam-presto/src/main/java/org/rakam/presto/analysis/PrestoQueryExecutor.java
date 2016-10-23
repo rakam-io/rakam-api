@@ -5,15 +5,11 @@ import com.facebook.presto.jdbc.internal.client.ClientSession;
 import com.facebook.presto.rakam.externaldata.DataManager;
 import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
 import com.facebook.presto.sql.tree.QualifiedName;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.presto.analysis.datasource.CustomDataSource;
-import org.rakam.presto.analysis.datasource.CustomDataSource.DataSource;
 import org.rakam.presto.analysis.datasource.CustomDataSourceHttpService;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
@@ -137,9 +133,18 @@ public class PrestoQueryExecutor
                         params = new HashMap<>();
                     }
 
-                    if(!params.containsKey(prefix)) {
-                        CustomDataSource dataSource = customDataSource.get(project, prefix);
-                        params.put(prefix, new DataManager.DataSourceType(dataSource.type, dataSource.options));
+                    if (!params.containsKey(prefix)) {
+                        DataManager.DataSourceType dataSourceType;
+                        if (prefix.equals("remotefile")) {
+                            List<RemoteFileDataSource.RemoteTable> files = customDataSource.getFiles(project);
+                            dataSourceType = new DataManager.DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", files));
+                        }
+                        else {
+                            CustomDataSource dataSource = customDataSource.getDatabase(project, prefix);
+                            dataSourceType = new DataManager.DataSourceType(dataSource.type, dataSource.options);
+                        }
+
+                        params.put(prefix, dataSourceType);
                         sessionParameters.put("external.source_options", getEncoder().encodeToString(encodeAsBytes(params)));
                     }
 
