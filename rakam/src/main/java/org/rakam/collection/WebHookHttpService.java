@@ -184,7 +184,9 @@ public class WebHookHttpService
                     "  project VARCHAR(255) NOT NULL," +
                     "  identifier VARCHAR(255) NOT NULL," +
                     "  code TEXT NOT NULL," +
-                    "  options TEXT," +
+                    "  active TINYINT NOT NULL," +
+                    "  image VARCHAR(255)," +
+                    "  parameters TEXT," +
                     "  PRIMARY KEY (project, identifier)" +
                     "  )")
                     .execute();
@@ -254,7 +256,7 @@ public class WebHookHttpService
     {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO webbook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, true, :parameters)")
+                handle.createStatement("INSERT INTO webhook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, 1, :parameters)")
                         .bind("project", project)
                         .bind("identifier", hook.identifier)
                         .bind("code", hook.code)
@@ -281,7 +283,7 @@ public class WebHookHttpService
     public WebHook get(@Named("project") String project, @ApiParam("identifier") String identifier)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT code, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
+            return handle.createQuery("SELECT code, image, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
                     .bind("identifier", identifier)
                     .map(new ResultSetMapper<WebHook>()
@@ -290,7 +292,7 @@ public class WebHookHttpService
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
                                 throws SQLException
                         {
-                            return new WebHook(identifier, r.getString(1), r.getBoolean(2), JsonHelper.read(r.getString(3), Map.class));
+                            return new WebHook(identifier, r.getString(1), r.getString(2), r.getBoolean(3), JsonHelper.read(r.getString(4), Map.class));
                         }
                     }).first();
         }
@@ -299,13 +301,13 @@ public class WebHookHttpService
     @ApiOperation(value = "Get hook", authorizations = @Authorization(value = "master_key"))
     @Path("/list")
     @GET
-    public List<WebHookIdentifier> list(@Named("project") String project)
+    public List<WebHook> list(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT identifier, code FROM webhook WHERE project = :project")
+            return handle.createQuery("SELECT identifier, code, image, active, parameters FROM webhook WHERE project = :project")
                     .bind("project", project)
                     .map((index, r, ctx) -> {
-                        return new WebHookIdentifier(r.getString(1), r.getString(2));
+                        return new WebHook(r.getString(1), r.getString(2), r.getString(3), r.getBoolean(4), JsonHelper.read(r.getString(5), Map.class));
                     }).list();
         }
     }
@@ -472,23 +474,27 @@ public class WebHookHttpService
         }
     }
 
+
     public static class WebHook
     {
         public final String identifier;
         public final boolean active;
         public final String code;
+        public final String image;
         public final Map<String, String> parameters;
 
         @JsonCreator
         public WebHook(
                 @ApiParam("identifier") String identifier,
                 @ApiParam("code") String code,
+                @ApiParam("image") String image,
                 @ApiParam("active") boolean active,
                 @ApiParam("parameters") Map<String, String> parameters)
         {
             this.identifier = identifier;
             this.active = active;
             this.code = code;
+            this.image = image;
             this.parameters = parameters;
         }
     }

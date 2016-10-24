@@ -163,7 +163,7 @@ public class PrestoQueryExecutor
                     CustomDataSource dataSource = new CustomDataSource("POSTGRESQL", "users", source);
                     dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
                 }
-                else if (!params.containsKey(prefix)) {
+                else if (!params.containsKey(prefix) && prefix != null) {
                     if(customDataSource == null) {
                         throw new RakamException(NOT_FOUND);
                     }
