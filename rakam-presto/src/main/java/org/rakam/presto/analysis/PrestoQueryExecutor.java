@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.jdbc.internal.client.ClientSession.withTransactionId;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Base64.getDecoder;
@@ -147,7 +148,7 @@ public class PrestoQueryExecutor
 
                 DataSourceType dataSourceType = null;
 
-                if (prefix == null) {
+                if (prefix == null && userJdbcConfig != null) {
                     URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
                     JDBCSchemaConfig source = new PostgresqlDataSource.PostgresqlDataSourceFactory()
                             .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
@@ -162,6 +163,9 @@ public class PrestoQueryExecutor
                     dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
                 }
                 else if (!params.containsKey(prefix)) {
+                    if(customDataSource == null) {
+                        throw new RakamException(NOT_FOUND);
+                    }
                     if (prefix.equals("remotefile")) {
                         List<RemoteFileDataSource.RemoteTable> files = customDataSource.getFiles(project);
                         dataSourceType = new DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", files));
