@@ -13,6 +13,7 @@ import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
 import org.rakam.presto.PrestoModule;
+import org.rakam.presto.PrestoModule.UserConfig;
 import org.rakam.presto.analysis.datasource.CustomDataSource;
 import org.rakam.presto.analysis.datasource.CustomDataSourceHttpService;
 import org.rakam.report.QueryExecutor;
@@ -59,7 +60,7 @@ public class PrestoQueryExecutor
     public PrestoQueryExecutor(
             PrestoConfig prestoConfig,
             @Nullable CustomDataSourceHttpService customDataSource,
-            @Nullable @PrestoModule.UserConfig com.google.common.base.Optional<JDBCConfig> userJdbcConfig,
+            @Nullable @UserConfig com.google.common.base.Optional<JDBCConfig> userJdbcConfig,
             Metastore metastore)
     {
         this.prestoConfig = prestoConfig;

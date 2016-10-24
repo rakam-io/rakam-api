@@ -86,7 +86,7 @@
         <!--Plugin versions-->
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
         <maven.clean.plugin.version>2.5</maven.clean.plugin.version>
-        <maven.surefire.plugin.version>2.14</maven.surefire.plugin.version>
+        <maven.surefire.plugin.version>2.19.1</maven.surefire.plugin.version>
         <maven.failsafe.plugin.version>2.14</maven.failsafe.plugin.version>
         <maven.surefire.report.plugin.version>2.14</maven.surefire.report.plugin.version>
         <maven.javadoc.plugin.version>2.9</maven.javadoc.plugin.version>
@@ -696,6 +696,11 @@
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven.surefire.plugin.version}</version>
+                </plugin>
+                <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration combine.children="append">
@@ -742,7 +747,6 @@
         <url>https://github.com/rakam-io/rakam</url>
         <tag>HEAD</tag>
     </scm>
-
 
     <distributionManagement>
         <repository>
