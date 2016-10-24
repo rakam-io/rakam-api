@@ -35,10 +35,12 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.StatementContext;
@@ -252,7 +254,7 @@ public class WebHookHttpService
     @ApiOperation(value = "Create hook", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
     @JsonRequest
-    public void create(@Named("project") String project, @BodyParam WebHook hook)
+    public SuccessMessage create(@Named("project") String project, @BodyParam WebHook hook)
     {
         try (Handle handle = dbi.open()) {
             try {
@@ -260,11 +262,16 @@ public class WebHookHttpService
                         .bind("project", project)
                         .bind("identifier", hook.identifier)
                         .bind("code", hook.code)
+                        .bind("image", hook.image)
                         .bind("parameters", JsonHelper.encode(hook.parameters))
                         .execute();
+                return SuccessMessage.success();
             }
             catch (Exception e) {
-                throw new RakamException(e.getMessage(), BAD_REQUEST);
+                if (get(project, hook.identifier) != null) {
+                    throw new AlreadyExistsException("Webhook", BAD_REQUEST);
+                }
+                throw e;
             }
         }
     }
@@ -473,7 +480,6 @@ public class WebHookHttpService
             this.project = project;
         }
     }
-
 
     public static class WebHook
     {

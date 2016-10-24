@@ -78,9 +78,7 @@ Then you can share same file among the Rakam containers. If Dockerfile can't fin
 Postgresql deployment type: (Best for < 1B events):
 [![Deploy to AWS](http://d0.awsstatic.com/product-marketing/Elastic%20Beanstalk/deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=ParseBackend&templateURL=https://s3.amazonaws.com/rakam-prod-static/cloudformation/rakam-postgresql.template)
 
-PrestoDB deployment type: (Best for >= 1B events):
-[![Deploy to AWS](http://d0.awsstatic.com/product-marketing/Elastic%20Beanstalk/deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=ParseBackend&templateURL=https://s3.amazonaws.com/rakam-prod-static/cloudformation/rakam-presto.template)
-
+If the data volume is big and you need support, please [contact us](https://rakam.io/contact) for Cloudformation template of Rakam for Presto deployment type.
 
 Cloudformation templates create a Opsworks stack in your AWS account for Rakam. You can easily monitor, scale and manage your Rakam cluster with with this Cloudformation templates.
 

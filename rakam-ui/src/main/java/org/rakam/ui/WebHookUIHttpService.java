@@ -17,6 +17,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
 import java.util.List;
+import java.util.Map;
 
 @IgnoreApi
 @Path("/ui/webhook")
@@ -58,25 +59,23 @@ public class WebHookUIHttpService
             return handle.createQuery("SELECT name, image, description, code, parameters FROM predefined_webhook")
                     .map((index, r, ctx) -> {
                         return new UIWebHook(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
-                                JsonHelper.read(r.getString(5), List.class));
+                                JsonHelper.read(r.getString(5), Map.class));
                     }).list();
         }
     }
 
     public static class WebHookParameter
     {
-        public final String name;
         public final String type;
         public final String placeholder;
         public final String description;
 
         @JsonCreator
-        public WebHookParameter(@ApiParam("name") String name,
+        public WebHookParameter(
                 @ApiParam("type") String type,
                 @ApiParam("placeholder") String placeholder,
                 @ApiParam("description") String description)
         {
-            this.name = name;
             this.type = type;
             this.placeholder = placeholder;
             this.description = description;
@@ -89,14 +88,14 @@ public class WebHookUIHttpService
         public final String image;
         public final String description;
         public final String code;
-        public final List<WebHookParameter> parameters;
+        public final Map<String, WebHookParameter> parameters;
 
         @JsonCreator
         public UIWebHook(@ApiParam("name") String name,
                 @ApiParam("image") String image,
                 @ApiParam("description") String description,
                 @ApiParam("code") String code,
-                @ApiParam("parameters") List<WebHookParameter> parameters)
+                @ApiParam("parameters") Map<String, WebHookParameter> parameters)
         {
             this.name = name;
             this.image = image;

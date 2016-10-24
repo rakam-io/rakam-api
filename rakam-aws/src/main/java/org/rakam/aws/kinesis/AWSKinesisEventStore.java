@@ -85,9 +85,10 @@ public class AWSKinesisEventStore
             for (int i = 0; i < events.size(); i++) {
                 Event event = events.get(i);
                 ByteBuf buffer = getBuffer(event);
-                Object user = event.getAttribute("_user");
+//                Object user = event.getAttribute("_user");
                 producer.addUserRecord(config.getEventStoreStreamName(),
-                        event.project() + "|" + user == null ? event.collection() : user.toString(),
+                        event.project() + "|" + event.collection(),
+//                        event.project() + "|" + user == null ? event.collection() : user.toString(),
                         buffer.nioBuffer());
                 byteBufs[i] = buffer;
             }
