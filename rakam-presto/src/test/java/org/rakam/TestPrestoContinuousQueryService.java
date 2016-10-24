@@ -28,7 +28,7 @@ public class TestPrestoContinuousQueryService extends TestContinuousQueryService
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 
-        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(testEnvironment.getPrestoConfig(), null, metastore);
+        PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(testEnvironment.getPrestoConfig(), null, null, metastore);
 
         continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(),
                 prestoQueryExecutor, testEnvironment.getPrestoConfig());

@@ -2,13 +2,17 @@ package org.rakam.presto.analysis;
 
 import com.facebook.presto.jdbc.internal.airlift.units.Duration;
 import com.facebook.presto.jdbc.internal.client.ClientSession;
-import com.facebook.presto.rakam.externaldata.DataManager;
+import com.facebook.presto.rakam.externaldata.DataManager.DataSourceType;
+import com.facebook.presto.rakam.externaldata.JDBCSchemaConfig;
+import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource;
 import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
+import org.rakam.config.JDBCConfig;
+import org.rakam.presto.PrestoModule;
 import org.rakam.presto.analysis.datasource.CustomDataSource;
 import org.rakam.presto.analysis.datasource.CustomDataSourceHttpService;
 import org.rakam.report.QueryExecutor;
@@ -16,8 +20,10 @@ import org.rakam.report.QuerySampling;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -45,14 +51,20 @@ public class PrestoQueryExecutor
 
     private final Metastore metastore;
     private final CustomDataSourceHttpService customDataSource;
+    private final JDBCConfig userJdbcConfig;
     private ClientSession defaultSession;
 
     @Inject
-    public PrestoQueryExecutor(PrestoConfig prestoConfig, CustomDataSourceHttpService customDataSource, Metastore metastore)
+    public PrestoQueryExecutor(
+            PrestoConfig prestoConfig,
+            @Nullable CustomDataSourceHttpService customDataSource,
+            @Nullable @PrestoModule.UserConfig com.google.common.base.Optional<JDBCConfig> userJdbcConfig,
+            Metastore metastore)
     {
         this.prestoConfig = prestoConfig;
         this.metastore = metastore;
         this.customDataSource = customDataSource;
+        this.userJdbcConfig = userJdbcConfig == null ? null : userJdbcConfig.orNull();
         this.defaultSession = new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
@@ -112,54 +124,72 @@ public class PrestoQueryExecutor
     @Override
     public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
     {
-        if (node.getPrefix().isPresent()) {
-            String prefix = node.getPrefix().get().toString();
-            if (prefix.equals("continuous")) {
-                return prestoConfig.getStreamingConnector() + "." +
-                        checkCollection(project) + "." +
-                        checkCollection(node.getSuffix());
-            }
-            else if (prefix.equals("materialized")) {
-                return getTableReference(project, MATERIALIZED_VIEW_PREFIX + node.getSuffix(), sample);
-            }
-            else if (!prefix.equals("collection")) {
-                try {
-                    String encodedKey = sessionParameters.get("external.source_options");
-                    Map<String, DataManager.DataSourceType> params;
-                    if (encodedKey != null) {
-                        params = JsonHelper.read(getDecoder().decode(encodedKey), Map.class);
+        String prefix = node.getPrefix().map(e -> e.toString()).orElse(null);
+        String suffix = node.getSuffix();
+        if ("continuous".equals(prefix)) {
+            return prestoConfig.getStreamingConnector() + "." +
+                    checkCollection(project) + "." +
+                    checkCollection(suffix);
+        }
+        else if ("materialized".equals(prefix)) {
+            return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);
+        }
+        else if (!"collection".equals(prefix)) {
+            try {
+                String encodedKey = sessionParameters.get("external.source_options");
+                Map<String, DataSourceType> params;
+                if (encodedKey != null) {
+                    params = JsonHelper.read(getDecoder().decode(encodedKey), Map.class);
+                }
+                else {
+                    params = new HashMap<>();
+                }
+
+                DataSourceType dataSourceType = null;
+
+                if (prefix == null) {
+                    URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
+                    JDBCSchemaConfig source = new PostgresqlDataSource.PostgresqlDataSourceFactory()
+                            .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
+                            .setHost(uri.getHost())
+                            .setUsername(userJdbcConfig.getUsername())
+                            .setPassword(userJdbcConfig.getPassword())
+                            .setSchema("users");
+
+                    prefix = "users";
+                    suffix = project;
+                    CustomDataSource dataSource = new CustomDataSource("POSTGRESQL", "users", source);
+                    dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
+                }
+                else if (!params.containsKey(prefix)) {
+                    if (prefix.equals("remotefile")) {
+                        List<RemoteFileDataSource.RemoteTable> files = customDataSource.getFiles(project);
+                        dataSourceType = new DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", files));
                     }
                     else {
-                        params = new HashMap<>();
+                        CustomDataSource dataSource = customDataSource.getDatabase(project, prefix);
+                        dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
                     }
+                }
 
-                    if (!params.containsKey(prefix)) {
-                        DataManager.DataSourceType dataSourceType;
-                        if (prefix.equals("remotefile")) {
-                            List<RemoteFileDataSource.RemoteTable> files = customDataSource.getFiles(project);
-                            dataSourceType = new DataManager.DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", files));
-                        }
-                        else {
-                            CustomDataSource dataSource = customDataSource.getDatabase(project, prefix);
-                            dataSourceType = new DataManager.DataSourceType(dataSource.type, dataSource.options);
-                        }
+                if (dataSourceType != null) {
+                    params.put(prefix, dataSourceType);
+                    sessionParameters.put("external.source_options", getEncoder().encodeToString(encodeAsBytes(params)));
+                }
 
-                        params.put(prefix, dataSourceType);
-                        sessionParameters.put("external.source_options", getEncoder().encodeToString(encodeAsBytes(params)));
-                    }
-
+                if (prefix != null) {
                     return "external." +
                             checkCollection(prefix) + "." +
-                            checkCollection(node.getSuffix());
+                            checkCollection(suffix);
                 }
-                catch (RakamException e) {
-                    throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
-                }
+            }
+            catch (RakamException e) {
+                throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
             }
         }
 
         // special prefix for all columns
-        if (node.getSuffix().equals("_all") && !node.getPrefix().isPresent()) {
+        if (suffix.equals("_all") && !node.getPrefix().isPresent()) {
             List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
                     .filter(c -> !c.getKey().startsWith("_"))
                     .collect(Collectors.toList());
@@ -181,10 +211,7 @@ public class PrestoQueryExecutor
             }
         }
         else {
-            if (node.getSuffix().equals("users")) {
-                return prestoConfig.getUserConnector() + ".users." + project;
-            }
-            return getTableReference(project, node.getSuffix(), sample);
+            return getTableReference(project, suffix, sample);
         }
     }
 

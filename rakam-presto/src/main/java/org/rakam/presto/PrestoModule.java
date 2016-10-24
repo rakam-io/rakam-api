@@ -5,6 +5,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
+import com.google.inject.BindingAnnotation;
+import com.google.inject.Key;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
@@ -31,7 +33,6 @@ import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
-import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.SystemEvents.ProjectCreatedEvent;
 import org.rakam.plugin.TimestampEventMapper;
 import org.rakam.plugin.stream.EventStream;
@@ -65,12 +66,18 @@ import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static org.rakam.presto.analysis.PrestoUserService.ANONYMOUS_ID_MAPPING;
 import static org.rakam.report.realtime.AggregationType.APPROXIMATE_UNIQUE;
 import static org.rakam.report.realtime.AggregationType.COUNT;
@@ -119,12 +126,15 @@ public class PrestoModule extends RakamModule {
                     .in(Scopes.SINGLETON);
         }
 
+        OptionalBinder<JDBCConfig> userConfig = OptionalBinder.newOptionalBinder(binder, Key.get(JDBCConfig.class, UserConfig.class));
         binder.bind(Metastore.class).to(PrestoMetastore.class).in(Scopes.SINGLETON);
         if ("postgresql".equals(getConfig("plugin.user.storage"))) {
             binder.bind(AbstractPostgresqlUserStorage.class).to(PrestoExternalUserStorageAdapter.class)
                     .in(Scopes.SINGLETON);
             binder.bind(AbstractUserService.class).to(PrestoUserService.class)
                     .in(Scopes.SINGLETON);
+
+            userConfig.setBinding().toInstance(buildConfigObject(JDBCConfig.class, "store.adapter.postgresql"));
         }
 
         if (buildConfigObject(EventExplorerConfig.class).isEventExplorerEnabled()) {
@@ -250,4 +260,8 @@ public class PrestoModule extends RakamModule {
             }
         }
     }
+
+    @BindingAnnotation
+    @Target({FIELD, PARAMETER, METHOD }) @Retention(RUNTIME)
+    public @interface UserConfig {}
 }
