@@ -149,7 +149,7 @@ public class PrestoQueryExecutor
 
                 DataSourceType dataSourceType = null;
 
-                if (prefix == null && userJdbcConfig != null) {
+                if (prefix == null && userJdbcConfig != null && suffix.equals("users")) {
                     URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
                     JDBCSchemaConfig source = new PostgresqlDataSource.PostgresqlDataSourceFactory()
                             .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
