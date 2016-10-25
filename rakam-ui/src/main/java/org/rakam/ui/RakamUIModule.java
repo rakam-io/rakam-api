@@ -205,7 +205,7 @@ public class RakamUIModule
                         "  email TEXT NOT NULL UNIQUE,\n" +
                         "  is_activated BOOLEAN DEFAULT false NOT NULL,\n" +
                         "  password TEXT,\n" +
-                        "  name TEXT NOT NULL,\n" +
+                        "  name TEXT,\n" +
                         "  created_at TIMESTAMP NOT NULL\n" +
                         "  )")
                         .execute();

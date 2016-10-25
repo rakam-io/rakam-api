@@ -523,7 +523,7 @@ public class WebUserService
         Integer newUserId;
         try (Handle handle = dbi.open()) {
             try {
-                newUserId = handle.createStatement("INSERT INTO web_user (email) VALUES (:email)")
+                newUserId = handle.createStatement("INSERT INTO web_user (email, created_at) VALUES (:email, now())")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
             }
             catch (Exception e) {
@@ -532,7 +532,11 @@ public class WebUserService
             }
         }
 
-        final Integer finalNewUserId = newUserId;
+        if(newUserId == null) {
+            throw new IllegalStateException("User id cannot be found.");
+        }
+
+        final int finalNewUserId = newUserId;
         dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
             Integer apiKeyId = this.saveApiKeys(userId, projectId, keys.readKey(), keys.writeKey(), keys.masterKey());
 
