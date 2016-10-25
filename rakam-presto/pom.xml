@@ -232,7 +232,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-streaming</artifactId>
-            <version>0.151.10</version>
+            <version>0.151.12</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>
