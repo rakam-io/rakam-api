@@ -186,7 +186,7 @@ public class WebHookHttpService
                     "  project VARCHAR(255) NOT NULL," +
                     "  identifier VARCHAR(255) NOT NULL," +
                     "  code TEXT NOT NULL," +
-                    "  active TINYINT NOT NULL," +
+                    "  active BOOLEAN NOT NULL," +
                     "  image VARCHAR(255)," +
                     "  parameters TEXT," +
                     "  PRIMARY KEY (project, identifier)" +
@@ -258,7 +258,7 @@ public class WebHookHttpService
     {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO webhook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, 1, :parameters)")
+                handle.createStatement("INSERT INTO webhook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, true, :parameters)")
                         .bind("project", project)
                         .bind("identifier", hook.identifier)
                         .bind("code", hook.code)
