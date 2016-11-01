@@ -76,7 +76,9 @@ public class RetentionAnalyzerHttpService
                         Optional.ofNullable(query.dimension),
                         Optional.ofNullable(query.period),
                         query.startDate,
-                        query.endDate, query.timezone));
+                        query.endDate,
+                        query.timezone,
+                        query.approximate));
     }
 
     @ApiOperation(value = "Execute query",
@@ -94,7 +96,9 @@ public class RetentionAnalyzerHttpService
                 Optional.ofNullable(query.dimension),
                 Optional.ofNullable(query.period),
                 query.startDate,
-                query.endDate, query.timezone).getResult();
+                query.endDate,
+                query.timezone,
+                query.approximate).getResult();
     }
 
     private static class RetentionQuery
@@ -107,6 +111,7 @@ public class RetentionAnalyzerHttpService
         private final LocalDate startDate;
         private final LocalDate endDate;
         private final ZoneId timezone;
+        public final boolean approximate;
 
         @JsonCreator
         public RetentionQuery(@ApiParam("first_action") RetentionAction firstAction,
@@ -116,6 +121,7 @@ public class RetentionAnalyzerHttpService
                 @ApiParam(value = "period", required = false) Integer period,
                 @ApiParam("startDate") LocalDate startDate,
                 @ApiParam("timezone") String timezone,
+                @ApiParam(value = "approximate", required = false) Boolean approximate,
                 @ApiParam("endDate") LocalDate endDate)
         {
             this.firstAction = firstAction;
@@ -125,6 +131,7 @@ public class RetentionAnalyzerHttpService
             this.period = period;
             this.startDate = startDate;
             this.endDate = endDate;
+            this.approximate = Boolean.TRUE.equals(approximate);
             try {
                 this.timezone = Optional.ofNullable(timezone)
                         .map(t -> ZoneId.of(t))

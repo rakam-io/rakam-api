@@ -16,6 +16,7 @@ package org.rakam.postgresql.analysis;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
@@ -23,6 +24,7 @@ import org.rakam.report.AbstractRetentionQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
+import org.rakam.util.RakamException;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -112,10 +114,13 @@ public class PostgresqlRetentionQueryExecutor
     public QueryExecution query(String project, Optional<RetentionAction> firstAction,
             Optional<RetentionAction> returningAction, DateUnit dateUnit,
             Optional<String> dimension, Optional<Integer> period,
-            LocalDate startDate, LocalDate endDate, ZoneId zoneId)
+            LocalDate startDate, LocalDate endDate, ZoneId zoneId, boolean approximate)
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
         checkTableColumn(CONNECTOR_FIELD, "connector field", '"');
+        if (approximate) {
+            throw new RakamException("Approximation is not supported.", HttpResponseStatus.BAD_REQUEST);
+        }
 
         String timeColumn = getTimeExpression(dateUnit);
 

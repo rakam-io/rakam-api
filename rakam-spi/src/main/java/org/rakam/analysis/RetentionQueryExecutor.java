@@ -39,7 +39,9 @@ public interface RetentionQueryExecutor {
             Optional<String> dimension,
             Optional<Integer> period,
             LocalDate startDate,
-            LocalDate endDate, ZoneId zoneId);
+            LocalDate endDate,
+            ZoneId zoneId,
+            boolean approximate);
 
     @AutoValue
     abstract class RetentionAction {

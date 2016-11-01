@@ -45,7 +45,15 @@ public class ClickHouseRetentionQueryExecutor
     }
 
     @Override
-    public QueryExecution query(String project, Optional<RetentionAction> firstAction, Optional<RetentionAction> returningAction, DateUnit dateUnit, Optional<String> dimension, Optional<Integer> period, LocalDate startDate, LocalDate endDate, ZoneId zoneIf)
+    public QueryExecution query(String project,
+            Optional<RetentionAction> firstAction,
+            Optional<RetentionAction> returningAction,
+            DateUnit dateUnit,
+            Optional<String> dimension,
+            Optional<Integer> period,
+            LocalDate startDate,
+            LocalDate endDate, ZoneId zoneId,
+            boolean approximate)
     {
         int startEpoch = (int) startDate.toEpochDay();
         int endEpoch = (int) endDate.toEpochDay();

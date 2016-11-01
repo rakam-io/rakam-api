@@ -86,7 +86,8 @@ public class PrestoRetentionQueryExecutor
             Optional<String> dimension,
             Optional<Integer> period,
             LocalDate startDate, LocalDate endDate,
-            ZoneId zoneId)
+            ZoneId zoneId,
+            boolean approximate)
     {
         period.ifPresent(e -> checkArgument(e >= 0, "Period must be 0 or a positive value"));
 
@@ -123,9 +124,9 @@ public class PrestoRetentionQueryExecutor
         Set<CalculatedUserSet> missingPreComputedTables = new HashSet<>();
 
         String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension,
-                startDate, endDate, missingPreComputedTables, zoneId);
+                startDate, endDate, missingPreComputedTables, zoneId, approximate);
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension,
-                startDate, endDate, missingPreComputedTables, zoneId);
+                startDate, endDate, missingPreComputedTables, zoneId, approximate);
 
         if (firstActionQuery == null || returningActionQuery == null) {
             return QueryExecution.completedQueryExecution("", QueryResult.empty());
@@ -135,7 +136,7 @@ public class PrestoRetentionQueryExecutor
 
         String dimensionColumn = dimension.isPresent() ? "data.dimension" : "data.date";
 
-        String mergeSetAggregation = dimension.map(v -> "merge_sets").orElse("");
+        String mergeSetAggregation = dimension.map(v -> approximate ? "merge" : "merge_sets").orElse("");
         String query = format("with first_action as (\n" +
                         "  %s\n" +
                         "), \n" +
@@ -173,7 +174,8 @@ public class PrestoRetentionQueryExecutor
             LocalDate startDate,
             LocalDate endDate,
             Set<CalculatedUserSet> missingPreComputedTables,
-            ZoneId zoneId)
+            ZoneId zoneId,
+            boolean approximate)
     {
 
         String timePredicate = String.format("between timestamp '%s' and timestamp '%s' + interval '1' day",
@@ -196,8 +198,10 @@ public class PrestoRetentionQueryExecutor
             boolean isText = collections.entrySet().stream()
                     .anyMatch(e -> e.getValue().stream().anyMatch(z -> z.getType().equals(STRING)));
 
-            return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
-                    dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
+            return String.format("select date, %s %s(%s) as %s_set from (%s) group by 1 %s",
+                    dimension.map(v -> "dimension, ").orElse(""),
+                    approximate ? "approx_set" : "set",
+                    connectorField, connectorField,
                     collections.entrySet().stream()
                             .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
                             .map(collection -> getTableSubQuery(collection.getValue().stream().anyMatch(e -> e.getName().equals("_device_id")), collection.getKey(), connectorField,
@@ -215,8 +219,10 @@ public class PrestoRetentionQueryExecutor
                 return preComputedTable.get();
             }
 
-            return String.format("select date, %s set(%s) as %s_set from (%s) group by 1 %s",
-                    dimension.map(v -> "dimension, ").orElse(""), connectorField, connectorField,
+            return String.format("select date, %s %s(%s) as %s_set from (%s) group by 1 %s",
+                    dimension.map(v -> "dimension, ").orElse(""),
+                    approximate ? "approx_set" : "set",
+                    connectorField, connectorField,
                     getTableSubQuery(
                             metastore.getCollection(project, collection).stream().anyMatch(e -> e.getName().equals("_device_id")),
                             collection, connectorField, Optional.empty(),

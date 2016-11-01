@@ -64,7 +64,7 @@ public abstract class TestRetentionQueryExecutor {
     @Test
     public void testSimpleRetentionQuery() throws Exception {
         QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME, Optional.empty(), Optional.empty(), DAY, Optional.empty(),
-                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC)
+                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false)
                 .getResult().join();
 
         assertFalse(result.isFailed());
@@ -81,7 +81,7 @@ public abstract class TestRetentionQueryExecutor {
         QueryResult result = getRetentionQueryExecutor().query(PROJECT_NAME,
                 Optional.of(RetentionAction.create("test0", Optional.empty())),
                 Optional.of(RetentionAction.create("test1", Optional.empty())), DAY, Optional.empty(),
-                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC)
+                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false)
                 .getResult().join();
 
         assertFalse(result.isFailed());
@@ -98,7 +98,7 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.of(RetentionAction.create("test0", Optional.of("teststr = 'test0'"))),
                 Optional.of(RetentionAction.create("test1", Optional.of("teststr = 'test0'"))),
                 DAY, Optional.empty(),
-                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC)
+                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false)
                 .getResult().join();
 
         assertFalse(result.isFailed());
@@ -114,7 +114,7 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.of(RetentionAction.create("test0", Optional.empty())),
                 Optional.of(RetentionAction.create("test1", Optional.empty())),
                 DAY, Optional.of("teststr"), Optional.of(15),
-                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC).getResult().join();
+                LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false).getResult().join();
 
         assertFalse(result.isFailed());
         assertEquals(ImmutableSet.copyOf(result.getResult()), ImmutableSet.of(
@@ -129,7 +129,7 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.empty(),
                 Optional.empty(),
                 DAY, Optional.of("teststr"),
-                Optional.of(15), LocalDate.ofEpochDay(10000), LocalDate.ofEpochDay(10000), ZoneOffset.UTC)
+                Optional.of(15), LocalDate.ofEpochDay(10000), LocalDate.ofEpochDay(10000), ZoneOffset.UTC, false)
                 .getResult().join();
 
         assertFalse(result.isFailed());
@@ -142,7 +142,7 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.empty(),
                 Optional.empty(),
                 WEEK, Optional.empty(),
-                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC)
+                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false)
                 .getResult().join();
 
         assertFalse(result.isFailed());
@@ -156,7 +156,7 @@ public abstract class TestRetentionQueryExecutor {
                 Optional.empty(),
                 Optional.empty(),
                 MONTH, Optional.empty(),
-                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC)
+                Optional.of(15), LocalDate.ofEpochDay(0), LocalDate.ofEpochDay(SCALE_FACTOR), ZoneOffset.UTC, false)
                 .getResult().join();
 
         assertFalse(result.isFailed());
