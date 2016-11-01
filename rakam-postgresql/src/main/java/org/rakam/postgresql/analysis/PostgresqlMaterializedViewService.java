@@ -1,5 +1,6 @@
 package org.rakam.postgresql.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
 import org.rakam.analysis.MaterializedViewService;
@@ -9,16 +10,15 @@ import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
-import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
+
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
 
@@ -45,7 +45,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             statement = (Query) parser.createStatement(materializedView.query);
         }
 
-        new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty()), '"').process(statement, 1);
+        new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty()), '"').process(statement, 1);
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
                 project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();

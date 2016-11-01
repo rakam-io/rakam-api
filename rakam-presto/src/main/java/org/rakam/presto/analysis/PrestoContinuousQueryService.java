@@ -1,6 +1,7 @@
 package org.rakam.presto.analysis;
 
 import com.facebook.presto.spi.type.TypeSignature;
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
@@ -22,7 +23,6 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.AlreadyExistsException;
-import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -64,7 +64,7 @@ public class PrestoContinuousQueryService
     {
         StringBuilder builder = new StringBuilder();
 
-        new QueryFormatter(builder, name -> {
+        new RakamSqlFormatter.Formatter(builder, name -> {
             if (name.getSuffix().equals("_all") && name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
                 return format("_all.%s", project);
             }

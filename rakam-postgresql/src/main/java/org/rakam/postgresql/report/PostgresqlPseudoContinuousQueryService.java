@@ -1,5 +1,6 @@
 package org.rakam.postgresql.report;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableList;
@@ -14,7 +15,6 @@ import org.rakam.report.DelegateQueryExecution;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
-import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -100,7 +100,7 @@ public class PostgresqlPseudoContinuousQueryService
         }
 
         StringBuilder builder = new StringBuilder();
-        new QueryFormatter(builder, qualifiedName ->
+        new RakamSqlFormatter.Formatter(builder, qualifiedName ->
                 executor.formatTableReference(project, qualifiedName, Optional.empty()), '"')
                 .process(continuousQuery.getQuery(), 1);
 

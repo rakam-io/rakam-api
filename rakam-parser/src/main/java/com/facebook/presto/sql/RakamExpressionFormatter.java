@@ -27,7 +27,6 @@ import java.util.function.Function;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static java.lang.String.format;
 
@@ -38,14 +37,25 @@ public class RakamExpressionFormatter
     private final Function<QualifiedName, String> tableNameMapper;
     private final Optional<Function<QualifiedName, String>> columnNameMapper;
     private final char escape;
+    private final List<String> queryWithTables;
 
     public RakamExpressionFormatter(
             Function<QualifiedName, String> tableNameMapper,
             Optional<Function<QualifiedName, String>> columnNameMapper,
             char escape)
     {
+        this(tableNameMapper, columnNameMapper, null, escape);
+    }
+
+    RakamExpressionFormatter(
+            Function<QualifiedName, String> tableNameMapper,
+            Optional<Function<QualifiedName, String>> columnNameMapper,
+            List<String> queryWithTables,
+            char escape)
+    {
         this.tableNameMapper = tableNameMapper;
         this.columnNameMapper = columnNameMapper;
+        this.queryWithTables = queryWithTables;
         this.escape = escape;
     }
 
@@ -82,13 +92,13 @@ public class RakamExpressionFormatter
     @Override
     protected String visitSubscriptExpression(SubscriptExpression node, Boolean unmangleNames)
     {
-        return formatSql(node.getBase(), tableNameMapper, escape) + "[" + formatSql(node.getIndex(), tableNameMapper, escape) + "]";
+        return formatSql(node.getBase(), tableNameMapper, null, queryWithTables, escape) + "[" + formatSql(node.getIndex(), tableNameMapper, escape) + "]";
     }
 
     @Override
     protected String visitSubqueryExpression(SubqueryExpression node, Boolean unmangleNames)
     {
-        return "(" + formatSql(node.getQuery(), tableNameMapper, escape) + ")";
+        return "(" + formatSql(node.getQuery(), tableNameMapper, null, queryWithTables, escape) + ")";
     }
 
     @Override
@@ -102,7 +112,7 @@ public class RakamExpressionFormatter
     {
         ImmutableList.Builder<String> valueStrings = ImmutableList.builder();
         for (Expression value : node.getValues()) {
-            valueStrings.add(formatSql(value, tableNameMapper, escape));
+            valueStrings.add(formatSql(value, tableNameMapper, null, queryWithTables, escape));
         }
         return "ARRAY[" + Joiner.on(",").join(valueStrings.build()) + "]";
     }
@@ -161,7 +171,7 @@ public class RakamExpressionFormatter
             if (groupingElement instanceof SimpleGroupBy) {
                 Set<Expression> columns = ImmutableSet.copyOf(((SimpleGroupBy) groupingElement).getColumnExpressions());
                 if (columns.size() == 1) {
-                    result = formatExpression(getOnlyElement(columns), tableNameMapper,  columnNameMapper, escape);
+                    result = formatExpression(getOnlyElement(columns), tableNameMapper, columnNameMapper, escape);
                 }
                 else {
                     result = formatGroupingSet(columns);

@@ -57,6 +57,7 @@ import com.facebook.presto.sql.tree.ShowSession;
 import com.facebook.presto.sql.tree.ShowTables;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.SortItem;
+import com.facebook.presto.sql.tree.Statement;
 import com.facebook.presto.sql.tree.Table;
 import com.facebook.presto.sql.tree.TableSubquery;
 import com.facebook.presto.sql.tree.Union;
@@ -79,68 +80,106 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Iterables.transform;
 
-public final class RakamSqlFormatter {
+public final class RakamSqlFormatter
+{
     private static final String INDENT = "   ";
 
-    private RakamSqlFormatter() {
+    private RakamSqlFormatter()
+    {
     }
 
-    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier) {
+    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier)
+    {
         StringBuilder builder = new StringBuilder();
         new Formatter(builder, tableNameMapper, null, escapeIdentifier).process(root, 0);
         return builder.toString();
     }
 
-    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier) {
+    public static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier)
+    {
         StringBuilder builder = new StringBuilder();
         new Formatter(builder, tableNameMapper, columnNameMapper, escapeIdentifier).process(root, 0);
         return builder.toString();
     }
 
+    static String formatSql(Node root, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, List<String> ctes, char escapeIdentifier)
+    {
+        StringBuilder builder = new StringBuilder();
+        new Formatter(builder, tableNameMapper, columnNameMapper, ctes, escapeIdentifier).process(root, 0);
+        return builder.toString();
+    }
+
     public static class Formatter
-            extends AstVisitor<Void, Integer> {
+            extends AstVisitor<Void, Integer>
+    {
         private final StringBuilder builder;
         private final Function<QualifiedName, String> tableNameMapper;
         private final Optional<Function<QualifiedName, String>> columnNameMapper;
         private final char escapeIdentifier;
+        private final List<String> queryWithTables;
 
-        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier) {
+        private Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, List<String> ctes, char escapeIdentifier)
+        {
             this.builder = builder;
             this.tableNameMapper = tableNameMapper;
             this.escapeIdentifier = escapeIdentifier;
+            this.queryWithTables = ctes == null ? new ArrayList<>() : ctes;
             this.columnNameMapper = Optional.ofNullable(columnNameMapper);
         }
 
+        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier)
+        {
+            this(builder, tableNameMapper, null, null, escapeIdentifier);
+        }
+
+        public Formatter(StringBuilder builder, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier)
+        {
+            this(builder, tableNameMapper, columnNameMapper, null, escapeIdentifier);
+        }
+
+        public static String format(Statement query, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier)
+        {
+            StringBuilder builder = new StringBuilder();
+            new RakamSqlFormatter.Formatter(builder, tableNameMapper, escapeIdentifier).process(query, 1);
+            return builder.toString();
+        }
+
         @Override
-        protected Void visitNode(Node node, Integer indent) {
+        protected Void visitNode(Node node, Integer indent)
+        {
             throw new UnsupportedOperationException("not yet implemented: " + node);
         }
 
         @Override
-        protected Void visitExpression(Expression node, Integer indent) {
+        protected Void visitExpression(Expression node, Integer indent)
+        {
             checkArgument(indent == 0, "visitExpression should only be called at root");
-            builder.append(formatExpression(node, tableNameMapper, columnNameMapper, escapeIdentifier));
+            builder.append(formatExpression(node, tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
             return null;
         }
 
         @Override
-        protected Void visitUnnest(Unnest node, Integer indent) {
+        protected Void visitUnnest(Unnest node, Integer indent)
+        {
             builder.append("UNNEST(");
 
             builder.append(node.getExpressions().stream().map(e ->
-                    formatExpression(e, tableNameMapper, columnNameMapper,
+                    formatExpression(e, tableNameMapper, columnNameMapper, queryWithTables,
                             escapeIdentifier)).collect(Collectors.joining(", ")));
             builder.append(")");
 
-            if(node.isWithOrdinality()) {
+            if (node.isWithOrdinality()) {
                 builder.append(" WITH ORDINALITY");
             }
             return null;
         }
 
         @Override
-        protected Void visitQuery(Query node, Integer indent) {
+        protected Void visitQuery(Query node, Integer indent)
+        {
             if (node.getWith().isPresent()) {
+                queryWithTables.addAll(node.getWith().get().getQueries().stream()
+                        .map(WithQuery::getName).collect(Collectors.toList()));
                 With with = node.getWith().get();
                 append(indent, "WITH");
                 if (with.isRecursive()) {
@@ -183,7 +222,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitQuerySpecification(QuerySpecification node, Integer indent) {
+        protected Void visitQuerySpecification(QuerySpecification node, Integer indent)
+        {
             process(node.getSelect(), indent);
 
             if (node.getFrom().isPresent()) {
@@ -196,7 +236,7 @@ public final class RakamSqlFormatter {
             builder.append('\n');
 
             if (node.getWhere().isPresent()) {
-                append(indent, "WHERE " + formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, escapeIdentifier))
+                append(indent, "WHERE " + formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier))
                         .append('\n');
             }
 
@@ -205,7 +245,7 @@ public final class RakamSqlFormatter {
             }
 
             if (node.getHaving().isPresent()) {
-                append(indent, "HAVING " + formatExpression(node.getHaving().get(), tableNameMapper, columnNameMapper, escapeIdentifier))
+                append(indent, "HAVING " + formatExpression(node.getHaving().get(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier))
                         .append('\n');
             }
 
@@ -221,19 +261,19 @@ public final class RakamSqlFormatter {
             return null;
         }
 
-        static String formatSortItems(List<SortItem> sortItems, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier)
+        String formatSortItems(List<SortItem> sortItems, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier)
         {
             return Joiner.on(", ").join(sortItems.stream()
                     .map(sortItemFormatterFunction(tableNameMapper, columnNameMapper, escapeIdentifier))
                     .iterator());
         }
 
-        private static Function<SortItem, String> sortItemFormatterFunction(Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier)
+        private Function<SortItem, String> sortItemFormatterFunction(Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier)
         {
             return input -> {
                 StringBuilder builder = new StringBuilder();
 
-                builder.append(formatExpression(input.getSortKey(), tableNameMapper, columnNameMapper, escapeIdentifier));
+                builder.append(formatExpression(input.getSortKey(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
 
                 switch (input.getOrdering()) {
                     case ASCENDING:
@@ -265,7 +305,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitSelect(Select node, Integer indent) {
+        protected Void visitSelect(Select node, Integer indent)
+        {
             append(indent, "SELECT");
             if (node.isDistinct()) {
                 builder.append(" DISTINCT");
@@ -281,7 +322,8 @@ public final class RakamSqlFormatter {
                     process(item, indent);
                     first = false;
                 }
-            } else {
+            }
+            else {
                 builder.append(' ');
                 process(getOnlyElement(node.getSelectItems()), indent);
             }
@@ -292,8 +334,9 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitSingleColumn(SingleColumn node, Integer indent) {
-            builder.append(formatExpression(node.getExpression(), tableNameMapper, columnNameMapper, escapeIdentifier));
+        protected Void visitSingleColumn(SingleColumn node, Integer indent)
+        {
+            builder.append(formatExpression(node.getExpression(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
             if (node.getAlias().isPresent()) {
                 builder.append(' ')
                         .append(escapeIdentifier)
@@ -305,20 +348,27 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitAllColumns(AllColumns node, Integer context) {
+        protected Void visitAllColumns(AllColumns node, Integer context)
+        {
             builder.append(node.toString());
 
             return null;
         }
 
         @Override
-        protected Void visitTable(Table node, Integer indent) {
+        protected Void visitTable(Table node, Integer indent)
+        {
+            if (!node.getName().getPrefix().isPresent() && queryWithTables.contains(node.getName().getSuffix())) {
+                builder.append(node.getName().toString());
+                return null;
+            }
             builder.append(tableNameMapper.apply(node.getName()));
             return null;
         }
 
         @Override
-        protected Void visitJoin(Join node, Integer indent) {
+        protected Void visitJoin(Join node, Integer indent)
+        {
             JoinCriteria criteria = node.getCriteria().orElse(null);
             String type = node.getType().toString();
             if (criteria instanceof NaturalJoin) {
@@ -333,7 +383,8 @@ public final class RakamSqlFormatter {
             builder.append('\n');
             if (node.getType() == Join.Type.IMPLICIT) {
                 append(indent, ", ");
-            } else {
+            }
+            else {
                 append(indent, type).append(" JOIN ");
             }
 
@@ -345,12 +396,14 @@ public final class RakamSqlFormatter {
                     builder.append(" USING (")
                             .append(Joiner.on(", ").join(using.getColumns()))
                             .append(')');
-                } else if (criteria instanceof JoinOn) {
+                }
+                else if (criteria instanceof JoinOn) {
                     JoinOn on = (JoinOn) criteria;
                     builder.append(" ON (")
-                            .append(formatExpression(on.getExpression(), tableNameMapper, columnNameMapper, escapeIdentifier))
+                            .append(formatExpression(on.getExpression(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier))
                             .append(')');
-                } else if (!(criteria instanceof NaturalJoin)) {
+                }
+                else if (!(criteria instanceof NaturalJoin)) {
                     throw new UnsupportedOperationException("unknown join criteria: " + criteria);
                 }
             }
@@ -363,7 +416,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitAliasedRelation(AliasedRelation node, Integer indent) {
+        protected Void visitAliasedRelation(AliasedRelation node, Integer indent)
+        {
             process(node.getRelation(), indent);
 
             builder.append(' ')
@@ -375,7 +429,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitSampledRelation(SampledRelation node, Integer indent) {
+        protected Void visitSampledRelation(SampledRelation node, Integer indent)
+        {
             process(node.getRelation(), indent);
 
             builder.append(" TABLESAMPLE ")
@@ -395,7 +450,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitValues(Values node, Integer indent) {
+        protected Void visitValues(Values node, Integer indent)
+        {
             builder.append(" VALUES ");
 
             boolean first = true;
@@ -404,7 +460,7 @@ public final class RakamSqlFormatter {
                         .append(indentString(indent))
                         .append(first ? "  " : ", ");
 
-                builder.append(formatExpression(row, tableNameMapper, columnNameMapper, escapeIdentifier));
+                builder.append(formatExpression(row, tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
                 first = false;
             }
             builder.append('\n');
@@ -413,7 +469,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitTableSubquery(TableSubquery node, Integer indent) {
+        protected Void visitTableSubquery(TableSubquery node, Integer indent)
+        {
             builder.append('(')
                     .append('\n');
 
@@ -425,7 +482,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitUnion(Union node, Integer indent) {
+        protected Void visitUnion(Union node, Integer indent)
+        {
             Iterator<Relation> relations = node.getRelations().iterator();
 
             while (relations.hasNext()) {
@@ -443,7 +501,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitExcept(Except node, Integer indent) {
+        protected Void visitExcept(Except node, Integer indent)
+        {
             processRelation(node.getLeft(), indent);
 
             builder.append("EXCEPT ");
@@ -457,7 +516,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitIntersect(Intersect node, Integer indent) {
+        protected Void visitIntersect(Intersect node, Integer indent)
+        {
             Iterator<Relation> relations = node.getRelations().iterator();
 
             while (relations.hasNext()) {
@@ -475,7 +535,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitCreateView(CreateView node, Integer indent) {
+        protected Void visitCreateView(CreateView node, Integer indent)
+        {
             builder.append("CREATE ");
             if (node.isReplace()) {
                 builder.append("OR REPLACE ");
@@ -490,7 +551,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitDropView(DropView node, Integer context) {
+        protected Void visitDropView(DropView node, Integer context)
+        {
             builder.append("DROP VIEW ");
             if (node.isExists()) {
                 builder.append("IF EXISTS ");
@@ -501,7 +563,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitExplain(Explain node, Integer indent) {
+        protected Void visitExplain(Explain node, Integer indent)
+        {
             builder.append("EXPLAIN ");
 
             List<String> options = new ArrayList<>();
@@ -509,9 +572,11 @@ public final class RakamSqlFormatter {
             for (ExplainOption option : node.getOptions()) {
                 if (option instanceof ExplainType) {
                     options.add("TYPE " + ((ExplainType) option).getType());
-                } else if (option instanceof ExplainFormat) {
+                }
+                else if (option instanceof ExplainFormat) {
                     options.add("FORMAT " + ((ExplainFormat) option).getType());
-                } else {
+                }
+                else {
                     throw new UnsupportedOperationException("unhandled explain option: " + option);
                 }
             }
@@ -530,14 +595,16 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitShowCatalogs(ShowCatalogs node, Integer context) {
+        protected Void visitShowCatalogs(ShowCatalogs node, Integer context)
+        {
             builder.append("SHOW CATALOGS");
 
             return null;
         }
 
         @Override
-        protected Void visitShowSchemas(ShowSchemas node, Integer context) {
+        protected Void visitShowSchemas(ShowSchemas node, Integer context)
+        {
             builder.append("SHOW SCHEMAS");
 
             if (node.getCatalog().isPresent()) {
@@ -549,7 +616,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitShowTables(ShowTables node, Integer context) {
+        protected Void visitShowTables(ShowTables node, Integer context)
+        {
             builder.append("SHOW TABLES");
 
             node.getSchema().ifPresent((value) ->
@@ -564,7 +632,8 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitShowColumns(ShowColumns node, Integer context) {
+        protected Void visitShowColumns(ShowColumns node, Integer context)
+        {
             builder.append("SHOW COLUMNS FROM ")
                     .append(node.getTable());
 
@@ -572,13 +641,14 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitShowPartitions(ShowPartitions node, Integer context) {
+        protected Void visitShowPartitions(ShowPartitions node, Integer context)
+        {
             builder.append("SHOW PARTITIONS FROM ")
                     .append(node.getTable());
 
             if (node.getWhere().isPresent()) {
                 builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, escapeIdentifier));
+                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
             }
 
             if (!node.getOrderBy().isEmpty()) {
@@ -595,170 +665,48 @@ public final class RakamSqlFormatter {
         }
 
         @Override
-        protected Void visitShowFunctions(ShowFunctions node, Integer context) {
+        protected Void visitShowFunctions(ShowFunctions node, Integer context)
+        {
             builder.append("SHOW FUNCTIONS");
 
             return null;
         }
 
         @Override
-        protected Void visitShowSession(ShowSession node, Integer context) {
+        protected Void visitShowSession(ShowSession node, Integer context)
+        {
             builder.append("SHOW SESSION");
 
             return null;
         }
 
-        @Override
-        protected Void visitDelete(Delete node, Integer context) {
-            builder.append("DELETE FROM ")
-                    .append(node.getTable().getName());
-
-            if (node.getWhere().isPresent()) {
-                builder.append(" WHERE ")
-                        .append(formatExpression(node.getWhere().get(), tableNameMapper, columnNameMapper, escapeIdentifier));
-            }
-
-            return null;
-        }
-
-        @Override
-        protected Void visitCreateTableAsSelect(CreateTableAsSelect node, Integer indent) {
-            builder.append("CREATE TABLE ")
-                    .append(node.getName());
-
-            if (!node.getProperties().isEmpty()) {
-                builder.append(" WITH (");
-                Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper, escapeIdentifier)));
-                builder.append(')');
-            }
-
-            builder.append(" AS ");
-            process(node.getQuery(), indent);
-
-            return null;
-        }
-
-        @Override
-        protected Void visitCreateTable(CreateTable node, Integer indent) {
-            builder.append("CREATE TABLE ");
-            if (node.isNotExists()) {
-                builder.append("IF NOT EXISTS ");
-            }
-            builder.append(node.getName())
-                    .append(" (");
-
-            Joiner.on(", ").appendTo(builder, transform(node.getElements(),
-                    element -> element.getName() + " " + element.getType()));
-
-            builder.append(')');
-
-            if (!node.getProperties().isEmpty()) {
-                builder.append(" WITH (");
-                Joiner.on(", ").appendTo(builder, transform(node.getProperties().entrySet(),
-                        entry -> entry.getKey() + " = " + formatExpression(entry.getValue(), tableNameMapper, columnNameMapper, escapeIdentifier)));
-                builder.append(')');
-            }
-
-            return null;
-        }
-
-        @Override
-        protected Void visitDropTable(DropTable node, Integer context) {
-            builder.append("DROP TABLE ");
-            if (node.isExists()) {
-                builder.append("IF EXISTS ");
-            }
-            builder.append(node.getTableName());
-
-            return null;
-        }
-
-        @Override
-        protected Void visitRenameTable(RenameTable node, Integer context) {
-            builder.append("ALTER TABLE ")
-                    .append(node.getSource())
-                    .append(" RENAME TO ")
-                    .append(node.getTarget());
-
-            return null;
-        }
-
-        @Override
-        protected Void visitRenameColumn(RenameColumn node, Integer context) {
-            builder.append("ALTER TABLE ")
-                    .append(node.getTable())
-                    .append(" RENAME COLUMN ")
-                    .append(node.getSource())
-                    .append(" TO ")
-                    .append(node.getTarget());
-
-            return null;
-        }
-
-        @Override
-        protected Void visitAddColumn(AddColumn node, Integer indent) {
-            builder.append("ALTER TABLE ")
-                    .append(node.getName())
-                    .append(" ADD COLUMN ")
-                    .append(node.getColumn().getName())
-                    .append(' ')
-                    .append(node.getColumn().getType());
-
-            return null;
-        }
-
-        @Override
-        protected Void visitInsert(Insert node, Integer indent) {
-            builder.append("INSERT INTO ")
-                    .append(node.getTarget())
-                    .append(' ');
-
-            process(node.getQuery(), indent);
-
-            return null;
-        }
-
-        @Override
-        public Void visitSetSession(SetSession node, Integer context) {
-            builder.append("SET SESSION ")
-                    .append(node.getName())
-                    .append(" = ")
-                    .append(formatExpression(node.getValue(), tableNameMapper, columnNameMapper, escapeIdentifier));
-
-            return null;
-        }
-
-        @Override
-        public Void visitResetSession(ResetSession node, Integer context) {
-            builder.append("RESET SESSION ")
-                    .append(node.getName());
-
-            return null;
-        }
-
-        private void processRelation(Relation relation, Integer indent) {
+        private void processRelation(Relation relation, Integer indent)
+        {
             // TODO: handle this properly
             if (relation instanceof Table) {
                 builder.append("TABLE ")
                         .append(((Table) relation).getName())
                         .append('\n');
-            } else {
+            }
+            else {
                 process(relation, indent);
             }
         }
 
-        private StringBuilder append(int indent, String value) {
+        private StringBuilder append(int indent, String value)
+        {
             return builder.append(indentString(indent))
                     .append(value);
         }
 
-        private static String indentString(int indent) {
+        private static String indentString(int indent)
+        {
             return Strings.repeat(INDENT, indent);
         }
     }
 
-    private static void appendAliasColumns(StringBuilder builder, List<String> columns) {
+    private static void appendAliasColumns(StringBuilder builder, List<String> columns)
+    {
         if ((columns != null) && (!columns.isEmpty())) {
             builder.append(" (");
             Joiner.on(", ").appendTo(builder, columns);
@@ -766,16 +714,23 @@ public final class RakamSqlFormatter {
         }
     }
 
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier) {
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, char escapeIdentifier)
+    {
         return new RakamExpressionFormatter(tableNameMapper, Optional.empty(), escapeIdentifier).process(expression, false);
     }
 
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier) {
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Function<QualifiedName, String> columnNameMapper, char escapeIdentifier)
+    {
         return new RakamExpressionFormatter(tableNameMapper, Optional.of(columnNameMapper), escapeIdentifier).process(expression, false);
     }
 
-    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier) {
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, char escapeIdentifier)
+    {
         return new RakamExpressionFormatter(tableNameMapper, columnNameMapper, escapeIdentifier).process(expression, false);
     }
 
+    public static String formatExpression(Expression expression, Function<QualifiedName, String> tableNameMapper, Optional<Function<QualifiedName, String>> columnNameMapper, List<String> queryWithTables, char escapeIdentifier)
+    {
+        return new RakamExpressionFormatter(tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier).process(expression, false);
+    }
 }

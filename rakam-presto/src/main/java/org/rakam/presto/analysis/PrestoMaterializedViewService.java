@@ -1,5 +1,6 @@
 package org.rakam.presto.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.DefaultTraversalVisitor;
@@ -22,7 +23,6 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
-import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 
@@ -43,7 +43,6 @@ import java.util.stream.Stream;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 
@@ -124,7 +123,7 @@ public class PrestoMaterializedViewService
 
         StringBuilder builder = new StringBuilder();
         HashMap<String, String> map = new HashMap<>();
-        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), map), '"')
+        new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), map), '"')
                 .process(statement, 1);
 
         QueryExecution execution = queryExecutor
@@ -179,7 +178,7 @@ public class PrestoMaterializedViewService
             }
             StringBuilder builder = new StringBuilder();
 
-            new QueryFormatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties), '"').process(statement, 1);
+            new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties), '"').process(statement, 1);
             QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
             execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
             return new MaterializedViewExecution(execution, tableName);

@@ -1,5 +1,6 @@
 package org.rakam.postgresql.report;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
@@ -11,7 +12,6 @@ import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
-import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import javax.inject.Inject;
@@ -88,7 +88,7 @@ public class PostgresqlQueryExecutor
                     final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, name.getSuffix());
                     StringBuilder builder = new StringBuilder();
 
-                    new QueryFormatter(builder,
+                    new RakamSqlFormatter.Formatter(builder,
                             qualifiedName -> this.formatTableReference(project, qualifiedName, sample), '"')
                             .process(report.getQuery(), 1);
 

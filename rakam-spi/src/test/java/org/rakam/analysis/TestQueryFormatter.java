@@ -1,18 +1,15 @@
 package org.rakam.analysis;
 
-import com.facebook.presto.sql.RakamExpressionFormatter;
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Statement;
-import org.rakam.util.QueryFormatter;
 import org.testng.annotations.Test;
 
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.RakamExpressionFormatter.formatIdentifier;
+import static com.facebook.presto.sql.RakamSqlFormatter.Formatter.format;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
-import static org.rakam.util.QueryFormatter.format;
 import static org.testng.Assert.assertEquals;
 
 public class TestQueryFormatter {

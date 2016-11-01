@@ -1,11 +1,11 @@
 package org.rakam.report;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EscapeIdentifier;
@@ -14,10 +14,9 @@ import org.rakam.analysis.MaterializedViewService.MaterializedViewExecution;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
-import org.rakam.util.NotExistsException;
-import org.rakam.util.QueryFormatter;
-import org.rakam.util.RakamException;
 import org.rakam.util.LogUtil;
+import org.rakam.util.NotExistsException;
+import org.rakam.util.RakamException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -172,10 +171,10 @@ public class QueryExecutorService
         }
 
         // TODO: use fake StringBuilder for performance
-        new QueryFormatter(new StringBuilder(), tableNameMapper(project, materializedViews, sample, true, new HashMap<>()), escapeIdentifier)
+        new RakamSqlFormatter.Formatter(new StringBuilder(), tableNameMapper(project, materializedViews, sample, true, new HashMap<>()), escapeIdentifier)
                 .process(statement, 1);
 
-        new QueryFormatter(builder, tableNameMapper(project, materializedViews, sample, false, sessionParameters), escapeIdentifier).process(statement, 1);
+        new RakamSqlFormatter.Formatter(builder, tableNameMapper(project, materializedViews, sample, false, sessionParameters), escapeIdentifier).process(statement, 1);
 
         if (maxLimit != null) {
             Integer limit = null;
@@ -234,7 +233,7 @@ public class QueryExecutorService
         }
 
         Map<String, String> map = new HashMap<>();
-        new QueryFormatter(builder, qualifiedName ->
+        new RakamSqlFormatter.Formatter(builder, qualifiedName ->
                 executor.formatTableReference(project, qualifiedName, Optional.empty(), map), escapeIdentifier)
                 .process(queryStatement, 1);
 

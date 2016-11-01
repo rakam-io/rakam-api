@@ -1,5 +1,6 @@
 package org.rakam.analysis;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
 import org.rakam.analysis.metadata.QueryMetadataStore;
@@ -8,7 +9,6 @@ import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
-import org.rakam.util.QueryFormatter;
 import org.rakam.util.RakamException;
 
 import java.util.HashMap;
@@ -90,7 +90,7 @@ public abstract class MaterializedViewService {
         StringBuilder builder = new StringBuilder();
         Query queryStatement = (Query) sqlParser.createStatement(checkNotNull(query, "query is required"));
 
-        new QueryFormatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty()), escapeIdentifier)
+        new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty()), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = queryExecutor
