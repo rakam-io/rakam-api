@@ -163,10 +163,13 @@ public class PrestoMetastore
                         return getOrCreateCollectionFields(project, collection, fields, tryCount - 1);
                     }
                     else {
-                        throw new RakamException(String.format("Failed to add new fields to collection %s.%s: %s: %s",
+                        String description = String.format("%s.%s: %s: %s",
                                 project, collection, Arrays.toString(fields.toArray()),
-                                join.getError().toString()),
-                                INTERNAL_SERVER_ERROR);
+                                join.getError().toString());
+                        String message = "Failed to add new fields to collection";
+
+                        LOGGER.error(message, description);
+                        throw new RakamException(message + " " + description, INTERNAL_SERVER_ERROR);
                     }
                 }
                 else {
@@ -420,7 +423,7 @@ public class PrestoMetastore
     {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
-            if (tableColumn.getColumnName().startsWith("$") || tableColumn.getColumnName().equals("_shard_time") || !filter.test(tableColumn)) {
+            if (tableColumn.getColumnName().startsWith("$") || !filter.test(tableColumn)) {
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();
