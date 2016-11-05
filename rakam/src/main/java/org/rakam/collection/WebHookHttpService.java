@@ -34,6 +34,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
+import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.CryptUtil;
@@ -196,6 +197,7 @@ public class WebHookHttpService
     }
 
     @POST
+    @IgnoreApi
     @ApiOperation(value = "Collect event", response = Integer.class)
     @Path("/collect/*")
     public void collectPost(RakamHttpRequest request)
@@ -228,6 +230,7 @@ public class WebHookHttpService
     }
 
     @GET
+    @IgnoreApi
     @ApiOperation(value = "Collect event", response = Integer.class)
     @Path("/collect/*")
     public void collectGet(RakamHttpRequest request)
@@ -246,6 +249,7 @@ public class WebHookHttpService
     @PUT
     @ApiOperation(value = "Collect event", response = Integer.class)
     @Path("/collect/*")
+    @IgnoreApi
     public void collectPut(RakamHttpRequest request)
     {
         collectPost(request);

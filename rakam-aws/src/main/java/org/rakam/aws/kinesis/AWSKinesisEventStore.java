@@ -136,6 +136,10 @@ public class AWSKinesisEventStore
     @Override
     public CompletableFuture<int[]> storeBatchAsync(List<Event> events)
     {
+//        for (Event event : events) {
+//            storeAsync(event);
+//        }
+//        return COMPLETED_FUTURE_BATCH;
         return storeBatchInline(events);
     }
 

@@ -333,7 +333,7 @@ public class PrestoMetastore
                     "when year(date) = YEAR(NOW()) and month(date) = MONTH(NOW()) then 'month' else 'total' end) " +
                     "as date, " +
                     "sum(row_count) as events " +
-                    "from (select tables.schema_name, cast(create_time as date) as date, sum(row_count) as row_count from tables " +
+                    "from (select tables.schema_name, cast(shards.create_time as date) as date, sum(shards.row_count) as row_count from tables " +
                     "join shards on (shards.table_id = tables.table_id) where schema_name in (" +
                     projects.stream().map(e -> "'" + e + "'").collect(Collectors.joining(", ")) + ") group by 1,2   ) t group by 1, 2 ").map((i, resultSet, statementContext) -> {
                 Stats stats = map.get(resultSet.getString(1));
@@ -423,7 +423,7 @@ public class PrestoMetastore
     {
         HashMap<String, List<SchemaField>> map = new HashMap<>();
         for (TableColumn tableColumn : dao.listTableColumns(project, null)) {
-            if (tableColumn.getColumnName().startsWith("$") || !filter.test(tableColumn)) {
+            if (tableColumn.getColumnName().startsWith("$") || tableColumn.getColumnName().equals("_shard_time") || !filter.test(tableColumn)) {
                 continue;
             }
             TypeSignature typeSignature = tableColumn.getDataType().getTypeSignature();

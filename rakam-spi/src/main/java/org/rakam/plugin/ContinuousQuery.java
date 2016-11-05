@@ -12,8 +12,10 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.util.RakamException;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -29,13 +31,15 @@ public class ContinuousQuery
     public final String tableName;
     public final List<String> partitionKeys;
     public final Map<String, Object> options;
+    private final Optional<Duration> windowDuration;
 
     @JsonCreator
     public ContinuousQuery(@ApiParam(value = "table_name", description = "The table name of the continuous query that can be used when querying") String tableName,
             @ApiParam(value = "name", description = "Name") String name,
             @ApiParam(value = "query", description = "The sql query that will be executed and materialized") String query,
             @ApiParam(value = "partition_keys", description = "Partition columns of the table", required = false) List<String> partitionKeys,
-            @ApiParam(value = "options", description = "Additional information about the continuous query", required = false) Map<String, Object> options)
+            @ApiParam(value = "options", description = "Additional information about the continuous query", required = false) Map<String, Object> options,
+            @ApiParam(value = "windowDuration", required = false) Duration windowDuration)
             throws ParsingException, IllegalArgumentException
     {
         this.name = checkNotNull(name, "name is required");
@@ -43,6 +47,21 @@ public class ContinuousQuery
         this.options = options == null ? ImmutableMap.of() : options;
         this.partitionKeys = partitionKeys == null ? ImmutableList.of() : partitionKeys;
         this.query = query;
+        this.windowDuration = Optional.ofNullable(windowDuration);
+        if(windowDuration != null && this.partitionKeys.size() > 0) {
+            throw new IllegalArgumentException("Window duration cannot be used with partition keys");
+        }
+    }
+
+    public ContinuousQuery(
+            String tableName,
+            String name,
+            String query,
+            List<String> partitionKeys,
+            Map<String, Object> options)
+            throws ParsingException, IllegalArgumentException
+    {
+        this(tableName, name, query, partitionKeys, options, null);
     }
 
     @JsonIgnore
@@ -82,6 +101,12 @@ public class ContinuousQuery
     public String getName()
     {
         return name;
+    }
+
+    @JsonProperty("windowDuration")
+    public Duration getWindowDuration()
+    {
+        return windowDuration.orElse(null);
     }
 
     @Override
