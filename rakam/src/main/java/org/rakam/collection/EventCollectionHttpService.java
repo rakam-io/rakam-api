@@ -348,12 +348,12 @@ public class EventCollectionHttpService
                             eventStore.storeBulk(events);
                         }
                         catch (Throwable e) {
-                            List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
+                            List<Event> sample = events.size() > 5 ? events.subList(0, 2) : events;
                             LOGGER.error(new RuntimeException("Error executing EventStore bulk method: " + sample, e),
                                     "Error while storing event.");
 
                             return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
-                                    Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
+                                    Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred: " + e.getMessage(), INTERNAL_SERVER_ERROR))),
                                     responseHeaders);
                         }
                     }
@@ -602,8 +602,7 @@ public class EventCollectionHttpService
                         }
                         catch (Exception e) {
                             List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
-                            LOGGER.error("Error executing EventStore " + (single ? "store" : "batch") + " method.",
-                                    new RuntimeException(sample.toString(), e));
+                            LOGGER.error(new RuntimeException(sample.toString(), e), "Error executing EventStore " + (single ? "store" : "batch") + " method.");
                             return completedFuture(new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                     Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
                                     responseHeaders));

@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecutor;
@@ -43,6 +44,8 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class RealtimeService
 {
+    private static final Logger LOGGER = Logger.get(RealtimeService.class);
+
     private final String timestampToEpochFunction;
     private final SqlParser sqlParser = new SqlParser();
     private final Duration slide;
@@ -76,7 +79,7 @@ public abstract class RealtimeService
         }
 
         String sqlQuery = new StringBuilder().append("select ")
-                .append(format("(cast(" + timestampToEpochFunction + "("+ checkTableColumn(timeColumn(), escapeIdentifier) + ") as bigint) / %d) as time, ", slide.roundTo(TimeUnit.SECONDS)))
+                .append(format("(cast(" + timestampToEpochFunction + "(" + checkTableColumn(timeColumn(), escapeIdentifier) + ") as bigint) / %d) as time, ", slide.roundTo(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.measures, report.dimensions))
                 .append(" FROM (" + report.collections.stream().map(col -> String.format("(SELECT %s FROM %s) as data",
                         Stream.of(checkTableColumn(timeColumn(), escapeIdentifier), report.dimensions.stream().collect(Collectors.joining(", ")),
@@ -99,7 +102,8 @@ public abstract class RealtimeService
                 .thenApply(SuccessMessage::map);
     }
 
-    public String timeColumn() {
+    public String timeColumn()
+    {
         return "_time";
     }
 
@@ -147,7 +151,7 @@ public abstract class RealtimeService
                                         checkTableColumn("time", escapeIdentifier),
                                         previousWindow,
                                         checkTableColumn("time",
-                                                escapeIdentifier),  currentWindow))),
+                                                escapeIdentifier), currentWindow))),
                 !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
                         .collect(Collectors.joining(", "))) : "",
                 (expression == null) ? "" : formatExpression(expression,
@@ -165,6 +169,7 @@ public abstract class RealtimeService
 
             List<List<Object>> data = result.getResult();
 
+            Object queryResult;
             if (!finalAggregate) {
                 if (noDimension) {
                     List<List<Object>> newData = Lists.newLinkedList();
@@ -175,7 +180,10 @@ public abstract class RealtimeService
                         {
                             return (Long) objects.get(0);
                         }
-                    }, Function.identity()));
+                    }, Function.identity(), (groupId1, groupId2) -> {
+                        LOGGER.error("Duplicate key found, {} and {}", groupId1, groupId2);
+                        return groupId2;
+                    }));
                     for (long current = previousWindow * slide.toMillis(); current < currentWindow * slide.toMillis(); current += slide.toMillis()) {
 
                         List<Object> objects = collect.get(current);
@@ -195,23 +203,23 @@ public abstract class RealtimeService
                         list.add(0);
                         newData.add(list);
                     }
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, newData);
+                    queryResult = newData;
                 }
                 else {
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data);
+                    queryResult = data;
                 }
             }
             else {
                 if (noDimension) {
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, !data.isEmpty() ? data.get(0).get(1) : 0);
+                    queryResult = !data.isEmpty() ? data.get(0).get(1) : 0;
                 }
                 else {
-                    return new RealTimeQueryResult(previousTimestamp, currentTimestamp, data);
+                    queryResult = data;
                 }
             }
+            return new RealTimeQueryResult(previousTimestamp, currentTimestamp, queryResult);
         });
     }
-
 
     public abstract String getIntermediateFunction(AggregationType type);
 

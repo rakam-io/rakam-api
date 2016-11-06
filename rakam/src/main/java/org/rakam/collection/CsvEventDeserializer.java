@@ -48,6 +48,7 @@ public class CsvEventDeserializer
     private final Metastore metastore;
     private final Set<SchemaField> constantFields;
     private final ConfigManager configManager;
+    private final Map<String, List<SchemaField>> dependentFields;
 
     @Inject
     public CsvEventDeserializer(Metastore metastore, ConfigManager configManager,
@@ -57,6 +58,7 @@ public class CsvEventDeserializer
 
         this.configManager = configManager;
         this.constantFields = fieldDependency.constantFields;
+        this.dependentFields = fieldDependency.dependentFields;
     }
 
     @Override
@@ -137,7 +139,11 @@ public class CsvEventDeserializer
                 if (name.equals("_user")) {
                     type = configManager.setConfigOnce(project, USER_TYPE.name(), STRING);
                 }
-                newFields.add(new SchemaField(name, type));
+                SchemaField field = dependentFields.values().stream()
+                        .flatMap(e -> e.stream())
+                        .filter(e -> e.getName().equals(name))
+                        .findAny().orElse(new SchemaField(name, type));
+                newFields.add(field);
             }
 
             columns.add(name);
