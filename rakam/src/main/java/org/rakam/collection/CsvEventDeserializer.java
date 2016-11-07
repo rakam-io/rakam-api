@@ -15,10 +15,8 @@ import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
-import org.rakam.util.AvroUtil;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.RakamException;
-import scala.annotation.meta.field;
 
 import javax.inject.Inject;
 
