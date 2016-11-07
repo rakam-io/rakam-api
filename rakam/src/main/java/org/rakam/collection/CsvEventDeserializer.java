@@ -1,5 +1,6 @@
 package org.rakam.collection;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.JsonTokenId;
@@ -14,8 +15,10 @@ import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
+import org.rakam.util.AvroUtil;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.RakamException;
+import scala.annotation.meta.field;
 
 import javax.inject.Inject;
 
@@ -25,6 +28,7 @@ import java.time.temporal.ChronoField;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +44,7 @@ import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.JsonEventDeserializer.getValueOfMagicField;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
+import static org.rakam.util.AvroUtil.generateAvroSchema;
 
 public class CsvEventDeserializer
         extends JsonDeserializer<EventList>
@@ -49,6 +54,7 @@ public class CsvEventDeserializer
     private final Set<SchemaField> constantFields;
     private final ConfigManager configManager;
     private final Map<String, List<SchemaField>> dependentFields;
+    private final JsonFactory jsonFactory = new JsonFactory();
 
     @Inject
     public CsvEventDeserializer(Metastore metastore, ConfigManager configManager,
@@ -202,12 +208,64 @@ public class CsvEventDeserializer
                 }
             default:
                 if (type.isMap()) {
-                    throw new UnsupportedOperationException("map type is not supported");
+                    return getMap(type.getMapValueType(), jp.getValueAsString());
                 }
                 if (type.isArray()) {
-                    throw new UnsupportedOperationException("array type is not supported");
+                    return getArray(type.getArrayElementType(), jp.getValueAsString());
                 }
                 throw new JsonMappingException(format("type is not supported."));
         }
+    }
+
+    private GenericData.Array getArray(FieldType arrayElementType, String valueAsString)
+            throws IOException
+    {
+        JsonParser parser = jsonFactory.createParser(valueAsString);
+
+        List<Object> objects = new ArrayList<>();
+
+        JsonToken t = parser.getCurrentToken();
+        if (t != JsonToken.START_ARRAY) {
+            return null;
+        }
+        else {
+            t = parser.nextToken();
+        }
+
+        for (; t != JsonToken.END_ARRAY; t = parser.nextToken()) {
+            if (!t.isScalarValue()) {
+                throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", arrayElementType.name()));
+            }
+            objects.add(getValue(arrayElementType, parser));
+        }
+
+        return new GenericData.Array(generateAvroSchema(arrayElementType), objects);
+    }
+
+    private Map<String, Object> getMap(FieldType mapValueType, String valueAsString)
+            throws IOException
+    {
+        Map<String, Object> map = new HashMap<>();
+        JsonParser parser = jsonFactory.createParser(valueAsString);
+
+        JsonToken t = parser.getCurrentToken();
+        if (t != JsonToken.START_OBJECT) {
+            return null;
+        }
+        else {
+            t = parser.nextToken();
+        }
+
+        for (; t == JsonToken.FIELD_NAME; t = parser.nextToken()) {
+            String key = parser.getCurrentName();
+
+            if (!parser.nextToken().isScalarValue()) {
+                throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", mapValueType.name()));
+            }
+
+            map.put(key, getValue(mapValueType, parser));
+        }
+
+        return map;
     }
 }

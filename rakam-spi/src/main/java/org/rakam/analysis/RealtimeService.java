@@ -181,7 +181,7 @@ public abstract class RealtimeService
                             return (Long) objects.get(0);
                         }
                     }, Function.identity(), (groupId1, groupId2) -> {
-                        LOGGER.error("Duplicate key found, {} and {}", groupId1, groupId2);
+                        LOGGER.error("Duplicate key found, %s and %s", groupId1, groupId2);
                         return groupId2;
                     }));
                     for (long current = previousWindow * slide.toMillis(); current < currentWindow * slide.toMillis(); current += slide.toMillis()) {
