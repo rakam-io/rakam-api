@@ -67,6 +67,8 @@ import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED;
+import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
 
@@ -532,7 +534,7 @@ public class WebUserService
             }
         }
 
-        if(newUserId == null) {
+        if (newUserId == null) {
             throw new IllegalStateException("User id cannot be found.");
         }
 
@@ -590,9 +592,6 @@ public class WebUserService
 
     public Optional<WebUser> login(String email, String password)
     {
-        String hashedPassword;
-        int id;
-
         if (config.getHashPassword()) {
             password = CryptUtil.encryptWithHMacSHA1(password, encryptionConfig.getSecretKey());
         }
@@ -606,9 +605,14 @@ public class WebUserService
             if (data == null) {
                 return Optional.empty();
             }
-            hashedPassword = (String) data.get("password");
+            String hashedPassword = (String) data.get("password");
+            if (hashedPassword == null) {
+                throw new RakamException("Your password is not set. Please reset your password in order to set it.",
+                        PRECONDITION_REQUIRED);
+            }
+
             String name = (String) data.get("name");
-            id = (int) data.get("id");
+            int id = (int) data.get("id");
             boolean readOnly = (boolean) data.get("read_only");
 
             // TODO move this heavy operation outside of the connection scope.
@@ -677,7 +681,13 @@ public class WebUserService
         ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key " +
                 " FROM web_user_project project " +
                 " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
-                " WHERE api_key.user_id = :user ORDER BY project.id, api_key.master_key NULLS LAST")
+                " WHERE api_key.user_id = :user " +
+                " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key\n" +
+                        "FROM web_user_api_key_permission permission \n" +
+                        "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
+                        "JOIN web_user_project project ON (project.id = api_key.project_id)\n" +
+                        "WHERE permission.user_id = :user" +
+                " ORDER BY id NULLS LAST")
                 .bind("user", userId)
                 .map((index, r, ctx) -> {
                     int id = r.getInt(1);
