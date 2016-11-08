@@ -14,7 +14,7 @@ Rakam is a modular analytics platform that gives you a set of features to create
 Typical workflow of using Rakam:
 * Collect data from multiple sources with **[trackers, client libraries, webhooks, tasks etc.](//rakam.io/doc/buremba/rakam-wiki/master/Collecting-Events)**
 * Enrich and sanitize your event data and cleaner with **[event mappers](//rakam.io/doc/buremba/rakam-wiki/master/Event-Mappers)**
-* Process data in real-time using [real-time modules](//rakam.io/doc/buremba/rakam-wiki/master/Modules#realtimeanalyticsmodulesubapidocapirakamiorealtimesub)** (pre-aggregate data via stream processing using SQL!),
+* Process data in real-time using **[real-time modules](//rakam.io/doc/buremba/rakam-wiki/master/Modules#realtimeanalyticsmodulesubapidocapirakamiorealtimesub)** (pre-aggregate data via stream processing using SQL!),
 * Store data in a data warehouse to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
 * Analyze your event data in your data warehouse with your custom SQL queries and integrated rich analytics features **(funnel queries**, **retention queries**, **[real-time reports](//rakam.io/doc/Modules#realtimeanalyticsmodulesubapidocgetrakamcomapitagsrealtimesub)**, **[event streams](//rakam.io/doc/Modules#eventstreammodulesubapidocgetrakamcomapitagsstreamsub)**)
 * Analyze your users with **[integrated CRM tool](//rakam.io/doc/buremba/rakam-wiki/master/Modules#customeranalyticsmodulesubapidocapirakamiousersub)**
