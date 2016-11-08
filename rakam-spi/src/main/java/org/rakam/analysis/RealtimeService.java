@@ -140,7 +140,7 @@ public abstract class RealtimeService
         long currentWindow = (dateEnd == null ? last_update : dateEnd.toEpochMilli()) / slide.toMillis();
 
         Object timeCol = aggregate ? currentWindow : "time";
-        String sqlQuery = format("select %s, %s %s from %s where %s %s %s ORDER BY 1 ASC LIMIT 5000",
+        String sqlQuery = format("select %s, %s %s from %s where %s %s %s %s ORDER BY 1 ASC LIMIT 5000",
                 timeCol + " * cast(" + slide.toMillis() + " as bigint)",
                 !noDimension ? dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier)).collect(Collectors.joining(", ")) + "," : "",
                 String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid", escapeIdentifier)),
@@ -152,7 +152,8 @@ public abstract class RealtimeService
                                         previousWindow,
                                         checkTableColumn("time",
                                                 escapeIdentifier), currentWindow))),
-                !noDimension || !aggregate ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
+                (!noDimension || !aggregate) ? ("(" + dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier) + " is not null ").collect(Collectors.joining(" and ")) + ")") : "",
+                (!noDimension || !aggregate) ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
                         .collect(Collectors.joining(", "))) : "",
                 (expression == null) ? "" : formatExpression(expression,
                         reference -> executor.formatTableReference(project, reference, Optional.empty()), escapeIdentifier));
@@ -180,12 +181,9 @@ public abstract class RealtimeService
                         {
                             return (Long) objects.get(0);
                         }
-                    }, Function.identity(), (groupId1, groupId2) -> {
-                        LOGGER.error("Duplicate key found, %s and %s", groupId1, groupId2);
-                        return groupId2;
-                    }));
-                    for (long current = previousWindow * slide.toMillis(); current < currentWindow * slide.toMillis(); current += slide.toMillis()) {
+                    }, Function.identity(), (groupId1, groupId2) -> groupId2));
 
+                    for (long current = previousWindow * slide.toMillis(); current < currentWindow * slide.toMillis(); current += slide.toMillis()) {
                         List<Object> objects = collect.get(current);
 
                         if (objects != null) {
