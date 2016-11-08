@@ -65,7 +65,7 @@ public class UIPermissionParameterProvider
 
             return (objectNode, request) -> {
                 String projectString = request.headers().get("project");
-                if(projectString == null) {
+                if (projectString == null) {
                     throw new RakamException("Project header is null", BAD_REQUEST);
                 }
                 int project;
@@ -81,7 +81,14 @@ public class UIPermissionParameterProvider
 
                 if (readOnly) {
                     try (Handle handle = dbi.open()) {
-                        boolean hasPermission = handle.createQuery("SELECT 1 FROM web_user_api_key key JOIN web_user_project project ON (key.project_id = project.id) WHERE key.user_id = :user AND project.id = :id")
+                        boolean hasPermission = handle.createQuery("SELECT 1 FROM web_user_api_key key " +
+                                "JOIN web_user_project project ON (key.project_id = project.id) " +
+                                "WHERE key.user_id = :user AND project.id = :id " +
+                                " UNION ALL " +
+                                " SELECT 1 " +
+                                "FROM web_user_api_key_permission permission \n" +
+                                "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
+                                "WHERE permission.user_id = :user AND api_key.project_id = :id AND permission.read_permission")
                                 .map(IntegerMapper.FIRST)
                                 .bind("user", userId)
                                 .bind("id", project)
@@ -93,7 +100,15 @@ public class UIPermissionParameterProvider
                 }
                 else {
                     try (Handle handle = dbi.open()) {
-                        Boolean readOnlyUser = handle.createQuery("SELECT web_user.read_only FROM web_user_api_key key JOIN web_user_project project ON (key.project_id = project.id) JOIN web_user ON (web_user.id = key.user_id) WHERE key.user_id = :user AND project.id = :id")
+                        Boolean readOnlyUser = handle.createQuery("SELECT web_user.read_only FROM web_user_api_key key " +
+                                "JOIN web_user_project project ON (key.project_id = project.id) " +
+                                "JOIN web_user ON (web_user.id = key.user_id) " +
+                                "WHERE key.user_id = :user AND project.id = :id" +
+                                " UNION ALL " +
+                                " SELECT 1 " +
+                                "FROM web_user_api_key_permission permission \n" +
+                                "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
+                                "WHERE permission.user_id = :user AND api_key.project_id = :id AND permission.master_permission")
                                 .map(BooleanMapper.FIRST)
                                 .bind("user", userId)
                                 .bind("id", project)
@@ -112,11 +127,13 @@ public class UIPermissionParameterProvider
         }
     }
 
-    public static class Project {
+    public static class Project
+    {
         public final int project;
         public final int userId;
 
-        public Project(int project, int userId) {
+        public Project(int project, int userId)
+        {
             this.project = project;
             this.userId = userId;
         }

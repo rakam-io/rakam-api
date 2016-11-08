@@ -12,21 +12,20 @@ Features / Goals
 Rakam is a modular analytics platform that gives you a set of features to create your own analytics service.
 
 Typical workflow of using Rakam:
-* Collect data from your clients using **[client libraries](//rakam.io/doc/Client_Libraries)**
-* Make your event data richer and cleaner with **[event mappers](//rakam.io/doc/Event-Mappers)**
-* Process data in real-time and pre-aggregate using **[continuous queries](//rakam.io/doc)** (Stream processing with SQL!),
+* Collect data from multiple sources with **[trackers, client libraries, webhooks, tasks etc.](//rakam.io/doc/buremba/rakam-wiki/master/Collecting-Events)**
+* Enrich and sanitize your event data and cleaner with **[event mappers](//rakam.io/doc/buremba/rakam-wiki/master/Event-Mappers)**
+* Process data in real-time using [real-time modules](//rakam.io/doc/buremba/rakam-wiki/master/Modules#realtimeanalyticsmodulesubapidocapirakamiorealtimesub)** (pre-aggregate data via stream processing using SQL!),
 * Store data in a data warehouse to analyze it later. (Postgresql, HDFS, S3 or any file-system you want)
 * Analyze your event data in your data warehouse with your custom SQL queries and integrated rich analytics features **(funnel queries**, **retention queries**, **[real-time reports](//rakam.io/doc/Modules#realtimeanalyticsmodulesubapidocgetrakamcomapitagsrealtimesub)**, **[event streams](//rakam.io/doc/Modules#eventstreammodulesubapidocgetrakamcomapitagsstreamsub)**)
-* Analyze your users with **[integrated CRM tool](//rakam.io/doc/Modules#crmmodulecustomermailboxsubapidocgetrakamcomapitagsusermailboxsub)**
-* Visualize your data using **[web application](#Webapplication)** of Rakam similar to BI tools.
-* **[Add your own modules](//rakam.io/doc/Developing-Modules)** to Rakam to customize Rakam for your special needs.
+* Analyze your users with **[integrated CRM tool](//rakam.io/doc/buremba/rakam-wiki/master/Modules#customeranalyticsmodulesubapidocapirakamiousersub)**
+* Create custom dashboards and real-time reports using **[Rakam BI](https://rakam.io/)**
+* **[Develop your own modules](//rakam.io/doc/buremba/rakam-wiki/master/Developing-Modules)** for Rakam to customize it for your needs.
 
 All these features come with a single box, you just need to specify which modules you want to use using a configuration file (config.properties) and Rakam will do the rest for you.
-You can also start multiple instances and put them behind a load balancer if you need high availability or/and want to collect tens of thousands events per second.
+We also provide cloud deployment tools for scaling your Rakam cluster easily.
 
 Deployment
-------------
-There are multiple deployment types depending of your needs.
+----------
 
 If your event data-set can fit in a single server, we recommend using Postgresql backend. Rakam will collect all your events in row-oriented format in a Postgresql node. All the features provided by Rakam are supported in Postgresql deployment type.
 
@@ -34,7 +33,7 @@ However Rakam is designed to be highly scalable in order to provide a solution f
 
 ### Heroku
 
-You can easily deploy Rakam to Heroku using Heroku button, it adds Heroku Postgresql add-on to your app and use Postgresql deployment type.
+You can deploy Rakam to Heroku using Heroku button, it uses Heroku Postgresql add-on for your app and uses Postgresql deployment type.
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam)
 
@@ -93,7 +92,7 @@ The launcher script can take the following arguments: `start|restart|stop|status
 ### Managed
 
 We're also working for managed Rakam cluster, we will deploy Rakam to our AWS accounts and manage it for you so that you don't need to worry about scaling, managing and software updates. We will do it for you.
-Please shoot us an email to `support@rakam.io` if you want to test our managed Rakam service.
+Please shoot us an email to `emre@rakam.io` if you want to test our managed Rakam service.
 
 Web application
 ------------
