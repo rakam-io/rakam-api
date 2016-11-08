@@ -92,8 +92,6 @@ public class PrestoMaterializedViewService
     @Override
     public CompletableFuture<Void> create(String project, MaterializedView materializedView)
     {
-        database.createMaterializedView(project, materializedView);
-
         Statement statement = sqlParser.createStatement(materializedView.query);
         statement.accept(new DefaultTraversalVisitor<Void, Void>()
         {
@@ -133,8 +131,10 @@ public class PrestoMaterializedViewService
 
         return execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
-                database.deleteMaterializedView(project, materializedView.tableName);
                 throw new RakamException(result.getError().message, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            }
+            else {
+                database.createMaterializedView(project, materializedView);
             }
         });
     }
