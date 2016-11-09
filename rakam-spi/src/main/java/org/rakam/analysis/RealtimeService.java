@@ -146,12 +146,7 @@ public abstract class RealtimeService
                 String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid", escapeIdentifier)),
                 executor.formatTableReference(project, QualifiedName.of("continuous", tableName), Optional.empty()),
                 format("%s >= %d", checkTableColumn("time", escapeIdentifier), previousWindow) +
-                        (dateEnd == null ? "" :
-                                format(" AND %s < ", checkTableColumn("time", escapeIdentifier), format("%s >= %d AND %s <= %d",
-                                        checkTableColumn("time", escapeIdentifier),
-                                        previousWindow,
-                                        checkTableColumn("time",
-                                                escapeIdentifier), currentWindow))),
+                        (dateEnd == null ? "" : format(" AND %s < %s", checkTableColumn("time", escapeIdentifier), currentWindow)),
                 (!noDimension || !aggregate) ? ("and ( " + dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier) + " is not null ").collect(Collectors.joining(" and ")) + ")") : "",
                 (!noDimension || !aggregate) ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
                         .collect(Collectors.joining(", "))) : "",
