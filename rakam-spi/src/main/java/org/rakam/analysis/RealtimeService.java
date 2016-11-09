@@ -147,7 +147,7 @@ public abstract class RealtimeService
                 executor.formatTableReference(project, QualifiedName.of("continuous", tableName), Optional.empty()),
                 format("%s >= %d", checkTableColumn("time", escapeIdentifier), previousWindow) +
                         (dateEnd == null ? "" :
-                                format("AND %s <", checkTableColumn("time", escapeIdentifier), format("%s >= %d AND %s <= %d",
+                                format(" AND %s < ", checkTableColumn("time", escapeIdentifier), format("%s >= %d AND %s <= %d",
                                         checkTableColumn("time", escapeIdentifier),
                                         previousWindow,
                                         checkTableColumn("time",

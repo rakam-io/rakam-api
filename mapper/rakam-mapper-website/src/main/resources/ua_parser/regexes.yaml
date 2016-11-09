@@ -1,4 +1,4 @@
-#### Commit id : 49b141ffe86d5138c332f733d6b2007675bbeb43 ####
+#### Commit id : 6711c34d5b02b260774408f01b81b5e34530dc7a ####
 user_agent_parsers:
   #### SPECIAL CASES TOP ####
 
@@ -18,6 +18,10 @@ user_agent_parsers:
   - regex: 'Google.*/\+/web/snippet'
     family_replacement: 'GooglePlusBot'
 
+  # Gmail
+  - regex: 'via ggpht.com GoogleImageProxy'
+    family_replacement: 'GmailImageProxy'
+
   # Twitter
   - regex: '(Twitterbot)/(\d+)\.(\d+)'
     family_replacement: 'TwitterBot'
@@ -35,7 +39,7 @@ user_agent_parsers:
   - regex: '(Google-HTTP-Java-Client|Apache-HttpClient|http%20client|Python-urllib|HttpMonitor|TLSProber|WinHTTP|JNLP)(?:[ /](\d+)(?:\.(\d+)(?:\.(\d+))?)?)?'
 
   # Bots
-  - regex: '(1470\.net crawler|50\.nu|8bo Crawler Bot|Aboundex|Accoona-[A-z]+-Agent|AdsBot-Google(?:-[a-z]+)?|altavista|AppEngine-Google|archive.*?\.org_bot|archiver|Ask Jeeves|[Bb]ai[Dd]u[Ss]pider(?:-[A-Za-z]+)*|bingbot|BingPreview|blitzbot|BlogBridge|BoardReader(?: [A-Za-z]+)*|boitho.com-dc|BotSeer|\b\w*favicon\w*\b|\bYeti(?:-[a-z]+)?|Catchpoint bot|[Cc]harlotte|Checklinks|clumboot|Comodo HTTP\(S\) Crawler|Comodo-Webinspector-Crawler|ConveraCrawler|CRAWL-E|CrawlConvera|Daumoa(?:-feedfetcher)?|Feed Seeker Bot|findlinks|Flamingo_SearchEngine|FollowSite Bot|furlbot|Genieo|gigabot|GomezAgent|gonzo1|(?:[a-zA-Z]+-)?Googlebot(?:-[a-zA-Z]+)?|Google SketchUp|grub-client|gsa-crawler|heritrix|HiddenMarket|holmes|HooWWWer|htdig|ia_archiver|ICC-Crawler|Icarus6j|ichiro(?:/mobile)?|IconSurf|IlTrovatore(?:-Setaccio)?|InfuzApp|Innovazion Crawler|InternetArchive|IP2[a-z]+Bot|jbot\b|KaloogaBot|Kraken|Kurzor|larbin|LEIA|LesnikBot|Linguee Bot|LinkAider|LinkedInBot|Lite Bot|Llaut|lycos|Mail\.RU_Bot|masidani_bot|Mediapartners-Google|Microsoft .*? Bot|mogimogi|mozDex|MJ12bot|msnbot(?:-media *)?|msrbot|netresearch|Netvibes|NewsGator[^/]*|^NING|Nutch[^/]*|Nymesis|ObjectsSearch|Orbiter|OOZBOT|PagePeeker|PagesInventory|PaxleFramework|Peeplo Screenshot Bot|PlantyNet_WebRobot|Pompos|Read%20Later|Reaper|RedCarpet|Retreiver|Riddler|Rival IQ|scooter|Scrapy|Scrubby|searchsight|seekbot|semanticdiscovery|Simpy|SimplePie|SEOstats|SimpleRSS|SiteCon|Slurp|snappy|Speedy Spider|Squrl Java|TheUsefulbot|ThumbShotsBot|Thumbshots\.ru|TwitterBot|URL2PNG|Vagabondo|VoilaBot|^vortex|Votay bot|^voyager|WASALive.Bot|Web-sniffer|WebThumb|WeSEE:[A-z]+|WhatWeb|WIRE|WordPress|Wotbox|www\.almaden\.ibm\.com|Xenu(?:.s)? Link Sleuth|Xerka [A-z]+Bot|yacy(?:bot)?|Yahoo[a-z]*Seeker|Yahoo! Slurp|Yandex\w+|YodaoBot(?:-[A-z]+)?|YottaaMonitor|Yowedo|^Zao|^Zao-Crawler|ZeBot_www\.ze\.bz|ZooShot|ZyBorg)(?:[ /]v?(\d+)(?:\.(\d+)(?:\.(\d+))?)?)?'
+  - regex: '(1470\.net crawler|50\.nu|8bo Crawler Bot|Aboundex|Accoona-[A-z]+-Agent|AdsBot-Google(?:-[a-z]+)?|altavista|AppEngine-Google|archive.*?\.org_bot|archiver|Ask Jeeves|[Bb]ai[Dd]u[Ss]pider(?:-[A-Za-z]+)*|bingbot|BingPreview|blitzbot|BlogBridge|BoardReader(?: [A-Za-z]+)*|boitho.com-dc|BotSeer|\b\w*favicon\w*\b|\bYeti(?:-[a-z]+)?|Catchpoint bot|[Cc]harlotte|Checklinks|clumboot|Comodo HTTP\(S\) Crawler|Comodo-Webinspector-Crawler|ConveraCrawler|CRAWL-E|CrawlConvera|Daumoa(?:-feedfetcher)?|Feed Seeker Bot|findlinks|Flamingo_SearchEngine|FollowSite Bot|furlbot|Genieo|gigabot|GomezAgent|gonzo1|(?:[a-zA-Z]+-)?Googlebot(?:-[a-zA-Z]+)?|Google SketchUp|grub-client|gsa-crawler|heritrix|HiddenMarket|holmes|HooWWWer|htdig|ia_archiver|ICC-Crawler|Icarus6j|ichiro(?:/mobile)?|IconSurf|IlTrovatore(?:-Setaccio)?|InfuzApp|Innovazion Crawler|InternetArchive|IP2[a-z]+Bot|jbot\b|KaloogaBot|Kraken|Kurzor|larbin|LEIA|LesnikBot|Linguee Bot|LinkAider|LinkedInBot|Lite Bot|Llaut|lycos|Mail\.RU_Bot|masidani_bot|Mediapartners-Google|Microsoft .*? Bot|mogimogi|mozDex|MJ12bot|msnbot(?:-media *)?|msrbot|netresearch|Netvibes|NewsGator[^/]*|^NING|Nutch[^/]*|Nymesis|ObjectsSearch|Orbiter|OOZBOT|PagePeeker|PagesInventory|PaxleFramework|Peeplo Screenshot Bot|PlantyNet_WebRobot|Pompos|Read%20Later|Reaper|RedCarpet|Retreiver|Riddler|Rival IQ|scooter|Scrapy|Scrubby|searchsight|seekbot|semanticdiscovery|Simpy|SimplePie|SEOstats|SimpleRSS|SiteCon|Slackbot-LinkExpanding|Slack-ImgProxy|Slurp|snappy|Speedy Spider|Squrl Java|TheUsefulbot|ThumbShotsBot|Thumbshots\.ru|TwitterBot|URL2PNG|Vagabondo|VoilaBot|^vortex|Votay bot|^voyager|WASALive.Bot|Web-sniffer|WebThumb|WeSEE:[A-z]+|WhatWeb|WIRE|WordPress|Wotbox|www\.almaden\.ibm\.com|Xenu(?:.s)? Link Sleuth|Xerka [A-z]+Bot|yacy(?:bot)?|Yahoo[a-z]*Seeker|Yahoo! Slurp|Yandex\w+|YodaoBot(?:-[A-z]+)?|YottaaMonitor|Yowedo|^Zao|^Zao-Crawler|ZeBot_www\.ze\.bz|ZooShot|ZyBorg)(?:[ /]v?(\d+)(?:\.(\d+)(?:\.(\d+))?)?)?'
 
   # Bots General matcher 'name/0.0'
   - regex: '(?:\/[A-Za-z0-9\.]+)? *([A-Za-z0-9 \-_\!\[\]:]*(?:[Aa]rchiver|[Ii]ndexer|[Ss]craper|[Bb]ot|[Ss]pider|[Cc]rawl[a-z]*))/(\d+)(?:\.(\d+)(?:\.(\d+))?)?'
@@ -107,6 +111,11 @@ user_agent_parsers:
 
   - regex: '(MyIBrow)/(\d+)\.(\d+)'
     family_replacement: 'My Internet Browser'
+
+  # UC Browser
+  # we need check it before opera. In other case case UC Browser detected look like Opera Mini
+  - regex: '(UC? ?Browser|UCWEB|U3)[ /]?(\d+)\.(\d+)\.(\d+)'
+    family_replacement: 'UC Browser'
 
   # Opera will stop at 9.80 and hide the real version in the Version string.
   # see: http://dev.opera.com/articles/view/opera-ua-string-changes/
@@ -219,19 +228,14 @@ user_agent_parsers:
     family_replacement: 'Chrome Mobile'
   - regex: '(CriOS)/(\d+)\.(\d+)\.(\d+)\.(\d+)'
     family_replacement: 'Chrome Mobile iOS'
-  - regex: '(Chrome)/(\d+)\.(\d+)\.(\d+)\.(\d+) Mobile'
+  - regex: '(Chrome)/(\d+)\.(\d+)\.(\d+)\.(\d+) Mobile(?:[ /]|$)'
+    family_replacement: 'Chrome Mobile'
+  - regex: ' Mobile .*(Chrome)/(\d+)\.(\d+)\.(\d+)\.(\d+)'
     family_replacement: 'Chrome Mobile'
 
   # Chrome Frame must come before MSIE.
   - regex: '(chromeframe)/(\d+)\.(\d+)\.(\d+)'
     family_replacement: 'Chrome Frame'
-
-  # UC Browser
-  - regex: '(UCBrowser)[ /](\d+)\.(\d+)\.(\d+)'
-    family_replacement: 'UC Browser'
-  - regex: '(UC Browser)[ /](\d+)\.(\d+)\.(\d+)'
-  - regex: '(UC Browser|UCBrowser|UCWEB)(\d+)\.(\d+)\.(\d+)'
-    family_replacement: 'UC Browser'
 
   # Tizen Browser (second case included in browser/major.minor regex)
   - regex: '(SLP Browser)/(\d+)\.(\d+)'
@@ -278,7 +282,7 @@ user_agent_parsers:
   #### MAIN CASES - this catches > 50% of all browsers ####
 
   # Browser/major_version.minor_version.beta_version
-  - regex: '(AdobeAIR|FireWeb|Jasmine|ANTGalio|Midori|Fresco|Lobo|PaleMoon|Maxthon|Lynx|OmniWeb|Dillo|Camino|Demeter|Fluid|Fennec|Epiphany|Shiira|Sunrise|Spotify|Flock|Netscape|Lunascape|WebPilot|NetFront|Netfront|Konqueror|SeaMonkey|Kazehakase|Vienna|Iceape|Iceweasel|IceWeasel|Iron|K-Meleon|Sleipnir|Galeon|GranParadiso|Opera Mini|iCab|NetNewsWire|ThunderBrowse|Iris|UP\.Browser|Bunjalloo|Google Earth|Raven for Mac|Openwave)/(\d+)\.(\d+)\.(\d+)'
+  - regex: '\b(MobileIron|Crosswalk|AdobeAIR|FireWeb|Jasmine|ANTGalio|Midori|Fresco|Lobo|PaleMoon|Maxthon|Lynx|OmniWeb|Dillo|Camino|Demeter|Fluid|Fennec|Epiphany|Shiira|Sunrise|Spotify|Flock|Netscape|Lunascape|WebPilot|NetFront|Netfront|Konqueror|SeaMonkey|Kazehakase|Vienna|Iceape|Iceweasel|IceWeasel|Iron|K-Meleon|Sleipnir|Galeon|GranParadiso|Opera Mini|iCab|NetNewsWire|ThunderBrowse|Iris|UP\.Browser|Bunjalloo|Google Earth|Raven for Mac|Openwave|MacOutlook)/(\d+)\.(\d+)\.(\d+)'
 
   # Outlook 2007
   - regex: 'Microsoft Office Outlook 12\.\d+\.\d+|MSOffice 12'
@@ -308,8 +312,20 @@ user_agent_parsers:
   - regex: '(Airmail) (\d+)\.(\d+)(?:\.(\d+))?'
 
   # Thunderbird
-  - regex: '(Thunderbird)/(\d+)\.(\d+)\.(\d+(?:pre)?)'
+  - regex: '(Thunderbird)/(\d+)\.(\d+)(?:\.(\d+(?:pre)?))?'
     family_replacement: 'Thunderbird'
+
+  # Postbox
+  - regex: '(Postbox)/(\d+)\.(\d+)\.(\d+)'
+    family_replacement: 'Postbox'
+
+  # Barca
+  - regex: '(Barca(?:Pro)?)/(\d+)\.(\d+)(?:\.(\d+))?'
+    family_replacement: 'Barca'
+
+  # Lotus Notes
+  - regex: '(Lotus-Notes)/(\d+)\.(\d+)(?:\.(\d+))?'
+    family_replacement: 'Lotus Notes'
 
   # Vivaldi uses "Vivaldi"
   - regex: '(Vivaldi)/(\d+)\.(\d+)\.(\d+)'
@@ -329,7 +345,7 @@ user_agent_parsers:
   - regex: '\b(Dolphin)(?: |HDCN/|/INT\-)(\d+)\.(\d+)\.?(\d+)?'
 
   # Browser/major_version.minor_version
-  - regex: '(bingbot|Bolt|Jasmine|IceCat|Skyfire|Midori|Maxthon|Lynx|Arora|IBrowse|Dillo|Camino|Shiira|Fennec|Phoenix|Chrome|Flock|Netscape|Lunascape|Epiphany|WebPilot|Opera Mini|Opera|NetFront|Netfront|Konqueror|Googlebot|SeaMonkey|Kazehakase|Vienna|Iceape|Iceweasel|IceWeasel|Iron|K-Meleon|Sleipnir|Galeon|GranParadiso|iCab|iTunes|MacAppStore|NetNewsWire|Space Bison|Stainless|Orca|Dolfin|BOLT|Minimo|Tizen Browser|Polaris|Abrowser|Planetweb|ICE Browser|mDolphin|qutebrowser|Otter|QupZilla)/(\d+)\.(\d+)\.?(\d+)?'
+  - regex: '(bingbot|Bolt|Jasmine|IceCat|Skyfire|Midori|Maxthon|Lynx|Arora|IBrowse|Dillo|Camino|Shiira|Fennec|Phoenix|Chrome|Flock|Netscape|Lunascape|Epiphany|WebPilot|Opera Mini|Opera|NetFront|Netfront|Konqueror|Googlebot|SeaMonkey|Kazehakase|Vienna|Iceape|Iceweasel|IceWeasel|Iron|K-Meleon|Sleipnir|Galeon|GranParadiso|iCab|iTunes|MacAppStore|NetNewsWire|Space Bison|Stainless|Orca|Dolfin|BOLT|Minimo|Tizen Browser|Polaris|Abrowser|Planetweb|ICE Browser|mDolphin|qutebrowser|Otter|QupZilla|MailBar|kmail2|YahooMobileMail|ExchangeWebServices|ExchangeServicesClient|Microsoft-CryptoAPI)/(\d+)\.(\d+)\.?(\d+)?'
 
   # Chrome/Chromium/major_version.minor_version
   - regex: '(Chromium|Chrome)/(\d+)\.(\d+)'
@@ -349,7 +365,7 @@ user_agent_parsers:
   # Browser major_version.minor_version.beta_version (space instead of slash)
   - regex: '(iRider|Crazy Browser|SkipStone|iCab|Lunascape|Sleipnir|Maemo Browser) (\d+)\.(\d+)\.(\d+)'
   # Browser major_version.minor_version (space instead of slash)
-  - regex: '(iCab|Lunascape|Opera|Android|Jasmine|Polaris) (\d+)\.(\d+)\.?(\d+)?'
+  - regex: '(iCab|Lunascape|Opera|Android|Jasmine|Polaris|Microsoft SkyDriveSync|The Bat!) (\d+)\.(\d+)\.?(\d+)?'
 
   # Kindle WebKit
   - regex: '(Kindle)/(\d+)\.(\d+)'
@@ -379,6 +395,10 @@ user_agent_parsers:
   - regex: '(MSIE) (\d+)\.(\d+).*XBLWP7'
     family_replacement: 'IE Large Screen'
 
+  # Slack desktop client (needs to be before Apple Mail as it gets wrongly detected on Mac OS otherwise)
+  - regex: '(Slack_SSB)/(\d+)\.(\d+)\.(\d+)'
+    family_replacement: 'Slack Desktop Client'
+
   #### END MAIN CASES ####
 
   #### SPECIAL CASES ####
@@ -407,13 +427,13 @@ user_agent_parsers:
     family_replacement: 'Bon Echo'
 
   # @note: iOS / OSX Applications
-  - regex: '(iPod|iPhone|iPad).+Version/(\d+)\.(\d+)(?:\.(\d+))?.* Safari'
+  - regex: '(iPod|iPhone|iPad).+Version/(\d+)\.(\d+)(?:\.(\d+))?.*[ +]Safari'
     family_replacement: 'Mobile Safari'
   - regex: '(iPod|iPhone|iPad).+Version/(\d+)\.(\d+)(?:\.(\d+))?'
     family_replacement: 'Mobile Safari UI/WKWebView'
-  - regex: '(iPod|iPhone|iPad);.*CPU.*OS (\d+)_(\d+)(?:_(\d+))?.*Mobile.* Safari'
+  - regex: '(iPod|iPod touch|iPhone|iPad);.*CPU.*OS[ +](\d+)_(\d+)(?:_(\d+))?.*Mobile.*[ +]Safari'
     family_replacement: 'Mobile Safari'
-  - regex: '(iPod|iPhone|iPad);.*CPU.*OS (\d+)_(\d+)(?:_(\d+))?.*Mobile'
+  - regex: '(iPod|iPod touch|iPhone|iPad);.*CPU.*OS[ +](\d+)_(\d+)(?:_(\d+))?.*Mobile'
     family_replacement: 'Mobile Safari UI/WKWebView'
   - regex: '(iPod|iPhone|iPad).* Safari'
     family_replacement: 'Mobile Safari'
@@ -719,7 +739,7 @@ os_parsers:
   # Tizen OS from Samsung
   # spoofs Android so pushing it above
   ##########
-  - regex: '(Tizen)/(\d+)\.(\d+)'
+  - regex: '(Tizen)[/ ](\d+)\.(\d+)'
 
   ##########
   # Mac OS
@@ -773,7 +793,7 @@ os_parsers:
   - regex: '(Apple\s?TV)(?:/(\d+)\.(\d+))?'
     os_replacement: 'ATV OS X'
 
-  - regex: '(CPU OS|iPhone OS|CPU iPhone) +(\d+)[_\.](\d+)(?:[_\.](\d+))?'
+  - regex: '(CPU[ +]OS|iPhone[ +]OS|CPU[ +]iPhone)[ +]+(\d+)[_\.](\d+)(?:[_\.](\d+))?'
     os_replacement: 'iOS'
 
   # remaining cases are mostly only opera uas, so catch opera as to not catch iphone spoofs
@@ -850,6 +870,10 @@ os_parsers:
   - regex: 'CFNetwork/7.* Darwin/(15)\.\d+'
     os_replacement: 'iOS'
     os_v1_replacement: '9'
+    os_v2_replacement: '0'
+  - regex: 'CFNetwork/8.* Darwin/(16)\.\d+'
+    os_replacement: 'iOS'
+    os_v1_replacement: '10'
     os_v2_replacement: '0'
   # iOS Apps
   - regex: '\b(iOS[ /]|iPhone(?:/| v|[ _]OS[/,]|; | OS : |\d,\d/|\d,\d; )|iPad/)(\d{1,2})[_\.](\d{1,2})(?:[_\.](\d+))?'
@@ -999,7 +1023,7 @@ os_parsers:
   - regex: '\((Bada);'
 
   # just os
-  - regex: '(Windows|Android|WeTab|Maemo)'
+  - regex: '(Windows|Android|WeTab|Maemo|Web0S)'
   - regex: '(Ubuntu|Kubuntu|Arch Linux|CentOS|Slackware|Gentoo|openSUSE|SUSE|Red Hat|Fedora|PCLinuxOS|Mageia|(?:Free|Open|Net|\b)BSD)'
   # Linux + Kernel Version
   - regex: '(Linux)(?:[ /](\d+)\.(\d+)(?:\.(\d+))?)?'
@@ -1015,7 +1039,7 @@ device_parsers:
   # Mobile Spiders
   # Catch the mobile crawler before checking for iPhones / Androids.
   #########
-  - regex: '(?:(?:iPhone|Windows CE|Android).*(?:(?:Bot|Yeti)-Mobile|YRSpider|bots?/\d|(?:bot|spider)\.html)|AdsBot-Google-Mobile.*iPhone)'
+  - regex: '(?:(?:iPhone|Windows CE|Windows Phone|Android).*(?:(?:Bot|Yeti)-Mobile|YRSpider|BingPreview|bots?/\d|(?:bot|spider)\.html)|AdsBot-Google-Mobile.*iPhone)'
     regex_flag: 'i'
     device_replacement: 'Spider'
     brand_replacement: 'Spider'
@@ -2619,6 +2643,10 @@ device_parsers:
     device_replacement: '$1 $2'
     brand_replacement: 'LG'
     model_replacement: '$2'
+  - regex: '(Web0S); Linux/(SmartTV)'
+    device_replacement: 'LG $1 $2'
+    brand_replacement: 'LG'
+    model_replacement: '$1 $2'
 
   #########
   # Malata
@@ -4314,10 +4342,10 @@ device_parsers:
   #   cannot determine specific device type from ua string. (3g, 3gs, 4, etc)
   ##########
   # @note: on some ua the device can be identified e.g. iPhone5,1
-  - regex: '((?:iPhone|iPad|iPod)\d+,\d+)'
+  - regex: '(iPhone|iPad|iPod)(\d+,\d+)'
     device_replacement: '$1'
     brand_replacement: 'Apple'
-    model_replacement: '$1'
+    model_replacement: '$1$2'
   # @note: iPad needs to be before iPhone
   - regex: '(iPad)(?:;| Simulator;)'
     device_replacement: '$1'
@@ -4758,7 +4786,7 @@ device_parsers:
   ##########
   # Spiders (this is hack...)
   ##########
-  - regex: '(bot|zao|borg|DBot|oegp|silk|Xenu|zeal|^NING|CCBot|crawl|htdig|lycos|slurp|teoma|voila|yahoo|Sogou|CiBra|Nutch|^Java/|^JNLP/|Daumoa|Genieo|ichiro|larbin|pompos|Scrapy|snappy|speedy|spider|msnbot|msrbot|vortex|^vortex|crawler|favicon|indexer|Riddler|scooter|scraper|scrubby|WhatWeb|WinHTTP|bingbot|openbot|gigabot|furlbot|polybot|seekbot|^voyager|archiver|Icarus6j|mogimogi|Netvibes|blitzbot|altavista|charlotte|findlinks|Retreiver|TLSProber|WordPress|SeznamBot|ProoXiBot|wsr\-agent|Squrl Java|EtaoSpider|PaperLiBot|SputnikBot|A6\-Indexer|netresearch|searchsight|baiduspider|YisouSpider|ICC\-Crawler|http%20client|Python-urllib|dataparksearch|converacrawler|Screaming Frog|AppEngine-Google|YahooCacheSystem|fast\-webcrawler|Sogou Pic Spider|semanticdiscovery|Innovazion Crawler|facebookexternalhit|Google.*/\+/web/snippet|Google-HTTP-Java-Client|BlogBridge|IlTrovatore-Setaccio|InternetArchive|GomezAgent|WebThumbnail|heritrix|NewsGator|PagePeeker|Reaper|ZooShot|holmes)'
+  - regex: '(bot|zao|borg|DBot|oegp|silk|Xenu|zeal|^NING|CCBot|crawl|htdig|lycos|slurp|teoma|voila|yahoo|Sogou|CiBra|Nutch|^Java/|^JNLP/|Daumoa|Genieo|ichiro|larbin|pompos|Scrapy|snappy|speedy|spider|msnbot|msrbot|vortex|^vortex|crawler|favicon|indexer|Riddler|scooter|scraper|scrubby|WhatWeb|WinHTTP|bingbot|BingPreview|openbot|gigabot|furlbot|polybot|seekbot|^voyager|archiver|Icarus6j|mogimogi|Netvibes|blitzbot|altavista|charlotte|findlinks|Retreiver|TLSProber|WordPress|SeznamBot|ProoXiBot|wsr\-agent|Squrl Java|EtaoSpider|PaperLiBot|SputnikBot|A6\-Indexer|netresearch|searchsight|baiduspider|YisouSpider|ICC\-Crawler|http%20client|Python-urllib|dataparksearch|converacrawler|Screaming Frog|AppEngine-Google|YahooCacheSystem|fast\-webcrawler|Sogou Pic Spider|semanticdiscovery|Innovazion Crawler|facebookexternalhit|Google.*/\+/web/snippet|Google-HTTP-Java-Client|BlogBridge|IlTrovatore-Setaccio|InternetArchive|GomezAgent|WebThumbnail|heritrix|NewsGator|PagePeeker|Reaper|ZooShot|holmes|NL-Crawler)'
     regex_flag: 'i'
     device_replacement: 'Spider'
     brand_replacement: 'Spider'
