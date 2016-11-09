@@ -131,7 +131,7 @@ public class RetentionAnalyzerHttpService
             this.period = period;
             this.startDate = startDate;
             this.endDate = endDate;
-            this.approximate = Boolean.TRUE.equals(approximate);
+            this.approximate = !Boolean.FALSE.equals(approximate);
             try {
                 this.timezone = Optional.ofNullable(timezone)
                         .map(t -> ZoneId.of(t))
