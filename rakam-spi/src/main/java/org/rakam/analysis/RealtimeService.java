@@ -152,7 +152,7 @@ public abstract class RealtimeService
                                         previousWindow,
                                         checkTableColumn("time",
                                                 escapeIdentifier), currentWindow))),
-                (!noDimension || !aggregate) ? ("( and " + dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier) + " is not null ").collect(Collectors.joining(" and ")) + ")") : "",
+                (!noDimension || !aggregate) ? ("and ( " + dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier) + " is not null ").collect(Collectors.joining(" and ")) + ")") : "",
                 (!noDimension || !aggregate) ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
                         .collect(Collectors.joining(", "))) : "",
                 (expression == null) ? "" : formatExpression(expression,
