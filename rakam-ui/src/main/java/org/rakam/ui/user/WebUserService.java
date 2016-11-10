@@ -95,11 +95,10 @@ public class WebUserService
     private static final Mustache resetPasswordTitleCompiler;
     private static final Mustache welcomeTitleCompiler;
 
-    public ProjectConfiguration getProjectConfigurations(int userId, int project)
+    public ProjectConfiguration getProjectConfigurations(int project)
     {
         try (Connection conn = dbi.open().getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("SELECT timezone FROM web_user_project WHERE user_id = ? and id = ?");
-            ps.setInt(1, userId);
+            PreparedStatement ps = conn.prepareStatement("SELECT timezone FROM web_user_project WHERE id = ?");
             ps.setInt(2, project);
             ResultSet resultSet = ps.executeQuery();
             if (!resultSet.next()) {

@@ -204,7 +204,7 @@ public class WebUserHttpService
     @Path("/project-configuration")
     public ProjectConfiguration getProjectPreferences(@Named("user_id") Project project)
     {
-        return service.getProjectConfigurations(project.userId, project.project);
+        return service.getProjectConfigurations(project.project);
     }
 
     @JsonRequest
