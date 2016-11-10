@@ -99,7 +99,7 @@ public class WebUserService
     {
         try (Connection conn = dbi.open().getConnection()) {
             PreparedStatement ps = conn.prepareStatement("SELECT timezone FROM web_user_project WHERE id = ?");
-            ps.setInt(2, project);
+            ps.setInt(1, project);
             ResultSet resultSet = ps.executeQuery();
             if (!resultSet.next()) {
                 throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
