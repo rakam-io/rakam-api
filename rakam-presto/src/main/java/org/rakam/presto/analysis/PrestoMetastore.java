@@ -6,6 +6,7 @@ import com.facebook.presto.raptor.metadata.MetadataDao;
 import com.facebook.presto.raptor.metadata.Table;
 import com.facebook.presto.raptor.metadata.TableColumn;
 import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
@@ -30,6 +31,8 @@ import org.rakam.util.NotExistsException;
 import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.IDBI;
+import org.skife.jdbi.v2.TransactionCallback;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.DBIException;
 import org.skife.jdbi.v2.util.StringMapper;
@@ -49,6 +52,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -59,11 +63,16 @@ import static com.facebook.presto.raptor.storage.ShardStats.MAX_BINARY_INDEX_SIZ
 import static com.facebook.presto.raptor.util.DatabaseUtil.metadataError;
 import static com.facebook.presto.raptor.util.DatabaseUtil.onDemandDao;
 import static com.facebook.presto.spi.type.ParameterKind.TYPE;
+import static com.google.common.base.Throwables.propagateIfInstanceOf;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_GATEWAY;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static java.sql.JDBCType.VARBINARY;
 import static java.util.Locale.ENGLISH;
+import static org.rakam.collection.FieldType.DATE;
+import static org.rakam.collection.FieldType.LONG;
+import static org.rakam.collection.FieldType.TIMESTAMP;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -151,8 +160,17 @@ public class PrestoMetastore
             if (queryEnd.isEmpty()) {
                 return currentFields;
             }
-            String properties = fields.stream().anyMatch(f -> f.getName().equals("_time") && f.getType() == FieldType.DATE) ?
-                    "WITH(temporal_column = '_time')" : "";
+
+            List<String> params = new ArrayList<>();
+            if (fields.stream().anyMatch(f -> f.getName().equals("_time") && (f.getType() == TIMESTAMP || f.getType() == DATE))) {
+                params.add("temporal_column = '_time'");
+            }
+
+            params.add("bucketed_on = array['_user']");
+            params.add("bucket_count = 10");
+            params.add(format("distribution_name = '%s'", project));
+
+            String properties = params.isEmpty() ? "" : ("WITH( " + params.stream().collect(Collectors.joining(", ")) + ")");
 
             query = format("CREATE TABLE %s.\"%s\".%s (%s) %s ",
                     prestoConfig.getColdStorageConnector(), project, checkCollection(collection), queryEnd, properties);
@@ -163,7 +181,7 @@ public class PrestoMetastore
                         return getOrCreateCollectionFields(project, collection, fields, tryCount - 1);
                     }
                     else {
-                        String description = String.format("%s.%s: %s: %s",
+                        String description = format("%s.%s: %s: %s",
                                 project, collection, Arrays.toString(fields.toArray()),
                                 join.getError().toString());
                         String message = "Failed to add new fields to collection";
@@ -173,6 +191,10 @@ public class PrestoMetastore
                     }
                 }
                 else {
+                    if (PrestoQueryExecution.isServerInactive(join.getError())) {
+                        throw new RakamException("Database is not active", BAD_GATEWAY);
+                    }
+
                     throw new IllegalStateException(join.getError().message);
                 }
             }
@@ -206,6 +228,25 @@ public class PrestoMetastore
         return lastFields;
     }
 
+    public static <T> void daoTransaction(IDBI dbi, Class<T> daoType, Consumer<T> callback)
+    {
+        runTransaction(dbi, (handle, status) -> {
+            callback.accept(handle.attach(daoType));
+            return null;
+        });
+    }
+
+    public static <T> T runTransaction(IDBI dbi, TransactionCallback<T> callback)
+    {
+        try {
+            return dbi.inTransaction(callback);
+        }
+        catch (DBIException e) {
+            propagateIfInstanceOf(e.getCause(), PrestoException.class);
+            throw metadataError(e);
+        }
+    }
+
     private void addColumn(Table table, String schema, String tableName, String columnName, FieldType fieldType)
     {
         List<TableColumn> existingColumns = dao.listTableColumns(schema, tableName);
@@ -215,7 +256,10 @@ public class PrestoMetastore
 
         String type = TypeSignature.parseTypeSignature(toSql(fieldType)).toString().toLowerCase(ENGLISH);
 
-        dao.insertColumn(table.getTableId(), columnId, columnName, ordinalPosition, type, null, null);
+        daoTransaction(dbi, MetadataDao.class, dao -> {
+            dao.insertColumn(table.getTableId(), columnId, columnName, ordinalPosition, type, null, null);
+//            dao.updateTableVersion(table.getTableId(), session.getStartTime());
+        });
 
         String columnType = sqlColumnType(fieldType);
         if (columnType == null) {
@@ -261,7 +305,7 @@ public class PrestoMetastore
         if (type.equals(FieldType.BOOLEAN)) {
             return JDBCType.BOOLEAN;
         }
-        if (type.equals(FieldType.LONG) || type.equals(FieldType.TIMESTAMP)) {
+        if (type.equals(LONG) || type.equals(TIMESTAMP)) {
             return JDBCType.BIGINT;
         }
         if (type.equals(FieldType.INTEGER)) {
@@ -305,7 +349,7 @@ public class PrestoMetastore
         }
 
         for (String collectionName : getCollectionNames(project)) {
-            String query = String.format("DROP TABLE %s.\"%s\".\"%s\"", prestoConfig.getColdStorageConnector(), project, collectionName);
+            String query = format("DROP TABLE %s.\"%s\".\"%s\"", prestoConfig.getColdStorageConnector(), project, collectionName);
 
             QueryResult join = new PrestoQueryExecution(defaultSession, query).getResult().join();
 

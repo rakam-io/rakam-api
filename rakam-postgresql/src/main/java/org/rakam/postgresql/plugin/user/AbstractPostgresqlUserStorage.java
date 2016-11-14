@@ -63,6 +63,7 @@ import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.report.QueryResult.TOTAL_RESULT;
@@ -88,7 +89,7 @@ public abstract class AbstractPostgresqlUserStorage
             public Optional<FieldType> load(String key)
                     throws Exception
             {
-                return Optional.ofNullable(configManager.getConfig(key, InternalConfig.USER_TYPE.name(), FieldType.class));
+                return Optional.ofNullable(configManager.getConfig(key, USER_TYPE.name(), FieldType.class));
             }
         });
     }
@@ -131,7 +132,7 @@ public abstract class AbstractPostgresqlUserStorage
         if (columns.isEmpty()) {
             FieldType other = (id instanceof Long ? FieldType.LONG :
                     (id instanceof Integer ? FieldType.INTEGER : FieldType.STRING));
-            FieldType fieldType = configManager.setConfigOnce(project, InternalConfig.USER_TYPE.name(), other);
+            FieldType fieldType = configManager.setConfigOnce(project, USER_TYPE.name(), other);
             createProjectIfNotExists(project, fieldType.isNumeric());
             columns = loadColumns(project);
         }
@@ -427,7 +428,7 @@ public abstract class AbstractPostgresqlUserStorage
                 if (retry) {
                     FieldType other = (id instanceof Long ? FieldType.LONG :
                             (id instanceof Integer ? FieldType.INTEGER : FieldType.STRING));
-                    FieldType fieldType = configManager.setConfigOnce(project, InternalConfig.USER_TYPE.name(), other);
+                    FieldType fieldType = configManager.setConfigOnce(project, USER_TYPE.name(), other);
 
                     createProjectIfNotExists(project, fieldType.isNumeric());
 

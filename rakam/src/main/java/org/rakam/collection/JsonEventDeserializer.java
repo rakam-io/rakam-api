@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.util.TokenBuffer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
@@ -49,7 +50,9 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
+import static org.rakam.analysis.InternalConfig.FIXED_SCHEMA;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
 
@@ -166,24 +169,13 @@ public class JsonEventDeserializer
     {
         ProjectCollection key = new ProjectCollection(project, collection);
         Map.Entry<List<SchemaField>, Schema> schema = schemaCache.getIfPresent(key);
+        boolean isNew = schema == null;
         if (schema == null) {
             List<SchemaField> rakamSchema = metastore.getCollection(project, collection);
-            if (rakamSchema.isEmpty()) {
-                // new collection
-                FieldType userType = configManager.setConfigOnce(project, USER_TYPE.name(), FieldType.STRING);
-                Set<SchemaField> fields = ImmutableSet.<SchemaField>builder()
-                        .addAll(constantFields)
-                        .add(new SchemaField("_user", userType))
-                        .build();
 
-                if (collection.startsWith("$")) {
-                    throw new RakamException("Collection names cannot start with $.", BAD_REQUEST);
-                }
-
-                rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, fields);
-            }
-
-            schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(rakamSchema, conditionalMagicFields));
+            schema = new SimpleImmutableEntry<>(rakamSchema, convertAvroSchema(
+                    rakamSchema == null ? ImmutableList.copyOf(constantFields) : rakamSchema,
+                    conditionalMagicFields));
             schemaCache.put(key, schema);
         }
 
@@ -217,7 +209,7 @@ public class JsonEventDeserializer
                                 throw new RakamException("_user field must be numeric or string.", BAD_REQUEST);
                             }
                             final FieldType eventUserType = type.isNumeric() ? (type != FieldType.INTEGER ? FieldType.LONG : FieldType.INTEGER) :
-                                    FieldType.STRING;
+                                    STRING;
                             type = configManager.setConfigOnce(project, USER_TYPE.name(), eventUserType);
                         }
 
@@ -272,6 +264,12 @@ public class JsonEventDeserializer
         }
 
         if (newFields != null) {
+            if(isNew) {
+                if (!newFields.stream().anyMatch(e -> e.getName().equals("_user"))) {
+                    newFields.add(new SchemaField("_user", configManager.setConfigOnce(project, USER_TYPE.name(), STRING)));
+                }
+            }
+
             rakamSchema = metastore.getOrCreateCollectionFieldList(project, collection, ImmutableSet.copyOf(newFields));
             Schema newAvroSchema = convertAvroSchema(rakamSchema, conditionalMagicFields);
 
@@ -290,7 +288,7 @@ public class JsonEventDeserializer
 
     private Schema createNewSchema(String project, Schema currentSchema, SchemaField newField)
     {
-        if (Boolean.TRUE == configManager.getConfig(project, InternalConfig.FIXED_SCHEMA.name(), Boolean.class)) {
+        if (Boolean.TRUE.equals(configManager.getConfig(project, FIXED_SCHEMA.name(), Boolean.class))) {
             throw new RakamException(BAD_REQUEST);
         }
         List<Schema.Field> avroFields = currentSchema.getFields().stream()
@@ -450,7 +448,7 @@ public class JsonEventDeserializer
                 return new GenericData.Array(actualSchema, objects);
             }
             else {
-                if (type == FieldType.STRING) {
+                if (type == STRING) {
                     return JsonHelper.encode(jp.readValueAs(TokenBuffer.class));
                 }
                 else {
@@ -485,7 +483,7 @@ public class JsonEventDeserializer
 
                 }
 
-                return FieldType.STRING;
+                return STRING;
             case VALUE_FALSE:
                 return FieldType.BOOLEAN;
             case VALUE_NUMBER_FLOAT:

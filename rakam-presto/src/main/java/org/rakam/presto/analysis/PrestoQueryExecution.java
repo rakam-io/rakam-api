@@ -188,6 +188,11 @@ public class PrestoQueryExecution
         return result;
     }
 
+    public static boolean isServerInactive(QueryError error)
+    {
+        return error.message.startsWith(SERVER_NOT_ACTIVE);
+    }
+
     public String getQuery()
     {
         return query;
@@ -231,6 +236,8 @@ public class PrestoQueryExecution
         }
     }
 
+    private static final String SERVER_NOT_ACTIVE = "Presto server is not active.";
+
     private class QueryTracker
             implements Runnable
     {
@@ -261,7 +268,7 @@ public class PrestoQueryExecution
                 client = new StatementClient(HTTP_CLIENT, QUERY_RESULTS_JSON_CODEC, session, query);
             }
             catch (RuntimeException e) {
-                String message = "Presto server is not active: " + e.getMessage();
+                String message = SERVER_NOT_ACTIVE + " " + e.getMessage();
                 LOGGER.warn(e, message);
                 result.complete(QueryResult.errorResult(QueryError.create(message)));
                 return;

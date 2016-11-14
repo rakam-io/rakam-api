@@ -85,10 +85,10 @@ public class AWSKinesisEventStore
             for (int i = 0; i < events.size(); i++) {
                 Event event = events.get(i);
                 ByteBuf buffer = getBuffer(event);
-//                Object user = event.getAttribute("_user");
+                Object user = event.getAttribute("_user");
                 producer.addUserRecord(config.getEventStoreStreamName(),
                         event.project() + "|" + event.collection(),
-//                        (event.project() + "|" + user == null ? event.collection() : user.toString()),
+                        (event.project() + "|" + user == null ? event.collection() : user.toString()),
                         buffer.nioBuffer());
                 byteBufs[i] = buffer;
             }
@@ -192,12 +192,14 @@ public class AWSKinesisEventStore
     {
         DatumWriter writer = new FilteredRecordWriter(event.properties().getSchema(), GenericData.get());
         ByteBuf buffer = DEFAULT.buffer(100);
-        buffer.writeByte(0);
+        buffer.writeByte(2);
 
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(
                 new ByteBufOutputStream(buffer), null);
 
         try {
+            encoder.writeString(event.collection());
+
             writer.write(event.properties(), encoder);
         }
         catch (Exception e) {

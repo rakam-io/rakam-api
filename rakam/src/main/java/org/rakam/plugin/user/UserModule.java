@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static org.rakam.analysis.InternalConfig.USER_TYPE;
 
 @AutoService(RakamModule.class)
 @ConditionalModule(config = "plugin.user.enabled", value = "true")
@@ -123,7 +124,6 @@ public class UserModule
 
     public static class UserStorageListener
     {
-
         private final Optional<UserStorage> storage;
         private final Optional<UserMailboxStorage> mailboxStorage;
         private final ConfigManager configManager;
@@ -139,8 +139,7 @@ public class UserModule
         @Subscribe
         public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
         {
-            FieldType type = configManager.getConfig(event.project,
-                    InternalConfig.USER_TYPE.name(), FieldType.class);
+            FieldType type = configManager.getConfig(event.project, USER_TYPE.name(), FieldType.class);
 
             if (type != null) {
                 if (mailboxStorage.isPresent()) {
