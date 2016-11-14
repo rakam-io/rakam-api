@@ -166,9 +166,11 @@ public class PrestoMetastore
                 params.add("temporal_column = '_time'");
             }
 
-            params.add("bucketed_on = array['_user']");
-            params.add("bucket_count = 10");
-            params.add(format("distribution_name = '%s'", project));
+            if (fields.stream().anyMatch(f -> f.getName().equals("_user"))) {
+                params.add("bucketed_on = array['_user']");
+                params.add("bucket_count = 10");
+                params.add(format("distribution_name = '%s'", project));
+            }
 
             String properties = params.isEmpty() ? "" : ("WITH( " + params.stream().collect(Collectors.joining(", ")) + ")");
 
