@@ -11,35 +11,48 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
+
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.AlgorithmParameters;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
 
-public final class CryptUtil {
+public final class CryptUtil
+{
     private static final Random random = new SecureRandom();
 
     private CryptUtil() {}
 
-    public static String generateRandomKey(int length) {
+    public static String generateRandomKey(int length)
+    {
         String key;
-        while ((key = new BigInteger(length * 5/*base 32,2^5*/, random).toString(32)).length() < length) ;
+        while ((key = new BigInteger(length * 5/*base 32,2^5*/, random).toString(32)).length() < length) {
+            ;
+        }
         return key;
     }
 
-    public static void main(String[] args)
+    public static String sha1(String value)
     {
-        String hello = encryptAES("hello", "123456");
-        System.out.println(hello);
-        System.out.println(decryptAES(hello, "123456"));
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-1");
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw Throwables.propagate(e);
+        }
+        return new String(md.digest(value.getBytes(StandardCharsets.UTF_8)));
     }
 
-    public static String encryptWithHMacSHA1(String data, String secret) {
+    public static String encryptWithHMacSHA1(String data, String secret)
+    {
         try {
             SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), "HmacSHA1");
 
@@ -49,12 +62,14 @@ public final class CryptUtil {
             byte[] rawHmac = mac.doFinal(data.getBytes("UTF-8"));
 
             return DatatypeConverter.printBase64Binary(rawHmac);
-        } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
+        }
+        catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static String encryptToHex(String data, String secret, String hashType) {
+    public static String encryptToHex(String data, String secret, String hashType)
+    {
         try {
             SecretKeySpec signingKey = new SecretKeySpec(secret.getBytes("UTF-8"), hashType);
 
@@ -64,12 +79,14 @@ public final class CryptUtil {
             byte[] rawHmac = mac.doFinal(data.getBytes("UTF-8"));
 
             return DatatypeConverter.printHexBinary(rawHmac).toLowerCase(Locale.ENGLISH);
-        } catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
+        }
+        catch (NoSuchAlgorithmException | InvalidKeyException | UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static String encryptAES(String data, String secretKey) {
+    public static String encryptAES(String data, String secretKey)
+    {
         try {
             byte[] secretKeys = Arrays.copyOfRange(Hashing.sha256().hashString(secretKey, Charsets.UTF_8)
                     .asBytes(), 0, 16);
@@ -85,13 +102,14 @@ public final class CryptUtil {
             final byte[] cipherText = cipher.doFinal(data.getBytes(Charsets.UTF_8));
 
             return DatatypeConverter.printHexBinary(iv) + DatatypeConverter.printHexBinary(cipherText);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
 
-
-    public static String decryptAES(String data, String secretKey) {
+    public static String decryptAES(String data, String secretKey)
+    {
         try {
             byte[] secretKeys = Arrays.copyOfRange(Hashing.sha256().hashString(secretKey, Charsets.UTF_8)
                     .asBytes(), 0, 16);
@@ -110,9 +128,11 @@ public final class CryptUtil {
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(secretKeys, "AES"), new IvParameterSpec(iv));
 
             return new String(cipher.doFinal(cipherText), Charsets.UTF_8);
-        } catch (BadPaddingException e) {
+        }
+        catch (BadPaddingException e) {
             throw new IllegalArgumentException("Secret key is invalid");
-        }catch (Exception e) {
+        }
+        catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }

@@ -16,7 +16,6 @@ import org.apache.avro.SchemaParseException;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.InternalConfig;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
@@ -46,9 +45,11 @@ import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static org.apache.avro.Schema.Type.NULL;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.analysis.InternalConfig.FIXED_SCHEMA;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
@@ -85,10 +86,15 @@ public class JsonEventDeserializer
             throws IOException
     {
         Object project = ctx.getAttribute("project");
-        return deserializeWithProject(jp, project != null ? project.toString() : null, null);
+        Object masterKey = ctx.getAttribute("master_key");
+        return deserializeWithProject(
+                jp,
+                project != null ? project.toString() : null,
+                null,
+                masterKey != null ? Boolean.TRUE.equals(masterKey) : null);
     }
 
-    public Event deserializeWithProject(JsonParser jp, String project, EventContext api)
+    public Event deserializeWithProject(JsonParser jp, String project, EventContext api, boolean masterKey)
             throws IOException, RakamException
     {
         Map.Entry<List<SchemaField>, GenericData.Record> properties = null;
@@ -126,10 +132,16 @@ public class JsonEventDeserializer
                             if (api.apiKey == null) {
                                 throw new RakamException("api.api_key is null", BAD_REQUEST);
                             }
-                            project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
+                            try {
+                                project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
+                            }
+                            catch (RakamException e) {
+                                project = apiKeyService.getProjectOfApiKey(api.apiKey, MASTER_KEY);
+                                masterKey = true;
+                            }
                         }
 
-                        properties = parseProperties(project, collection, jp);
+                        properties = parseProperties(project, collection, jp, masterKey);
 
                         t = jp.getCurrentToken();
 
@@ -150,12 +162,18 @@ public class JsonEventDeserializer
         if (properties == null) {
             if (propertiesBuffer != null) {
                 if (project == null) {
-                    project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
+                    try {
+                        project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
+                    }
+                    catch (RakamException e) {
+                        project = apiKeyService.getProjectOfApiKey(api.apiKey, MASTER_KEY);
+                        masterKey = true;
+                    }
                 }
                 JsonParser fakeJp = propertiesBuffer.asParser(jp);
                 // pass START_OBJECT
                 fakeJp.nextToken();
-                properties = parseProperties(project, collection, fakeJp);
+                properties = parseProperties(project, collection, fakeJp, masterKey);
             }
             else {
                 throw new JsonMappingException("properties is null");
@@ -164,7 +182,7 @@ public class JsonEventDeserializer
         return new Event(project, collection, api, properties.getKey(), properties.getValue());
     }
 
-    private Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp)
+    private Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp, boolean masterKey)
             throws IOException, NotExistsException
     {
         ProjectCollection key = new ProjectCollection(project, collection);
@@ -197,7 +215,7 @@ public class JsonEventDeserializer
                 field = avroSchema.getField(stripName(fieldName, "field name"));
 
                 if (field == null) {
-                    FieldType type = getType(jp);
+                    FieldType type = getTypeForUnknown(jp);
                     if (type != null) {
                         if (newFields == null) {
                             newFields = new ArrayList<>();
@@ -216,7 +234,7 @@ public class JsonEventDeserializer
                         SchemaField newField = new SchemaField(fieldName, type);
                         newFields.add(newField);
 
-                        avroSchema = createNewSchema(project, avroSchema, newField);
+                        avroSchema = createNewSchema(avroSchema, newField);
                         field = avroSchema.getField(newField.getName());
 
                         GenericData.Record newRecord = new GenericData.Record(avroSchema);
@@ -264,7 +282,11 @@ public class JsonEventDeserializer
         }
 
         if (newFields != null) {
-            if(isNew) {
+            if (!masterKey && TRUE.equals(configManager.getConfig(project, FIXED_SCHEMA.name(), Boolean.class))) {
+                throw new RakamException("Schema is invalid", BAD_REQUEST);
+            }
+
+            if (isNew) {
                 if (!newFields.stream().anyMatch(e -> e.getName().equals("_user"))) {
                     newFields.add(new SchemaField("_user", configManager.setConfigOnce(project, USER_TYPE.name(), STRING)));
                 }
@@ -286,11 +308,8 @@ public class JsonEventDeserializer
         return new SimpleImmutableEntry<>(rakamSchema, record);
     }
 
-    private Schema createNewSchema(String project, Schema currentSchema, SchemaField newField)
+    private Schema createNewSchema(Schema currentSchema, SchemaField newField)
     {
-        if (Boolean.TRUE.equals(configManager.getConfig(project, FIXED_SCHEMA.name(), Boolean.class))) {
-            throw new RakamException(BAD_REQUEST);
-        }
         List<Schema.Field> avroFields = currentSchema.getFields().stream()
                 .filter(field -> field.schema().getType() != Schema.Type.NULL)
                 .map(field -> new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue()))
@@ -318,7 +337,7 @@ public class JsonEventDeserializer
     {
         switch (jp.getCurrentToken()) {
             case VALUE_TRUE:
-                return Boolean.TRUE;
+                return TRUE;
             case VALUE_FALSE:
                 return Boolean.FALSE;
             case VALUE_NUMBER_FLOAT:
@@ -407,7 +426,7 @@ public class JsonEventDeserializer
                     }
                 }
                 else {
-                    // In order to determine the value type of map, getType method performed an extra
+                    // In order to determine the value type of map, getTypeForUnknown method performed an extra
                     // jp.nextToken() so the cursor should be at VALUE_STRING token.
                     String key = jp.getParsingContext().getCurrentName();
                     map.put(key, getValue(jp, type.getMapValueType(), null, false));
@@ -458,7 +477,7 @@ public class JsonEventDeserializer
         }
     }
 
-    private static FieldType getType(JsonParser jp)
+    private static FieldType getTypeForUnknown(JsonParser jp)
             throws IOException
     {
         switch (jp.getCurrentToken()) {
@@ -498,7 +517,7 @@ public class JsonEventDeserializer
                     // TODO: if the key already has a type, return that type instead of null.
                     return null;
                 }
-                FieldType type = getType(jp);
+                FieldType type = getTypeForUnknown(jp);
                 if (type == null) {
                     // TODO: what if the other values are not null?
                     while (t != END_ARRAY) {
@@ -524,7 +543,7 @@ public class JsonEventDeserializer
                     throw new IllegalArgumentException();
                 }
                 t = jp.nextToken();
-                type = getType(jp);
+                type = getTypeForUnknown(jp);
                 if (type == null) {
                     // TODO: what if the other values are not null?
                     while (t != END_OBJECT) {

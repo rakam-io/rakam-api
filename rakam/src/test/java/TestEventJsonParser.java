@@ -460,6 +460,7 @@ public class TestEventJsonParser
         mapper.readValue(bytes, Event.class);
     }
 
+    @Test
     public void testNullSentToObjectValue()
             throws Exception
     {

@@ -3,6 +3,7 @@ package org.rakam.plugin.user;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
@@ -246,6 +247,7 @@ public abstract class AbstractUserService {
                 this.time = time;
             }
 
+            @JsonIgnore
             public Object getUser()
             {
                 return id;

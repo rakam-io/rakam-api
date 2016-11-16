@@ -1,6 +1,10 @@
 package org.rakam.aws.lambda;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.cloudwatchevents.AmazonCloudWatchEventsClient;
+import com.amazonaws.services.cloudwatchevents.model.PutRuleRequest;
+import com.amazonaws.services.cloudwatchevents.model.PutTargetsRequest;
+import com.amazonaws.services.cloudwatchevents.model.RuleState;
+import com.amazonaws.services.cloudwatchevents.model.Target;
 import com.amazonaws.services.lambda.AWSLambdaClient;
 import com.amazonaws.services.lambda.model.CreateFunctionRequest;
 import com.amazonaws.services.lambda.model.FunctionCode;
@@ -8,6 +12,7 @@ import com.amazonaws.services.lambda.model.Runtime;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.collect.ImmutableList;
 import org.rakam.aws.AWSConfig;
@@ -28,7 +33,47 @@ public class AWSLambdaService
 
     public static void main(String[] args)
     {
-        new AWSLambdaService(new AWSConfig(), new AWSLambdaConfig());
+        AWSConfig awsConfig = new AWSConfig().setAccessKey("AKIAIDL7OPDZWNCS6Z2A").setSecretAccessKey("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");
+
+        AWSLambdaService awsLambdaService = new AWSLambdaService(awsConfig, new AWSLambdaConfig());
+//        String taskArn = awsLambdaService.createTask();
+
+        AmazonCloudWatchEventsClient amazonCloudWatchEventsClient = new AmazonCloudWatchEventsClient(awsConfig.getCredentials());
+
+        amazonCloudWatchEventsClient.putRule(new PutRuleRequest()
+                .withName("test")
+                .withState(RuleState.ENABLED)
+                .withScheduleExpression("rate(1 hour)"));
+
+        amazonCloudWatchEventsClient.putTargets(new PutTargetsRequest()
+                .withRule("test")
+                .withTargets(new Target()
+                        .withId("aheyahey")
+//                        .withArn(taskArn)
+                        .withInput("{\"a\": 1}")));
+    }
+
+    private String createTaskFromMarket(String name)
+    {
+        ObjectMetadata objectMetadata = awsS3Client.getObjectMetadata(awsLambdaConfig.getMarketS3Bucket(), name);
+        String description = objectMetadata.getUserMetaDataOf("description");
+        String handler = objectMetadata.getUserMetaDataOf("handler");
+        String language = objectMetadata.getUserMetaDataOf("language");
+        int memory = Optional.ofNullable(objectMetadata.getUserMetaDataOf("memory"))
+                .map(e -> Integer.valueOf(e))
+                .orElse(128);
+
+        return client.createFunction(new CreateFunctionRequest()
+                .withFunctionName(name)
+                .withDescription(description)
+                .withHandler(handler)
+                .withMemorySize(memory)
+                .withRuntime(Runtime.valueOf(language))
+                .withPublish(true).withRole("role").withTimeout(5000)
+                .withCode(new FunctionCode()
+                        .withS3Bucket(awsLambdaConfig.getMarketS3Bucket())
+                        .withS3Key(name)))
+                .getFunctionArn();
     }
 
     @Inject
@@ -52,26 +97,20 @@ public class AWSLambdaService
                 .collect(Collectors.toList());
     }
 
-    public List<Task> getTaskList()
+    public List<Task> activateTask()
     {
         return client.listFunctions().getFunctions().stream().map(e ->
                 new Task(e.getFunctionName(), e.getDescription(), e.getVersion(), Instant.parse(e.getLastModified())))
                 .collect(Collectors.toList());
     }
 
-    public void addTask()
+    public static class TaskList
     {
-        client.createFunction(new CreateFunctionRequest()
-                .withCode(new FunctionCode().withS3Bucket("test").withS3Key(""))
-                .withFunctionName("").withDescription("").withHandler("")
-                .withPublish(true).withRuntime(Runtime.Nodejs).withTimeout(100000));
-    }
-
-    public static class TaskList {
         public final List<Task> task;
         public final String marker;
 
-        public TaskList(List<Task> task, String marker) {
+        public TaskList(List<Task> task, String marker)
+        {
             this.task = task;
             this.marker = marker;
         }
@@ -110,5 +149,4 @@ public class AWSLambdaService
             this.createdAt = createdAt;
         }
     }
-
 }

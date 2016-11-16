@@ -20,6 +20,7 @@ import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 
 public class EventListDeserializer
@@ -38,7 +39,7 @@ public class EventListDeserializer
 
     @Override
     public EventList deserialize(JsonParser jp, DeserializationContext deserializationContext)
-            throws IOException, JsonProcessingException
+            throws IOException
     {
         JsonToken t = jp.getCurrentToken();
 
@@ -58,7 +59,8 @@ public class EventListDeserializer
         }
         else if (fieldName.equals("events")) {
             eventsBuffer = jp.readValueAs(TokenBuffer.class);
-        } else {
+        }
+        else {
             throw new RakamException(format("Invalid property '%s'", fieldName), BAD_REQUEST);
         }
 
@@ -93,7 +95,8 @@ public class EventListDeserializer
             }
 
             return readEvents(jp, context, deserializationContext);
-        } else {
+        }
+        else {
             throw new RakamException(format("Invalid property '%s'", fieldName), BAD_REQUEST);
         }
     }
@@ -110,11 +113,27 @@ public class EventListDeserializer
         JsonToken t = jp.nextToken();
 
         Object apiKey = deserializationContext.getAttribute("apiKey");
-        String project = apiKeyService.getProjectOfApiKey(context.apiKey,
-                apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);
+        String project;
+        boolean masterKey;
+
+        if (apiKey == null && apiKey == WRITE_KEY) {
+            try {
+                project = apiKeyService.getProjectOfApiKey(context.apiKey,
+                        apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);
+                masterKey = false;
+            }
+            catch (RakamException e) {
+                masterKey = true;
+                project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);
+            }
+        }
+        else {
+            masterKey = true;
+            project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);
+        }
 
         for (; t == START_OBJECT; t = jp.nextToken()) {
-            list.add(eventDeserializer.deserializeWithProject(jp, project, context));
+            list.add(eventDeserializer.deserializeWithProject(jp, project, context, masterKey));
         }
 
         return new EventList(context, project, list);

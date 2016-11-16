@@ -76,6 +76,12 @@
             <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
 
+        <!--<dependency>-->
+            <!--<groupId>com.fasterxml.jackson.dataformat</groupId>-->
+            <!--<artifactId>jackson-dataformat-smile</artifactId>-->
+            <!--<version>${jackson.version}</version>-->
+        <!--</dependency>-->
+
         <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-parser</artifactId>

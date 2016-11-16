@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.util.CharsetUtil;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
@@ -171,8 +172,8 @@ public class WebHookHttpService
                 //                "readLine = function() {};\n" +
                 //                "load = function() {};\n" +
                 "loadWithNewGlobal = function() {};\n" +
-                "var scoped = function(queryParams, body) { \n" +
-                "   return JSON.stringify(module(queryParams, JSON.parse(body), " + params + ")); \n" +
+                "var scoped = function(queryParams, body, headers) { \n" +
+                "   return JSON.stringify(module(queryParams, JSON.parse(body), " + params + ", headers)); \n" +
                 "};\n" +
                 "");
 
@@ -219,14 +220,18 @@ public class WebHookHttpService
                 throw new RakamException("Unable to parse data: " + e.getMessage(), INTERNAL_SERVER_ERROR);
             }
 
-            call(request, project, identifier, request.params(), data);
+            call(request, project, identifier, request.params(), request.headers(), data);
         });
     }
 
-    private void call(RakamHttpRequest request, String project, String identifier, Map<String, List<String>> params, String data)
+    private void call(RakamHttpRequest request, String project, String identifier, Map<String, List<String>> queryParams, HttpHeaders headers, String data)
     {
         Invocable function = functions.getUnchecked(new WebHookIdentifier(project, identifier));
-        handleFunction(request, project, () -> function.invokeFunction("scoped", params, data), true);
+        handleFunction(
+                request,
+                project,
+                () -> function.invokeFunction("scoped", queryParams, data, headers),
+                true);
     }
 
     @GET
@@ -243,7 +248,7 @@ public class WebHookHttpService
 
         String project = apiKeyService.getProjectOfApiKey(writeKeyList.get(0), WRITE_KEY);
 
-        call(request, project, identifier, request.params(), null);
+        call(request, project, identifier, request.params(), request.headers(), null);
     }
 
     @PUT
@@ -297,8 +302,7 @@ public class WebHookHttpService
             return handle.createQuery("SELECT code, image, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
                     .bind("identifier", identifier)
-                    .map(new ResultSetMapper<WebHook>()
-                    {
+                    .map(new ResultSetMapper<WebHook>() {
                         @Override
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
                                 throws SQLException
@@ -317,8 +321,13 @@ public class WebHookHttpService
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT identifier, code, image, active, parameters FROM webhook WHERE project = :project")
                     .bind("project", project)
-                    .map((index, r, ctx) -> {
-                        return new WebHook(r.getString(1), r.getString(2), r.getString(3), r.getBoolean(4), JsonHelper.read(r.getString(5), Map.class));
+                    .map(new ResultSetMapper<WebHook>() {
+                        @Override
+                        public WebHook map(int index, ResultSet r, StatementContext ctx)
+                                throws SQLException
+                        {
+                            return new WebHook(r.getString(1), r.getString(2), r.getString(3), r.getBoolean(4), JsonHelper.read(r.getString(5), Map.class));
+                        }
                     }).list();
         }
     }
@@ -331,8 +340,7 @@ public class WebHookHttpService
             @HeaderParam(CONTENT_TYPE) String contentType,
             @Named("project") String project,
             @ApiParam("script") String script,
-            @ApiParam(value = "params", required = false) Map<String, Object> params,
-            @ApiParam(value = "query_params", required = false) Map<String, List<String>> queryParams,
+            @ApiParam(value = "parameters", required = false) Map<String, Object> params,
             @ApiParam(value = "body", required = false) Object body)
     {
         ScriptEngine engine;
@@ -341,7 +349,7 @@ public class WebHookHttpService
             engine.eval(script);
         }
         catch (ScriptException e) {
-            throw new RakamException("Unable to compile JS code", INTERNAL_SERVER_ERROR);
+            throw new RakamException("Unable to compile Javascript code: "+e.getMessage(), INTERNAL_SERVER_ERROR);
         }
 
         Future<Object> f = executor.submit(() -> {
@@ -357,9 +365,11 @@ public class WebHookHttpService
                 else {
                     finalBody = body;
                 }
+
                 Object scoped = ((Invocable) engine).invokeFunction("scoped",
-                        Optional.ofNullable(params).orElse(ImmutableMap.of()),
-                        finalBody);
+                        request.params(),
+                        finalBody,
+                        request.headers());
                 if (scoped == null) {
                     request.response(script, NO_CONTENT).end();
                 }
