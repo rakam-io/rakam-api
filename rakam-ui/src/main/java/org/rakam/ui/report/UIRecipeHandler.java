@@ -79,7 +79,14 @@ public class UIRecipeHandler
         List<DashboardBuilder> dashboards;
         if (dashboardService.isPresent()) {
             dashboards = dashboardService.get().list(new Project(project, userId)).stream()
-                    .map(a -> new DashboardBuilder(a.name, dashboardService.get().get(new Project(project, userId), a.name)))
+                    .map(a -> {
+                        List<DashboardService.DashboardItem> items = dashboardService.get()
+                                .get(new Project(project, userId), a.name).stream()
+                                .map(e -> new DashboardService.DashboardItem(e.id, e.name, e.directive, e.options, e.refreshInterval, null))
+                                .collect(Collectors.toList());
+
+                        return new DashboardBuilder(a.name, items);
+                    })
                     .collect(Collectors.toList());
         }
         else {

@@ -28,9 +28,4 @@ public class AWSLambdaModule extends RakamModule
     {
         return null;
     }
-
-    public static void main(String[] args)
-    {
-
-    }
 }
