@@ -18,6 +18,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.rakam</groupId>
             <artifactId>rakam-presto-kafka</artifactId>
             <version>${project.version}</version>
@@ -158,10 +162,6 @@
             <groupId>org.rakam</groupId>
             <artifactId>testing-postgresql-server</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro</artifactId>
         </dependency>
         <dependency>
             <groupId>io.airlift</groupId>
@@ -387,10 +387,6 @@
                         <configuration>
                             <failOnWarning>true</failOnWarning>
 
-                            <ignoredDependencies>
-                                <ignoredDependency>com.facebook.presto.hive:hive-apache</ignoredDependency>
-                            </ignoredDependencies>
-
                             <ignoredUnusedDeclaredDependencies>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip-maxmind
                                 </ignoredUnusedDeclaredDependency>
@@ -411,8 +407,6 @@
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-clickhouse
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>com.facebook.presto:presto-parser
-                                </ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.apache.avro:avro
                                 </ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
