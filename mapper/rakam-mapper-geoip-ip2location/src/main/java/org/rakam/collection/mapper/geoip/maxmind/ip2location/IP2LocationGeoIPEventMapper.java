@@ -13,6 +13,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.MapProxyGenericRecord;
@@ -29,7 +30,7 @@ import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.mapper.geoip.maxmind.ip2location.IP2LocationGeoIPModule.downloadOrGetFile;
 
 public class IP2LocationGeoIPEventMapper
-        implements EventMapper, UserPropertyMapper
+        implements SyncEventMapper, UserPropertyMapper
 {
     private static final Logger LOGGER = Logger.get(IP2LocationGeoIPEventMapper.class);
     private final static List<String> CITY_DATABASE_ATTRIBUTES = ImmutableList

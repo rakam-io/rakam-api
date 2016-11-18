@@ -94,6 +94,8 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
+import static org.rakam.plugin.EventMapper.COMPLETED_EMPTY_FUTURE;
+import static org.rakam.plugin.EventStore.COMPLETED_FUTURE;
 import static org.rakam.plugin.EventStore.CopyType.AVRO;
 import static org.rakam.plugin.EventStore.CopyType.CSV;
 import static org.rakam.plugin.EventStore.CopyType.JSON;
@@ -117,7 +119,7 @@ public class EventCollectionHttpService
     private final ObjectMapper jsonMapper;
     private final ObjectMapper csvMapper;
     private final EventStore eventStore;
-    private final Set<EventMapper> eventMappers;
+    private final List<EventMapper> eventMappers;
     private final ApiKeyService apiKeyService;
     private final AvroEventDeserializer avroEventDeserializer;
     private final Metastore metastore;
@@ -138,7 +140,7 @@ public class EventCollectionHttpService
             Set<EventMapper> mappers)
     {
         this.eventStore = eventStore;
-        this.eventMappers = mappers;
+        this.eventMappers = ImmutableList.copyOf(mappers);
         this.apiKeyService = apiKeyService;
         this.queryHttpService = queryHttpService;
         this.metastore = metastore;
@@ -164,22 +166,34 @@ public class EventCollectionHttpService
         csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
 
-    public List<Cookie> mapEvent(Function<EventMapper, List<Cookie>> mapperFunction)
+    public CompletableFuture<List<Cookie>> mapEvent(Function<EventMapper, CompletableFuture<List<Cookie>>> mapperFunction)
     {
-        List<Cookie> cookies = null;
-        for (EventMapper mapper : eventMappers) {
-            // TODO: bound event mappers to Netty Channels and
-            // runStatementSafe them in separate thread
-            List<Cookie> mapperCookies = mapperFunction.apply(mapper);
-            if (mapperCookies != null) {
-                if (cookies == null) {
-                    cookies = new ArrayList<>();
-                }
-                cookies.addAll(mapperCookies);
+        List<Cookie> cookies = new ArrayList<>();
+        CompletableFuture[] futures = null;
+        int futureIndex = 0;
+
+        for (int i = 0; i < eventMappers.size(); i++) {
+            EventMapper mapper = eventMappers.get(i);
+            CompletableFuture<List<Cookie>> mapperCookies = mapperFunction.apply(mapper);
+            if (COMPLETED_EMPTY_FUTURE.equals(mapperCookies)) {
+                continue;
             }
+
+            CompletableFuture<Void> future = mapperCookies.thenAccept(cookies::addAll);
+
+            if (futures == null) {
+                futures = new CompletableFuture[eventMappers.size() - i];
+            }
+
+            futures[futureIndex++] = future;
         }
 
-        return cookies;
+        if (futures == null) {
+            return COMPLETED_EMPTY_FUTURE;
+        }
+        else {
+            return CompletableFuture.allOf(futures).thenApply(v -> cookies);
+        }
     }
 
     public static void returnError(RakamHttpRequest request, String msg, HttpResponseStatus status)
@@ -212,7 +226,7 @@ public class EventCollectionHttpService
         request.bodyHandler(buff -> {
             DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(OK_MESSAGE));
 
-            final List<Cookie> cookies;
+            CompletableFuture<List<Cookie>> cookiesFuture;
 
             try {
                 Event event = jsonMapper.readValue(buff, Event.class);
@@ -223,10 +237,9 @@ public class EventCollectionHttpService
                     return;
                 }
 
-                cookies = mapEvent((mapper) -> mapper.map(event, new HttpRequestParams(request),
+                cookiesFuture = mapEvent((mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
                         getRemoteAddress(socketAddress), response.trailingHeaders()));
-
-                eventStore.store(event);
+                cookiesFuture.thenAccept(v -> eventStore.store(event));
             }
             catch (JsonMappingException e) {
                 String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
@@ -258,9 +271,6 @@ public class EventCollectionHttpService
                 return;
             }
 
-            if (cookies != null) {
-                response.headers().add(SET_COOKIE, STRICT.encode(cookies));
-            }
             String headerList = getHeaderList(response.headers().iterator());
             if (headerList != null) {
                 response.headers().set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
@@ -269,7 +279,12 @@ public class EventCollectionHttpService
                 response.headers().set(ACCESS_CONTROL_ALLOW_ORIGIN, request.headers().get(ORIGIN));
             }
 
-            request.response(response).end();
+            cookiesFuture.thenAccept(cookies -> {
+                if(cookies != null) {
+                    response.headers().add(SET_COOKIE, STRICT.encode(cookies));
+                }
+                request.response(response).end();
+            });
         });
     }
 
@@ -641,7 +656,7 @@ public class EventCollectionHttpService
             }
 
             CompletableFuture<FullHttpResponse> response;
-            List<Cookie> entries;
+            CompletableFuture<List<Cookie>> entries;
             try {
                 EventList events = mapper.apply(buff);
 
@@ -653,11 +668,11 @@ public class EventCollectionHttpService
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
                 if (mapEvents) {
-                    entries = mapEvent((m) -> m.map(events, new HttpRequestParams(request),
+                    entries = mapEvent((m) -> m.mapAsync(events, new HttpRequestParams(request),
                             remoteAddress, responseHeaders));
                 }
                 else {
-                    entries = null;
+                    entries = EventMapper.COMPLETED_EMPTY_FUTURE;
                 }
 
                 response = responseFunction.apply(events.events, responseHeaders);
@@ -691,10 +706,6 @@ public class EventCollectionHttpService
                 return;
             }
 
-            if (entries != null) {
-                responseHeaders.add(SET_COOKIE, STRICT.encode(entries));
-            }
-
             String headerList = getHeaderList(responseHeaders.iterator());
             if (headerList != null) {
                 responseHeaders.set(ACCESS_CONTROL_EXPOSE_HEADERS, headerList);
@@ -702,7 +713,24 @@ public class EventCollectionHttpService
 
             responseHeaders.add(CONTENT_TYPE, "application/json");
 
-            response.thenAccept(resp -> request.response(resp).end());
+            entries.thenAccept(value -> {
+                if(value != null) {
+                    responseHeaders.add(SET_COOKIE, STRICT.encode(value));
+                }
+                if (response.isDone()) {
+                    request.response(response.join()).end();
+                }
+            });
+
+            response.thenAccept(resp -> {
+                if (entries.isDone()) {
+                    List<Cookie> join = entries.join();
+                    if(join != null) {
+                        responseHeaders.add(SET_COOKIE, STRICT.encode(join));
+                    }
+                }
+                request.response(resp).end();
+            });
         });
     }
 

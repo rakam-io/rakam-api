@@ -19,6 +19,7 @@ import java.util.List;
 import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static java.lang.String.format;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
@@ -116,7 +117,7 @@ public class EventListDeserializer
         String project;
         boolean masterKey;
 
-        if (apiKey == null && apiKey == WRITE_KEY) {
+        if (apiKey == null || apiKey == WRITE_KEY) {
             try {
                 project = apiKeyService.getProjectOfApiKey(context.apiKey,
                         apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);
@@ -129,7 +130,16 @@ public class EventListDeserializer
         }
         else {
             masterKey = true;
-            project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);
+            try {
+                project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);
+            }
+            catch (RakamException e) {
+                if (e.getStatusCode() == FORBIDDEN) {
+                    throw new RakamException("api_key is invalid", FORBIDDEN);
+                }
+
+                throw e;
+            }
         }
 
         for (; t == START_OBJECT; t = jp.nextToken()) {

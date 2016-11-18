@@ -21,6 +21,7 @@ import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.RakamModule;
+import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.SystemEvents;
 import org.rakam.plugin.user.mailbox.MailBoxWebSocketService;
 import org.rakam.plugin.user.mailbox.UserMailboxActionService;
@@ -209,7 +210,7 @@ public class UserModule
     }
 
     public static class UserIdCheckEventMapper
-            implements EventMapper, UserPropertyMapper
+            implements SyncEventMapper, UserPropertyMapper
     {
 
         @Override

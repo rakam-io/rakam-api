@@ -16,6 +16,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.AvroUtil;
@@ -32,7 +33,7 @@ import java.util.UUID;
 import static org.rakam.collection.FieldType.STRING;
 
 public class UserIdEventMapper
-        implements EventMapper, UserPropertyMapper
+        implements SyncEventMapper, UserPropertyMapper
 {
     private final LoadingCache<String, FieldType> userTypeCache;
     DistributedIdGenerator idGenerator;

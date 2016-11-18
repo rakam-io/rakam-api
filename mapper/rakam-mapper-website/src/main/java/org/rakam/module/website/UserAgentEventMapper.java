@@ -11,6 +11,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.server.http.HttpRequestException;
@@ -24,7 +25,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.List;
 
-public class UserAgentEventMapper implements EventMapper, UserPropertyMapper {
+public class UserAgentEventMapper implements SyncEventMapper, UserPropertyMapper {
     private final Parser uaParser;
     private final boolean trackSpiders;
 

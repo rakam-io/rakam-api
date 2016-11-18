@@ -10,6 +10,7 @@ import io.netty.handler.codec.http.cookie.DefaultCookie;
 import org.rakam.collection.Event;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.User;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.util.CryptUtil;
@@ -24,7 +25,8 @@ import java.util.List;
 import java.util.function.Supplier;
 
 @Singleton
-public class AutomationEventProcessor implements EventMapper {
+public class AutomationEventProcessor implements SyncEventMapper
+{
     private static final String PROPERTY_KEY = "_auto";
     private static final String PROPERTY_ACTION_KEY = "_auto_action";
 

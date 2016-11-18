@@ -15,6 +15,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.MapProxyGenericRecord;
@@ -26,7 +27,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 
 public class ReferrerEventMapper
-        implements EventMapper, UserPropertyMapper
+        implements SyncEventMapper, UserPropertyMapper
 {
     private final static Logger LOGGER = Logger.get(ReferrerEventMapper.class);
 

@@ -11,44 +11,71 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
+public interface EventMapper
+{
+    CompletableFuture<List<Cookie>> COMPLETED_EMPTY_FUTURE = CompletableFuture.completedFuture(null);
 
-public interface EventMapper {
-    List<Cookie> map(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders);
+    CompletableFuture<List<Cookie>> mapAsync(Event event, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders);
 
-    default List<Cookie> map(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders) {
-        List<Cookie> cookies = null;
-        for (Event event : events.events) {
-            List<Cookie> map = map(event, requestParams, sourceAddress, responseHeaders);
-            if (map != null) {
-                if (cookies == null) {
-                    cookies = new ArrayList<>();
-                }
-                cookies.addAll(map);
+    default CompletableFuture<List<Cookie>> mapAsync(EventList events, RequestParams requestParams, InetAddress sourceAddress, HttpHeaders responseHeaders)
+    {
+        List<Cookie> cookies = new ArrayList<>();
+        CompletableFuture[] futures = null;
+        int futureIndex = 0;
+        for (int i = 0; i < events.events.size(); i++) {
+            Event event = events.events.get(i);
+            CompletableFuture<List<Cookie>> map = mapAsync(event, requestParams, sourceAddress, responseHeaders);
+            if (map == null || map.equals(COMPLETED_EMPTY_FUTURE)) {
+                continue;
             }
+
+            CompletableFuture<List<Cookie>> future = map.thenApply(value -> {
+                cookies.addAll(value);
+                return cookies;
+            });
+
+            if (futures == null) {
+                futures = new CompletableFuture[events.events.size() - i];
+            }
+
+            futures[futureIndex++] = future;
         }
-        return cookies;
+
+        if (futures == null) {
+            return COMPLETED_EMPTY_FUTURE;
+        }
+        else {
+            return CompletableFuture.allOf(futures).thenApply(val -> cookies);
+        }
     }
 
-    default void addFieldDependency(FieldDependencyBuilder builder) {
+    default void addFieldDependency(FieldDependencyBuilder builder)
+    {
     }
 
     default void init() {}
 
-    interface RequestParams {
-        RequestParams EMPTY_PARAMS = new RequestParams() {
+    interface RequestParams
+    {
+        RequestParams EMPTY_PARAMS = new RequestParams()
+        {
             @Override
-            public Collection<Cookie> cookies() {
+            public Collection<Cookie> cookies()
+            {
                 return ImmutableList.of();
             }
 
             @Override
-            public HttpHeaders headers() {
+            public HttpHeaders headers()
+            {
                 return HttpHeaders.EMPTY_HEADERS;
             }
         };
 
-        default Collection<Cookie> cookies() {
+        default Collection<Cookie> cookies()
+        {
             return ImmutableList.of();
         }
 

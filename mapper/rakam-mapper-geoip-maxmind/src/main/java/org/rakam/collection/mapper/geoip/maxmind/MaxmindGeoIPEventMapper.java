@@ -20,6 +20,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.SyncEventMapper;
 import org.rakam.plugin.user.ISingleUserBatchOperation;
 import org.rakam.plugin.user.UserPropertyMapper;
 import org.rakam.util.MapProxyGenericRecord;
@@ -36,7 +37,7 @@ import java.util.stream.Collectors;
 import static org.rakam.collection.FieldType.STRING;
 
 public class MaxmindGeoIPEventMapper
-        implements EventMapper, UserPropertyMapper
+        implements SyncEventMapper, UserPropertyMapper
 {
     private static final Logger LOGGER = Logger.get(MaxmindGeoIPEventMapper.class);
     private static final String ERROR_MESSAGE = "You need to set %s config in order to have '%s' field.";
