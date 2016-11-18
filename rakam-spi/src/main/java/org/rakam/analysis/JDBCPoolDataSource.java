@@ -74,8 +74,8 @@ public class JDBCPoolDataSource
     public Connection getConnection()
             throws SQLException
     {
-        return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
-//        return dataSource.getConnection();
+//        return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+        return dataSource.getConnection();
     }
 
     @Override
