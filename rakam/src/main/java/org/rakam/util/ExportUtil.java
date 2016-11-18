@@ -28,9 +28,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Created by buremba on 6/10/16.
- */
 public class ExportUtil
 {
     public static byte[] exportAsCSV(QueryResult result)
@@ -43,10 +40,10 @@ public class ExportUtil
             csvPrinter.printRecord(result.getMetadata().stream().map(SchemaField::getName)
                     .collect(Collectors.toList()));
             csvPrinter.printRecords(Iterables.transform(result.getResult(), input -> Iterables.transform(input, input1 -> {
-                if(input1 instanceof List || input1 instanceof Map) {
+                if (input1 instanceof List || input1 instanceof Map) {
                     return JsonHelper.encode(input1);
                 }
-                if(input1 instanceof byte[]) {
+                if (input1 instanceof byte[]) {
                     return DatatypeConverter.printBase64Binary((byte[]) input1);
                 }
                 return input1;
@@ -90,7 +87,7 @@ public class ExportUtil
 
     private static Object getAvroValue(Object value, FieldType type)
     {
-        if(value == null) {
+        if (value == null) {
             return null;
         }
         switch (type) {
@@ -113,13 +110,14 @@ public class ExportUtil
             case BINARY:
                 return (byte[]) value;
             default:
-                if(type.isArray()) {
+                if (type.isArray()) {
                     return ((List) value).stream().map(e -> getAvroValue(e, type.getArrayElementType()))
                             .collect(Collectors.toList());
                 }
-                if(type.isMap()) {
+                if (type.isMap()) {
                     return ((Map) value).entrySet().stream()
-                            .collect(Collectors.toMap(new Function<Map.Entry, String>() {
+                            .collect(Collectors.toMap(new Function<Map.Entry, String>()
+                            {
                                 @Override
                                 public String apply(Map.Entry entry)
                                 {
@@ -129,6 +127,5 @@ public class ExportUtil
                 }
                 throw new IllegalStateException("unsupported type");
         }
-
     }
 }

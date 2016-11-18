@@ -23,6 +23,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -150,7 +151,7 @@ public class PostgresqlEventStreamer implements EventStream.EventStreamer {
 
     private String createSqlExpression(CollectionStreamQuery collection) {
         if (collection.getFilter() != null) {
-            return new ExpressionFormatter.Formatter() {
+            return new ExpressionFormatter.Formatter(Optional.empty()) {
                 @Override
                 protected String visitQualifiedNameReference(QualifiedNameReference node, Boolean context) {
                     List<String> parts = new ArrayList<>();

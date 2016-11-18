@@ -465,7 +465,7 @@ public abstract class AbstractPostgresqlUserStorage
 
         LinkedList<String> filters = new LinkedList<>();
         if (filterExpression != null) {
-            filters.add(new ExpressionFormatter.Formatter().process(filterExpression, true));
+            filters.add(new ExpressionFormatter.Formatter(Optional.empty()).process(filterExpression, true));
         }
 
         if (eventFilter != null && !eventFilter.isEmpty()) {

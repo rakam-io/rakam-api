@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static java.lang.String.format;
 import static org.rakam.report.realtime.AggregationType.COUNT;
@@ -56,7 +57,7 @@ public class PostgresqlUserStorage
             if (filter.aggregation == null) {
                 builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, collection));
                 if (filter.filterExpression != null) {
-                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), true));
                 }
                 // TODO: timeframe
                 filters.add((format("id in (%s)", builder.toString())));
@@ -64,7 +65,7 @@ public class PostgresqlUserStorage
             else {
                 builder.append(format("select \"_user\" from \"%s\".\"%s\"", project, collection));
                 if (filter.filterExpression != null) {
-                    builder.append(" where ").append(new ExpressionFormatter.Formatter().process(filter.getExpression(), true));
+                    builder.append(" where ").append(new ExpressionFormatter.Formatter(Optional.empty()).process(filter.getExpression(), true));
                 }
                 String field;
                 if (filter.aggregation.type == COUNT && filter.aggregation.field == null) {

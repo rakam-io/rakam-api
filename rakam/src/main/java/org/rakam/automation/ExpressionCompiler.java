@@ -3,6 +3,7 @@ package org.rakam.automation;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.ComparisonExpression;
+import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.IsNotNullPredicate;
 import com.facebook.presto.sql.tree.IsNullPredicate;
@@ -157,7 +158,7 @@ public final class ExpressionCompiler
             }
         }
 
-        private String getComparisonFormat(ComparisonExpression.Type type)
+        private String getComparisonFormat(ComparisonExpressionType type)
         {
             switch (type) {
                 case EQUAL:

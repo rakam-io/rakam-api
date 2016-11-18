@@ -38,9 +38,9 @@ public class PluginManager {
 
 
     private static final ImmutableSet<Object> BLACKLIST = ImmutableSet.builder()
-            .add("elasticsearch",
-                    "elasticsearch.bat",
-                    "elasticsearch.in.sh",
+            .add("rakam",
+                    "rakam.bat",
+                    "rakam.in.sh",
                     "plugin",
                     "plugin.bat",
                     "service.bat").build();
@@ -362,7 +362,6 @@ public class PluginManager {
         SysOut.println("    -h, --help                        : Prints this help message");
         SysOut.newline();
         SysOut.println(" [*] Plugin name could be:");
-        SysOut.println("     elasticsearch/plugin/version for official elasticsearch plugins (download from download.elasticsearch.org)");
         SysOut.println("     groupId/artifactId/version   for community plugins (download from maven central or oss sonatype)");
         SysOut.println("     username/repository          for site plugins (download from github master)");
 
@@ -454,15 +453,9 @@ public class PluginManager {
                 }
             }
 
-            if (repo.startsWith("elasticsearch-")) {
-                // remove elasticsearch- prefix
-                String endname = repo.substring("elasticsearch-".length());
-                return new PluginHandle(endname, version, user, repo);
-            }
-
-            if (name.startsWith("es-")) {
-                // remove es- prefix
-                String endname = repo.substring("es-".length());
+            if (repo.startsWith("rakam-")) {
+                // remove rakam- prefix
+                String endname = repo.substring("rakam-".length());
                 return new PluginHandle(endname, version, user, repo);
             }
 

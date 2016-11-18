@@ -217,11 +217,15 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-raptor</artifactId>
-            <version>0.151.1</version>
+            <version>0.156.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>
                     <artifactId>jdbi</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.facebook.presto.hive</groupId>
+                    <artifactId>hive-apache</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.openjdk.jol</groupId>
@@ -238,7 +242,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-streaming</artifactId>
-            <version>0.151.12</version>
+            <version>0.156.3</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>
@@ -251,6 +255,19 @@
                 <exclusion>
                     <groupId>io.netty</groupId>
                     <artifactId>netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.gaul</groupId>
+            <artifactId>s3proxy</artifactId>
+            <version>1.5.1</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.eclipse.jetty</groupId>
+                    <artifactId>jetty-servlet</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

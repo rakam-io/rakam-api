@@ -53,6 +53,7 @@ public class RakamExpressionFormatter
             List<String> queryWithTables,
             char escape)
     {
+        super(Optional.empty());
         this.tableNameMapper = tableNameMapper;
         this.columnNameMapper = columnNameMapper;
         this.queryWithTables = queryWithTables;
@@ -151,7 +152,7 @@ public class RakamExpressionFormatter
     private static String formatGroupingSet(Set<Expression> groupingSet)
     {
         return format("(%s)", Joiner.on(", ").join(groupingSet.stream()
-                .map(ExpressionFormatter::formatExpression)
+                .map(ex -> ExpressionFormatter.formatExpression(ex, Optional.empty()))
                 .iterator()));
     }
 
