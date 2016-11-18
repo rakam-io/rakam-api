@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import com.google.inject.Singleton;
 import org.postgresql.core.BaseConnection;
 import org.postgresql.jdbc2.AbstractJdbc2DatabaseMetaData;
 import org.postgresql.jdbc4.AbstractJdbc4DatabaseMetaData;
@@ -23,6 +24,7 @@ import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
 import org.rakam.util.ValidationUtil;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 
@@ -56,8 +58,8 @@ import static org.rakam.util.ValidationUtil.checkTableColumn;
 public class PostgresqlMetastore
         extends AbstractMetastore
 {
-    private final LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
-    private final LoadingCache<String, Set<String>> collectionCache;
+    private LoadingCache<ProjectCollection, List<SchemaField>> schemaCache;
+    private LoadingCache<String, Set<String>> collectionCache;
     private final JDBCPoolDataSource connectionPool;
 
     @Inject
@@ -65,6 +67,11 @@ public class PostgresqlMetastore
     {
         super(fieldDependency, eventBus);
         this.connectionPool = connectionPool;
+    }
+
+    @PostConstruct
+    public void check() {
+        super.checkExistingSchema();
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>()
         {
@@ -91,14 +98,14 @@ public class PostgresqlMetastore
                 try (Connection conn = connectionPool.getConnection()) {
                     ResultSet resultSet = conn.createStatement().executeQuery(
                             format("SELECT c.relname\n" +
-                                    "FROM pg_catalog.pg_class c\n" +
-                                    "    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace\n" +
-                                    "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
-                                    "    WHERE n.nspname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
-                                    "    AND n.nspname <> 'pg_catalog'\n" +
-                                    "    AND n.nspname <> 'information_schema'\n" +
-                                    "    AND n.nspname !~ '^pg_toast'",
-                            checkLiteral(project)));
+                                            "FROM pg_catalog.pg_class c\n" +
+                                            "    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace\n" +
+                                            "    LEFT JOIN pg_inherits i ON (i.inhrelid = c.oid)\n" +
+                                            "    WHERE n.nspname = '%s' and c.relkind IN ('r', '') and i.inhrelid is null\n" +
+                                            "    AND n.nspname <> 'pg_catalog'\n" +
+                                            "    AND n.nspname <> 'information_schema'\n" +
+                                            "    AND n.nspname !~ '^pg_toast'",
+                                    checkLiteral(project)));
 
                     ImmutableSet.Builder<String> builder = ImmutableSet.builder();
                     while (resultSet.next()) {
@@ -112,8 +119,6 @@ public class PostgresqlMetastore
                 }
             }
         });
-
-        super.checkExistingSchema();
     }
 
     @Override

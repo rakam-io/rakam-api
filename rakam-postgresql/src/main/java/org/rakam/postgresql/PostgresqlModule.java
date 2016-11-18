@@ -4,12 +4,14 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
+import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.ApiKeyService;
@@ -26,6 +28,7 @@ import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
+import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
@@ -83,9 +86,9 @@ public class PostgresqlModule extends RakamModule {
 
         binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
 
-        binder.bind(Metastore.class).to(PostgresqlMetastore.class).in(Scopes.SINGLETON);
+        binder.bind(Metastore.class).toProvider(PostgresqlMetastoreProvider.class).asEagerSingleton();
         binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
-        // TODO: implement postgresql specific materialized view service
+
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
         binder.bind(QueryExecutor.class).to(PostgresqlQueryExecutor.class).in(Scopes.SINGLETON);
         binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
@@ -315,6 +318,27 @@ public class PostgresqlModule extends RakamModule {
                 default:
                     throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
             }
+        }
+    }
+
+    public static class PostgresqlMetastoreProvider implements Provider<PostgresqlMetastore> {
+
+        private final JDBCPoolDataSource connectionPool;
+        private final EventBus eventBus;
+        private final FieldDependencyBuilder.FieldDependency fieldDependency;
+
+        @Inject
+        public PostgresqlMetastoreProvider(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency)
+        {
+            this.connectionPool = connectionPool;
+            this.eventBus = eventBus;
+            this.fieldDependency = fieldDependency;
+        }
+
+        @Override
+        public PostgresqlMetastore get()
+        {
+            return new PostgresqlMetastore(connectionPool, eventBus, fieldDependency);
         }
     }
 }

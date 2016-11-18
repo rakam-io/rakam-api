@@ -53,32 +53,35 @@ public abstract class AbstractMetastore implements Metastore {
     }
 
     protected void checkExistingSchema() {
-        getProjects().forEach(project ->
-                getCollections(project).forEach((collection, fields) -> {
-                    Set<SchemaField> collect = moduleFields.constantFields.stream()
-                            .filter(constant ->
-                                    !fields.stream()
-                                            .anyMatch(existing -> check(project, collection, constant, existing)))
-                            .collect(Collectors.toSet());
+        for (String project : getProjects()) {
+            Map<String, List<SchemaField>> collections = getCollections(project);
+            collections.forEach((collection, fields) -> {
+                Set<SchemaField> collect = moduleFields.constantFields.stream()
+                        .filter(constant ->
+                                !fields.stream()
+                                        .anyMatch(existing -> check(project, collection, constant, existing)))
+                        .collect(Collectors.toSet());
 
-                    moduleFields.dependentFields.entrySet().stream().map(Map.Entry::getValue)
-                            .forEach(values ->
-                                    values.stream().forEach(value ->
-                                            fields.stream().forEach(field -> check(project, collection, field, value))));
+                moduleFields.dependentFields.entrySet().stream().map(Map.Entry::getValue)
+                        .forEach(values ->
+                                values.stream().forEach(value ->
+                                        fields.stream().forEach(field -> check(project, collection, field, value))));
 
-                    fields.forEach(field -> moduleFields.dependentFields.getOrDefault(field.getName(), ImmutableList.of()).stream()
-                            .filter(dependentField -> !fields.stream()
-                                    .anyMatch(existing -> check(project, collection, existing, dependentField)))
-                            .forEach(collect::add));
+                fields.forEach(field -> moduleFields.dependentFields.getOrDefault(field.getName(), ImmutableList.of()).stream()
+                        .filter(dependentField -> !fields.stream()
+                                .anyMatch(existing -> check(project, collection, existing, dependentField)))
+                        .forEach(collect::add));
 
-                    if (!collect.isEmpty()) {
-                        try {
-                            getOrCreateCollectionFieldList(project, collection, collect);
-                        } catch (NotExistsException e) {
-                            throw Throwables.propagate(e);
-                        }
+                if (!collect.isEmpty()) {
+                    try {
+                        getOrCreateCollectionFieldList(project, collection, collect);
                     }
-                }));
+                    catch (NotExistsException e) {
+                        throw Throwables.propagate(e);
+                    }
+                }
+            });
+        }
     }
 
     private boolean check(String project, String collection, SchemaField existing, SchemaField moduleField) {
