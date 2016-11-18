@@ -98,45 +98,16 @@ public class AWSLambdaService
 
     public List<Task> getActiveTasks()
     {
-        ListFunctionsResult listFunctionsResult = client
-                .listFunctions(new ListFunctionsRequest().withMarker(null));
-
-        CWEventsClient.listTargetsByRule(new ListTargetsByRuleRequest().withRule(null)).getTargets().get(0).getInput();
-
-        CWEventsClient
+       return CWEventsClient
                 .listRules(new ListRulesRequest().withNamePrefix(awsLambdaConfig.getStackId()))
                 .getRules().stream()
                 .flatMap(e -> {
                     ListTargetsByRuleResult listTargetsByRuleResult = CWEventsClient.listTargetsByRule(new ListTargetsByRuleRequest().withRule(e.getName()));
-                    return listTargetsByRuleResult.getTargets().stream().map(a -> {
-                        return new Task(e.getName(), e.getDescription(), a.getArn(), null, null);
+                    return listTargetsByRuleResult.getTargets().stream().map(target -> {
+                        Map<String, String> read = JsonHelper.read(target.getInput(), new TypeReference<Map<String, String>>() {});
+                        return new Task(e.getName(), e.getDescription(), target.getArn(), read, null, null);
                     });
-                });
-
-        return listFunctionsResult
-                .getFunctions()
-                .stream()
-                .filter(e -> e.getRole().equals(awsLambdaConfig.getRoleArn()))
-                .flatMap(e -> {
-                    ListRuleNamesByTargetResult listRuleNamesByTargetResult = CWEventsClient.listRuleNamesByTarget(new ListRuleNamesByTargetRequest().withTargetArn(e.getFunctionArn()));
-                    if(listRuleNamesByTargetResult.getRuleNames().isEmpty()) {
-                        return Stream.of();
-                    }
-
-                    String ruleName = listRuleNamesByTargetResult.getRuleNames().get(0);
-                    Target target = CWEventsClient
-                            .listTargetsByRule(new ListTargetsByRuleRequest().withRule(ruleName))
-                            .getTargets()
-                            .get(0);
-
-                    Map<String, String> read = JsonHelper.read(target.getInput(), new TypeReference<Map<String, String>>() {});
-
-                    return listRuleNamesByTargetResult.getRuleNames().stream()
-                            .map(taskName -> {
-                                return new Task(taskName, e.getDescription(), e.getVersion(), Runtime.fromValue(e.getRuntime()), e.getHandler());
-                            });
-                })
-                .collect(Collectors.toList());
+                }).collect(Collectors.toList());
     }
 
     public static class TaskList
@@ -168,6 +139,7 @@ public class AWSLambdaService
                     s3ObjectSummary.getKey(),
                     description,
                     version,
+                    null,
                     Runtime.fromValue(runtime),
                     handler));
         }
@@ -182,12 +154,14 @@ public class AWSLambdaService
         public final String version;
         public final Runtime runtime;
         public final String handler;
+        public final Map<String, String> parameters;
 
-        public Task(String name, String description, String version, Runtime runtime, String handler)
+        public Task(String name, String description, String version, Map<String, String> parameters, Runtime runtime, String handler)
         {
             this.name = name;
             this.description = description;
             this.version = version;
+            this.parameters = parameters;
             this.runtime = runtime;
             this.handler = handler;
         }

@@ -12,7 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 @JsonPropertyOrder({"project", "collection", "api", "properties"})
-public class Event {
+public class Event
+{
     @JsonIgnore
     private final String project;
     private final String collection;
@@ -24,16 +25,18 @@ public class Event {
 
     @JsonCreator
     public Event(@ApiParam("collection") String collection,
-                 @ApiParam("api") EventContext api,
-                 @ApiParam("properties") GenericRecord properties) {
+            @ApiParam("api") EventContext api,
+            @ApiParam("properties") GenericRecord properties)
+    {
         this(null, collection, api, null, properties);
     }
 
     public Event(String project,
-                 String collection,
-                 EventContext api,
-                 List<SchemaField> schema,
-                 GenericRecord properties) {
+            String collection,
+            EventContext api,
+            List<SchemaField> schema,
+            GenericRecord properties)
+    {
         this.project = project;
         this.collection = collection;
         this.properties = properties;
@@ -41,36 +44,43 @@ public class Event {
         this.api = api;
     }
 
-    public String project() {
+    public String project()
+    {
         return project;
     }
 
     @JsonProperty
-    public String collection() {
+    public String collection()
+    {
         return collection;
     }
 
     @JsonProperty
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public EventContext api() {
+    public EventContext api()
+    {
         return api;
     }
 
     @JsonProperty
-    public GenericRecord properties() {
+    public GenericRecord properties()
+    {
         return properties;
     }
 
-    public List<SchemaField> schema() {
+    public List<SchemaField> schema()
+    {
         return schema;
     }
 
-    public <T> T getAttribute(String attr) {
+    public <T> T getAttribute(String attr)
+    {
         return (T) properties().get(attr);
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return "Event{" +
                 "project='" + project + '\'' +
                 ", collection='" + collection + '\'' +
@@ -81,22 +91,35 @@ public class Event {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Event)) return false;
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Event)) {
+            return false;
+        }
 
         Event event = (Event) o;
 
-        if (!project.equals(event.project)) return false;
-        if (!collection.equals(event.collection)) return false;
-        if (schema != null ? !schema.equals(event.schema) : event.schema != null) return false;
-        if (api != null ? !api.equals(event.api) : event.api != null) return false;
+        if (!project.equals(event.project)) {
+            return false;
+        }
+        if (!collection.equals(event.collection)) {
+            return false;
+        }
+        if (schema != null ? !schema.equals(event.schema) : event.schema != null) {
+            return false;
+        }
+        if (api != null ? !api.equals(event.api) : event.api != null) {
+            return false;
+        }
         return properties.equals(event.properties);
-
     }
 
     @Override
-    public int hashCode() {
+    public int hashCode()
+    {
         int result = project.hashCode();
         result = 31 * result + collection.hashCode();
         result = 31 * result + (schema != null ? schema.hashCode() : 0);
@@ -105,29 +128,34 @@ public class Event {
         return result;
     }
 
-    public static class Library {
+    public static class Library
+    {
         public final String name;
         public final String version;
 
         @JsonCreator
-        public Library(@ApiParam("name") String name, @ApiParam("version") String version) {
+        public Library(@ApiParam("name") String name, @ApiParam("version") String version)
+        {
             this.name = name;
             this.version = version;
         }
     }
 
-    public static final class MappingPlugin {
+    public static final class MappingPlugin
+    {
         public final String name;
         public final Map<String, Object> arguments;
 
         @JsonCreator
-        public MappingPlugin(@JsonProperty("name") String name, @JsonProperty("properties") Map<String, Object> arguments) {
+        public MappingPlugin(@JsonProperty("name") String name, @JsonProperty("properties") Map<String, Object> arguments)
+        {
             this.name = name;
             this.arguments = arguments;
         }
     }
 
-    public static class EventContext {
+    public static class EventContext
+    {
         private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null, null);
 
         @JsonProperty("api_key") public final String apiKey;
@@ -138,45 +166,35 @@ public class Event {
         @JsonProperty("plugins") public final List<MappingPlugin> plugins;
 
         @JsonCreator
-        public EventContext(@ApiParam(value = "writeKey", access = "internal") String writeKey,
-                            @ApiParam("api_key") String apiKey,
-                            @ApiParam("library") Library library,
-                            @ApiParam("api_version") String apiVersion,
-                            @ApiParam("upload_time") Long uploadTime,
-                            @ApiParam("checksum") String checksum,
-                            @ApiParam("plugins") List<MappingPlugin> plugins) {
+        public EventContext(
+                @ApiParam(value = "api_key", required = false) String apiKey,
+                @ApiParam(value = "library", required = false) Library library,
+                @ApiParam(value = "api_version", required = false) String apiVersion,
+                @ApiParam(value = "upload_time", required = false) Long uploadTime,
+                @ApiParam(value = "checksum", required = false) String checksum,
+                @ApiParam(value = "plugins", required = false) List<MappingPlugin> plugins)
+        {
             this.library = library;
-            this.apiKey = apiKey != null ? apiKey : writeKey;
+            this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.uploadTime = uploadTime;
             this.checksum = checksum;
             this.plugins = plugins;
         }
 
-        public EventContext(String writeKey,
-                            Library library,
-                            String apiVersion,
-                            Long uploadTime,
-                            String checksum,
-                            List<MappingPlugin> plugins) {
-            this.library = library;
-            this.apiKey = writeKey;
-            this.apiVersion = apiVersion;
-            this.uploadTime = uploadTime;
-            this.checksum = checksum;
-            this.plugins = plugins;
-        }
-
-        public static EventContext apiKey(String apiKey) {
+        public static EventContext apiKey(String apiKey)
+        {
             return new EventContext(apiKey, null, null, null, null, null);
         }
 
-        public static EventContext empty() {
+        public static EventContext empty()
+        {
             return EMPTY_CONTEXT;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "EventContext{" +
                     "apiKey='" + apiKey + '\'' +
                     ", apiVersion='" + apiVersion + '\'' +
@@ -186,21 +204,32 @@ public class Event {
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof EventContext)) return false;
+        public boolean equals(Object o)
+        {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof EventContext)) {
+                return false;
+            }
 
             EventContext context = (EventContext) o;
 
-            if (apiKey != null ? !apiKey.equals(context.apiKey) : context.apiKey != null) return false;
-            if (apiVersion != null ? !apiVersion.equals(context.apiVersion) : context.apiVersion != null) return false;
-            if (uploadTime != null ? !uploadTime.equals(context.uploadTime) : context.uploadTime != null) return false;
+            if (apiKey != null ? !apiKey.equals(context.apiKey) : context.apiKey != null) {
+                return false;
+            }
+            if (apiVersion != null ? !apiVersion.equals(context.apiVersion) : context.apiVersion != null) {
+                return false;
+            }
+            if (uploadTime != null ? !uploadTime.equals(context.uploadTime) : context.uploadTime != null) {
+                return false;
+            }
             return !(checksum != null ? !checksum.equals(context.checksum) : context.checksum != null);
-
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             int result = apiKey != null ? apiKey.hashCode() : 0;
             result = 31 * result + (apiVersion != null ? apiVersion.hashCode() : 0);
             result = 31 * result + (uploadTime != null ? uploadTime.hashCode() : 0);

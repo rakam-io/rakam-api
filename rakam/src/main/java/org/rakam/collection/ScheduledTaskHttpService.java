@@ -31,7 +31,7 @@ public class ScheduledTaskHttpService
     @GET
     @ApiOperation(value = "Get tasks from market", authorizations = @Authorization(value = "master_key"))
     @Path("/get-market")
-    public AWSLambdaService.TaskList listTasksFromMarket(@Named("project") String project, @ApiParam("cursor") String cursor)
+    public AWSLambdaService.TaskList listTasksFromMarket(@Named("project") String project, @ApiParam(value = "cursor", required = false) String cursor)
     {
         return service.listTasksFromMarket(Optional.ofNullable(cursor));
     }

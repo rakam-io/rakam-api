@@ -91,7 +91,7 @@ public class JsonEventDeserializer
                 jp,
                 project != null ? project.toString() : null,
                 null,
-                masterKey != null ? Boolean.TRUE.equals(masterKey) : null);
+                Boolean.TRUE.equals(masterKey));
     }
 
     public Event deserializeWithProject(JsonParser jp, String project, EventContext api, boolean masterKey)
