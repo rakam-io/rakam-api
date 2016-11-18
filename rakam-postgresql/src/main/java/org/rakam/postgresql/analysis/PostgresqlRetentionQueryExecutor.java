@@ -17,7 +17,9 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.postgresql.report.PostgresqlQueryExecutor;
 import org.rakam.report.AbstractRetentionQueryExecutor;
@@ -47,10 +49,13 @@ import java.util.stream.Collectors;
 import static com.facebook.presto.sql.RakamSqlFormatter.formatExpression;
 import static com.google.common.primitives.Ints.checkedCast;
 import static java.lang.String.format;
+import static java.util.Locale.ENGLISH;
+import static org.rakam.analysis.InternalConfig.USER_TYPE;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.MONTH;
 import static org.rakam.analysis.RetentionQueryExecutor.DateUnit.WEEK;
 import static org.rakam.collection.FieldType.INTEGER;
 import static org.rakam.collection.FieldType.STRING;
+import static org.rakam.postgresql.analysis.PostgresqlMetastore.toSql;
 import static org.rakam.util.DateTimeUtils.TIMESTAMP_FORMATTER;
 import static org.rakam.util.ValidationUtil.checkArgument;
 import static org.rakam.util.ValidationUtil.checkCollection;
@@ -61,12 +66,14 @@ public class PostgresqlRetentionQueryExecutor
 {
     private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
+    private final ConfigManager configManager;
 
     @Inject
-    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor, Metastore metastore)
+    public PostgresqlRetentionQueryExecutor(ConfigManager configManager, PostgresqlQueryExecutor executor, Metastore metastore)
     {
         this.executor = executor;
         this.metastore = metastore;
+        this.configManager = configManager;
     }
 
     @PostConstruct
@@ -95,6 +102,8 @@ public class PostgresqlRetentionQueryExecutor
                     throw Throwables.propagate(e);
                 }
             }
+
+            conn.createStatement().execute("create extension if not exists tablefunc");
 
             try {
                 conn.createStatement().execute("CREATE TYPE retention_action AS (is_first boolean, _time timestamp)");
@@ -154,19 +163,21 @@ public class PostgresqlRetentionQueryExecutor
         String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, zoneId);
         String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, zoneId);
 
+        FieldType userType = configManager.getConfig(project, USER_TYPE.name(), FieldType.class);
+
         String query = format("select %s, collect_retention(bits) from (\n" +
-                        "select %s, (case when (not is_first %s) then \n" +
-                        "generate_timeline(%s, timeline, %d::bigint, 15) else null end) as bits from (\n" +
-                        "select %s %s, true as is_first, %s as timeline from (%s) t group by 1 %s " +
+                        "select %s, (case when (%s) then \n" +
+                        "generate_timeline(%s, retention_actions, %d::bigint, 15) else null end) as bits from (\n" +
+                        "select * from crosstab($$ select %s %s, true as is_first, %s as timeline from (%s) t group by 1 %s " +
                         "UNION ALL " +
-                        "select %s %s, false as is_first, array_agg(%s::date order by %s::date) as timeline from (%s) t group by 1 %s) t\n" +
+                        "select %s %s, false as is_first, array_agg(%s::date order by %s::date) as timeline from (%s) t group by 1 %s order by 1,2 $$) AS t (_user %s, first_actions date[], retention_actions date[])) t\n" +
                         "%s \n" +
                         ") t\n" +
                         "group by 1 order by 1 asc",
                 dimension.map(v -> "dimension").orElse("date"),
                 dimension.map(v -> "dimension").orElse("date"),
                 // do not check dimension value for first action dates.
-                dimension.map(v -> "").orElse("and dates.date = any(timeline)"),
+                dimension.map(v -> "").orElse("dates.date = any(first_actions)"),
                 dimension.map(v -> "timeline[1]").orElse("dates.date::date"),
                 dateUnit.getTemporalUnit().getDuration().toMillis(),
 
@@ -183,11 +194,11 @@ public class PostgresqlRetentionQueryExecutor
                 format(timeColumn, "_time"), format(timeColumn, "_time"),
                 returningActionQuery,
                 dimension.map(v -> ", 2").orElse(""),
-
+                toSql(userType),
                 dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
-                        dateUnit.name().toLowerCase(Locale.ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                        dateUnit.name().toLowerCase(Locale.ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
-                        dateUnit.name().toLowerCase(Locale.ENGLISH))));
+                        dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
+                        dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
+                        dateUnit.name().toLowerCase(ENGLISH))));
 
         return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {
             if (result.isFailed()) {
@@ -236,29 +247,31 @@ public class PostgresqlRetentionQueryExecutor
 
             return collections.entrySet().stream()
                     .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))
-                    .map(collection -> getTableSubQuery(project, collection.getKey(), connectorField, Optional.of(isText), timeColumn,
+                    .map(collection -> getTableSubQuery(project, collection.getKey(),
+                            connectorField,
                             dimension, timePredicate, Optional.empty()))
                     .collect(Collectors.joining(" union all "));
         }
         else {
             String collection = retentionAction.get().collection();
 
-            return getTableSubQuery(project, collection, connectorField, Optional.empty(),
-                    timeColumn, dimension, timePredicate, retentionAction.get().filter());
+            return getTableSubQuery(
+                    project, collection,
+                    connectorField,
+                    dimension, timePredicate,
+                    retentionAction.get().filter());
         }
     }
 
     protected String getTableSubQuery(String project, String collection,
             String connectorField,
-            Optional<Boolean> isText,
-            String timeColumn,
             Optional<String> dimension,
             String timePredicate,
             Optional<Expression> filter)
     {
         return format("select _time, %s %s from %s where _time %s %s",
                 dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
-                isText.map(text -> format("cast(\"%s\" as varchar) as %s", connectorField, connectorField)).orElse(connectorField),
+                connectorField,
                 project + "." + checkCollection(collection),
                 timePredicate,
                 filter.isPresent() ? "and " + formatExpression(filter.get(), reference -> {

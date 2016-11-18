@@ -166,8 +166,6 @@ public class RakamUIWebService extends HttpService {
         }
     }
 
-    @Path("/*")
-    @GET
     public void main(RakamHttpRequest request) {
         if (!request.getDecoderResult().isSuccess()) {
             sendError(request, BAD_REQUEST);

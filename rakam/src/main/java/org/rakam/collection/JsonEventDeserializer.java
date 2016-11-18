@@ -44,6 +44,7 @@ import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
@@ -136,7 +137,16 @@ public class JsonEventDeserializer
                                 project = apiKeyService.getProjectOfApiKey(api.apiKey, WRITE_KEY);
                             }
                             catch (RakamException e) {
-                                project = apiKeyService.getProjectOfApiKey(api.apiKey, MASTER_KEY);
+                                try {
+                                    project = apiKeyService.getProjectOfApiKey(api.apiKey, MASTER_KEY);
+                                }
+                                catch (Exception e1) {
+                                    if (e.getStatusCode() == FORBIDDEN) {
+                                        throw new RakamException("api_key is invalid", FORBIDDEN);
+                                    }
+
+                                    throw e;
+                                }
                                 masterKey = true;
                             }
                         }

@@ -1,6 +1,7 @@
 package org.rakam.http;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
@@ -25,6 +26,7 @@ import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.RequestPreProcessorItem;
+import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
 import org.rakam.server.http.HttpServerBuilder.IRequestParameterFactory;
@@ -35,11 +37,14 @@ import org.rakam.server.http.WebSocketService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.Authorization;
+import org.rakam.ui.RakamUIWebService;
 import org.rakam.util.AllowCookie;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.NotFoundHandler;
 import org.rakam.util.RakamException;
 import org.rakam.util.LogUtil;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import java.lang.reflect.Method;
@@ -47,6 +52,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.netty.handler.codec.http.HttpHeaders.Names.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 
@@ -60,6 +66,7 @@ public class WebServiceModule
     private final Set<Tag> tags;
     private final Set<CustomParameter> customParameters;
     private final Set<RequestPreProcessorItem> requestPreProcessorItems;
+    private final HttpRequestHandler requestHandler;
 
     @Inject
     public WebServiceModule(Set<HttpService> httpServices,
@@ -67,6 +74,7 @@ public class WebServiceModule
             Set<CustomParameter> customParameters,
             Set<RequestPreProcessorItem> requestPreProcessorItems,
             Set<WebSocketService> webSocketServices,
+            @NotFoundHandler Optional<HttpRequestHandler> requestHandler,
             HttpServerConfig config)
     {
         this.httpServices = httpServices;
@@ -75,6 +83,7 @@ public class WebServiceModule
         this.config = config;
         this.tags = tags;
         this.customParameters = customParameters;
+        this.requestHandler = requestHandler.orNull();
     }
 
     @Override
@@ -144,6 +153,10 @@ public class WebServiceModule
 
         httpServer.setCustomRequestParameters(builder.build());
         HttpServer build = httpServer.build();
+
+        if(requestHandler != null) {
+            build.setNotFoundHandler(requestHandler);
+        }
 
         HostAndPort address = config.getAddress();
         try {

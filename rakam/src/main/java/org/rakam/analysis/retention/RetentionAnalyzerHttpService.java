@@ -120,7 +120,7 @@ public class RetentionAnalyzerHttpService
                 @ApiParam("date_unit") DateUnit dateUnit,
                 @ApiParam(value = "period", required = false) Integer period,
                 @ApiParam("startDate") LocalDate startDate,
-                @ApiParam("timezone") String timezone,
+                @ApiParam(value = "timezone", required = false) String timezone,
                 @ApiParam(value = "approximate", required = false) Boolean approximate,
                 @ApiParam("endDate") LocalDate endDate)
         {

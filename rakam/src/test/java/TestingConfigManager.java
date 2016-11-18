@@ -2,10 +2,11 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import org.rakam.analysis.ConfigManager;
 
-public class TestConfigManager implements ConfigManager {
+public class TestingConfigManager
+        implements ConfigManager {
     Table<String, String, Object> table;
 
-    public TestConfigManager() {
+    public TestingConfigManager() {
         this.table = HashBasedTable.create();
     }
 

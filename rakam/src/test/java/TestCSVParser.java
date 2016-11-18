@@ -32,7 +32,7 @@ public class TestCSVParser {
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         Metastore metastore = new InMemoryMetastore(build, new InMemoryApiKeyService(), new EventBus());
         mapper.registerModule(new SimpleModule().addDeserializer(EventList.class,
-                new CsvEventDeserializer(metastore, new TestConfigManager(), build)));
+                new CsvEventDeserializer(metastore, new TestingConfigManager(), build)));
 
         metastore.createProject("project");
         metastore.getOrCreateCollectionFieldList("project", "collection",

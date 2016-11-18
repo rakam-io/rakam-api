@@ -114,21 +114,20 @@ public class EventListDeserializer
         JsonToken t = jp.nextToken();
 
         Object apiKey = deserializationContext.getAttribute("apiKey");
-        String project;
-        boolean masterKey;
+        String project = null;
+        boolean masterKey = false;
 
         if (apiKey == null || apiKey == WRITE_KEY) {
             try {
                 project = apiKeyService.getProjectOfApiKey(context.apiKey,
                         apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);
-                masterKey = false;
             }
             catch (RakamException e) {
                 masterKey = true;
-                project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);
             }
         }
-        else {
+
+        if(project == null) {
             masterKey = true;
             try {
                 project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);

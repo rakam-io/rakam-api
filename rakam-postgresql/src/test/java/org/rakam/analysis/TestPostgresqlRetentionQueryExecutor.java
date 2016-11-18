@@ -5,6 +5,7 @@ import org.rakam.TestingEnvironment;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
+import org.rakam.postgresql.PostgresqlConfigManager;
 import org.rakam.postgresql.analysis.PostgresqlEventStore;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
@@ -35,7 +36,9 @@ public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExec
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
         eventStore = new PostgresqlEventStore(dataSource, build);
 
-        retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(queryExecutor, metastore);
+        PostgresqlConfigManager testConfigManager = new PostgresqlConfigManager(dataSource);
+
+        retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(testConfigManager, queryExecutor, metastore);
         retentionQueryExecutor.setup();
 
         super.setup();

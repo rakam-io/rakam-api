@@ -4,6 +4,7 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Optional;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
+import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
@@ -17,6 +18,8 @@ import org.rakam.config.EncryptionConfig;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
+import org.rakam.server.http.HttpRequestHandler;
+import org.rakam.server.http.HttpServerHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.UIEvents.ProjectCreatedEvent;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
@@ -34,6 +37,7 @@ import org.rakam.ui.report.UIRecipeHttpService;
 import org.rakam.ui.user.UserSubscriptionHttpService;
 import org.rakam.ui.user.WebUserHttpService;
 import org.rakam.util.ConditionalModule;
+import org.rakam.util.NotFoundHandler;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
@@ -96,13 +100,17 @@ public class RakamUIModule
         httpServices.addBinding().to(CustomReportHttpService.class);
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(ProxyWebService.class);
-        httpServices.addBinding().to(RakamUIWebService.class);
         httpServices.addBinding().to(WebHookUIHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);
         if (rakamUIConfig.getStripeKey() != null) {
             httpServices.addBinding().to(UserSubscriptionHttpService.class);
         }
+        httpServices.addBinding().to(RakamUIWebService.class);
+
+        binder.bind(HttpRequestHandler.class)
+                .annotatedWith(NotFoundHandler.class)
+                .toProvider(WebsiteRequestHandler.class);
     }
 
     @Override
@@ -330,6 +338,26 @@ public class RakamUIModule
             catch (FlywayException e) {
                 flyway.repair();
             }
+        }
+    }
+
+    public static class WebsiteRequestHandler
+            implements Provider<HttpRequestHandler>
+    {
+
+        private final RakamUIWebService service;
+
+        @Inject
+        public WebsiteRequestHandler(RakamUIConfig config)
+        {
+
+            service = new RakamUIWebService(config);
+        }
+
+        @Override
+        public HttpRequestHandler get()
+        {
+            return service::main;
         }
     }
 }

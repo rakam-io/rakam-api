@@ -24,12 +24,8 @@ import org.testng.annotations.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -51,7 +47,7 @@ public class TestEventJsonParser
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
 
-        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestConfigManager(), fieldDependency);
+        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(apiKeyService, eventDeserializer);
 
         mapper = JsonHelper.getMapper();

@@ -51,8 +51,10 @@ import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
+import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
+import org.rakam.util.NotFoundHandler;
 
 import javax.inject.Inject;
 
@@ -111,9 +113,6 @@ public final class ServiceStarter {
         }
 
         builder.add(new ServiceRecipe());
-//        builder.add(new PostgresqlModule());
-//        builder.add(new GeoIPModule());
-//        builder.add(new PostgresqlUserModule());
         return builder.build();
     }
 
@@ -197,6 +196,9 @@ public final class ServiceStarter {
             configBinder(binder).bindConfig(HttpServerConfig.class);
             configBinder(binder).bindConfig(ProjectConfig.class);
             configBinder(binder).bindConfig(EncryptionConfig.class);
+
+            OptionalBinder.newOptionalBinder(binder,
+                    Key.get(HttpRequestHandler.class, NotFoundHandler.class));
 
             binder.bind(EventLoopGroup.class)
                     .annotatedWith(ForHttpServer.class)
