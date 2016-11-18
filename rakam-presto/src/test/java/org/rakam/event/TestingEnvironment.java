@@ -71,10 +71,9 @@ public class TestingEnvironment
 
     public TestingEnvironment(boolean installMetadata)
     {
-        URI endpoint;
+        S3ProxyLaunchInfo s3ProxyLaunchInfo;
         try {
-            S3ProxyLaunchInfo s3ProxyLaunchInfo = startS3Proxy();
-            endpoint = s3ProxyLaunchInfo.getEndpoint();
+            s3ProxyLaunchInfo = startS3Proxy();
         }
         catch (Exception e) {
             throw Throwables.propagate(e);
@@ -115,7 +114,7 @@ public class TestingEnvironment
                             .put("target.connector_id", "rakam_raptor")
                             .put("backup.provider", "s3")
                             .put("backup.s3.bucket", "testing")
-                            .put("aws.s3-endpoint", endpoint.toString())
+                            .put("aws.s3-endpoint", s3ProxyLaunchInfo.getEndpoint().toString())
                             .put("stream.max-flush-duration", "0ms")
                             .put("http-server.http.port", Integer.toString(ThreadLocalRandom.current().nextInt(1000, 10000)))
                             .put("storage.directory", Files.createTempDir().getAbsolutePath())
@@ -124,8 +123,8 @@ public class TestingEnvironment
                             .put("kinesis.stream", "rakam-events")
                             .put("aws.kinesis-endpoint", "http://127.0.0.1:" + kinesisPort)
                             .put("aws.dynamodb-endpoint", "http://127.0.0.1:" + dynamodbPort)
-                            .put("aws.secret-access-key", "AKIAIBZAIKH65T3ESNPQ")
-                            .put("aws.access-key", "JVKUio6AZTZ9oQgpbTlVeRcyhTo7zivi3oHa1IZg")
+                            .put("aws.secret-access-key", s3ProxyLaunchInfo.getS3Identity())
+                            .put("aws.access-key", s3ProxyLaunchInfo.getS3Credential())
                             .put("aws.region", "eu-central-1")
                             .put("aws.enable-cloudwatch", "false")
                             .put("kinesis.consumer-dynamodb-table", "rakamtest")
