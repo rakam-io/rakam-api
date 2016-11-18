@@ -73,7 +73,7 @@
         <air.check.skip-license>true</air.check.skip-license>
         <air.check.skip-duplicate-finder>true</air.check.skip-duplicate-finder>
         <dep.slice.version>0.27</dep.slice.version>
-        <air.maven.version>3.3.9</air.maven.version>
+        <air.maven.version>3.3.3</air.maven.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.11</junit.version>
