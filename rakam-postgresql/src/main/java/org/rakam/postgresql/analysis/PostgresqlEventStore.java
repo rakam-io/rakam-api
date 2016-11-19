@@ -95,7 +95,7 @@ public class PostgresqlEventStore
                 for (int i = 0; i < eventsForCollection.size(); i++) {
                     Event event = eventsForCollection.get(i);
                     GenericRecord properties = event.properties();
-                    bindParam(connection, ps, event.schema(), properties);
+                    bindParam(connection, ps, lastEvent.schema(), properties);
                     ps.addBatch();
                     if (i > 0 && i % 5000 == 0) {
                         ps.executeBatch();
