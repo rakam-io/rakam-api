@@ -229,6 +229,10 @@
                     <artifactId>hive-apache</artifactId>
                 </exclusion>
                 <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.openjdk.jol</groupId>
                     <artifactId>jol-core</artifactId>
                 </exclusion>
@@ -244,7 +248,7 @@
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-streaming</artifactId>
             <version>0.156.3</version>
-            <scope>test</scope>
+            <!--<scope>test</scope>-->
             <exclusions>
                 <exclusion>
                     <groupId>org.jdbi</groupId>
@@ -323,6 +327,14 @@
                 <exclusion>
                     <groupId>org.jdbi</groupId>
                     <artifactId>jdbi</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.facebook.presto.hive</groupId>
+                    <artifactId>hive-apache</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.openjdk.jol</groupId>
