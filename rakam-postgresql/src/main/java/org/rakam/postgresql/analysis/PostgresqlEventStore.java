@@ -99,10 +99,13 @@ public class PostgresqlEventStore
                     ps.addBatch();
                     if (i > 0 && i % 5000 == 0) {
                         ps.executeBatch();
-                        int finalI = i;
-                        successfulCollections
-                                .compute(entry.getKey(),
-                                        (k, v) -> k == null ? finalI : v + finalI);
+
+                        Integer value = successfulCollections.get(entry.getKey());
+                        if(value == null) {
+                            successfulCollections.put(entry.getKey(), i);
+                        } else {
+                            successfulCollections.put(entry.getKey(), i + value);
+                        }
                     }
                 }
 

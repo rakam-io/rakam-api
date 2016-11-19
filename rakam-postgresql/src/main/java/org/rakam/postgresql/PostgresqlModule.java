@@ -338,7 +338,9 @@ public class PostgresqlModule extends RakamModule {
         @Override
         public PostgresqlMetastore get()
         {
-            return new PostgresqlMetastore(connectionPool, eventBus, fieldDependency);
+            PostgresqlMetastore postgresqlMetastore = new PostgresqlMetastore(connectionPool, eventBus, fieldDependency);
+            postgresqlMetastore.setup();
+            return postgresqlMetastore;
         }
     }
 }

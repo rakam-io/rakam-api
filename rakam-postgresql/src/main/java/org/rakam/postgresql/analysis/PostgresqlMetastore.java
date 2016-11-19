@@ -67,11 +67,6 @@ public class PostgresqlMetastore
     {
         super(fieldDependency, eventBus);
         this.connectionPool = connectionPool;
-    }
-
-    @PostConstruct
-    public void check() {
-        super.checkExistingSchema();
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>()
         {
@@ -119,6 +114,11 @@ public class PostgresqlMetastore
                 }
             }
         });
+    }
+
+    @PostConstruct
+    public void start() {
+        super.checkExistingSchema();
     }
 
     @Override

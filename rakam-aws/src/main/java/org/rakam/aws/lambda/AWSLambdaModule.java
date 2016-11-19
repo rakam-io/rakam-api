@@ -2,7 +2,9 @@ package org.rakam.aws.lambda;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
+import com.google.inject.multibindings.Multibinder;
 import org.rakam.plugin.RakamModule;
+import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -15,6 +17,10 @@ public class AWSLambdaModule extends RakamModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(AWSLambdaConfig.class);
+
+        Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
+        httpServices.addBinding().to(ScheduledTaskHttpService.class);
+
     }
 
     @Override

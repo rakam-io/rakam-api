@@ -34,7 +34,6 @@ import org.rakam.analysis.RequestPreProcessorItem;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.FieldDependencyBuilder;
-import org.rakam.collection.ScheduledTaskHttpService;
 import org.rakam.collection.WebHookHttpService;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.MetadataConfig;
@@ -186,7 +185,6 @@ public final class ServiceStarter {
             httpServices.addBinding().to(MaterializedViewHttpService.class);
             httpServices.addBinding().to(EventCollectionHttpService.class);
             httpServices.addBinding().to(WebHookHttpService.class);
-            httpServices.addBinding().to(ScheduledTaskHttpService.class);
             httpServices.addBinding().to(ContinuousQueryHttpService.class);
             httpServices.addBinding().to(QueryHttpService.class);
             httpServices.addBinding().to(OptionMethodHttpService.class);

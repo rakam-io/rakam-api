@@ -1,4 +1,4 @@
-package org.rakam.collection;
+package org.rakam.aws.lambda;
 
 import org.rakam.aws.lambda.AWSLambdaService;
 import org.rakam.server.http.HttpService;

@@ -324,8 +324,8 @@ public class QueryHttpService
         @JsonCreator
         public QueryRequest(
                 @ApiParam("query") String query,
-                @ApiParam("export_type") CopyType exportType,
-                @ApiParam("sampling") QuerySampling sample,
+                @ApiParam(value = "export_type", required = false) CopyType exportType,
+                @ApiParam(value = "sampling", required = false) QuerySampling sample,
                 @ApiParam(value = "limit", required = false) Integer limit)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");

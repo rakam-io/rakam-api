@@ -17,6 +17,7 @@ public class JDBCConfig
     private String dataSource;
     private Long connectionMaxLifeTime;
     private Long connectionIdleTimeout;
+    private boolean connectionDisablePool;
 
     @Config("url")
     public JDBCConfig setUrl(String url)
@@ -98,6 +99,18 @@ public class JDBCConfig
     {
         this.table = table;
         return this;
+    }
+
+    @Config("connection.disable-pool")
+    public JDBCConfig setConnectionDisablePool(boolean connectionDisablePool)
+    {
+        this.connectionDisablePool = connectionDisablePool;
+        return this;
+    }
+
+    public boolean getConnectionDisablePool()
+    {
+        return connectionDisablePool;
     }
 
     public String getTable()

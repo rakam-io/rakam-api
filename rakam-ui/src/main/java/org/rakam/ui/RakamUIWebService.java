@@ -48,6 +48,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.*;
 import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.rakam.server.http.HttpServer.errorMessage;
 
 @Path("/")
 public class RakamUIWebService
@@ -184,9 +185,15 @@ public class RakamUIWebService
         }
 
         if (request.getMethod() != GET) {
-            sendError(request, METHOD_NOT_ALLOWED);
+            sendError(request, NOT_FOUND);
             return;
         }
+
+//        String accept = request.headers().get(ACCEPT);
+//        if(accept != null && accept.contains("application/json") && !accept.contains("text/html")) {
+//            sendError(request, NOT_FOUND);
+//            return;
+//        }
 
         final String uri = request.path();
 

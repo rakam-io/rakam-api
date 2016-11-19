@@ -24,10 +24,12 @@ public class JDBCPoolDataSource
     private static final Map<JDBCConfig, JDBCPoolDataSource> pools = new ConcurrentHashMap<>();
     private final HikariDataSource dataSource;
     private final JDBCConfig config;
+    private final boolean disablePool;
 
     private JDBCPoolDataSource(JDBCConfig config, Optional<String> initialQuery)
     {
         this.config = config;
+        this.disablePool = config.getConnectionDisablePool();
         checkArgument(config.getUrl() != null, "JDBC url is required");
 
         HikariConfig hikariConfig = new HikariConfig();
@@ -46,10 +48,6 @@ public class JDBCPoolDataSource
             hikariConfig.setMaximumPoolSize(30);
         }
 
-//        hikariConfig.setMaxLifetime(60000);
-//        hikariConfig.setConnectionTimeout(10000);
-//        hikariConfig.setLeakDetectionThreshold(2000);
-
         hikariConfig.setAutoCommit(true);
         hikariConfig.setPoolName(config.toString());
         if (initialQuery.isPresent()) {
@@ -67,14 +65,17 @@ public class JDBCPoolDataSource
     public static JDBCPoolDataSource getOrCreateDataSource(JDBCConfig config)
     {
         return pools.computeIfAbsent(config,
-                   key -> new JDBCPoolDataSource(config, Optional.empty()));
+                key -> new JDBCPoolDataSource(config, Optional.empty()));
     }
 
     @Override
     public Connection getConnection()
             throws SQLException
     {
-//        return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+        if (disablePool) {
+            return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
+        }
+
         return dataSource.getConnection();
     }
 

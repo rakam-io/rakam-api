@@ -104,7 +104,9 @@ public class AWSLambdaService
                 .flatMap(e -> {
                     ListTargetsByRuleResult listTargetsByRuleResult = CWEventsClient.listTargetsByRule(new ListTargetsByRuleRequest().withRule(e.getName()));
                     return listTargetsByRuleResult.getTargets().stream().map(target -> {
-                        Map<String, String> read = JsonHelper.read(target.getInput(), new TypeReference<Map<String, String>>() {});
+                        Map<String, String> read = Optional.ofNullable(target.getInput())
+                                .map(value -> JsonHelper.read(value, new TypeReference<Map<String, String>>() {}))
+                                .orElse(null);
                         return new Task(e.getName(), e.getDescription(), target.getArn(), read, null, null);
                     });
                 }).collect(Collectors.toList());
