@@ -157,7 +157,7 @@
         </dependency>
         <dependency>
             <groupId>com.google.inject.extensions</groupId>
-            <artifactId>guice-multibinding</artifactId>
+            <artifactId>guice-multibindings</artifactId>
         </dependency>
         <dependency>
             <groupId>org.rakam</groupId>
