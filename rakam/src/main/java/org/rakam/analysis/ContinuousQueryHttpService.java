@@ -35,6 +35,7 @@ import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static java.lang.Boolean.TRUE;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 
 @Path("/continuous-query")
@@ -60,7 +61,7 @@ public class ContinuousQueryHttpService extends HttpService {
             "Compared to reports, continuous queries continuously aggregate the data on the fly and the result is always available either in-memory or disk.")
     @ApiResponses(value = {@ApiResponse(code = 400, message = PARTITION_KEY_INVALID)})
     @Path("/create")
-    public CompletableFuture<SuccessMessage> createQuery(@Named("project") String project, @ApiParam("continuous_query") ContinuousQuery report, @ApiParam("replay") boolean replay) {
+    public CompletableFuture<SuccessMessage> createQuery(@Named("project") String project, @ApiParam("continuous_query") ContinuousQuery report, @ApiParam(value = "replay", required = false) Boolean replay) {
         if (service.test(project, report.query)) {
             CompletableFuture<SuccessMessage> err = new CompletableFuture<>();
             // TODO: more readable message is needed.
@@ -73,7 +74,7 @@ public class ContinuousQueryHttpService extends HttpService {
                 throw new RakamException(PARTITION_KEY_INVALID, BAD_REQUEST);
             }
             try {
-                QueryResult f = service.create(project, report, replay).getResult().join();
+                QueryResult f = service.create(project, report, TRUE.equals(replay)).getResult().join();
                 return SuccessMessage.map(f);
             } catch (IllegalArgumentException e) {
                 throw new RakamException(e.getMessage(), BAD_REQUEST);

@@ -30,7 +30,7 @@ public class Report {
                   @ApiParam(value="name", description="The name of the report") String name,
                   @ApiParam(value="query", description="The sql query that will be executed") @JsonProperty("query") String query,
                   @ApiParam(value="options", description="Additional information about the materialized view", required = false) Map<String, Object> options,
-                  @ApiParam(value="shared", description="Shared with other users") boolean shared)
+                  @ApiParam(value="shared", required = false, description="Shared with other users") boolean shared)
     {
         this.name = checkNotNull(name, "name is required");
         this.slug = checkNotNull(slug, "slug is required");

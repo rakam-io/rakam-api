@@ -159,7 +159,7 @@ public class PostgresqlRetentionQueryExecutor
         }
 
         Map<String, List<SchemaField>> collections = metastore.getCollections(project);
-        
+
         String firstActionQuery = generateQuery(collections, project, firstAction, CONNECTOR_FIELD, dimension, startDate, endDate, zoneId);
         String returningActionQuery = generateQuery(collections, project, returningAction, CONNECTOR_FIELD, dimension, startDate, endDate, zoneId);
 
