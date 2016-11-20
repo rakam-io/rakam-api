@@ -1,3 +1,5 @@
+package org.rakam;
+
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import org.rakam.analysis.ConfigManager;

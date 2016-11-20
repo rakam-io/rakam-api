@@ -66,14 +66,12 @@ public class PostgresqlRetentionQueryExecutor
 {
     private final PostgresqlQueryExecutor executor;
     private final Metastore metastore;
-    private final ConfigManager configManager;
 
     @Inject
-    public PostgresqlRetentionQueryExecutor(ConfigManager configManager, PostgresqlQueryExecutor executor, Metastore metastore)
+    public PostgresqlRetentionQueryExecutor(PostgresqlQueryExecutor executor, Metastore metastore)
     {
         this.executor = executor;
         this.metastore = metastore;
-        this.configManager = configManager;
     }
 
     @PostConstruct
@@ -160,45 +158,85 @@ public class PostgresqlRetentionQueryExecutor
             return QueryExecution.completedQueryExecution(null, QueryResult.empty());
         }
 
-        String firstActionQuery = generateQuery(project, firstAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, zoneId);
-        String returningActionQuery = generateQuery(project, returningAction, CONNECTOR_FIELD, timeColumn, dimension, startDate, endDate, zoneId);
+        Map<String, List<SchemaField>> collections = metastore.getCollections(project);
+        
+        String firstActionQuery = generateQuery(collections, project, firstAction, CONNECTOR_FIELD, dimension, startDate, endDate, zoneId);
+        String returningActionQuery = generateQuery(collections, project, returningAction, CONNECTOR_FIELD, dimension, startDate, endDate, zoneId);
 
-        FieldType userType = configManager.getConfig(project, USER_TYPE.name(), FieldType.class);
+        String query;
+        if (firstAction.equals(returningAction)) {
+            query = format("select %s, collect_retention(bits) from (\n" +
+                            "select %s, (case when (not is_first %s) then \n" +
+                            "generate_timeline(%s, timeline, %d::bigint, 15) else null end) as bits from (\n" +
+                            "select %s %s, true as is_first, %s as timeline from (%s) t group by 1 %s " +
+                            "UNION ALL " +
+                            "select %s %s, false as is_first, array_agg(%s::date order by %s::date) as timeline from (%s) t group by 1 %s) t\n" +
+                            "%s \n" +
+                            ") t\n" +
+                            "group by 1 order by 1 asc",
+                    dimension.map(v -> "dimension").orElse("date"),
+                    dimension.map(v -> "dimension").orElse("date"),
+                    // do not check dimension value for first action dates.
+                    dimension.map(v -> "").orElse("and dates.date = any(timeline)"),
+                    dimension.map(v -> "timeline[1]").orElse("dates.date::date"),
+                    dateUnit.getTemporalUnit().getDuration().toMillis(),
 
-        String query = format("select %s, collect_retention(bits) from (\n" +
-                        "select %s, (case when (%s) then \n" +
-                        "generate_timeline(%s, retention_actions, %d::bigint, 15) else null end) as bits from (\n" +
-                        "select * from crosstab($$ select %s %s, true as is_first, %s as timeline from (%s) t group by 1 %s " +
-                        "UNION ALL " +
-                        "select %s %s, false as is_first, array_agg(%s::date order by %s::date) as timeline from (%s) t group by 1 %s order by 1,2 $$) AS t (_user %s, first_actions date[], retention_actions date[])) t\n" +
-                        "%s \n" +
-                        ") t\n" +
-                        "group by 1 order by 1 asc",
-                dimension.map(v -> "dimension").orElse("date"),
-                dimension.map(v -> "dimension").orElse("date"),
-                // do not check dimension value for first action dates.
-                dimension.map(v -> "").orElse("dates.date = any(first_actions)"),
-                dimension.map(v -> "timeline[1]").orElse("dates.date::date"),
-                dateUnit.getTemporalUnit().getDuration().toMillis(),
+                    dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
+                    CONNECTOR_FIELD,
+                    // if we're calculating by dimension, take the first event data for each user
+                    dimension.map(val -> format("array[min(%s)]", format(timeColumn, "_time")))
+                            .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, "_time"), format(timeColumn, "_time"))),
+                    firstActionQuery,
+                    dimension.map(v -> ", 2").orElse(""),
 
-                dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
-                CONNECTOR_FIELD,
-                // if we're calculating by dimension, take the first event data for each user
-                dimension.map(val -> format("array[min(%s)]", format(timeColumn, "_time")))
-                        .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, "_time"), format(timeColumn, "_time"))),
-                firstActionQuery,
-                dimension.map(v -> ", 2").orElse(""),
+                    dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
+                    CONNECTOR_FIELD,
+                    format(timeColumn, "_time"), format(timeColumn, "_time"),
+                    returningActionQuery,
+                    dimension.map(v -> ", 2").orElse(""),
 
-                dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
-                CONNECTOR_FIELD,
-                format(timeColumn, "_time"), format(timeColumn, "_time"),
-                returningActionQuery,
-                dimension.map(v -> ", 2").orElse(""),
-                toSql(userType),
-                dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
-                        dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
-                        dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
-                        dateUnit.name().toLowerCase(ENGLISH))));
+                    dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
+                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
+                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
+                            dateUnit.name().toLowerCase(ENGLISH))));
+        }
+        else {
+            query = format("select %s, collect_retention(bits) from (\n" +
+                            "select %s, (case when (%s) then \n" +
+                            "generate_timeline(%s, ret.timeline, %d::bigint, 15) else null end) as bits from (\n" +
+                            "select %s %s, %s as timeline from (%s) t group by 1 %s " +
+                            ") first left join ( " +
+                            "select %s %s, array_agg(%s::date order by %s::date) as timeline from (%s) t group by 1 %s \n" +
+                            ") ret on (ret._user = first._user %s)\n" +
+                            "%s \n" +
+                            ") t\n" +
+                            "group by 1 order by 1 asc",
+                    dimension.map(v -> "dimension").orElse("date"),
+                    dimension.map(v -> "first.dimension").orElse("date"),
+                    // do not check dimension value for first action dates.
+                    dimension.map(v -> "true").orElse("dates.date = any(ret.timeline)"),
+                    dimension.map(v -> "first.timeline[1]").orElse("dates.date::date"),
+                    dateUnit.getTemporalUnit().getDuration().toMillis(),
+
+                    dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
+                    CONNECTOR_FIELD,
+                    // if we're calculating by dimension, take the first event data for each user
+                    dimension.map(val -> format("array[min(%s)]", format(timeColumn, "_time")))
+                            .orElseGet(() -> format("array_agg(%s::date order by %s::date)", format(timeColumn, "_time"), format(timeColumn, "_time"))),
+                    firstActionQuery,
+                    dimension.map(v -> ", 2").orElse(""),
+
+                    dimension.map(v -> "dimension").map(v -> v + ", ").orElse(""),
+                    CONNECTOR_FIELD,
+                    format(timeColumn, "_time"), format(timeColumn, "_time"),
+                    returningActionQuery,
+                    dimension.map(v -> ", 2").orElse(""),
+                    dimension.map(v -> " and first.dimension = ret.dimension").orElse(""),
+                    dimension.map(v -> "").orElseGet(() -> String.format("cross join (select generate_series(date_trunc('%s', date '%s'), date_trunc('%s', date '%s'),  interval '1 %s')::date date) dates",
+                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(startDate.atStartOfDay(zoneId)),
+                            dateUnit.name().toLowerCase(ENGLISH), TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)),
+                            dateUnit.name().toLowerCase(ENGLISH))));
+        }
 
         return new DelegateQueryExecution(executor.executeRawQuery(query), (result) -> {
             if (result.isFailed()) {
@@ -221,10 +259,11 @@ public class PostgresqlRetentionQueryExecutor
         });
     }
 
-    private String generateQuery(String project,
+    private String generateQuery(
+            Map<String, List<SchemaField>> collections,
+            String project,
             Optional<RetentionAction> retentionAction,
             String connectorField,
-            String timeColumn,
             Optional<String> dimension,
             LocalDate startDate,
             LocalDate endDate,
@@ -235,15 +274,11 @@ public class PostgresqlRetentionQueryExecutor
                 TIMESTAMP_FORMATTER.format(endDate.atStartOfDay(zoneId)));
 
         if (!retentionAction.isPresent()) {
-            Map<String, List<SchemaField>> collections = metastore.getCollections(project);
             if (!collections.entrySet().stream().anyMatch(e -> e.getValue().stream().anyMatch(s -> s.getName().equals("_user")))) {
                 return format("select _time, %s null as %s",
                         dimension.isPresent() ? checkTableColumn(dimension.get(), "dimension", '"') + " as dimension, " : "",
                         connectorField);
             }
-
-            boolean isText = collections.entrySet().stream()
-                    .anyMatch(e -> e.getValue().stream().anyMatch(z -> z.getType().equals(STRING)));
 
             return collections.entrySet().stream()
                     .filter(entry -> entry.getValue().stream().anyMatch(e -> e.getName().equals("_user")))

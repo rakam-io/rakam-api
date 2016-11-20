@@ -630,7 +630,7 @@
             <dependency>
                 <groupId>org.rakam</groupId>
                 <artifactId>testing-postgresql-server</artifactId>
-                <version>0.4</version>
+                <version>0.6</version>
                 <exclusions>
                     <exclusion>
                         <groupId>io.airlift</groupId>

@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.rakam.TestingConfigManager;
 import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.metadata.Metastore;
