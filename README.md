@@ -45,7 +45,7 @@ Run the following command to start a Postgresql server in docker container and R
 
 After docker container is started, visit [http://127.0.0.1:9999](http://127.0.0.1:9999) and follow the instructions. You can also register your local Rakam API to Rakam BI at
 [http://app.rakam.io/cluster/register](http://app.rakam.io/cluster/register?apiUrl=http:%2F%2F127.0.0.1:9999&lockKey=mylockKey)
-or directly use Rakam API. [API documentation](http://api.rakam.io)
+or directly use Rakam API. [API documentation](https://api.rakam.io)
 
 We also provide docker-compose definition for Postgresql backend. Create a `docker-compose.yml` with from this definition and run the command  `docker-compose run rakam-api -f docker-compose.yml`.
 
@@ -75,7 +75,7 @@ Then you can share same file among the Rakam containers. If Dockerfile can't fin
 ### AWS (Cloudformation)
 
 Postgresql deployment type: (Best for < 1B events):
-[![Deploy to AWS](http://d0.awsstatic.com/product-marketing/Elastic%20Beanstalk/deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=ParseBackend&templateURL=https://s3.amazonaws.com/rakam-prod-static/cloudformation/rakam-postgresql.template)
+[![Deploy to AWS](https://d0.awsstatic.com/product-marketing/Elastic%20Beanstalk/deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=ParseBackend&templateURL=https://s3.amazonaws.com/rakam-prod-static/cloudformation/rakam-postgresql.template)
 
 If the data volume is big and you need support, please [contact us](https://rakam.io/contact) for Cloudformation template of Rakam for Presto deployment type.
 
@@ -98,7 +98,7 @@ Web application
 ------------
 This repository contains Rakam API server that allows you to interact with Rakam using a REST interface. If you already have a frontend and developed a custom analytics service based on Rakam, it's all you need.
 
-However, we also developed Rakam Web Application that allows you to analyze your user and event data-set but performing SQL queries, visualising your data in various charts, creating (real-time) dashboards and custom reports. You can turn Rakam into a analytics web service similar to [Mixpanel](https://mixpanel.com), [Kissmetrics](https://kissmetrics.com) and [Localytics](https://localytics.com) using the web application. Otherwise, Rakam server is similar to [Keen.io](http://keen.io) with SQL as query language and some extra features.
+However, we also developed Rakam Web Application that allows you to analyze your user and event data-set but performing SQL queries, visualising your data in various charts, creating (real-time) dashboards and custom reports. You can turn Rakam into a analytics web service similar to [Mixpanel](https://mixpanel.com), [Kissmetrics](https://kissmetrics.com) and [Localytics](https://localytics.com) using the web application. Otherwise, Rakam server is similar to [Keen.io](https://keen.io) with SQL as query language and some extra features.
 
 Another nice property of Rakam web application is being BI `(Business Intelligence)` tool. If you can disable collect APIs and connect Rakam to your SQL database with JDBC adapter and use Rakam application to query your data in your database. Rakam Web Application has various charting formats, supports parameterized SQL queries, custom pages that allows you to design pages with internal components.
 
