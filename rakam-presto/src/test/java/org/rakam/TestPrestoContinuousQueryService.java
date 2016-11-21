@@ -12,7 +12,9 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.Test;
 
+@Test(enabled=false)
 public class TestPrestoContinuousQueryService extends TestContinuousQueryService {
     private PrestoContinuousQueryService continuousQueryService;
     private Metastore metastore;
