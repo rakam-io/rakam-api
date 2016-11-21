@@ -433,4 +433,15 @@
             </plugin>
         </plugins>
     </build>
+    
+    <repositories>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>bintray-buremba-maven</id>
+            <name>bintray</name>
+            <url>http://dl.bintray.com/buremba/maven</url>
+        </repository>
+    </repositories>
 </project>
