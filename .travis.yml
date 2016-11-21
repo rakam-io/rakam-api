@@ -8,6 +8,7 @@ services:
 before_install:
   # This is needed until Travis #4629 is fixed (https://github.com/travis-ci/travis-ci/issues/4629)
   - sed -i.bak -e 's|https://nexus.codehaus.org/snapshots/|https://dl.bintray.com/buremba/maven/|g' ~/.m2/settings.xml
+  - sed -i.bak -e 's|http://repo.maven.apache.org/maven2/|https://dl.bintray.com/buremba/maven/|g' ~/.m2/settings.xml
 install: ./mvnw install -DskipTests
 addons:
   apt:
