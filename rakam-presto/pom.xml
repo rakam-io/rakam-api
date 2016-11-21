@@ -433,9 +433,12 @@
             </plugin>
         </plugins>
     </build>
-    
+
     <repositories>
         <repository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
@@ -444,4 +447,18 @@
             <url>http://dl.bintray.com/buremba/maven</url>
         </repository>
     </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>bintray-buremba-maven</id>
+            <name>bintray</name>
+            <url>http://dl.bintray.com/buremba/maven</url>
+        </pluginRepository>
+    </pluginRepositories>
 </project>
