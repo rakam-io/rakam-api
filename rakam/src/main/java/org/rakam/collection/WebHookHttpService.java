@@ -435,7 +435,7 @@ public class WebHookHttpService
                     }
                     else {
                         try {
-                            Event event = jsonMapper.readerFor(Event.class)
+                            Event event = jsonMapper.reader(Event.class)
                                     .with(ContextAttributes.getEmpty()
                                             .withSharedAttribute("project", project))
                                     .readValue(body.toString());

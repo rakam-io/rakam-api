@@ -239,12 +239,6 @@
             <artifactId>DynamoDBLocal</artifactId>
             <scope>test</scope>
         </dependency>
-        
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-s3</artifactId>
-            <version>${aws.library}</version>
-        </dependency>
 
         <dependency>
             <groupId>com.facebook.presto</groupId>

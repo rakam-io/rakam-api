@@ -79,8 +79,8 @@ public class TestingEnvironment
             throw Throwables.propagate(e);
         }
 
-        AmazonS3Client amazonS3Client = new AmazonS3Client(getAWSConfig().getCredentials());
-        amazonS3Client.setEndpoint(getAWSConfig().getS3Endpoint());
+//        AmazonS3Client amazonS3Client = new AmazonS3Client(getAWSConfig().getCredentials());
+//        amazonS3Client.setEndpoint(getAWSConfig().getS3Endpoint());
 //        amazonS3Client.createBucket("testing");
 
         try {
