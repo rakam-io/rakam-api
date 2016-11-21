@@ -203,7 +203,7 @@ public class WebHookHttpService
     @Path("/collect/*")
     public void collectPost(RakamHttpRequest request)
     {
-        String identifier = request.path().substring(4);
+        String identifier = request.path().substring(20);
         List<String> writeKeyList = request.params().get("write_key");
         if (writeKeyList == null || writeKeyList.isEmpty()) {
             throw new RakamException("write_key query parameter is null", FORBIDDEN);
@@ -240,7 +240,7 @@ public class WebHookHttpService
     @Path("/collect/*")
     public void collectGet(RakamHttpRequest request)
     {
-        String identifier = request.path().substring(4);
+        String identifier = request.path().substring(20);
         List<String> writeKeyList = request.params().get("write_key");
         if (writeKeyList == null || writeKeyList.isEmpty()) {
             throw new RakamException("write_key query parameter is null", FORBIDDEN);
@@ -428,49 +428,54 @@ public class WebHookHttpService
             {
                 if (future.await(1, TimeUnit.SECONDS)) {
                     Object body = future.getNow();
-                    if (body == null) {
-                        return;
+                    boolean saved = false;
+
+                    if (body == null || body.equals("null")) {
+                        saved = false;
                     }
-                    try {
-                        Event event = jsonMapper.reader(Event.class)
-                                .with(ContextAttributes.getEmpty()
-                                        .withSharedAttribute("project", project))
-                                .readValue(body.toString());
-                        if (store) {
-                            eventStore.store(event);
+                    else {
+                        try {
+                            Event event = jsonMapper.readerFor(Event.class)
+                                    .with(ContextAttributes.getEmpty()
+                                            .withSharedAttribute("project", project))
+                                    .readValue(body.toString());
+                            if (store && event != null) {
+                                saved = true;
+                                eventStore.store(event);
+                            }
+                        }
+                        catch (JsonMappingException e) {
+                            String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+                            returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
+                            return;
+                        }
+                        catch (IOException e) {
+                            returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
+                            return;
+                        }
+                        catch (RakamException e) {
+                            LogUtil.logException(request, e);
+                            returnError(request, e.getMessage(), e.getStatusCode());
+                            return;
+                        }
+                        catch (HttpRequestException e) {
+                            returnError(request, e.getMessage(), e.getStatusCode());
+                            return;
+                        }
+                        catch (IllegalArgumentException e) {
+                            LogUtil.logException(request, e);
+                            returnError(request, e.getMessage(), BAD_REQUEST);
+                            return;
+                        }
+                        catch (Exception e) {
+                            LOGGER.error(e, "Error while collecting event");
+
+                            returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
+                            return;
                         }
                     }
-                    catch (JsonMappingException e) {
-                        String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-                        returnError(request, "JSON couldn't parsed: " + message, BAD_REQUEST);
-                        return;
-                    }
-                    catch (IOException e) {
-                        returnError(request, "JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST);
-                        return;
-                    }
-                    catch (RakamException e) {
-                        LogUtil.logException(request, e);
-                        returnError(request, e.getMessage(), e.getStatusCode());
-                        return;
-                    }
-                    catch (HttpRequestException e) {
-                        returnError(request, e.getMessage(), e.getStatusCode());
-                        return;
-                    }
-                    catch (IllegalArgumentException e) {
-                        LogUtil.logException(request, e);
-                        returnError(request, e.getMessage(), BAD_REQUEST);
-                        return;
-                    }
-                    catch (Exception e) {
-                        LOGGER.error(e, "Error while collecting event");
 
-                        returnError(request, "An error occurred", INTERNAL_SERVER_ERROR);
-                        return;
-                    }
-
-                    request.response("1").end();
+                    request.response(saved ? "1" : "0").end();
                 }
                 else {
                     byte[] bytes = JsonHelper.encodeAsBytes(errorMessage("Webhook code timeouts.",
