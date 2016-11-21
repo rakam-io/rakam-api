@@ -8,6 +8,7 @@ services:
 before_install:
   - cp .travis_settings.xml ~/.m2/settings.xml
 install: ./mvnw install -DskipTests
+script: ./mvnw verify --quiet
 addons:
   apt:
     packages:
