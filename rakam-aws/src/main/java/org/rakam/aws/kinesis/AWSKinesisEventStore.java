@@ -85,9 +85,8 @@ public class AWSKinesisEventStore
             for (int i = 0; i < events.size(); i++) {
                 Event event = events.get(i);
                 ByteBuf buffer = getBuffer(event);
-                Object user = event.getAttribute("_user");
                 producer.addUserRecord(config.getEventStoreStreamName(),
-                        (event.project() + "|" + user == null ? event.collection() : user.toString()),
+                        getPartitionKey(event),
                         buffer.nioBuffer());
                 byteBufs[i] = buffer;
             }
@@ -135,10 +134,6 @@ public class AWSKinesisEventStore
     @Override
     public CompletableFuture<int[]> storeBatchAsync(List<Event> events)
     {
-//        for (Event event : events) {
-//            storeAsync(event);
-//        }
-//        return COMPLETED_FUTURE_BATCH;
         return storeBatchInline(events);
     }
 
@@ -150,11 +145,17 @@ public class AWSKinesisEventStore
         return future;
     }
 
+    private String getPartitionKey(Event event)
+    {
+        Object user = event.getAttribute("_user");
+        return event.project() + "|" + (user == null ? event.collection() : user.toString());
+    }
+
     public void store(Event event, CompletableFuture<Void> future, int tryCount)
     {
         ByteBuf buffer = getBuffer(event);
         kinesis.putRecordAsync(config.getEventStoreStreamName(), buffer.nioBuffer(),
-                event.project() + "|" + event.collection(), new AsyncHandler<PutRecordRequest, PutRecordResult>()
+                getPartitionKey(event), new AsyncHandler<PutRecordRequest, PutRecordResult>()
                 {
                     @Override
                     public void onError(Exception e)
