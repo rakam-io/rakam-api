@@ -187,7 +187,7 @@ public class WebHookHttpService
             handle.createStatement("CREATE TABLE IF NOT EXISTS webhook (" +
                     "  project VARCHAR(255) NOT NULL," +
                     "  identifier VARCHAR(255) NOT NULL," +
-                    "  code TEXT NOT NULL," +
+                    "  code TEXT," +
                     "  active BOOLEAN NOT NULL," +
                     "  image VARCHAR(255)," +
                     "  parameters TEXT," +
@@ -302,7 +302,8 @@ public class WebHookHttpService
             return handle.createQuery("SELECT code, image, active, parameters FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
                     .bind("identifier", identifier)
-                    .map(new ResultSetMapper<WebHook>() {
+                    .map(new ResultSetMapper<WebHook>()
+                    {
                         @Override
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
                                 throws SQLException
@@ -321,7 +322,8 @@ public class WebHookHttpService
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT identifier, code, image, active, parameters FROM webhook WHERE project = :project")
                     .bind("project", project)
-                    .map(new ResultSetMapper<WebHook>() {
+                    .map(new ResultSetMapper<WebHook>()
+                    {
                         @Override
                         public WebHook map(int index, ResultSet r, StatementContext ctx)
                                 throws SQLException
@@ -349,7 +351,7 @@ public class WebHookHttpService
             engine.eval(script);
         }
         catch (ScriptException e) {
-            throw new RakamException("Unable to compile Javascript code: "+e.getMessage(), INTERNAL_SERVER_ERROR);
+            throw new RakamException("Unable to compile Javascript code: " + e.getMessage(), INTERNAL_SERVER_ERROR);
         }
 
         Future<Object> f = executor.submit(() -> {
@@ -506,16 +508,16 @@ public class WebHookHttpService
         @JsonCreator
         public WebHook(
                 @ApiParam("identifier") String identifier,
-                @ApiParam("code") String code,
-                @ApiParam("image") String image,
-                @ApiParam("active") boolean active,
-                @ApiParam("parameters") Map<String, String> parameters)
+                @ApiParam(value = "code") String code,
+                @ApiParam(value = "image", required = false) String image,
+                @ApiParam(value = "active", required = false) Boolean active,
+                @ApiParam(value = "parameters", required = false) Map<String, String> parameters)
         {
             this.identifier = identifier;
-            this.active = active;
+            this.active = !Boolean.FALSE.equals(active);
             this.code = code;
             this.image = image;
-            this.parameters = parameters;
+            this.parameters = Optional.ofNullable(parameters).orElse(ImmutableMap.of());
         }
     }
 }
