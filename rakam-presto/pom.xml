@@ -446,6 +446,17 @@
             <name>bintray</name>
             <url>http://dl.bintray.com/buremba/maven</url>
         </repository>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>default</id>
+            <name>default</name>
+            <url>http://repo.maven.apache.org/maven2</url>
+        </repository>
     </repositories>
 
     <pluginRepositories>
