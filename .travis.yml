@@ -7,8 +7,8 @@ services:
   - docker
 before_install:
   - cp .travis_settings.xml ~/.m2/settings.xml
-install: ./mvnw install -DskipTests
-script: ./mvnw verify --quiet
+install: ./mvnw install -DskipTests --quiet
+script: ./mvnw test --quiet
 addons:
   apt:
     packages:
