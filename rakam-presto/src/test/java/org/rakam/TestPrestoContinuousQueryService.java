@@ -15,12 +15,12 @@ import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 @Test(enabled=false)
-public class TestPrestoContinuousQueryService extends TestContinuousQueryService {
+public class TestPrestoContinuousQueryService  {
     private PrestoContinuousQueryService continuousQueryService;
     private Metastore metastore;
     private TestingEnvironment testEnvironment;
 
-    @BeforeSuite
+//    @BeforeSuite
     public void setUp() throws Exception {
         testEnvironment = new TestingEnvironment();
 
@@ -36,12 +36,12 @@ public class TestPrestoContinuousQueryService extends TestContinuousQueryService
                 prestoQueryExecutor, testEnvironment.getPrestoConfig());
     }
 
-    @Override
+//    @Override
     public ContinuousQueryService getContinuousQueryService() {
         return continuousQueryService;
     }
 
-    @Override
+//    @Override
     public Metastore getMetastore() {
         return metastore;
     }
