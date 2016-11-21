@@ -1,6 +1,8 @@
 package org.rakam.event;
 
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.dynamodbv2.local.server.DynamoDBProxyServer;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.facebook.presto.rakam.RakamRaptorPlugin;
 import com.facebook.presto.rakam.stream.StreamPlugin;
 import com.facebook.presto.rakam.stream.metadata.ForMetadata;
@@ -27,19 +29,17 @@ import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.aws.AWSConfig;
 import org.rakam.config.JDBCConfig;
 import org.rakam.presto.analysis.PrestoConfig;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.IDBI;
-
-import javax.annotation.Resource;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
@@ -61,6 +61,7 @@ public class TestingEnvironment
     private static int kinesisPort;
     private static JDBCPoolDataSource metastore;
     private static Process kinesisProcess;
+    private final S3ProxyLaunchInfo s3ProxyLaunchInfo;
     DynamoDBProxyServer dynamoDBServer;
     private Process dynamodbServer;
 
@@ -71,13 +72,16 @@ public class TestingEnvironment
 
     public TestingEnvironment(boolean installMetadata)
     {
-        S3ProxyLaunchInfo s3ProxyLaunchInfo;
         try {
             s3ProxyLaunchInfo = startS3Proxy();
         }
         catch (Exception e) {
             throw Throwables.propagate(e);
         }
+
+        AmazonS3Client amazonS3Client = new AmazonS3Client(getAWSConfig().getCredentials());
+        amazonS3Client.setEndpoint(getAWSConfig().getS3Endpoint());
+//        amazonS3Client.createBucket("testing");
 
         try {
             if (testingPrestoServer == null) {
@@ -113,7 +117,7 @@ public class TestingEnvironment
                     testingPrestoServer.createCatalog("streaming", "streaming", ImmutableMap.<String, String>builder()
                             .put("target.connector_id", "rakam_raptor")
                             .put("backup.provider", "s3")
-                            .put("backup.s3.bucket", "testing")
+//                            .put("backup.s3.bucket", "testing")
                             .put("aws.s3-endpoint", s3ProxyLaunchInfo.getEndpoint().toString())
                             .put("stream.max-flush-duration", "0ms")
                             .put("http-server.http.port", Integer.toString(ThreadLocalRandom.current().nextInt(1000, 10000)))
@@ -123,9 +127,9 @@ public class TestingEnvironment
                             .put("kinesis.stream", "rakam-events")
                             .put("aws.kinesis-endpoint", "http://127.0.0.1:" + kinesisPort)
                             .put("aws.dynamodb-endpoint", "http://127.0.0.1:" + dynamodbPort)
-                            .put("aws.secret-access-key", s3ProxyLaunchInfo.getS3Identity())
-                            .put("aws.access-key", s3ProxyLaunchInfo.getS3Credential())
-                            .put("aws.region", "eu-central-1")
+                            .put("aws.secret-access-key", s3ProxyLaunchInfo.getS3Credential())
+                            .put("aws.access-key", s3ProxyLaunchInfo.getS3Identity())
+                            .put("aws.region", "us-east-1")
                             .put("aws.enable-cloudwatch", "false")
                             .put("kinesis.consumer-dynamodb-table", "rakamtest")
                             .put("middleware.max-flush-records", "1")
@@ -150,6 +154,7 @@ public class TestingEnvironment
                     System.out.println(prestoConfig.getAddress());
                 }
             }
+
             if (installMetadata) {
                 if (testingPostgresqlServer == null) {
                     synchronized (TestingEnvironment.class) {
@@ -183,6 +188,15 @@ public class TestingEnvironment
         catch (Exception e) {
             throw propagate(e);
         }
+    }
+
+    public AWSConfig getAWSConfig()
+    {
+        return new AWSConfig()
+                .setAccessKey(s3ProxyLaunchInfo.getS3Identity())
+                .setSecretAccessKey(s3ProxyLaunchInfo.getS3Credential())
+                .setRegion("us-east-1")
+                .setS3Endpoint(s3ProxyLaunchInfo.getEndpoint().toString());
     }
 
     public JDBCPoolDataSource getPrestoMetastore()

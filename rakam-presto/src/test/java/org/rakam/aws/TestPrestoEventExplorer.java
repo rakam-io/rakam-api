@@ -96,9 +96,17 @@ public class TestPrestoEventExplorer
 
     public void setupInline()
     {
+        AWSConfig awsConfig = testingEnvironment.getAWSConfig();
+
+        int kinesisPort = getEnvironment().getKinesisPort();
+        awsConfig
+                .setKinesisEndpoint(kinesisPort == 0 ? null : "http://127.0.0.1:" + kinesisPort)
+                .setEventStoreStreamName("rakam-events");
+
         testingPrestoEventStore = new AWSKinesisEventStore(
-                getAWSConfig(), getMetastore(),
-                new FieldDependencyBuilder().build()) {
+                awsConfig, getMetastore(),
+                new FieldDependencyBuilder().build())
+        {
             // KCL doesn't work with Kinesalite. See: https://github.com/mhart/kinesalite/issues/16
             @Override
             public int[] storeBatch(List<Event> events)
@@ -107,17 +115,6 @@ public class TestPrestoEventExplorer
                 return SUCCESSFUL_BATCH;
             }
         };
-    }
-
-    protected AWSConfig getAWSConfig()
-    {
-        int kinesisPort = getEnvironment().getKinesisPort();
-        return new AWSConfig()
-                .setAccessKey("AKIAIOSFODNN7EXAMPLE")
-                .setSecretAccessKey("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
-                .setRegion("eu-central-1")
-                .setKinesisEndpoint(kinesisPort == 0 ? null : "http://127.0.0.1:" + kinesisPort)
-                .setEventStoreStreamName("rakam-events");
     }
 
     @Override
