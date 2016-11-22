@@ -12,10 +12,7 @@ import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.Statement;
-import com.google.inject.name.Named;
-import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
@@ -24,13 +21,13 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
-import org.skife.jdbi.v2.DBI;
 
 import javax.inject.Inject;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,22 +41,18 @@ import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
-import static java.time.format.DateTimeFormatter.ISO_INSTANT;
 
 public class PrestoMaterializedViewService
         extends MaterializedViewService
 {
     public final static String MATERIALIZED_VIEW_PREFIX = "$materialized_";
     public final static SqlParser sqlParser = new SqlParser();
-    private final static Logger LOGGER = Logger.get(PrestoMaterializedViewService.class);
-
     protected final QueryMetadataStore database;
     protected final QueryExecutor queryExecutor;
-    private final DBI dbi;
     private final PrestoMetastore metastore;
 
     @Inject
-    public PrestoMaterializedViewService(@Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
+    public PrestoMaterializedViewService(
             QueryExecutor queryExecutor,
             PrestoMetastore metastore,
             QueryMetadataStore database)
@@ -68,7 +61,6 @@ public class PrestoMaterializedViewService
         this.database = database;
         this.queryExecutor = queryExecutor;
         this.metastore = metastore;
-        dbi = new DBI(prestoMetastoreDataSource);
     }
 
     @Override
@@ -197,14 +189,20 @@ public class PrestoMaterializedViewService
 
             Instant lastUpdated = materializedView.lastUpdate;
             Instant now = Instant.now();
-            boolean needsUpdate = Duration.between(now, lastUpdated).compareTo(materializedView.updateInterval) > 0;
+            boolean needsUpdate = lastUpdated == null || Duration
+                    .between(now, lastUpdated).compareTo(materializedView.updateInterval) > 0;
 
             QueryExecution queryExecution;
             if (needsUpdate && database.updateMaterializedView(project, materializedView, f)) {
                 String query = formatSql(statement,
-                        name -> format("(SELECT * FROM %s WHERE \"_shard_time\" between timestamp '%s' and timestamp '%s')",
-                                queryExecutor.formatTableReference(project, name, Optional.empty()),
-                                ISO_INSTANT.format(lastUpdated), ISO_INSTANT.format(now)), '"');
+                        name -> {
+                            String predicate = lastUpdated != null ? String.format("between from_unixtime(%d) and from_unixtime(%d)",
+                                    lastUpdated.getEpochSecond(), now.getEpochSecond()) :
+                                    String.format(" < from_unixtime(%d)", now.getEpochSecond());
+
+                            return format("(SELECT * FROM %s WHERE _shard_time %s)",
+                                    queryExecutor.formatTableReference(project, name, Optional.empty()), predicate);
+                        }, '"');
 
                 queryExecution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
                 queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
@@ -215,14 +213,15 @@ public class PrestoMaterializedViewService
             }
 
             String reference;
-            if (!needsUpdate) {
+            if (!needsUpdate || true) {
                 reference = materializedTableReference;
             }
             else {
                 String query = formatSql(statement,
-                        name -> format("(SELECT * FROM %s WHERE \"_shard_time\" > timestamp '%s'",
+                        name -> format("(SELECT * FROM %s %s",
                                 queryExecutor.formatTableReference(project, name, Optional.empty()),
-                                ISO_INSTANT.format(lastUpdated)), '"');
+                                lastUpdated == null ? "" : String.format("WHERE _shard_time > from_unixtime(%d)",
+                                        lastUpdated)), '"');
 
                 reference = format("(SELECT * from %s UNION ALL %s)", materializedTableReference, query);
             }

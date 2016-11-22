@@ -41,7 +41,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         metastore.setup();
 
         PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(prestoConfig, null, null, metastore);
-        PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(testingEnvironment.getPrestoMetastore(),
+        PrestoMaterializedViewService materializedViewService = new PrestoMaterializedViewService(
                 queryExecutor, metastore, queryMetadataStore);
         PrestoContinuousQueryService continuousQueryService = new PrestoContinuousQueryService(queryMetadataStore, new RealTimeConfig(), queryExecutor, prestoConfig);
 
