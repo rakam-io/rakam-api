@@ -153,10 +153,7 @@ public class PrestoMaterializedViewService
 
         String tableName = queryExecutor.formatTableReference(project,
                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty());
-        Query statement;
-        synchronized (sqlParser) {
-            statement = (Query) sqlParser.createStatement(materializedView.query);
-        }
+        Query statement = (Query) sqlParser.createStatement(materializedView.query);
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
@@ -190,7 +187,7 @@ public class PrestoMaterializedViewService
             Instant lastUpdated = materializedView.lastUpdate;
             Instant now = Instant.now();
             boolean needsUpdate = lastUpdated == null || Duration
-                    .between(now, lastUpdated).compareTo(materializedView.updateInterval) > 0;
+                    .between(lastUpdated, now).compareTo(materializedView.updateInterval) > 0;
 
             QueryExecution queryExecution;
             if (needsUpdate && database.updateMaterializedView(project, materializedView, f)) {
