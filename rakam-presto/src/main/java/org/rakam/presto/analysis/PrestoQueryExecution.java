@@ -236,7 +236,7 @@ public class PrestoQueryExecution
         }
     }
 
-    private static final String SERVER_NOT_ACTIVE = "Presto server is not active.";
+    private static final String SERVER_NOT_ACTIVE = "Database server is not active.";
 
     private class QueryTracker
             implements Runnable

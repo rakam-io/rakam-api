@@ -603,9 +603,7 @@ public abstract class AbstractPostgresqlUserStorage
                     for (int i = 1; i < columnCount; i++) {
                         String key = metaData.getColumnName(i);
                         if (!key.equals(PRIMARY_KEY)) {
-
-                            FieldType fieldType = PostgresqlMetastore.fromSql(metaData.getColumnType(i),
-                                    metaData.getColumnTypeName(i));
+                            FieldType fieldType = fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i));
                             JsonNode value = setValues(resultSet, i, fieldType);
                             if (!value.equals(NullNode.getInstance())) {
                                 properties.set(key, value);

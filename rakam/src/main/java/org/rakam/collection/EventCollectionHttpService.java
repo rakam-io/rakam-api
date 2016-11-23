@@ -9,8 +9,8 @@ import com.fasterxml.jackson.databind.cfg.ContextAttributes;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
 import io.airlift.slice.InputStreamSliceInput;
@@ -73,6 +73,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -124,12 +125,12 @@ public class EventCollectionHttpService
     private final AvroEventDeserializer avroEventDeserializer;
     private final Metastore metastore;
     private final QueryHttpService queryHttpService;
-    private final Optional<CopyEvent> copyEvent;
+    private final com.google.common.base.Optional<CopyEvent> copyEvent;
 
     @Inject
     public EventCollectionHttpService(
             EventStore eventStore,
-            Optional<CopyEvent> copyEvent,
+            com.google.common.base.Optional<CopyEvent> copyEvent,
             ApiKeyService apiKeyService,
             JsonEventDeserializer deserializer,
             QueryHttpService queryHttpService,
@@ -379,7 +380,7 @@ public class EventCollectionHttpService
                 }, mapEvents);
     }
 
-    @GET
+    @POST
     @Consumes("text/event-stream")
     @IgnoreApi
     @ApiOperation(value = "Copy events from remote", request = BulkEventRemote.class, response = Integer.class)
@@ -418,7 +419,9 @@ public class EventCollectionHttpService
         storeEventsSync(request,
                 buff -> {
                     BulkEventRemote query = JsonHelper.read(buff, BulkEventRemote.class);
-                    String masterKey = request.headers().get("master_key");
+                    String masterKey = Optional.ofNullable(request.params().get("master_key"))
+                            .map((v) -> v.get(0))
+                            .orElseGet(() -> request.headers().get("master_key"));
                     String project = apiKeyService.getProjectOfApiKey(masterKey, MASTER_KEY);
 
                     checkCollection(query.collection);
@@ -444,19 +447,19 @@ public class EventCollectionHttpService
                             builder.setColumnSeparator(column_seperator.charAt(0));
                         }
 
-                        boolean useHeader = false;
+                        boolean useHeader = true;
                         if (request.headers().get("use_header") != null) {
                             useHeader = Boolean.valueOf(request.headers().get("use_header"));
                             // do not set CsvSchema setUseHeader, it has extra overhead and the deserializer cannot handle that.
                         }
 
-                        return csvMapper.reader(EventList.class)
+                        return csvMapper.readerFor(EventList.class)
                                 .with(ContextAttributes.getEmpty()
                                         .withSharedAttribute("project", project)
                                         .withSharedAttribute("useHeader", useHeader)
                                         .withSharedAttribute("collection", query.collection)
                                         .withSharedAttribute("apiKey", masterKey))
-                                .with(builder.build()).readValue(buff);
+                                .with(builder.build()).readValue(url);
                     }
                     else if (query.type == AVRO) {
                         URLConnection conn = url.openConnection();
@@ -813,14 +816,14 @@ public class EventCollectionHttpService
         public BulkEventRemote(@ApiParam("collection") String collection,
                 @ApiParam("urls") List<URL> urls,
                 @ApiParam("type") CopyType type,
-                @ApiParam("compression") EventStore.CompressionType compression,
-                @ApiParam("options") Map<String, String> options)
+                @ApiParam(value = "compression", required = false) EventStore.CompressionType compression,
+                @ApiParam(value = "options", required = false) Map<String, String> options)
         {
             this.collection = collection;
             this.urls = urls;
             this.type = type;
             this.compression = compression;
-            this.options = options;
+            this.options = Optional.ofNullable(options).orElse(ImmutableMap.of());
         }
     }
 }

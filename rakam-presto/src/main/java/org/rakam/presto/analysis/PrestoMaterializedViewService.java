@@ -205,7 +205,7 @@ public class PrestoMaterializedViewService
                         }, '"');
 
                 queryExecution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
-                queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
+                queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
             }
             else {
                 queryExecution = QueryExecution.completedQueryExecution("", QueryResult.empty());
