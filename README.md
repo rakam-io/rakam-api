@@ -2,7 +2,7 @@
 
 Rakam
 =======
-[!Join user group at https://groups.google.com/forum/#!forum/rakam](https://img.shields.io/badge/google-groups-green.svg?style=flat)
+[![Join user group at https://groups.google.com/forum/#!forum/rakam](https://img.shields.io/badge/google-groups-green.svg?style=flat)
 [![Join the chat at https://gitter.im/rakam-io/rakam](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/buremba/rakam?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Rakam is an analytics platform that allows you to create your analytics services.
