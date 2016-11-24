@@ -186,7 +186,7 @@ public class PrestoMaterializedViewService
                                     String.format(" < from_unixtime(%d)", now.getEpochSecond());
 
                             return format("(SELECT * FROM %s WHERE _shard_time %s)",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty()), predicate);
+                                    queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties), predicate);
                         }, '"');
 
                 queryExecution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
