@@ -4,7 +4,9 @@ import com.getsentry.raven.Raven;
 import com.getsentry.raven.RavenFactory;
 import com.getsentry.raven.event.Event;
 import com.getsentry.raven.event.EventBuilder;
+import com.getsentry.raven.event.interfaces.ExceptionInterface;
 import com.getsentry.raven.event.interfaces.HttpInterface;
+import com.getsentry.raven.event.interfaces.SentryInterface;
 import com.getsentry.raven.jul.SentryHandler;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -51,6 +53,30 @@ public class LogUtil
                 .withLevel(Event.Level.WARNING)
                 .withLogger(RakamException.class.getName())
                 .withTag("status", e.getStatusCode().reasonPhrase());
+
+        if (TAGS != null) {
+            for (Map.Entry<String, String> entry : TAGS.entrySet()) {
+                builder.withTag(entry.getKey(), entry.getValue());
+            }
+        }
+
+        if (RELEASE != null) {
+            builder.withRelease(RELEASE);
+        }
+
+        RAVEN.sendEvent(builder.build());
+    }
+
+    public static void logException(RakamHttpRequest request, Throwable e)
+    {
+        if (RAVEN == null) {
+            return;
+        }
+        EventBuilder builder = new EventBuilder()
+                .withSentryInterface(new ExceptionInterface(e))
+                .withSentryInterface(new HttpInterface(new RakamServletWrapper(request)))
+                .withLevel(Event.Level.WARNING)
+                .withLogger(RakamException.class.getName());
 
         if (TAGS != null) {
             for (Map.Entry<String, String> entry : TAGS.entrySet()) {

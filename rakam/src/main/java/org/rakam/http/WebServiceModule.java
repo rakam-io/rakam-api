@@ -26,6 +26,7 @@ import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.CustomParameter;
 import org.rakam.analysis.RequestPreProcessorItem;
+import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpServer;
 import org.rakam.server.http.HttpServerBuilder;
@@ -138,6 +139,9 @@ public class WebServiceModule
                     if (ex instanceof RakamException) {
                         LogUtil.logException(request, (RakamException) ex);
                     }
+                    if (!(ex instanceof HttpRequestException)) {
+                        LogUtil.logException(request, ex);
+                    }
                 })
                 .setOverridenMappings(ImmutableMap.of(GenericRecord.class, PrimitiveType.OBJECT))
                 .addPostProcessor(response -> response.headers().set(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"),
@@ -154,7 +158,7 @@ public class WebServiceModule
         httpServer.setCustomRequestParameters(builder.build());
         HttpServer build = httpServer.build();
 
-        if(requestHandler != null) {
+        if (requestHandler != null) {
             build.setNotFoundHandler(requestHandler);
         }
 

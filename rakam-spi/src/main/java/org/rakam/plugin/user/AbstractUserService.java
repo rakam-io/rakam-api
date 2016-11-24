@@ -224,20 +224,20 @@ public abstract class AbstractUserService {
         public static class BatchUserOperations implements ISingleUserBatchOperation
         {
             @JsonProperty("id") public Object id;
-            @JsonProperty("set_properties") public final ObjectNode setProperties;
-            @JsonProperty("set_properties_once") public final ObjectNode setPropertiesOnce;
-            @JsonProperty("increment_properties") public final Map<String, Double> incrementProperties;
-            @JsonProperty("unset_properties") public final List<String> unsetProperties;
-            @JsonProperty("time") public final Long time;
+            @JsonProperty(value = "set_properties") public final ObjectNode setProperties;
+            @JsonProperty(value = "set_properties_once") public final ObjectNode setPropertiesOnce;
+            @JsonProperty(value = "increment_properties") public final Map<String, Double> incrementProperties;
+            @JsonProperty(value = "unset_properties") public final List<String> unsetProperties;
+            @JsonProperty(value = "time", required = false) public final Long time;
 
             @JsonCreator
             public BatchUserOperations(
                     @ApiParam("id") Object id,
-                    @ApiParam("set_properties") ObjectNode setProperties,
-                    @ApiParam("set_properties_once") ObjectNode setPropertiesOnce,
-                    @ApiParam("increment_properties") Map<String, Double> incrementProperties,
-                    @ApiParam("unset_properties") List<String> unsetProperties,
-                    @ApiParam("time") Long time)
+                    @ApiParam(value = "set_properties", required = false) ObjectNode setProperties,
+                    @ApiParam(value = "set_properties_once", required = false) ObjectNode setPropertiesOnce,
+                    @ApiParam(value = "increment_properties", required = false) Map<String, Double> incrementProperties,
+                    @ApiParam(value = "unset_properties", required = false) List<String> unsetProperties,
+                    @ApiParam(value = "time", required = false) Long time)
             {
                 this.id = id;
                 this.setProperties = setProperties;

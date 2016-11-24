@@ -343,6 +343,7 @@ public class UserHttpService
                 req = JsonHelper.read(s, BatchUserOperationRequest.class);
             }
             catch (Exception e) {
+                LogUtil.logException(request, e);
                 returnError(request, e.getMessage(), BAD_REQUEST);
                 return;
             }

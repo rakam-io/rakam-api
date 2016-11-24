@@ -2,11 +2,13 @@ package org.rakam.automation.action;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 import org.rakam.automation.AutomationAction;
 import org.rakam.plugin.user.User;
 import org.rakam.util.StringTemplate;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 public class ClientMessageAutomationAction
@@ -28,9 +30,9 @@ public class ClientMessageAutomationAction
         public final Map<String, String> variables;
 
         @JsonCreator
-        public Template(@JsonProperty("template") String template, @JsonProperty("variables") Map<String, String> variables) {
+        public Template(@JsonProperty("template") String template, @JsonProperty(value = "variables", required = false) Map<String, String> variables) {
             this.template = template;
-            this.variables = variables;
+            this.variables = Optional.ofNullable(variables).orElse(ImmutableMap.of());
         }
     }
 }

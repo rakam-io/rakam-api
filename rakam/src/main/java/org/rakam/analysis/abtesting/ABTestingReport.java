@@ -47,7 +47,7 @@ public class ABTestingReport {
 
         @JsonCreator
         public Goal(@JsonProperty("collection") String collection,
-                    @JsonProperty("filter") String filter) {
+                    @JsonProperty(value = "filter", required = false) String filter) {
             this.collection = collection;
             this.filter = filter;
         }

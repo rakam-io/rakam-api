@@ -24,7 +24,7 @@ public class MaterializedView {
     @JsonProperty("query") public final String query;
     @JsonProperty("incremental") public final boolean incremental;
     @JsonProperty("update_interval") public final Duration updateInterval;
-    @JsonProperty("last_update") public Instant lastUpdate;
+    @JsonProperty("last_update") public transient Instant lastUpdate;
     @JsonProperty("name") public String name;
     @JsonProperty("options") public final Map<String, Object> options;
 
@@ -88,9 +88,6 @@ public class MaterializedView {
         if (updateInterval != null ? !updateInterval.equals(that.updateInterval) : that.updateInterval != null) {
             return false;
         }
-        if (lastUpdate != null ? !lastUpdate.equals(that.lastUpdate) : that.lastUpdate != null) {
-            return false;
-        }
         return options != null ? options.equals(that.options) : that.options == null;
     }
 
@@ -101,7 +98,6 @@ public class MaterializedView {
         result = 31 * result + query.hashCode();
         result = 31 * result + (incremental ? 1 : 0);
         result = 31 * result + (updateInterval != null ? updateInterval.hashCode() : 0);
-        result = 31 * result + (lastUpdate != null ? lastUpdate.hashCode() : 0);
         result = 31 * result + (options != null ? options.hashCode() : 0);
         return result;
     }

@@ -1,25 +1,37 @@
 package org.rakam.report;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class ChainQueryExecution implements QueryExecution {
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Optional.ofNullable;
+import static org.rakam.report.QueryStats.State.RUNNING;
+
+public class ChainQueryExecution
+        implements QueryExecution
+{
     private final List<QueryExecution> executions;
     private final String query;
     private final Optional<CompletableFuture<QueryExecution>> chainedQuery;
 
-    public ChainQueryExecution(List<QueryExecution> executions, String query, Function<List<QueryResult>, QueryExecution> chainedQuery) {
+    public ChainQueryExecution(List<QueryExecution> executions, String query, Function<List<QueryResult>, QueryExecution> chainedQuery)
+    {
         this(executions, query, Optional.of(chainedQuery));
     }
 
-    public ChainQueryExecution(List<QueryExecution> executions, String query) {
+    public ChainQueryExecution(List<QueryExecution> executions, String query)
+    {
         this(executions, query, Optional.empty());
     }
 
-    public ChainQueryExecution(List<QueryExecution> executions, String query, Optional<Function<List<QueryResult>, QueryExecution>> chainedQuery) {
+    public ChainQueryExecution(List<QueryExecution> executions, String query, Optional<Function<List<QueryResult>, QueryExecution>> chainedQuery)
+    {
         this.executions = executions;
         this.query = query;
 
@@ -30,13 +42,15 @@ public class ChainQueryExecution implements QueryExecution {
     }
 
     @Override
-    public QueryStats currentStats() {
+    public QueryStats currentStats()
+    {
         QueryStats currentStats = null;
         for (QueryExecution queryExecution : executions) {
             QueryStats queryStats = queryExecution.currentStats();
             if (currentStats == null) {
                 currentStats = queryStats;
-            } else {
+            }
+            else {
                 currentStats = merge(currentStats, queryStats);
             }
         }
@@ -48,30 +62,37 @@ public class ChainQueryExecution implements QueryExecution {
         return currentStats;
     }
 
-    private QueryStats merge(QueryStats currentStats, QueryStats stats) {
-        return new QueryStats(currentStats.percentage + stats.percentage,
-                currentStats.state.equals(stats.state) ? currentStats.state : QueryStats.State.RUNNING,
-                Math.max(currentStats.node, stats.node),
-                stats.processedRows + currentStats.processedRows,
-                stats.processedBytes + currentStats.processedBytes,
-                stats.userTime + currentStats.userTime,
-                stats.cpuTime + currentStats.cpuTime,
-                stats.wallTime + currentStats.wallTime
+    private QueryStats merge(QueryStats currentStats, QueryStats stats)
+    {
+        return new QueryStats(
+                ofNullable(currentStats.percentage).orElse(0) + ofNullable(stats.percentage).orElse(0),
+                Objects.equals(currentStats.state, stats.state) ? currentStats.state : RUNNING,
+                (currentStats.node != null && stats.node != null) ?
+                        Math.max(currentStats.node, stats.node) :
+                        currentStats.node != null ? currentStats.node : stats.node,
+                ofNullable(stats.processedRows).orElse(0L) + ofNullable(currentStats.processedRows).orElse(0L),
+                ofNullable(stats.processedBytes).orElse(0L) + ofNullable(currentStats.processedBytes).orElse(0L),
+                ofNullable(stats.userTime).orElse(0L) + ofNullable(currentStats.userTime).orElse(0L),
+                ofNullable(stats.cpuTime).orElse(0L) + ofNullable(currentStats.cpuTime).orElse(0L),
+                ofNullable(stats.wallTime).orElse(0L) + ofNullable(currentStats.wallTime).orElse(0L)
         );
     }
 
     @Override
-    public boolean isFinished() {
+    public boolean isFinished()
+    {
         if (chainedQuery.isPresent() && chainedQuery.get().isDone()) {
             QueryExecution join = chainedQuery.get().join();
             return join == null || join.isFinished();
-        } else {
+        }
+        else {
             return false;
         }
     }
 
     @Override
-    public CompletableFuture<QueryResult> getResult() {
+    public CompletableFuture<QueryResult> getResult()
+    {
         if (!chainedQuery.isPresent()) {
             return CompletableFuture
                     .allOf(executions.stream().map(e -> e.getResult())
@@ -82,7 +103,8 @@ public class ChainQueryExecution implements QueryExecution {
         chainedQuery.get().thenAccept(r -> {
             if (r == null) {
                 future.complete(null);
-            } else {
+            }
+            else {
                 r.getResult().thenAccept(result -> {
                     future.complete(result);
                 });
@@ -92,12 +114,14 @@ public class ChainQueryExecution implements QueryExecution {
     }
 
     @Override
-    public String getQuery() {
+    public String getQuery()
+    {
         return query;
     }
 
     @Override
-    public void kill() {
+    public void kill()
+    {
         executions.forEach(org.rakam.report.QueryExecution::kill);
         if (chainedQuery.isPresent()) {
             chainedQuery.get().thenAccept(q -> q.kill());

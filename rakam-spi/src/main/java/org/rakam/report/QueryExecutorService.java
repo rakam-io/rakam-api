@@ -205,7 +205,7 @@ public class QueryExecutorService
                 try {
                     materializedView = materializedViewService.get(project, node.getSuffix());
                 }
-                catch (Exception e) {
+                catch (NotExistsException e) {
                     throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
                 }
                 if (fetchReference) {
@@ -213,7 +213,11 @@ public class QueryExecutorService
                     return "";
                 }
                 else {
-                    return materializedViews.get(materializedView).computeQuery;
+                    MaterializedViewExecution materializedViewExecution = materializedViews.get(materializedView);
+                    if(materializedViewExecution == null) {
+                        throw new IllegalStateException();
+                    }
+                    return materializedViewExecution.computeQuery;
                 }
             }
 

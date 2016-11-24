@@ -166,8 +166,8 @@ public class SystemRegistry {
 
         @JsonCreator
         public ConfigItem(@JsonProperty("property") String property,
-                          @JsonProperty("defaultValue") String defaultValue,
-                          @JsonProperty("description") String description) {
+                          @JsonProperty(value = "defaultValue") String defaultValue,
+                          @JsonProperty(value = "description") String description) {
             this.property = property;
             this.defaultValue = defaultValue;
             this.description = description;

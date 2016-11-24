@@ -141,29 +141,15 @@ public class Event
         }
     }
 
-    public static final class MappingPlugin
-    {
-        public final String name;
-        public final Map<String, Object> arguments;
-
-        @JsonCreator
-        public MappingPlugin(@JsonProperty("name") String name, @JsonProperty("properties") Map<String, Object> arguments)
-        {
-            this.name = name;
-            this.arguments = arguments;
-        }
-    }
-
     public static class EventContext
     {
-        private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null, null);
+        private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null);
 
         @JsonProperty("api_key") public final String apiKey;
-        @JsonProperty("library") public final Library library;
-        @JsonProperty("api_version") public final String apiVersion;
-        @JsonProperty("upload_time") public final Long uploadTime;
-        @JsonProperty("checksum") public final String checksum;
-        @JsonProperty("plugins") public final List<MappingPlugin> plugins;
+        @JsonProperty(value = "library", required = false) public final Library library;
+        @JsonProperty(value = "api_version", required = false) public final String apiVersion;
+        @JsonProperty(value = "upload_time", required = false) public final Long uploadTime;
+        @JsonProperty(value = "checksum", required = false) public final String checksum;
 
         @JsonCreator
         public EventContext(
@@ -171,20 +157,18 @@ public class Event
                 @ApiParam(value = "library", required = false) Library library,
                 @ApiParam(value = "api_version", required = false) String apiVersion,
                 @ApiParam(value = "upload_time", required = false) Long uploadTime,
-                @ApiParam(value = "checksum", required = false) String checksum,
-                @ApiParam(value = "plugins", required = false) List<MappingPlugin> plugins)
+                @ApiParam(value = "checksum", required = false) String checksum)
         {
             this.library = library;
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.uploadTime = uploadTime;
             this.checksum = checksum;
-            this.plugins = plugins;
         }
 
         public static EventContext apiKey(String apiKey)
         {
-            return new EventContext(apiKey, null, null, null, null, null);
+            return new EventContext(apiKey, null, null, null, null);
         }
 
         public static EventContext empty()

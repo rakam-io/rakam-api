@@ -1,6 +1,5 @@
 package org.rakam.analysis;
 
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.report.QueryError;
@@ -15,13 +14,14 @@ import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.SuccessMessage;
 import org.rakam.util.RakamException;
+import org.rakam.util.SuccessMessage;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;

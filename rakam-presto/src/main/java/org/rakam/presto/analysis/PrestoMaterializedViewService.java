@@ -8,6 +8,8 @@ import com.facebook.presto.sql.tree.DereferenceExpression;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.QueryBody;
+import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
@@ -84,32 +86,20 @@ public class PrestoMaterializedViewService
     @Override
     public CompletableFuture<Void> create(String project, MaterializedView materializedView)
     {
-        Statement statement = sqlParser.createStatement(materializedView.query);
-        statement.accept(new DefaultTraversalVisitor<Void, Void>()
-        {
-            @Override
-            protected Void visitSelect(Select node, Void context)
-            {
-                for (SelectItem selectItem : node.getSelectItems()) {
-                    if (selectItem instanceof AllColumns) {
-                        throw new RakamException("Wildcard in select items is not supported in materialized views.", BAD_REQUEST);
-                    }
-                    if (selectItem instanceof SingleColumn) {
-                        SingleColumn selectColumn = (SingleColumn) selectItem;
-                        if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)
-                                && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
-                            throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
-                        }
-                        else {
-                            continue;
-                        }
-                    }
+        Query statement = (Query) sqlParser.createStatement(materializedView.query);
+        QuerySpecification queryBody = (QuerySpecification) statement.getQueryBody();
+        List<SelectItem> selectItems = queryBody.getSelect().getSelectItems();
+        if (selectItems.stream().anyMatch(e -> e instanceof AllColumns)) {
+            throw new RakamException("Wildcard in select items is not supported in materialized views.", BAD_REQUEST);
+        }
 
-                    throw new IllegalStateException();
-                }
-                return null;
+        for (SelectItem selectItem : selectItems) {
+            SingleColumn selectColumn = (SingleColumn) selectItem;
+            if (!selectColumn.getAlias().isPresent() && !(selectColumn.getExpression() instanceof QualifiedNameReference)
+                    && !(selectColumn.getExpression() instanceof DereferenceExpression)) {
+                throw new RakamException(format("Column '%s' must have alias", selectColumn.getExpression().toString()), BAD_REQUEST);
             }
-        }, null);
+        }
 
         StringBuilder builder = new StringBuilder();
         HashMap<String, String> map = new HashMap<>();
@@ -157,7 +147,7 @@ public class PrestoMaterializedViewService
 
         Map<String, String> sessionProperties = new HashMap<>();
         if (!materializedView.incremental) {
-            if (!materializedView.needsUpdate(Clock.systemUTC()) || !database.updateMaterializedView(project, materializedView, f)) {
+            if (!database.updateMaterializedView(project, materializedView, f)) {
                 return new MaterializedViewExecution(null, tableName);
             }
 
@@ -186,11 +176,9 @@ public class PrestoMaterializedViewService
 
             Instant lastUpdated = materializedView.lastUpdate;
             Instant now = Instant.now();
-            boolean needsUpdate = lastUpdated == null || Duration
-                    .between(lastUpdated, now).compareTo(materializedView.updateInterval) > 0;
 
             QueryExecution queryExecution;
-            if (needsUpdate && database.updateMaterializedView(project, materializedView, f)) {
+            if (database.updateMaterializedView(project, materializedView, f)) {
                 String query = formatSql(statement,
                         name -> {
                             String predicate = lastUpdated != null ? String.format("between from_unixtime(%d) and from_unixtime(%d)",
@@ -210,7 +198,7 @@ public class PrestoMaterializedViewService
             }
 
             String reference;
-            if (!needsUpdate || true) {
+            if (true) {
                 reference = materializedTableReference;
             }
             else {
