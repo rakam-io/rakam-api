@@ -38,14 +38,13 @@ public class User
 
         @JsonCreator
         public UserContext(@ApiParam("api_key") String apiKey,
-                @ApiParam(value = "writeKey", access = "internal") String writeKey,
                 @ApiParam(value = "library") Event.Library library,
                 @ApiParam(value = "api_library", access = "internal") String apiLibrary,
                 @ApiParam(value = "api_version", access = "internal") String apiVersion,
                 @ApiParam("upload_time") Long uploadTime,
                 @ApiParam("checksum") String checksum)
         {
-            this.apiKey = apiKey != null ? apiKey : writeKey;
+            this.apiKey = apiKey;
             this.library = library != null ? library : new Event.Library(apiLibrary, apiVersion);
             this.checksum = checksum;
             this.uploadTime = uploadTime;
