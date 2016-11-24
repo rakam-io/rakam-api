@@ -368,6 +368,10 @@ public class WebHookHttpService
                     finalBody = body;
                 }
 
+                if (finalBody == null || finalBody.equals("")) {
+                    finalBody = "{}";
+                }
+
                 Object scoped = ((Invocable) engine).invokeFunction("scoped",
                         request.params(),
                         finalBody,
