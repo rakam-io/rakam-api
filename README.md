@@ -79,9 +79,9 @@ Postgresql deployment type: (Best for < 1B events):
 
 If the data volume is big and you need support, please [contact us](https://rakam.io/contact) for Cloudformation template of Rakam for Presto deployment type.
 
-Cloudformation templates create a Opsworks stack in your AWS account for Rakam. You can easily monitor, scale and manage your Rakam cluster with with this Cloudformation templates.
+Cloudformation templates create a Opsworks stack in your AWS account for Rakam. You can easily monitor, scale and manage your Rakam cluster with these Cloudformation templates.
 
-Cloudformation is the recommended way to deploy Rakam in production because we handle high
+Cloudformation is the recommended way to deploy Rakam in production because AWS automatically handles most of the complexity like fail over and load-balancing.
 
 ### Custom
 
