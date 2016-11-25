@@ -1,7 +1,7 @@
 version: '2'
 services:
   rakam-db:
-    image: postgres:9.5.3
+    image: postgres:9.6.1
     environment:
       - POSTGRES_PASSWORD=dummy
       - POSTGRES_USER=rakam
