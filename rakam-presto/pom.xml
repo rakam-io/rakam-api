@@ -404,7 +404,7 @@
                             <goal>npm</goal>
                         </goals>
                         <configuration>
-                            <arguments>install kinesalite</arguments>
+                            <arguments>install kinesalite --prefix ./</arguments>
                         </configuration>
                     </execution>
                 </executions>
