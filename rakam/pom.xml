@@ -5,7 +5,7 @@
     <parent>
         <artifactId>rakam-root</artifactId>
         <groupId>org.rakam</groupId>
-        <version>0.8-SNAPSHOT</version>
+        <version>0.7-SNAPSHOT</version>
     </parent>
 
     <artifactId>rakam</artifactId>
@@ -315,7 +315,7 @@
                                 <argument>-classpath</argument>
                                 <!-- automatically creates the classpath using all project dependencies,
                                      also adding the project build directory -->
-                                <classpath />
+                                <classpath/>
                                 <argument>org.rakam.SystemRegistryGenerator</argument>
                                 <argument>json</argument>
                             </arguments>
@@ -334,7 +334,7 @@
                                 <argument>-classpath</argument>
                                 <!-- automatically creates the classpath using all project dependencies,
                                      also adding the project build directory -->
-                                <classpath />
+                                <classpath/>
                                 <argument>org.rakam.SystemRegistryGenerator</argument>
                                 <argument>properties</argument>
                             </arguments>
