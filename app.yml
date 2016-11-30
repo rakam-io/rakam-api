@@ -4,4 +4,4 @@ min_size: 1gb
 config:
   runcmd:
     - wget -qO- https://get.docker.com/ | sh
-    - docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.6.1 && docker run --link rakam-db --name rakam -d -p 9999:9999 -e RAKAM_CONFIG_LOCK-KEY=mylockkey buremba/rakam
+    - docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.6.1 && docker run --link rakam-db --name rakam -d -p 80:9999 -e RAKAM_CONFIG_LOCK-KEY=mylockkey buremba/rakam
