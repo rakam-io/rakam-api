@@ -1,11 +1,5 @@
 name: rakam
-image: ubuntu-14-04-x64
+image: coreos-1235.1.0
 config:
-  packages:
-    - git
-    - postgresql
   runcmd:
-    - mkdir /var/www
-    - cd /var/www && git clone git://github.com/rakam-io/rakam && cd rakam && ./mvnw install -DskipTests
-    - cd /var/www/rakam && mv config.yml.example config.yml
-    - cd /var/www/do-install-button && nohup rackup -p 80 &
+    - docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.6.1 && docker run --link rakam-db --name rakam -p 9999:9999 -e RAKAM_CONFIG_LOCK-KEY=mylockkey buremba/rakam
