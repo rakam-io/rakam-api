@@ -1,5 +1,5 @@
 name: rakam
-image: coreos-1235.1.0
+image: coreos-stable
 config:
   runcmd:
     - docker run -d --name rakam-db -e POSTGRES_PASSWORD=dummy -e POSTGRES_USER=rakam postgres:9.6.1 && docker run --link rakam-db --name rakam -p 9999:9999 -e RAKAM_CONFIG_LOCK-KEY=mylockkey buremba/rakam
