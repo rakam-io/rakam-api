@@ -15,7 +15,8 @@
     "crm"
   ],
   "addons": [
-    "heroku-postgresql:hobby-dev"
+    "heroku-postgresql:hobby-dev",
+    "logdna:quaco"
   ],
   "env": {
     "LOCK_KEY": {
