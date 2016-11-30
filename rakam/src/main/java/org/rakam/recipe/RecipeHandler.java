@@ -1,11 +1,14 @@
 package org.rakam.recipe;
 
+import com.facebook.presto.spi.type.StandardTypes;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
@@ -24,6 +27,8 @@ import java.util.stream.Collectors;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
+import static org.rakam.analysis.InternalConfig.USER_TYPE;
+import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.report.QueryError.create;
 
 public class RecipeHandler
@@ -31,12 +36,17 @@ public class RecipeHandler
     private final Metastore metastore;
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
+    private final ConfigManager configManager;
 
     @Inject
-    public RecipeHandler(Metastore metastore, ContinuousQueryService continuousQueryService,
+    public RecipeHandler(
+            Metastore metastore,
+            ContinuousQueryService continuousQueryService,
+            ConfigManager configManager,
             MaterializedViewService materializedViewService)
     {
         this.metastore = metastore;
+        this.configManager = configManager;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
     }
@@ -73,7 +83,20 @@ public class RecipeHandler
     public void installInternal(Recipe recipe, String project, boolean overrideExisting)
     {
         recipe.getCollections().forEach((collectionName, collection) -> {
-            List<SchemaField> build = collection.build();
+            List<SchemaField> build = collection.build().stream()
+                    .map(e -> {
+                        FieldType type;
+                        if (e.getName().equals("_user")) {
+                            type = configManager.setConfigOnce(project, USER_TYPE.name(), STRING);
+                        }
+                        else {
+                            type = e.getType();
+                        }
+                        SchemaField schemaField = new SchemaField(e.getName(), type, e.isUnique(), e.getDescriptiveName(), e.getDescription(), e.getCategory());
+                        return schemaField;
+                    })
+                    .collect(Collectors.toList());
+
             List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(project, collectionName,
                     ImmutableSet.copyOf(build));
             List<SchemaField> collisions = build.stream()

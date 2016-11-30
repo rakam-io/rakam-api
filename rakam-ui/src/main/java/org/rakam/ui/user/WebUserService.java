@@ -505,7 +505,7 @@ public class WebUserService
                     "FROM web_user_api_key_permission keys " +
                     "JOIN web_user_api_key ON (web_user_api_key.id = keys.api_key_id) " +
                     "JOIN web_user ON (web_user.id = keys.user_id) " +
-                    "WHERE web_user_api_key.user_id = :user AND web_user.id != :user " +
+                    "WHERE web_user_api_key.user_id = :user AND web_user.id != :user AND web_user_api_key.project_id = :project " +
                     "ORDER BY keys.created_at")
                     .bind("user", user)
                     .bind("project", project).map((i, resultSet, statementContext) -> {

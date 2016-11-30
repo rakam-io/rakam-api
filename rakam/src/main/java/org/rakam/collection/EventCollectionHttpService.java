@@ -177,16 +177,18 @@ public class EventCollectionHttpService
             EventMapper mapper = eventMappers.get(i);
             CompletableFuture<List<Cookie>> mapperCookies = mapperFunction.apply(mapper);
             if (COMPLETED_EMPTY_FUTURE.equals(mapperCookies)) {
-                continue;
+                if(futures != null) {
+                    futures[futureIndex++] = COMPLETED_FUTURE;
+                }
+            } else {
+                CompletableFuture<Void> future = mapperCookies.thenAccept(cookies::addAll);
+
+                if (futures == null) {
+                    futures = new CompletableFuture[eventMappers.size() - i];
+                }
+
+                futures[futureIndex++] = future;
             }
-
-            CompletableFuture<Void> future = mapperCookies.thenAccept(cookies::addAll);
-
-            if (futures == null) {
-                futures = new CompletableFuture[eventMappers.size() - i];
-            }
-
-            futures[futureIndex++] = future;
         }
 
         if (futures == null) {
@@ -289,7 +291,7 @@ public class EventCollectionHttpService
         });
     }
 
-    private InetAddress getRemoteAddress(String socketAddress)
+    public static InetAddress getRemoteAddress(String socketAddress)
     {
         try {
             return InetAddress.getByName(socketAddress);

@@ -59,7 +59,7 @@ public class JDBCApiKeyService
                     throws Exception
             {
                 try (Connection conn = connectionPool.getConnection()) {
-                    PreparedStatement ps = conn.prepareStatement(format("SELECT project FROM api_key WHERE %s = ?", apiKey.type.name()));
+                    PreparedStatement ps = conn.prepareStatement(format("SELECT lower(project) FROM api_key WHERE %s = ?", apiKey.type.name()));
                     ps.setString(1, apiKey.key);
                     ResultSet resultSet = ps.executeQuery();
                     if (!resultSet.next()) {

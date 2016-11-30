@@ -75,10 +75,9 @@ public class ProjectHttpService
         if (!Objects.equals(projectConfig.getLockKey(), lockKey)) {
             throw new RakamException("Lock key is invalid", FORBIDDEN);
         }
-
-        checkProject(name);
-        metastore.createProject(name.toLowerCase(ENGLISH));
-        return transformKeys(apiKeyService.createApiKeys(name));
+        String project = checkProject(name);
+        metastore.createProject(project);
+        return transformKeys(apiKeyService.createApiKeys(project));
     }
 
     @ApiOperation(value = "Delete project",

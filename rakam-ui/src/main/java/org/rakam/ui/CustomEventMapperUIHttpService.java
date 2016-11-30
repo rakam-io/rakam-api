@@ -21,15 +21,15 @@ import java.util.List;
 import java.util.Map;
 
 @IgnoreApi
-@Path("/ui/webhook")
-@Api(value = "/ui/webhook")
-public class WebHookUIHttpService
+@Path("/ui/custom-event-mapper")
+@Api(value = "/ui/custom-event-mapper")
+public class CustomEventMapperUIHttpService
         extends HttpService
 {
     private final DBI dbi;
 
     @Inject
-    public WebHookUIHttpService(
+    public CustomEventMapperUIHttpService(
             @com.google.inject.name.Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
     {
         this.dbi = new DBI(dataSource);
@@ -39,7 +39,7 @@ public class WebHookUIHttpService
     public void setup()
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS predefined_webhook (" +
+            handle.createStatement("CREATE TABLE IF NOT EXISTS predefined_event_mapper (" +
                     "  name VARCHAR(255) NOT NULL," +
                     "  image TEXT NOT NULL," +
                     "  description TEXT NOT NULL," +
@@ -52,14 +52,14 @@ public class WebHookUIHttpService
     }
 
     @GET
-    @ApiOperation(value = "List webhooks", response = Integer.class)
+    @ApiOperation(value = "List custom event mappers", response = Integer.class)
     @Path("/list")
-    public List<UIWebHook> list()
+    public List<UIEventMapper> list()
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, image, description, code, parameters FROM predefined_webhook")
+            return handle.createQuery("SELECT name, image, description, code, parameters FROM predefined_event_mapper")
                     .map((index, r, ctx) -> {
-                        return new UIWebHook(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
+                        return new UIEventMapper(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
                                 JsonHelper.read(r.getString(5), Map.class));
                     }).list();
         }
@@ -83,7 +83,7 @@ public class WebHookUIHttpService
         }
     }
 
-    public static class UIWebHook
+    public static class UIEventMapper
     {
         public final String name;
         public final String image;
@@ -92,7 +92,7 @@ public class WebHookUIHttpService
         public final Map<String, Parameter> parameters;
 
         @JsonCreator
-        public UIWebHook(@ApiParam("name") String name,
+        public UIEventMapper(@ApiParam("name") String name,
                 @ApiParam("image") String image,
                 @ApiParam("description") String description,
                 @ApiParam("code") String code,

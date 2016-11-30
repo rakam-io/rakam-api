@@ -20,10 +20,10 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
-import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpRequestException;
 import org.rakam.server.http.HttpService;
@@ -38,7 +38,6 @@ import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.AlreadyExistsException;
-import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
@@ -52,6 +51,7 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.script.Invocable;
+import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import javax.ws.rs.GET;
@@ -143,25 +143,12 @@ public class WebHookHttpService
         });
     }
 
-    static class ScriptEngineFilter
-            implements ClassFilter
-    {
-        @Override
-        public boolean exposeToScripts(String s)
-        {
-            if (s.equals(CryptUtil.class.getName())) {
-                return true;
-            }
-            return false;
-        }
-    }
-
     private static ScriptEngine getEngine(String params)
             throws ScriptException
     {
         ScriptEngine engine = new NashornScriptEngineFactory()
                 .getScriptEngine(new String[] {"-strict", "--no-syntax-extensions"},
-                        WebHookHttpService.class.getClassLoader(), new ScriptEngineFilter());
+                        WebHookHttpService.class.getClassLoader(), new JSCodeCompiler.NashornEngineFilter());
 
         engine.eval("" +
                 "quit = function() {};\n" +
@@ -332,6 +319,42 @@ public class WebHookHttpService
                         }
                     }).list();
         }
+    }
+
+    public static void main(String[] args)
+            throws ScriptException, NoSuchMethodException
+    {
+        long l = System.currentTimeMillis();
+        for (int i = 0; i < 1000; i++) {
+            ScriptEngine engine = new NashornScriptEngineFactory()
+                    .getScriptEngine(new String[] {"-strict", "--no-syntax-extensions"},
+                            WebHookHttpService.class.getClassLoader(), new JSCodeCompiler.NashornEngineFilter());
+
+            engine.eval("" +
+                    "quit = function() {};\n" +
+                    "exit = function() {};\n" +
+                    "print = function() {};\n" +
+//                    "echo = function() {};\n" +
+//                    "readFully = function() {};\n" +
+//                    "readLine = function() {};\n" +
+                    "load = function() {};\n" +
+                    "loadWithNewGlobal = function() {};\n" +
+                    "var test = [];\n" +
+                    "var main = function(map, denem) { var d = 1; \n" +
+                    "   test.push(1); return test; \n" +
+                    "};\n" +
+                    "");
+
+            ScriptContext bindings = engine.getContext();
+
+//            engine.eval("return function(event, requestParams, sourceAddress, responseHeaders) {\n" +
+//                    "\t//event.set('test', 4);\n" +
+//                    "\treturn null;\n" +
+//                    "}");
+        }
+
+
+        System.out.println(System.currentTimeMillis() - l);
     }
 
     @ApiOperation(value = "Test a webhook", authorizations = @Authorization(value = "master_key"))

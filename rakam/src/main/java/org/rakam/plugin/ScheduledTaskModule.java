@@ -1,26 +1,21 @@
-package org.rakam.aws.lambda;
+package org.rakam.plugin;
 
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.plugin.RakamModule;
+import org.rakam.analysis.eventexplorer.EventExplorerHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 
-import static io.airlift.configuration.ConfigBinder.configBinder;
-
-@ConditionalModule(config = "tasks.enable", value = "true")
 @AutoService(RakamModule.class)
-public class AWSLambdaModule extends RakamModule
+@ConditionalModule(config = "tasks.enable", value = "true")
+public class ScheduledTaskModule extends RakamModule
 {
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(AWSLambdaConfig.class);
-
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(ScheduledTaskHttpService.class);
-
     }
 
     @Override

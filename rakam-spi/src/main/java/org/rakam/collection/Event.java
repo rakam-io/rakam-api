@@ -146,10 +146,10 @@ public class Event
         private static final EventContext EMPTY_CONTEXT = new EventContext(null, null, null, null, null);
 
         @JsonProperty("api_key") public final String apiKey;
-        @JsonProperty(value = "library", required = false) public final Library library;
-        @JsonProperty(value = "api_version", required = false) public final String apiVersion;
-        @JsonProperty(value = "upload_time", required = false) public final Long uploadTime;
-        @JsonProperty(value = "checksum", required = false) public final String checksum;
+        @JsonProperty(value = "library") public final Library library;
+        @JsonProperty(value = "api_version") public final String apiVersion;
+        @JsonProperty(value = "upload_time") public final Long uploadTime;
+        @JsonProperty(value = "checksum") public final String checksum;
 
         @JsonCreator
         public EventContext(

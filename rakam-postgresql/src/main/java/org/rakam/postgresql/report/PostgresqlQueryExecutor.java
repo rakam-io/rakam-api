@@ -99,9 +99,9 @@ public class PostgresqlQueryExecutor
                     throw new RakamException("Schema does not exist: " + name.getPrefix().get().toString(), BAD_REQUEST);
             }
         }
-        else if (name.getSuffix().equals("_users")) {
+        else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {
             if (userServiceIsPostgresql) {
-                return project + "._users";
+                return project + ".users";
             }
             throw new RakamException("User implementation is not supported", EXPECTATION_FAILED);
         }

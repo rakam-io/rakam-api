@@ -97,7 +97,7 @@ public class ContinuousQueryHttpService extends HttpService {
                                              @ApiParam(value = "names", required = false) List<String> names) {
         Map<String, List<SchemaField>> schemas = service.getSchemas(project);
         if (schemas == null) {
-            throw new RakamException("project does not exist", HttpResponseStatus.NOT_FOUND);
+            throw new RakamException("Project does not exist", HttpResponseStatus.NOT_FOUND);
         }
         Stream<Collection> collectionStream = schemas.entrySet().stream()
                 .map(entry -> new Collection(entry.getKey(), entry.getValue()));

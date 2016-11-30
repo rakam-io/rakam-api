@@ -16,6 +16,7 @@ package org.rakam.plugin;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
+import org.rakam.*;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
@@ -27,6 +28,7 @@ import java.util.List;
 
 import static com.google.common.collect.ImmutableList.of;
 
+@Mapper(name = "Timestamp mapper", description = "Attaches or re-configures _time attribute of events.")
 public class TimestampEventMapper
         implements SyncEventMapper
 {

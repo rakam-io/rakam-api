@@ -14,6 +14,7 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.matcher.Matchers;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
+import com.google.inject.name.Names;
 import com.google.inject.spi.InjectionListener;
 import com.google.inject.spi.TypeEncounter;
 import com.google.inject.spi.TypeListener;
@@ -46,6 +47,7 @@ import org.rakam.http.WebServiceModule.ProjectPermissionParameterFactory;
 import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.InjectionHook;
+import org.rakam.plugin.RAsyncHttpClient;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserStorage;
@@ -64,18 +66,22 @@ import java.util.Set;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.lang.String.format;
 
-
-public final class ServiceStarter {
+public final class ServiceStarter
+{
     // TODO: find a way to move this from here
-    public static final String RAKAM_VERSION = "0.6";
+    public static final String RAKAM_VERSION = "0.7";
 
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
 
-    private ServiceStarter() throws InstantiationException {
+    private ServiceStarter()
+            throws InstantiationException
+    {
         throw new InstantiationException("The class is not created for instantiation");
     }
 
-    public static void main(String[] args) throws Throwable {
+    public static void main(String[] args)
+            throws Throwable
+    {
         if (args.length > 0) {
             System.setProperty("config", args[0]);
         }
@@ -90,7 +96,7 @@ public final class ServiceStarter {
 
         HttpServerConfig httpConfig = injector.getInstance(HttpServerConfig.class);
 
-        if(!httpConfig.getDisabled()) {
+        if (!httpConfig.getDisabled()) {
             WebServiceModule webServiceModule = injector.getInstance(WebServiceModule.class);
             injector.createChildInjector(webServiceModule);
         }
@@ -98,7 +104,8 @@ public final class ServiceStarter {
         LOGGER.info("======== SERVER STARTED ========");
     }
 
-    public static Set<Module> getModules() {
+    public static Set<Module> getModules()
+    {
         ImmutableSet.Builder<Module> builder = ImmutableSet.builder();
 
         ServiceLoader<RakamModule> modules = ServiceLoader.load(RakamModule.class);
@@ -115,26 +122,33 @@ public final class ServiceStarter {
         return builder.build();
     }
 
-    public static class FieldDependencyProvider implements Provider<FieldDependencyBuilder.FieldDependency> {
+    public static class FieldDependencyProvider
+            implements Provider<FieldDependencyBuilder.FieldDependency>
+    {
 
         private final Set<EventMapper> eventMappers;
 
         @Inject
-        public FieldDependencyProvider(Set<EventMapper> eventMappers) {
+        public FieldDependencyProvider(Set<EventMapper> eventMappers)
+        {
             this.eventMappers = eventMappers;
         }
 
         @Override
-        public FieldDependencyBuilder.FieldDependency get() {
+        public FieldDependencyBuilder.FieldDependency get()
+        {
             FieldDependencyBuilder builder = new FieldDependencyBuilder();
             eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
             return builder.build();
         }
     }
 
-    public static class ServiceRecipe extends AbstractConfigurationAwareModule {
+    public static class ServiceRecipe
+            extends AbstractConfigurationAwareModule
+    {
         @Override
-        protected void setup(Binder binder) {
+        protected void setup(Binder binder)
+        {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
 
             binder.bind(FieldDependencyBuilder.FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
@@ -147,19 +161,23 @@ public final class ServiceStarter {
             OptionalBinder.newOptionalBinder(binder, UserStorage.class);
             OptionalBinder.newOptionalBinder(binder, UserMailboxStorage.class);
 
-            EventBus eventBus = new EventBus(new SubscriberExceptionHandler() {
+            EventBus eventBus = new EventBus(new SubscriberExceptionHandler()
+            {
                 Logger logger = Logger.get("System Event Listener");
 
                 @Override
-                public void handleException(Throwable exception, SubscriberExceptionContext context) {
+                public void handleException(Throwable exception, SubscriberExceptionContext context)
+                {
                     logger.error(exception, "Could not dispatch event: " +
-                            context.getSubscriber() + " to " + context.getSubscriberMethod(),  exception.getCause());
+                            context.getSubscriber() + " to " + context.getSubscriberMethod(), exception.getCause());
                 }
             });
             binder.bind(EventBus.class).toInstance(eventBus);
 
-            binder.bindListener(Matchers.any(), new TypeListener() {
-                public void hear(TypeLiteral typeLiteral, TypeEncounter typeEncounter) {
+            binder.bindListener(Matchers.any(), new TypeListener()
+            {
+                public void hear(TypeLiteral typeLiteral, TypeEncounter typeEncounter)
+                {
                     typeEncounter.register((InjectionListener) i -> eventBus.register(i));
                 }
             });
@@ -195,6 +213,13 @@ public final class ServiceStarter {
             configBinder(binder).bindConfig(ProjectConfig.class);
             configBinder(binder).bindConfig(EncryptionConfig.class);
 
+            binder.bind(RAsyncHttpClient.class)
+                    .annotatedWith(Names.named("rakam-client"))
+                    .toProvider(() -> {
+                        return RAsyncHttpClient.create(10000, "rakam-custom-script");
+                    })
+                    .in(Scopes.SINGLETON);
+
             OptionalBinder.newOptionalBinder(binder,
                     Key.get(HttpRequestHandler.class, NotFoundHandler.class));
 
@@ -207,19 +232,21 @@ public final class ServiceStarter {
         }
     }
 
-
-
-    public static class ProjectPermissionParameterProvider implements Provider<CustomParameter> {
+    public static class ProjectPermissionParameterProvider
+            implements Provider<CustomParameter>
+    {
 
         private final ApiKeyService apiKeyService;
 
         @Inject
-        public ProjectPermissionParameterProvider(ApiKeyService apiKeyService) {
+        public ProjectPermissionParameterProvider(ApiKeyService apiKeyService)
+        {
             this.apiKeyService = apiKeyService;
         }
 
         @Override
-        public CustomParameter get() {
+        public CustomParameter get()
+        {
             return new CustomParameter("project", new ProjectPermissionParameterFactory(apiKeyService));
         }
     }

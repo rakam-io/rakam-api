@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 import java.util.Locale;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.util.Locale.ENGLISH;
 
 public final class ValidationUtil
 {
@@ -16,12 +17,13 @@ public final class ValidationUtil
         throw new InstantiationException("The class is not created for instantiation");
     }
 
-    public static void checkProject(String project)
+    public static String checkProject(String project)
     {
         checkArgument(project != null, "project is null");
         if (!project.matches("^[0-9A-Za-z_]+$")) {
             throw new IllegalArgumentException("Project id is not valid.");
         }
+        return project.toLowerCase(ENGLISH);
     }
 
     public static <T> T checkNotNull(T value, String name)

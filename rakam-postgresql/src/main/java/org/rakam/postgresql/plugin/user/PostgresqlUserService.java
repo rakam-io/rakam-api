@@ -32,6 +32,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
+import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 public class PostgresqlUserService
@@ -61,7 +62,7 @@ public class PostgresqlUserService
                 .filter(entry -> entry.getValue().stream().anyMatch(field -> field.getName().equals("_time")))
                 .map(entry ->
                         format("select '%s' as collection, row_to_json(coll) json, _time from %s.%s coll where _user = '%s' %s",
-                                entry.getKey(), checkCollection(project), checkCollection(entry.getKey()), user,
+                                entry.getKey(), checkCollection(project), checkCollection(entry.getKey()), checkLiteral(user),
                                 beforeThisTime == null ? "" : format("and _time < timestamp '%s'", beforeThisTime.toString())))
                 .collect(Collectors.joining(" union all "));
 

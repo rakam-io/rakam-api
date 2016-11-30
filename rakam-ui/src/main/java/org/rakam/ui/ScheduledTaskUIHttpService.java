@@ -1,6 +1,7 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.server.http.HttpService;
@@ -21,16 +22,15 @@ import java.util.List;
 import java.util.Map;
 
 @IgnoreApi
-@Path("/ui/webhook")
-@Api(value = "/ui/webhook")
-public class WebHookUIHttpService
+@Path("/ui/scheduled-task")
+@Api(value = "/ui/scheduled-task")
+public class ScheduledTaskUIHttpService
         extends HttpService
 {
     private final DBI dbi;
 
     @Inject
-    public WebHookUIHttpService(
-            @com.google.inject.name.Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
+    public ScheduledTaskUIHttpService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
     {
         this.dbi = new DBI(dataSource);
     }
@@ -39,7 +39,7 @@ public class WebHookUIHttpService
     public void setup()
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS predefined_webhook (" +
+            handle.createStatement("CREATE TABLE IF NOT EXISTS predefined_scheduled_task (" +
                     "  name VARCHAR(255) NOT NULL," +
                     "  image TEXT NOT NULL," +
                     "  description TEXT NOT NULL," +
@@ -52,14 +52,14 @@ public class WebHookUIHttpService
     }
 
     @GET
-    @ApiOperation(value = "List webhooks", response = Integer.class)
+    @ApiOperation(value = "List scheduled job", response = Integer.class)
     @Path("/list")
-    public List<UIWebHook> list()
+    public List<ScheduledTask> list()
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT name, image, description, code, parameters FROM predefined_webhook")
+            return handle.createQuery("SELECT name, image, description, code, parameters FROM predefined_scheduled_task")
                     .map((index, r, ctx) -> {
-                        return new UIWebHook(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
+                        return new ScheduledTask(r.getString(1), r.getString(2), r.getString(3), r.getString(4),
                                 JsonHelper.read(r.getString(5), Map.class));
                     }).list();
         }
@@ -83,7 +83,7 @@ public class WebHookUIHttpService
         }
     }
 
-    public static class UIWebHook
+    public static class ScheduledTask
     {
         public final String name;
         public final String image;
@@ -92,7 +92,7 @@ public class WebHookUIHttpService
         public final Map<String, Parameter> parameters;
 
         @JsonCreator
-        public UIWebHook(@ApiParam("name") String name,
+        public ScheduledTask(@ApiParam("name") String name,
                 @ApiParam("image") String image,
                 @ApiParam("description") String description,
                 @ApiParam("code") String code,

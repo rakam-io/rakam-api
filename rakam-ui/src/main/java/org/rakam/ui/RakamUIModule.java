@@ -19,7 +19,6 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
 import org.rakam.server.http.HttpRequestHandler;
-import org.rakam.server.http.HttpServerHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.ui.UIEvents.ProjectCreatedEvent;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
@@ -101,6 +100,8 @@ public class RakamUIModule
         httpServices.addBinding().to(CustomPageHttpService.class);
         httpServices.addBinding().to(ProxyWebService.class);
         httpServices.addBinding().to(WebHookUIHttpService.class);
+        httpServices.addBinding().to(ScheduledTaskUIHttpService.class);
+        httpServices.addBinding().to(CustomEventMapperUIHttpService.class);
         httpServices.addBinding().to(ClusterService.class);
         httpServices.addBinding().to(UIRecipeHttpService.class);
         if (rakamUIConfig.getStripeKey() != null) {
