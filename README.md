@@ -37,6 +37,10 @@ You can deploy Rakam to Heroku using Heroku button, it uses Heroku Postgresql ad
 
 [![Deploy](https://www.herokucdn.com/deploy/button.png)](https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam&template=https%3A%2F%2Fgithub.com%2Frakam-io%2Frakam)
 
+### Digitalocean
+
+[![Install on DigitalOcean](http://installer.71m.us/button.svg)](http://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
+
 ### Docker
 
 Run the following command to start a Postgresql server in docker container and Rakam API in your local environment.
