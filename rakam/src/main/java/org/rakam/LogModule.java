@@ -15,20 +15,26 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 
 @AutoService(RakamModule.class)
-public class LogModule extends RakamModule
+public class LogModule
+        extends RakamModule
 {
+    private static final String SENTRY_DSN = "https://b507ce9416da4799a8379ddf93ec4056:10c3db26414240489f124f65b360601e@app.getsentry.com/62493";
+
     @Override
     protected void setup(Binder binder)
     {
         LogManager manager = LogManager.getLogManager();
-        if (buildConfigObject(LogConfig.class).getLogActive()) {
+        LogConfig logConfig = buildConfigObject(LogConfig.class);
+        if (logConfig.getLogActive()) {
             if (!Arrays.stream(manager.getLogger("").getHandlers())
                     .anyMatch(e -> e instanceof SentryHandler)) {
                 SentryHandler sentryHandler = new SentryHandler();
-                sentryHandler.setDsn("https://b507ce9416da4799a8379ddf93ec4056:10c3db26414240489f124f65b360601e@app.getsentry.com/62493");
+                sentryHandler.setDsn(SENTRY_DSN);
                 LogManager.getLogManager().getLogger("").addHandler(sentryHandler);
                 URL gitProps = LogUtil.class.getResource("/git.properties");
-                if(gitProps != null) {
+                sentryHandler.setTags(logConfig.getTags());
+
+                if (gitProps != null) {
                     Properties properties = new Properties();
                     try {
                         properties.load(gitProps.openStream());
@@ -56,8 +62,10 @@ public class LogModule extends RakamModule
         return null;
     }
 
-    public static class LogConfig {
+    public static class LogConfig
+    {
         private boolean logActive = true;
+        private String tags;
 
         @Config("log-active")
         public LogConfig setLogActive(boolean logActive)
@@ -69,6 +77,18 @@ public class LogModule extends RakamModule
         public boolean getLogActive()
         {
             return logActive;
+        }
+
+        @Config("log-identifier")
+        public LogConfig setTags(String tags)
+        {
+            this.tags = tags;
+            return this;
+        }
+
+        public String getTags()
+        {
+            return tags;
         }
     }
 }
