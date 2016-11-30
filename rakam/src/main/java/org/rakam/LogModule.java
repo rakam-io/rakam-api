@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 @AutoService(RakamModule.class)
 public class LogModule
@@ -28,11 +29,13 @@ public class LogModule
         if (logConfig.getLogActive()) {
             if (!Arrays.stream(manager.getLogger("").getHandlers())
                     .anyMatch(e -> e instanceof SentryHandler)) {
+                Logger rootLogger = manager.getLogger("");
+
                 SentryHandler sentryHandler = new SentryHandler();
                 sentryHandler.setDsn(SENTRY_DSN);
-                LogManager.getLogManager().getLogger("").addHandler(sentryHandler);
-                URL gitProps = LogUtil.class.getResource("/git.properties");
                 sentryHandler.setTags(logConfig.getTags());
+
+                URL gitProps = LogUtil.class.getResource("/git.properties");
 
                 if (gitProps != null) {
                     Properties properties = new Properties();
@@ -45,7 +48,7 @@ public class LogModule
                     sentryHandler.setRelease(properties.get("git.commit.id.describe").toString());
                     sentryHandler.setLevel(Level.SEVERE);
                 }
-                manager.getLogger("").addHandler(sentryHandler);
+                rootLogger.addHandler(sentryHandler);
             }
         }
     }

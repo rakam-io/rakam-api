@@ -16,7 +16,7 @@
   ],
   "addons": [
     "heroku-postgresql:hobby-dev",
-    "logdna:quaco"
+    "papertrail:choklad"
   ],
   "env": {
     "LOCK_KEY": {
