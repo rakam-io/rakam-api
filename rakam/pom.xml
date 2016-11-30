@@ -129,6 +129,10 @@
             <artifactId>jackson-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.getsentry.raven</groupId>
+            <artifactId>raven</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.swagger</groupId>
             <artifactId>swagger-models</artifactId>
         </dependency>
@@ -399,8 +403,6 @@
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip-maxmind
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-geoip-ip2location
-                                </ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>com.getsentry.raven:raven
                                 </ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>org.rakam:rakam-mapper-website
                                 </ignoredUnusedDeclaredDependency>

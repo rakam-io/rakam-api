@@ -1,0 +1,11 @@
+name: rakam
+image: ubuntu-14-04-x64
+config:
+  packages:
+    - git
+    - postgresql
+  runcmd:
+    - mkdir /var/www
+    - cd /var/www && git clone git://github.com/rakam-io/rakam && cd rakam && ./mvnw install -DskipTests
+    - cd /var/www/rakam && mv config.yml.example config.yml
+    - cd /var/www/do-install-button && nohup rackup -p 80 &

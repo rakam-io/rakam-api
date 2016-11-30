@@ -8,20 +8,15 @@ import com.getsentry.raven.event.interfaces.ExceptionInterface;
 import com.getsentry.raven.event.interfaces.HttpInterface;
 import com.getsentry.raven.jul.SentryHandler;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.ByteStreams;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.report.QueryError;
 import org.rakam.report.QueryExecutor;
 import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.RakamServletWrapper;
 
-import java.io.IOException;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
-import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 
