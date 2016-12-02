@@ -70,7 +70,7 @@ public class EventListDeserializer
         jp.nextToken();
 
         if (t != FIELD_NAME) {
-            throw new JsonParseException("", jp.getCurrentLocation());
+            throw new JsonParseException(jp, "", jp.getCurrentLocation());
         }
 
         if (fieldName.equals("api")) {
@@ -127,7 +127,7 @@ public class EventListDeserializer
             }
         }
 
-        if(project == null) {
+        if (project == null) {
             masterKey = true;
             try {
                 project = apiKeyService.getProjectOfApiKey(context.apiKey, MASTER_KEY);

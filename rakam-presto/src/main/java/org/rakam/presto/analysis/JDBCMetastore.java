@@ -59,8 +59,8 @@ public class JDBCMetastore extends AbstractMetastore {
             .collect(Collectors.toMap(JDBCMetastore::toSql, a -> a));
 
     @Inject
-    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency) {
-        super(fieldDependency, eventBus);
+    public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, EventBus eventBus) {
+        super(eventBus);
         this.config = config;
 
         this.prestoConnectionFactory = () -> {
@@ -112,7 +112,6 @@ public class JDBCMetastore extends AbstractMetastore {
     @PostConstruct
     public void setup() {
         setupTables();
-        super.checkExistingSchema();
     }
 
     private void setupTables() {

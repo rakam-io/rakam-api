@@ -1,6 +1,5 @@
 package org.rakam.recipe;
 
-import com.facebook.presto.spi.type.StandardTypes;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -8,6 +7,7 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.plugin.ContinuousQuery;
@@ -19,6 +19,7 @@ import org.rakam.util.RakamException;
 import javax.inject.Inject;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -37,16 +38,19 @@ public class RecipeHandler
     private final ContinuousQueryService continuousQueryService;
     private final MaterializedViewService materializedViewService;
     private final ConfigManager configManager;
+    private final SchemaChecker schemaChecker;
 
     @Inject
     public RecipeHandler(
             Metastore metastore,
             ContinuousQueryService continuousQueryService,
             ConfigManager configManager,
+            SchemaChecker schemaChecker,
             MaterializedViewService materializedViewService)
     {
         this.metastore = metastore;
         this.configManager = configManager;
+        this.schemaChecker = schemaChecker;
         this.materializedViewService = materializedViewService;
         this.continuousQueryService = continuousQueryService;
     }
@@ -97,8 +101,9 @@ public class RecipeHandler
                     })
                     .collect(Collectors.toList());
 
-            List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(project, collectionName,
-                    ImmutableSet.copyOf(build));
+            HashSet<SchemaField> schemaFields = schemaChecker.checkNewFields(collectionName, ImmutableSet.copyOf(build));
+            List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(project, collectionName, schemaFields);
+
             List<SchemaField> collisions = build.stream()
                     .filter(f -> fields.stream().anyMatch(field -> field.getName().equals(f.getName()) && !f.getType().equals(field.getType())))
                     .collect(Collectors.toList());

@@ -45,6 +45,7 @@ public class ScheduledTaskUIHttpService
                     "  description TEXT NOT NULL," +
                     "  code TEXT," +
                     "  parameters TEXT," +
+                    "  default_interval TEXT," +
                     "  PRIMARY KEY (name)" +
                     "  )")
                     .execute();
@@ -68,16 +69,19 @@ public class ScheduledTaskUIHttpService
     public static class Parameter
     {
         public final FieldType type;
+        public final Object value;
         public final String placeholder;
         public final String description;
 
         @JsonCreator
         public Parameter(
                 @ApiParam("type") FieldType type,
+                @ApiParam("value") Object value,
                 @ApiParam("placeholder") String placeholder,
                 @ApiParam("description") String description)
         {
             this.type = type;
+            this.value = value;
             this.placeholder = placeholder;
             this.description = description;
         }

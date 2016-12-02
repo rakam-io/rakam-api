@@ -24,7 +24,7 @@ public class TestingConfigManager
 
     @Override
     public synchronized <T> T setConfigOnce(String project, String configName, T clazz) {
-        Object o = table.column(project).putIfAbsent(configName, clazz);
+        Object o = table.row(project).putIfAbsent(configName, clazz);
         return o == null ? clazz : (T) o;
     }
 
@@ -32,5 +32,10 @@ public class TestingConfigManager
     public void clear()
     {
         table.clear();
+    }
+
+    public Table<String, String, Object> getTable()
+    {
+        return table;
     }
 }

@@ -15,8 +15,7 @@ public class TestJdbcMetastore
     @BeforeMethod
     public void setUpMethod() throws Exception {
         TestingEnvironment testingEnvironment = new TestingEnvironment();
-        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
-                new EventBus(), new FieldDependencyBuilder().build(), testingEnvironment.getPrestoConfig());
+        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), testingEnvironment.getPrestoConfig());
         metastore.setup();
     }
 

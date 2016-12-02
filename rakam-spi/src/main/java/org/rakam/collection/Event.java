@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.google.common.collect.ImmutableMultimap;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.rakam.server.http.annotations.ApiParam;
 
@@ -18,10 +20,10 @@ public class Event
     private final String project;
     private final String collection;
     @JsonIgnore
-    private final List<SchemaField> schema;
+    private List<SchemaField> schema;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private EventContext api;
-    private final GenericRecord properties;
+    private GenericRecord properties;
 
     @JsonCreator
     public Event(@ApiParam("collection") String collection,
@@ -126,6 +128,13 @@ public class Event
         result = 31 * result + (api != null ? api.hashCode() : 0);
         result = 31 * result + properties.hashCode();
         return result;
+    }
+
+    // TODO: find a way to make this class immutable
+    public void properties(GenericData.Record record, List<SchemaField> fields)
+    {
+        properties = record;
+        schema = fields;
     }
 
     public static class Library

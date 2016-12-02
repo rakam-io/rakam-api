@@ -38,7 +38,7 @@ public class TestPostgresqlEventExplorer
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         EventBus eventBus = new EventBus();
 
-        metastore = new PostgresqlMetastore(dataSource, eventBus, build);
+        metastore = new PostgresqlMetastore(dataSource, eventBus);
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
 
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,

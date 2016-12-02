@@ -153,6 +153,10 @@ public class MaxmindGeoIPEventMapper
             return null;
         }
 
+        if(addr == null) {
+            return null;
+        }
+
         if (connectionTypeLookup != null) {
             setConnectionType(addr, event.properties());
         }
@@ -173,17 +177,17 @@ public class MaxmindGeoIPEventMapper
     {
         for (ISingleUserBatchOperation data : user) {
             if (data.getSetProperties() != null) {
-                mapInternal(project, data.getSetProperties(), sourceAddress);
+                mapInternal(data.getSetProperties(), sourceAddress);
             }
             if (data.getSetPropertiesOnce() != null) {
-                mapInternal(project, data.getSetPropertiesOnce(), sourceAddress);
+                mapInternal(data.getSetPropertiesOnce(), sourceAddress);
             }
         }
 
         return null;
     }
 
-    public void mapInternal(String project, ObjectNode data, InetAddress sourceAddress)
+    public void mapInternal(ObjectNode data, InetAddress sourceAddress)
     {
         Object ip = data.get("_ip");
 
@@ -199,6 +203,10 @@ public class MaxmindGeoIPEventMapper
             catch (UnknownHostException e) {
                 return;
             }
+        }
+
+        if(sourceAddress == null) {
+            return;
         }
 
         GenericRecord record = new MapProxyGenericRecord(data);

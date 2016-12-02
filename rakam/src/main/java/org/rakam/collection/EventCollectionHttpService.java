@@ -167,7 +167,7 @@ public class EventCollectionHttpService
         csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
 
-    public CompletableFuture<List<Cookie>> mapEvent(Function<EventMapper, CompletableFuture<List<Cookie>>> mapperFunction)
+    public static CompletableFuture<List<Cookie>> mapEvent(List<EventMapper> eventMappers, Function<EventMapper, CompletableFuture<List<Cookie>>> mapperFunction)
     {
         List<Cookie> cookies = new ArrayList<>();
         CompletableFuture[] futures = null;
@@ -240,7 +240,7 @@ public class EventCollectionHttpService
                     return;
                 }
 
-                cookiesFuture = mapEvent((mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
+                cookiesFuture = mapEvent(eventMappers, (mapper) -> mapper.mapAsync(event, new HttpRequestParams(request),
                         getRemoteAddress(socketAddress), response.trailingHeaders()));
                 cookiesFuture.thenAccept(v -> eventStore.store(event));
             }
@@ -673,7 +673,7 @@ public class EventCollectionHttpService
                 InetAddress remoteAddress = getRemoteAddress(request.getRemoteAddress());
 
                 if (mapEvents) {
-                    entries = mapEvent((m) -> m.mapAsync(events, new HttpRequestParams(request),
+                    entries = mapEvent(eventMappers, (m) -> m.mapAsync(events, new HttpRequestParams(request),
                             remoteAddress, responseHeaders));
                 }
                 else {

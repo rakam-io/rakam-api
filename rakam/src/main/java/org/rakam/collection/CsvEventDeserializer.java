@@ -14,6 +14,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.DateTimeUtils;
 import org.rakam.util.RakamException;
@@ -53,14 +54,18 @@ public class CsvEventDeserializer
     private final ConfigManager configManager;
     private final Map<String, List<SchemaField>> dependentFields;
     private final JsonFactory jsonFactory = new JsonFactory();
+    private final SchemaChecker schemaChecker;
 
     @Inject
-    public CsvEventDeserializer(Metastore metastore, ConfigManager configManager,
+    public CsvEventDeserializer(
+            Metastore metastore,
+            ConfigManager configManager,
+            SchemaChecker schemaChecker,
             FieldDependency fieldDependency)
     {
         this.metastore = metastore;
-
         this.configManager = configManager;
+        this.schemaChecker = schemaChecker;
         this.constantFields = fieldDependency.constantFields;
         this.dependentFields = fieldDependency.dependentFields;
     }
@@ -154,7 +159,8 @@ public class CsvEventDeserializer
         }
 
         if (!newFields.isEmpty()) {
-            fields = metastore.getOrCreateCollectionFieldList(project, collection, newFields);
+            fields = metastore.getOrCreateCollectionFieldList(project, collection,
+                    schemaChecker.checkNewFields(collection, newFields));
         }
 
         final List<SchemaField> finalFields = fields;

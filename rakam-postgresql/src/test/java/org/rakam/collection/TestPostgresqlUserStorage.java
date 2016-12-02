@@ -39,9 +39,8 @@ public class TestPostgresqlUserStorage
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig(), "set time zone 'UTC'");
 
-        FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         EventBus eventBus = new EventBus();
-        metastore = new PostgresqlMetastore(dataSource, eventBus, build);
+        metastore = new PostgresqlMetastore(dataSource, eventBus);
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
 
@@ -49,7 +48,6 @@ public class TestPostgresqlUserStorage
 
         configManager = new PostgresqlConfigManager(dataSource);
         configManager.setup();
-        InMemoryEventStore inMemoryEventStore = new InMemoryEventStore();
         PostgresqlUserStorage userStorage = new PostgresqlUserStorage(materializedViewService, configManager, queryExecutor);
         userService = new PostgresqlUserService(userStorage, metastore, queryExecutor);
         super.setUp();

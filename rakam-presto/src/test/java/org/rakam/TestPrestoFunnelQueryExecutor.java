@@ -40,8 +40,7 @@ public class TestPrestoFunnelQueryExecutor extends TestFunnelQueryExecutor {
 
         EventBus eventBus = new EventBus();
 
-        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
-                eventBus, new FieldDependencyBuilder().build(), prestoConfig);
+        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(), eventBus, prestoConfig);
         metastore.setup();
 
         PrestoQueryExecutor prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, null, null, metastore);

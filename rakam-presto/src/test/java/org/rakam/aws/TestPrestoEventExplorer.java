@@ -51,9 +51,7 @@ public class TestPrestoEventExplorer
         metastoreDataSource = JDBCPoolDataSource.getOrCreateDataSource(postgresqlConfig);
         queryMetadataStore = new InMemoryQueryMetadataStore();
 
-        FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
-        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
-                new EventBus(), build, prestoConfig);
+        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), prestoConfig);
         metastore.setup();
 
         prestoQueryExecutor = new PrestoQueryExecutor(prestoConfig, null, null, metastore);

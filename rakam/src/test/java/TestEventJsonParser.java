@@ -9,6 +9,7 @@ import org.rakam.TestingConfigManager;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventList;
 import org.rakam.collection.JsonEventDeserializer;
@@ -48,7 +49,8 @@ public class TestEventJsonParser
         apiKeyService = new InMemoryApiKeyService();
         metastore = new InMemoryMetastore(apiKeyService);
 
-        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), fieldDependency);
+        SchemaChecker schemaChecker = new SchemaChecker(metastore, fieldDependency);
+        eventDeserializer = new JsonEventDeserializer(metastore, apiKeyService, new TestingConfigManager(), schemaChecker, fieldDependency);
         EventListDeserializer eventListDeserializer = new EventListDeserializer(apiKeyService, eventDeserializer);
 
         mapper = JsonHelper.getMapper();

@@ -19,6 +19,7 @@ import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.config.MetadataConfig;
 import org.rakam.plugin.InjectionHook;
 import org.rakam.plugin.RakamModule;
@@ -147,9 +148,10 @@ public class RecipeModule extends RakamModule {
         public RecipeLoader(Recipe recipe, Metastore metastore,
                             ContinuousQueryService continuousQueryService,
                             ConfigManager configManager,
+                            SchemaChecker schemaChecker,
                             MaterializedViewService materializedViewService) {
             this.recipe = recipe;
-            this.installer = new RecipeHandler(metastore, continuousQueryService, configManager, materializedViewService);
+            this.installer = new RecipeHandler(metastore, continuousQueryService, configManager, schemaChecker, materializedViewService);
         }
 
         @Subscribe

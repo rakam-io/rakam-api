@@ -24,8 +24,7 @@ public class TestPrestoContinuousQueryService  {
     public void setUp() throws Exception {
         testEnvironment = new TestingEnvironment();
 
-        metastore = new PrestoMetastore(testEnvironment.getPrestoMetastore(),
-                new EventBus(), new FieldDependencyBuilder().build(), testEnvironment.getPrestoConfig());
+        metastore = new PrestoMetastore(testEnvironment.getPrestoMetastore(), new EventBus(), testEnvironment.getPrestoConfig());
         metastore.setup();
 
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();

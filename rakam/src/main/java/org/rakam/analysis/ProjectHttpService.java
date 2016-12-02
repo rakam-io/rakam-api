@@ -3,6 +3,7 @@ package org.rakam.analysis;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.ContinuousQuery;
@@ -52,10 +53,12 @@ public class ProjectHttpService
     private final MaterializedViewService materializedViewService;
     private final ApiKeyService apiKeyService;
     private final ProjectConfig projectConfig;
+    private final SchemaChecker schemaChecker;
 
     @Inject
     public ProjectHttpService(Metastore metastore,
             ProjectConfig projectConfig,
+            SchemaChecker schemaChecker,
             MaterializedViewService materializedViewService,
             ApiKeyService apiKeyService,
             ContinuousQueryService continuousQueryService)
@@ -64,6 +67,7 @@ public class ProjectHttpService
         this.materializedViewService = materializedViewService;
         this.apiKeyService = apiKeyService;
         this.metastore = metastore;
+        this.schemaChecker = schemaChecker;
         this.projectConfig = projectConfig;
     }
 
@@ -161,7 +165,8 @@ public class ProjectHttpService
             @ApiParam("collection") String collection,
             @ApiParam("fields") Set<SchemaField> fields)
     {
-        return metastore.getOrCreateCollectionFieldList(project, collection, fields);
+        return metastore.getOrCreateCollectionFieldList(project, collection,
+                schemaChecker.checkNewFields(collection, fields));
     }
 
     @JsonRequest
@@ -174,7 +179,8 @@ public class ProjectHttpService
             @ApiParam("schema_type") SchemaConverter type,
             @ApiParam("schema") String schema)
     {
-        return metastore.getOrCreateCollectionFieldList(project, collection, type.getMapper().apply(schema));
+        return metastore.getOrCreateCollectionFieldList(project, collection,
+                schemaChecker.checkNewFields(collection, type.getMapper().apply(schema)));
     }
 
     @JsonRequest

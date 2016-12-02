@@ -325,20 +325,18 @@ public class PostgresqlModule extends RakamModule {
 
         private final JDBCPoolDataSource connectionPool;
         private final EventBus eventBus;
-        private final FieldDependencyBuilder.FieldDependency fieldDependency;
 
         @Inject
         public PostgresqlMetastoreProvider(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency)
         {
             this.connectionPool = connectionPool;
             this.eventBus = eventBus;
-            this.fieldDependency = fieldDependency;
         }
 
         @Override
         public PostgresqlMetastore get()
         {
-            PostgresqlMetastore postgresqlMetastore = new PostgresqlMetastore(connectionPool, eventBus, fieldDependency);
+            PostgresqlMetastore postgresqlMetastore = new PostgresqlMetastore(connectionPool, eventBus);
             postgresqlMetastore.setup();
             return postgresqlMetastore;
         }

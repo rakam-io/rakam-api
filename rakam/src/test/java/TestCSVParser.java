@@ -10,6 +10,7 @@ import org.rakam.TestingConfigManager;
 import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.CsvEventDeserializer;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventList;
@@ -31,9 +32,9 @@ public class TestCSVParser {
         CsvMapper mapper = new CsvMapper();
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
-        Metastore metastore = new InMemoryMetastore(build, new InMemoryApiKeyService(), new EventBus());
+        Metastore metastore = new InMemoryMetastore(new InMemoryApiKeyService(), new EventBus());
         mapper.registerModule(new SimpleModule().addDeserializer(EventList.class,
-                new CsvEventDeserializer(metastore, new TestingConfigManager(), build)));
+                new CsvEventDeserializer(metastore, new TestingConfigManager(), new SchemaChecker(metastore, build), build)));
 
         metastore.createProject("project");
         metastore.getOrCreateCollectionFieldList("project", "collection",

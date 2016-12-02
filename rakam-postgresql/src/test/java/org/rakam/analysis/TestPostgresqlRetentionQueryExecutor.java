@@ -32,7 +32,7 @@ public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExec
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
-        metastore = new PostgresqlMetastore(dataSource, new EventBus(), build);
+        metastore = new PostgresqlMetastore(dataSource, new EventBus());
 
         PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
         eventStore = new PostgresqlEventStore(dataSource, build);

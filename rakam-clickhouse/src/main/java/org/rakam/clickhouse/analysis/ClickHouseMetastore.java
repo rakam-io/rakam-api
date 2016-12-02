@@ -34,9 +34,9 @@ public class ClickHouseMetastore
     private final ClickHouseConfig config;
 
     @Inject
-    public ClickHouseMetastore(ClickHouseConfig config, FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus)
+    public ClickHouseMetastore(ClickHouseConfig config, EventBus eventBus)
     {
-        super(fieldDependency, eventBus);
+        super(eventBus);
         this.config = config;
     }
 

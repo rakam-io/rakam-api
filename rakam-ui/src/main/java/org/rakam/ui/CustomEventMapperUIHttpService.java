@@ -70,16 +70,19 @@ public class CustomEventMapperUIHttpService
         public final FieldType type;
         public final String placeholder;
         public final String description;
+        public final Object value;
 
         @JsonCreator
         public Parameter(
                 @ApiParam("type") FieldType type,
                 @ApiParam("placeholder") String placeholder,
-                @ApiParam("description") String description)
+                @ApiParam("description") String description,
+                @ApiParam("value") Object value)
         {
             this.type = type;
             this.placeholder = placeholder;
             this.description = description;
+            this.value = value;
         }
     }
 

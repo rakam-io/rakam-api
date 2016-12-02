@@ -1,6 +1,7 @@
 package org.rakam.analysis;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.AbstractMetastore;
@@ -23,12 +24,12 @@ public class InMemoryMetastore extends AbstractMetastore {
     private final ApiKeyService apiKeyService;
 
     public InMemoryMetastore(ApiKeyService apiKeyService) {
-        super(new FieldDependencyBuilder().build(), new EventBus());
+        super(new EventBus());
         this.apiKeyService = apiKeyService;
     }
 
-    public InMemoryMetastore(FieldDependency fieldDependency, ApiKeyService apiKeyService, EventBus eventBus) {
-        super(fieldDependency, eventBus);
+    public InMemoryMetastore(ApiKeyService apiKeyService, EventBus eventBus) {
+        super(eventBus);
         this.apiKeyService = apiKeyService;
     }
 
@@ -55,7 +56,7 @@ public class InMemoryMetastore extends AbstractMetastore {
 
     @Override
     public List<SchemaField> getCollection(String project, String collection) {
-        return collections.get(project).getOrDefault(collection, ImmutableList.of());
+        return collections.getOrDefault(project, ImmutableMap.of()).getOrDefault(collection, ImmutableList.of());
     }
 
     @Override

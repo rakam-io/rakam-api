@@ -60,6 +60,8 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryPoolMXBean;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -319,42 +321,6 @@ public class WebHookHttpService
                         }
                     }).list();
         }
-    }
-
-    public static void main(String[] args)
-            throws ScriptException, NoSuchMethodException
-    {
-        long l = System.currentTimeMillis();
-        for (int i = 0; i < 1000; i++) {
-            ScriptEngine engine = new NashornScriptEngineFactory()
-                    .getScriptEngine(new String[] {"-strict", "--no-syntax-extensions"},
-                            WebHookHttpService.class.getClassLoader(), new JSCodeCompiler.NashornEngineFilter());
-
-            engine.eval("" +
-                    "quit = function() {};\n" +
-                    "exit = function() {};\n" +
-                    "print = function() {};\n" +
-//                    "echo = function() {};\n" +
-//                    "readFully = function() {};\n" +
-//                    "readLine = function() {};\n" +
-                    "load = function() {};\n" +
-                    "loadWithNewGlobal = function() {};\n" +
-                    "var test = [];\n" +
-                    "var main = function(map, denem) { var d = 1; \n" +
-                    "   test.push(1); return test; \n" +
-                    "};\n" +
-                    "");
-
-            ScriptContext bindings = engine.getContext();
-
-//            engine.eval("return function(event, requestParams, sourceAddress, responseHeaders) {\n" +
-//                    "\t//event.set('test', 4);\n" +
-//                    "\treturn null;\n" +
-//                    "}");
-        }
-
-
-        System.out.println(System.currentTimeMillis() - l);
     }
 
     @ApiOperation(value = "Test a webhook", authorizations = @Authorization(value = "master_key"))

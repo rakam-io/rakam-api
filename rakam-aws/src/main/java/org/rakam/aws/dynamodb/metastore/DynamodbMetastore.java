@@ -65,7 +65,7 @@ public class DynamodbMetastore
     @Inject
     public DynamodbMetastore(AWSConfig config, DynamodbMetastoreConfig tableConfig, FieldDependencyBuilder.FieldDependency fieldDependency, EventBus eventBus)
     {
-        super(fieldDependency, eventBus);
+        super(eventBus);
         dynamoDBClient = new AmazonDynamoDBClient(config.getCredentials());
         dynamoDBClient.setRegion(config.getAWSRegion());
 

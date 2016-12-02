@@ -88,11 +88,12 @@ public class PrestoMetastore
     private final ClientSession defaultSession;
 
     @Inject
-    public PrestoMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
-            EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency,
+    public PrestoMetastore(
+            @Named("presto.metastore.jdbc") JDBCPoolDataSource prestoMetastoreDataSource,
+            EventBus eventBus,
             PrestoConfig prestoConfig)
     {
-        super(fieldDependency, eventBus);
+        super(eventBus);
         dbi = new DBI(prestoMetastoreDataSource);
         dbi.registerMapper(new TableColumn.Mapper(new SignatureReferenceTypeManager()));
         this.dao = onDemandDao(dbi, MetadataDao.class);
@@ -115,7 +116,6 @@ public class PrestoMetastore
     public void setup()
     {
         setupTables();
-        super.checkExistingSchema();
     }
 
     private void setupTables()

@@ -551,7 +551,7 @@ public abstract class AbstractPostgresqlUserStorage
             return columns;
         }
         catch (SQLException e) {
-            throw new IllegalStateException("couldn't get metadata from plugin.user.storage");
+            throw new RuntimeException("Couldn't get metadata from plugin.user.storage", e);
         }
     }
 

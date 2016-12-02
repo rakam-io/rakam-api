@@ -17,6 +17,7 @@ import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.Event.EventContext;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.util.AvroUtil;
@@ -63,21 +64,26 @@ public class JsonEventDeserializer
 {
     private final Map<String, List<SchemaField>> conditionalMagicFields;
     private final Metastore metastore;
-    private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(5, TimeUnit.MINUTES).build();
+    private final Cache<ProjectCollection, Map.Entry<List<SchemaField>, Schema>> schemaCache =
+            CacheBuilder
+                    .newBuilder()
+                    .expireAfterWrite(5, TimeUnit.MINUTES).build();
     private final Set<SchemaField> constantFields;
     private final ApiKeyService apiKeyService;
     private final ConfigManager configManager;
+    private final SchemaChecker schemaChecker;
 
     @Inject
     public JsonEventDeserializer(Metastore metastore,
             ApiKeyService apiKeyService,
             ConfigManager configManager,
+            SchemaChecker schemaChecker,
             FieldDependency fieldDependency)
     {
         this.metastore = metastore;
         this.conditionalMagicFields = fieldDependency.dependentFields;
         this.apiKeyService = apiKeyService;
+        this.schemaChecker = schemaChecker;
         this.configManager = configManager;
         this.constantFields = fieldDependency.constantFields;
     }
@@ -151,6 +157,10 @@ public class JsonEventDeserializer
                             }
                         }
 
+                        if (collection == null) {
+                            throw new RakamException("Collection is not set.", BAD_REQUEST);
+                        }
+
                         properties = parseProperties(project, collection, jp, masterKey);
 
                         t = jp.getCurrentToken();
@@ -186,7 +196,7 @@ public class JsonEventDeserializer
                 properties = parseProperties(project, collection, fakeJp, masterKey);
             }
             else {
-                throw new JsonMappingException("properties is null");
+                throw new JsonMappingException(jp, "properties is null");
             }
         }
         return new Event(project, collection, api, properties.getKey(), properties.getValue());

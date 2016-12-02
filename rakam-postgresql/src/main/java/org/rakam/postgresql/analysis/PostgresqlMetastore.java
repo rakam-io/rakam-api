@@ -63,9 +63,9 @@ public class PostgresqlMetastore
     private final JDBCPoolDataSource connectionPool;
 
     @Inject
-    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, FieldDependency fieldDependency)
+    public PostgresqlMetastore(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus)
     {
-        super(fieldDependency, eventBus);
+        super(eventBus);
         this.connectionPool = connectionPool;
 
         schemaCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.MINUTES).build(new CacheLoader<ProjectCollection, List<SchemaField>>()
@@ -114,11 +114,6 @@ public class PostgresqlMetastore
                 }
             }
         });
-    }
-
-    @PostConstruct
-    public void start() {
-        super.checkExistingSchema();
     }
 
     @Override

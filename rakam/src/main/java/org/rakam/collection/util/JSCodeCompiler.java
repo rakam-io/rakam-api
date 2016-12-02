@@ -1,8 +1,13 @@
 package org.rakam.collection.util;
 
+import com.google.common.collect.ImmutableList;
+import io.airlift.log.Level;
+import io.airlift.log.Logger;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
+import jdk.nashorn.internal.runtime.regexp.joni.Config;
 import org.apache.http.client.HttpClient;
+import org.rakam.ServiceStarter;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.plugin.CustomEventMapperHttpService;
 import org.rakam.plugin.RAsyncHttpClient;
@@ -15,9 +20,17 @@ import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
+import javax.validation.constraints.NotNull;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public class JSCodeCompiler
 {
+    private final static Logger LOGGER = Logger.get(JSCodeCompiler.class);
     private final @Named("rakam-client") RAsyncHttpClient httpClient;
     private final ConfigManager configManager;
 
@@ -43,7 +56,15 @@ public class JSCodeCompiler
         }
     }
 
-    public Invocable createEngine(String code)
+    public Invocable createEngine(String project, String code, String prefix)
+            throws ScriptException
+    {
+        return createEngine(code,
+                new JavaLogger(prefix),
+                prefix == null ? new MemoryConfigManager() : new JSConfigManager(configManager, project, prefix));
+    }
+
+    public Invocable createEngine(String code, ILogger logger, IJSConfigManager configManager)
             throws ScriptException
     {
         NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
@@ -59,11 +80,171 @@ public class JSCodeCompiler
         bindings.remove("exit");
 //        bindings.remove("Java");
         bindings.remove("quit");
+        bindings.put("logger", logger);
         bindings.put("config", configManager);
         bindings.put("http", httpClient);
 
         engine.eval(code);
 
         return (Invocable) engine;
+    }
+
+    public interface ILogger
+    {
+        void debug(String value);
+
+        void warn(String value);
+
+        void info(String value);
+
+        void error(String value);
+    }
+
+    public static class TestLogger
+            implements ILogger
+    {
+        List<LogEntry> entries = new ArrayList();
+
+        public List<LogEntry> getEntries()
+        {
+            return ImmutableList.copyOf(entries);
+        }
+
+        @Override
+        public void debug(String value)
+        {
+            entries.add(new LogEntry(Level.DEBUG, value));
+        }
+
+        @Override
+        public void warn(String value)
+        {
+            entries.add(new LogEntry(Level.WARN, value));
+        }
+
+        @Override
+        public void info(String value)
+        {
+            entries.add(new LogEntry(Level.INFO, value));
+        }
+
+        @Override
+        public void error(String value)
+        {
+            entries.add(new LogEntry(Level.ERROR, value));
+        }
+
+        public static class LogEntry
+        {
+            public final Level level;
+            public final String message;
+
+            public LogEntry(Level level, String message)
+            {
+                this.level = level;
+                this.message = message;
+            }
+        }
+    }
+
+    public static class JavaLogger
+            implements ILogger
+    {
+        private final String prefix;
+
+        public JavaLogger(String prefix)
+        {
+            this.prefix = null;
+        }
+
+        @Override
+        public void debug(String value)
+        {
+            LOGGER.debug("Script(" + prefix + ")" + value);
+        }
+
+        @Override
+        public void warn(String value)
+        {
+            LOGGER.warn("Script(" + prefix + ")" + value);
+        }
+
+        @Override
+        public void info(String value)
+        {
+            LOGGER.info("Script(" + prefix + ")" + value);
+        }
+
+        @Override
+        public void error(String value)
+        {
+            LOGGER.error("Script(" + prefix + ")" + value);
+        }
+    }
+
+    public interface IJSConfigManager
+    {
+        Object get(String configName);
+
+        void set(String configName, @NotNull Object value);
+
+        Object setOnce(String configName, @NotNull Object value);
+    }
+
+    public static class MemoryConfigManager
+            implements IJSConfigManager
+    {
+        Map<String, Object> configs = new HashMap<>();
+
+        @Override
+        public Object get(String configName)
+        {
+            return configs.get(configName);
+        }
+
+        @Override
+        public void set(String configName, @NotNull Object value)
+        {
+            configs.put(configName, value);
+        }
+
+        @Override
+        public Object setOnce(String configName, @NotNull Object value)
+        {
+            return configs.computeIfAbsent(configName, (k) -> value);
+        }
+    }
+
+    public static class JSConfigManager
+            implements IJSConfigManager
+    {
+        private final ConfigManager configManager;
+        private final String project;
+        private final String prefix;
+
+        public JSConfigManager(ConfigManager configManager, String project, String prefix)
+        {
+            this.configManager = configManager;
+            this.project = project;
+            this.prefix = Optional.ofNullable(prefix).map(v -> v + ".").orElse("");
+        }
+
+        @Override
+        public Object get(String configName)
+        {
+            return configManager.getConfig(project, prefix + configName, Object.class);
+        }
+
+        @Override
+        public void set(String configName, @NotNull Object value)
+        {
+            configManager.setConfig(project, prefix + configName, value);
+        }
+
+        @Override
+        public Object setOnce(String configName, @NotNull Object value)
+        {
+            return configManager.setConfigOnce(project, prefix + configName, value);
+        }
     }
 }

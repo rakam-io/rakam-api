@@ -36,8 +36,7 @@ public class TestPrestoRetentionQueryExecutor extends TestRetentionQueryExecutor
         PrestoConfig prestoConfig = testingEnvironment.getPrestoConfig();
         InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
 
-        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(),
-                new EventBus(), new FieldDependencyBuilder().build(), prestoConfig);
+        metastore = new PrestoMetastore(testingEnvironment.getPrestoMetastore(), new EventBus(), prestoConfig);
         metastore.setup();
 
         PrestoQueryExecutor queryExecutor = new PrestoQueryExecutor(prestoConfig, null, null, metastore);

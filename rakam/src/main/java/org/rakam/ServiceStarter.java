@@ -32,9 +32,11 @@ import org.rakam.analysis.MaterializedViewHttpService;
 import org.rakam.analysis.ProjectHttpService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.RequestPreProcessorItem;
+import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.bootstrap.Bootstrap;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.FieldDependencyBuilder;
+import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.WebHookHttpService;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.config.MetadataConfig;
@@ -123,7 +125,7 @@ public final class ServiceStarter
     }
 
     public static class FieldDependencyProvider
-            implements Provider<FieldDependencyBuilder.FieldDependency>
+            implements Provider<FieldDependency>
     {
 
         private final Set<EventMapper> eventMappers;
@@ -135,7 +137,7 @@ public final class ServiceStarter
         }
 
         @Override
-        public FieldDependencyBuilder.FieldDependency get()
+        public FieldDependency get()
         {
             FieldDependencyBuilder builder = new FieldDependencyBuilder();
             eventMappers.stream().forEach(mapper -> mapper.addFieldDependency(builder));
@@ -151,7 +153,7 @@ public final class ServiceStarter
         {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
 
-            binder.bind(FieldDependencyBuilder.FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
+            binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
             Multibinder.newSetBinder(binder, EventMapper.class);
             OptionalBinder.newOptionalBinder(binder, CopyEvent.class);
@@ -213,10 +215,12 @@ public final class ServiceStarter
             configBinder(binder).bindConfig(ProjectConfig.class);
             configBinder(binder).bindConfig(EncryptionConfig.class);
 
+            binder.bind(SchemaChecker.class).asEagerSingleton();
+
             binder.bind(RAsyncHttpClient.class)
                     .annotatedWith(Names.named("rakam-client"))
                     .toProvider(() -> {
-                        return RAsyncHttpClient.create(10000, "rakam-custom-script");
+                        return RAsyncHttpClient.create(120000, "rakam-custom-script");
                     })
                     .in(Scopes.SINGLETON);
 
