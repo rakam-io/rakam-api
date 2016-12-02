@@ -228,7 +228,8 @@ public class WebUserHttpService
     @ApiOperation(value = "Recover my password", authorizations = @Authorization(value = "master_key"))
     @JsonRequest
     @Path("/perform-recover-password")
-    public SuccessMessage performRecoverPassword(@ApiParam("key") String key,
+    public SuccessMessage performRecoverPassword(
+            @ApiParam("key") String key,
             @ApiParam("hash") String hash,
             @ApiParam("password") String password)
     {

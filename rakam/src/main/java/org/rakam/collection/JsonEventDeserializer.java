@@ -202,7 +202,7 @@ public class JsonEventDeserializer
         return new Event(project, collection, api, properties.getKey(), properties.getValue());
     }
 
-    private Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp, boolean masterKey)
+    public Map.Entry<List<SchemaField>, GenericData.Record> parseProperties(String project, String collection, JsonParser jp, boolean masterKey)
             throws IOException, NotExistsException
     {
         ProjectCollection key = new ProjectCollection(project, collection);

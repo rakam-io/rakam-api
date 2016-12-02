@@ -86,7 +86,7 @@ public class PostgresqlModule extends RakamModule {
 
         binder.bind(char.class).annotatedWith(EscapeIdentifier.class).toInstance('"');
 
-        binder.bind(Metastore.class).toProvider(PostgresqlMetastoreProvider.class).asEagerSingleton();
+        binder.bind(Metastore.class).to(PostgresqlMetastore.class).asEagerSingleton();
         binder.bind(ApiKeyService.class).toInstance(new PostgresqlApiKeyService(orCreateDataSource));
 
         binder.bind(MaterializedViewService.class).to(PostgresqlMaterializedViewService.class).in(Scopes.SINGLETON);
@@ -170,6 +170,7 @@ public class PostgresqlModule extends RakamModule {
                     .setMaxConnection(4)
                     .setConnectionMaxLifeTime(0L)
                     .setConnectionIdleTimeout(0L)
+                    .setConnectionDisablePool(config.getConnectionDisablePool())
                     .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
                     .setUsername(config.getUsername());
         } catch (URISyntaxException e) {
@@ -318,27 +319,6 @@ public class PostgresqlModule extends RakamModule {
                 default:
                     throw new RakamException("Aggregation type couldn't found.", BAD_REQUEST);
             }
-        }
-    }
-
-    public static class PostgresqlMetastoreProvider implements Provider<PostgresqlMetastore> {
-
-        private final JDBCPoolDataSource connectionPool;
-        private final EventBus eventBus;
-
-        @Inject
-        public PostgresqlMetastoreProvider(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, EventBus eventBus, FieldDependencyBuilder.FieldDependency fieldDependency)
-        {
-            this.connectionPool = connectionPool;
-            this.eventBus = eventBus;
-        }
-
-        @Override
-        public PostgresqlMetastore get()
-        {
-            PostgresqlMetastore postgresqlMetastore = new PostgresqlMetastore(connectionPool, eventBus);
-            postgresqlMetastore.setup();
-            return postgresqlMetastore;
         }
     }
 }

@@ -20,7 +20,6 @@ import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
-import javax.validation.constraints.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -186,9 +185,9 @@ public class JSCodeCompiler
     {
         Object get(String configName);
 
-        void set(String configName, @NotNull Object value);
+        void set(String configName, Object value);
 
-        Object setOnce(String configName, @NotNull Object value);
+        Object setOnce(String configName, Object value);
     }
 
     public static class MemoryConfigManager
@@ -203,13 +202,13 @@ public class JSCodeCompiler
         }
 
         @Override
-        public void set(String configName, @NotNull Object value)
+        public void set(String configName, Object value)
         {
             configs.put(configName, value);
         }
 
         @Override
-        public Object setOnce(String configName, @NotNull Object value)
+        public Object setOnce(String configName, Object value)
         {
             return configs.computeIfAbsent(configName, (k) -> value);
         }
@@ -236,13 +235,13 @@ public class JSCodeCompiler
         }
 
         @Override
-        public void set(String configName, @NotNull Object value)
+        public void set(String configName, Object value)
         {
             configManager.setConfig(project, prefix + configName, value);
         }
 
         @Override
-        public Object setOnce(String configName, @NotNull Object value)
+        public Object setOnce(String configName, Object value)
         {
             return configManager.setConfigOnce(project, prefix + configName, value);
         }

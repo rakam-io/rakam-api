@@ -108,7 +108,7 @@ public class CustomEventMapperHttpService
                 return list(project).stream().flatMap(item -> {
                     Invocable unchecked = null;
                     try {
-                        unchecked = jsCodeCompiler.createEngine(project, item.code, "event-mapper." + item.id);
+                        unchecked = jsCodeCompiler.createEngine(project, item.script, "event-mapper." + item.id);
                     }
                     catch (Exception e) {
                         return Stream.of();
@@ -129,7 +129,7 @@ public class CustomEventMapperHttpService
                     "  id SERIAL PRIMARY KEY," +
                     "  project VARCHAR(255) NOT NULL," +
                     "  name VARCHAR(255) NOT NULL," +
-                    "  code TEXT NOT NULL," +
+                    "  script TEXT NOT NULL," +
                     "  image TEXT," +
                     "  parameters TEXT" +
                     "  )")
@@ -146,7 +146,7 @@ public class CustomEventMapperHttpService
     public List<JSEventMapperCode> list(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, code, image, parameters FROM custom_event_mappers WHERE project = :project")
+            return handle.createQuery("SELECT id, name, script, image, parameters FROM custom_event_mappers WHERE project = :project")
                     .bind("project", project).map((index, r, ctx) -> {
                         return new JSEventMapperCode(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
                     }).list();
@@ -161,11 +161,12 @@ public class CustomEventMapperHttpService
     public SuccessMessage update(@Named("project") String project, @BodyParam JSEventMapperCode mapper)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE custom_event_mappers SET code = :code AND parameters = :paremeters WHERE id = :id AND project = :project")
+            handle.createStatement("UPDATE custom_event_mappers SET script = :script AND parameters = :parameters AND image = :image WHERE id = :id AND project = :project")
                     .bind("project", project)
                     .bind("id", mapper.id)
-                    .bind("parameters", mapper.parameters)
-                    .bind("code", mapper.code);
+                    .bind("image", mapper.image)
+                    .bind("parameters", JsonHelper.encode(mapper.parameters))
+                    .bind("script", mapper.script);
             return SuccessMessage.success();
         }
     }
@@ -178,9 +179,9 @@ public class CustomEventMapperHttpService
     public SuccessMessage create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam("parameters") Map<String, Parameter> parameters)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO custom_event_mappers (project, name, code, parameters, image) VALUES (:project, :name, :code, :parameters, :image)")
+            handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) VALUES (:project, :name, :script, :parameters, :image)")
                     .bind("project", project)
-                    .bind("code", script)
+                    .bind("script", script)
                     .bind("name", name)
                     .bind("image", image)
                     .bind("parameters", JsonHelper.encode(parameters))
@@ -199,7 +200,7 @@ public class CustomEventMapperHttpService
         try (Handle handle = dbi.open()) {
             handle.createStatement("DELETE FROM custom_event_mappers WHERE project = :project AND id = :id")
                     .bind("project", project)
-                    .bind("code", id)
+                    .bind("id", id)
                     .execute();
             return SuccessMessage.success();
         }
@@ -518,7 +519,7 @@ public class CustomEventMapperHttpService
     public static class JSEventMapperCode
     {
         public final int id;
-        public final String code;
+        public final String script;
         public final String image;
         public final Map<String, Parameter> parameters;
         public final String name;
@@ -527,13 +528,13 @@ public class CustomEventMapperHttpService
         public JSEventMapperCode(
                 @ApiParam("id") int id,
                 @ApiParam("name") String name,
-                @ApiParam("code") String code,
+                @ApiParam("script") String script,
                 @ApiParam("image") String image,
                 @ApiParam("parameters") Map<String, Parameter> parameters)
         {
             this.id = id;
             this.name = name;
-            this.code = code;
+            this.script = script;
             this.image = image;
             this.parameters = parameters;
         }

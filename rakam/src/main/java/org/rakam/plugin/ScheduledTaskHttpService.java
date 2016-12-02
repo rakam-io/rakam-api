@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.TestingConfigManager;
@@ -52,6 +53,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -323,8 +325,9 @@ public class ScheduledTaskHttpService
 
                 Invocable engine = jsCodeCompiler.createEngine(code, logger, configManager);
 
-                Map<String, Object> collect = parameters.entrySet().stream()
-                        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value));
+                Map<String, Object> collect = Optional.ofNullable(parameters).map(v -> v.entrySet().stream()
+                        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value)))
+                        .orElse(ImmutableMap.of());
 
                 Object mapper = engine.invokeFunction("main", collect);
 

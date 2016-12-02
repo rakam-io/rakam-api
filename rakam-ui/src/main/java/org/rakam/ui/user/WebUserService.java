@@ -62,6 +62,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -94,6 +95,9 @@ public class WebUserService
     private static final Mustache welcomeTxtCompiler;
     private static final Mustache resetPasswordTitleCompiler;
     private static final Mustache welcomeTitleCompiler;
+    private static final Mustache userAccessTitleCompiler;
+    private static final Mustache userAccessTxtCompiler;
+    private static final Mustache userAccessHtmlCompiler;
 
     public ProjectConfiguration getProjectConfigurations(int project)
     {
@@ -166,6 +170,13 @@ public class WebUserService
                     WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
             welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
                     WebUserService.class.getResource("/mail/welcome/title.txt"), UTF_8)), "welcome_title.txt");
+
+            userAccessHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.html"), UTF_8)), "welcome.html");
+            userAccessTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/teamaccess.txt"), UTF_8)), "welcome.txt");
+            userAccessTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess/title.txt"), UTF_8)), "welcome_title.txt");
         }
         catch (IOException e) {
             throw Throwables.propagate(e);
@@ -377,22 +388,26 @@ public class WebUserService
         if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new RakamException("Email is not valid", BAD_REQUEST);
         }
+        Map<String, Object> scopes = ImmutableMap.of(
+                "product_name", "Rakam",
+                "action_url", format("%s/perform-recover-password?%s",
+                        mailConfig.getSiteUrl(), getRecoverUrl(email)));
+
+        sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes).join();
+    }
+
+    private String getRecoverUrl(String email)
+    {
         long expiration = Instant.now().plus(3, ChronoUnit.HOURS).getEpochSecond();
         String key = expiration + "|" + email;
         String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
         String encoded = new String(Base64.getEncoder().encode(key.getBytes(UTF_8)), UTF_8);
-
-        Map<String, Object> scopes;
         try {
-            scopes = ImmutableMap.of("product_name", "Rakam",
-                    "action_url", String.format("%s/perform-recover-password?key=%s&hash=%s",
-                            mailConfig.getSiteUrl(), URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8")));
+            return format("key=%s&hash=%s", URLEncoder.encode(encoded, "UTF-8"), URLEncoder.encode(hash, "UTF-8"));
         }
         catch (UnsupportedEncodingException e) {
             throw Throwables.propagate(e);
         }
-
-        sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes).join();
     }
 
     private CompletableFuture sendMail(Mustache titleCompiler, Mustache contentCompiler, Mustache htmlCompiler, String email, Map<String, Object> data)
@@ -517,7 +532,8 @@ public class WebUserService
 
     public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression, boolean readPermission, boolean writePermission, boolean masterPermisson)
     {
-        if (!getUser(userId).get().projects.stream().anyMatch(a -> a.id == projectId)) {
+        Optional<WebUser.Project> projectStream = getUser(userId).get().projects.stream().filter(a -> a.id == projectId).findAny();
+        if (!projectStream.isPresent()) {
             throw new RakamException(FORBIDDEN);
         }
 
@@ -526,6 +542,12 @@ public class WebUserService
             try {
                 newUserId = handle.createStatement("INSERT INTO web_user (email, created_at) VALUES (:email, now())")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
+
+                sendMail(userAccessTitleCompiler, userAccessTxtCompiler, userAccessHtmlCompiler, email, ImmutableMap.of(
+                        "product_name", "Rakam",
+                        "project", projectStream.get().name,
+                        "action_url", format("%s/perform-recover-password?%s",
+                                mailConfig.getSiteUrl(), getRecoverUrl(email))));
             }
             catch (Exception e) {
                 newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
@@ -682,10 +704,10 @@ public class WebUserService
                 " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
                 " WHERE api_key.user_id = :user " +
                 " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key\n" +
-                        "FROM web_user_api_key_permission permission \n" +
-                        "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
-                        "JOIN web_user_project project ON (project.id = api_key.project_id)\n" +
-                        "WHERE permission.user_id = :user" +
+                "FROM web_user_api_key_permission permission \n" +
+                "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
+                "JOIN web_user_project project ON (project.id = api_key.project_id)\n" +
+                "WHERE permission.user_id = :user" +
                 " ORDER BY id NULLS LAST")
                 .bind("user", userId)
                 .map((index, r, ctx) -> {

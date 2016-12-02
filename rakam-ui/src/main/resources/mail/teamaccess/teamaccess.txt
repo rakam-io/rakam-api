@@ -1,0 +1,16 @@
+Hi {{name}},
+
+Your friend recently added you to {{project}} as a team member. Click the button below to create an account on {{product_name}} and access the data.
+
+{{action_url}}
+
+The URL address is only valid for the next 30 minutes, if you don't create your account in this time period, you need to recover your password.
+
+Thanks,
+{{product_name}} Team
+
+P.S. We also love hearing from you and helping you with any issues you have. Please reply to this email if you want to ask a question or just say hi.
+
+© 2015 {{product_name}}. All rights reserved.
+
+{{product_name}}

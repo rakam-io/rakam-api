@@ -2,6 +2,8 @@ package org.rakam.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,9 +26,11 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
+import org.apache.avro.generic.GenericData;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.QueryHttpService;
 import org.rakam.analysis.metadata.Metastore;
+import org.rakam.collection.Event.EventContext;
 import org.rakam.plugin.CopyEvent;
 import org.rakam.plugin.EventMapper;
 import org.rakam.plugin.EventStore;
@@ -126,6 +130,7 @@ public class EventCollectionHttpService
     private final Metastore metastore;
     private final QueryHttpService queryHttpService;
     private final com.google.common.base.Optional<CopyEvent> copyEvent;
+    private final JsonEventDeserializer jsonEventDeserializer;
 
     @Inject
     public EventCollectionHttpService(
@@ -163,6 +168,7 @@ public class EventCollectionHttpService
         });
 
         this.avroEventDeserializer = avroEventDeserializer;
+        this.jsonEventDeserializer = deserializer;
         csvMapper = new CsvMapper();
         csvMapper.registerModule(new SimpleModule().addDeserializer(EventList.class, csvEventDeserializer));
     }
@@ -234,7 +240,7 @@ public class EventCollectionHttpService
             try {
                 Event event = jsonMapper.readValue(buff, Event.class);
 
-                Event.EventContext context = event.api();
+                EventContext context = event.api();
 
                 if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
                     return;
@@ -316,9 +322,21 @@ public class EventCollectionHttpService
                 buff -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
                     if (contentType == null || "application/json".equals(contentType)) {
-                        return jsonMapper.reader(EventList.class)
-                                .with(ContextAttributes.getEmpty().withSharedAttribute("apiKey", MASTER_KEY))
-                                .readValue(buff);
+                        String apiKey = getParam(request.params(), MASTER_KEY.getKey());
+                        String project = apiKeyService.getProjectOfApiKey(apiKey, MASTER_KEY);
+                        String collection = getParam(request.params(), "collection");
+
+                        JsonParser parser = jsonMapper.getFactory().createParser(buff);
+                        ArrayList<Event> events = new ArrayList<>();
+
+                        JsonToken t = parser.nextToken();
+                        while(t == JsonToken.START_OBJECT) {
+                            Map.Entry<List<SchemaField>, GenericData.Record> entry = jsonEventDeserializer.parseProperties(project, collection, parser, true);
+                            events.add(new Event(project, collection, null,  entry.getKey(), entry.getValue()));
+                            t = parser.nextToken();
+                        }
+
+                        return new EventList(EventContext.apiKey(apiKey), project, events);
                     }
                     else {
                         if ("application/avro".equals(contentType)) {
@@ -665,7 +683,7 @@ public class EventCollectionHttpService
             try {
                 EventList events = mapper.apply(buff);
 
-                Event.EventContext context = events.api;
+                EventContext context = events.api;
                 if (context.checksum != null && !validateChecksum(request, context.checksum, buff)) {
                     return;
                 }

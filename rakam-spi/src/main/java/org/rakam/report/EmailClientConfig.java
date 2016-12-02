@@ -23,7 +23,7 @@ public class EmailClientConfig {
 
     public EmailClientConfig() {
         try {
-            siteUrl = new URL("https://rakam.io");
+            siteUrl = new URL("https://app.rakam.io");
         } catch (MalformedURLException e) {
             throw Throwables.propagate(e);
         }
