@@ -37,6 +37,7 @@ public class PostgresqlQueryExecutor
 {
     private final static Logger LOGGER = Logger.get(PostgresqlQueryExecutor.class);
     public final static String MATERIALIZED_VIEW_PREFIX = "$materialized_";
+    public final static String CONTINUOUS_QUERY_PREFIX = "$view_";
 
     private final JDBCPoolDataSource connectionPool;
     protected static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
@@ -85,14 +86,7 @@ public class PostgresqlQueryExecutor
                     return project + "." + checkCollection(name.getSuffix()) +
                         sample.map(e -> " TABLESAMPLE " + e.method.name() + "(" + e.percentage + ")").orElse("");
                 case "continuous":
-                    final ContinuousQuery report = queryMetadataStore.getContinuousQuery(project, name.getSuffix());
-                    StringBuilder builder = new StringBuilder();
-
-                    new RakamSqlFormatter.Formatter(builder,
-                            qualifiedName -> this.formatTableReference(project, qualifiedName, sample), '"')
-                            .process(report.getQuery(), 1);
-
-                    return "(" + builder.toString() + ") as " + name.getSuffix();
+                    return project + "." + checkCollection(CONTINUOUS_QUERY_PREFIX + name.getSuffix());
                 case "materialized":
                     return project + "." + checkCollection(MATERIALIZED_VIEW_PREFIX + name.getSuffix());
                 default:

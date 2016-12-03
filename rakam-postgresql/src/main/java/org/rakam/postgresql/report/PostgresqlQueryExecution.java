@@ -38,6 +38,8 @@ import static org.rakam.postgresql.analysis.PostgresqlEventStore.UTC_CALENDAR;
 import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
+import static org.rakam.report.QueryStats.State.FINISHED;
+import static org.rakam.report.QueryStats.State.RUNNING;
 
 public class PostgresqlQueryExecution
         implements QueryExecution
@@ -97,10 +99,10 @@ public class PostgresqlQueryExecution
     public QueryStats currentStats()
     {
         if (result.isDone()) {
-            return new QueryStats(100, QueryStats.State.FINISHED, null, null, null, null, null, null);
+            return new QueryStats(100, FINISHED, null, null, null, null, null, null);
         }
         else {
-            return new QueryStats(0, QueryStats.State.RUNNING, null, null, null, null, null, null);
+            return new QueryStats(0, RUNNING, null, null, null, null, null, null);
         }
     }
 

@@ -23,9 +23,11 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -40,6 +42,7 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
+import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 public abstract class RealtimeService
@@ -81,10 +84,10 @@ public abstract class RealtimeService
         String sqlQuery = new StringBuilder().append("select ")
                 .append(format("(cast(" + timestampToEpochFunction + "(" + checkTableColumn(timeColumn(), escapeIdentifier) + ") as bigint) / %d) as time, ", slide.roundTo(TimeUnit.SECONDS)))
                 .append(createFinalSelect(report.measures, report.dimensions))
-                .append(" FROM (" + report.collections.stream().map(col -> String.format("(SELECT %s FROM %s) as data",
-                        Stream.of(checkTableColumn(timeColumn(), escapeIdentifier), report.dimensions.stream().collect(Collectors.joining(", ")),
-                                report.measures.stream().map(e -> e.column).distinct().collect(Collectors.joining(", "))).filter(e -> !e.isEmpty()).collect(Collectors.joining(", ")), col
-                )).collect(Collectors.joining(" UNION ALL ")) + ")")
+                .append(" FROM (" + report.collections.stream().map(col -> String.format("SELECT %s FROM %s ",
+                        Stream.of(checkTableColumn(timeColumn(), escapeIdentifier), report.dimensions.stream().map(e -> checkTableColumn(e)).collect(Collectors.joining(", ")),
+                                report.measures.stream().map(e -> checkTableColumn(e.column)).distinct().collect(Collectors.joining(", "))).filter(e -> !e.isEmpty()).collect(Collectors.joining(", ")), checkCollection(col)
+                )).collect(Collectors.joining(" UNION ALL ")) + ") data ")
                 .append(report.filter == null ? "" : " where " + report.filter)
                 .append(" group by 1 ")
                 .append(report.dimensions != null ?
@@ -216,22 +219,23 @@ public abstract class RealtimeService
 
     public abstract String getIntermediateFunction(AggregationType type);
 
-    private String createFinalSelect(List<RealTimeReport.Measure> measures, List<String> dimensions)
+    private String createFinalSelect(Set<RealTimeReport.Measure> measures, Set<String> dimensions)
     {
         StringBuilder builder = new StringBuilder();
         if (dimensions != null && !dimensions.isEmpty()) {
-            builder.append(" " + dimensions.stream().collect(Collectors.joining(", ")) + ", ");
+            builder.append(" " + dimensions.stream().map(e -> checkTableColumn(e)).collect(Collectors.joining(", ")) + ", ");
         }
 
-        for (int i = 0; i < measures.size(); i++) {
-            if (measures.get(i).aggregation == AggregationType.AVERAGE) {
+        int first = measures.size();
+        for (RealTimeReport.Measure measure : measures) {
+            if (measure.aggregation == AggregationType.AVERAGE) {
                 throw new RakamException("Average aggregation is not supported in realtime service.", BAD_REQUEST);
             }
 
-            String format = getIntermediateFunction(measures.get(i).aggregation);
-            builder.append(String.format(format + " as %s_%s ", measures.get(i).column,
-                    measures.get(i).column, measures.get(i).aggregation.name().toLowerCase()));
-            if (i < measures.size() - 1) {
+            String format = getIntermediateFunction(measure.aggregation);
+            builder.append(String.format(format + " as %s ", checkTableColumn(measure.column),
+                    checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase())));
+            if (--first > 1) {
                 builder.append(", ");
             }
         }
