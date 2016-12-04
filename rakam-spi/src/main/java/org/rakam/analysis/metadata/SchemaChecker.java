@@ -85,7 +85,7 @@ public class SchemaChecker
         fields.add(newField);
     }
 
-    @PostConstruct
+//    @PostConstruct
     protected void checkExistingSchema()
     {
         for (String project : metastore.getProjects()) {

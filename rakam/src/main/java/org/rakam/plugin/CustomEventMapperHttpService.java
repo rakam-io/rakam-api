@@ -6,8 +6,11 @@ import com.google.common.base.Function;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -49,6 +52,7 @@ import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.rmi.CORBA.StubDelegate;
 import javax.script.Invocable;
 import javax.script.ScriptException;
 import javax.ws.rs.GET;
@@ -68,6 +72,8 @@ import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.rakam.util.AvroUtil.generateAvroSchema;
 
@@ -99,26 +105,10 @@ public class CustomEventMapperHttpService
                 60L, SECONDS,
                 new SynchronousQueue<>());
 
-        this.scripts = CacheBuilder.newBuilder().softValues().build(new CacheLoader<String, List<JSEventMapperCompiledCode>>()
-        {
-            @Override
-            public List<JSEventMapperCompiledCode> load(String project)
-                    throws Exception
-            {
-                return list(project).stream().flatMap(item -> {
-                    Invocable unchecked = null;
-                    try {
-                        unchecked = jsCodeCompiler.createEngine(project, item.script, "event-mapper." + item.id);
-                    }
-                    catch (Exception e) {
-                        return Stream.of();
-                    }
-
-                    Map<String, Object> collect = item.parameters.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value));
-                    return Stream.of(new JSEventMapperCompiledCode(unchecked, collect));
-                }).collect(Collectors.toList());
-            }
-        });
+        this.scripts = CacheBuilder.newBuilder()
+                .expireAfterWrite(2, MINUTES)
+                .expireAfterAccess(1, HOURS)
+                .build(new MapperCodeCacheLoader());
     }
 
     @PostConstruct
@@ -274,26 +264,7 @@ public class CustomEventMapperHttpService
             @Override
             public Iterator<EventProxy> events()
             {
-                return Iterators.singletonIterator(new EventProxy()
-                {
-                    @Override
-                    public String collection()
-                    {
-                        return event.collection();
-                    }
-
-                    @Override
-                    public String get(String attr)
-                    {
-                        return event.getAttribute(attr);
-                    }
-
-                    @Override
-                    public void set(String attr, Object value)
-                    {
-                        return;
-                    }
-                });
+                return Iterators.singletonIterator(new ListEventProxy(event));
             }
         }, requestParams, sourceAddress, responseHeaders);
     }
@@ -324,105 +295,7 @@ public class CustomEventMapperHttpService
                     @Override
                     public EventProxy apply(@Nullable Event f)
                     {
-                        return new EventProxy()
-                        {
-                            @Override
-                            public String collection()
-                            {
-                                return f.collection();
-                            }
-
-                            @Override
-                            public String get(String attr)
-                            {
-                                return f.getAttribute(attr);
-                            }
-
-                            @Override
-                            public void set(String attr, Object value)
-                            {
-                                try {
-                                    f.properties().put(attr, value);
-                                }
-                                catch (AvroRuntimeException e) {
-                                    // field not exists, create it
-                                    NewField attrValue = getValue(value);
-
-                                    if (attr.startsWith("_")) {
-                                        throw new IllegalStateException("field name cannot start with _.");
-                                    }
-
-                                    List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(project(), collection(),
-                                            ImmutableSet.of(new SchemaField(attr, attrValue.fieldType)));
-                                    GenericData.Record record = new GenericData.Record(AvroUtil.convertAvroSchema(fields));
-
-                                    for (Schema.Field field : f.properties().getSchema().getFields()) {
-                                        record.put(field.name(), f.getAttribute(field.name()));
-                                    }
-
-                                    record.put(attr, attrValue.value);
-                                    f.properties(record, fields);
-                                }
-                            }
-
-                            private NewField getValue(Object value)
-                            {
-                                if (value instanceof Undefined) {
-                                    return null;
-                                }
-                                if (value instanceof String) {
-                                    return new NewField(value, FieldType.STRING);
-                                }
-                                if (value instanceof Double || value instanceof Integer) {
-                                    return new NewField(value, FieldType.DOUBLE);
-                                }
-                                if (value instanceof NativeDate) {
-                                    return new NewField(NativeDate.getTime(value), FieldType.TIMESTAMP);
-                                }
-                                if (value instanceof NativeNumber) {
-                                    return new NewField(((NativeNumber) value).doubleValue(), FieldType.DOUBLE);
-                                }
-                                if (value instanceof Boolean) {
-                                    return new NewField(value, FieldType.BOOLEAN);
-                                }
-                                if (value instanceof ScriptObjectMirror) {
-                                    ScriptObjectMirror mirror = (ScriptObjectMirror) value;
-                                    if (mirror.isEmpty()) {
-                                        return null;
-                                    }
-                                    if (mirror.isArray()) {
-                                        Iterator<Object> iterator = mirror.values().iterator();
-                                        NewField next = getValue(iterator.next());
-                                        FieldType fieldType = next.fieldType;
-                                        GenericArray<Object> objects = new GenericData.Array(mirror.size(),
-                                                generateAvroSchema(fieldType.convertToArrayType()));
-                                        objects.add(next.value);
-                                        while (iterator.hasNext()) {
-                                            next = getValue(iterator.next());
-                                            if (next.fieldType != fieldType) {
-                                                throw new IllegalStateException("Array values must have the same type.");
-                                            }
-                                            objects.add(next.value);
-                                        }
-                                    }
-                                    else {
-                                        HashMap<Object, Object> map = new HashMap<>(mirror.size());
-                                        FieldType type = null;
-
-                                        for (Map.Entry<String, Object> entry : mirror.entrySet()) {
-                                            NewField inlineValue = getValue(entry.getValue());
-                                            if (type != null && inlineValue.fieldType != type) {
-                                                throw new IllegalStateException("Object values must have the same type.");
-                                            }
-                                            type = inlineValue.fieldType;
-                                            map.put(entry.getKey(), inlineValue.value);
-                                        }
-                                        return new NewField(map, type.convertToMapValueType());
-                                    }
-                                }
-                                throw new IllegalStateException();
-                            }
-                        };
+                        return new ListEventProxy(f);
                     }
                 });
             }
@@ -490,6 +363,9 @@ public class CustomEventMapperHttpService
                 catch (NoSuchMethodException e) {
                     logger.warn(e, "'mapper' function does not exist in event mapper function.");
                 }
+                catch (Throwable e) {
+                    logger.warn(e, "unknown error executing the js mapper.");
+                }
 
                 return null;
             }, executor);
@@ -542,13 +418,17 @@ public class CustomEventMapperHttpService
 
     public static class JSEventMapperCompiledCode
     {
+        public final int id;
         public final Invocable code;
         public final Map<String, Object> parameters;
+        public int codeHashCode;
 
-        public JSEventMapperCompiledCode(Invocable code, Map<String, Object> parameters)
+        public JSEventMapperCompiledCode(int id, Invocable code, Map<String, Object> parameters, int codeHashCode)
         {
+            this.id = id;
             this.code = code;
             this.parameters = parameters;
+            this.codeHashCode = codeHashCode;
         }
     }
 
@@ -614,6 +494,201 @@ public class CustomEventMapperHttpService
             public void set(String attr, Object value)
             {
                 properties.put(attr, value);
+            }
+        }
+    }
+
+    private class ListEventProxy
+            implements EventProxy
+    {
+        private final Event event;
+
+        public ListEventProxy(Event event) {
+            this.event = event;
+        }
+
+        @Override
+        public String collection()
+        {
+            return event.collection();
+        }
+
+        @Override
+        public Object get(String attr)
+        {
+            return event.getAttribute(attr);
+        }
+
+        @Override
+        public void set(String attr, Object value)
+        {
+            try {
+                event.properties().put(attr, value);
+            }
+            catch (AvroRuntimeException e) {
+                // field not exists, create it
+                NewField attrValue = getValue(value);
+
+                if (attrValue == null) {
+                    return;
+                }
+
+                List<SchemaField> fields = metastore.getOrCreateCollectionFieldList(event.project(), event.collection(),
+                        ImmutableSet.of(new SchemaField(attr, attrValue.fieldType)));
+
+                List<Schema.Field> oldFields = event.properties().getSchema().getFields();
+
+                ImmutableList.Builder<Schema.Field> objectBuilder = ImmutableList.builder();
+
+                for (Schema.Field oldField : oldFields) {
+                    objectBuilder.add(new Schema.Field(oldField.name(),
+                            oldField.schema(),
+                            oldField.doc(),
+                            oldField.defaultValue(),
+                            oldField.order()));
+                }
+
+                outer:
+                for (SchemaField field : fields) {
+                    for (Schema.Field oldField : oldFields) {
+                        if(oldField.name().equals(field.getName())) {
+                            continue outer;
+                        }
+                    }
+
+                    objectBuilder.add(AvroUtil.generateAvroField(field));
+                }
+
+                GenericData.Record record = new GenericData.Record(Schema.createRecord(objectBuilder.build()));
+
+                for (Schema.Field field : event.properties().getSchema().getFields()) {
+                    record.put(field.name(), event.getAttribute(field.name()));
+                }
+
+                record.put(attr, attrValue.value);
+                event.properties(record, fields);
+            }
+        }
+
+        private NewField getValue(Object value)
+        {
+            if (value instanceof Undefined) {
+                return null;
+            }
+            if (value instanceof String) {
+                return new NewField(value, FieldType.STRING);
+            }
+            if (value instanceof Double || value instanceof Integer) {
+                return new NewField(value, FieldType.DOUBLE);
+            }
+            if (value instanceof NativeDate) {
+                return new NewField(NativeDate.getTime(value), FieldType.TIMESTAMP);
+            }
+            if (value instanceof NativeNumber) {
+                return new NewField(((NativeNumber) value).doubleValue(), FieldType.DOUBLE);
+            }
+            if (value instanceof Boolean) {
+                return new NewField(value, FieldType.BOOLEAN);
+            }
+            if (value instanceof ScriptObjectMirror) {
+                ScriptObjectMirror mirror = (ScriptObjectMirror) value;
+                if (mirror.isEmpty()) {
+                    return null;
+                }
+                if (mirror.isArray()) {
+                    Iterator<Object> iterator = mirror.values().iterator();
+                    NewField next = getValue(iterator.next());
+
+                    while (next == null && iterator.hasNext()) {
+                        next = getValue(iterator.next());
+                    }
+
+                    if (next == null) {
+                        return null;
+                    }
+
+                    FieldType fieldType = next.fieldType;
+                    GenericArray<Object> objects = new GenericData.Array(mirror.size(),
+                            generateAvroSchema(fieldType.convertToArrayType()));
+                    objects.add(next.value);
+                    while (iterator.hasNext()) {
+                        next = getValue(iterator.next());
+                        if (next.fieldType != fieldType) {
+                            throw new IllegalStateException("Array values must have the same type.");
+                        }
+                        objects.add(next.value);
+                    }
+                }
+                else {
+                    HashMap<Object, Object> map = new HashMap<>(mirror.size());
+                    FieldType type = null;
+
+                    for (Map.Entry<String, Object> entry : mirror.entrySet()) {
+                        NewField inlineValue = getValue(entry.getValue());
+
+                        if (inlineValue == null) {
+                            continue;
+                        }
+
+                        if (type != null && inlineValue.fieldType != type) {
+                            throw new IllegalStateException("Object values must have the same type.");
+                        }
+                        type = inlineValue.fieldType;
+                        map.put(entry.getKey(), inlineValue.value);
+                    }
+                    return new NewField(map, type.convertToMapValueType());
+                }
+            }
+            throw new IllegalStateException();
+        }
+    }
+
+    private class MapperCodeCacheLoader
+            extends CacheLoader<String, List<JSEventMapperCompiledCode>>
+    {
+        @Override
+        public List<JSEventMapperCompiledCode> load(String project)
+                throws Exception
+        {
+            return list(project).stream()
+                    .flatMap(item -> get(project, item))
+                    .collect(Collectors.toList());
+        }
+
+        private Stream<JSEventMapperCompiledCode> get(String project, JSEventMapperCode item)
+        {
+            Invocable unchecked;
+            try {
+                unchecked = jsCodeCompiler.createEngine(project, item.script, "event-mapper." + item.id);
+            }
+            catch (Exception e) {
+                return Stream.of();
+            }
+
+            return Stream.of(new JSEventMapperCompiledCode(item.id, unchecked,
+                    item.parameters.entrySet()
+                            .stream()
+                            .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value)),
+                    item.script.hashCode()));
+        }
+
+        @Override
+        public ListenableFuture<List<JSEventMapperCompiledCode>> reload(String key, List<JSEventMapperCompiledCode> oldValue)
+                throws Exception
+        {
+            if (oldValue == null) {
+                return Futures.immediateFuture(load(key));
+            }
+            else {
+                return Futures.immediateFuture(list(key).stream().flatMap(item -> {
+                    for (JSEventMapperCompiledCode oldItem : oldValue) {
+                        // TODO :what if the new code has same hashcode?
+                        if (item.id == oldItem.id && item.script.hashCode() == oldItem.codeHashCode) {
+                            return Stream.of(oldItem);
+                        }
+                    }
+                    return get(key, item);
+                }).collect(Collectors.toList()));
             }
         }
     }

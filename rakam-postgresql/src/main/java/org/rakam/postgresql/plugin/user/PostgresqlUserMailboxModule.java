@@ -1,6 +1,5 @@
 package org.rakam.postgresql.plugin.user;
 
-import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.name.Names;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -8,7 +7,6 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.postgresql.plugin.user.mailbox.PostgresqlUserMailboxStorage;
-import org.rakam.util.ConditionalModule;
 
 import static org.rakam.postgresql.PostgresqlModule.getAsyncClientModule;
 

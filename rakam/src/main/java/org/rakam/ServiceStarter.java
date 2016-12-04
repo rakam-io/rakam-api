@@ -61,7 +61,10 @@ import org.rakam.util.NotFoundHandler;
 
 import javax.inject.Inject;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Clock;
+import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -70,10 +73,26 @@ import static java.lang.String.format;
 
 public final class ServiceStarter
 {
-    // TODO: find a way to move this from here
-    public static final String RAKAM_VERSION = "0.7";
-
+    public static String RAKAM_VERSION;
     private final static Logger LOGGER = Logger.get(ServiceStarter.class);
+
+    static {
+        Properties properties = new Properties();
+        InputStream inputStream;
+        try {
+            inputStream = ServiceStarter.class.getResource("/git.properties").openStream();
+            properties.load(inputStream);
+        }
+        catch (IOException e) {
+            LOGGER.warn(e, "Error while reading git.properties");
+        }
+        try {
+            RAKAM_VERSION = properties.get("git.commit.id.describe-short").toString().split("-", 2)[0];
+        }
+        catch (Exception e) {
+            LOGGER.warn(e, "Error while parsing git.properties");
+        }
+    }
 
     private ServiceStarter()
             throws InstantiationException

@@ -72,6 +72,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
+import static java.time.temporal.ChronoUnit.HOURS;
 
 public class WebUserService
 {
@@ -361,12 +362,12 @@ public class WebUserService
             throw new RakamException("Invalid token", UNAUTHORIZED);
         }
 
-        String[] split = realKey.split("|", 2);
+        String[] split = realKey.split("\\|", 2);
         if (split.length != 2) {
             throw new RakamException(BAD_REQUEST);
         }
         try {
-            if (Instant.ofEpochSecond(Long.parseLong(split[0])).compareTo(Instant.now()) > 0) {
+            if (Instant.ofEpochSecond(Long.parseLong(split[0])).compareTo(Instant.now()) < 0) {
                 throw new RakamException("Token expired", UNAUTHORIZED);
             }
         }
@@ -377,9 +378,12 @@ public class WebUserService
         final String scrypt = SCryptUtil.scrypt(newPassword, 2 << 14, 8, 1);
 
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE web_user SET password = :password WHERE email = :email AND password = :password")
+            int execute = handle.createStatement("UPDATE web_user SET password = :password WHERE email = :email")
                     .bind("email", split[1])
                     .bind("password", scrypt).execute();
+            if(execute == 0) {
+                throw new IllegalStateException();
+            }
         }
     }
 
@@ -398,7 +402,7 @@ public class WebUserService
 
     private String getRecoverUrl(String email)
     {
-        long expiration = Instant.now().plus(3, ChronoUnit.HOURS).getEpochSecond();
+        long expiration = Instant.now().plus(3, HOURS).getEpochSecond();
         String key = expiration + "|" + email;
         String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
         String encoded = new String(Base64.getEncoder().encode(key.getBytes(UTF_8)), UTF_8);

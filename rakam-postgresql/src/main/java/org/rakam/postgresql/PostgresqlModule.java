@@ -4,14 +4,12 @@ import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
-import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import org.rakam.analysis.ApiKeyService;
@@ -28,7 +26,6 @@ import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.JDBCQueryMetadata;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.analysis.metadata.QueryMetadataStore;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
@@ -45,7 +42,6 @@ import org.rakam.postgresql.analysis.PostgresqlFunnelQueryExecutor;
 import org.rakam.postgresql.analysis.PostgresqlMaterializedViewService;
 import org.rakam.postgresql.analysis.PostgresqlMetastore;
 import org.rakam.postgresql.analysis.PostgresqlRetentionQueryExecutor;
-import org.rakam.postgresql.analysis.stream.PostgresqlEventStream;
 import org.rakam.postgresql.plugin.user.AbstractPostgresqlUserStorage;
 import org.rakam.postgresql.plugin.user.PostgresqlUserService;
 import org.rakam.postgresql.plugin.user.PostgresqlUserStorage;
@@ -63,7 +59,6 @@ import javax.inject.Inject;
 
 import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -71,12 +66,13 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
 @AutoService(RakamModule.class)
-@ConditionalModule(config="store.adapter", value="postgresql")
-public class PostgresqlModule extends RakamModule {
-    private static Module asyncClientModule;
-
+@ConditionalModule(config = "store.adapter", value = "postgresql")
+public class PostgresqlModule
+        extends RakamModule
+{
     @Override
-    protected void setup(Binder binder) {
+    protected void setup(Binder binder)
+    {
         JDBCConfig config = buildConfigObject(JDBCConfig.class, "store.adapter.postgresql");
 
         JDBCPoolDataSource orCreateDataSource = JDBCPoolDataSource.getOrCreateDataSource(config, "set time zone 'UTC'");
@@ -94,23 +90,19 @@ public class PostgresqlModule extends RakamModule {
         binder.bind(ContinuousQueryService.class).to(PostgresqlPseudoContinuousQueryService.class).in(Scopes.SINGLETON);
         binder.bind(String.class).annotatedWith(TimestampToEpochFunction.class).toInstance("to_unixtime");
 
-        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
-            binder.bind(EventStream.class).to(PostgresqlEventStream.class);
-        }
-
         binder.bind(RealtimeService.class).to(PostgresqlRealtimeService.class);
 
         binder.bind(EventStore.class).to(PostgresqlEventStore.class).in(Scopes.SINGLETON);
-        binder.bind(new TypeLiteral<List<AggregationType>>(){}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
+        binder.bind(new TypeLiteral<List<AggregationType>>() {}).annotatedWith(RealtimeService.RealtimeAggregations.class).toInstance(ImmutableList.of(AggregationType.COUNT,
                 AggregationType.SUM,
                 AggregationType.MINIMUM,
                 AggregationType.APPROXIMATE_UNIQUE,
                 AggregationType.MAXIMUM));
 
-        binder.install(getAsyncClientModule(config));
+//        binder.install(getAsyncClientModule(config));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
-        if(getConfig("report.metadata.store") == null) {
+        if (getConfig("report.metadata.store") == null) {
             binder.bind(JDBCPoolDataSource.class)
                     .annotatedWith(Names.named("report.metadata.store.jdbc"))
                     .toInstance(orCreateDataSource);
@@ -147,19 +139,19 @@ public class PostgresqlModule extends RakamModule {
     }
 
     @Override
-    public String name() {
+    public String name()
+    {
         return "Postgresql Module";
     }
 
     @Override
-    public String description() {
+    public String description()
+    {
         return "Postgresql deployment type module";
     }
 
-    /*
-        This module may be installed more than once, Guice will handle deduplication.
-     */
-    public synchronized static Module getAsyncClientModule(JDBCConfig config) {
+    public synchronized static Module getAsyncClientModule(JDBCConfig config)
+    {
         JDBCConfig asyncClientConfig;
         try {
             final String url = config.getUrl();
@@ -173,44 +165,49 @@ public class PostgresqlModule extends RakamModule {
                     .setConnectionDisablePool(config.getConnectionDisablePool())
                     .setUrl("jdbc:pgsql" + url.substring("jdbc:postgresql".length()))
                     .setUsername(config.getUsername());
-        } catch (URISyntaxException e) {
+        }
+        catch (URISyntaxException e) {
             throw Throwables.propagate(e);
         }
 
-        if(asyncClientModule == null) {
-            asyncClientModule = new AbstractConfigurationAwareModule() {
-                @Override
-                protected void setup(Binder binder) {
-                    binder.bind(JDBCPoolDataSource.class)
-                            .annotatedWith(Names.named("async-postgresql"))
-                            .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
-                            .in(Scopes.SINGLETON);
-                }
-            };
-        }
-        return asyncClientModule;
+        return new AbstractConfigurationAwareModule()
+        {
+            @Override
+            protected void setup(Binder binder)
+            {
+                binder.bind(JDBCPoolDataSource.class)
+                        .annotatedWith(Names.named("async-postgresql"))
+                        .toProvider(new JDBCPoolDataSourceProvider(asyncClientConfig))
+                        .in(Scopes.SINGLETON);
+            }
+        };
     }
 
-
-    private static class JDBCPoolDataSourceProvider implements Provider<JDBCPoolDataSource> {
+    private static class JDBCPoolDataSourceProvider
+            implements Provider<JDBCPoolDataSource>
+    {
         private final JDBCConfig asyncClientConfig;
 
-        public JDBCPoolDataSourceProvider(JDBCConfig asyncClientConfig) {
+        public JDBCPoolDataSourceProvider(JDBCConfig asyncClientConfig)
+        {
             this.asyncClientConfig = asyncClientConfig;
         }
 
         @Override
-        public JDBCPoolDataSource get() {
+        public JDBCPoolDataSource get()
+        {
             return JDBCPoolDataSource.getOrCreateDataSource(asyncClientConfig);
         }
     }
 
-    private static class CollectionFieldIndexerListener {
+    private static class CollectionFieldIndexerListener
+    {
         private final PostgresqlQueryExecutor executor;
         boolean postgresql9_5;
 
         @Inject
-        public CollectionFieldIndexerListener(PostgresqlQueryExecutor executor) {
+        public CollectionFieldIndexerListener(PostgresqlQueryExecutor executor)
+        {
             this.executor = executor;
             try {
                 String version = executor.executeRawQuery("SHOW server_version")
@@ -218,22 +215,26 @@ public class PostgresqlModule extends RakamModule {
                 String[] split = version.split("\\.", 2);
                 // Postgresql BRIN support came in 9.5 version
                 postgresql9_5 = Integer.parseInt(split[0]) > 9 || (Integer.parseInt(split[0]) == 9 && Double.parseDouble(split[1]) >= 5);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 postgresql9_5 = false;
             }
         }
 
         @Subscribe
-        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event) {
+        public void onCreateCollection(SystemEvents.CollectionCreatedEvent event)
+        {
             onCreateCollectionFields(event.project, event.collection, event.fields);
         }
 
         @Subscribe
-        public void onCreateCollectionFields(SystemEvents.CollectionFieldCreatedEvent event) {
+        public void onCreateCollectionFields(SystemEvents.CollectionFieldCreatedEvent event)
+        {
             onCreateCollectionFields(event.project, event.collection, event.fields);
         }
 
-        public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields) {
+        public void onCreateCollectionFields(String project, String collection, List<SchemaField> fields)
+        {
             for (SchemaField field : fields) {
                 try {
                     executor.executeRawStatement(String.format("CREATE INDEX %s %s ON %s.%s USING %s(%s)",
@@ -244,7 +245,7 @@ public class PostgresqlModule extends RakamModule {
                             checkTableColumn(field.getName())));
                 }
                 catch (Exception e) {
-                    if(postgresql9_5) {
+                    if (postgresql9_5) {
                         throw e;
                     }
                 }
@@ -278,7 +279,8 @@ public class PostgresqlModule extends RakamModule {
         }
 
         @Override
-        public String getIntermediateFunction(AggregationType type) {
+        public String getIntermediateFunction(AggregationType type)
+        {
             String format;
             switch (type) {
                 case MAXIMUM:

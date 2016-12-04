@@ -8,7 +8,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.cookie.Cookie;
 import org.rakam.TestingConfigManager;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InMemoryApiKeyService;
@@ -34,6 +33,7 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
 
 import javax.annotation.PostConstruct;
@@ -58,7 +58,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
@@ -114,15 +113,15 @@ public class ScheduledTaskHttpService
     {
         executor.scheduleWithFixedDelay(() -> {
             try (Handle handle = dbi.open()) {
-                List<ScheduledTask> tasks = handle.createQuery("SELECT id, project, name, code, parameters FROM custom_scheduled_tasks WHERE updated_at + schedule_interval > now() FOR UPDATE")
+                List<Task> tasks = handle.createQuery("SELECT project, id, name, code, parameters FROM custom_scheduled_tasks WHERE updated_at + schedule_interval > now() FOR UPDATE")
                         .map((index, r, ctx) -> {
-                            return new ScheduledTask(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5)), null, null, null);
+                            return new Task(r.getString(1), r.getInt(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5)));
                         }).list();
-                for (ScheduledTask task : tasks) {
+                for (Task task : tasks) {
                     String prefix = "scheduled-task." + task.id;
                     JSCodeCompiler.JavaLogger javaLogger = new JSCodeCompiler.JavaLogger(prefix);
                     JSCodeCompiler.JSConfigManager jsConfigManager = new JSCodeCompiler.JSConfigManager(configManager, task.project, prefix);
-                    CompletableFuture<EventList> result = run(task.project, task.code, task.parameters, javaLogger, jsConfigManager, eventDeserializer);
+                    CompletableFuture<EventList> result = run(task.project, task.script, task.parameters, javaLogger, jsConfigManager, eventDeserializer);
                     result.whenComplete((events, ex) -> {
                         eventStore.storeBatchAsync(events.events).whenComplete((res, ex1) -> {
 
@@ -157,9 +156,9 @@ public class ScheduledTaskHttpService
     public List<ScheduledTask> list(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, project, name, code, parameters, image, schedule_interval, updated_at FROM custom_scheduled_tasks WHERE project = :project")
+            return handle.createQuery("SELECT id, name, code, parameters, image, schedule_interval, updated_at FROM custom_scheduled_tasks WHERE project = :project")
                     .bind("project", project).map((index, r, ctx) -> {
-                        return new ScheduledTask(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}), r.getString(6), Duration.ofSeconds(r.getInt(7)), r.getTimestamp(8).toInstant());
+                        return new ScheduledTask(r.getInt(1), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}), r.getString(6), Duration.ofSeconds(r.getInt(7)), r.getTimestamp(8).toInstant());
                     }).list();
         }
     }
@@ -167,10 +166,10 @@ public class ScheduledTaskHttpService
     @JsonRequest
     @ApiOperation(value = "Create task", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
-    public SuccessMessage create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String code, @ApiParam("parameters") Map<String, ScheduledTaskUIHttpService.Parameter> parameters, @ApiParam("interval") Duration interval, @ApiParam(value = "image", required = false) String image)
+    public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String code, @ApiParam("parameters") Map<String, ScheduledTaskUIHttpService.Parameter> parameters, @ApiParam("interval") Duration interval, @ApiParam(value = "image", required = false) String image)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO custom_scheduled_tasks (project, name, code, schedule_interval, parameters, updated_at, image) VALUES (:project, :name, :code, :interval, :parameters, :updated, :image)")
+            GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_scheduled_tasks (project, name, code, schedule_interval, parameters, updated_at, image) VALUES (:project, :name, :code, :interval, :parameters, :updated, :image)")
                     .bind("project", project)
                     .bind("name", name)
                     .bind("image", image)
@@ -178,8 +177,8 @@ public class ScheduledTaskHttpService
                     .bind("interval", interval.getSeconds())
                     .bind("parameters", JsonHelper.encode(parameters))
                     .bind("updated", Timestamp.from(Instant.ofEpochSecond(100)))
-                    .execute();
-            return success();
+                    .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getLong("id"));
+            return longs.first();
         }
     }
 
@@ -212,12 +211,15 @@ public class ScheduledTaskHttpService
             JSCodeCompiler.JavaLogger javaLogger = new JSCodeCompiler.JavaLogger(prefix);
             JSCodeCompiler.JSConfigManager jsConfigManager = new JSCodeCompiler.JSConfigManager(configManager, project, prefix);
 
-            CompletableFuture<EventList> future = run(project, first.get("code").toString(), JsonHelper.read(first.get("parameters").toString()), javaLogger, jsConfigManager, eventDeserializer);
+            CompletableFuture<EventList> future = run(project,
+                    first.get("code").toString(),
+                    JsonHelper.read(first.get("parameters").toString(), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}),
+                    javaLogger, jsConfigManager, eventDeserializer);
 
             CompletableFuture<SuccessMessage> resultFuture = new CompletableFuture<>();
 
             future.whenComplete((events, ex) -> {
-                if (ex != null) {
+                if (ex == null) {
                     EventCollectionHttpService.mapEvent(eventMappers,
                             eventMapper -> eventMapper.mapAsync(events, EMPTY_PARAMS, localhost, HttpHeaders.EMPTY_HEADERS))
                             .whenComplete((value, ex1) -> {
@@ -265,7 +267,7 @@ public class ScheduledTaskHttpService
                     .bind("id", mapper.id)
                     .bind("interval", mapper.interval)
                     .bind("parameters", mapper.parameters)
-                    .bind("code", mapper.code);
+                    .bind("code", mapper.script);
             return success();
         }
     }
@@ -326,7 +328,8 @@ public class ScheduledTaskHttpService
                 Invocable engine = jsCodeCompiler.createEngine(code, logger, configManager);
 
                 Map<String, Object> collect = Optional.ofNullable(parameters).map(v -> v.entrySet().stream()
-                        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().value)))
+                        .collect(Collectors.toMap(e -> e.getKey(),
+                                e -> Optional.ofNullable(e.getValue().value).orElse(""))))
                         .orElse(ImmutableMap.of());
 
                 Object mapper = engine.invokeFunction("main", collect);
@@ -362,39 +365,55 @@ public class ScheduledTaskHttpService
             catch (NoSuchMethodException e) {
                 throw new RakamException("There must be a function called 'main'.", BAD_REQUEST);
             }
+            catch (Throwable e) {
+                throw new RakamException("Unknown error executing 'main'.", BAD_REQUEST);
+            }
         }, executor);
     }
 
     public static class ScheduledTask
     {
         public final int id;
-        public final String code;
+        public final String script;
         public final Map<String, ScheduledTaskUIHttpService.Parameter> parameters;
         public final Instant lastUpdated;
         public final Duration interval;
-        public final String project;
         public final String name;
         public final String image;
 
         @JsonCreator
         public ScheduledTask(
                 @ApiParam("id") int id,
-                @ApiParam("project") String project,
                 @ApiParam("name") String name,
-                @ApiParam("code") String code,
+                @ApiParam("script") String script,
                 @ApiParam("parameters") Map<String, ScheduledTaskUIHttpService.Parameter> parameters,
                 @ApiParam("image") String image,
                 @ApiParam("interval") Duration interval,
                 @ApiParam("updated_at") Instant lastUpdated)
         {
             this.id = id;
-            this.project = project;
             this.name = name;
-            this.code = code;
+            this.script = script;
             this.parameters = parameters;
             this.image = image;
             this.interval = interval;
             this.lastUpdated = lastUpdated;
+        }
+    }
+
+    private static class Task {
+        public final String project;
+        public final int id;
+        public final String name;
+        public final String script;
+        public final Map<String, ScheduledTaskUIHttpService.Parameter> parameters;
+
+        private Task(String project, int id, String name, String script, Map<String, ScheduledTaskUIHttpService.Parameter> parameters) {
+            this.project = project;
+            this.id = id;
+            this.name = name;
+            this.script = script;
+            this.parameters = parameters;
         }
     }
 }

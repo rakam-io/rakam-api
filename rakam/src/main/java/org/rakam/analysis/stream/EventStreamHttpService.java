@@ -4,9 +4,11 @@ import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Expression;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.rakam.ServiceStarter;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.http.ForHttpServer;
 import org.rakam.plugin.stream.CollectionStreamQuery;
@@ -23,26 +25,36 @@ import org.rakam.util.JsonHelper;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static io.netty.handler.codec.http.HttpHeaders.Names.ACCEPT;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_ACCEPTABLE;
 import static java.lang.String.format;
+import static org.rakam.analysis.ApiKeyService.AccessKeyType.READ_KEY;
 import static org.rakam.server.http.HttpServer.errorMessage;
 import static org.rakam.util.JsonHelper.encode;
 
 @Path("/stream")
 @Api(value = "/stream", tags = "event-stream")
-public class EventStreamHttpService extends HttpService {
+public class EventStreamHttpService
+        extends HttpService
+{
+    private final static Logger LOGGER = Logger.get(ServiceStarter.class);
+
     private final EventStream stream;
     private final SqlParser sqlParser;
     private final ApiKeyService apiKeyService;
     private EventLoopGroup eventLoopGroup;
 
     @Inject
-    public EventStreamHttpService(EventStream stream, ApiKeyService apiKeyService) {
+    public EventStreamHttpService(EventStream stream, ApiKeyService apiKeyService)
+    {
         this.stream = stream;
         this.apiKeyService = apiKeyService;
         this.sqlParser = new SqlParser();
@@ -57,9 +69,10 @@ public class EventStreamHttpService extends HttpService {
 
     @Path("/subscribe")
     @IgnoreApi
-    public void subscribe(RakamHttpRequest request) {
-        if (!Objects.equals(request.headers().get(HttpHeaders.Names.ACCEPT), "text/event-stream")) {
-            request.response("the response should accept text/event-stream", HttpResponseStatus.NOT_ACCEPTABLE).end();
+    public void subscribe(RakamHttpRequest request)
+    {
+        if (!Objects.equals(request.headers().get(ACCEPT), "text/event-stream")) {
+            request.response("the response should accept text/event-stream", NOT_ACCEPTABLE).end();
             return;
         }
 
@@ -67,25 +80,26 @@ public class EventStreamHttpService extends HttpService {
 
         List<String> data = request.params().get("data");
         if (data == null || data.isEmpty()) {
-            response.send("result", encode(errorMessage("data query parameter is required", HttpResponseStatus.BAD_REQUEST))).end();
+            response.send("error", encode(errorMessage("data query parameter is required", BAD_REQUEST))).end();
             return;
         }
 
         StreamQuery query;
         try {
             query = JsonHelper.readSafe(data.get(0), StreamQuery.class);
-        } catch (IOException e) {
-            response.send("result", encode(errorMessage("json couldn't parsed", HttpResponseStatus.BAD_REQUEST))).end();
+        }
+        catch (IOException e) {
+            response.send("error", encode(errorMessage("JSON couldn't parsed: " + e.getMessage(), BAD_REQUEST)));
             return;
         }
         List<String> api_key = request.params().get("read_key");
 
         if (api_key == null || api_key.isEmpty()) {
-            response.send("result", HttpResponseStatus.FORBIDDEN.reasonPhrase()).end();
+            response.send("error", HttpResponseStatus.FORBIDDEN.reasonPhrase()).end();
             return;
         }
 
-        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), ApiKeyService.AccessKeyType.READ_KEY);
+        String project = apiKeyService.getProjectOfApiKey(api_key.get(0), READ_KEY);
 
         List<CollectionStreamQuery> collect;
         try {
@@ -93,28 +107,39 @@ public class EventStreamHttpService extends HttpService {
                 Expression expression = null;
                 try {
                     expression = collection.filter == null ? null : sqlParser.createExpression(collection.filter);
-                } catch (ParsingException e) {
+                }
+                catch (ParsingException e) {
                     request.response(encode(errorMessage(format("Couldn't parse %s: %s",
-                            collection.filter, e.getErrorMessage()), HttpResponseStatus.BAD_REQUEST))).end();
+                            collection.filter, e.getErrorMessage()), BAD_REQUEST))).end();
                     throw e;
                 }
                 return new CollectionStreamQuery(collection.name,
                         expression == null ? null : expression.toString());
             }).collect(Collectors.toList());
-        } catch (ParsingException e) {
+        }
+        catch (ParsingException e) {
             return;
         }
 
         EventStream.EventStreamer subscribe = stream.subscribe(project, collect, query.columns,
                 new StreamResponseAdapter(response));
 
-        eventLoopGroup.schedule(new Runnable() {
+        eventLoopGroup.schedule(new Runnable()
+        {
             @Override
-            public void run() {
+            public void run()
+            {
                 if (response.isClosed()) {
                     subscribe.shutdown();
-                } else {
-                    subscribe.sync();
+                }
+                else {
+                    try {
+                        subscribe.sync();
+                    }
+                    catch (Throwable e) {
+                        LOGGER.error(e);
+                        subscribe.shutdown();
+                    }
                     eventLoopGroup.schedule(this, 3, TimeUnit.SECONDS);
                 }
             }
@@ -122,29 +147,35 @@ public class EventStreamHttpService extends HttpService {
     }
 
     @Inject
-    public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup) {
+    public void setWorkerGroup(@ForHttpServer EventLoopGroup eventLoopGroup)
+    {
         this.eventLoopGroup = eventLoopGroup;
     }
 
-    public static class StreamQuery {
+    public static class StreamQuery
+    {
         public final List<StreamQueryRequest> collections;
         public final List<String> columns;
 
         @JsonCreator
-        public StreamQuery(@ApiParam("collections") List<StreamQueryRequest> collections,
-                           @ApiParam("columns") List<String> columns) {
+        public StreamQuery(
+                @ApiParam("collections") List<StreamQueryRequest> collections,
+                @ApiParam(value = "columns", required = false) List<String> columns)
+        {
             this.collections = collections;
             this.columns = columns;
         }
     }
 
-    public static class StreamQueryRequest {
+    public static class StreamQueryRequest
+    {
         private final String name;
         public final String filter;
 
         @JsonCreator
         public StreamQueryRequest(@ApiParam("name") String name,
-                                  @ApiParam("filter") String filter) {
+                @ApiParam(value = "filter", required = false) String filter)
+        {
             this.name = name;
             this.filter = filter;
         }

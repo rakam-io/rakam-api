@@ -427,7 +427,7 @@ public class JsonEventDeserializer
                                 BAD_REQUEST);
                     }
                 default:
-                    throw new JsonMappingException(format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
+                    throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
                             jp.getValueAsString(), type.name(), field.name()));
             }
         }
@@ -583,7 +583,7 @@ public class JsonEventDeserializer
                 }
                 return type.convertToMapValueType();
             default:
-                throw new JsonMappingException(format("The type is not supported: %s", jp.getValueAsString()));
+                throw new JsonMappingException(jp, format("The type is not supported: %s", jp.getValueAsString()));
         }
     }
 

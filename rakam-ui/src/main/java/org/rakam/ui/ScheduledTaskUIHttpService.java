@@ -76,7 +76,7 @@ public class ScheduledTaskUIHttpService
         @JsonCreator
         public Parameter(
                 @ApiParam("type") FieldType type,
-                @ApiParam("value") Object value,
+                @ApiParam(value = "value", required = false) Object value,
                 @ApiParam("placeholder") String placeholder,
                 @ApiParam("description") String description)
         {
