@@ -19,6 +19,7 @@ user.funnel-analysis.enabled=true\n\
 user.retention-analysis.enabled=true\n\
 plugin.geoip.enabled=true\n\
 plugin.user.storage=postgresql\n\
+event-stream=server\n\
 http.server.address=0.0.0.0:9999\n\
 plugin.user.storage.identifier-column=id\n\
 plugin.geoip.database.url=file://tmp/GeoLite2-City.mmdb\n" > config.properties && (env | grep RAKAM_CONFIG_ | awk  '{gsub(/\_/,".",$0); print substr(tolower($0), 14)}' >> config.properties))

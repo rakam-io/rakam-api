@@ -34,10 +34,6 @@ public class EventStreamModule extends RakamModule {
 
         Multibinder<Tag> tags = Multibinder.newSetBinder(binder, Tag.class);
         tags.addBinding().toInstance(new Tag().name("event-stream").description("Event Stream Module").externalDocs(MetadataConfig.centralDocs));
-
-        if (buildConfigObject(EventStreamConfig.class).isEventStreamEnabled()) {
-            binder.install(new APIEventStreamModule());
-        }
     }
 
     @Override
