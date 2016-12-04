@@ -1,1 +1,1 @@
-build: mvn assembly:assembly -X
+build: mvn assembly:assembly -X -e
