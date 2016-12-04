@@ -231,7 +231,7 @@ public class TestEventJsonParser
                 .createEvent("test", ImmutableMap.of()).properties(), event.properties());
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Nested properties are not supported. \\(\'test1\\' field\\)")
+    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Nested properties are not supported. \\(\'test1\\' field\\).*")
     public void testInvalidArrayRecursiveType()
             throws Exception
     {
@@ -423,7 +423,7 @@ public class TestEventJsonParser
         assertEquals(events.properties().get("test"), "[\"test\"]");
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field")
+    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Cannot cast object to INTEGER for 'test' field.*")
     public void testObjectSentToInvalidScalarValue()
             throws Exception
     {
@@ -441,7 +441,7 @@ public class TestEventJsonParser
         mapper.readValue(bytes, Event.class);
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Scalar value 'test' cannot be cast to ARRAY_BOOLEAN type for 'test' field.")
+    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Scalar value 'test' cannot be cast to ARRAY_BOOLEAN type for 'test' field.*")
     public void testScalarSentToObjectValue()
             throws Exception
     {

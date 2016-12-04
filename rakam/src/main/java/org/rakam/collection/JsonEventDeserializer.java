@@ -481,7 +481,7 @@ public class JsonEventDeserializer
                 List<Object> objects = new ArrayList<>();
                 for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
                     if (!t.isScalarValue()) {
-                        throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
+                        throw new JsonMappingException(jp, String.format("Nested properties are not supported. ('%s' field)", field.name()));
                     }
                     objects.add(getValue(jp, type.getArrayElementType(), null, false));
                 }
@@ -492,7 +492,7 @@ public class JsonEventDeserializer
                     return JsonHelper.encode(jp.readValueAs(TokenBuffer.class));
                 }
                 else {
-                    throw new JsonMappingException(String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
+                    throw new JsonMappingException(jp, String.format("Cannot cast object to %s for '%s' field", type.name(), field.name()));
                 }
             }
         }
