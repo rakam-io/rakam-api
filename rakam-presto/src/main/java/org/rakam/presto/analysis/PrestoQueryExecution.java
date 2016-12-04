@@ -166,7 +166,7 @@ public class PrestoQueryExecution
         QueryStats.State state = QueryStats.State.valueOf(stats.getState().toUpperCase(Locale.ENGLISH));
 
         int percentage = state == FINISHED ? 100 : (totalSplits == 0 ? 0 : stats.getCompletedSplits() * 100 / totalSplits);
-        return new QueryStats(stats.isScheduled() ? null : percentage,
+        return new QueryStats(stats.isScheduled() ? percentage : null,
                 state,
                 stats.getNodes(),
                 stats.getProcessedRows(),
