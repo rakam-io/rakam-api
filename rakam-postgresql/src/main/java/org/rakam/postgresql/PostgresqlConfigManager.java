@@ -88,7 +88,10 @@ public class PostgresqlConfigManager implements ConfigManager {
                         .bind("name", configName.toUpperCase(Locale.ENGLISH))
                         .bind("value", JsonHelper.encode(value)).execute();
             } catch (Exception e) {
-                e.printStackTrace();
+                handle.createStatement("UPDATE config SET value = :value WHERE project = :project AND name = :name")
+                        .bind("project", project)
+                        .bind("name", configName.toUpperCase(Locale.ENGLISH))
+                        .bind("value", JsonHelper.encode(value)).execute();
             }
         }
     }

@@ -7,6 +7,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.Futures;
@@ -64,6 +65,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -71,7 +73,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -151,12 +155,15 @@ public class CustomEventMapperHttpService
     public SuccessMessage update(@Named("project") String project, @BodyParam JSEventMapperCode mapper)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE custom_event_mappers SET script = :script AND parameters = :parameters AND image = :image WHERE id = :id AND project = :project")
+            int execute = handle.createStatement("UPDATE custom_event_mappers SET script = :script, parameters = :parameters, image = :image WHERE id = :id AND project = :project")
                     .bind("project", project)
                     .bind("id", mapper.id)
                     .bind("image", mapper.image)
                     .bind("parameters", JsonHelper.encode(mapper.parameters))
-                    .bind("script", mapper.script);
+                    .bind("script", mapper.script).execute();
+            if(execute == 0) {
+                throw new RakamException(NOT_FOUND);
+            }
             return SuccessMessage.success();
         }
     }
@@ -166,7 +173,7 @@ public class CustomEventMapperHttpService
     )
     @Path("/create")
     @JsonRequest
-    public SuccessMessage create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam("parameters") Map<String, Parameter> parameters)
+    public SuccessMessage create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
     {
         try (Handle handle = dbi.open()) {
             handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) VALUES (:project, :name, :script, :parameters, :image)")
@@ -174,7 +181,7 @@ public class CustomEventMapperHttpService
                     .bind("script", script)
                     .bind("name", name)
                     .bind("image", image)
-                    .bind("parameters", JsonHelper.encode(parameters))
+                    .bind("parameters", JsonHelper.encode(ofNullable(parameters).orElse(ImmutableMap.of())))
                     .execute();
             return SuccessMessage.success();
         }

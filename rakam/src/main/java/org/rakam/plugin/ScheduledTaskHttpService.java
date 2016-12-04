@@ -62,6 +62,7 @@ import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.rakam.plugin.EventMapper.RequestParams.EMPTY_PARAMS;
@@ -158,7 +159,7 @@ public class ScheduledTaskHttpService
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, code, parameters, image, schedule_interval, updated_at FROM custom_scheduled_tasks WHERE project = :project")
                     .bind("project", project).map((index, r, ctx) -> {
-                        return new ScheduledTask(r.getInt(1), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}), r.getString(6), Duration.ofSeconds(r.getInt(7)), r.getTimestamp(8).toInstant());
+                        return new ScheduledTask(r.getInt(1), r.getString(2), r.getString(3), JsonHelper.read(r.getString(4), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}), r.getString(5), Duration.ofSeconds(r.getInt(6)), r.getTimestamp(7).toInstant());
                     }).list();
         }
     }
@@ -201,34 +202,40 @@ public class ScheduledTaskHttpService
     @Path("/trigger")
     public CompletableFuture<SuccessMessage> trigger(@Named("project") String project, @ApiParam("id") int id)
     {
-        try (Handle handle = dbi.open()) {
-            Map<String, Object> first = handle.createQuery("SELECT code, parameters FROM custom_scheduled_tasks WHERE project = :project AND id = :id FOR UPDATE")
-                    .bind("project", project)
-                    .bind("id", id).first();
+        Handle handle = dbi.open();
+        Map<String, Object> first = handle.createQuery("SELECT code, parameters FROM custom_scheduled_tasks WHERE project = :project AND id = :id FOR UPDATE")
+                .bind("project", project)
+                .bind("id", id).first();
 
-            String prefix = "scheduled-task." + id;
+        String prefix = "scheduled-task." + id;
 
-            JSCodeCompiler.JavaLogger javaLogger = new JSCodeCompiler.JavaLogger(prefix);
-            JSCodeCompiler.JSConfigManager jsConfigManager = new JSCodeCompiler.JSConfigManager(configManager, project, prefix);
+        JSCodeCompiler.JavaLogger javaLogger = new JSCodeCompiler.JavaLogger(prefix);
+        JSCodeCompiler.JSConfigManager jsConfigManager = new JSCodeCompiler.JSConfigManager(configManager, project, prefix);
 
-            CompletableFuture<EventList> future = run(project,
-                    first.get("code").toString(),
-                    JsonHelper.read(first.get("parameters").toString(), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}),
-                    javaLogger, jsConfigManager, eventDeserializer);
+        CompletableFuture<EventList> future = run(project,
+                first.get("code").toString(),
+                JsonHelper.read(first.get("parameters").toString(), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}),
+                javaLogger, jsConfigManager, eventDeserializer);
 
-            CompletableFuture<SuccessMessage> resultFuture = new CompletableFuture<>();
+        CompletableFuture<SuccessMessage> resultFuture = new CompletableFuture<>();
 
-            future.whenComplete((events, ex) -> {
-                if (ex == null) {
-                    EventCollectionHttpService.mapEvent(eventMappers,
-                            eventMapper -> eventMapper.mapAsync(events, EMPTY_PARAMS, localhost, HttpHeaders.EMPTY_HEADERS))
-                            .whenComplete((value, ex1) -> {
-                                if (ex1 == null) {
-                                    eventStore.storeBatchAsync(events.events).whenComplete((failed, ex2) -> {
-                                        if (ex2 == null) {
-                                            handle.createStatement("UPDATE custom_scheduled_tasks SET updated_at = now() WHERE project = :project AND id = :id")
-                                                    .bind("project", project)
-                                                    .bind("id", id).execute();
+        future.whenComplete((events, ex) -> {
+            if (ex == null) {
+                EventCollectionHttpService.mapEvent(eventMappers,
+                        eventMapper -> eventMapper.mapAsync(events, EMPTY_PARAMS, localhost, HttpHeaders.EMPTY_HEADERS))
+                        .whenComplete((value, ex1) -> {
+                            if (ex1 == null) {
+                                eventStore.storeBatchAsync(events.events).whenComplete((failed, ex2) -> {
+                                    if (ex2 == null) {
+                                        try {
+                                            try {
+                                                handle.createStatement("UPDATE custom_scheduled_tasks SET updated_at = now() WHERE project = :project AND id = :id")
+                                                        .bind("project", project)
+                                                        .bind("id", id).execute();
+                                            }
+                                            catch (Exception e) {
+                                                resultFuture.completeExceptionally(new RuntimeException("The task is executed but couldn't update the checkpoint", e));
+                                            }
 
                                             if (failed.length == 0) {
                                                 resultFuture.complete(success(format("Processed %d events", events.events.size())));
@@ -237,23 +244,26 @@ public class ScheduledTaskHttpService
                                                 resultFuture.complete(success(format("Processed %d events, %d of them failed", events.events.size(), failed.length)));
                                             }
                                         }
-                                        else {
-                                            resultFuture.completeExceptionally(ex2);
+                                        finally {
+                                            handle.close();
                                         }
-                                    });
-                                }
-                                else {
-                                    resultFuture.completeExceptionally(ex);
-                                }
-                            });
-                }
-                else {
-                    resultFuture.completeExceptionally(ex);
-                }
-            });
+                                    }
+                                    else {
+                                        resultFuture.completeExceptionally(ex2);
+                                    }
+                                });
+                            }
+                            else {
+                                resultFuture.completeExceptionally(ex);
+                            }
+                        });
+            }
+            else {
+                resultFuture.completeExceptionally(ex);
+            }
+        });
 
-            return resultFuture;
-        }
+        return resultFuture;
     }
 
     @JsonRequest
@@ -262,12 +272,15 @@ public class ScheduledTaskHttpService
     public SuccessMessage update(@Named("project") String project, @BodyParam ScheduledTask mapper)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE custom_scheduled_tasks SET code = :code, parameters = :parameters, schedule_interval = :interval WHERE id = :id AND project = :project")
+            int execute = handle.createStatement("UPDATE custom_scheduled_tasks SET code = :code, parameters = :parameters, schedule_interval = :interval WHERE id = :id AND project = :project")
                     .bind("project", project)
                     .bind("id", mapper.id)
-                    .bind("interval", mapper.interval)
-                    .bind("parameters", mapper.parameters)
-                    .bind("code", mapper.script);
+                    .bind("interval", mapper.interval.getSeconds())
+                    .bind("parameters", JsonHelper.encode(mapper.parameters))
+                    .bind("code", mapper.script).execute();
+            if (execute == 0) {
+                throw new RakamException(NOT_FOUND);
+            }
             return success();
         }
     }
@@ -386,10 +399,10 @@ public class ScheduledTaskHttpService
                 @ApiParam("id") int id,
                 @ApiParam("name") String name,
                 @ApiParam("script") String script,
-                @ApiParam("parameters") Map<String, ScheduledTaskUIHttpService.Parameter> parameters,
-                @ApiParam("image") String image,
+                @ApiParam(value = "parameters", required = false) Map<String, ScheduledTaskUIHttpService.Parameter> parameters,
+                @ApiParam(value = "image", required = false) String image,
                 @ApiParam("interval") Duration interval,
-                @ApiParam("updated_at") Instant lastUpdated)
+                @ApiParam(value = "updated_at", required = false) Instant lastUpdated)
         {
             this.id = id;
             this.name = name;
@@ -401,14 +414,16 @@ public class ScheduledTaskHttpService
         }
     }
 
-    private static class Task {
+    private static class Task
+    {
         public final String project;
         public final int id;
         public final String name;
         public final String script;
         public final Map<String, ScheduledTaskUIHttpService.Parameter> parameters;
 
-        private Task(String project, int id, String name, String script, Map<String, ScheduledTaskUIHttpService.Parameter> parameters) {
+        private Task(String project, int id, String name, String script, Map<String, ScheduledTaskUIHttpService.Parameter> parameters)
+        {
             this.project = project;
             this.id = id;
             this.name = name;
