@@ -364,7 +364,7 @@
                                 <argument>org.rakam.SystemRegistryGenerator</argument>
                                 <argument>properties</argument>
                             </arguments>
-                            <outputFile>${project.build.directory}//config.properties</outputFile>
+                            <outputFile>${project.build.directory}/config.properties</outputFile>
                         </configuration>
                     </execution>
                 </executions>
