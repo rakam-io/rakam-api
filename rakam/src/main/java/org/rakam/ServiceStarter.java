@@ -63,6 +63,7 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.time.Clock;
 import java.util.Properties;
 import java.util.ServiceLoader;
@@ -80,7 +81,11 @@ public final class ServiceStarter
         Properties properties = new Properties();
         InputStream inputStream;
         try {
-            inputStream = ServiceStarter.class.getResource("/git.properties").openStream();
+            URL resource = ServiceStarter.class.getResource("/git.properties");
+            if (resource == null) {
+                LOGGER.warn("git.properties doesn't exist.");
+            }
+            inputStream = resource.openStream();
             properties.load(inputStream);
         }
         catch (IOException e) {
