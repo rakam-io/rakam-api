@@ -84,9 +84,10 @@ public final class ServiceStarter
             URL resource = ServiceStarter.class.getResource("/git.properties");
             if (resource == null) {
                 LOGGER.warn("git.properties doesn't exist.");
+            } else {
+                inputStream = resource.openStream();
+                properties.load(inputStream);
             }
-            inputStream = resource.openStream();
-            properties.load(inputStream);
         }
         catch (IOException e) {
             LOGGER.warn(e, "Error while reading git.properties");
