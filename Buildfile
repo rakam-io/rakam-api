@@ -1,1 +1,0 @@
-build: mvn assembly:assembly -Dexec.skip
