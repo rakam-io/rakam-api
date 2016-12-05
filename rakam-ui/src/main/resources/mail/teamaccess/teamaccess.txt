@@ -1,10 +1,8 @@
 Hi {{name}},
 
-Your friend recently added you to {{project}} as a team member. Click the button below to create an account on {{product_name}} and access the data.
+Your friend recently added you to {{project}} as a team member. You can see the project you are added when you login the application. Here is the link for you:
 
 {{action_url}}
-
-The URL address is only valid for the next 30 minutes, if you don't create your account in this time period, you need to recover your password.
 
 Thanks,
 {{product_name}} Team

@@ -52,7 +52,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.time.zone.ZoneRulesException;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -62,13 +61,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
@@ -96,9 +93,12 @@ public class WebUserService
     private static final Mustache welcomeTxtCompiler;
     private static final Mustache resetPasswordTitleCompiler;
     private static final Mustache welcomeTitleCompiler;
-    private static final Mustache userAccessTitleCompiler;
-    private static final Mustache userAccessTxtCompiler;
+    private static final Mustache userAccessNewMemberTitleCompiler;
+    private static final Mustache userAccessNewMemberTxtCompiler;
+    private static final Mustache userAccessNewMemberHtmlCompiler;
     private static final Mustache userAccessHtmlCompiler;
+    private static final Mustache userAccessTxtCompiler;
+    private static final Mustache userAccessTitleCompiler;
 
     public ProjectConfiguration getProjectConfigurations(int project)
     {
@@ -171,6 +171,13 @@ public class WebUserService
                     WebUserService.class.getResource("/mail/welcome/welcome.txt"), UTF_8)), "welcome.txt");
             welcomeTitleCompiler = mf.compile(new StringReader(Resources.toString(
                     WebUserService.class.getResource("/mail/welcome/title.txt"), UTF_8)), "welcome_title.txt");
+
+            userAccessNewMemberHtmlCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.html"), UTF_8)), "welcome.html");
+            userAccessNewMemberTxtCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/teamaccess.txt"), UTF_8)), "welcome.txt");
+            userAccessNewMemberTitleCompiler = mf.compile(new StringReader(Resources.toString(
+                    WebUserService.class.getResource("/mail/teamaccess_newmember/title.txt"), UTF_8)), "welcome_title.txt");
 
             userAccessHtmlCompiler = mf.compile(new StringReader(Resources.toString(
                     WebUserService.class.getResource("/mail/teamaccess/teamaccess.html"), UTF_8)), "welcome.html");
@@ -381,7 +388,7 @@ public class WebUserService
             int execute = handle.createStatement("UPDATE web_user SET password = :password WHERE email = :email")
                     .bind("email", split[1])
                     .bind("password", scrypt).execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new IllegalStateException();
             }
         }
@@ -547,7 +554,7 @@ public class WebUserService
                 newUserId = handle.createStatement("INSERT INTO web_user (email, created_at) VALUES (:email, now())")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
 
-                sendMail(userAccessTitleCompiler, userAccessTxtCompiler, userAccessHtmlCompiler, email, ImmutableMap.of(
+                sendMail(userAccessNewMemberTitleCompiler, userAccessNewMemberTxtCompiler, userAccessNewMemberHtmlCompiler, email, ImmutableMap.of(
                         "product_name", "Rakam",
                         "project", projectStream.get().name,
                         "action_url", format("%s/perform-recover-password?%s",
@@ -556,6 +563,11 @@ public class WebUserService
             catch (Exception e) {
                 newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
                         .map(IntegerMapper.FIRST).first();
+
+                sendMail(userAccessTitleCompiler, userAccessTxtCompiler, userAccessHtmlCompiler, email, ImmutableMap.of(
+                        "product_name", "Rakam",
+                        "project", projectStream.get().name,
+                        "action_url", mailConfig.getSiteUrl()));
             }
         }
 
