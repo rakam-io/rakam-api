@@ -7,6 +7,7 @@ import com.google.inject.Singleton;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
+import org.rakam.Mapper;
 import org.rakam.collection.Event;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.plugin.EventMapper;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 @Singleton
+@Mapper(name = "Automation Event Processor", description = "Processes automation rules and take action if the user is completed the steps")
 public class AutomationEventProcessor implements SyncEventMapper
 {
     private static final String PROPERTY_KEY = "_auto";

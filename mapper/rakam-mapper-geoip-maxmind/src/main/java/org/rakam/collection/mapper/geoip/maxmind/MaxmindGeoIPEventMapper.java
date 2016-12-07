@@ -15,6 +15,7 @@ import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
+import org.rakam.Mapper;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 
 import static org.rakam.collection.FieldType.STRING;
 
+@Mapper(name = "Maxmind Event mapper", description = "Looks up geolocation data from _ip field using Maxmind and attaches geo-related attributed")
 public class MaxmindGeoIPEventMapper
         implements SyncEventMapper, UserPropertyMapper
 {

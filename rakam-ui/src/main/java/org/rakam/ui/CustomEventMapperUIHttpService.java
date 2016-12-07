@@ -91,7 +91,7 @@ public class CustomEventMapperUIHttpService
         public final String name;
         public final String image;
         public final String description;
-        public final String code;
+        public final String script;
         public final Map<String, Parameter> parameters;
 
         @JsonCreator
@@ -104,7 +104,7 @@ public class CustomEventMapperUIHttpService
             this.name = name;
             this.image = image;
             this.description = description;
-            this.code = code;
+            this.script = code;
             this.parameters = parameters;
         }
     }

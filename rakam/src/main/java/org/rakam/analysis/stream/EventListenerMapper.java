@@ -2,6 +2,7 @@ package org.rakam.analysis.stream;
 
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
+import org.rakam.Mapper;
 import org.rakam.analysis.stream.APIEventStreamModule.CollectionStreamHolder;
 import org.rakam.analysis.stream.APIEventStreamModule.CollectionStreamHolder.CollectionFilter;
 import org.rakam.collection.Event;
@@ -13,6 +14,7 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 
+@Mapper(name = "Event stream module listener", description = "An internal event mapper that sends matching events to the API request")
 public class EventListenerMapper
         implements SyncEventMapper
 {

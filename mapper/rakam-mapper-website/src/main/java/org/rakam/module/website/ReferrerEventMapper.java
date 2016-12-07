@@ -10,6 +10,7 @@ import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
+import org.rakam.Mapper;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
@@ -26,6 +27,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
+@Mapper(name = "Website Referrer Event mapper", description = "Parses referrer string and attaches new field related with the referrer of the user")
 public class ReferrerEventMapper
         implements SyncEventMapper, UserPropertyMapper
 {

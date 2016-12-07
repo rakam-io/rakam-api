@@ -12,6 +12,7 @@ import io.airlift.configuration.ConfigBinder;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.swagger.models.Tag;
+import org.rakam.Mapper;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.InternalConfig;
@@ -209,6 +210,7 @@ public class UserModule
         }
     }
 
+    @Mapper(name = "User Id Checker Event mapper", description = "Checks whether the event has _user attribute or not.")
     public static class UserIdCheckEventMapper
             implements SyncEventMapper, UserPropertyMapper
     {

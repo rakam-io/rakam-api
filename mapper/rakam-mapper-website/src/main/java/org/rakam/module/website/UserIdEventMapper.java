@@ -9,6 +9,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.rakam.Mapper;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InternalConfig;
 import org.rakam.collection.Event;
@@ -32,6 +33,7 @@ import java.util.UUID;
 
 import static org.rakam.collection.FieldType.STRING;
 
+@Mapper(name = "User Id Event mapper", description = "")
 public class UserIdEventMapper
         implements SyncEventMapper, UserPropertyMapper
 {

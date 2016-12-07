@@ -8,6 +8,7 @@ import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.cookie.Cookie;
 import org.apache.avro.generic.GenericRecord;
+import org.rakam.Mapper;
 import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.mapper.geoip.maxmind.ip2location.IP2LocationGeoIPModule.downloadOrGetFile;
 
+@Mapper(name = "IP2Location Event mapper", description = "Looks up geolocation data from _ip field using IP2Location and attaches geo-related attributed")
 public class IP2LocationGeoIPEventMapper
         implements SyncEventMapper, UserPropertyMapper
 {
