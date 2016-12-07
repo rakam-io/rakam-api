@@ -546,7 +546,7 @@
             <dependency>
                 <groupId>org.postgresql</groupId>
                 <artifactId>postgresql</artifactId>
-                <version>9.4-1200-jdbc41</version>
+                <version>9.4.1212</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.slf4j</groupId>
