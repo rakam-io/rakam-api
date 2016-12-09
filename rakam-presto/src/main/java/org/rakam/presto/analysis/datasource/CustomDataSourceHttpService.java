@@ -232,12 +232,12 @@ public class CustomDataSourceHttpService
     {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO custom_data_source (project, schema_name, null, type, options) " +
-                        "VALUES (:project, :schema_name, null, :type, :options)")
+                handle.createStatement("INSERT INTO custom_data_source (project, schema_name, table_name, type, options) " +
+                        "VALUES (:project, :schema_name, :table_name, :type, :options)")
                         .bind("project", project)
                         .bind("schema_name", hook.schemaName)
                         .bind("type", hook.type)
-                        .bind("table_name", (String) null)
+                        .bind("table_name", "")
                         .bind("options", JsonHelper.encode(hook.options))
                         .execute();
                 return SuccessMessage.success();
