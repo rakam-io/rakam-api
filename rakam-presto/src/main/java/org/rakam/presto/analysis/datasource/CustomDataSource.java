@@ -12,8 +12,8 @@ public class CustomDataSource
     @JsonCreator
     public CustomDataSource(
             @ApiParam("type") String type,
-            @ApiParam("schemaName") String schemaName,
-            @ApiParam("options") Object options)
+            @ApiParam(value = "schemaName", required = false) String schemaName,
+            @ApiParam(value = "options") Object options)
     {
         this.schemaName = schemaName;
         this.options = DataSource.createDataSource(type, options);

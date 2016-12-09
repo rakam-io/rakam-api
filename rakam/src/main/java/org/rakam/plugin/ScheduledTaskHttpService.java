@@ -21,6 +21,7 @@ import org.rakam.collection.EventList;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.util.JSCodeCompiler;
+import org.rakam.collection.util.JSCodeCompiler.JSConfigManager;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -120,9 +121,9 @@ public class ScheduledTaskHttpService
                         }).list();
                 for (Task task : tasks) {
                     String prefix = "scheduled-task." + task.id;
-                    JSCodeCompiler.JavaLogger javaLogger = new JSCodeCompiler.JavaLogger(prefix);
-                    JSCodeCompiler.JSConfigManager jsConfigManager = new JSCodeCompiler.JSConfigManager(configManager, task.project, prefix);
-                    CompletableFuture<EventList> result = run(task.project, task.script, task.parameters, javaLogger, jsConfigManager, eventDeserializer);
+                    JSConfigManager jsConfigManager = new JSConfigManager(configManager, task.project, prefix);
+                    CompletableFuture<EventList> result = run(task.project, task.script, task.parameters,
+                            jsCodeCompiler.createLogger(task.project, prefix), jsConfigManager, eventDeserializer);
                     result.whenComplete((events, ex) -> {
                         eventStore.storeBatchAsync(events.events).whenComplete((res, ex1) -> {
 
@@ -209,13 +210,14 @@ public class ScheduledTaskHttpService
 
         String prefix = "scheduled-task." + id;
 
-        JSCodeCompiler.JavaLogger javaLogger = new JSCodeCompiler.JavaLogger(prefix);
-        JSCodeCompiler.JSConfigManager jsConfigManager = new JSCodeCompiler.JSConfigManager(configManager, project, prefix);
+        JSConfigManager jsConfigManager = new JSConfigManager(configManager, project, prefix);
 
         CompletableFuture<EventList> future = run(project,
                 first.get("code").toString(),
-                JsonHelper.read(first.get("parameters").toString(), new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}),
-                javaLogger, jsConfigManager, eventDeserializer);
+                JsonHelper.read(first.get("parameters").toString(),
+                        new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}),
+                jsCodeCompiler.createLogger(project, prefix),
+                jsConfigManager, eventDeserializer);
 
         CompletableFuture<SuccessMessage> resultFuture = new CompletableFuture<>();
 
@@ -292,7 +294,7 @@ public class ScheduledTaskHttpService
     {
         JSCodeCompiler.TestLogger logger = new JSCodeCompiler.TestLogger();
         TestingConfigManager testingConfigManager = new TestingConfigManager();
-        JSCodeCompiler.IJSConfigManager ijsConfigManager = new JSCodeCompiler.JSConfigManager(testingConfigManager, project, null);
+        JSCodeCompiler.IJSConfigManager ijsConfigManager = new JSConfigManager(testingConfigManager, project, null);
 
         InMemoryApiKeyService apiKeyService = new InMemoryApiKeyService();
         InMemoryMetastore metastore = new InMemoryMetastore(apiKeyService);

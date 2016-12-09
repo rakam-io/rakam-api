@@ -5,14 +5,15 @@ import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
-import jdk.nashorn.internal.runtime.regexp.joni.Config;
-import org.apache.http.client.HttpClient;
-import org.rakam.ServiceStarter;
 import org.rakam.analysis.ConfigManager;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.plugin.CustomEventMapperHttpService;
 import org.rakam.plugin.RAsyncHttpClient;
 import org.rakam.util.CryptUtil;
+import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.Handle;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.script.Bindings;
@@ -32,12 +33,33 @@ public class JSCodeCompiler
     private final static Logger LOGGER = Logger.get(JSCodeCompiler.class);
     private final @Named("rakam-client") RAsyncHttpClient httpClient;
     private final ConfigManager configManager;
+    private final DBI dbi;
+    private final String[] args = {"-strict", "--no-syntax-extensions"};
 
     @Inject
-    public JSCodeCompiler(ConfigManager configManager, @Named("rakam-client") RAsyncHttpClient httpClient)
+    public JSCodeCompiler(
+            ConfigManager configManager,
+            @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+            @Named("rakam-client") RAsyncHttpClient httpClient)
     {
         this.configManager = configManager;
         this.httpClient = httpClient;
+        this.dbi = new DBI(dataSource);
+    }
+
+    @PostConstruct
+    public void setupLogger()
+    {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("CREATE TABLE IF NOT EXISTS javascript_logs (" +
+                    "  project VARCHAR(255) NOT NULL," +
+                    "  type VARCHAR(15) NOT NULL," +
+                    "  prefix VARCHAR(255) NOT NULL," +
+                    "  error TEXT NOT NULL," +
+                    "  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                    "  )")
+                    .execute();
+        }
     }
 
     public static class NashornEngineFilter
@@ -59,8 +81,12 @@ public class JSCodeCompiler
             throws ScriptException
     {
         return createEngine(code,
-                new JavaLogger(prefix),
+                new PersistentLogger(project, prefix),
                 prefix == null ? new MemoryConfigManager() : new JSConfigManager(configManager, project, prefix));
+    }
+
+    public PersistentLogger createLogger(String project, String prefix) {
+        return new PersistentLogger(project, prefix);
     }
 
     public Invocable createEngine(String code, ILogger logger, IJSConfigManager configManager)
@@ -69,7 +95,7 @@ public class JSCodeCompiler
         NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
 
         ScriptEngine engine = factory
-                .getScriptEngine(new String[] {"-strict", "--no-syntax-extensions"},
+                .getScriptEngine(args,
                         CustomEventMapperHttpService.class.getClassLoader(), new NashornEngineFilter());
 
         final Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
@@ -150,34 +176,86 @@ public class JSCodeCompiler
             implements ILogger
     {
         private final String prefix;
+        private final String project;
 
-        public JavaLogger(String prefix)
+        public JavaLogger(String project, String prefix)
         {
-            this.prefix = null;
+            this.prefix = prefix;
+            this.project = project;
         }
 
         @Override
         public void debug(String value)
         {
-            LOGGER.debug("Script(" + prefix + ")" + value);
+            LOGGER.debug("Script(" + project + ", " + prefix + ")" + value);
         }
 
         @Override
         public void warn(String value)
         {
-            LOGGER.warn("Script(" + prefix + ")" + value);
+            LOGGER.warn("Script(" + project + ", " + prefix + ")" + value);
         }
 
         @Override
         public void info(String value)
         {
-            LOGGER.info("Script(" + prefix + ")" + value);
+            LOGGER.info("Script(" + project + ", " + prefix + ")" + value);
         }
 
         @Override
         public void error(String value)
         {
-            LOGGER.error("Script(" + prefix + ")" + value);
+            LOGGER.error("Script(" + project + ", " + prefix + ")" + value);
+        }
+    }
+
+    public class PersistentLogger
+            implements ILogger
+    {
+        private final String prefix;
+        private final String project;
+
+        public PersistentLogger(String project, String prefix)
+        {
+            this.project = project;
+            this.prefix = prefix;
+        }
+
+        @Override
+        public void debug(String value)
+        {
+            log("DEBUG", value);
+        }
+
+        private void log(String type, String value)
+        {
+            try (Handle handle = dbi.open()) {
+                handle.createStatement("INSERT INTO javascript_logs (project, type, prefix, message) " +
+                        "VALUES (:project, :type, :prefix, :message)")
+                        .bind("project", project)
+                        .bind("type", type)
+                        .bind("prefix", prefix)
+                        .bind("message", value)
+                        .execute();
+            }
+        }
+
+        @Override
+        public void warn(String value)
+        {
+            log("WARN", value);
+        }
+
+        @Override
+        public void info(String value)
+        {
+            log("INFO", value);
+        }
+
+        @Override
+        public void error(String value)
+        {
+            log("ERROR", value);
         }
     }
 

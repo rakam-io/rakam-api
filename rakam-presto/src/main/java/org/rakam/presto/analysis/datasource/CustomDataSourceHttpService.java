@@ -237,6 +237,7 @@ public class CustomDataSourceHttpService
                         .bind("project", project)
                         .bind("schema_name", hook.schemaName)
                         .bind("type", hook.type)
+                        .bind("table_name", (String) null)
                         .bind("options", JsonHelper.encode(hook.options))
                         .execute();
                 return SuccessMessage.success();

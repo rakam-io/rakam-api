@@ -1,6 +1,7 @@
 package org.rakam.plugin;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.cache.CacheBuilder;
@@ -47,13 +48,13 @@ import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
 
 import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.rmi.CORBA.StubDelegate;
 import javax.script.Invocable;
 import javax.script.ScriptException;
 import javax.ws.rs.GET;
@@ -65,7 +66,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -161,7 +161,7 @@ public class CustomEventMapperHttpService
                     .bind("image", mapper.image)
                     .bind("parameters", JsonHelper.encode(mapper.parameters))
                     .bind("script", mapper.script).execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new RakamException(NOT_FOUND);
             }
             return SuccessMessage.success();
@@ -173,17 +173,17 @@ public class CustomEventMapperHttpService
     )
     @Path("/create")
     @JsonRequest
-    public SuccessMessage create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
+    public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) VALUES (:project, :name, :script, :parameters, :image)")
+            GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) VALUES (:project, :name, :script, :parameters, :image)")
                     .bind("project", project)
                     .bind("script", script)
                     .bind("name", name)
                     .bind("image", image)
                     .bind("parameters", JsonHelper.encode(ofNullable(parameters).orElse(ImmutableMap.of())))
-                    .execute();
-            return SuccessMessage.success();
+                    .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getLong("id"));
+            return longs.first();
         }
     }
 
@@ -203,12 +203,24 @@ public class CustomEventMapperHttpService
         }
     }
 
+    public static class TestEventMapperResult
+    {
+        public final TestEventsProxy event;
+        public final Map<String, Object> cookies;
+
+        public TestEventMapperResult(TestEventsProxy event, Map<String, Object> cookies)
+        {
+            this.event = event;
+            this.cookies = cookies;
+        }
+    }
+
     @ApiOperation(value = "Test custom event mapper",
             authorizations = @Authorization(value = "master_key")
     )
     @Path("/test")
     @JsonRequest
-    public CompletableFuture<Map<String, String>> test(RakamHttpRequest request,
+    public CompletableFuture<TestEventMapperResult> test(RakamHttpRequest request,
             @Named("project") String project,
             @ApiParam("script") String script,
             @ApiParam("body") String requestBody,
@@ -221,25 +233,25 @@ public class CustomEventMapperHttpService
                 DefaultHttpHeaders responseHeaders = new DefaultHttpHeaders();
 
                 Map<String, Object> read = JsonHelper.read(requestBody, Map.class);
+                TestEventsProxy testEventsProxy = new TestEventsProxy(read, project);
                 Object mapper = engine.invokeFunction("mapper",
-                        new TestEventsProxy(read, project),
+                        testEventsProxy,
                         new EventCollectionHttpService.HttpRequestParams(request),
                         EventCollectionHttpService.getRemoteAddress(request.getRemoteAddress()),
                         responseHeaders,
                         parameters);
 
                 if (mapper == null) {
-                    return null;
+                    return new TestEventMapperResult(testEventsProxy, null);
                 }
+
+                mapper = getValue(mapper);
 
                 if (mapper instanceof Map) {
-                    HashMap<String, String> map = new HashMap<>();
-                    ((Map) mapper).forEach((o, o2) ->
-                            map.put(o.toString(), o2.toString()));
-                    return map;
+                    return new TestEventMapperResult(testEventsProxy, (Map) mapper);
                 }
 
-                throw new RakamException("The function didn't return an object that represents the cookie value: "
+                throw new RakamException("The function didn't return a list that contains the cookie values: "
                         + JsonHelper.encode(mapper), BAD_REQUEST);
             }
             catch (ScriptException e) {
@@ -249,6 +261,27 @@ public class CustomEventMapperHttpService
                 throw new RakamException("There must be a function called 'mapper'.", BAD_REQUEST);
             }
         }, executor);
+    }
+
+    private Object getValue(Object o)
+    {
+        if (o instanceof ScriptObjectMirror) {
+            ScriptObjectMirror mirror = (ScriptObjectMirror) o;
+            if (mirror.isFunction()) {
+                return o.toString();
+            }
+            else if (mirror.isArray()) {
+                return mirror.values().stream()
+                        .map(e -> getValue(e))
+                        .collect(Collectors.toList());
+            }
+            else {
+                return mirror.entrySet().stream()
+                        .collect(Collectors.toMap(e -> e.getKey().toString(), e -> getValue(e.getValue())));
+            }
+        }
+
+        return o;
     }
 
     @Override
@@ -452,6 +485,7 @@ public class CustomEventMapperHttpService
         }
 
         @Override
+        @JsonProperty
         public Event.EventContext api()
         {
             return JsonHelper.convert(data.get("api"),
@@ -459,12 +493,14 @@ public class CustomEventMapperHttpService
         }
 
         @Override
+        @JsonProperty
         public String project()
         {
             return project;
         }
 
         @Override
+        @JsonProperty
         public Iterator<EventProxy> events()
         {
             Map<String, Object> properties = JsonHelper.convert(data.get("properties"), Map.class);
@@ -486,9 +522,16 @@ public class CustomEventMapperHttpService
             }
 
             @Override
+            @JsonProperty
             public String collection()
             {
                 return collection;
+            }
+
+            @JsonProperty
+            public Map<String, Object> properties()
+            {
+                return properties;
             }
 
             @Override
@@ -510,7 +553,8 @@ public class CustomEventMapperHttpService
     {
         private final Event event;
 
-        public ListEventProxy(Event event) {
+        public ListEventProxy(Event event)
+        {
             this.event = event;
         }
 
@@ -558,7 +602,7 @@ public class CustomEventMapperHttpService
                 outer:
                 for (SchemaField field : fields) {
                     for (Schema.Field oldField : oldFields) {
-                        if(oldField.name().equals(field.getName())) {
+                        if (oldField.name().equals(field.getName())) {
                             continue outer;
                         }
                     }
