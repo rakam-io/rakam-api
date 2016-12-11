@@ -1,14 +1,11 @@
 package org.rakam.postgresql.report;
 
-import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.inject.name.Named;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.Metastore;
-import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
-import org.rakam.plugin.ContinuousQuery;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
@@ -41,15 +38,13 @@ public class PostgresqlQueryExecutor
 
     private final JDBCPoolDataSource connectionPool;
     protected static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
-    private final QueryMetadataStore queryMetadataStore;
     private final Metastore metastore;
     private final boolean userServiceIsPostgresql;
 
     @Inject
-    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, Metastore metastore, @Named("user.storage.postgresql") boolean userServiceIsPostgresql, QueryMetadataStore queryMetadataStore)
+    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, Metastore metastore, @Named("user.storage.postgresql") boolean userServiceIsPostgresql)
     {
         this.connectionPool = connectionPool;
-        this.queryMetadataStore = queryMetadataStore;
         this.metastore = metastore;
         this.userServiceIsPostgresql = userServiceIsPostgresql;
 
@@ -68,23 +63,23 @@ public class PostgresqlQueryExecutor
     @Override
     public QueryExecution executeRawQuery(String query)
     {
-        return new PostgresqlQueryExecution(connectionPool, query, false);
+        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false);
     }
 
     @Override
     public QueryExecution executeRawStatement(String query)
     {
-        return new PostgresqlQueryExecution(connectionPool, query, true);
+        return new PostgresqlQueryExecution(connectionPool::getConnection, query, true);
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample)
+    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
     {
         if (name.getPrefix().isPresent()) {
             switch (name.getPrefix().get().toString()) {
                 case "collection":
                     return project + "." + checkCollection(name.getSuffix()) +
-                        sample.map(e -> " TABLESAMPLE " + e.method.name() + "(" + e.percentage + ")").orElse("");
+                            sample.map(e -> " TABLESAMPLE " + e.method.name() + "(" + e.percentage + ")").orElse("");
                 case "continuous":
                     return project + "." + checkCollection(CONTINUOUS_QUERY_PREFIX + name.getSuffix());
                 case "materialized":

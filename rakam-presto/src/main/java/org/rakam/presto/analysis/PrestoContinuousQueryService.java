@@ -24,6 +24,7 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -39,6 +40,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.rakam.presto.analysis.PrestoQueryExecution.fromPrestoType;
+import static org.rakam.util.ValidationUtil.checkCollection;
 
 public class PrestoContinuousQueryService
         extends ContinuousQueryService
@@ -68,7 +70,7 @@ public class PrestoContinuousQueryService
             if (name.getSuffix().equals("_all") && name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
                 return format("_all.%s", project);
             }
-            return executor.formatTableReference(project, name, Optional.empty());
+            return executor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of());
         }, '"').process(query, 1);
 
         return builder.toString();
@@ -78,11 +80,11 @@ public class PrestoContinuousQueryService
     public QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData)
     {
         String query = build(project, report.getQuery());
-        String prestoQuery = format("create view %s.\"%s\".\"%s\" as %s", config.getStreamingConnector(),
-                project, report.tableName, query);
+        String prestoQuery = format("create view %s.%s.%s as %s", checkCollection(config.getStreamingConnector()),
+                checkCollection(project), checkCollection(report.tableName), query);
 
         ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-        PrestoQueryExecution prestoQueryExecution;
+        QueryExecution prestoQueryExecution;
         if (!report.partitionKeys.isEmpty()) {
             builder.put(config.getStreamingConnector() + ".partition_keys",
                     Joiner.on("|").join(report.partitionKeys));

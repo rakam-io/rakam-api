@@ -14,6 +14,9 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.QueryStats;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
+import org.skife.jdbi.v2.tweak.ConnectionFactory;
+
+import javax.sql.DataSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,13 +53,13 @@ public class PostgresqlQueryExecution
     private final String query;
     private Statement statement;
 
-    public PostgresqlQueryExecution(JDBCPoolDataSource connectionPool, String sqlQuery, boolean update)
+    public PostgresqlQueryExecution(ConnectionFactory connectionPool, String sqlQuery, boolean update)
     {
         this.query = sqlQuery;
 
         // TODO: unnecessary threads will be spawn
         Supplier<QueryResult> task = () -> {
-            try (Connection connection = connectionPool.getConnection()) {
+            try (Connection connection = connectionPool.openConnection()) {
                 statement = connection.createStatement();
                 if (update) {
                     statement.executeUpdate(sqlQuery);
@@ -102,7 +105,7 @@ public class PostgresqlQueryExecution
             return new QueryStats(100, FINISHED, null, null, null, null, null, null);
         }
         else {
-            return new QueryStats(0, RUNNING, null, null, null, null, null, null);
+            return new QueryStats(null, RUNNING, null, null, null, null, null, null);
         }
     }
 

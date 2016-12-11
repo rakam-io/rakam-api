@@ -28,13 +28,12 @@ public class TestPostgresqlRetentionQueryExecutor extends TestRetentionQueryExec
     public void setup() throws Exception {
         testingPostgresqlServer = new TestingEnvironment();
 
-        InMemoryQueryMetadataStore queryMetadataStore = new InMemoryQueryMetadataStore();
         JDBCPoolDataSource dataSource = JDBCPoolDataSource.getOrCreateDataSource(testingPostgresqlServer.getPostgresqlConfig());
 
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         metastore = new PostgresqlMetastore(dataSource, new EventBus());
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false);
         eventStore = new PostgresqlEventStore(dataSource, build);
 
         retentionQueryExecutor = new PostgresqlRetentionQueryExecutor(queryExecutor, metastore);

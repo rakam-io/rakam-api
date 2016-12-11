@@ -1,12 +1,10 @@
 package org.rakam.presto.analysis.datasource;
 
-import com.facebook.presto.jdbc.internal.guava.base.Function;
+import com.facebook.presto.hadoop.$internal.com.google.common.base.Throwables;
 import com.facebook.presto.rakam.externaldata.DataManager;
-import com.facebook.presto.rakam.externaldata.source.MysqlDataSource;
-import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource;
-import org.postgresql.Driver;
-
-import javax.annotation.Nullable;
+import com.facebook.presto.rakam.externaldata.JDBCSchemaConfig;
+import com.facebook.presto.rakam.externaldata.source.MysqlDataSource.MysqlDataSourceFactory;
+import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource.PostgresqlDataSourceFactory;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -18,18 +16,14 @@ import static java.lang.String.format;
 
 public enum SupportedCustomDatabase
 {
-    POSTGRESQL(PostgresqlDataSource.PostgresqlDataSourceFactory.class, new Function<PostgresqlDataSource.PostgresqlDataSourceFactory, Optional<String>>()
+    POSTGRESQL(PostgresqlDataSourceFactory.class, new CDataSource<PostgresqlDataSourceFactory>()
     {
-        @Nullable
         @Override
-        public Optional<String> apply(@Nullable PostgresqlDataSource.PostgresqlDataSourceFactory factory)
+        public Optional<String> test(PostgresqlDataSourceFactory factory)
         {
+            Connection connect = null;
             try {
-                Connection connect = new Driver().connect(
-                        format("jdbc:postgresql://%s:%s/%s",
-                                factory.getHost(),
-                                Optional.ofNullable(factory.getPort()).orElse(5432),
-                                factory.getDatabase()), null);
+                connect = openConnection(factory);
                 String schemaPattern = connect.getSchema() == null ? "public" : factory.getSchema();
                 ResultSet schemas = connect.getMetaData().getSchemas(null, schemaPattern);
                 return schemas.next() ? Optional.empty() : Optional.of(format("Schema '%s' does not exist", schemaPattern));
@@ -37,46 +31,104 @@ public enum SupportedCustomDatabase
             catch (SQLException e) {
                 return Optional.of(e.getMessage());
             }
+            finally {
+                if (connect != null) {
+                    try {
+                        connect.close();
+                    }
+                    catch (SQLException e) {
+                        throw Throwables.propagate(e);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public Connection openConnection(PostgresqlDataSourceFactory factory)
+                throws SQLException
+        {
+            return new org.postgresql.Driver().connect(
+                    format("jdbc:postgresql://%s:%s/%s",
+                            factory.getHost(),
+                            Optional.ofNullable(factory.getPort()).orElse(5432),
+                            factory.getDatabase()), null);
         }
     }),
-    MYSQL(MysqlDataSource.MysqlDataSourceFactory.class, new Function<MysqlDataSource.MysqlDataSourceFactory, Optional<String>>()
+    MYSQL(MysqlDataSourceFactory.class, new CDataSource<MysqlDataSourceFactory>()
     {
-        @Nullable
         @Override
-        public Optional<String> apply(@Nullable MysqlDataSource.MysqlDataSourceFactory factory)
+        public Optional<String> test(MysqlDataSourceFactory factory)
         {
-            Properties info = new Properties();
-            info.put("PGDBNAME", factory.getDatabase());
-            info.put("PGPORT", factory.getPort());
-            info.put("PGHOST", factory.getHost());
-
+            Connection connect = null;
             try {
-                Connection connect = new Driver().connect("jdbc:postgresql:", info);
-                String schemaPattern = connect.getSchema() == null ? "public" : connect.getSchema();
-                ResultSet schemas = connect.getMetaData().getSchemas(null, schemaPattern);
-                return schemas.next() ? Optional.empty() : Optional.of(format("Schema '%s' does not exist", schemaPattern));
+                connect = openConnection(factory);
+                ResultSet schemas = connect.getMetaData().getSchemas(null, null);
+                return schemas.next() ? Optional.empty() : Optional.empty();
             }
             catch (SQLException e) {
                 return Optional.of(e.getMessage());
             }
+            finally {
+                if (connect != null) {
+                    try {
+                        connect.close();
+                    }
+                    catch (SQLException e) {
+                        throw com.google.common.base.Throwables.propagate(e);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public Connection openConnection(MysqlDataSourceFactory factory)
+                throws SQLException
+        {
+            Properties info = new Properties();
+            Optional.ofNullable(factory.getUsername()).map(value -> info.put("user", value));
+            Optional.ofNullable(factory.getPassword()).map(value -> info.put("password", value));
+
+            return new com.mysql.jdbc.Driver().connect(format("jdbc:mysql://%s:%s/%s",
+                    factory.getHost(),
+                    Optional.ofNullable(factory.getPort()).orElse(3306),
+                    factory.getDatabase()), info);
         }
     });
 
-    private final Class<? extends DataManager.DataSourceFactory> factoryClass;
-    private final Function<? extends DataManager.DataSourceFactory, Optional<String>> testFunction;
+    private final CDataSource testFunction;
+    private final Class<? extends JDBCSchemaConfig> factoryClass;
 
-    SupportedCustomDatabase(Class<? extends DataManager.DataSourceFactory> factoryClass, Function<? extends DataManager.DataSourceFactory, Optional<String>> testFunction)
+    SupportedCustomDatabase(Class<? extends JDBCSchemaConfig> factoryClass, CDataSource testFunction)
     {
         this.factoryClass = factoryClass;
         this.testFunction = testFunction;
     }
 
-    public static Function<? extends DataManager.DataSourceFactory, Optional<String>> getTestFunction(String value) {
+    public Class<? extends JDBCSchemaConfig> getFactoryClass()
+    {
+        return factoryClass;
+    }
+
+    public CDataSource getTestFunction()
+    {
+        return testFunction;
+    }
+
+    public static SupportedCustomDatabase getAdapter(String value)
+    {
         for (SupportedCustomDatabase database : values()) {
             if (database.name().equals(value)) {
-                return database.testFunction;
+                return database;
             }
         }
         throw new IllegalStateException();
+    }
+
+    public interface CDataSource<T extends DataManager.DataSourceFactory>
+    {
+        Optional<String> test(T data);
+
+        Connection openConnection(T data)
+                throws SQLException;
     }
 }

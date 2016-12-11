@@ -12,7 +12,7 @@ public class CustomDataSource
     @JsonCreator
     public CustomDataSource(
             @ApiParam("type") String type,
-            @ApiParam(value = "schemaName", required = false) String schemaName,
+            @ApiParam(value = "schemaName") String schemaName,
             @ApiParam(value = "options") Object options)
     {
         this.schemaName = schemaName;

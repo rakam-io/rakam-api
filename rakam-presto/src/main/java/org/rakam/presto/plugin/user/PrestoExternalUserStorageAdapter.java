@@ -139,7 +139,7 @@ public class PrestoExternalUserStorageAdapter extends AbstractPostgresqlUserStor
     @Override
     public List<String> getEventFilterPredicate(String project, List<EventFilter> eventFilter) {
         return eventFilter.stream().map(f -> String.format("id in (%s)",
-                String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty()))))
+                String.format(getEventFilterQuery(project, f), executor.formatTableReference(project, QualifiedName.of(f.collection), Optional.empty(), ImmutableMap.of()))))
                 .collect(Collectors.toList());
     }
 

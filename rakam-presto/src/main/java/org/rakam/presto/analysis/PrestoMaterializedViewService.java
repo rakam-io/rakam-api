@@ -14,6 +14,7 @@ import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.Statement;
+import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.MaterializedViewService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
@@ -109,7 +110,7 @@ public class PrestoMaterializedViewService
         QueryExecution execution = queryExecutor
                 .executeRawQuery(format("create table %s as %s limit 0",
                         queryExecutor.formatTableReference(project,
-                                QualifiedName.of("materialized", materializedView.tableName), Optional.empty()), builder.toString(), Optional.empty()), map);
+                                QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of()), builder.toString(), Optional.empty()), map);
 
         return execution.getResult().thenAccept(result -> {
             if (result.isFailed()) {
@@ -126,7 +127,7 @@ public class PrestoMaterializedViewService
     {
         MaterializedView materializedView = database.getMaterializedView(project, name);
         database.deleteMaterializedView(project, name);
-        String reference = queryExecutor.formatTableReference(project, QualifiedName.of("materialized", materializedView.tableName), Optional.empty());
+        String reference = queryExecutor.formatTableReference(project, QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
         return queryExecutor.executeRawQuery(format("DROP TABLE %s",
                 reference)).getResult().thenApply(result -> {
             if (result.isFailed()) {
@@ -142,7 +143,7 @@ public class PrestoMaterializedViewService
         CompletableFuture<Instant> f = new CompletableFuture<>();
 
         String tableName = queryExecutor.formatTableReference(project,
-                QualifiedName.of("materialized", materializedView.tableName), Optional.empty());
+                QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
         Query statement = (Query) sqlParser.createStatement(materializedView.query);
 
         Map<String, String> sessionProperties = new HashMap<>();
@@ -204,7 +205,7 @@ public class PrestoMaterializedViewService
             else {
                 String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s %s",
-                                queryExecutor.formatTableReference(project, name, Optional.empty()),
+                                queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()),
                                 lastUpdated == null ? "" : String.format("WHERE _shard_time > from_unixtime(%d)",
                                         lastUpdated)), '"');
 

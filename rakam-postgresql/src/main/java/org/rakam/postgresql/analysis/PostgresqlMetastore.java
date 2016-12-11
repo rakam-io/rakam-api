@@ -426,6 +426,10 @@ public class PostgresqlMetastore
     public static FieldType fromSql(int sqlType, String typeName, Function<String, FieldType> arrayTypeNameMapper)
     {
         switch (sqlType) {
+            case Types.VARBINARY:
+            case Types.BINARY:
+            case Types.LONGVARBINARY:
+                return FieldType.BINARY;
             case Types.BIGINT:
             case Types.NUMERIC:
             case Types.REAL:

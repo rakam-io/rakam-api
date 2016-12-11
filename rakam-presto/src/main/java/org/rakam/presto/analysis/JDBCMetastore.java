@@ -174,7 +174,7 @@ public class JDBCMetastore extends AbstractMetastore {
         }
     }
 
-    private static List<SchemaField> convertToSchema(ResultSet dbColumns) throws SQLException {
+    public static List<SchemaField> convertToSchema(ResultSet dbColumns) throws SQLException {
         List<SchemaField> schemaFields = Lists.newArrayList();
 
         while (dbColumns.next()) {

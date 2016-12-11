@@ -39,7 +39,7 @@ public class TestPostgresqlEventExplorer
         EventBus eventBus = new EventBus();
 
         metastore = new PostgresqlMetastore(dataSource, eventBus);
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false, queryMetadataStore);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false);
 
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,
                 new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');

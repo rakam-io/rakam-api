@@ -15,9 +15,5 @@ public interface QueryExecutor
 
     QueryExecution executeRawStatement(String sqlQuery);
 
-    String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample);
-
-    default String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters)  {
-        return formatTableReference(project, name, sample);
-    }
+    String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters);
 }

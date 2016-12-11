@@ -3,6 +3,7 @@ package org.rakam.presto;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
@@ -193,7 +194,7 @@ public class PrestoModule extends RakamModule {
         public void onCreateProject(ProjectCreatedEvent event) {
             executor.executeRawStatement(String.format("CREATE TABLE %s(id VARCHAR, _user VARCHAR, " +
                     "created_at TIMESTAMP, merged_at TIMESTAMP)",
-                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty())));
+                    executor.formatTableReference(event.project, QualifiedName.of(ANONYMOUS_ID_MAPPING), Optional.empty(), ImmutableMap.of())));
         }
     }
 

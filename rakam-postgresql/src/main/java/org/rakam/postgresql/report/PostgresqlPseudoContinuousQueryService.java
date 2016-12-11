@@ -83,7 +83,7 @@ public class PostgresqlPseudoContinuousQueryService
     {
         Stream<Entry<ContinuousQuery, QueryExecution>> continuous = database.getContinuousQueries(project).stream()
                 .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " +
-                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty()) + " limit 0")));
+                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty(), ImmutableMap.of()) + " limit 0")));
         return continuous
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
                     QueryResult join = entry.getValue().getResult().join();
@@ -108,7 +108,7 @@ public class PostgresqlPseudoContinuousQueryService
 
         StringBuilder builder = new StringBuilder();
         new RakamSqlFormatter.Formatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName, Optional.empty()), '"')
+                executor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of()), '"')
                 .process(continuousQuery.getQuery(), 1);
 
         QueryExecution execution = executor

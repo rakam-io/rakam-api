@@ -6,6 +6,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
+import com.facebook.presto.sql.tree.Statement;
 import com.google.inject.Inject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.EscapeIdentifier;
@@ -164,17 +165,18 @@ public class QueryExecutorService
 
     public String buildQuery(String project, String query, Optional<QuerySampling> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters)
     {
-        StringBuilder builder = new StringBuilder();
         Query statement;
         synchronized (parser) {
-            statement = (Query) parser.createStatement(query);
+            Statement queryStatement = parser.createStatement(query);
+            if (!(queryStatement instanceof Query)) {
+                throw new RakamException(queryStatement.getClass().getSimpleName()+" is not supported", BAD_REQUEST);
+            }
+            statement = (Query) queryStatement;
         }
 
-        // TODO: use fake StringBuilder for performance
-        new RakamSqlFormatter.Formatter(new StringBuilder(), tableNameMapper(project, materializedViews, sample, true, new HashMap<>()), escapeIdentifier)
+        StringBuilder builder = new StringBuilder();
+        new RakamSqlFormatter.Formatter(builder, tableNameMapper(project, materializedViews, sample, sessionParameters), escapeIdentifier)
                 .process(statement, 1);
-
-        new RakamSqlFormatter.Formatter(builder, tableNameMapper(project, materializedViews, sample, false, sessionParameters), escapeIdentifier).process(statement, 1);
 
         if (maxLimit != null) {
             Integer limit = null;
@@ -197,7 +199,7 @@ public class QueryExecutorService
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, boolean fetchReference, Map<String, String> sessionParameters)
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
     {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
@@ -208,17 +210,13 @@ public class QueryExecutorService
                 catch (NotExistsException e) {
                     throw new RakamException(String.format("Referenced materialized table %s is not exist", node.getSuffix()), BAD_REQUEST);
                 }
-                if (fetchReference) {
-                    materializedViews.computeIfAbsent(materializedView, (key) -> materializedViewService.lockAndUpdateView(project, materializedView));
-                    return "";
+
+                MaterializedViewExecution materializedViewExecution = materializedViews.computeIfAbsent(materializedView, (key) -> materializedViewService.lockAndUpdateView(project, materializedView));
+
+                if (materializedViewExecution == null) {
+                    throw new IllegalStateException();
                 }
-                else {
-                    MaterializedViewExecution materializedViewExecution = materializedViews.get(materializedView);
-                    if(materializedViewExecution == null) {
-                        throw new IllegalStateException();
-                    }
-                    return materializedViewExecution.computeQuery;
-                }
+                return materializedViewExecution.computeQuery;
             }
 
             return executor.formatTableReference(project, node, sample, sessionParameters);

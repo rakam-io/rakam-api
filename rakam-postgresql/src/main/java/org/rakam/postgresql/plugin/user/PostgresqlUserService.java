@@ -3,6 +3,7 @@ package org.rakam.postgresql.plugin.user;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
@@ -99,7 +100,7 @@ public class PostgresqlUserService
             }
             try (Connection connection = executor.getConnection()) {
                 PreparedStatement ps = connection.prepareStatement(format("UPDATE %s SET _user = ? WHERE _device_id = ? AND _user is NULL AND _time BETWEEN ? and ?",
-                        executor.formatTableReference(project, QualifiedName.of(entry.getKey()), Optional.empty())));
+                        executor.formatTableReference(project, QualifiedName.of(entry.getKey()), Optional.empty(), ImmutableMap.of())));
                 storage.setUserId(project, ps, user, 1);
                 storage.setUserId(project, ps, anonymousId, 2);
                 ps.setTimestamp(3, Timestamp.from(createdAt));

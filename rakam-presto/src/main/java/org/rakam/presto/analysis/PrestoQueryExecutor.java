@@ -2,20 +2,28 @@ package org.rakam.presto.analysis;
 
 import com.facebook.presto.jdbc.internal.airlift.units.Duration;
 import com.facebook.presto.jdbc.internal.client.ClientSession;
+import com.facebook.presto.rakam.externaldata.DataManager;
 import com.facebook.presto.rakam.externaldata.DataManager.DataSourceType;
 import com.facebook.presto.rakam.externaldata.JDBCSchemaConfig;
+import com.facebook.presto.rakam.externaldata.source.MysqlDataSource;
 import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource;
+import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource.PostgresqlDataSourceFactory;
 import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
+import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
-import org.rakam.presto.PrestoModule;
+import org.rakam.postgresql.report.PostgresqlQueryExecution;
 import org.rakam.presto.PrestoModule.UserConfig;
 import org.rakam.presto.analysis.datasource.CustomDataSource;
 import org.rakam.presto.analysis.datasource.CustomDataSourceHttpService;
+import org.rakam.presto.analysis.datasource.SupportedCustomDatabase;
+import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
 import org.rakam.util.JsonHelper;
@@ -32,9 +40,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.jdbc.internal.client.ClientSession.withTransactionId;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
@@ -55,6 +63,7 @@ public class PrestoQueryExecutor
     private final CustomDataSourceHttpService customDataSource;
     private final JDBCConfig userJdbcConfig;
     private ClientSession defaultSession;
+    private SqlParser sqlParser = new SqlParser();
 
     @Inject
     public PrestoQueryExecutor(
@@ -83,23 +92,34 @@ public class PrestoQueryExecutor
     @Override
     public PrestoQueryExecution executeRawQuery(String query)
     {
-        return new PrestoQueryExecution(defaultSession, query);
+        return internalExecuteRawQuery(query, defaultSession);
     }
 
     @Override
-    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties)
+    public QueryExecution executeRawQuery(String query, Map<String, String> sessionProperties)
     {
         return executeRawQuery(query, sessionProperties, null);
     }
 
-    public PrestoQueryExecution executeRawQuery(String query, String transactionId)
+    public QueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog)
     {
-        return new PrestoQueryExecution(withTransactionId(defaultSession, transactionId), query);
-    }
+        if (sessionProperties.containsKey("external.source_options")) {
+            String encodedKey = sessionProperties.get("external.source_options");
+            Map<String, DataSourceType> params;
+            if (encodedKey != null) {
+                params = JsonHelper.read(getDecoder().decode(encodedKey), new TypeReference<Map<String, DataSourceType>>() {});
+            }
+            else {
+                params = new HashMap<>();
+            }
 
-    public PrestoQueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog)
-    {
-        return new PrestoQueryExecution(new ClientSession(
+            if (params.size() == 1) {
+                Map.Entry<String, DataSourceType> next = params.entrySet().iterator().next();
+                return getSingleQueryExecution(query, next.getKey(), next.getValue());
+            }
+        }
+
+        return internalExecuteRawQuery(query, new ClientSession(
                 prestoConfig.getAddress(),
                 "rakam",
                 "api-server",
@@ -108,19 +128,61 @@ public class PrestoQueryExecutor
                 TimeZone.getDefault().getID(),
                 Locale.ENGLISH,
                 sessionProperties,
-                null, false, new Duration(1, TimeUnit.MINUTES)), query);
+                null, false, new Duration(1, TimeUnit.MINUTES)));
+    }
+
+    private QueryExecution getSingleQueryExecution(String query, String key, DataSourceType type)
+    {
+        Optional<String> schema;
+
+        SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(type.type);
+        JDBCSchemaConfig convert = JsonHelper.convert(type.data, source.getFactoryClass());
+
+        switch (type.type) {
+            case PostgresqlDataSource.NAME:
+                schema = Optional.of(convert.getSchema());
+                break;
+            case MysqlDataSource.NAME:
+                schema = Optional.empty();
+                break;
+            default:
+                return null;
+        }
+
+        AtomicBoolean hasOutsideReference = new AtomicBoolean();
+        StringBuilder builder = new StringBuilder();
+        new RakamSqlFormatter.Formatter(builder, qualifiedName -> {
+            String prefix = qualifiedName.getPrefix().get().getPrefix().get().toString();
+            if (!prefix.equals("external")) {
+                hasOutsideReference.set(true);
+            }
+            else {
+                if (!key.equals(qualifiedName.getPrefix().get().getSuffix())) {
+                    throw new IllegalStateException();
+                }
+
+                return schema.map(e -> e + "." + qualifiedName.getSuffix())
+                        .orElse(qualifiedName.getSuffix());
+            }
+            return null;
+        }, '"').process(sqlParser.createStatement(query), 1);
+
+        if (hasOutsideReference.get()) {
+            return null;
+        }
+
+        return new PostgresqlQueryExecution(() -> source.getTestFunction().openConnection(convert), builder.toString(), false);
+    }
+
+    public PrestoQueryExecution internalExecuteRawQuery(String query, ClientSession clientSession)
+    {
+        return new PrestoQueryExecution(clientSession, query);
     }
 
     @Override
     public PrestoQueryExecution executeRawStatement(String sqlQuery)
     {
         return executeRawQuery(sqlQuery);
-    }
-
-    @Override
-    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample)
-    {
-        return formatTableReference(project, node, sample, ImmutableMap.of());
     }
 
     @Override
@@ -151,7 +213,7 @@ public class PrestoQueryExecutor
 
                 if (prefix == null && userJdbcConfig != null && suffix.equals("users")) {
                     URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
-                    JDBCSchemaConfig source = new PostgresqlDataSource.PostgresqlDataSourceFactory()
+                    JDBCSchemaConfig source = new PostgresqlDataSourceFactory()
                             .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
                             .setHost(uri.getHost())
                             .setUsername(userJdbcConfig.getUsername())
@@ -164,7 +226,7 @@ public class PrestoQueryExecutor
                     dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
                 }
                 else if (!params.containsKey(prefix) && prefix != null) {
-                    if(customDataSource == null) {
+                    if (customDataSource == null) {
                         throw new RakamException(NOT_FOUND);
                     }
                     if (prefix.equals("remotefile")) {
