@@ -2,27 +2,28 @@ package org.rakam.presto.analysis;
 
 import com.facebook.presto.jdbc.internal.airlift.units.Duration;
 import com.facebook.presto.jdbc.internal.client.ClientSession;
-import com.facebook.presto.rakam.externaldata.DataManager;
 import com.facebook.presto.rakam.externaldata.DataManager.DataSourceType;
-import com.facebook.presto.rakam.externaldata.JDBCSchemaConfig;
 import com.facebook.presto.rakam.externaldata.source.MysqlDataSource;
 import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource;
-import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource.PostgresqlDataSourceFactory;
 import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
+import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.CompressionType;
+import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.ExternalSourceType;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Singleton;
+import org.rakam.analysis.datasource.CustomDataSourceService;
+import org.rakam.analysis.datasource.RemoteTable;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.config.JDBCConfig;
 import org.rakam.postgresql.report.PostgresqlQueryExecution;
 import org.rakam.presto.PrestoModule.UserConfig;
-import org.rakam.presto.analysis.datasource.CustomDataSource;
-import org.rakam.presto.analysis.datasource.CustomDataSourceHttpService;
-import org.rakam.presto.analysis.datasource.SupportedCustomDatabase;
+import org.rakam.analysis.datasource.CustomDataSource;
+import org.rakam.analysis.datasource.JDBCSchemaConfig;
+import org.rakam.analysis.datasource.SupportedCustomDatabase;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
@@ -50,6 +51,7 @@ import static java.time.ZoneOffset.UTC;
 import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
+import static org.rakam.presto.analysis.PrestoMetastore.toType;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
 import static org.rakam.util.ValidationUtil.checkCollection;
 
@@ -60,7 +62,7 @@ public class PrestoQueryExecutor
     private final PrestoConfig prestoConfig;
 
     private final Metastore metastore;
-    private final CustomDataSourceHttpService customDataSource;
+    private final CustomDataSourceService customDataSource;
     private final JDBCConfig userJdbcConfig;
     private ClientSession defaultSession;
     private SqlParser sqlParser = new SqlParser();
@@ -68,7 +70,7 @@ public class PrestoQueryExecutor
     @Inject
     public PrestoQueryExecutor(
             PrestoConfig prestoConfig,
-            @Nullable CustomDataSourceHttpService customDataSource,
+            @Nullable CustomDataSourceService customDataSource,
             @Nullable @UserConfig com.google.common.base.Optional<JDBCConfig> userJdbcConfig,
             Metastore metastore)
     {
@@ -115,7 +117,10 @@ public class PrestoQueryExecutor
 
             if (params.size() == 1) {
                 Map.Entry<String, DataSourceType> next = params.entrySet().iterator().next();
-                return getSingleQueryExecution(query, next.getKey(), next.getValue());
+                QueryExecution singleQueryExecution = getSingleQueryExecution(query, next.getKey(), next.getValue());
+                if (singleQueryExecution != null) {
+                    return singleQueryExecution;
+                }
             }
         }
 
@@ -135,8 +140,14 @@ public class PrestoQueryExecutor
     {
         Optional<String> schema;
 
-        SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(type.type);
-        JDBCSchemaConfig convert = JsonHelper.convert(type.data, source.getFactoryClass());
+        SupportedCustomDatabase source;
+        try {
+            source = SupportedCustomDatabase.getAdapter(type.type);
+        }
+        catch (IllegalArgumentException e) {
+            return null;
+        }
+        JDBCSchemaConfig convert = JsonHelper.convert(type.data, JDBCSchemaConfig.class);
 
         switch (type.type) {
             case PostgresqlDataSource.NAME:
@@ -213,7 +224,7 @@ public class PrestoQueryExecutor
 
                 if (prefix == null && userJdbcConfig != null && suffix.equals("users")) {
                     URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
-                    JDBCSchemaConfig source = new PostgresqlDataSourceFactory()
+                    JDBCSchemaConfig source = new JDBCSchemaConfig()
                             .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
                             .setHost(uri.getHost())
                             .setUsername(userJdbcConfig.getUsername())
@@ -230,8 +241,23 @@ public class PrestoQueryExecutor
                         throw new RakamException(NOT_FOUND);
                     }
                     if (prefix.equals("remotefile")) {
-                        List<RemoteFileDataSource.RemoteTable> files = customDataSource.getFiles(project);
-                        dataSourceType = new DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", files));
+                        Map<String, RemoteTable> files = customDataSource.getFiles(project);
+
+                        List<RemoteFileDataSource.RemoteTable> prestoTables = files.entrySet().stream().map(file -> {
+                            List<RemoteFileDataSource.Column> collect = file.getValue().columns.stream()
+                                    .map(column -> new RemoteFileDataSource.Column(column.getName(), toType(column.getType())))
+                                    .collect(Collectors.toList());
+
+                            return new RemoteFileDataSource.RemoteTable(file.getKey(),
+                                    file.getValue().url,
+                                    file.getValue().indexUrl,
+                                    file.getValue().typeOptions,
+                                    collect,
+                                    Optional.ofNullable(file.getValue().compressionType).map(value -> CompressionType.valueOf(value.name())).orElse(null),
+                                    Optional.ofNullable(file.getValue().format).map(value -> ExternalSourceType.valueOf(value.name())).orElse(null));
+                        }).collect(Collectors.toList());
+
+                        dataSourceType = new DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", prestoTables));
                     }
                     else {
                         CustomDataSource dataSource = customDataSource.getDatabase(project, prefix);

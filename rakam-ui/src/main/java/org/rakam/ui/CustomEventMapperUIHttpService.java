@@ -77,7 +77,7 @@ public class CustomEventMapperUIHttpService
                 @ApiParam("type") FieldType type,
                 @ApiParam("placeholder") String placeholder,
                 @ApiParam("description") String description,
-                @ApiParam("value") Object value)
+                @ApiParam(value = "value", required = false) Object value)
         {
             this.type = type;
             this.placeholder = placeholder;

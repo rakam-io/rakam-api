@@ -73,6 +73,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
@@ -175,6 +176,8 @@ public class CustomEventMapperHttpService
     @JsonRequest
     public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
     {
+        if(true)
+        throw new RakamException(INTERNAL_SERVER_ERROR);
         try (Handle handle = dbi.open()) {
             GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) VALUES (:project, :name, :script, :parameters, :image)")
                     .bind("project", project)
@@ -182,7 +185,7 @@ public class CustomEventMapperHttpService
                     .bind("name", name)
                     .bind("image", image)
                     .bind("parameters", JsonHelper.encode(ofNullable(parameters).orElse(ImmutableMap.of())))
-                    .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getLong("id"));
+                    .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getLong(1));
             return longs.first();
         }
     }

@@ -1,5 +1,16 @@
 package org.rakam.presto.analysis;
 
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.BooleanType;
+import com.facebook.presto.spi.type.DateType;
+import com.facebook.presto.spi.type.DecimalType;
+import com.facebook.presto.spi.type.DoubleType;
+import com.facebook.presto.spi.type.IntegerType;
+import com.facebook.presto.spi.type.TimeType;
+import com.facebook.presto.spi.type.TimestampType;
+import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spi.type.VarbinaryType;
+import com.facebook.presto.spi.type.VarcharType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
@@ -13,9 +24,9 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.AbstractMetastore;
-import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
+import org.rakam.util.JDBCUtil;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.skife.jdbi.v2.DBI;
@@ -33,11 +44,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -45,7 +54,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
+import static org.rakam.util.JDBCUtil.fromSql;
+import static org.rakam.util.JDBCUtil.toSql;
 import static org.rakam.util.ValidationUtil.checkProject;
 
 @Singleton
@@ -55,8 +65,6 @@ public class JDBCMetastore extends AbstractMetastore {
     private final LoadingCache<String, Set<String>> collectionCache;
     private final ConnectionFactory prestoConnectionFactory;
     private final PrestoConfig config;
-    private static final Map<String, FieldType> REVERSE_TYPE_MAP = Arrays.asList(FieldType.values()).stream()
-            .collect(Collectors.toMap(JDBCMetastore::toSql, a -> a));
 
     @Inject
     public JDBCMetastore(@Named("presto.metastore.jdbc") JDBCPoolDataSource dataSource, PrestoConfig config, EventBus eventBus) {
@@ -180,16 +188,10 @@ public class JDBCMetastore extends AbstractMetastore {
         while (dbColumns.next()) {
             String columnName = dbColumns.getString("COLUMN_NAME");
             FieldType fieldType;
-            fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCMetastore::getType);
+            fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCUtil::getType);
             schemaFields.add(new SchemaField(columnName, fieldType));
         }
         return schemaFields.isEmpty() ? null : schemaFields;
-    }
-
-    public static FieldType getType(String name) {
-        FieldType fieldType = REVERSE_TYPE_MAP.get(name.toUpperCase());
-        Objects.requireNonNull(fieldType, String.format("type %s couldn't recognized.", name));
-        return fieldType;
     }
 
     @Override
@@ -206,7 +208,7 @@ public class JDBCMetastore extends AbstractMetastore {
             while (columns.next()) {
                 String colName = columns.getString("COLUMN_NAME");
                 strings.add(colName);
-                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME"), JDBCMetastore::getType)));
+                currentFields.add(new SchemaField(colName, fromSql(columns.getInt("DATA_TYPE"), columns.getString("TYPE_NAME"), JDBCUtil::getType)));
             }
 
             List<SchemaField> schemaFields = fields.stream().filter(f -> !strings.contains(f.getName())).collect(Collectors.toList());
@@ -292,40 +294,9 @@ public class JDBCMetastore extends AbstractMetastore {
         super.onDeleteProject(project);
     }
 
-    public static String toSql(FieldType type) {
-        switch (type) {
-            case INTEGER:
-                return "INT";
-            case DECIMAL:
-                return "DECIMAL";
-            case LONG:
-                return "BIGINT";
-            case STRING:
-                return "VARCHAR";
-            case BINARY:
-                return "VARBINARY";
-            case BOOLEAN:
-            case DATE:
-            case TIME:
-            case TIMESTAMP:
-                return type.name();
-            case DOUBLE:
-                return "DOUBLE";
-            default:
-                if (type.isArray()) {
-                    return "ARRAY<" + toSql(type.getArrayElementType()) + ">";
-                }
-                if (type.isMap()) {
-                    return "MAP<VARCHAR, " + toSql(type.getMapValueType()) + ">";
-                }
-                throw new IllegalStateException("sql type couldn't converted to fieldtype");
-        }
-    }
-
     @VisibleForTesting
     public void clearCache() {
         collectionCache.cleanUp();
         schemaCache.cleanUp();
     }
-
 }

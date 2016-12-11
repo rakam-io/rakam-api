@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.String.format;
+import static org.rakam.util.JDBCUtil.fromSql;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkProject;
@@ -395,72 +396,5 @@ public class PostgresqlMetastore
         }
     }
 
-    public static FieldType fromSql(int sqlType, String typeName)
-    {
-        return fromSql(sqlType, typeName, name -> {
-            if (name.startsWith("_")) {
-                if (name.startsWith("_int")) {
-                    return FieldType.ARRAY_LONG;
-                }
-                if (name.equals("_text") || name.equals("_varchar")) {
-                    return FieldType.ARRAY_STRING;
-                }
-                if (name.startsWith("_float")) {
-                    return FieldType.ARRAY_DOUBLE;
-                }
-            }
-            if (name.equals("jsonb")) {
-                return FieldType.MAP_STRING;
-            }
-            if (name.equals("json")) {
-                return FieldType.STRING;
-            }
-            if (name.equals("unknown")) {
-                return FieldType.STRING;
-            }
 
-            throw new UnsupportedOperationException(format("type '%s' is not supported.", typeName));
-        });
-    }
-
-    public static FieldType fromSql(int sqlType, String typeName, Function<String, FieldType> arrayTypeNameMapper)
-    {
-        switch (sqlType) {
-            case Types.VARBINARY:
-            case Types.BINARY:
-            case Types.LONGVARBINARY:
-                return FieldType.BINARY;
-            case Types.BIGINT:
-            case Types.NUMERIC:
-            case Types.REAL:
-                return FieldType.LONG;
-            case Types.TINYINT:
-            case Types.INTEGER:
-            case Types.SMALLINT:
-                return FieldType.INTEGER;
-            case Types.DECIMAL:
-                return FieldType.DECIMAL;
-            case Types.BOOLEAN:
-            case Types.BIT:
-                return FieldType.BOOLEAN;
-            case Types.DATE:
-                return FieldType.DATE;
-            case Types.TIMESTAMP:
-            case Types.TIMESTAMP_WITH_TIMEZONE:
-                return FieldType.TIMESTAMP;
-            case Types.TIME:
-            case Types.TIME_WITH_TIMEZONE:
-                return FieldType.TIME;
-            case Types.DOUBLE:
-            case Types.FLOAT:
-                return FieldType.DOUBLE;
-            case Types.LONGVARCHAR:
-            case Types.NVARCHAR:
-            case Types.LONGNVARCHAR:
-            case Types.VARCHAR:
-                return FieldType.STRING;
-            default:
-                return arrayTypeNameMapper.apply(typeName);
-        }
-    }
 }

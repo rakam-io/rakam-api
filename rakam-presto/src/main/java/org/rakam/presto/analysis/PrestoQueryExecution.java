@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -288,7 +289,9 @@ public class PrestoQueryExecution
                 else if (client.isFailed()) {
                     com.facebook.presto.jdbc.internal.client.QueryError error = client.finalResults().getError();
                     ErrorLocation errorLocation = error.getErrorLocation();
-                    QueryError queryError = new QueryError(error.getFailureInfo().getMessage(),
+                    QueryError queryError = new QueryError(
+                            Optional.ofNullable(error.getFailureInfo().getMessage())
+                                    .orElse(error.getFailureInfo().toException().toString()),
                             error.getSqlState(),
                             error.getErrorCode(),
                             errorLocation != null ? errorLocation.getLineNumber() : null,

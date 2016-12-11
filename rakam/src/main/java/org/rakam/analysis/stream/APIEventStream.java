@@ -37,6 +37,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.rakam.presto.analysis.PrestoMetastore.toType;
+
 public class APIEventStream
         implements EventStream
 {
@@ -113,39 +115,5 @@ public class APIEventStream
                 }
             }
         };
-    }
-
-    private Type toType(FieldType type)
-    {
-        switch (type) {
-            case DOUBLE:
-                return DoubleType.DOUBLE;
-            case LONG:
-                return BigintType.BIGINT;
-            case BOOLEAN:
-                return BooleanType.BOOLEAN;
-            case STRING:
-                return VarcharType.VARCHAR;
-            case INTEGER:
-                return IntegerType.INTEGER;
-            case DECIMAL:
-                return DecimalType.createDecimalType();
-            case DATE:
-                return DateType.DATE;
-            case TIMESTAMP:
-                return TimestampType.TIMESTAMP;
-            case TIME:
-                return TimeType.TIME;
-            case BINARY:
-                return VarbinaryType.VARBINARY;
-            default:
-                if (type.isArray()) {
-                    return new ArrayType(toType(type.getArrayElementType()));
-                }
-                if (type.isMap()) {
-                    return new MapType(VarcharType.VARCHAR, toType(type.getMapValueType()));
-                }
-                throw new IllegalStateException();
-        }
     }
 }

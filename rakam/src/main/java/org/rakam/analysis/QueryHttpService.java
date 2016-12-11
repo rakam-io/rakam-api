@@ -246,10 +246,9 @@ public class QueryHttpService
     private void handleServerSentQueryExecutionInternal(RakamHttpRequest.StreamResponse response, QueryExecution query, boolean killOnConnectionClose)
     {
         if (query == null) {
-            // TODO: custom message
+            LOGGER.error("Query execution is null");
             response.send("result", encode(jsonObject()
                     .put("success", false)
-                    .put("query", query.getQuery())
                     .put("error", "Not running"))).end();
             return;
         }

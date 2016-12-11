@@ -1,7 +1,6 @@
 package org.rakam;
 
-import org.rakam.presto.analysis.datasource.CustomDataSource;
-import org.rakam.util.JsonHelper;
+import org.rakam.analysis.datasource.CustomDataSource;
 import org.testng.annotations.Test;
 
 public class TestCustomDataStore

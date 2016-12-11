@@ -53,7 +53,6 @@ import org.rakam.presto.analysis.PrestoMetastore;
 import org.rakam.presto.analysis.PrestoQueryExecutor;
 import org.rakam.presto.analysis.PrestoRetentionQueryExecutor;
 import org.rakam.presto.analysis.PrestoUserService;
-import org.rakam.presto.analysis.datasource.CustomDataSourceHttpService;
 import org.rakam.presto.collection.PrestoCopyEvent;
 import org.rakam.presto.plugin.EventExplorerListener;
 import org.rakam.presto.plugin.user.PrestoExternalUserStorageAdapter;
@@ -61,7 +60,6 @@ import org.rakam.report.QueryExecutor;
 import org.rakam.report.eventexplorer.EventExplorerConfig;
 import org.rakam.report.realtime.AggregationType;
 import org.rakam.report.realtime.RealTimeConfig;
-import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 import org.rakam.util.RakamException;
 
@@ -158,9 +156,6 @@ public class PrestoModule extends RakamModule {
 
         Multibinder<EventMapper> timeMapper = Multibinder.newSetBinder(binder, EventMapper.class);
         timeMapper.addBinding().to(TimestampEventMapper.class).in(Scopes.SINGLETON);
-
-        Multibinder<HttpService> httpServiceMultibinder = Multibinder.newSetBinder(binder, HttpService.class);
-        httpServiceMultibinder.addBinding().to(CustomDataSourceHttpService.class).in(Scopes.SINGLETON);
     }
 
     @Override

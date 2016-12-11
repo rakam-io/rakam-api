@@ -11,10 +11,22 @@ import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
 import com.facebook.presto.spi.type.AbstractType;
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.BooleanType;
+import com.facebook.presto.spi.type.DateType;
+import com.facebook.presto.spi.type.DecimalType;
+import com.facebook.presto.spi.type.DoubleType;
+import com.facebook.presto.spi.type.IntegerType;
+import com.facebook.presto.spi.type.TimeType;
+import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
+import com.facebook.presto.spi.type.VarbinaryType;
+import com.facebook.presto.spi.type.VarcharType;
+import com.facebook.presto.type.ArrayType;
+import com.facebook.presto.type.MapType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -589,6 +601,40 @@ public class PrestoMetastore
                     return "MAP<VARCHAR, " + toSql(type.getMapValueType()) + ">";
                 }
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
+        }
+    }
+
+    public static Type toType(FieldType type)
+    {
+        switch (type) {
+            case DOUBLE:
+                return DoubleType.DOUBLE;
+            case LONG:
+                return BigintType.BIGINT;
+            case BOOLEAN:
+                return BooleanType.BOOLEAN;
+            case STRING:
+                return VarcharType.VARCHAR;
+            case INTEGER:
+                return IntegerType.INTEGER;
+            case DECIMAL:
+                return DecimalType.createDecimalType();
+            case DATE:
+                return DateType.DATE;
+            case TIMESTAMP:
+                return TimestampType.TIMESTAMP;
+            case TIME:
+                return TimeType.TIME;
+            case BINARY:
+                return VarbinaryType.VARBINARY;
+            default:
+                if (type.isArray()) {
+                    return new ArrayType(toType(type.getArrayElementType()));
+                }
+                if (type.isMap()) {
+                    return new MapType(VarcharType.VARCHAR, toType(type.getMapValueType()));
+                }
+                throw new IllegalStateException();
         }
     }
 }

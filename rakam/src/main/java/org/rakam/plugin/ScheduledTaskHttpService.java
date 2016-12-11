@@ -7,7 +7,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
+import org.rakam.ServiceStarter;
 import org.rakam.TestingConfigManager;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.InMemoryApiKeyService;
@@ -74,6 +76,8 @@ import static org.rakam.util.SuccessMessage.success;
 public class ScheduledTaskHttpService
         extends HttpService
 {
+    private final static Logger LOGGER = Logger.get(ServiceStarter.class);
+
     private final DBI dbi;
     private final ScheduledExecutorService executor;
     private final JSCodeCompiler jsCodeCompiler;
@@ -122,11 +126,21 @@ public class ScheduledTaskHttpService
                 for (Task task : tasks) {
                     String prefix = "scheduled-task." + task.id;
                     JSConfigManager jsConfigManager = new JSConfigManager(configManager, task.project, prefix);
+                    JSCodeCompiler.PersistentLogger logger = jsCodeCompiler.createLogger(task.project, prefix);
                     CompletableFuture<EventList> result = run(task.project, task.script, task.parameters,
-                            jsCodeCompiler.createLogger(task.project, prefix), jsConfigManager, eventDeserializer);
+                            logger, jsConfigManager, eventDeserializer);
                     result.whenComplete((events, ex) -> {
-                        eventStore.storeBatchAsync(events.events).whenComplete((res, ex1) -> {
+                        if (ex != null) {
+                            LOGGER.warn(ex, "Unable to fetch response of scheduled task " + task.id);
+                            logger.error("Unable to collect events: " + ex.getMessage());
+                            return;
+                        }
 
+                        eventStore.storeBatchAsync(events.events).whenComplete((res, ex1) -> {
+                            if (ex1 != null) {
+                                LOGGER.warn(ex1, "Unable to collect events of scheduled task " + task.id);
+                                logger.error("Unable to collect events: " + ex1.getMessage());
+                            }
                         });
                     });
                 }
@@ -178,8 +192,8 @@ public class ScheduledTaskHttpService
                     .bind("code", code)
                     .bind("interval", interval.getSeconds())
                     .bind("parameters", JsonHelper.encode(parameters))
-                    .bind("updated", Timestamp.from(Instant.ofEpochSecond(100)))
-                    .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getLong("id"));
+                    .bind("updated", Timestamp.from(Instant.ofEpochSecond(10)))
+                    .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getLong(1));
             return longs.first();
         }
     }

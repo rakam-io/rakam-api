@@ -1,39 +1,17 @@
-package org.rakam.presto.analysis.datasource;
+package org.rakam.analysis.datasource;
 
-import com.facebook.presto.rakam.externaldata.DataManager;
-import com.facebook.presto.rakam.externaldata.JDBCSchemaConfig;
-import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
-import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.Column;
-import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.CompressionType;
-import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.ExternalSourceType;
-import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.RemoteTable;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.TypeSignature;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.FieldType;
 import org.rakam.collection.SchemaField;
-import org.rakam.presto.analysis.JDBCMetastore;
-import org.rakam.presto.analysis.PrestoMetastore;
-import org.rakam.server.http.HttpService;
-import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
-import org.rakam.server.http.annotations.BodyParam;
-import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.util.AlreadyExistsException;
+import org.rakam.util.JDBCUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
@@ -44,10 +22,8 @@ import org.skife.jdbi.v2.Query;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
-import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
-import java.io.IOException;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -57,46 +33,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
-import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
-import static org.rakam.presto.analysis.datasource.DataSource.createDataSource;
+import static org.rakam.util.JDBCUtil.fromSql;
 
-@IgnoreApi
-@Path("/custom-data-source")
-@Api(value = "/custom-data-source", nickname = "custom-data-source", description = "Connect to custom databases", tags = {"analyze"})
-public class CustomDataSourceHttpService
-        extends HttpService
+public class CustomDataSourceService
 {
-    static {
-        JsonHelper.getMapper().registerModule(new SimpleModule()
-                .addDeserializer(Type.class, new JsonDeserializer<Type>()
-                {
-                    @Override
-                    public Type deserialize(JsonParser jp, DeserializationContext ctxt)
-                            throws IOException
-                    {
-                        return new PrestoMetastore.SignatureReferenceType(parseTypeSignature(jp.getValueAsString()), null);
-                    }
-                }).addSerializer(Type.class, new JsonSerializer<Type>()
-                {
-                    @Override
-                    public void serialize(Type value, JsonGenerator jgen, SerializerProvider provider)
-                            throws IOException
-                    {
-                        jgen.writeString(value.getTypeSignature().toString());
-                    }
-                }));
-    }
-
     private final DBI dbi;
 
     @Inject
-    public CustomDataSourceHttpService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource)
+    public CustomDataSourceService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource)
     {
         this.dbi = new DBI(dataSource);
     }
@@ -127,42 +75,38 @@ public class CustomDataSourceHttpService
     public static class CustomDataSourceList
     {
         public final List<CustomDataSource> customDataSources;
-        public final List<RemoteTable> customFileSources;
+        public final Map<String, RemoteTable> customFileSources;
 
         @JsonCreator
-        public CustomDataSourceList(List<CustomDataSource> customDataSources, List<RemoteTable> customFileSources)
+        public CustomDataSourceList(List<CustomDataSource> customDataSources, Map<String, RemoteTable> customFileSources)
         {
             this.customDataSources = customDataSources;
             this.customFileSources = customFileSources;
         }
     }
 
-    @ApiOperation(value = "List data-sources", authorizations = @Authorization(value = "master_key"))
-    @Path("/list")
-    @GET
     public CustomDataSourceList listDatabases(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
             List<CustomDataSource> customDataSources = handle.createQuery("SELECT schema_name, type, options FROM custom_data_source WHERE project = :project")
                     .bind("project", project)
                     .map((index, r, ctx) -> {
-                        DataManager.DataSourceFactory dataSource = createDataSource(r.getString(2), JsonHelper.read(r.getString(3)));
-                        return new CustomDataSource(r.getString(2), r.getString(1), dataSource);
+                        return new CustomDataSource(r.getString(2), r.getString(1), JsonHelper.read(r.getString(3), org.rakam.analysis.datasource.JDBCSchemaConfig.class));
                     }).list();
 
-            List<RemoteTable> remoteTables = handle.createQuery("SELECT options FROM custom_file_source WHERE project = :project")
+            HashMap<String, RemoteTable> files = new HashMap<>();
+
+            handle.createQuery("SELECT table_name, options FROM custom_file_source WHERE project = :project")
                     .bind("project", project)
                     .map((index, r, ctx) -> {
-                        return JsonHelper.read(r.getString(1), RemoteTable.class);
+                        files.put(r.getString(1), JsonHelper.read(r.getString(2), RemoteTable.class));
+                        return null;
                     }).list();
 
-            return new CustomDataSourceList(customDataSources, remoteTables);
+            return new CustomDataSourceList(customDataSources, files);
         }
     }
 
-    @ApiOperation(value = "Schema of data-sources", authorizations = @Authorization(value = "master_key"))
-    @Path("/schema")
-    @GET
     public Map<String, Map<String, List<SchemaField>>> schemaDatabases(@Named("project") String project)
     {
         ImmutableMap.Builder<String, Map<String, List<SchemaField>>> schemas = ImmutableMap.builder();
@@ -172,7 +116,7 @@ public class CustomDataSourceHttpService
             Map<String, List<SchemaField>> builder = new HashMap<>();
 
             SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);
-            JDBCSchemaConfig convert = JsonHelper.convert(customDataSource.options, source.getFactoryClass());
+            JDBCSchemaConfig convert = JsonHelper.convert(customDataSource.options, JDBCSchemaConfig.class);
 
             try (Connection conn = source.getTestFunction().openConnection(convert)) {
                 ResultSet dbColumns = conn.getMetaData().getColumns(null, convert.getSchema(), null, null);
@@ -181,8 +125,8 @@ public class CustomDataSourceHttpService
                 while (dbColumns.next()) {
                     String columnName = dbColumns.getString("COLUMN_NAME");
                     FieldType fieldType;
-                    fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCMetastore::getType);
-                    builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<SchemaField>())
+                    fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCUtil::getType);
+                    builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<>())
                             .add(new SchemaField(columnName, fieldType));
                     if (i++ > 20) {
                         break;
@@ -198,30 +142,16 @@ public class CustomDataSourceHttpService
 
         if (!customDataSourceList.customFileSources.isEmpty()) {
             Map<String, List<SchemaField>> builder = new HashMap<>();
-            for (RemoteTable customFileSource : customDataSourceList.customFileSources) {
-                if (customFileSource.columns == null) {
-                    builder.put(customFileSource.name, ImmutableList.of());
-                }
-                else {
-                    builder.put(customFileSource.name, Optional.ofNullable(customFileSource.columns)
-                            .map(v -> v.stream()
-                                    .map(e -> new SchemaField(e.name, toFieldType(e.type)))
-                                    .collect(Collectors.toList())).orElse(ImmutableList.of()));
-                }
+            for (Map.Entry<String, RemoteTable> customFileSource : customDataSourceList.customFileSources.entrySet()) {
+                builder.put(customFileSource.getKey(),
+                        Optional.ofNullable(customFileSource.getValue().columns)
+                                .orElse(ImmutableList.of()));
             }
         }
 
         return schemas.build();
     }
 
-    private FieldType toFieldType(Type type)
-    {
-        return null;
-    }
-
-    @ApiOperation(value = "Get data-source", authorizations = @Authorization(value = "master_key"))
-    @Path("/get/database")
-    @JsonRequest
     public CustomDataSource getDatabase(@Named("project") String project, String schema)
     {
         try (Handle handle = dbi.open()) {
@@ -230,8 +160,7 @@ public class CustomDataSourceHttpService
                     .bind("schema_name", schema);
 
             CustomDataSource first = bind.map((index, r, ctx) -> {
-                DataManager.DataSourceFactory dataSource = createDataSource(r.getString(1), JsonHelper.read(r.getString(2)));
-                return new CustomDataSource(r.getString(1), r.getString(2), dataSource);
+                return new CustomDataSource(r.getString(1), schema, JsonHelper.read(r.getString(2), org.rakam.analysis.datasource.JDBCSchemaConfig.class));
             }).first();
 
             if (first == null) {
@@ -242,9 +171,6 @@ public class CustomDataSourceHttpService
         }
     }
 
-    @ApiOperation(value = "Get data-source", authorizations = @Authorization(value = "master_key"))
-    @Path("/get/file")
-    @JsonRequest
     public RemoteTable getFile(@Named("project") String project, String tableName)
     {
         try (Handle handle = dbi.open()) {
@@ -264,34 +190,32 @@ public class CustomDataSourceHttpService
         }
     }
 
-    @ApiOperation(value = "Get file", authorizations = @Authorization(value = "master_key"))
-    @Path("/list/file")
-    @JsonRequest
-    public List<RemoteTable> getFiles(@Named("project") String project)
+    public Map<String, RemoteTable> getFiles(@Named("project") String project)
     {
         try (Handle handle = dbi.open()) {
-            Query<Map<String, Object>> bind = handle.createQuery("SELECT options FROM custom_file_source WHERE project = :project")
+            Query<Map<String, Object>> bind = handle.createQuery("SELECT table_name, options FROM custom_file_source WHERE project = :project")
                     .bind("project", project);
 
-            return bind.map((index, r, ctx) -> {
-                return JsonHelper.read(r.getString(1), RemoteFileDataSource.RemoteTable.class);
+            HashMap<String, RemoteTable> map = new HashMap<>();
+
+            bind.map((index, r, ctx) -> {
+                map.put(r.getString(1), JsonHelper.read(r.getString(2), RemoteTable.class));
+                return null;
             }).list();
+
+            return map;
         }
     }
 
-    @ApiOperation(value = "Add data-source", authorizations = @Authorization(value = "master_key"))
-    @Path("/add/database")
-    @JsonRequest
-    public SuccessMessage addDatabase(@Named("project") String project, @BodyParam CustomDataSource hook)
+    public SuccessMessage addDatabase(@Named("project") String project, CustomDataSource hook)
     {
         try (Handle handle = dbi.open()) {
             try {
-                handle.createStatement("INSERT INTO custom_data_source (project, schema_name, table_name, type, options) " +
-                        "VALUES (:project, :schema_name, :table_name, :type, :options)")
+                handle.createStatement("INSERT INTO custom_data_source (project, schema_name, type, options) " +
+                        "VALUES (:project, :schema_name, :type, :options)")
                         .bind("project", project)
                         .bind("schema_name", hook.schemaName)
                         .bind("type", hook.type)
-                        .bind("table_name", "")
                         .bind("options", JsonHelper.encode(hook.options))
                         .execute();
                 return SuccessMessage.success();
@@ -324,7 +248,7 @@ public class CustomDataSourceHttpService
                         "VALUES (:project, :table_name, :options)")
                         .bind("project", project)
                         .bind("table_name", tableName)
-                        .bind("options", JsonHelper.encode(hook.getTable(tableName)))
+                        .bind("options", JsonHelper.encode(hook.getTable()))
                         .execute();
                 return SuccessMessage.success();
             }
@@ -386,10 +310,10 @@ public class CustomDataSourceHttpService
     @ApiOperation(value = "Test database", authorizations = @Authorization(value = "master_key"))
     @Path("/test/database")
     @JsonRequest
-    public SuccessMessage testDatabase(@Named("project") String project, @BodyParam CustomDataSource hook)
+    public SuccessMessage testDatabase(@Named("project") String project, String type, JDBCSchemaConfig options)
     {
-        SupportedCustomDatabase optionalFunction = SupportedCustomDatabase.getAdapter(hook.type);
-        Optional<String> test = optionalFunction.getTestFunction().test(null);
+        SupportedCustomDatabase optionalFunction = SupportedCustomDatabase.getAdapter(type);
+        Optional<String> test = optionalFunction.getTestFunction().test(options);
         if (test.isPresent()) {
             throw new RakamException(test.get(), BAD_REQUEST);
         }
@@ -400,10 +324,10 @@ public class CustomDataSourceHttpService
     @ApiOperation(value = "Test database", authorizations = @Authorization(value = "master_key"))
     @Path("/test/file")
     @JsonRequest
-    public SuccessMessage testFile(@Named("project") String project, @BodyParam DiscoverableRemoteTable hook)
+    public SuccessMessage testFile(@Named("project") String project, DiscoverableRemoteTable hook)
     {
         ExternalFileCustomDataSource source = new ExternalFileCustomDataSource();
-        Optional<String> test = source.test(hook.getTable("dummy"));
+        Optional<String> test = source.test(hook.getTable());
         if (test.isPresent()) {
             throw new RakamException(test.get(), BAD_REQUEST);
         }
@@ -416,18 +340,18 @@ public class CustomDataSourceHttpService
         public final URL url;
         public final boolean indexUrl;
         public final List<SchemaField> columns;
-        public final CompressionType compressionType;
-        public final ExternalSourceType format;
+        public final org.rakam.analysis.datasource.RemoteTable.CompressionType compressionType;
+        public final org.rakam.analysis.datasource.RemoteTable.ExternalSourceType format;
         public final Map<String, String> typeOptions;
 
         @JsonCreator
         public DiscoverableRemoteTable(
-                @JsonProperty("url") URL url,
-                @JsonProperty("indexUrl") Boolean indexUrl,
-                @JsonProperty("typeOptions") Map<String, String> typeOptions,
-                @JsonProperty("columns") List<SchemaField> columns,
-                @JsonProperty("compressionType") CompressionType compressionType,
-                @JsonProperty("format") ExternalSourceType format)
+                @ApiParam(value = "url") URL url,
+                @ApiParam(value = "indexUrl", required = false) Boolean indexUrl,
+                @ApiParam(value = "typeOptions", required = false) Map<String, String> typeOptions,
+                @ApiParam(value = "columns", required = false) List<SchemaField> columns,
+                @ApiParam(value = "compressionType", required = false) RemoteTable.CompressionType compressionType,
+                @ApiParam(value = "format") org.rakam.analysis.datasource.RemoteTable.ExternalSourceType format)
         {
             this.url = url;
             this.indexUrl = indexUrl == Boolean.TRUE;
@@ -437,15 +361,11 @@ public class CustomDataSourceHttpService
             this.format = requireNonNull(format, "format is null");
         }
 
-        public RemoteTable getTable(String name)
+        public RemoteTable getTable()
         {
-            List<Column> columns = (this.columns == null ? ExternalFileCustomDataSource.fillColumnIfNotSet(typeOptions, format, url, indexUrl) : this.columns)
-                    .stream().map(e -> {
-                        TypeSignature signature = parseTypeSignature(PrestoMetastore.toSql(e.getType()));
-                        return new Column(e.getName(), new PrestoMetastore.SignatureReferenceType(signature, null));
-                    }).collect(Collectors.toList());
+            List<SchemaField> columns = (this.columns == null ? ExternalFileCustomDataSource.fillColumnIfNotSet(typeOptions, format, url, indexUrl) : this.columns);
 
-            return new RemoteTable(name, url,
+            return new RemoteTable(url,
                     indexUrl, typeOptions,
                     columns,
                     compressionType, format);

@@ -1,10 +1,6 @@
-package org.rakam.presto.analysis.datasource;
+package org.rakam.analysis.datasource;
 
-import com.facebook.presto.hadoop.$internal.com.google.common.base.Throwables;
-import com.facebook.presto.rakam.externaldata.DataManager;
-import com.facebook.presto.rakam.externaldata.JDBCSchemaConfig;
-import com.facebook.presto.rakam.externaldata.source.MysqlDataSource.MysqlDataSourceFactory;
-import com.facebook.presto.rakam.externaldata.source.PostgresqlDataSource.PostgresqlDataSourceFactory;
+import com.google.common.base.Throwables;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -16,10 +12,10 @@ import static java.lang.String.format;
 
 public enum SupportedCustomDatabase
 {
-    POSTGRESQL(PostgresqlDataSourceFactory.class, new CDataSource<PostgresqlDataSourceFactory>()
+    POSTGRESQL(new CDataSource<JDBCSchemaConfig>()
     {
         @Override
-        public Optional<String> test(PostgresqlDataSourceFactory factory)
+        public Optional<String> test(JDBCSchemaConfig factory)
         {
             Connection connect = null;
             try {
@@ -44,7 +40,7 @@ public enum SupportedCustomDatabase
         }
 
         @Override
-        public Connection openConnection(PostgresqlDataSourceFactory factory)
+        public Connection openConnection(JDBCSchemaConfig factory)
                 throws SQLException
         {
             return new org.postgresql.Driver().connect(
@@ -54,10 +50,10 @@ public enum SupportedCustomDatabase
                             factory.getDatabase()), null);
         }
     }),
-    MYSQL(MysqlDataSourceFactory.class, new CDataSource<MysqlDataSourceFactory>()
+    MYSQL(new CDataSource<JDBCSchemaConfig>()
     {
         @Override
-        public Optional<String> test(MysqlDataSourceFactory factory)
+        public Optional<String> test(JDBCSchemaConfig factory)
         {
             Connection connect = null;
             try {
@@ -74,14 +70,14 @@ public enum SupportedCustomDatabase
                         connect.close();
                     }
                     catch (SQLException e) {
-                        throw com.google.common.base.Throwables.propagate(e);
+                        throw Throwables.propagate(e);
                     }
                 }
             }
         }
 
         @Override
-        public Connection openConnection(MysqlDataSourceFactory factory)
+        public Connection openConnection(JDBCSchemaConfig factory)
                 throws SQLException
         {
             Properties info = new Properties();
@@ -95,18 +91,11 @@ public enum SupportedCustomDatabase
         }
     });
 
-    private final CDataSource testFunction;
-    private final Class<? extends JDBCSchemaConfig> factoryClass;
+    private final CDataSource<JDBCSchemaConfig> testFunction;
 
-    SupportedCustomDatabase(Class<? extends JDBCSchemaConfig> factoryClass, CDataSource testFunction)
+    SupportedCustomDatabase(CDataSource<JDBCSchemaConfig> testFunction)
     {
-        this.factoryClass = factoryClass;
         this.testFunction = testFunction;
-    }
-
-    public Class<? extends JDBCSchemaConfig> getFactoryClass()
-    {
-        return factoryClass;
     }
 
     public CDataSource getTestFunction()
@@ -121,10 +110,10 @@ public enum SupportedCustomDatabase
                 return database;
             }
         }
-        throw new IllegalStateException();
+        throw new IllegalArgumentException();
     }
 
-    public interface CDataSource<T extends DataManager.DataSourceFactory>
+    public interface CDataSource<T>
     {
         Optional<String> test(T data);
 

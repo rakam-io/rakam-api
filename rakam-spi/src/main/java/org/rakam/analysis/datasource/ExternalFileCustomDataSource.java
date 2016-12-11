@@ -1,8 +1,5 @@
-package org.rakam.presto.analysis.datasource;
+package org.rakam.analysis.datasource;
 
-import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource;
-import com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.ExternalSourceType;
-import com.facebook.presto.spi.type.VarcharType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -21,14 +18,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.ExternalSourceType.AVRO;
-import static com.facebook.presto.rakam.externaldata.source.RemoteFileDataSource.ExternalSourceType.CSV;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static java.lang.Boolean.FALSE;
+import static org.rakam.analysis.datasource.RemoteTable.ExternalSourceType.AVRO;
+import static org.rakam.analysis.datasource.RemoteTable.ExternalSourceType.CSV;
 
 public class ExternalFileCustomDataSource
 {
-    public static List<SchemaField> fillColumnIfNotSet(Map<String, String> typeOptions, ExternalSourceType format, URL url, boolean indexUrl)
+    public static List<SchemaField> fillColumnIfNotSet(Map<String, String> typeOptions, RemoteTable.ExternalSourceType format, URL url, boolean indexUrl)
     {
         if (format == CSV && !FALSE.toString().equals(typeOptions.get("use_header"))) {
             URL file;
@@ -91,7 +88,7 @@ public class ExternalFileCustomDataSource
         return testUrl;
     }
 
-    public static Optional<String> test(RemoteFileDataSource.RemoteTable remoteTable)
+    public static Optional<String> test(RemoteTable remoteTable)
     {
         try {
             URL testUrl;

@@ -38,11 +38,11 @@ import java.util.function.Supplier;
 
 import static java.lang.String.format;
 import static org.rakam.postgresql.analysis.PostgresqlEventStore.UTC_CALENDAR;
-import static org.rakam.postgresql.analysis.PostgresqlMetastore.fromSql;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.QUERY_EXECUTOR;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 import static org.rakam.report.QueryStats.State.FINISHED;
 import static org.rakam.report.QueryStats.State.RUNNING;
+import static org.rakam.util.JDBCUtil.fromSql;
 
 public class PostgresqlQueryExecution
         implements QueryExecution
