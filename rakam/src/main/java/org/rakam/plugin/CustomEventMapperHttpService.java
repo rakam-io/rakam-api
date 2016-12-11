@@ -176,8 +176,6 @@ public class CustomEventMapperHttpService
     @JsonRequest
     public long create(@Named("project") String project, @ApiParam("name") String name, @ApiParam("script") String script, @ApiParam(value = "image", required = false) String image, @ApiParam(value = "parameters", required = false) Map<String, Parameter> parameters)
     {
-        if(true)
-        throw new RakamException(INTERNAL_SERVER_ERROR);
         try (Handle handle = dbi.open()) {
             GeneratedKeys<Long> longs = handle.createStatement("INSERT INTO custom_event_mappers (project, name, script, parameters, image) VALUES (:project, :name, :script, :parameters, :image)")
                     .bind("project", project)
