@@ -121,11 +121,15 @@ public class CustomDataSourceService
             try (Connection conn = source.getDataSource().openConnection(customDataSource.options)) {
                 ResultSet dbColumns = conn.getMetaData().getColumns(null, customDataSource.options.getSchema(), null, null);
 
-                int i = 0;
                 while (dbColumns.next()) {
                     String columnName = dbColumns.getString("COLUMN_NAME");
                     FieldType fieldType;
-                    fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCUtil::getType);
+                    try {
+                        fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCUtil::getType);
+                    }
+                    catch (IllegalArgumentException e) {
+                        continue;
+                    }
                     builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<>())
                             .add(new SchemaField(columnName, fieldType));
                 }

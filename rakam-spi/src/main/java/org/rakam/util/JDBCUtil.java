@@ -18,7 +18,9 @@ public class JDBCUtil
 
     public static FieldType getType(String name) {
         FieldType fieldType = REVERSE_TYPE_MAP.get(name.toUpperCase());
-        Objects.requireNonNull(fieldType, String.format("type %s couldn't recognized.", name));
+        if(fieldType == null) {
+            throw new IllegalArgumentException(String.format("type %s couldn't recognized.", name));
+        }
         return fieldType;
     }
 
@@ -118,6 +120,12 @@ public class JDBCUtil
                 return FieldType.STRING;
             case Types.OTHER:
                 if(typeName.equals("citext")) {
+                    return FieldType.STRING;
+                }
+                if(typeName.equals("jsonb")) {
+                    return FieldType.STRING;
+                }
+                if(typeName.equals("geography")) {
                     return FieldType.STRING;
                 }
             default:
