@@ -34,6 +34,7 @@ public class LogModule
                 SentryHandler sentryHandler = new SentryHandler();
                 sentryHandler.setDsn(SENTRY_DSN);
                 sentryHandler.setTags(logConfig.getTags());
+                sentryHandler.setLevel(Level.SEVERE);
 
                 URL gitProps = LogUtil.class.getResource("/git.properties");
 
@@ -46,7 +47,6 @@ public class LogModule
                     }
 
                     sentryHandler.setRelease(properties.get("git.commit.id.describe").toString());
-                    sentryHandler.setLevel(Level.SEVERE);
                 }
                 rootLogger.addHandler(sentryHandler);
             }
