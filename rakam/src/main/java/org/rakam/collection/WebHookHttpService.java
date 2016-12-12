@@ -281,7 +281,7 @@ public class WebHookHttpService
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
-                    .bind("project", identifier).execute();
+                    .bind("identifier", identifier).execute();
             if(execute == 0) {
                 throw new RakamException(NOT_FOUND);
             }
