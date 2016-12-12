@@ -61,6 +61,9 @@ public class JDBCUtil
                 if (name.startsWith("_int")) {
                     return FieldType.ARRAY_LONG;
                 }
+                if (name.equals("_bool")) {
+                    return FieldType.ARRAY_BOOLEAN;
+                }
                 if (name.equals("_text") || name.equals("_varchar")) {
                     return FieldType.ARRAY_STRING;
                 }
@@ -122,10 +125,7 @@ public class JDBCUtil
                 if(typeName.equals("citext")) {
                     return FieldType.STRING;
                 }
-                if(typeName.equals("jsonb")) {
-                    return FieldType.STRING;
-                }
-                if(typeName.equals("geography")) {
+                if(typeName.equals("jsonb") || typeName.equals("json")) {
                     return FieldType.STRING;
                 }
             default:

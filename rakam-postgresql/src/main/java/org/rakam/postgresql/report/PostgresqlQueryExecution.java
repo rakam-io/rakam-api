@@ -150,8 +150,16 @@ public class PostgresqlQueryExecution
 
             columns = new ArrayList<>(columnCount);
             for (int i = 1; i < columnCount + 1; i++) {
-                columns.add(new SchemaField(metaData.getColumnName(i),
-                        fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i))));
+                FieldType type;
+                try {
+                    type = fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i));
+                }
+                catch (UnsupportedOperationException e) {
+                    columns.add(null);
+                    continue;
+                }
+
+                columns.add(new SchemaField(metaData.getColumnName(i), type));
             }
 
             ImmutableList.Builder<List<Object>> builder = ImmutableList.builder();
@@ -159,7 +167,11 @@ public class PostgresqlQueryExecution
                 List<Object> rowBuilder = Arrays.asList(new Object[columnCount]);
                 for (int i = 0; i < columnCount; i++) {
                     Object object;
-                    FieldType type = columns.get(i).getType();
+                    SchemaField schemaField = columns.get(i);
+                    if (schemaField == null) {
+                        continue;
+                    }
+                    FieldType type = schemaField.getType();
                     switch (type) {
                         case STRING:
                             object = resultSet.getString(i + 1);
@@ -240,6 +252,12 @@ public class PostgresqlQueryExecution
                 builder.add(rowBuilder);
             }
             data = builder.build();
+
+            for (int i = 0; i < columns.size(); i++) {
+                if (columns.get(i) == null) {
+                    columns.set(i, new SchemaField(metaData.getColumnName(i + 1), FieldType.STRING));
+                }
+            }
             return new QueryResult(columns, data, ImmutableMap.of(EXECUTION_TIME, executionTimeInMillis));
         }
         catch (SQLException e) {

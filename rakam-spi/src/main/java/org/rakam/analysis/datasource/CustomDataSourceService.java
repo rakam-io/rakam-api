@@ -125,9 +125,9 @@ public class CustomDataSourceService
                     String columnName = dbColumns.getString("COLUMN_NAME");
                     FieldType fieldType;
                     try {
-                        fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCUtil::getType);
+                        fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"));
                     }
-                    catch (IllegalArgumentException e) {
+                    catch (UnsupportedOperationException e) {
                         continue;
                     }
                     builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<>())
