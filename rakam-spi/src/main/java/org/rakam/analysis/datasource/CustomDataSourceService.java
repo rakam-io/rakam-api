@@ -119,7 +119,7 @@ public class CustomDataSourceService
             SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);
 
             try (Connection conn = source.getDataSource().openConnection(customDataSource.options)) {
-                ResultSet dbColumns = conn.getMetaData().getColumns(null, customDataSource.schemaName, null, null);
+                ResultSet dbColumns = conn.getMetaData().getColumns(null, customDataSource.options.getSchema(), null, null);
 
                 int i = 0;
                 while (dbColumns.next()) {
@@ -128,9 +128,6 @@ public class CustomDataSourceService
                     fieldType = fromSql(dbColumns.getInt("DATA_TYPE"), dbColumns.getString("TYPE_NAME"), JDBCUtil::getType);
                     builder.computeIfAbsent(dbColumns.getString("table_name"), (k) -> new ArrayList<>())
                             .add(new SchemaField(columnName, fieldType));
-                    if (i++ > 20) {
-                        break;
-                    }
                 }
             }
             catch (SQLException e) {
