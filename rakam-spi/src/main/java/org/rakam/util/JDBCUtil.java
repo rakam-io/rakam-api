@@ -116,6 +116,10 @@ public class JDBCUtil
             case Types.LONGNVARCHAR:
             case Types.VARCHAR:
                 return FieldType.STRING;
+            case Types.OTHER:
+                if(typeName.equals("citext")) {
+                    return FieldType.STRING;
+                }
             default:
                 return arrayTypeNameMapper.apply(typeName);
         }

@@ -91,7 +91,9 @@ public class CustomDataSourceService
             List<CustomDataSource> customDataSources = handle.createQuery("SELECT schema_name, type, options FROM custom_data_source WHERE project = :project")
                     .bind("project", project)
                     .map((index, r, ctx) -> {
-                        return new CustomDataSource(r.getString(2), r.getString(1), JsonHelper.read(r.getString(3), org.rakam.analysis.datasource.JDBCSchemaConfig.class));
+                        JDBCSchemaConfig read = JsonHelper.read(r.getString(3), JDBCSchemaConfig.class);
+                        read.setPassword(null);
+                        return new CustomDataSource(r.getString(2), r.getString(1), read);
                     }).list();
 
             HashMap<String, RemoteTable> files = new HashMap<>();
