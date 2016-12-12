@@ -43,11 +43,15 @@ public enum SupportedCustomDatabase
         public Connection openConnection(JDBCSchemaConfig factory)
                 throws SQLException
         {
+            Properties properties = new Properties();
+            properties.setProperty("user", factory.getUsername());
+            properties.setProperty("password", factory.getPassword());
+
             return new org.postgresql.Driver().connect(
                     format("jdbc:postgresql://%s:%s/%s",
                             factory.getHost(),
                             Optional.ofNullable(factory.getPort()).orElse(5432),
-                            factory.getDatabase()), null);
+                            factory.getDatabase()), properties);
         }
     }),
     MYSQL(new CDataSource<JDBCSchemaConfig>()
