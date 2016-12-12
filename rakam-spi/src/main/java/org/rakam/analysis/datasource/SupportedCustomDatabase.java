@@ -44,8 +44,10 @@ public enum SupportedCustomDatabase
                 throws SQLException
         {
             Properties properties = new Properties();
-            properties.setProperty("user", factory.getUsername());
-            properties.setProperty("password", factory.getPassword());
+            Optional.ofNullable(factory.getPassword())
+                    .ifPresent(pass -> properties.setProperty("password", pass));
+            Optional.ofNullable(factory.getUsername())
+                    .ifPresent(user -> properties.setProperty("user", user));
 
             return new org.postgresql.Driver().connect(
                     format("jdbc:postgresql://%s:%s/%s",
@@ -95,16 +97,16 @@ public enum SupportedCustomDatabase
         }
     });
 
-    private final CDataSource<JDBCSchemaConfig> testFunction;
+    private final CDataSource<JDBCSchemaConfig> dataSource;
 
-    SupportedCustomDatabase(CDataSource<JDBCSchemaConfig> testFunction)
+    SupportedCustomDatabase(CDataSource<JDBCSchemaConfig> dataSource)
     {
-        this.testFunction = testFunction;
+        this.dataSource = dataSource;
     }
 
-    public CDataSource getTestFunction()
+    public CDataSource getDataSource()
     {
-        return testFunction;
+        return dataSource;
     }
 
     public static SupportedCustomDatabase getAdapter(String value)

@@ -7,7 +7,7 @@ public class CustomDataSource
 {
     public final String schemaName;
     public final String type;
-    public final Object options;
+    public final JDBCSchemaConfig options;
 
     @JsonCreator
     public CustomDataSource(

@@ -92,7 +92,6 @@ public class CustomDataSourceService
                     .bind("project", project)
                     .map((index, r, ctx) -> {
                         JDBCSchemaConfig read = JsonHelper.read(r.getString(3), JDBCSchemaConfig.class);
-                        read.setPassword(null);
                         return new CustomDataSource(r.getString(2), r.getString(1), read);
                     }).list();
 
@@ -118,10 +117,9 @@ public class CustomDataSourceService
             Map<String, List<SchemaField>> builder = new HashMap<>();
 
             SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);
-            JDBCSchemaConfig convert = JsonHelper.convert(customDataSource.options, JDBCSchemaConfig.class);
 
-            try (Connection conn = source.getTestFunction().openConnection(convert)) {
-                ResultSet dbColumns = conn.getMetaData().getColumns(null, convert.getSchema(), null, null);
+            try (Connection conn = source.getDataSource().openConnection(customDataSource.options)) {
+                ResultSet dbColumns = conn.getMetaData().getColumns(null, customDataSource.schemaName, null, null);
 
                 int i = 0;
                 while (dbColumns.next()) {
@@ -162,7 +160,7 @@ public class CustomDataSourceService
                     .bind("schema_name", schema);
 
             CustomDataSource first = bind.map((index, r, ctx) -> {
-                return new CustomDataSource(r.getString(1), schema, JsonHelper.read(r.getString(2), org.rakam.analysis.datasource.JDBCSchemaConfig.class));
+                return new CustomDataSource(r.getString(1), schema, JsonHelper.read(r.getString(2), JDBCSchemaConfig.class));
             }).first();
 
             if (first == null) {
@@ -315,7 +313,7 @@ public class CustomDataSourceService
     public SuccessMessage testDatabase(@Named("project") String project, String type, JDBCSchemaConfig options)
     {
         SupportedCustomDatabase optionalFunction = SupportedCustomDatabase.getAdapter(type);
-        Optional<String> test = optionalFunction.getTestFunction().test(options);
+        Optional<String> test = optionalFunction.getDataSource().test(options);
         if (test.isPresent()) {
             throw new RakamException(test.get(), BAD_REQUEST);
         }

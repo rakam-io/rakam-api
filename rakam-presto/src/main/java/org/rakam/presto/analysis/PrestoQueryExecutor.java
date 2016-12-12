@@ -182,7 +182,7 @@ public class PrestoQueryExecutor
             return null;
         }
 
-        return new PostgresqlQueryExecution(() -> source.getTestFunction().openConnection(convert), builder.toString(), false);
+        return new PostgresqlQueryExecution(() -> source.getDataSource().openConnection(convert), builder.toString(), false);
     }
 
     public PrestoQueryExecution internalExecuteRawQuery(String query, ClientSession clientSession)

@@ -72,7 +72,11 @@ public class CustomDataSourceHttpService
     @GET
     public CustomDataSourceService.CustomDataSourceList listDatabases(@Named("project") String project)
     {
-        return service.listDatabases(project);
+        CustomDataSourceService.CustomDataSourceList customDataSourceList = service.listDatabases(project);
+        for (CustomDataSource customDataSource : customDataSourceList.customDataSources) {
+            customDataSource.options.setPassword(null);
+        }
+        return customDataSourceList;
     }
 
     @ApiOperation(value = "Schema of data-sources", authorizations = @Authorization(value = "master_key"))
