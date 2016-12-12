@@ -56,7 +56,7 @@ public class PrestoCopyEvent implements CopyEvent
             builder.put(format("%s.compression", prestoConfig.getBulkConnector()), type.name());
         }
 
-        return prestoQueryExecutor.executeRawQuery(format("insert into %s.%s.%s select * from %s.%s.%s",
+        return prestoQueryExecutor.executeRawStatement(format("insert into %s.%s.%s select * from %s.%s.%s",
                 prestoConfig.getColdStorageConnector(), project, ValidationUtil.checkCollection(collection),
                 prestoConfig.getBulkConnector(), project, ValidationUtil.checkCollection(collection)),
                 builder.build(), "middleware");

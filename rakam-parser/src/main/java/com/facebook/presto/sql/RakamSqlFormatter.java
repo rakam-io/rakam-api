@@ -13,15 +13,11 @@
  */
 package com.facebook.presto.sql;
 
-import com.facebook.presto.sql.tree.AddColumn;
 import com.facebook.presto.sql.tree.AliasedRelation;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.CreateTable;
 import com.facebook.presto.sql.tree.CreateTableAsSelect;
 import com.facebook.presto.sql.tree.CreateView;
-import com.facebook.presto.sql.tree.Delete;
-import com.facebook.presto.sql.tree.DropTable;
 import com.facebook.presto.sql.tree.DropView;
 import com.facebook.presto.sql.tree.Except;
 import com.facebook.presto.sql.tree.Explain;
@@ -29,7 +25,6 @@ import com.facebook.presto.sql.tree.ExplainFormat;
 import com.facebook.presto.sql.tree.ExplainOption;
 import com.facebook.presto.sql.tree.ExplainType;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.Insert;
 import com.facebook.presto.sql.tree.Intersect;
 import com.facebook.presto.sql.tree.Join;
 import com.facebook.presto.sql.tree.JoinCriteria;
@@ -41,13 +36,9 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
 import com.facebook.presto.sql.tree.Relation;
-import com.facebook.presto.sql.tree.RenameColumn;
-import com.facebook.presto.sql.tree.RenameTable;
-import com.facebook.presto.sql.tree.ResetSession;
 import com.facebook.presto.sql.tree.SampledRelation;
 import com.facebook.presto.sql.tree.Select;
 import com.facebook.presto.sql.tree.SelectItem;
-import com.facebook.presto.sql.tree.SetSession;
 import com.facebook.presto.sql.tree.ShowCatalogs;
 import com.facebook.presto.sql.tree.ShowColumns;
 import com.facebook.presto.sql.tree.ShowFunctions;
@@ -67,22 +58,26 @@ import com.facebook.presto.sql.tree.With;
 import com.facebook.presto.sql.tree.WithQuery;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSortedMap;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.facebook.presto.sql.ExpressionFormatter.formatStringLiteral;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static com.google.common.collect.Iterables.transform;
+import static java.util.stream.Collectors.joining;
 
 public final class RakamSqlFormatter
 {
     private static final String INDENT = "   ";
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z_][a-z0-9_]*");
 
     private RakamSqlFormatter()
     {
@@ -156,6 +151,50 @@ public final class RakamSqlFormatter
             checkArgument(indent == 0, "visitExpression should only be called at root");
             builder.append(formatExpression(node, tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
             return null;
+        }
+
+        @Override
+        protected Void visitCreateTableAsSelect(CreateTableAsSelect node, Integer indent)
+        {
+            builder.append("CREATE TABLE ");
+            if (node.isNotExists()) {
+                builder.append("IF NOT EXISTS ");
+            }
+            builder.append(node.getName());
+
+            appendTableProperties(builder, node.getProperties());
+
+            builder.append(" AS ");
+            process(node.getQuery(), indent);
+
+            if (!node.isWithData()) {
+                builder.append(" WITH NO DATA");
+            }
+
+            return null;
+        }
+
+        private void appendTableProperties(StringBuilder builder, Map<String, Expression> properties)
+        {
+            if (!properties.isEmpty()) {
+                builder.append("\nWITH (\n");
+                // Always output the table properties in sorted order
+                String propertyList = ImmutableSortedMap.copyOf(properties).entrySet().stream()
+                        .map(entry -> INDENT + formatName(entry.getKey()) + " = " + formatExpression(entry.getValue(),
+                                tableNameMapper, columnNameMapper, queryWithTables,
+                                escapeIdentifier))
+                        .collect(joining(",\n"));
+                builder.append(propertyList);
+                builder.append("\n").append(")");
+            }
+        }
+
+        private String formatName(String name)
+        {
+            if (NAME_PATTERN.matcher(name).matches()) {
+                return name;
+            }
+            return escapeIdentifier + name + escapeIdentifier;
         }
 
         @Override

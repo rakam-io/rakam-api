@@ -73,7 +73,8 @@ public class RakamExpressionFormatter
             arguments = "DISTINCT " + arguments;
         }
 
-        builder.append(formatQualifiedName(node.getName(), escape))
+        // TODO quote in Postgresql and Presto but not in Mysql
+        builder.append(node.getName())
                 .append('(').append(arguments).append(')');
 
         if (node.getWindow().isPresent()) {

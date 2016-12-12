@@ -155,11 +155,6 @@ public class WebHookHttpService
         engine.eval("" +
                 "quit = function() {};\n" +
                 "exit = function() {};\n" +
-                //                "print = function() {};\n" +
-                //                "echo = function() {};\n" +
-                //                "readFully = function() {};\n" +
-                //                "readLine = function() {};\n" +
-                //                "load = function() {};\n" +
                 "loadWithNewGlobal = function() {};\n" +
                 "var scoped = function(queryParams, body, headers) { \n" +
                 "   return JSON.stringify(module(queryParams, JSON.parse(body), " + params + ", headers)); \n" +
@@ -249,10 +244,10 @@ public class WebHookHttpService
         collectPost(request);
     }
 
-    @ApiOperation(value = "Create hook", authorizations = @Authorization(value = "master_key"))
-    @Path("/create")
+    @ApiOperation(value = "Set hook", authorizations = @Authorization(value = "master_key"))
+    @Path("/activate")
     @JsonRequest
-    public SuccessMessage create(@Named("project") String project, @BodyParam WebHook hook)
+    public SuccessMessage activate(@Named("project") String project, @BodyParam WebHook hook)
     {
         try (Handle handle = dbi.open()) {
             try {
@@ -267,7 +262,14 @@ public class WebHookHttpService
             }
             catch (Exception e) {
                 if (get(project, hook.identifier) != null) {
-                    throw new AlreadyExistsException("Webhook", BAD_REQUEST);
+                    handle.createStatement("UPDATE webhook SET code = :code WHERE project = :project AND identifier = :identifier")
+                            .bind("project", project)
+                            .bind("identifier", hook.identifier)
+                            .bind("code", hook.code)
+                            .bind("image", hook.image)
+                            .bind("parameters", JsonHelper.encode(hook.parameters))
+                            .execute();
+                    return SuccessMessage.success();
                 }
                 throw e;
             }
@@ -330,14 +332,14 @@ public class WebHookHttpService
             RakamHttpRequest request,
             @HeaderParam(CONTENT_TYPE) String contentType,
             @Named("project") String project,
-            @ApiParam("script") String script,
+            @ApiParam("code") String code,
             @ApiParam(value = "parameters", required = false) Map<String, Object> params,
             @ApiParam(value = "body", required = false) Object body)
     {
         ScriptEngine engine;
         try {
             engine = getEngine(JsonHelper.encode(params));
-            engine.eval(script);
+            engine.eval(code);
         }
         catch (ScriptException e) {
             throw new RakamException("Unable to compile Javascript code: " + e.getMessage(), INTERNAL_SERVER_ERROR);
@@ -366,7 +368,7 @@ public class WebHookHttpService
                         finalBody,
                         request.headers());
                 if (scoped == null) {
-                    request.response(script, NO_CONTENT).end();
+                    request.response(code, NO_CONTENT).end();
                 }
                 return scoped;
             }

@@ -103,6 +103,26 @@ public class PrestoQueryExecutor
         return executeRawQuery(query, sessionProperties, null);
     }
 
+    @Override
+    public QueryExecution executeRawStatement(String query, Map<String, String> sessionProperties)
+    {
+        return executeRawStatement(query, sessionProperties, null);
+    }
+
+    public QueryExecution executeRawStatement(String query, Map<String, String> sessionProperties, String catalog)
+    {
+        return internalExecuteRawQuery(query, new ClientSession(
+                prestoConfig.getAddress(),
+                "rakam",
+                "api-server",
+                catalog == null ? "default" : catalog,
+                "default",
+                TimeZone.getDefault().getID(),
+                Locale.ENGLISH,
+                sessionProperties,
+                null, false, new Duration(1, TimeUnit.MINUTES)));
+    }
+
     public QueryExecution executeRawQuery(String query, Map<String, String> sessionProperties, String catalog)
     {
         if (sessionProperties.containsKey("external.source_options")) {
@@ -124,16 +144,7 @@ public class PrestoQueryExecutor
             }
         }
 
-        return internalExecuteRawQuery(query, new ClientSession(
-                prestoConfig.getAddress(),
-                "rakam",
-                "api-server",
-                catalog == null ? "default" : catalog,
-                "default",
-                TimeZone.getDefault().getID(),
-                Locale.ENGLISH,
-                sessionProperties,
-                null, false, new Duration(1, TimeUnit.MINUTES)));
+        return executeRawStatement(query, sessionProperties, catalog);
     }
 
     private QueryExecution getSingleQueryExecution(String query, String key, DataSourceType type)
@@ -148,13 +159,16 @@ public class PrestoQueryExecutor
             return null;
         }
         JDBCSchemaConfig convert = JsonHelper.convert(type.data, JDBCSchemaConfig.class);
+        char seperator;
 
         switch (type.type) {
             case PostgresqlDataSource.NAME:
                 schema = Optional.of(convert.getSchema());
+                seperator = '"';
                 break;
             case MysqlDataSource.NAME:
                 schema = Optional.empty();
+                seperator = '`';
                 break;
             default:
                 return null;
@@ -176,7 +190,7 @@ public class PrestoQueryExecutor
                         .orElse(qualifiedName.getSuffix());
             }
             return null;
-        }, '"').process(sqlParser.createStatement(query), 1);
+        }, seperator).process(sqlParser.createStatement(query), 1);
 
         if (hasOutsideReference.get()) {
             return null;

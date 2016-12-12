@@ -130,7 +130,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                                     queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()), predicate);
                         }, '"');
 
-                queryExecution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
+                queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
                 queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
             }
             else {

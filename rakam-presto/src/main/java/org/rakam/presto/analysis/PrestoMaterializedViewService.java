@@ -108,7 +108,7 @@ public class PrestoMaterializedViewService
                 .process(statement, 1);
 
         QueryExecution execution = queryExecutor
-                .executeRawQuery(format("create table %s as %s limit 0",
+                .executeRawStatement(format("create table %s as %s limit 0",
                         queryExecutor.formatTableReference(project,
                                 QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of()), builder.toString(), Optional.empty()), map);
 
@@ -159,7 +159,7 @@ public class PrestoMaterializedViewService
             StringBuilder builder = new StringBuilder();
 
             new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties), '"').process(statement, 1);
-            QueryExecution execution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
+            QueryExecution execution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", tableName, builder.toString()), sessionProperties);
             execution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? Instant.now() : null));
             return new MaterializedViewExecution(execution, tableName);
         }
@@ -190,7 +190,7 @@ public class PrestoMaterializedViewService
                                     queryExecutor.formatTableReference(project, name, Optional.empty(), sessionProperties), predicate);
                         }, '"');
 
-                queryExecution = queryExecutor.executeRawQuery(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
+                queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
                 queryExecution.getResult().thenAccept(result -> f.complete(!result.isFailed() ? now : null));
             }
             else {

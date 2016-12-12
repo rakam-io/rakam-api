@@ -13,6 +13,10 @@ public interface QueryExecutor
         return executeRawQuery(sqlQuery);
     }
 
+    default QueryExecution executeRawStatement(String sqlQuery, Map<String, String> sessionParameters) {
+        return executeRawStatement(sqlQuery);
+    }
+
     QueryExecution executeRawStatement(String sqlQuery);
 
     String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters);
