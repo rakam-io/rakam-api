@@ -37,7 +37,6 @@ import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.HeaderParam;
 import org.rakam.server.http.annotations.IgnoreApi;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.LogUtil;
 import org.rakam.util.RakamException;
@@ -51,7 +50,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.script.Invocable;
-import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import javax.ws.rs.GET;
@@ -60,8 +58,6 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryPoolMXBean;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -74,6 +70,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.NO_CONTENT;
 import static javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -279,9 +276,17 @@ public class WebHookHttpService
     @ApiOperation(value = "Delete hook", authorizations = @Authorization(value = "master_key"))
     @Path("/delete")
     @JsonRequest
-    public void delete(@Named("project") String project, @ApiParam("identifier") String identifier)
+    public SuccessMessage delete(@Named("project") String project, @ApiParam("identifier") String identifier)
     {
-
+        try (Handle handle = dbi.open()) {
+            int execute = handle.createStatement("DELETE FROM webhook WHERE project = :project AND identifier = :identifier")
+                    .bind("project", project)
+                    .bind("project", identifier).execute();
+            if(execute == 0) {
+                throw new RakamException(NOT_FOUND);
+            }
+            return SuccessMessage.success();
+        }
     }
 
     @ApiOperation(value = "Get hook", authorizations = @Authorization(value = "master_key"))
