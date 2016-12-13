@@ -230,12 +230,12 @@ public class JSCodeCompiler
         private void log(String type, String value)
         {
             try (Handle handle = dbi.open()) {
-                handle.createStatement("INSERT INTO javascript_logs (project, type, prefix, message) " +
-                        "VALUES (:project, :type, :prefix, :message)")
+                handle.createStatement("INSERT INTO javascript_logs (project, type, prefix, error) " +
+                        "VALUES (:project, :type, :prefix, :error)")
                         .bind("project", project)
                         .bind("type", type)
                         .bind("prefix", prefix)
-                        .bind("message", value)
+                        .bind("error", value)
                         .execute();
             }
         }
