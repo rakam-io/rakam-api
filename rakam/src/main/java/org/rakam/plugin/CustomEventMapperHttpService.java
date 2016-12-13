@@ -405,7 +405,7 @@ public class CustomEventMapperHttpService
                     logger.warn(e, "'mapper' function does not exist in event mapper function.");
                 }
                 catch (Throwable e) {
-                    logger.warn(e, "unknown error executing the js mapper.");
+                    logger.warn(e, "Unknown error executing the js mapper.");
                 }
 
                 return null;

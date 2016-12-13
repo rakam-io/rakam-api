@@ -395,7 +395,7 @@ public class ScheduledTaskHttpService
                 throw new RakamException("There must be a function called 'main'.", BAD_REQUEST);
             }
             catch (Throwable e) {
-                throw new RakamException("Unknown error executing 'main'.", BAD_REQUEST);
+                throw new RakamException("Unknown error executing 'main': " + e.getMessage(), BAD_REQUEST);
             }
         }, executor);
     }
