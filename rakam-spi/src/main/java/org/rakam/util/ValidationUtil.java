@@ -40,7 +40,7 @@ public final class ValidationUtil
     public static String checkCollection(String collection, char character)
     {
         checkCollectionValid(collection);
-        return character + collection.replaceAll("\"", "").toLowerCase(Locale.ENGLISH) + character;
+        return character + collection.replaceAll("\"", "") + character;
     }
 
     public static void checkCollectionValid(String collection)

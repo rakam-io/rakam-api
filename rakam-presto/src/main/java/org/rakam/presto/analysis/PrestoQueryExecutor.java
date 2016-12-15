@@ -147,6 +147,17 @@ public class PrestoQueryExecutor
         return executeRawStatement(query, sessionProperties, catalog);
     }
 
+    private char dbSeparator(String externalType) {
+        switch (externalType) {
+            case PostgresqlDataSource.NAME:
+                return  '"';
+            case MysqlDataSource.NAME:
+                return  '`';
+            default:
+                return '"';
+        }
+    }
+
     private QueryExecution getSingleQueryExecution(String query, String key, DataSourceType type)
     {
         Optional<String> schema;
@@ -159,16 +170,14 @@ public class PrestoQueryExecutor
             return null;
         }
         JDBCSchemaConfig convert = JsonHelper.convert(type.data, JDBCSchemaConfig.class);
-        char seperator;
+        char seperator = dbSeparator(type.type);
 
         switch (type.type) {
             case PostgresqlDataSource.NAME:
                 schema = Optional.of(convert.getSchema());
-                seperator = '"';
                 break;
             case MysqlDataSource.NAME:
                 schema = Optional.empty();
-                seperator = '`';
                 break;
             default:
                 return null;
@@ -285,9 +294,8 @@ public class PrestoQueryExecutor
                 }
 
                 if (prefix != null) {
-                    return "external." +
-                            checkCollection(prefix) + "." +
-                            checkCollection(suffix);
+
+                    return "external." + checkCollection(prefix) + "." + checkCollection(suffix, dbSeparator(suffix));
                 }
             }
             catch (RakamException e) {

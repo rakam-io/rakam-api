@@ -16,6 +16,8 @@ package com.facebook.presto.sql;
 import com.facebook.presto.sql.tree.AliasedRelation;
 import com.facebook.presto.sql.tree.AllColumns;
 import com.facebook.presto.sql.tree.AstVisitor;
+import com.facebook.presto.sql.tree.Call;
+import com.facebook.presto.sql.tree.CallArgument;
 import com.facebook.presto.sql.tree.CreateTableAsSelect;
 import com.facebook.presto.sql.tree.CreateView;
 import com.facebook.presto.sql.tree.DropView;
@@ -69,6 +71,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.sql.ExpressionFormatter.formatExpression;
 import static com.facebook.presto.sql.ExpressionFormatter.formatStringLiteral;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -384,6 +387,38 @@ public final class RakamSqlFormatter
         protected Void visitAllColumns(AllColumns node, Integer context)
         {
             builder.append(node.toString());
+
+            return null;
+        }
+
+        @Override
+        protected Void visitCallArgument(CallArgument node, Integer indent)
+        {
+            if (node.getName().isPresent()) {
+                builder.append(node.getName().get())
+                        .append(" => ");
+            }
+            builder.append(formatExpression(node.getValue(), tableNameMapper, columnNameMapper, queryWithTables, escapeIdentifier));
+
+            return null;
+        }
+
+        @Override
+        protected Void visitCall(Call node, Integer indent)
+        {
+            builder.append("CALL ")
+                    .append(tableNameMapper.apply(node.getName()))
+                    .append("(");
+
+            Iterator<CallArgument> arguments = node.getArguments().iterator();
+            while (arguments.hasNext()) {
+                process(arguments.next(), indent);
+                if (arguments.hasNext()) {
+                    builder.append(", ");
+                }
+            }
+
+            builder.append(")");
 
             return null;
         }

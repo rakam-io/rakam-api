@@ -3,6 +3,7 @@ package org.rakam.report;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.ParsingException;
 import com.facebook.presto.sql.parser.SqlParser;
+import com.facebook.presto.sql.tree.Call;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.QuerySpecification;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
@@ -166,16 +168,25 @@ public class QueryExecutorService
     public String buildQuery(String project, String query, Optional<QuerySampling> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters)
     {
         Query statement;
+        Function<QualifiedName, String> tableNameMapper = tableNameMapper(project, materializedViews, sample, sessionParameters);
         synchronized (parser) {
             Statement queryStatement = parser.createStatement(query);
-            if (!(queryStatement instanceof Query)) {
-                throw new RakamException(queryStatement.getClass().getSimpleName()+" is not supported", BAD_REQUEST);
+            if ((queryStatement instanceof Query)) {
+                statement = (Query) queryStatement;
             }
-            statement = (Query) queryStatement;
+            else if ((queryStatement instanceof Call)) {
+                StringBuilder builder = new StringBuilder();
+                new RakamSqlFormatter.Formatter(builder, tableNameMapper, escapeIdentifier)
+                        .process(queryStatement, 1);
+                return builder.toString();
+            }
+            else {
+                throw new RakamException(queryStatement.getClass().getSimpleName() + " is not supported", BAD_REQUEST);
+            }
         }
 
         StringBuilder builder = new StringBuilder();
-        new RakamSqlFormatter.Formatter(builder, tableNameMapper(project, materializedViews, sample, sessionParameters), escapeIdentifier)
+        new RakamSqlFormatter.Formatter(builder, tableNameMapper, escapeIdentifier)
                 .process(statement, 1);
 
         if (maxLimit != null) {
