@@ -4,6 +4,7 @@ import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.ui.report.Report;
+import org.rakam.ui.user.WebUserService;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.NotExistsException;
@@ -21,6 +22,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public class JDBCReportMetadata implements ReportMetadata {
     private final DBI dbi;
+    private final WebUserService webUserService;
 
     private ResultSetMapper<Report> mapper = (index, r, ctx) -> {
         Report report = new Report(r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class), r.getBoolean(6));
@@ -34,8 +36,9 @@ public class JDBCReportMetadata implements ReportMetadata {
     };
 
     @Inject
-    public JDBCReportMetadata(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
+    public JDBCReportMetadata(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, WebUserService webUserService) {
         dbi = new DBI(dataSource);
+        this.webUserService = webUserService;
     }
 
     public List<Report> getReports(Integer requestedUserId, int project) {
@@ -51,13 +54,14 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public void delete(Integer userId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM reports WHERE project_id = :project AND slug = :slug" +
-                    " AND user_id = :user AND (SELECT p.user_id = r.user_id FROM reports r " +
-                    " JOIN web_user_project p ON (p.user_id = :user AND p.id = :project) " +
-                    " WHERE r.slug = :slug AND r.user_id = :user AND r.project_id = :project)")
+            int execute = handle.createStatement("DELETE FROM reports WHERE project_id = :project AND slug = :slug" +
+                    " AND (:user is null or user_id = :user)")
                     .bind("project", project)
                     .bind("slug", slug)
                     .bind("user", userId).execute();
+            if(execute == 0) {
+                throw new NotExistsException("Report");
+            }
         }
     }
 
