@@ -3,7 +3,6 @@ package org.rakam.analysis;
 import com.facebook.presto.sql.RakamSqlFormatter;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.Query;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
@@ -92,7 +91,7 @@ public abstract class MaterializedViewService {
         StringBuilder builder = new StringBuilder();
         Query queryStatement = (Query) sqlParser.createStatement(checkNotNull(query, "query is required"));
 
-        new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of()), escapeIdentifier)
+        new RakamSqlFormatter.Formatter(builder, qualifiedName -> queryExecutor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of(), "collection"), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = queryExecutor

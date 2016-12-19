@@ -1,0 +1,1 @@
+alter table reports add column query_options text;

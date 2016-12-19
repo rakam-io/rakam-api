@@ -100,7 +100,7 @@ public class PostgresqlEventExplorer
                     " from %s where %s group by 1", collectionQuery, timePredicate);
         }
 
-        return executorService.executeQuery(project, query, Optional.empty(), 20000).getResult();
+        return executorService.executeQuery(project, query, Optional.empty(), "collection", 20000).getResult();
     }
 
     @Override

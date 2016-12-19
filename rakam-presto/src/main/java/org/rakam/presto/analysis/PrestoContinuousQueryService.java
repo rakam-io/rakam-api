@@ -24,7 +24,6 @@ import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.RealTimeConfig;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 
@@ -70,7 +69,7 @@ public class PrestoContinuousQueryService
             if (name.getSuffix().equals("_all") && name.getPrefix().map(prefix -> prefix.equals("collection")).orElse(true)) {
                 return format("_all.%s", project);
             }
-            return executor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of());
+            return executor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection");
         }, '"').process(query, 1);
 
         return builder.toString();

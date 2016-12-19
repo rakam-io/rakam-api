@@ -35,6 +35,7 @@ public class JSCodeCompiler
     private final ConfigManager configManager;
     private final DBI dbi;
     private final String[] args = {"-strict", "--no-syntax-extensions"};
+    private final boolean loadAllowed;
 
     @Inject
     public JSCodeCompiler(
@@ -42,9 +43,19 @@ public class JSCodeCompiler
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             @Named("rakam-client") RAsyncHttpClient httpClient)
     {
+        this(configManager, dataSource, httpClient, false);
+    }
+
+    public JSCodeCompiler(
+            ConfigManager configManager,
+            @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+            @Named("rakam-client") RAsyncHttpClient httpClient,
+            boolean loadAllowed)
+    {
         this.configManager = configManager;
         this.httpClient = httpClient;
         this.dbi = new DBI(dataSource);
+        this.loadAllowed = loadAllowed;
     }
 
     @PostConstruct
@@ -100,7 +111,9 @@ public class JSCodeCompiler
 
         final Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
         bindings.remove("print");
-        bindings.remove("load");
+        if(!loadAllowed) {
+            bindings.remove("load");
+        }
         bindings.remove("loadWithNewGlobal");
         bindings.remove("exit");
 //        bindings.remove("Java");

@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.facebook.presto.sql.RakamSqlFormatter.formatSql;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.rakam.postgresql.report.PostgresqlQueryExecutor.MATERIALIZED_VIEW_PREFIX;
 
@@ -56,7 +55,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             statement = (Query) parser.createStatement(materializedView.query);
         }
 
-        new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()), '"').process(statement, 1);
+        new RakamSqlFormatter.Formatter(builder, name -> queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"), '"').process(statement, 1);
 
         QueryResult result = queryExecutor.executeRawStatement(format("CREATE MATERIALIZED VIEW \"%s\".\"%s%s\" AS %s WITH NO DATA",
                 project, MATERIALIZED_VIEW_PREFIX, materializedView.tableName, builder.toString())).getResult().join();
@@ -80,7 +79,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
         CompletableFuture<Instant> f = new CompletableFuture<>();
 
         String tableName = queryExecutor.formatTableReference(project,
-                QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of());
+                QualifiedName.of("materialized", materializedView.tableName), Optional.empty(), ImmutableMap.of(), "collection");
         Query statement;
         synchronized (sqlParser) {
             statement = (Query) sqlParser.createStatement(materializedView.query);
@@ -127,7 +126,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
                                     String.format(" < to_timestamp(%d)", now.getEpochSecond());
 
                             return format("(SELECT * FROM %s WHERE _time %s)",
-                                    queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()), predicate);
+                                    queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"), predicate);
                         }, '"');
 
                 queryExecution = queryExecutor.executeRawStatement(format("INSERT INTO %s %s", materializedTableReference, query), sessionProperties);
@@ -145,7 +144,7 @@ public class PostgresqlMaterializedViewService extends MaterializedViewService {
             else {
                 String query = formatSql(statement,
                         name -> format("(SELECT * FROM %s %s",
-                                queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of()),
+                                queryExecutor.formatTableReference(project, name, Optional.empty(), ImmutableMap.of(), "collection"),
                                 lastUpdated == null ? "" : String.format("WHERE _time > to_timestamp(%d)",
                                         lastUpdated)), '"');
 

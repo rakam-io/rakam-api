@@ -48,7 +48,7 @@ public class ClickHouseQueryExecutor implements QueryExecutor
 
     @SuppressWarnings("Duplicates")
     @Override
-    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
+    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters, String defaultSchema)
     {
         if (node.getPrefix().isPresent()) {
             String prefix = node.getPrefix().get().toString();

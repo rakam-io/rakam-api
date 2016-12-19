@@ -23,7 +23,6 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -147,14 +146,14 @@ public abstract class RealtimeService
                 timeCol + " * cast(" + slide.toMillis() + " as bigint)",
                 !noDimension ? dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier)).collect(Collectors.joining(", ")) + "," : "",
                 String.format(combineFunction(measure.aggregation), checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase(), "measure column is not valid", escapeIdentifier)),
-                executor.formatTableReference(project, QualifiedName.of("continuous", tableName), Optional.empty(), ImmutableMap.of()),
+                executor.formatTableReference(project, QualifiedName.of("continuous", tableName), Optional.empty(), ImmutableMap.of(), "collection"),
                 format("%s >= %d", checkTableColumn("time", escapeIdentifier), previousWindow) +
                         (dateEnd == null ? "" : format(" AND %s < %s", checkTableColumn("time", escapeIdentifier), currentWindow)),
                 ((!noDimension || !aggregate) && !dimensions.isEmpty()) ? ("and ( " + dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier) + " is not null ").collect(Collectors.joining(" and ")) + ")") : "",
                 (!noDimension || !aggregate) ? format("GROUP BY %s %s %s", !aggregate ? timeCol : "", !aggregate && !noDimension ? "," : "", dimensions.stream().map(e -> checkTableColumn(e, escapeIdentifier))
                         .collect(Collectors.joining(", "))) : "",
                 (expression == null) ? "" : formatExpression(expression,
-                        reference -> executor.formatTableReference(project, reference, Optional.empty(), ImmutableMap.of()), escapeIdentifier));
+                        reference -> executor.formatTableReference(project, reference, Optional.empty(), ImmutableMap.of(), "collection"), escapeIdentifier));
 
         final boolean finalAggregate = aggregate;
         return executor.executeRawQuery(sqlQuery).getResult().thenApply(result -> {

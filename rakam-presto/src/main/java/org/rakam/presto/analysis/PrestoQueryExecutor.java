@@ -147,12 +147,13 @@ public class PrestoQueryExecutor
         return executeRawStatement(query, sessionProperties, catalog);
     }
 
-    private char dbSeparator(String externalType) {
+    private char dbSeparator(String externalType)
+    {
         switch (externalType) {
             case PostgresqlDataSource.NAME:
-                return  '"';
+                return '"';
             case MysqlDataSource.NAME:
-                return  '`';
+                return '`';
             default:
                 return '"';
         }
@@ -220,7 +221,7 @@ public class PrestoQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
+    public String formatTableReference(String project, QualifiedName node, Optional<QuerySampling> sample, Map<String, String> sessionParameters, String defaultSchema)
     {
         String prefix = node.getPrefix().map(e -> e.toString()).orElse(null);
         String suffix = node.getSuffix();
@@ -232,101 +233,104 @@ public class PrestoQueryExecutor
         else if ("materialized".equals(prefix)) {
             return getTableReference(project, MATERIALIZED_VIEW_PREFIX + suffix, sample);
         }
-        else if (!"collection".equals(prefix)) {
-            try {
-                String encodedKey = sessionParameters.get("external.source_options");
-                Map<String, DataSourceType> params;
-                if (encodedKey != null) {
-                    params = JsonHelper.read(getDecoder().decode(encodedKey), Map.class);
-                }
-                else {
-                    params = new HashMap<>();
-                }
-
-                DataSourceType dataSourceType = null;
-
-                if (prefix == null && userJdbcConfig != null && suffix.equals("users")) {
-                    URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
-                    JDBCSchemaConfig source = new JDBCSchemaConfig()
-                            .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
-                            .setHost(uri.getHost())
-                            .setUsername(userJdbcConfig.getUsername())
-                            .setPassword(userJdbcConfig.getPassword())
-                            .setSchema("users");
-
-                    prefix = "users";
-                    suffix = project;
-                    CustomDataSource dataSource = new CustomDataSource("POSTGRESQL", "users", source);
-                    dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
-                }
-                else if (!params.containsKey(prefix) && prefix != null) {
-                    if (customDataSource == null) {
-                        throw new RakamException(NOT_FOUND);
-                    }
-                    if (prefix.equals("remotefile")) {
-                        Map<String, RemoteTable> files = customDataSource.getFiles(project);
-
-                        List<RemoteFileDataSource.RemoteTable> prestoTables = files.entrySet().stream().map(file -> {
-                            List<RemoteFileDataSource.Column> collect = file.getValue().columns.stream()
-                                    .map(column -> new RemoteFileDataSource.Column(column.getName(), toType(column.getType())))
-                                    .collect(Collectors.toList());
-
-                            return new RemoteFileDataSource.RemoteTable(file.getKey(),
-                                    file.getValue().url,
-                                    file.getValue().indexUrl,
-                                    file.getValue().typeOptions,
-                                    collect,
-                                    Optional.ofNullable(file.getValue().compressionType).map(value -> CompressionType.valueOf(value.name())).orElse(null),
-                                    Optional.ofNullable(file.getValue().format).map(value -> ExternalSourceType.valueOf(value.name())).orElse(null));
-                        }).collect(Collectors.toList());
-
-                        dataSourceType = new DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", prestoTables));
-                    }
-                    else {
-                        CustomDataSource dataSource = customDataSource.getDatabase(project, prefix);
-                        dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
-                    }
-                }
-
-                if (dataSourceType != null) {
-                    params.put(prefix, dataSourceType);
-                    sessionParameters.put("external.source_options", getEncoder().encodeToString(encodeAsBytes(params)));
-                }
-
-                if (prefix != null) {
-
-                    return "external." + checkCollection(prefix) + "." + checkCollection(suffix, dbSeparator(suffix));
-                }
-            }
-            catch (RakamException e) {
-                throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
-            }
-        }
-
-        // special prefix for all columns
-        if (suffix.equals("_all") && !node.getPrefix().isPresent()) {
-            List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
-                    .filter(c -> !c.getKey().startsWith("_"))
-                    .collect(Collectors.toList());
-            if (!collections.isEmpty()) {
-                String sharedColumns = collections.get(0).getValue().stream()
-                        .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
-                        .map(f -> f.getName())
-                        .collect(Collectors.joining(", "));
-
-                return "(" + collections.stream().map(Map.Entry::getKey)
-                        .map(collection -> format("select '%s' as \"$collection\", %s from %s",
-                                collection,
-                                sharedColumns.isEmpty() ? "1" : sharedColumns,
-                                getTableReference(project, collection, sample)))
-                        .collect(Collectors.joining(" union all ")) + ") _all";
-            }
-            else {
-                return "(select null as \"$collection\", null as _user, null as _time limit 0) _all";
-            }
+        else if ("collection".equals(prefix) || (prefix == null && defaultSchema.equals("collection"))) {
+            return getTableReference(project, suffix, sample);
         }
         else {
-            return getTableReference(project, suffix, sample);
+            String encodedKey = sessionParameters.get("external.source_options");
+            Map<String, DataSourceType> params;
+            if (encodedKey != null) {
+                params = JsonHelper.read(getDecoder().decode(encodedKey), Map.class);
+            }
+            else {
+                params = new HashMap<>();
+            }
+
+            DataSourceType dataSourceType = null;
+
+            if (prefix == null && userJdbcConfig != null && suffix.equals("users")) {
+                URI uri = URI.create(userJdbcConfig.getUrl().substring(5));
+                JDBCSchemaConfig source = new JDBCSchemaConfig()
+                        .setDatabase(uri.getPath().substring(1).split("\\?", 2)[0])
+                        .setHost(uri.getHost())
+                        .setUsername(userJdbcConfig.getUsername())
+                        .setPassword(userJdbcConfig.getPassword())
+                        .setSchema("users");
+
+                prefix = "users";
+                suffix = project;
+                CustomDataSource dataSource = new CustomDataSource("POSTGRESQL", "users", source);
+                dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
+            }
+            // special prefix for all columns
+            else if (suffix.equals("_all") && prefix == null) {
+                List<Map.Entry<String, List<SchemaField>>> collections = metastore.getCollections(project).entrySet().stream()
+                        .filter(c -> !c.getKey().startsWith("_"))
+                        .collect(Collectors.toList());
+                if (!collections.isEmpty()) {
+                    String sharedColumns = collections.get(0).getValue().stream()
+                            .filter(col -> collections.stream().allMatch(list -> list.getValue().contains(col)))
+                            .map(f -> f.getName())
+                            .collect(Collectors.joining(", "));
+
+                    return "(" + collections.stream().map(Map.Entry::getKey)
+                            .map(collection -> format("select '%s' as \"$collection\", %s from %s",
+                                    collection,
+                                    sharedColumns.isEmpty() ? "1" : sharedColumns,
+                                    getTableReference(project, collection, sample)))
+                            .collect(Collectors.joining(" union all ")) + ") _all";
+                }
+                else {
+                    return "(select null as \"$collection\", null as _user, null as _time limit 0) _all";
+                }
+            }
+            else {
+                prefix = Optional.ofNullable(prefix).orElse(defaultSchema);
+
+                if (customDataSource == null) {
+                    throw new RakamException(NOT_FOUND);
+                }
+
+                if (prefix.equals("remotefile")) {
+                    Map<String, RemoteTable> files = customDataSource.getFiles(project);
+
+                    List<RemoteFileDataSource.RemoteTable> prestoTables = files.entrySet().stream().map(file -> {
+                        List<RemoteFileDataSource.Column> collect = file.getValue().columns.stream()
+                                .map(column -> new RemoteFileDataSource.Column(column.getName(), toType(column.getType())))
+                                .collect(Collectors.toList());
+
+                        return new RemoteFileDataSource.RemoteTable(file.getKey(),
+                                file.getValue().url,
+                                file.getValue().indexUrl,
+                                file.getValue().typeOptions,
+                                collect,
+                                Optional.ofNullable(file.getValue().compressionType).map(value -> CompressionType.valueOf(value.name())).orElse(null),
+                                Optional.ofNullable(file.getValue().format).map(value -> ExternalSourceType.valueOf(value.name())).orElse(null));
+                    }).collect(Collectors.toList());
+
+                    dataSourceType = new DataSourceType("REMOTE_FILE", ImmutableMap.of("tables", prestoTables));
+                }
+                else {
+                    CustomDataSource dataSource;
+                    try {
+                        dataSource = customDataSource.getDatabase(project, prefix);
+                    }
+                    catch (RakamException e) {
+                        if (e.getStatusCode() == NOT_FOUND) {
+                            throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
+                        }
+                        throw e;
+                    }
+                    dataSourceType = new DataSourceType(dataSource.type, dataSource.options);
+                }
+            }
+
+            if (dataSourceType != null) {
+                params.put(prefix, dataSourceType);
+                sessionParameters.put("external.source_options", getEncoder().encodeToString(encodeAsBytes(params)));
+            }
+
+            return "external." + checkCollection(prefix) + "." + checkCollection(suffix, dbSeparator(suffix));
         }
     }
 

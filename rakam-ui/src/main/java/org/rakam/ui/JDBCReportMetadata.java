@@ -1,5 +1,6 @@
 package org.rakam.ui;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.name.Named;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -22,28 +23,29 @@ import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 
 public class JDBCReportMetadata implements ReportMetadata {
     private final DBI dbi;
-    private final WebUserService webUserService;
 
     private ResultSetMapper<Report> mapper = (index, r, ctx) -> {
-        Report report = new Report(r.getString(2), r.getString(3), r.getString(4), r.getString(5), JsonHelper.read(r.getString(6), Map.class), r.getBoolean(6));
-        if(r.getMetaData().getColumnCount() >= 7) {
-            report.setPermission(r.getBoolean(7));
+        Report report = new Report(r.getString(2), r.getString(3), r.getString(4), r.getString(5),
+                JsonHelper.read(r.getString(6), Map.class),
+                r.getString(7) == null ? ImmutableMap.of() : JsonHelper.read(r.getString(7), Map.class),
+                r.getBoolean(8));
+        if(r.getMetaData().getColumnCount() >= 8) {
+            report.setPermission(r.getBoolean(9));
         }
-        if(r.getMetaData().getColumnCount() == 8 && r.getObject(8) != null) {
-            report.setUserId(r.getInt(8));
+        if(r.getMetaData().getColumnCount() == 9 && r.getObject(9) != null) {
+            report.setUserId(r.getInt(9));
         }
         return report;
     };
 
     @Inject
-    public JDBCReportMetadata(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource, WebUserService webUserService) {
+    public JDBCReportMetadata(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource) {
         dbi = new DBI(dataSource);
-        this.webUserService = webUserService;
     }
 
     public List<Report> getReports(Integer requestedUserId, int project) {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT reports.project_id, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.shared, reports.user_id FROM reports " +
+            return handle.createQuery("SELECT reports.project_id, reports.slug, reports.category, reports.name, reports.query, reports.options, reports.query_options, reports.shared, reports.user_id FROM reports " +
                     " WHERE reports.project_id = :project " +
                     " ORDER BY reports.created_at")
                     .bind("project", project)
@@ -67,15 +69,16 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public void save(Integer userId, int project, Report report) {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO reports (project_id, slug, category, name, query, options, user_id) VALUES (:project, :slug, :category, :name, :query, :options, :user)")
+            handle.createStatement("INSERT INTO reports (project_id, slug, category, name, query, options, user_id, query_options) VALUES (:project, :slug, :category, :name, :query, :options, :user, :query_options)")
                     .bind("project", project)
                     .bind("name", report.name)
                     .bind("query", report.query)
                     .bind("slug", report.slug)
                     .bind("user", userId)
                     .bind("category", report.category)
+                    .bind("query_options", JsonHelper.encode(report.queryOptions))
                     .bind("shared", report.shared)
-                    .bind("options", JsonHelper.encode(report.options, false))
+                    .bind("options", JsonHelper.encode(report.options))
                     .execute();
         } catch (UnableToExecuteStatementException e) {
             try {
@@ -90,7 +93,7 @@ public class JDBCReportMetadata implements ReportMetadata {
 
     public Report get(Integer requestedUserId, int project, String slug) {
         try (Handle handle = dbi.open()) {
-            Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.shared, r.user_id FROM reports r " +
+            Report report = handle.createQuery("SELECT r.project_id, r.slug, r.category, r.name, query, r.options, r.query_options, r.shared, r.user_id FROM reports r " +
                     " LEFT JOIN web_user_api_key permission ON (permission.project_id = r.project_id)" +
                     " WHERE r.project_id = :project AND r.slug = :slug AND (" +
                     "((permission.master_key IS NOT NULL OR r.shared OR r.user_id = :requestedUser)))")

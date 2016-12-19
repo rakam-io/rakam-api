@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static java.lang.String.format;
 import static org.rakam.report.QueryResult.EXECUTION_TIME;
 
@@ -59,7 +58,7 @@ public class QueryExecutorService
         this.escapeIdentifier = escapeIdentifier;
     }
 
-    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, int limit)
+    public QueryExecution executeQuery(String project, String sqlQuery, Optional<QuerySampling> sample, String defaultSchema, int limit)
     {
         if (!projectExists(project)) {
             throw new NotExistsException("Project");
@@ -70,7 +69,7 @@ public class QueryExecutorService
         String query;
 
         try {
-            query = buildQuery(project, sqlQuery, sample, limit, materializedViews, sessionParameters);
+            query = buildQuery(project, sqlQuery, sample, defaultSchema, limit, materializedViews, sessionParameters);
         }
         catch (ParsingException e) {
             QueryError error = new QueryError(e.getMessage(), null, null, e.getLineNumber(), e.getColumnNumber());
@@ -136,7 +135,7 @@ public class QueryExecutorService
 
     public QueryExecution executeQuery(String project, String sqlQuery)
     {
-        return executeQuery(project, sqlQuery, Optional.empty(), MAX_QUERY_RESULT_LIMIT);
+        return executeQuery(project, sqlQuery, Optional.empty(), "collection", MAX_QUERY_RESULT_LIMIT);
     }
 
     public QueryExecution executeStatement(String project, String sqlQuery)
@@ -165,10 +164,10 @@ public class QueryExecutorService
         return true;
     }
 
-    public String buildQuery(String project, String query, Optional<QuerySampling> sample, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters)
+    public String buildQuery(String project, String query, Optional<QuerySampling> sample, String defaultSchema, Integer maxLimit, Map<MaterializedView, MaterializedViewExecution> materializedViews, Map<String, String> sessionParameters)
     {
         Query statement;
-        Function<QualifiedName, String> tableNameMapper = tableNameMapper(project, materializedViews, sample, sessionParameters);
+        Function<QualifiedName, String> tableNameMapper = tableNameMapper(project, materializedViews, sample, defaultSchema, sessionParameters);
         synchronized (parser) {
             Statement queryStatement = parser.createStatement(query);
             if ((queryStatement instanceof Query)) {
@@ -210,7 +209,7 @@ public class QueryExecutorService
         return builder.toString();
     }
 
-    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
+    private Function<QualifiedName, String> tableNameMapper(String project, Map<MaterializedView, MaterializedViewExecution> materializedViews, Optional<QuerySampling> sample, String defaultSchema, Map<String, String> sessionParameters)
     {
         return (node) -> {
             if (node.getPrefix().isPresent() && node.getPrefix().get().toString().equals("materialized")) {
@@ -230,7 +229,7 @@ public class QueryExecutorService
                 return materializedViewExecution.computeQuery;
             }
 
-            return executor.formatTableReference(project, node, sample, sessionParameters);
+            return executor.formatTableReference(project, node, sample, sessionParameters, defaultSchema);
         };
     }
 
@@ -247,7 +246,7 @@ public class QueryExecutorService
 
         Map<String, String> map = new HashMap<>();
         new RakamSqlFormatter.Formatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName, Optional.empty(), map), escapeIdentifier)
+                executor.formatTableReference(project, qualifiedName, Optional.empty(), map, "collection"), escapeIdentifier)
                 .process(queryStatement, 1);
 
         QueryExecution execution = executor

@@ -1,4 +1,4 @@
-package org.rakam.plugin;
+package org.rakam.plugin.tasks;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.airlift.log.Logger;
 import io.netty.handler.codec.http.HttpHeaders;
 import org.rakam.ServiceStarter;
@@ -24,6 +25,8 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.collection.util.JSCodeCompiler.JSConfigManager;
+import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.EventStore;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
@@ -59,6 +62,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
@@ -99,7 +103,10 @@ public class ScheduledTaskHttpService
             FieldDependencyBuilder.FieldDependency fieldDependency)
     {
         this.dbi = new DBI(dataSource);
-        this.executor = Executors.newScheduledThreadPool(1);
+        this.executor = Executors.newScheduledThreadPool(5, new ThreadFactoryBuilder()
+                .setNameFormat("scheduled-task-executor")
+                .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e))
+                .build());
         this.jsCodeCompiler = jsCodeCompiler;
         this.eventMappers = ImmutableList.copyOf(eventMapperSet);
         this.eventDeserializer = eventDeserializer;
@@ -127,7 +134,7 @@ public class ScheduledTaskHttpService
                     String prefix = "scheduled-task." + task.id;
                     JSConfigManager jsConfigManager = new JSConfigManager(configManager, task.project, prefix);
                     JSCodeCompiler.PersistentLogger logger = jsCodeCompiler.createLogger(task.project, prefix);
-                    CompletableFuture<EventList> result = run(task.project, task.script, task.parameters,
+                    CompletableFuture<EventList> result = run(jsCodeCompiler, executor, task.project, task.script, task.parameters,
                             logger, jsConfigManager, eventDeserializer);
                     result.whenComplete((events, ex) -> {
                         if (ex != null) {
@@ -226,7 +233,7 @@ public class ScheduledTaskHttpService
 
         JSConfigManager jsConfigManager = new JSConfigManager(configManager, project, prefix);
 
-        CompletableFuture<EventList> future = run(project,
+        CompletableFuture<EventList> future = run(jsCodeCompiler, executor, project,
                 first.get("code").toString(),
                 JsonHelper.read(first.get("parameters").toString(),
                         new TypeReference<Map<String, ScheduledTaskUIHttpService.Parameter>>() {}),
@@ -320,7 +327,10 @@ public class ScheduledTaskHttpService
                 fieldDependency);
         metastore.createProject(project);
 
-        return run(project, script, parameters, logger, ijsConfigManager, testingEventDeserializer).thenApply(eventList -> {
+        return run(jsCodeCompiler, executor,
+                project, script, parameters,
+                logger, ijsConfigManager,
+                testingEventDeserializer).thenApply(eventList -> {
             if (eventList == null || eventList.events.isEmpty()) {
                 logger.info("No event is returned");
             }
@@ -344,7 +354,7 @@ public class ScheduledTaskHttpService
         }
     }
 
-    private CompletableFuture<EventList> run(String project, String script, Map<String, ScheduledTaskUIHttpService.Parameter> parameters, JSCodeCompiler.ILogger logger, JSCodeCompiler.IJSConfigManager configManager, JsonEventDeserializer deserializer)
+    static CompletableFuture<EventList> run(JSCodeCompiler jsCodeCompiler, Executor executor, String project, String script, Map<String, ScheduledTaskUIHttpService.Parameter> parameters, JSCodeCompiler.ILogger logger, JSCodeCompiler.IJSConfigManager configManager, JsonEventDeserializer deserializer)
     {
         return CompletableFuture.supplyAsync(() -> {
             try {

@@ -3,7 +3,7 @@ package org.rakam.plugin;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
-import org.rakam.analysis.eventexplorer.EventExplorerHttpService;
+import org.rakam.plugin.tasks.ScheduledTaskHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
 

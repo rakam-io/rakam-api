@@ -48,7 +48,7 @@ public class UIRecipeHandler
         if (reportMetadata.isPresent()) {
             reports = reportMetadata.get()
                     .getReports(null, project).stream()
-                    .map(r -> new Report(r.slug, r.category, r.name, r.query, r.options, r.shared))
+                    .map(r -> new Report(r.slug, r.category, r.name, r.query, r.options, r.queryOptions, r.shared))
                     .collect(Collectors.toList());
         }
         else {

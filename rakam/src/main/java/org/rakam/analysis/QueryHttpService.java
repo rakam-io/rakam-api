@@ -104,7 +104,9 @@ public class QueryHttpService
             @BodyParam QueryRequest query)
     {
         QueryExecution queryExecution = executorService.executeQuery(project, query.query,
-                query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit);
+                query.sample,
+                Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit);
         return queryExecution
                 .getResult().thenApply(result -> {
                     if (result.isFailed()) {
@@ -123,7 +125,7 @@ public class QueryHttpService
     public void export(RakamHttpRequest request, @Named("project") String project, @BodyParam QueryRequest query)
     {
         executorService.executeQuery(project, query.query,
-                query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
+                query.sample, Optional.ofNullable(query.defaultSchema).orElse("collection"), query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit).getResult().thenAccept(result -> {
             if (result.isFailed()) {
                 throw new RakamException(result.getError().toString(), BAD_REQUEST);
             }
@@ -156,7 +158,9 @@ public class QueryHttpService
     {
         handleServerSentQueryExecution(request, QueryRequest.class, (project, query) ->
                 executorService.executeQuery(project, query.query,
-                        query.sample, query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
+                        query.sample,
+                        Optional.ofNullable(query.defaultSchema).orElse("collection"),
+                        query.limit == null ? MAX_QUERY_RESULT_LIMIT : query.limit));
     }
 
     public <T> void handleServerSentQueryExecution(RakamHttpRequest request, Class<T> clazz, BiFunction<String, T, QueryExecution> executorFunction)
@@ -317,6 +321,7 @@ public class QueryHttpService
         @ApiModelProperty(example = "SELECT 1", value = "SQL query that will be executed on data-set")
         public final String query;
         public final Integer limit;
+        public final String defaultSchema;
         public final Optional<QuerySampling> sample;
         public final CopyType exportType;
 
@@ -325,6 +330,7 @@ public class QueryHttpService
                 @ApiParam("query") String query,
                 @ApiParam(value = "export_type", required = false) CopyType exportType,
                 @ApiParam(value = "sampling", required = false) QuerySampling sample,
+                @ApiParam(value = "default_schema", required = false) String defaultSchema,
                 @ApiParam(value = "limit", required = false) Integer limit)
         {
             this.query = requireNonNull(query, "query is empty").trim().replaceAll(";+$", "");
@@ -332,6 +338,7 @@ public class QueryHttpService
                 throw new IllegalArgumentException("Maximum value of limit is " + MAX_QUERY_RESULT_LIMIT);
             }
             this.exportType = exportType;
+            this.defaultSchema = defaultSchema;
             this.sample = Optional.ofNullable(sample);
             this.limit = limit;
         }

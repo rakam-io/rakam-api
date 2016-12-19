@@ -446,7 +446,7 @@ public abstract class AbstractEventExplorer
                     " from continuous._event_explorer_metrics where %s group by 1", timePredicate);
         }
 
-        return executor.executeQuery(project, query, Optional.empty(), 20000).getResult();
+        return executor.executeQuery(project, query, Optional.empty(), "collection", 20000).getResult();
     }
 
     @Override

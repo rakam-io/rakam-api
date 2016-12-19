@@ -73,7 +73,7 @@ public class PostgresqlQueryExecutor
     }
 
     @Override
-    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters)
+    public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters, String defaultSchema)
     {
         if (name.getPrefix().isPresent()) {
             switch (name.getPrefix().get().toString()) {

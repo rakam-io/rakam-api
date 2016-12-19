@@ -6,7 +6,6 @@ import com.facebook.presto.sql.tree.QualifiedName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.metadata.QueryMetadataStore;
 import org.rakam.collection.SchemaField;
@@ -16,7 +15,6 @@ import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutorService;
 import org.rakam.report.QueryResult;
 import org.rakam.util.RakamException;
-import org.rakam.util.ValidationUtil;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.HashMap;
@@ -51,7 +49,7 @@ public class PostgresqlPseudoContinuousQueryService
     @Override
     public QueryExecution create(String project, ContinuousQuery report, boolean replayHistoricalData)
     {
-        String query = service.buildQuery(project, report.query, Optional.empty(), null, new HashMap<>(), new HashMap<>());
+        String query = service.buildQuery(project, report.query, Optional.empty(), "collection", null, new HashMap<>(), new HashMap<>());
         String format = String.format("CREATE VIEW %s.%s AS %s", checkProject(project), checkCollection(CONTINUOUS_QUERY_PREFIX + report.tableName), query);
         return new DelegateQueryExecution(executor.executeRawStatement(format), result -> {
             if (!result.isFailed()) {
@@ -83,7 +81,7 @@ public class PostgresqlPseudoContinuousQueryService
     {
         Stream<Entry<ContinuousQuery, QueryExecution>> continuous = database.getContinuousQueries(project).stream()
                 .map(c -> new SimpleImmutableEntry<>(c, executor.executeRawQuery("SELECT * FROM " +
-                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty(), ImmutableMap.of()) + " limit 0")));
+                        executor.formatTableReference(project, QualifiedName.of("continuous", c.tableName), Optional.empty(), ImmutableMap.of(), "collection") + " limit 0")));
         return continuous
                 .collect(Collectors.toMap(entry -> entry.getKey().tableName, entry -> {
                     QueryResult join = entry.getValue().getResult().join();
@@ -108,7 +106,7 @@ public class PostgresqlPseudoContinuousQueryService
 
         StringBuilder builder = new StringBuilder();
         new RakamSqlFormatter.Formatter(builder, qualifiedName ->
-                executor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of()), '"')
+                executor.formatTableReference(project, qualifiedName, Optional.empty(), ImmutableMap.of(), "collection"), '"')
                 .process(continuousQuery.getQuery(), 1);
 
         QueryExecution execution = executor
