@@ -25,6 +25,7 @@ import org.rakam.server.http.annotations.JsonRequest;
 import org.rakam.ui.UIPermissionParameterProvider.Project;
 import org.rakam.util.AlreadyExistsException;
 import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -236,8 +237,13 @@ public class DashboardService
             @ApiParam("dashboard") int dashboard,
             @ApiParam("items") List<DashboardItem> items)
     {
-
         dbi.inTransaction((handle, transactionStatus) -> {
+            Integer first = handle.createQuery("SELECT id FROM dashboard where id = :id and project_id = :project")
+                    .bind("id", dashboard).bind("project", project.project).map(IntegerMapper.FIRST).first();
+            if (first == null) {
+                throw new RakamException(HttpResponseStatus.NOT_FOUND);
+            }
+
             for (DashboardItem item : items) {
                 // TODO: verify dashboard is in project
                 handle.createStatement("UPDATE dashboard_items SET name = :name, directive = :directive, options = :options WHERE id = :id")
@@ -263,7 +269,7 @@ public class DashboardService
     {
 
         dbi.inTransaction((handle, transactionStatus) -> {
-            handle.createStatement("UPDATE dashboard SET options = :options WHERE id = :id AND project = :project")
+            handle.createStatement("UPDATE dashboard SET options = :options WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("options", JsonHelper.encode(options))
                     .bind("project", project.project)

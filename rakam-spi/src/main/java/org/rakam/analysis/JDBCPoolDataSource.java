@@ -72,6 +72,12 @@ public class JDBCPoolDataSource
     public Connection getConnection()
             throws SQLException
     {
+        return getConnection(disablePool);
+    }
+
+    public Connection getConnection(boolean disablePool)
+            throws SQLException
+    {
         if (disablePool) {
             return DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
         }

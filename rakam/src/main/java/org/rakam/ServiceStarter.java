@@ -14,6 +14,7 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.matcher.Matchers;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.OptionalBinder;
+import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.google.inject.spi.InjectionListener;
 import com.google.inject.spi.TypeEncounter;
@@ -23,11 +24,14 @@ import io.airlift.log.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.swagger.models.Tag;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
 import org.rakam.analysis.AdminHttpService;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.ContinuousQueryHttpService;
 import org.rakam.analysis.ContinuousQueryService;
 import org.rakam.analysis.CustomParameter;
+import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.MaterializedViewHttpService;
 import org.rakam.analysis.ProjectHttpService;
 import org.rakam.analysis.QueryHttpService;
@@ -39,6 +43,7 @@ import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldDependencyBuilder.FieldDependency;
 import org.rakam.collection.WebHookHttpService;
 import org.rakam.config.EncryptionConfig;
+import org.rakam.config.JDBCConfig;
 import org.rakam.config.MetadataConfig;
 import org.rakam.config.ProjectConfig;
 import org.rakam.http.ForHttpServer;
@@ -57,6 +62,7 @@ import org.rakam.plugin.user.mailbox.UserMailboxStorage;
 import org.rakam.server.http.HttpRequestHandler;
 import org.rakam.server.http.HttpService;
 import org.rakam.server.http.WebSocketService;
+import org.rakam.ui.RakamUIModule;
 import org.rakam.util.NotFoundHandler;
 
 import javax.inject.Inject;
@@ -177,6 +183,7 @@ public final class ServiceStarter
         protected void setup(Binder binder)
         {
             binder.bind(Clock.class).toInstance(Clock.systemUTC());
+            binder.bind(FlywayExecutor.class).asEagerSingleton();
 
             binder.bind(FieldDependency.class).toProvider(FieldDependencyProvider.class).in(Scopes.SINGLETON);
 
@@ -277,6 +284,24 @@ public final class ServiceStarter
         public CustomParameter get()
         {
             return new CustomParameter("project", new ProjectPermissionParameterFactory(apiKeyService));
+        }
+    }
+
+    public static class FlywayExecutor
+    {
+        @Inject
+        public FlywayExecutor(@Named("report.metadata.store.jdbc") JDBCPoolDataSource config)
+        {
+            Flyway flyway = new Flyway();
+            flyway.setBaselineOnMigrate(true);
+            flyway.setDataSource(config);
+            flyway.setLocations("db/migration/report");
+            try {
+                flyway.migrate();
+            }
+            catch (FlywayException e) {
+                flyway.repair();
+            }
         }
     }
 }

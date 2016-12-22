@@ -32,8 +32,6 @@ import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.EventStore;
 import org.rakam.plugin.RakamModule;
 import org.rakam.plugin.SystemEvents;
-import org.rakam.plugin.stream.EventStream;
-import org.rakam.plugin.stream.EventStreamConfig;
 import org.rakam.plugin.user.AbstractUserService;
 import org.rakam.plugin.user.UserPluginConfig;
 import org.rakam.postgresql.analysis.PostgresqlConfig;
@@ -98,8 +96,6 @@ public class PostgresqlModule
                 AggregationType.MINIMUM,
                 AggregationType.APPROXIMATE_UNIQUE,
                 AggregationType.MAXIMUM));
-
-//        binder.install(getAsyncClientModule(config));
 
         // use same jdbc pool if report.metadata.store is not set explicitly.
         if (getConfig("report.metadata.store") == null) {

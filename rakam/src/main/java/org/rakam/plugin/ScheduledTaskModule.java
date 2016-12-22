@@ -3,6 +3,7 @@ package org.rakam.plugin;
 import com.google.auto.service.AutoService;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import org.rakam.plugin.tasks.LockService;
 import org.rakam.plugin.tasks.ScheduledTaskHttpService;
 import org.rakam.server.http.HttpService;
 import org.rakam.util.ConditionalModule;
@@ -16,6 +17,8 @@ public class ScheduledTaskModule extends RakamModule
     {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(ScheduledTaskHttpService.class);
+
+        binder.bind(LockService.class).toProvider(LockServiceProvider.class);
     }
 
     @Override

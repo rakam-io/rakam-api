@@ -221,7 +221,8 @@ public class CustomEventMapperHttpService
     )
     @Path("/test")
     @JsonRequest
-    public CompletableFuture<TestEventMapperResult> test(RakamHttpRequest request,
+    public CompletableFuture<TestEventMapperResult> test(
+            RakamHttpRequest request,
             @Named("project") String project,
             @ApiParam("script") String script,
             @ApiParam("body") String requestBody,
@@ -711,7 +712,8 @@ public class CustomEventMapperHttpService
         {
             Invocable unchecked;
             try {
-                unchecked = jsCodeCompiler.createEngine(project, item.script, "event-mapper." + item.id);
+                unchecked = jsCodeCompiler.createEngine(project,
+                        item.script, "event-mapper." + item.id);
             }
             catch (Exception e) {
                 return Stream.of();

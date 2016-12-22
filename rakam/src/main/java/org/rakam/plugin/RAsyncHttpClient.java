@@ -65,6 +65,11 @@ public class RAsyncHttpClient
         return new NashornHttpRequest(new RequestBuilder(POST).setUrl(url).setBody(body));
     }
 
+    public NashornHttpRequest post(String url)
+    {
+        return new NashornHttpRequest(new RequestBuilder(POST).setUrl(url));
+    }
+
     public NashornHttpRequest put(String url, String body)
     {
         return new NashornHttpRequest(new RequestBuilder(PUT).setUrl(url).setBody(body));
@@ -85,9 +90,10 @@ public class RAsyncHttpClient
             this.requestBuilder = requestBuilder;
         }
 
-        public NashornHttpRequest form(List<Param> formData)
+        public NashornHttpRequest form(String key, String value)
         {
-            requestBuilder.setFormParams(formData);
+            requestBuilder.addFormParam(key, value);
+            requestBuilder.addHeader("Content-type", "application/x-www-form-urlencoded");
             return this;
         }
 

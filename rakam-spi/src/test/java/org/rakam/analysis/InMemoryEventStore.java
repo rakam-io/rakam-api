@@ -18,7 +18,7 @@ public class InMemoryEventStore implements SyncEventStore
 
     @Override
     public int[] storeBatch(List<Event> events) {
-        events.addAll(events);
+        this.events.addAll(events);
         return EventStore.SUCCESSFUL_BATCH;
     }
 

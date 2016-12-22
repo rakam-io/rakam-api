@@ -30,10 +30,12 @@ import javax.inject.Inject;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static io.netty.buffer.PooledByteBufAllocator.DEFAULT;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.valueOf;
 
@@ -85,13 +87,22 @@ public class AWSKinesisEventStore
             for (int i = 0; i < events.size(); i++) {
                 Event event = events.get(i);
                 ByteBuf buffer = getBuffer(event);
-                producer.addUserRecord(config.getEventStoreStreamName(),
-                        getPartitionKey(event),
-                        buffer.nioBuffer());
+                ByteBuffer data = buffer.nioBuffer();
+                try {
+                    producer.addUserRecord(config.getEventStoreStreamName(),
+                            getPartitionKey(event),
+                            data);
+                }
+                catch (IllegalArgumentException e) {
+                    if (data.remaining() > 1048576) {
+                        throw new RakamException("Too many event properties, the total size of an event must be less than or equal to 1MB, got " + data.remaining(),
+                                BAD_REQUEST);
+                    }
+                }
                 byteBufs[i] = buffer;
             }
 
-            // TODO: callback?
+            // TODO: async callback?
             producer.flush();
         }
         finally {

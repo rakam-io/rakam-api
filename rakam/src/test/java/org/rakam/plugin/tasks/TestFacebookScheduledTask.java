@@ -1,6 +1,7 @@
 package org.rakam.plugin.tasks;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import io.netty.channel.epoll.Epoll;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -8,16 +9,17 @@ import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.rakam.TestingConfigManager;
 import org.rakam.analysis.InMemoryApiKeyService;
+import org.rakam.analysis.InMemoryEventStore;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.FieldType;
+import org.rakam.collection.JSCodeLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RAsyncHttpClient;
-import org.rakam.plugin.tasks.ScheduledTaskHttpService;
 import org.rakam.ui.ScheduledTaskUIHttpService;
 import org.rakam.util.JsonHelper;
 import org.testng.annotations.Test;
@@ -60,24 +62,34 @@ public class TestFacebookScheduledTask
 
         String metadataDatabase = Files.createTempDir().getAbsolutePath();
 
-        JDBCPoolDataSource sa = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:"+metadataDatabase)
+        JDBCPoolDataSource sa = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase)
                 .setUsername("sa").setPassword(""));
 
-        Map<String, ScheduledTaskUIHttpService.Parameter> config = JsonHelper.read(toByteArray(this.getClass().getResource("/scheduled-task/facebook-ads/config.json").openStream()),
-                new TypeReference<Map<String, String>>() {}).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new ScheduledTaskUIHttpService.Parameter(FieldType.STRING,  e.getValue(), null, null)));
+        Map<String, ScheduledTaskUIHttpService.Parameter> parameters = JsonHelper.read(toByteArray(this.getClass().getResource("/scheduled-task/adwords/config.json").openStream()),
+                new TypeReference<Map<String, String>>() {}).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new ScheduledTaskUIHttpService.Parameter(FieldType.STRING, e.getValue(), null, null)));
 
-        JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(testingConfigManager, sa, new RAsyncHttpClient(new DefaultAsyncHttpClient(cf)), true);
+        InMemoryEventStore eventStore = new InMemoryEventStore();
+
+        JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(
+                testingConfigManager,
+                new RAsyncHttpClient(new DefaultAsyncHttpClient(cf)),
+                new JSCodeLoggerService(sa),
+                true);
+
         CompletableFuture<ScheduledTaskHttpService.Environment> future =
-                run(jsCodeCompiler, Runnable::run, "test", "load('src/test/resources/scheduled-task/facebook-ads/script.js')", config, logger, ijsConfigManager, testingEventDeserializer).thenApply(eventList -> {
-            if (eventList == null || eventList.events.isEmpty()) {
-                logger.info("No event is returned");
-            }
-            else {
-                logger.info(format("Successfully got %d events: %s: %s", eventList.events.size(), eventList.events.get(0).collection(), eventList.events.get(0).properties()));
-            }
+                run(jsCodeCompiler, Runnable::run, "test", "load('src/test/resources/scheduled-task/adwords/script.js')",
+                        parameters, logger, ijsConfigManager, testingEventDeserializer, eventStore, ImmutableList.of()).thenApply(eventList -> {
+                    if (eventStore.getEvents().isEmpty()) {
+                        logger.info("No event is returned");
+                    }
+                    else {
+                        logger.info(format("Successfully got %d events: %s: %s", eventStore.getEvents().size(),
+                                eventStore.getEvents().get(0).collection(),
+                                eventStore.getEvents().get(0).properties()));
+                    }
 
-            return new ScheduledTaskHttpService.Environment(logger.getEntries(), testingConfigManager.getTable().row("test"));
-        });
+                    return new ScheduledTaskHttpService.Environment(logger.getEntries(), testingConfigManager.getTable().row("test"));
+                });
 
         System.out.println(future.join());
     }

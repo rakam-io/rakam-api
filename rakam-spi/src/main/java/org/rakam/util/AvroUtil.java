@@ -14,6 +14,7 @@
 package org.rakam.util;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
 import org.codehaus.jackson.node.NullNode;
@@ -122,10 +123,12 @@ public final class AvroUtil
                 return Schema.create(Schema.Type.LONG);
             default:
                 if (type.isMap()) {
-                    return Schema.createMap(getAvroSchema(type.getMapValueType()));
+                    Schema union = Schema.createUnion(ImmutableList.of(Schema.create(Schema.Type.NULL), getAvroSchema(type.getMapValueType())));
+                    return Schema.createMap(union);
                 }
                 if (type.isArray()) {
-                    return Schema.createArray(getAvroSchema(type.getArrayElementType()));
+                    Schema union = Schema.createUnion(ImmutableList.of(Schema.create(Schema.Type.NULL), getAvroSchema(type.getArrayElementType())));
+                    return Schema.createArray(union);
                 }
                 throw new IllegalStateException();
         }

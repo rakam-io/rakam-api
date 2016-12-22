@@ -402,14 +402,14 @@ public class WebUserService
         Map<String, Object> scopes = ImmutableMap.of(
                 "product_name", "Rakam",
                 "action_url", format("%s/perform-recover-password?%s",
-                        mailConfig.getSiteUrl(), getRecoverUrl(email)));
+                        mailConfig.getSiteUrl(), getRecoverUrl(email, 3)));
 
         sendMail(resetPasswordTitleCompiler, resetPasswordTxtCompiler, resetPasswordHtmlCompiler, email, scopes).join();
     }
 
-    private String getRecoverUrl(String email)
+    private String getRecoverUrl(String email, int hours)
     {
-        long expiration = Instant.now().plus(3, HOURS).getEpochSecond();
+        long expiration = Instant.now().plus(hours, HOURS).getEpochSecond();
         String key = expiration + "|" + email;
         String hash = CryptUtil.encryptWithHMacSHA1(key, encryptionConfig.getSecretKey());
         String encoded = new String(Base64.getEncoder().encode(key.getBytes(UTF_8)), UTF_8);
@@ -558,7 +558,7 @@ public class WebUserService
                         "product_name", "Rakam",
                         "project", projectStream.get().name,
                         "action_url", format("%s/perform-recover-password?%s",
-                                mailConfig.getSiteUrl(), getRecoverUrl(email))));
+                                mailConfig.getSiteUrl(), getRecoverUrl(email, 24))));
             }
             catch (Exception e) {
                 newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)

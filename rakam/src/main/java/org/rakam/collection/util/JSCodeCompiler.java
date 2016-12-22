@@ -1,19 +1,32 @@
 package org.rakam.collection.util;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
+import io.netty.handler.codec.http.HttpHeaders;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.rakam.analysis.ConfigManager;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.collection.Event;
+import org.rakam.collection.EventCollectionHttpService;
+import org.rakam.collection.EventList;
+import org.rakam.collection.JSCodeLoggerService;
+import org.rakam.collection.JSCodeLoggerService.LogEntry;
+import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.plugin.CustomEventMapperHttpService;
+import org.rakam.plugin.EventMapper;
+import org.rakam.plugin.EventStore;
 import org.rakam.plugin.RAsyncHttpClient;
 import org.rakam.util.CryptUtil;
+import org.rakam.util.JsonHelper;
+import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
-import org.skife.jdbi.v2.Handle;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.script.Bindings;
@@ -22,54 +35,102 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static org.rakam.plugin.EventMapper.RequestParams.EMPTY_PARAMS;
+
 public class JSCodeCompiler
 {
     private final static Logger LOGGER = Logger.get(JSCodeCompiler.class);
     private final @Named("rakam-client") RAsyncHttpClient httpClient;
     private final ConfigManager configManager;
-    private final DBI dbi;
     private final String[] args = {"-strict", "--no-syntax-extensions"};
     private final boolean loadAllowed;
+    private final InetAddress localhost;
+    private final JSCodeLoggerService loggerService;
 
     @Inject
     public JSCodeCompiler(
             ConfigManager configManager,
-            @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
+            JSCodeLoggerService loggerService,
             @Named("rakam-client") RAsyncHttpClient httpClient)
     {
-        this(configManager, dataSource, httpClient, false);
+        this(configManager, httpClient, loggerService, false);
     }
 
     public JSCodeCompiler(
             ConfigManager configManager,
-            @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             @Named("rakam-client") RAsyncHttpClient httpClient,
+            JSCodeLoggerService loggerService,
             boolean loadAllowed)
     {
         this.configManager = configManager;
         this.httpClient = httpClient;
-        this.dbi = new DBI(dataSource);
+        this.loggerService = loggerService;
         this.loadAllowed = loadAllowed;
+        try {
+            localhost = InetAddress.getLocalHost();
+        }
+        catch (UnknownHostException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
-    @PostConstruct
-    public void setupLogger()
+    public class JSEventStore
     {
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("CREATE TABLE IF NOT EXISTS javascript_logs (" +
-                    "  project VARCHAR(255) NOT NULL," +
-                    "  type VARCHAR(15) NOT NULL," +
-                    "  prefix VARCHAR(255) NOT NULL," +
-                    "  error TEXT NOT NULL," +
-                    "  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
-                    "  )")
-                    .execute();
+        private final EventStore eventStore;
+        private final String project;
+        private final JsonEventDeserializer jsonEventDeserializer;
+        private final ScriptObjectMirror jsonObject;
+        private final List<EventMapper> eventMapperSet;
+
+        public JSEventStore(String project, ScriptObjectMirror jsonObject, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMapperSet)
+        {
+            this.project = project;
+            this.jsonEventDeserializer = jsonEventDeserializer;
+            this.eventStore = eventStore;
+            this.jsonObject = jsonObject;
+            this.eventMapperSet = eventMapperSet;
+        }
+
+        public void store(Object json)
+                throws IOException
+        {
+            if (jsonEventDeserializer == null) {
+                throw new RakamException("Event store is not supported.", BAD_REQUEST);
+            }
+            String jsonRaw = jsonObject.callMember("stringify", json).toString();
+
+            JsonParser jp = JsonHelper.getMapper().getFactory()
+                    .createParser(jsonRaw);
+            JsonToken t = jp.nextToken();
+
+            if (t != JsonToken.START_ARRAY) {
+                throw new RakamException("The script didn't return an array", BAD_REQUEST);
+            }
+
+            t = jp.nextToken();
+
+            List<Event> list = new ArrayList<>();
+            for (; t == START_OBJECT; t = jp.nextToken()) {
+                list.add(jsonEventDeserializer.deserializeWithProject(jp, project, Event.EventContext.empty(), true));
+            }
+
+            EventCollectionHttpService.mapEvent(eventMapperSet,
+                    eventMapper -> eventMapper.mapAsync(new EventList(Event.EventContext.empty(), list),
+                            EMPTY_PARAMS, localhost, HttpHeaders.EMPTY_HEADERS));
+
+            eventStore.storeBatch(list);
         }
     }
 
@@ -91,16 +152,17 @@ public class JSCodeCompiler
     public Invocable createEngine(String project, String code, String prefix)
             throws ScriptException
     {
-        return createEngine(code,
-                new PersistentLogger(project, prefix),
+        return createEngine(
+                project,
+                code,
+                loggerService.createLogger(project, prefix),
+                null,
+                null,
+                null,
                 prefix == null ? new MemoryConfigManager() : new JSConfigManager(configManager, project, prefix));
     }
 
-    public PersistentLogger createLogger(String project, String prefix) {
-        return new PersistentLogger(project, prefix);
-    }
-
-    public Invocable createEngine(String code, ILogger logger, IJSConfigManager configManager)
+    public Invocable createEngine(String project, String code, ILogger logger, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMappers, IJSConfigManager configManager)
             throws ScriptException
     {
         NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
@@ -109,9 +171,12 @@ public class JSCodeCompiler
                 .getScriptEngine(args,
                         CustomEventMapperHttpService.class.getClassLoader(), new NashornEngineFilter());
 
-        final Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
+        Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
+        ScriptObjectMirror json = (ScriptObjectMirror) bindings.get("JSON");
+        JSEventStore value = new JSEventStore(project, json, jsonEventDeserializer, eventStore, eventMappers);
+
         bindings.remove("print");
-        if(!loadAllowed) {
+        if (!loadAllowed) {
             bindings.remove("load");
         }
         bindings.remove("loadWithNewGlobal");
@@ -120,6 +185,7 @@ public class JSCodeCompiler
         bindings.remove("quit");
         bindings.put("logger", logger);
         bindings.put("config", configManager);
+        bindings.put("eventStore", value);
         bindings.put("http", httpClient);
 
         engine.eval(code);
@@ -151,37 +217,25 @@ public class JSCodeCompiler
         @Override
         public void debug(String value)
         {
-            entries.add(new LogEntry(Level.DEBUG, value));
+            entries.add(new LogEntry(Level.DEBUG, value, Instant.now()));
         }
 
         @Override
         public void warn(String value)
         {
-            entries.add(new LogEntry(Level.WARN, value));
+            entries.add(new LogEntry(Level.WARN, value, Instant.now()));
         }
 
         @Override
         public void info(String value)
         {
-            entries.add(new LogEntry(Level.INFO, value));
+            entries.add(new LogEntry(Level.INFO, value, Instant.now()));
         }
 
         @Override
         public void error(String value)
         {
-            entries.add(new LogEntry(Level.ERROR, value));
-        }
-
-        public static class LogEntry
-        {
-            public final Level level;
-            public final String message;
-
-            public LogEntry(Level level, String message)
-            {
-                this.level = level;
-                this.message = message;
-            }
+            entries.add(new LogEntry(Level.ERROR, value, Instant.now()));
         }
     }
 
@@ -219,56 +273,6 @@ public class JSCodeCompiler
         public void error(String value)
         {
             LOGGER.error("Script(" + project + ", " + prefix + ")" + value);
-        }
-    }
-
-    public class PersistentLogger
-            implements ILogger
-    {
-        private final String prefix;
-        private final String project;
-
-        public PersistentLogger(String project, String prefix)
-        {
-            this.project = project;
-            this.prefix = prefix;
-        }
-
-        @Override
-        public void debug(String value)
-        {
-            log("DEBUG", value);
-        }
-
-        private void log(String type, String value)
-        {
-            try (Handle handle = dbi.open()) {
-                handle.createStatement("INSERT INTO javascript_logs (project, type, prefix, error) " +
-                        "VALUES (:project, :type, :prefix, :error)")
-                        .bind("project", project)
-                        .bind("type", type)
-                        .bind("prefix", prefix)
-                        .bind("error", value)
-                        .execute();
-            }
-        }
-
-        @Override
-        public void warn(String value)
-        {
-            log("WARN", value);
-        }
-
-        @Override
-        public void info(String value)
-        {
-            log("INFO", value);
-        }
-
-        @Override
-        public void error(String value)
-        {
-            log("ERROR", value);
         }
     }
 

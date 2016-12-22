@@ -125,7 +125,10 @@ public class JDBCUtil
                 if(typeName.equals("citext")) {
                     return FieldType.STRING;
                 }
-                if(typeName.equals("jsonb") || typeName.equals("json")) {
+                if(typeName.equals("jsonb")) {
+                    return FieldType.MAP_STRING;
+                }
+                if(typeName.equals("json")) {
                     return FieldType.STRING;
                 }
             default:

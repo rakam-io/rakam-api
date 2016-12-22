@@ -16,9 +16,6 @@ public class JSEventMapperModule extends RakamModule
     {
         Multibinder<HttpService> httpServices = Multibinder.newSetBinder(binder, HttpService.class);
         httpServices.addBinding().to(CustomEventMapperHttpService.class).in(Scopes.SINGLETON);
-
-        Multibinder<EventMapper> eventMappers = Multibinder.newSetBinder(binder, EventMapper.class);
-        eventMappers.addBinding().to(CustomEventMapperHttpService.class).in(Scopes.SINGLETON);
     }
 
     @Override

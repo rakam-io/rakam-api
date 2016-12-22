@@ -1,0 +1,1 @@
+alter table public.javascript_logs add column id varchar(36);

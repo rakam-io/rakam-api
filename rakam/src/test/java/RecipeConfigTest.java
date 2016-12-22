@@ -2,6 +2,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.collect.ImmutableList;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -17,7 +18,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-
+import java.util.ArrayList;
 
 public class RecipeConfigTest {
 //    @Test
@@ -34,6 +35,7 @@ public class RecipeConfigTest {
                 new Schema.Field("a", Schema.create(Schema.Type.BOOLEAN), "", null)));
         GenericData.Record record = new GenericData.Record(a);
         record.put("a", false);
+
         DatumWriter writer = new GenericDatumWriter(a);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
