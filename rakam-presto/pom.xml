@@ -223,7 +223,7 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-rakam-streaming</artifactId>
-            <version>0.156.5</version>
+            <version>0.156.8</version>
             <!--<scope>test</scope>-->
             <exclusions>
                 <exclusion>
