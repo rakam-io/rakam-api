@@ -1,1 +1,1 @@
-alter table public.javascript_logs add column id varchar(36);
+alter table javascript_logs add column id varchar(36);

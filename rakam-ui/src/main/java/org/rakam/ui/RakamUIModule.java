@@ -333,6 +333,7 @@ public class RakamUIModule
             Flyway flyway = new Flyway();
             flyway.setBaselineOnMigrate(true);
             flyway.setLocations("db/migration/ui");
+            flyway.setTable("schema_version_ui");
             flyway.setDataSource(config.getUrl(), config.getUsername(), config.getPassword());
             try {
                 flyway.migrate();

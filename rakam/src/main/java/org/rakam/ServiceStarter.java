@@ -296,6 +296,7 @@ public final class ServiceStarter
             flyway.setBaselineOnMigrate(true);
             flyway.setDataSource(config);
             flyway.setLocations("db/migration/report");
+            flyway.setTable("schema_version_report");
             try {
                 flyway.migrate();
             }

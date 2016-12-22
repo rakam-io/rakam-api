@@ -234,7 +234,7 @@ public abstract class RealtimeService
             String format = getIntermediateFunction(measure.aggregation);
             builder.append(String.format(format + " as %s ", checkTableColumn(measure.column),
                     checkTableColumn(measure.column + "_" + measure.aggregation.name().toLowerCase())));
-            if (--first > 1) {
+            if (--first > 0) {
                 builder.append(", ");
             }
         }

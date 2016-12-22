@@ -13,7 +13,6 @@ import org.rakam.analysis.InMemoryApiKeyService;
 import org.rakam.analysis.InMemoryEventStore;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.TimestampToEpochFunction;
 import org.rakam.analysis.metadata.SchemaChecker;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.JSCodeLoggerService;
@@ -94,9 +93,9 @@ public class ScheduledTaskHttpService
             JSCodeCompiler jsCodeCompiler,
             LockService lockService,
             JSCodeLoggerService service,
-            @TimestampToEpochFunction String timestampToEpoch,
             ConfigManager configManager,
             Set<EventMapper> eventMapperSet,
+            @Named("timestamp_function") String timestampToEpoch,
             EventStore eventStore,
             FieldDependencyBuilder.FieldDependency fieldDependency)
     {
@@ -131,7 +130,7 @@ public class ScheduledTaskHttpService
             try (Handle handle = dbi.open()) {
                 List<Task> tasks = handle.createQuery(format("SELECT " +
                         "project, id, name, code, parameters FROM custom_scheduled_tasks " +
-                        "WHERE last_executed_at is null or (last_executed_at + schedule_interval) > %s(cast(now() as timestamp))", timestampToEpoch))
+                        "WHERE last_executed_at is null or (last_executed_at + schedule_interval) > %s", timestampToEpoch))
                         .map((index, r, ctx) -> {
                             return new Task(r.getString(1), r.getInt(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
                         }).list();
@@ -152,12 +151,14 @@ public class ScheduledTaskHttpService
                         long gapInMillis = System.currentTimeMillis() - now;
                         if (ex != null) {
                             logger.error(format("Failed to run the script in %d : %s", gapInMillis, ex.getMessage()));
-                        } else {
+                        }
+                        else {
                             logger.debug(format("Successfully run in %d milliseconds", gapInMillis));
                         }
                     });
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 LOGGER.error(e);
             }
         }, 0, 1, MINUTES);

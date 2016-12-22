@@ -107,7 +107,7 @@ public class DashboardService
     {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, directive, options, refresh_interval, last_updated," +
-                    "(case when now() - last_updated > refresh_interval * INTERVAL '1 second' then null else data end)" +
+                    "(case when refresh_interval is null or now() - last_updated > refresh_interval * INTERVAL '1 second' then null else data end)" +
                     " FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND name = :name)")
                     .bind("project", project.project)
                     .bind("name", name)
