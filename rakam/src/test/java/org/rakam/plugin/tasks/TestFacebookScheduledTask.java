@@ -35,7 +35,7 @@ import static org.rakam.plugin.tasks.ScheduledTaskHttpService.run;
 public class TestFacebookScheduledTask
 {
 
-    @Test
+    @Test(enabled = false)
     public void testName()
             throws Exception
     {
@@ -70,8 +70,7 @@ public class TestFacebookScheduledTask
 
         InMemoryEventStore eventStore = new InMemoryEventStore();
 
-        JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(
-                testingConfigManager,
+        JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(testingConfigManager,
                 new RAsyncHttpClient(new DefaultAsyncHttpClient(cf)),
                 new JSCodeLoggerService(sa),
                 true);
