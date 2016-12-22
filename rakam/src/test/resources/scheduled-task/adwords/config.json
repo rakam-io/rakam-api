@@ -26,7 +26,7 @@
   },
   "developer_token": {
     "type": "boolean",
-    "placeholder": "fO2FCuQSYg7DJZw2SX8BmQ",
+    "placeholder": "fO2FCuQSQASDZZP2AX89m0",
     "description": "The developer token of your approved app"
   },
   "client_secret": {
