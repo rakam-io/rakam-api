@@ -577,11 +577,11 @@ public class WebUserService
 
         final int finalNewUserId = newUserId;
         dbi.inTransaction((Handle handle, TransactionStatus transactionStatus) -> {
-            Integer apiKeyId = this.saveApiKeys(userId, projectId, keys.readKey(), keys.writeKey(), keys.masterKey());
+            Integer apiKeyId = saveApiKeys(handle, userId, projectId, keys.readKey(), keys.writeKey(), keys.masterKey());
 
             int exists = handle.createStatement("UPDATE web_user_api_key_permission SET " +
                     "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission " +
-                    "WHERE user_id = :newUserId AND (SELECT bool_or(true) FROM web_user_api_key WHERE user_id = :mainUser AND project_id = :project)")
+                    "WHERE user_id = :newUserId AND (SELECT bool_or(true) FROM web_user_api_key WHERE user_id = :newUserId AND project_id = :project)")
                     .bind("mainUser", userId)
                     .bind("newUserId", finalNewUserId)
                     .bind("readPermission", readPermission)
@@ -607,24 +607,29 @@ public class WebUserService
     public Integer saveApiKeys(int user, int projectId, String readKey, String writeKey, String masterKey)
     {
         try (Handle handle = dbi.open()) {
-            Optional<String> any = getUserApiKeys(handle, user).stream()
-                    .filter(a -> a.id == projectId && a.apiKeys.stream().anyMatch(e -> e.masterKey() != null))
-                    .map(z -> z.apiKeys.stream().filter(g -> g.masterKey() != null).findFirst().map(c -> c.masterKey()).get())
-                    .findAny();
-
-            // TODO: check scope permission keys
-            any.orElseThrow(() -> new RakamException(UNAUTHORIZED));
-
-            return handle.createStatement("INSERT INTO web_user_api_key " +
-                    "(user_id, project_id, read_key, write_key, master_key) " +
-                    "VALUES (:userId, :project, :readKey, :writeKey, :masterKey)")
-                    .bind("userId", user)
-                    .bind("project", projectId)
-                    .bind("readKey", readKey)
-                    .bind("writeKey", writeKey)
-                    .bind("masterKey", masterKey)
-                    .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getInt("id")).first();
+            return saveApiKeys(handle, user, projectId, readKey, writeKey, masterKey);
         }
+    }
+
+    public Integer saveApiKeys(Handle handle, int user, int projectId, String readKey, String writeKey, String masterKey)
+    {
+        Optional<String> any = getUserApiKeys(handle, user).stream()
+                .filter(a -> a.id == projectId && a.apiKeys.stream().anyMatch(e -> e.masterKey() != null))
+                .map(z -> z.apiKeys.stream().filter(g -> g.masterKey() != null).findFirst().map(c -> c.masterKey()).get())
+                .findAny();
+
+        // TODO: check scope permission keys
+        any.orElseThrow(() -> new RakamException(UNAUTHORIZED));
+
+        return handle.createStatement("INSERT INTO web_user_api_key " +
+                "(user_id, project_id, read_key, write_key, master_key) " +
+                "VALUES (:userId, :project, :readKey, :writeKey, :masterKey)")
+                .bind("userId", user)
+                .bind("project", projectId)
+                .bind("readKey", readKey)
+                .bind("writeKey", writeKey)
+                .bind("masterKey", masterKey)
+                .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getInt("id")).first();
     }
 
     public Optional<WebUser> login(String email, String password)

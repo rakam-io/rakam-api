@@ -81,7 +81,7 @@ public class UIRecipeHandler
             dashboards = dashboardService.get().list(new Project(project, userId)).stream()
                     .map(a -> {
                         List<DashboardService.DashboardItem> items = dashboardService.get()
-                                .get(new Project(project, userId), a.name).stream()
+                                .get(new Project(project, userId), a.id).stream()
                                 .map(e -> new DashboardService.DashboardItem(e.id, e.name, e.directive, e.options, e.refreshInterval, null))
                                 .collect(Collectors.toList());
 

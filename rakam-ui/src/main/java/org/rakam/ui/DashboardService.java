@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+
 // todo check permissions
 @Path("/ui/dashboard")
 @IgnoreApi
@@ -76,12 +78,12 @@ public class DashboardService
                 if (handle.createQuery("SELECT 1 FROM dashboard WHERE (project_id, name) = (:project, :name)")
                         .bind("project", project.project)
                         .bind("name", name).first() != null) {
-                    throw new AlreadyExistsException("Dashboard", HttpResponseStatus.BAD_REQUEST);
+                    throw new AlreadyExistsException("Dashboard", BAD_REQUEST);
                 }
 
                 throw e;
             }
-            return new Dashboard(id, name, options);
+            return new Dashboard(id, name, null, options);
         }
     }
 
@@ -102,20 +104,19 @@ public class DashboardService
     @JsonRequest
     @ApiOperation(value = "Get Report")
     @Path("/get")
-    public List<DashboardItem> get(@Named("user_id") Project project,
-            @ApiParam("name") String name)
+    public List<DashboardItem> get(@Named("user_id") Project project, @ApiParam("id") int id)
     {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, directive, options, refresh_interval, last_updated," +
                     "(case when refresh_interval is null or now() - last_updated > refresh_interval * INTERVAL '1 second' then null else data end)" +
-                    " FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND name = :name)")
+                    " FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND id = :id)")
                     .bind("project", project.project)
-                    .bind("name", name)
+                    .bind("id", id)
                     .map((i, r, statementContext) -> {
                         return new DashboardItem(r.getInt(1),
                                 r.getString(2), r.getString(3),
                                 JsonHelper.read(r.getString(4), Map.class),
-                                Duration.ofSeconds(r.getInt(5)),
+                                r.getObject(5) == null ? null : Duration.ofSeconds(r.getInt(5)),
                                 r.getTimestamp(6) != null ? r.getTimestamp(6).toInstant() : null, r.getBytes(7));
                     }).list();
         }
@@ -145,10 +146,11 @@ public class DashboardService
     public List<Dashboard> list(@Named("user_id") Project project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, options FROM dashboard WHERE project_id = :project ORDER BY id")
+            return handle.createQuery("SELECT id, name, refresh_interval, options FROM dashboard WHERE project_id = :project ORDER BY id")
                     .bind("project", project.project).map((i, resultSet, statementContext) -> {
-                        Map options = JsonHelper.read(resultSet.getString(3), Map.class);
+                        Map options = JsonHelper.read(resultSet.getString(4), Map.class);
                         return new Dashboard(resultSet.getInt(1), resultSet.getString(2),
+                                resultSet.getObject(3) == null ? null : Duration.ofSeconds(resultSet.getInt(3)),
                                 options == null ? null : options);
                     }).list();
         }
@@ -159,12 +161,14 @@ public class DashboardService
         public final int id;
         public final String name;
         public final Map<String, Object> options;
+        public final Duration refresh_interval;
 
         @JsonCreator
-        public Dashboard(int id, String name, Map<String, Object> options)
+        public Dashboard(int id, String name, Duration refresh_interval, Map<String, Object> options)
         {
             this.id = id;
             this.name = name;
+            this.refresh_interval = refresh_interval;
             this.options = options;
         }
     }
@@ -235,12 +239,19 @@ public class DashboardService
     public SuccessMessage updateDashboard(
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
+            @ApiParam("name") String name,
+            @ApiParam("refresh_interval") Duration refreshInterval,
             @ApiParam("items") List<DashboardItem> items)
     {
         dbi.inTransaction((handle, transactionStatus) -> {
-            Integer first = handle.createQuery("SELECT id FROM dashboard where id = :id and project_id = :project")
-                    .bind("id", dashboard).bind("project", project.project).map(IntegerMapper.FIRST).first();
-            if (first == null) {
+            int execute = handle.createStatement("UPDATE dashboard SET name = :name AND refresh_interval = :refreshInterval WHERE id = :id AND and project_id = :project")
+                    .bind("id", dashboard)
+                    .bind("project", project.project)
+                    .bind("name", name)
+                    .bind("refreshInterval", refreshInterval.getSeconds())
+                    .execute();
+
+            if (execute == 0) {
                 throw new RakamException(HttpResponseStatus.NOT_FOUND);
             }
 
@@ -265,12 +276,15 @@ public class DashboardService
     public SuccessMessage updateDashboardOptions(
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
+            @ApiParam("name") String name,
+            @ApiParam("refresh_interval") Duration refreshDuration,
             @ApiParam("options") Map<String, Object> options)
     {
-
         dbi.inTransaction((handle, transactionStatus) -> {
-            handle.createStatement("UPDATE dashboard SET options = :options WHERE id = :id AND project_id = :project")
+            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
+                    .bind("name", name)
+                    .bind("refreshDuration", refreshDuration.getSeconds())
                     .bind("options", JsonHelper.encode(options))
                     .bind("project", project.project)
                     .execute();
@@ -325,8 +339,12 @@ public class DashboardService
             @ApiParam("dashboard") int dashboard)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM dashboard WHERE id = :id and project_id = :project")
+            int execute = handle.createStatement("DELETE FROM dashboard WHERE id = :id and project_id = :project AND " +
+                    "(select count(*) FROM dashboard WHERE project_id = :project) > 1")
                     .bind("id", dashboard).bind("project", project.project).execute();
+            if (execute == 0) {
+                throw new RakamException("You cannot remove the single dashboard.", BAD_REQUEST);
+            }
         }
         return SuccessMessage.success();
     }
