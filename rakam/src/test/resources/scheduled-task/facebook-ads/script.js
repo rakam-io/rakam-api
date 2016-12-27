@@ -47,7 +47,8 @@ var fetch = function (parameters, url, events, startDate, endDate) {
             fetch(parameters, null, events, midText, endDate);
             return events;
         }
-        logger.error(JSON.stringify(data.error.code + ' : ' + data.error.error_subcode + ' : ' + data.error.message));
+
+        logger[data.error.code === 17 ? 'warn' : 'error'](JSON.stringify(data.error.code + ' : ' + data.error.error_subcode + ' : ' + data.error.message));
         return;
     }
     data.data.forEach(function (campaign) {

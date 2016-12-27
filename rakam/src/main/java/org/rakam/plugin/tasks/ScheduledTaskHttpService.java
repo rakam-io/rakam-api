@@ -131,7 +131,7 @@ public class ScheduledTaskHttpService
             try (Handle handle = dbi.open()) {
                 List<Task> tasks = handle.createQuery(format("SELECT " +
                         "project, id, name, code, parameters FROM custom_scheduled_tasks " +
-                        "WHERE last_executed_at is null or (last_executed_at + schedule_interval) > %s", timestampToEpoch))
+                        "WHERE last_executed_at is null or (last_executed_at + schedule_interval) < %s", timestampToEpoch))
                         .map((index, r, ctx) -> {
                             return new Task(r.getString(1), r.getInt(2), r.getString(3), r.getString(4), JsonHelper.read(r.getString(5), new TypeReference<Map<String, Parameter>>() {}));
                         }).list();
