@@ -37,6 +37,7 @@ import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.util.IntegerMapper;
+import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.mail.MessagingException;
@@ -66,6 +67,7 @@ import static com.google.common.base.Charsets.UTF_8;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.PRECONDITION_REQUIRED;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
 import static java.lang.String.format;
@@ -343,17 +345,22 @@ public class WebUserService
         }
     }
 
-    public void revokeUserAccess(int userId, int project, String email)
+    public List<Long> revokeUserAccess(int userId, int project, String email)
     {
         if (!getUser(userId).get().projects.stream().anyMatch(a -> a.id == project)) {
             throw new RakamException(FORBIDDEN);
         }
+
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM web_user_api_key_permission WHERE api_key_id in (SELECT id FROM web_user_api_key WHERE project_id = :project) AND user_id = (SELECT id FROM web_user WHERE email = :email)")
+            List<Long> list = handle.createQuery("SELECT id FROM web_user_api_key WHERE project_id = :project AND user_id = (SELECT id FROM web_user WHERE email = :email)")
                     .bind("project", project)
-                    .bind("email", email)
-                    .bind("project", project)
+                    .bind("email", email).map(LongMapper.FIRST).list();
+
+            handle.createStatement("DELETE FROM web_user_api_key_permission WHERE api_key_id in (" +
+                    list.stream().map(a -> a.toString()).collect(Collectors.joining(", ")) + ")")
                     .execute();
+
+            return list;
         }
     }
 
@@ -477,9 +484,10 @@ public class WebUserService
                         .executeAndReturnGeneratedKeys().first().get("id");
             }
             catch (Exception e) {
-                projectId = handle.createQuery("SELECT id FROM web_user_project WHERE project = :project AND api_url = :apiUrl")
-                        .bind("project", project)
-                        .bind("apiUrl", apiUrl).map(IntegerMapper.FIRST).first();
+                if (e.getMessage().contains("project_check")) {
+                    throw new RakamException("Project already exists.", BAD_REQUEST);
+                }
+                throw e;
             }
 
             handle.createStatement("INSERT INTO web_user_api_key " +
@@ -538,6 +546,37 @@ public class WebUserService
                         return new UserAccess(project, resultSet.getString(1), resultSet.getString(2),
                                 resultSet.getBoolean(3), resultSet.getBoolean(4), resultSet.getBoolean(5));
                     }).list();
+        }
+    }
+
+    public void giveAccessToExistingUser(int projectId, int userId, String email, boolean readPermission, boolean writePermission, boolean masterPermisson)
+    {
+        Optional<WebUser.Project> projectStream = getUser(userId).get().projects.stream().filter(a -> a.id == projectId).findAny();
+        if (!projectStream.isPresent()) {
+            throw new RakamException(FORBIDDEN);
+        }
+
+        try (Handle handle = dbi.open()) {
+            Integer newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
+                    .map(IntegerMapper.FIRST).first();
+
+            if (newUserId == null) {
+                throw new RakamException(NOT_FOUND);
+            }
+
+            int exists = handle.createStatement("UPDATE web_user_api_key_permission SET " +
+                    "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission " +
+                    "WHERE user_id = :newUserId")
+                    .bind("mainUser", userId)
+                    .bind("newUserId", newUserId)
+                    .bind("readPermission", readPermission)
+                    .bind("writePermission", writePermission)
+                    .bind("masterPermission", masterPermisson)
+                    .bind("project", projectId).execute();
+
+            if (exists == 0) {
+                throw new RakamException(NOT_FOUND);
+            }
         }
     }
 

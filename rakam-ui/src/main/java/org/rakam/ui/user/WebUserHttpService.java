@@ -51,6 +51,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.COOKIE;
 import static io.netty.handler.codec.http.HttpHeaders.Names.SET_COOKIE;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpResponseStatus.UNAUTHORIZED;
@@ -242,16 +243,13 @@ public class WebUserHttpService
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
     @ProtectEndpoint(writeOperation = true)
-    public SuccessMessage revokeUserAccess(@Named("user_id") Project project,
+    public List<Long> revokeUserAccess(@Named("user_id") Project project,
             @ApiParam("email") String email)
     {
-
-        service.revokeUserAccess(project.userId, project.project, email);
-        return SuccessMessage.success();
+        return service.revokeUserAccess(project.userId, project.project, email);
     }
 
     @JsonRequest
-
     @Path("/give-user-access")
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage giveUserAccess(@Named("user_id") Project project,
@@ -263,9 +261,32 @@ public class WebUserHttpService
             @ApiParam(value = "master_permission") boolean masterPermission)
     {
         Optional<WebUser> user = service.getUser(project.userId);
-        user.get().projects.stream().filter(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null));
+        if (!user.get().projects.stream()
+                .anyMatch(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null))) {
+            throw new RakamException(FORBIDDEN);
+        }
 
         service.giveAccessToUser(project.project, user.get().id, email, keys, scopeExpression,
+                readPermission, writePermission, masterPermission);
+        return SuccessMessage.success();
+    }
+
+    @JsonRequest
+    @Path("/update-user-access")
+    @ProtectEndpoint(writeOperation = true)
+    public SuccessMessage updateUserAccess(@Named("user_id") Project project,
+            @ApiParam("email") String email,
+            @ApiParam(value = "read_permission") boolean readPermission,
+            @ApiParam(value = "write_permission") boolean writePermission,
+            @ApiParam(value = "master_permission") boolean masterPermission)
+    {
+        Optional<WebUser> user = service.getUser(project.userId);
+        if (!user.get().projects.stream()
+                .anyMatch(e -> e.apiKeys.stream().anyMatch(a -> a.masterKey() != null))) {
+            throw new RakamException(FORBIDDEN);
+        }
+
+        service.giveAccessToExistingUser(project.project, user.get().id, email,
                 readPermission, writePermission, masterPermission);
         return SuccessMessage.success();
     }

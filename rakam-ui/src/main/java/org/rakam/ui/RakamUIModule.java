@@ -173,7 +173,7 @@ public class RakamUIModule
         public void onDeleteProject(UIEvents.ProjectDeletedEvent event)
         {
             for (DashboardService.Dashboard dashboard : dashboardService.list(new Project(0, event.project))) {
-                dashboardService.delete(new Project(event.project, 0), dashboard.name);
+                dashboardService.delete(new Project(event.project, 0), dashboard.id);
             }
             if (customPageDatabase != null) {
                 for (CustomPageDatabase.Page page : customPageDatabase.list(event.project)) {
@@ -225,7 +225,7 @@ public class RakamUIModule
                         "  api_url varchar(250),\n" +
                         "  user_id INT REFERENCES web_user(id),\n" +
                         "  created_at timestamp DEFAULT now() NOT NULL,\n" +
-                        "  CONSTRAINT production UNIQUE(project, api_url),\n" +
+                        "  CONSTRAINT project_check UNIQUE(project, api_url, user_id),\n" +
                         "  PRIMARY KEY (id, user_id)\n" +
                         ")")
                         .execute();

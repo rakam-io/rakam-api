@@ -118,6 +118,9 @@ public class ClusterService
                 }
             }
         }
+        catch (MalformedURLException e) {
+            throw new RakamException("The url is not valid: " + e.getMessage(), BAD_REQUEST);
+        }
         catch (SocketException e) {
             unreachable = true;
         }

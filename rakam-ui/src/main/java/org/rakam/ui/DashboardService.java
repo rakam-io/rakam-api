@@ -30,6 +30,7 @@ import org.rakam.util.SuccessMessage;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.IntegerMapper;
+import org.skife.jdbi.v2.util.LongMapper;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -85,20 +86,6 @@ public class DashboardService
             }
             return new Dashboard(id, name, null, options);
         }
-    }
-
-    @JsonRequest
-    @ApiOperation(value = "Create dashboard")
-    @Path("/delete")
-    @ProtectEndpoint(writeOperation = true)
-    public SuccessMessage delete(@Named("user_id") Project project, @ApiParam(value = "name") String name)
-    {
-        try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM dashboard WHERE project_id = :project AND name = :name")
-                    .bind("project", project.project)
-                    .bind("name", name).execute();
-        }
-        return SuccessMessage.success();
     }
 
     @JsonRequest
@@ -239,19 +226,15 @@ public class DashboardService
     public SuccessMessage updateDashboard(
             @Named("user_id") Project project,
             @ApiParam("dashboard") int dashboard,
-            @ApiParam("name") String name,
-            @ApiParam("refresh_interval") Duration refreshInterval,
             @ApiParam("items") List<DashboardItem> items)
     {
         dbi.inTransaction((handle, transactionStatus) -> {
-            int execute = handle.createStatement("UPDATE dashboard SET name = :name AND refresh_interval = :refreshInterval WHERE id = :id AND and project_id = :project")
+            Long execute = handle.createQuery("SELECT id FROM dashboard WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("project", project.project)
-                    .bind("name", name)
-                    .bind("refreshInterval", refreshInterval.getSeconds())
-                    .execute();
+                    .map(LongMapper.FIRST).first();
 
-            if (execute == 0) {
+            if (execute == null) {
                 throw new RakamException(HttpResponseStatus.NOT_FOUND);
             }
 
@@ -336,7 +319,7 @@ public class DashboardService
     @Path("/delete")
     @ProtectEndpoint(writeOperation = true)
     public SuccessMessage delete(@Named("user_id") Project project,
-            @ApiParam("dashboard") int dashboard)
+            @ApiParam("id") int dashboard)
     {
         try (Handle handle = dbi.open()) {
             int execute = handle.createStatement("DELETE FROM dashboard WHERE id = :id and project_id = :project AND " +

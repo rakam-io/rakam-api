@@ -49,5 +49,17 @@ public class WebUser {
             this.apiKeys = apiKeys;
             this.apiUrl = apiUrl;
         }
+
+        @Override
+        public String toString()
+        {
+            return "Project{" +
+                    "id=" + id +
+                    ", name='" + name + '\'' +
+                    ", apiUrl='" + apiUrl + '\'' +
+                    ", timezone=" + timezone +
+                    ", apiKeys=" + apiKeys +
+                    '}';
+        }
     }
 }
