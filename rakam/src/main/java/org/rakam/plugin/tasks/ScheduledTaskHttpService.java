@@ -28,6 +28,7 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.JsonRequest;
+import org.rakam.ui.ScheduledTaskUIHttpService;
 import org.rakam.ui.ScheduledTaskUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -144,8 +145,16 @@ public class ScheduledTaskHttpService
                     JSConfigManager jsConfigManager = new JSConfigManager(configManager, task.project, prefix);
                     JSCodeLoggerService.PersistentLogger logger = service.createLogger(task.project, prefix);
                     long now = System.currentTimeMillis();
-                    CompletableFuture<Void> run = run(jsCodeCompiler, executor, task.project, task.script, task.parameters,
-                            logger, jsConfigManager, eventDeserializer, eventStore, eventMappers);
+                    CompletableFuture<Void> run = null;
+                    try {
+                        run = run(jsCodeCompiler, executor, task.project, task.script, task.parameters,
+                                logger, jsConfigManager, eventDeserializer, eventStore, eventMappers);
+                    }
+                    catch (Exception e) {
+                        lock.release();
+                        throw e;
+                    }
+
                     run.whenComplete((result, ex) -> {
                         lock.release();
                         long gapInMillis = System.currentTimeMillis() - now;
@@ -237,41 +246,49 @@ public class ScheduledTaskHttpService
         if (lock == null) {
             return completedFuture(SuccessMessage.success("The task is already running"));
         }
-        Handle handle = dbi.open();
-        Map<String, Object> first = handle.createQuery("SELECT code, parameters FROM custom_scheduled_tasks WHERE project = :project AND id = :id FOR UPDATE")
-                .bind("project", project)
-                .bind("id", id).first();
 
-        String prefix = "scheduled-task." + id;
+        CompletableFuture<Void> future;
+        try {
+            Map<String, Object> first;
+            try (Handle handle = dbi.open()) {
+                first = handle.createQuery("SELECT code, parameters FROM custom_scheduled_tasks WHERE project = :project AND id = :id")
+                        .bind("project", project)
+                        .bind("id", id).first();
+            }
 
-        JSConfigManager jsConfigManager = new JSConfigManager(configManager, project, prefix);
+            String prefix = "scheduled-task." + id;
 
-        CompletableFuture<Void> future = run(jsCodeCompiler, executor, project,
-                first.get("code").toString(),
-                JsonHelper.read(first.get("parameters").toString(),
-                        new TypeReference<Map<String, Parameter>>() {}),
-                service.createLogger(project, prefix),
-                jsConfigManager, eventDeserializer, eventStore, eventMappers);
+            JSConfigManager jsConfigManager = new JSConfigManager(configManager, project, prefix);
+
+            future = run(jsCodeCompiler, executor, project,
+                    first.get("code").toString(),
+                    JsonHelper.read(first.get("parameters").toString(),
+                            new TypeReference<Map<String, Parameter>>() {}),
+                    service.createLogger(project, prefix),
+                    jsConfigManager, eventDeserializer, eventStore, eventMappers);
+        }
+        catch (Exception e) {
+            lock.release();
+            throw e;
+        }
 
         CompletableFuture<SuccessMessage> resultFuture = new CompletableFuture<>();
 
         future.whenComplete((events, ex) -> {
             if (ex == null) {
-                try {
-                    try {
-                        handle.createStatement(format("UPDATE custom_scheduled_tasks SET last_executed_at = %s WHERE project = :project AND id = :id", timestampToEpoch))
-                                .bind("project", project)
-                                .bind("id", id).execute();
-                    }
-                    catch (Exception e) {
-                        resultFuture.completeExceptionally(new RuntimeException("The task is executed but couldn't update the checkpoint", e));
-                    }
+                try (Handle handle = dbi.open()) {
+                    handle.createStatement(format("UPDATE custom_scheduled_tasks SET last_executed_at = %s WHERE project = :project AND id = :id", timestampToEpoch))
+                            .bind("project", project)
+                            .bind("id", id).execute();
                 }
-                finally {
-                    handle.close();
+                catch (Exception e) {
+                    resultFuture.completeExceptionally(new RuntimeException("The task is executed but couldn't update the checkpoint", e));
+                } finally {
+                    lock.release();
                 }
             }
             else {
+                lock.release();
                 resultFuture.completeExceptionally(ex);
             }
         });
