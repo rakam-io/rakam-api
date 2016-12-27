@@ -259,7 +259,7 @@ public class ScheduledTaskHttpService
             if (ex == null) {
                 try {
                     try {
-                        handle.createStatement(format("UPDATE custom_scheduled_tasks SET last_executed_at = %s(cast(now() as timestamp)) WHERE project = :project AND id = :id", timestampToEpoch))
+                        handle.createStatement(format("UPDATE custom_scheduled_tasks SET last_executed_at = %s WHERE project = :project AND id = :id", timestampToEpoch))
                                 .bind("project", project)
                                 .bind("id", id).execute();
                     }
