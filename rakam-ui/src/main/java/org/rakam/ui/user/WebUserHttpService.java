@@ -243,7 +243,7 @@ public class WebUserHttpService
     @ApiOperation(value = "Revoke User Access", authorizations = @Authorization(value = "master_key"))
     @Path("/revoke-user-access")
     @ProtectEndpoint(writeOperation = true)
-    public List<Long> revokeUserAccess(@Named("user_id") Project project,
+    public List<String> revokeUserAccess(@Named("user_id") Project project,
             @ApiParam("email") String email)
     {
         return service.revokeUserAccess(project.userId, project.project, email);

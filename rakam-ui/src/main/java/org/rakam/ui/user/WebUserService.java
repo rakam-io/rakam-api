@@ -345,22 +345,29 @@ public class WebUserService
         }
     }
 
-    public List<Long> revokeUserAccess(int userId, int project, String email)
+    public List<String> revokeUserAccess(int userId, int project, String email)
     {
         if (!getUser(userId).get().projects.stream().anyMatch(a -> a.id == project)) {
             throw new RakamException(FORBIDDEN);
         }
 
         try (Handle handle = dbi.open()) {
-            List<Long> list = handle.createQuery("SELECT id FROM web_user_api_key WHERE project_id = :project AND user_id = (SELECT id FROM web_user WHERE email = :email)")
+            List<Map<String, Object>> list = handle.createQuery("SELECT api_key.id, api_key.master_key FROM web_user_api_key_permission permission " +
+                    "JOIN web_user_api_key api_key ON (api_key.id = permission.api_key_id) " +
+                    "WHERE project_id = :project AND permission.user_id = " +
+                    "(SELECT id FROM web_user WHERE email = :email)")
                     .bind("project", project)
-                    .bind("email", email).map(LongMapper.FIRST).list();
+                    .bind("email", email).list();
+
+            if(list.isEmpty()) {
+                throw new RakamException(NOT_FOUND);
+            }
 
             handle.createStatement("DELETE FROM web_user_api_key_permission WHERE api_key_id in (" +
-                    list.stream().map(a -> a.toString()).collect(Collectors.joining(", ")) + ")")
+                    list.stream().map(a -> a.get("id").toString()).collect(Collectors.joining(", ")) + ")")
                     .execute();
 
-            return list;
+            return list.stream().map(e -> e.get("master_key").toString()).collect(Collectors.toList());
         }
     }
 
