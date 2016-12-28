@@ -24,6 +24,7 @@ import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.inject.Inject;
+import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
@@ -127,8 +128,11 @@ public class ClusterService
         catch (FileNotFoundException e) {
             throw new RakamException("The server returned an invalid response, maybe not Rakam API?", BAD_REQUEST);
         }
+        catch (SSLHandshakeException e) {
+            throw new RakamException("Unable to connect the remote server via SSL, maybe invalid certificate?", BAD_REQUEST);
+        }
         catch (IOException e) {
-            throw Throwables.propagate(e);
+            throw new RakamException("Unable to connect remote server", BAD_REQUEST);
         }
 
         try (Handle handle = dbi.open()) {
