@@ -318,8 +318,8 @@ public abstract class AbstractEventExplorer
                                     "   SELECT *, row_number() OVER (ORDER BY %s DESC) AS group_rank\n" +
                                     "   FROM (%s) as data GROUP BY 1, 2) as data GROUP BY 1 ORDER BY 2 DESC",
                             checkTableColumn(columnValue + "_" + suffix),
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                            format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
+                            format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                             computeQuery);
                 }
                 else {

@@ -55,7 +55,7 @@ public class EventListenerMapper
                     }
                 }
 
-                holderItem.messageQueue.add(event);
+                holderItem.messageQueue.offer(event);
                 break;
             }
         }

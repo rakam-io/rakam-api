@@ -97,7 +97,12 @@ public class ClusterService
             unreachable = con.getResponseCode() == 0;
 
             if (!unreachable) {
-                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                BufferedReader in;
+                if(con.getResponseCode() == 200) {
+                    in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                } else {
+                    in = new BufferedReader(new InputStreamReader(con.getErrorStream()));
+                }
                 String inputLine;
                 StringBuffer response = new StringBuffer();
 
@@ -115,7 +120,7 @@ public class ClusterService
                 }
 
                 if (!read) {
-                    throw new RakamException("Lock key is invalid.", FORBIDDEN);
+                    throw new RakamException("Lock key is invalid.", UNAUTHORIZED);
                 }
             }
         }
@@ -142,10 +147,10 @@ public class ClusterService
                         .bind("apiUrl", cluster.apiUrl)
                         .bind("lockKey", cluster.lockKey).execute();
             }
-            catch (Exception e) {
-                if (handle.createQuery("SELECT 1 FROM rakam_cluster WHERE (user_id, api_url, lock_key) = (:userId, :apiUrl, :lockKey)")
+            catch (Throwable e) {
+                if (handle.createQuery("SELECT 1 FROM rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
                         .bind("apiUrl", cluster.apiUrl)
-                        .bind("lockKey", cluster.lockKey).bind("userId", userId).first() != null) {
+                        .bind("userId", userId).first() != null) {
                     throw new AlreadyExistsException("Cluster", BAD_REQUEST);
                 }
 
@@ -194,7 +199,7 @@ public class ClusterService
         public final String lockKey;
 
         @JsonCreator
-        public Cluster(@ApiParam("api_url") String apiUrl, @ApiParam("lock_key") String lockKey)
+        public Cluster(@ApiParam("api_url") String apiUrl, @ApiParam(value = "lock_key", required = false) String lockKey)
         {
             this.apiUrl = apiUrl;
             this.lockKey = lockKey;

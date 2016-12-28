@@ -17,6 +17,7 @@ import org.rakam.collection.SchemaField;
 import org.rakam.util.NotExistsException;
 import org.rakam.util.ProjectCollection;
 import org.rakam.util.RakamException;
+import org.rakam.util.ValidationUtil;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -97,7 +98,7 @@ public class PostgresqlMetastore
                     ImmutableSet.Builder<String> builder = ImmutableSet.builder();
                     while (resultSet.next()) {
                         String tableName = resultSet.getString(1);
-                        if(tableName.startsWith("_")) {
+                        if (tableName.startsWith("_")) {
                             continue;
                         }
                         builder.add(tableName);
@@ -135,14 +136,12 @@ public class PostgresqlMetastore
     @Override
     public void createProject(String project)
     {
-        checkProject(project);
-
         if (project.equals("information_schema")) {
             throw new IllegalArgumentException("information_schema is a reserved name for Postgresql backend.");
         }
         try (Connection connection = connectionPool.getConnection()) {
             final Statement statement = connection.createStatement();
-            statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + project);
+            statement.executeUpdate(String.format("CREATE SCHEMA IF NOT EXISTS \"%s\"", ValidationUtil.checkProject(project)));
             statement.executeUpdate(format("CREATE OR REPLACE FUNCTION %s.to_unixtime(timestamp) RETURNS double precision AS 'select extract(epoch from $1)' LANGUAGE SQL IMMUTABLE RETURNS NULL ON NULL INPUT", project));
         }
         catch (SQLException e) {
@@ -395,6 +394,4 @@ public class PostgresqlMetastore
                 throw new IllegalStateException("sql type couldn't converted to fieldtype");
         }
     }
-
-
 }
