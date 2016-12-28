@@ -26,6 +26,10 @@ var fetch = function (parameters, url, events, startDate, endDate) {
         startDate = startDate.toJSON().slice(0, 10);
     }
 
+    if(!(new Date(endDate) > new Date(startDate))) {
+        return;
+    }
+
     if (url == null) {
         url = "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&limit=250&method=get&time_range={\"since\":\"" + startDate + "\",\"until\":\"" + endDate + "\"}";
     }

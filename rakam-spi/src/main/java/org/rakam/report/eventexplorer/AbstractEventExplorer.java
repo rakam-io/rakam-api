@@ -288,8 +288,8 @@ public abstract class AbstractEventExplorer
                                     "   FROM (%s) as data GROUP BY 1, 2, 3) as data GROUP BY 1, 2 ORDER BY 3 DESC",
                             checkTableColumn(getColumnReference(grouping) + "_group"),
                             checkTableColumn(getColumnReference(segment) + "_segment"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
-                            format(convertSqlFunction(intermediateAggregation.get()), "value"),
+                            format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
+                            format(convertSqlFunction(intermediateAggregation.get(), measure.aggregation), "value"),
                             checkCollection(format(getColumnReference(grouping), "value") + "_group"),
                             computeQuery);
                 }
@@ -461,4 +461,8 @@ public abstract class AbstractEventExplorer
     }
 
     public abstract String convertSqlFunction(AggregationType aggType);
+
+    public String convertSqlFunction(AggregationType intermediate, AggregationType main) {
+        return convertSqlFunction(intermediate);
+    }
 }

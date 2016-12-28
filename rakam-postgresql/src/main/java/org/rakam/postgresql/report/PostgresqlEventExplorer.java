@@ -125,4 +125,15 @@ public class PostgresqlEventExplorer
                 throw new IllegalArgumentException("aggregation type is not supported");
         }
     }
+
+    @Override
+    public String convertSqlFunction(AggregationType intermediate, AggregationType main)
+    {
+        String column = convertSqlFunction(intermediate);
+        if (intermediate == AggregationType.SUM && main == AggregationType.COUNT) {
+            return String.format("cast(%s as bigint)", column);
+        }
+
+        return column;
+    }
 }
