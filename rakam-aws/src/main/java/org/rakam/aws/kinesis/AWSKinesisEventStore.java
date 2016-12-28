@@ -137,12 +137,6 @@ public class AWSKinesisEventStore
     }
 
     @Override
-    public QueryExecution commit(String project, String collection)
-    {
-        return QueryExecution.completedQueryExecution(null, QueryResult.empty());
-    }
-
-    @Override
     public CompletableFuture<int[]> storeBatchAsync(List<Event> events)
     {
         return storeBatchInline(events);

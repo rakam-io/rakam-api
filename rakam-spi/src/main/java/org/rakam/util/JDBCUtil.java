@@ -93,7 +93,6 @@ public class JDBCUtil
             case Types.LONGVARBINARY:
                 return FieldType.BINARY;
             case Types.BIGINT:
-            case Types.NUMERIC:
             case Types.REAL:
                 return FieldType.LONG;
             case Types.TINYINT:
@@ -115,6 +114,7 @@ public class JDBCUtil
                 return FieldType.TIME;
             case Types.DOUBLE:
             case Types.FLOAT:
+            case Types.NUMERIC:
                 return FieldType.DOUBLE;
             case Types.LONGVARCHAR:
             case Types.NVARCHAR:

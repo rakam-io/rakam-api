@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.rakam.collection.Event;
 import org.rakam.report.QueryExecution;
+import org.rakam.report.QueryResult;
 import org.rakam.report.realtime.AggregationType;
 
 import java.net.URL;
@@ -41,7 +42,7 @@ public interface EventStore
 
     default QueryExecution commit(String project, String collection)
     {
-        throw new UnsupportedOperationException();
+        return QueryExecution.completedQueryExecution(null, QueryResult.empty());
     }
 
     enum CopyType
