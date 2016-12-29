@@ -63,7 +63,6 @@ import static io.netty.handler.codec.http.cookie.ServerCookieEncoder.STRICT;
 public class WebUserHttpService
         extends HttpService
 {
-
     private final WebUserService service;
     private final EncryptionConfig encryptionConfig;
     private final RakamUIConfig config;

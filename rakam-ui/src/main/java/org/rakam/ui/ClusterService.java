@@ -2,10 +2,12 @@ package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Throwables;
+import com.google.common.io.ByteStreams;
 import com.google.inject.name.Named;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
@@ -26,6 +28,7 @@ import org.skife.jdbi.v2.util.StringMapper;
 import javax.inject.Inject;
 import javax.net.ssl.SSLHandshakeException;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
 import java.io.BufferedReader;
@@ -67,6 +70,12 @@ public class ClusterService
         this.encryptionConfig = encryptionConfig;
     }
 
+    @Path("/test")
+    @POST
+    public void test(RakamHttpRequest request) {
+        request.end();
+    }
+
     @JsonRequest
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
@@ -85,6 +94,8 @@ public class ClusterService
             HttpURLConnection con = (HttpURLConnection) new URL(cluster.apiUrl + "/admin/lock_key")
                     .openConnection();
             con.setRequestMethod("POST");
+            con.setConnectTimeout(3000);
+            con.setReadTimeout(3000);
 
             con.setDoOutput(true);
             DataOutputStream wr = new DataOutputStream(con.getOutputStream());
@@ -124,20 +135,8 @@ public class ClusterService
                 }
             }
         }
-        catch (MalformedURLException e) {
-            throw new RakamException("The url is not valid: " + e.getMessage(), BAD_REQUEST);
-        }
-        catch (SocketException e) {
-            unreachable = true;
-        }
-        catch (FileNotFoundException e) {
-            throw new RakamException("The server returned an invalid response, maybe not Rakam API?", BAD_REQUEST);
-        }
-        catch (SSLHandshakeException e) {
-            throw new RakamException("Unable to connect the remote server via SSL, maybe invalid certificate?", BAD_REQUEST);
-        }
         catch (IOException e) {
-            throw new RakamException("Unable to connect remote server", BAD_REQUEST);
+            unreachable = true;
         }
 
         try (Handle handle = dbi.open()) {

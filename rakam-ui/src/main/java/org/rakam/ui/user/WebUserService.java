@@ -34,8 +34,10 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
+import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
+import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
@@ -54,6 +56,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.zone.ZoneRulesException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -359,7 +362,7 @@ public class WebUserService
                     .bind("project", project)
                     .bind("email", email).list();
 
-            if(list.isEmpty()) {
+            if (list.isEmpty()) {
                 throw new RakamException(NOT_FOUND);
             }
 
@@ -587,6 +590,15 @@ public class WebUserService
         }
     }
 
+    public void sendNewUserMail(String project, String email)
+    {
+        sendMail(userAccessNewMemberTitleCompiler, userAccessNewMemberTxtCompiler, userAccessNewMemberHtmlCompiler, email, ImmutableMap.of(
+                "product_name", "Rakam",
+                "project", project,
+                "action_url", format("%s/perform-recover-password?%s",
+                        mailConfig.getSiteUrl(), getRecoverUrl(email, 24))));
+    }
+
     public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression, boolean readPermission, boolean writePermission, boolean masterPermisson)
     {
         Optional<WebUser.Project> projectStream = getUser(userId).get().projects.stream().filter(a -> a.id == projectId).findAny();
@@ -600,20 +612,24 @@ public class WebUserService
                 newUserId = handle.createStatement("INSERT INTO web_user (email, created_at) VALUES (:email, now())")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
 
-                sendMail(userAccessNewMemberTitleCompiler, userAccessNewMemberTxtCompiler, userAccessNewMemberHtmlCompiler, email, ImmutableMap.of(
-                        "product_name", "Rakam",
-                        "project", projectStream.get().name,
-                        "action_url", format("%s/perform-recover-password?%s",
-                                mailConfig.getSiteUrl(), getRecoverUrl(email, 24))));
+                sendNewUserMail(projectStream.get().name, email);
             }
             catch (Exception e) {
-                newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
-                        .map(IntegerMapper.FIRST).first();
+                Map.Entry<Integer, Boolean> element = handle.createQuery("SELECT id, password is null FROM web_user WHERE email = :email").bind("email", email)
+                        .map((ResultSetMapper<Map.Entry<Integer, Boolean>>) (index, r, ctx) -> new AbstractMap.SimpleImmutableEntry<>(r.getInt(1), r.getBoolean(2))).first();
+                newUserId = element.getKey();
 
-                sendMail(userAccessTitleCompiler, userAccessTxtCompiler, userAccessHtmlCompiler, email, ImmutableMap.of(
-                        "product_name", "Rakam",
-                        "project", projectStream.get().name,
-                        "action_url", mailConfig.getSiteUrl()));
+                boolean passwordIsNull = element.getValue();
+
+                if (passwordIsNull) {
+                    sendNewUserMail(projectStream.get().name, email);
+                }
+                else {
+                    sendMail(userAccessTitleCompiler, userAccessTxtCompiler, userAccessHtmlCompiler, email, ImmutableMap.of(
+                            "product_name", "Rakam",
+                            "project", projectStream.get().name,
+                            "action_url", mailConfig.getSiteUrl()));
+                }
             }
         }
 

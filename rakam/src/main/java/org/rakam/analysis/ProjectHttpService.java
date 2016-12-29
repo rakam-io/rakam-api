@@ -9,6 +9,7 @@ import org.rakam.config.ProjectConfig;
 import org.rakam.plugin.ContinuousQuery;
 import org.rakam.plugin.MaterializedView;
 import org.rakam.server.http.HttpService;
+import org.rakam.server.http.RakamHttpRequest;
 import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiOperation;
 import org.rakam.server.http.annotations.ApiParam;
