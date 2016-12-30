@@ -32,7 +32,7 @@ import static com.google.common.io.ByteStreams.toByteArray;
 import static java.lang.String.format;
 import static org.rakam.plugin.tasks.ScheduledTaskHttpService.run;
 
-public class TestFacebookScheduledTask
+public class TestScheduledTask
 {
 
     @Test(enabled = false)
