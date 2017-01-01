@@ -1,0 +1,21 @@
+{
+  "name": "Google Webmaster",
+  "description": "Collects data from Google Webmaster",
+  "defaultDuration": "PT24H",
+  "external": {
+     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/webmasters.readonly",
+     "name": "Login with Google"
+  },
+  "parameters": {
+    "collection": {
+      "type": "string",
+      "placeholder": "google_webmaster",
+      "description": "The collection name for result data"
+    },
+    "website_url": {
+      "type": "string",
+      "placeholder": "https://rakam.io",
+      "description": "The website verified for your Google Webmaster"
+    }
+  }
+}

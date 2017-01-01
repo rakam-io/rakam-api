@@ -109,6 +109,12 @@ public class RAsyncHttpClient
             return this;
         }
 
+        public NashornHttpRequest query(String key, String value)
+        {
+            requestBuilder.addQueryParam(key, value);
+            return this;
+        }
+
         public NashornHttpRequest cookie(String key, String value, String domain, String path, boolean secure, boolean httpOnly)
         {
             requestBuilder.addCookie(Cookie.newValidCookie(key, value, true, domain, path, System.currentTimeMillis() + 1000, secure, httpOnly));

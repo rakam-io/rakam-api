@@ -53,9 +53,9 @@ public class JSCodeLoggerService
     @JsonRequest
     @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
     @Path("/test")
-    public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix", required = false) String prefix)
+    public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix)
     {
-        String sql = "SELECT level, error, timestamp FROM javascript_logs WHERE project = :project AND prefix = :prefix";
+        String sql = "SELECT type, error, created_at FROM javascript_logs WHERE project = :project AND prefix = :prefix";
         if (start != null) {
             sql += " AND created_at > :start";
         }
@@ -63,8 +63,13 @@ public class JSCodeLoggerService
             sql += " AND created_at < :end";
         }
 
+        sql += " ORDER BY created_at DESC";
+
         try (Handle handle = dbi.open()) {
             Query<Map<String, Object>> query = handle.createQuery(sql + " LIMIT 100");
+            query.bind("project", project);
+            query.bind("prefix", prefix);
+
             if (start != null) {
                 query.bind("start", Timestamp.from(start));
             }

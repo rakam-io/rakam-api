@@ -72,7 +72,8 @@ public class ClusterService
 
     @Path("/test")
     @POST
-    public void test(RakamHttpRequest request) {
+    public void test(RakamHttpRequest request)
+    {
         request.end();
     }
 
@@ -89,56 +90,6 @@ public class ClusterService
             throw new RakamException("User is not allowed to register clusters", UNAUTHORIZED);
         }
 
-//        boolean unreachable;
-//        try {
-//            HttpURLConnection con = (HttpURLConnection) new URL(cluster.apiUrl + "/admin/lock_key")
-//                    .openConnection();
-//            con.setRequestMethod("POST");
-//            con.setConnectTimeout(3000);
-//            con.setReadTimeout(3000);
-//
-//            con.setDoOutput(true);
-//            DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-//            HashMap<Object, Object> obj = new HashMap<>();
-//            obj.put("lock_key", cluster.lockKey);
-//            wr.write(JsonHelper.encodeAsBytes(obj));
-//            wr.flush();
-//            wr.close();
-//
-//            unreachable = con.getResponseCode() == 0;
-//
-//            if (!unreachable) {
-//                BufferedReader in;
-//                if(con.getResponseCode() == 200) {
-//                    in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-//                } else {
-//                    in = new BufferedReader(new InputStreamReader(con.getErrorStream()));
-//                }
-//                String inputLine;
-//                StringBuffer response = new StringBuffer();
-//
-//                while ((inputLine = in.readLine()) != null) {
-//                    response.append(inputLine);
-//                }
-//                in.close();
-//
-//                boolean read;
-//                try {
-//                    read = JsonHelper.read(response.toString(), Boolean.class);
-//                }
-//                catch (Exception e) {
-//                    throw new RakamException("The API returned invalid response. Not a Rakam API?", BAD_REQUEST);
-//                }
-//
-//                if (!read) {
-//                    throw new RakamException("Lock key is invalid.", UNAUTHORIZED);
-//                }
-//            }
-//        }
-//        catch (IOException e) {
-//            unreachable = true;
-//        }
-
         try (Handle handle = dbi.open()) {
             try {
                 handle.createStatement("INSERT INTO rakam_cluster (user_id, api_url, lock_key) VALUES (:userId, :apiUrl, :lockKey)")
@@ -147,19 +98,19 @@ public class ClusterService
                         .bind("lockKey", cluster.lockKey).execute();
             }
             catch (Throwable e) {
-                if (handle.createQuery("SELECT 1 FROM rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
+                int execute = handle.createStatement("UPDATE rakam_cluster SET lock_key = :lock_key WHERE user_id = :userId AND api_url = :apiUrl")
+                        .bind("userId", userId)
                         .bind("apiUrl", cluster.apiUrl)
-                        .bind("userId", userId).first() != null) {
-                    throw new AlreadyExistsException("Cluster", BAD_REQUEST);
+                        .bind("lockKey", cluster.lockKey).execute();
+
+                if (execute == 0) {
+                    throw new IllegalStateException();
                 }
 
-                throw e;
+                return SuccessMessage.success("Lock key is updated");
             }
 
-            return
-//                    !unreachable ?
-//                    SuccessMessage.success("The API is unreachable.") :
-                    SuccessMessage.success();
+            return SuccessMessage.success();
         }
     }
 

@@ -28,15 +28,5 @@
     "type": "boolean",
     "placeholder": "fO2FCuQSQASDZZP2AX89m0",
     "description": "The developer token of your approved app"
-  },
-  "client_secret": {
-    "type": "string",
-    "placeholder": "06tDAZwDAyG_jfSCKHbPH9PA",
-    "description": "The client secret of your app"
-  },
-  "client_id": {
-    "type": "boolean",
-    "placeholder": "501662626729-hsomia0k9di5cm0m40govgja5l3leef9.apps.googleusercontent.com",
-    "description": "The client id of your app"
   }
 }

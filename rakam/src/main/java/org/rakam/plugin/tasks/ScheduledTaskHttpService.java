@@ -28,7 +28,6 @@ import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.server.http.annotations.Authorization;
 import org.rakam.server.http.annotations.BodyParam;
 import org.rakam.server.http.annotations.JsonRequest;
-import org.rakam.ui.ScheduledTaskUIHttpService;
 import org.rakam.ui.ScheduledTaskUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
@@ -204,6 +203,14 @@ public class ScheduledTaskHttpService
         }
     }
 
+    @ApiOperation(value = "List tasks", authorizations = @Authorization(value = "master_key"))
+    @JsonRequest
+    @Path("/get_logs")
+    public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam("id") int id)
+    {
+        return service.getLogs(project, start, end, "scheduled-task." + id);
+    }
+
     @JsonRequest
     @ApiOperation(value = "Create task", authorizations = @Authorization(value = "master_key"))
     @Path("/create")
@@ -240,11 +247,11 @@ public class ScheduledTaskHttpService
     @JsonRequest
     @ApiOperation(value = "Trigger task", authorizations = @Authorization(value = "master_key"))
     @Path("/trigger")
-    public CompletableFuture<SuccessMessage> trigger(@Named("project") String project, @ApiParam("id") int id)
+    public SuccessMessage trigger(@Named("project") String project, @ApiParam("id") int id)
     {
         LockService.Lock lock = lockService.tryLock(String.valueOf(id));
         if (lock == null) {
-            return completedFuture(SuccessMessage.success("The task is already running"));
+            return SuccessMessage.success("The task is already running");
         }
 
         CompletableFuture<Void> future;
@@ -272,28 +279,22 @@ public class ScheduledTaskHttpService
             throw e;
         }
 
-        CompletableFuture<SuccessMessage> resultFuture = new CompletableFuture<>();
-
         future.whenComplete((events, ex) -> {
             if (ex == null) {
                 try (Handle handle = dbi.open()) {
                     handle.createStatement(format("UPDATE custom_scheduled_tasks SET last_executed_at = %s WHERE project = :project AND id = :id", timestampToEpoch))
                             .bind("project", project)
                             .bind("id", id).execute();
-                }
-                catch (Exception e) {
-                    resultFuture.completeExceptionally(new RuntimeException("The task is executed but couldn't update the checkpoint", e));
                 } finally {
                     lock.release();
                 }
             }
             else {
                 lock.release();
-                resultFuture.completeExceptionally(ex);
             }
         });
 
-        return resultFuture;
+        return SuccessMessage.success("The task is running");
     }
 
     @JsonRequest

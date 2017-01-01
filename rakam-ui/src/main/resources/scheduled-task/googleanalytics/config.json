@@ -1,0 +1,38 @@
+{
+  "name": "Google Analytics",
+  "description": "Collects data from Google Analytics",
+  "defaultDuration": "PT24H",
+  "external": {
+     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/analytics.readonly",
+     "name": "Login with Google"
+  },
+  "parameters": {
+    "collection": {
+      "type": "string",
+      "value": "google_analytics",
+      "placeholder": "google_analytics",
+      "description": "The collection name for result data"
+    },
+    "metrics": {
+      "type": "string",
+      "value": "ga:users,ga:sessions,ga:newUsers,ga:pageviews,ga:bounces,ga:organicSearches,ga:impressions,ga:adClicks,ga:adCost,ga:CPM",
+      "placeholder": "ga:users,ga:sessions",
+      "description": "The metrics of report. Please see https://developers.google.com/analytics/devguides/reporting/core/dimsmets#segments=true"
+    },
+    "dimensions": {
+      "type": "string",
+      "value": "ga:adwordsCustomerID,ga:adwordsCampaignID,ga:date",
+      "placeholder": "ga:date",
+      "description": "The dimensions of report. Please see https://developers.google.com/analytics/devguides/reporting/core/dimsmets#segments=true"
+    },
+    "dimension_filter": {
+      "type": "string",
+      "placeholder": "ga:browser EXACT [\"Chrome\"]",
+      "description": "The dimension filter of report, the format is [metric_name operator values]. Please see https://developers.google.com/analytics/devguides/reporting/core/dimsmets#segments=true"
+    },
+    "segment_id": {
+      "type": "string",
+      "description": "The segment of report. See https://developers.google.com/analytics/devguides/reporting/core/dimsmets#segments=true"
+    }
+  }
+}

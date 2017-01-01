@@ -1,6 +1,6 @@
 var parseCSV=function(r){for(var n,e,f,i=function(r,n,e){return e},o=r.split(""),t=0,l=o.length,s=[];l>t;){for(s.push(f=[]);l>t&&"\r"!==o[t]&&"\n"!==o[t];){if(n=e=t,'"'===o[t]){for(n=e=++t;l>t;){if('"'===o[t]){if('"'!==o[t+1])break;o[++t]=""}e=++t}for('"'===o[t]&&++t;l>t&&"\r"!==o[t]&&"\n"!==o[t]&&","!==o[t];)++t}else for(;l>t&&"\r"!==o[t]&&"\n"!==o[t]&&","!==o[t];)e=++t;f.push(i(s.length-1,f.length,o.slice(n,e).join(""))),","===o[t]&&++t}"\r"===o[t]&&++t,"\n"===o[t]&&++t}return s};
 
-var oauth_url = "https://kqr34ew3c6.execute-api.us-east-2.amazonaws.com/prod/rakamapp-integration-google-adwords";
+var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://adwords.google.com/api/adwords/reportdownload/v201609";
 
 var fetch = function (parameters, events, startDate, endDate) {
@@ -24,22 +24,19 @@ var fetch = function (parameters, events, startDate, endDate) {
         return;
     }
 
-    var response = http.post(oauth_url)
+    var response = http.get(oauth_url)
         .query('refresh_token', parameters.refresh_token)
         .send();
-    if (response.getStatusCode() == 0) {
-        throw new Error(response.getResponseBody());
-    }
-    var data = JSON.parse(response.getResponseBody());
 
     if (response.getStatusCode() != 200) {
-        logger.error(data.error + ' : ' + data.error_description);
-        return;
+        throw new Error(response.getResponseBody());
     }
 
+    var accessToken = response.getResponseBody();
+
     response = http.post(report_url)
-        .header('Authorization', data)
-        .header('clientCustomerId', parameters.account_id)
+        .header('Authorization', accessToken)
+        .header('clientCustomerId', parameters.customer_id)
         .header('developerToken', parameters.developer_token)
         .header('includeZeroImpressions', parameters.include_zero_impressions ? 'true' : null)
         .form('__fmt', 'CSV')
@@ -48,8 +45,7 @@ var fetch = function (parameters, events, startDate, endDate) {
         .send();
 
     if (response.getStatusCode() != 200) {
-        logger.error(response);
-        return;
+        throw new Error(response.getResponseBody());
     }
 
     var data = parseCSV(response.getResponseBody());

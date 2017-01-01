@@ -1,0 +1,26 @@
+{
+  "name": "Google Adwords",
+  "description": "Collects data from Google Adwords",
+  "defaultDuration": "PT24H",
+  "external": {
+     "url": "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google?type=https://www.googleapis.com/auth/adwords",
+     "name": "Login with Google"
+  },
+  "parameters": {
+    "collection": {
+      "type": "string",
+      "placeholder": "google_adwords",
+      "description": "The collection name for result data"
+    },
+    "include_zero_impressions": {
+      "type": "boolean",
+      "placeholder": true,
+      "description": "Include all dimensions including ones that doesn't have any value"
+    },
+    "query": {
+      "type": "boolean",
+      "value": "SELECT AccountCurrencyCode, AccountDescriptiveName, AccountTimeZoneId, AdGroupAdTrademarkDisapproved, AdGroupId, AdGroupName, PrimaryCompanyName, Quarter, ShortHeadline, Status, Trademarks, ValuePerAllConversion, ValuePerConversion, VideoQuartile100Rate, VideoQuartile25Rate, VideoQuartile50Rate, VideoQuartile75Rate, VideoViewRate, VideoViews, ViewThroughConversions FROM AD_PERFORMANCE_REPORT",
+      "description": "The AWQL query you want to execute. You can find the schema here: https://www.awql.me/adwords-awql-help/"
+    }
+  }
+}

@@ -66,7 +66,7 @@ public class TestScheduledTask
                 .setUsername("sa").setPassword(""));
 
         Map<String, ScheduledTaskUIHttpService.Parameter> parameters = JsonHelper.read(toByteArray(this.getClass().getResource("/scheduled-task/adwords/config.json").openStream()),
-                new TypeReference<Map<String, String>>() {}).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new ScheduledTaskUIHttpService.Parameter(FieldType.STRING, e.getValue(), null, null)));
+                new TypeReference<Map<String, String>>() {}).entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> new ScheduledTaskUIHttpService.Parameter(FieldType.STRING, e.getValue(), null, null, null)));
 
         InMemoryEventStore eventStore = new InMemoryEventStore();
 
