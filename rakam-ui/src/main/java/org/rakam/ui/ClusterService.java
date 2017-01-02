@@ -70,13 +70,6 @@ public class ClusterService
         this.encryptionConfig = encryptionConfig;
     }
 
-    @Path("/test")
-    @POST
-    public void test(RakamHttpRequest request)
-    {
-        request.end();
-    }
-
     @JsonRequest
     @ApiOperation(value = "Register cluster", authorizations = @Authorization(value = "read_key"))
     @Path("/register")
