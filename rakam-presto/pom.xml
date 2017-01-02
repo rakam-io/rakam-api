@@ -80,6 +80,11 @@
             <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>slice</artifactId>
+        </dependency>
+
         <!--<dependency>-->
         <!--<groupId>com.fasterxml.jackson.dataformat</groupId>-->
         <!--<artifactId>jackson-dataformat-smile</artifactId>-->

@@ -2,7 +2,6 @@ package com.facebook.presto.sql.planner;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.connector.ConnectorId;
-import com.facebook.presto.jdbc.internal.spi.type.BigintType;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.metadata.InsertTableHandle;
 import com.facebook.presto.metadata.Metadata;
@@ -38,8 +37,6 @@ import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.sql.analyzer.Analysis;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.planner.EffectivePredicateExtractor;
-import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.Query;
 import com.facebook.presto.sql.tree.Statement;
@@ -55,7 +52,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
-import static com.facebook.presto.spi.type.BigintType.*;
+import static com.facebook.presto.spi.type.BigintType.BIGINT;
 
 public class TestFuturistic
 {
