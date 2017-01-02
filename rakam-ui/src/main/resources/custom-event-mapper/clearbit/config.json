@@ -1,0 +1,16 @@
+{
+  "name": "Clearbit Enrichment",
+  "description": "Looks up user data from e-mail address and enrich event with user specific attributes",
+  "parameters": {
+    "email_field": {
+      "type": "string",
+      "placeholder": "_user",
+      "description": "Field that will be used for looking up enrichment data from Clearbit. If the value is an email address the mapper will function."
+    },
+    "api_key": {
+      "placeholder": "sk_5ea0bcd6a598047218854b0ff492099c",
+      "type": "string",
+      "description": "Clearbit API Key"
+    }
+  }
+}

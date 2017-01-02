@@ -117,7 +117,7 @@ public class WebHookHttpService
                 ScriptEngine engine;
                 try {
                     engine = getEngine(JsonHelper.encode(webHook.parameters));
-                    engine.eval(webHook.code);
+                    engine.eval(webHook.script);
                 }
                 catch (ScriptException e) {
                     throw new RakamException("Unable to compile JS code", INTERNAL_SERVER_ERROR);
@@ -251,7 +251,7 @@ public class WebHookHttpService
                 handle.createStatement("INSERT INTO webhook (project, identifier, code, active, parameters) VALUES (:project, :identifier, :code, true, :parameters)")
                         .bind("project", project)
                         .bind("identifier", hook.identifier)
-                        .bind("code", hook.code)
+                        .bind("code", hook.script)
                         .bind("image", hook.image)
                         .bind("parameters", JsonHelper.encode(hook.parameters))
                         .execute();
@@ -262,7 +262,7 @@ public class WebHookHttpService
                     handle.createStatement("UPDATE webhook SET code = :code WHERE project = :project AND identifier = :identifier")
                             .bind("project", project)
                             .bind("identifier", hook.identifier)
-                            .bind("code", hook.code)
+                            .bind("code", hook.script)
                             .bind("image", hook.image)
                             .bind("parameters", JsonHelper.encode(hook.parameters))
                             .execute();
@@ -337,14 +337,14 @@ public class WebHookHttpService
             RakamHttpRequest request,
             @HeaderParam(CONTENT_TYPE) String contentType,
             @Named("project") String project,
-            @ApiParam("code") String code,
+            @ApiParam("script") String script,
             @ApiParam(value = "parameters", required = false) Map<String, Object> params,
             @ApiParam(value = "body", required = false) Object body)
     {
         ScriptEngine engine;
         try {
             engine = getEngine(JsonHelper.encode(params));
-            engine.eval(code);
+            engine.eval(script);
         }
         catch (ScriptException e) {
             throw new RakamException("Unable to compile Javascript code: " + e.getMessage(), INTERNAL_SERVER_ERROR);
@@ -373,7 +373,7 @@ public class WebHookHttpService
                         finalBody,
                         request.headers());
                 if (scoped == null) {
-                    request.response(code, NO_CONTENT).end();
+                    request.response(script, NO_CONTENT).end();
                 }
                 return scoped;
             }
@@ -506,21 +506,21 @@ public class WebHookHttpService
     {
         public final String identifier;
         public final boolean active;
-        public final String code;
+        public final String script;
         public final String image;
         public final Map<String, String> parameters;
 
         @JsonCreator
         public WebHook(
                 @ApiParam("identifier") String identifier,
-                @ApiParam(value = "code") String code,
+                @ApiParam(value = "script") String script,
                 @ApiParam(value = "image", required = false) String image,
                 @ApiParam(value = "active", required = false) Boolean active,
                 @ApiParam(value = "parameters", required = false) Map<String, String> parameters)
         {
             this.identifier = identifier;
             this.active = !Boolean.FALSE.equals(active);
-            this.code = code;
+            this.script = script;
             this.image = image;
             this.parameters = Optional.ofNullable(parameters).orElse(ImmutableMap.of());
         }
