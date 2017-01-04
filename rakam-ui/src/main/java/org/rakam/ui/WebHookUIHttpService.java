@@ -39,6 +39,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
+import static org.rakam.ui.ScheduledTaskUIHttpService.getResourceFiles;
 
 @IgnoreApi
 @Path("/ui/webhook")
@@ -113,33 +114,6 @@ public class WebHookUIHttpService
         HttpHeaders.setContentLength(resp, script.length);
         resp.headers().set(CONTENT_TYPE, "image/png");
         request.response(resp).end();
-    }
-
-    private List<String> getResourceFiles(String path)
-            throws IOException
-    {
-        List<String> filenames = new ArrayList<>();
-
-        try (InputStream in = getResourceAsStream(path); BufferedReader br = new BufferedReader(new InputStreamReader(in))) {
-            String resource;
-
-            while ((resource = br.readLine()) != null) {
-                filenames.add(resource);
-            }
-        }
-
-        return filenames;
-    }
-
-    private InputStream getResourceAsStream(String resource)
-    {
-        final InputStream in = getContextClassLoader().getResourceAsStream(resource);
-        return in == null ? getClass().getResourceAsStream(resource) : in;
-    }
-
-    private ClassLoader getContextClassLoader()
-    {
-        return Thread.currentThread().getContextClassLoader();
     }
 
     public static class Parameter

@@ -19,14 +19,17 @@ import org.rakam.util.RakamException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -106,31 +109,31 @@ public class ScheduledTaskUIHttpService
         request.response(resp).end();
     }
 
-    private List<String> getResourceFiles(String path)
+    public static final List<String> getResourceFiles(String path)
             throws IOException
     {
-        List<String> filenames = new ArrayList<>();
+        try {
+            URI uri = ScheduledTaskUIHttpService.class.getResource("/" + path).toURI();
 
-        try (InputStream in = getResourceAsStream(path); BufferedReader br = new BufferedReader(new InputStreamReader(in))) {
-            String resource;
-
-            while ((resource = br.readLine()) != null) {
-                filenames.add(resource);
+            java.nio.file.Path myPath;
+            if (uri.getScheme().equals("jar")) {
+                try(FileSystem fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap())) {
+                    myPath = fileSystem.getPath("/" + path);
+                }
             }
+            else {
+                myPath = Paths.get(uri);
+            }
+            return Files.walk(myPath, 1).flatMap(next -> {
+                if(next.equals(myPath)) {
+                    return Stream.of();
+                }
+                return Stream.of(next.getFileName().toString());
+            }).collect(Collectors.toList());
         }
-
-        return filenames;
-    }
-
-    private InputStream getResourceAsStream(String resource)
-    {
-        final InputStream in = getContextClassLoader().getResourceAsStream(resource);
-        return in == null ? getClass().getResourceAsStream(resource) : in;
-    }
-
-    private ClassLoader getContextClassLoader()
-    {
-        return Thread.currentThread().getContextClassLoader();
+        catch (URISyntaxException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     public static class Parameter
@@ -199,12 +202,14 @@ public class ScheduledTaskUIHttpService
             this.parameters = parameters;
         }
 
-        public static class External {
+        public static class External
+        {
             public final URL url;
             public final String name;
 
             @JsonCreator
-            public External(@ApiParam("url") URL url, @ApiParam("name") String name) {
+            public External(@ApiParam("url") URL url, @ApiParam("name") String name)
+            {
                 this.url = url;
                 this.name = name;
             }

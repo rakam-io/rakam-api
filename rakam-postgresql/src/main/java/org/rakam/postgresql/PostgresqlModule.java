@@ -215,6 +215,9 @@ public class PostgresqlModule
             catch (Exception e) {
                 postgresql9_5 = false;
             }
+
+            // brin doesn't perform well enough for ad-hoc use case
+            postgresql9_5 = false;
         }
 
         @Subscribe
