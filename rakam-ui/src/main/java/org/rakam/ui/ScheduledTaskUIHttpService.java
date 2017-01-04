@@ -112,20 +112,21 @@ public class ScheduledTaskUIHttpService
     public static final List<String> getResourceFiles(String path)
             throws IOException
     {
+        FileSystem fileSystem = null;
+
         try {
             URI uri = ScheduledTaskUIHttpService.class.getResource("/" + path).toURI();
 
             java.nio.file.Path myPath;
             if (uri.getScheme().equals("jar")) {
-                try(FileSystem fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap())) {
-                    myPath = fileSystem.getPath("/" + path);
-                }
+                fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                myPath = fileSystem.getPath("/" + path);
             }
             else {
                 myPath = Paths.get(uri);
             }
             return Files.walk(myPath, 1).flatMap(next -> {
-                if(next.equals(myPath)) {
+                if (next.equals(myPath)) {
                     return Stream.of();
                 }
                 return Stream.of(next.getFileName().toString());
@@ -133,6 +134,10 @@ public class ScheduledTaskUIHttpService
         }
         catch (URISyntaxException e) {
             throw Throwables.propagate(e);
+        } finally {
+            if(fileSystem != null) {
+                fileSystem.close();
+            }
         }
     }
 
