@@ -19,7 +19,7 @@
     },
     "query": {
       "type": "boolean",
-      "value": "SELECT Date,AccountCurrencyCode,AccountTimeZoneId,AdGroupName,AdType,AllConversions,AverageCost,AverageCpc,AverageCpm,AveragePosition,CampaignName,Clicks,Conversions,Cost,CriterionType,Ctr,DisplayUrl,Engagements,Headline,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate FROM AD_PERFORMANCE_REPORT",
+      "value": "SELECT Date,AccountCurrencyCode,AccountTimeZoneId,AdGroupName,AdType,AllConversions,AverageCost,AverageCpm,AveragePosition,CampaignName,Clicks,Conversions,Cost,CriterionType,DisplayUrl,Engagements,Headline,Impressions,Interactions,PercentNewVisitors,VideoViews,VideoQuartile100Rate,VideoQuartile75Rate,VideoQuartile50Rate,VideoQuartile25Rate FROM AD_PERFORMANCE_REPORT",
       "description": "The AWQL query you want to execute. You can find the schema here: https://www.awql.me/adwords-awql-help/"
     }
   }

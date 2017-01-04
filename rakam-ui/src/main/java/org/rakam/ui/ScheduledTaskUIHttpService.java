@@ -1,6 +1,7 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
 import io.netty.buffer.Unpooled;
@@ -129,7 +130,7 @@ public class ScheduledTaskUIHttpService
                 if (next.equals(myPath)) {
                     return Stream.of();
                 }
-                return Stream.of(next.getFileName().toString());
+                return Stream.of(CharMatcher.is('/').trimFrom(next.getFileName().toString()));
             }).collect(Collectors.toList());
         }
         catch (URISyntaxException e) {
