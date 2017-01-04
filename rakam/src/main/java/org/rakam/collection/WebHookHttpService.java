@@ -20,7 +20,6 @@ import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
-import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import org.rakam.analysis.ApiKeyService;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.util.JSCodeCompiler;
@@ -50,7 +49,6 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.script.Invocable;
-import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -60,9 +58,11 @@ import javax.ws.rs.Path;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -95,15 +95,21 @@ public class WebHookHttpService
     private final ApiKeyService apiKeyService;
     private final EventStore eventStore;
     private final ObjectMapper jsonMapper;
+    private final JSCodeCompiler jsCodeCompiler;
+    private final JSCodeLoggerService loggerService;
 
     @Inject
     public WebHookHttpService(
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             JsonEventDeserializer deserializer,
             ApiKeyService apiKeyService,
+            JSCodeCompiler jsCodeCompiler,
+            JSCodeLoggerService loggerService,
             EventStore eventStore)
     {
         this.apiKeyService = apiKeyService;
+        this.jsCodeCompiler = jsCodeCompiler;
+        this.loggerService = loggerService;
         functions = CacheBuilder.newBuilder().softValues().build(new CacheLoader<WebHookIdentifier, Invocable>()
         {
 
@@ -111,19 +117,10 @@ public class WebHookHttpService
             public Invocable load(WebHookIdentifier key)
                     throws Exception
             {
-
                 WebHook webHook = get(key.project, key.identifier);
-
-                ScriptEngine engine;
-                try {
-                    engine = getEngine(JsonHelper.encode(webHook.parameters));
-                    engine.eval(webHook.script);
-                }
-                catch (ScriptException e) {
-                    throw new RakamException("Unable to compile JS code", INTERNAL_SERVER_ERROR);
-                }
-
-                return (Invocable) engine;
+                return jsCodeCompiler.createEngine(key.project,
+                        createCode(webHook.script, webHook.parameters),
+                        "webhook." + key.project + "." + key.identifier);
             }
         });
         this.dbi = new DBI(dataSource);
@@ -142,25 +139,6 @@ public class WebHookHttpService
         });
     }
 
-    private static ScriptEngine getEngine(String params)
-            throws ScriptException
-    {
-        ScriptEngine engine = new NashornScriptEngineFactory()
-                .getScriptEngine(new String[] {"-strict", "--no-syntax-extensions"},
-                        WebHookHttpService.class.getClassLoader(), new JSCodeCompiler.NashornEngineFilter());
-
-        engine.eval("" +
-                "quit = function() {};\n" +
-                "exit = function() {};\n" +
-                "loadWithNewGlobal = function() {};\n" +
-                "var scoped = function(queryParams, body, headers) { \n" +
-                "   return JSON.stringify(module(queryParams, JSON.parse(body), " + params + ", headers)); \n" +
-                "};\n" +
-                "");
-
-        return engine;
-    }
-
     @PostConstruct
     public void setup()
     {
@@ -176,6 +154,15 @@ public class WebHookHttpService
                     "  )")
                     .execute();
         }
+    }
+
+    private String createCode(String script, Map<String, Object> parameters)
+    {
+        return script + "\n" +
+                "var params = " + JsonHelper.encode(parameters) + ";\n" +
+                "var scoped = function(queryParams, body, headers) { \n" +
+                "   return JSON.stringify(module(queryParams, JSON.parse(body), params, headers)); \n" +
+                "};";
     }
 
     @POST
@@ -207,10 +194,11 @@ public class WebHookHttpService
 
     private void call(RakamHttpRequest request, String project, String identifier, Map<String, List<String>> queryParams, HttpHeaders headers, String data)
     {
-        Invocable function = functions.getUnchecked(new WebHookIdentifier(project, identifier));
+        WebHookIdentifier key = new WebHookIdentifier(project, identifier, UUID.randomUUID().toString());
+        Invocable function = functions.getUnchecked(key);
         handleFunction(
                 request,
-                project,
+                key,
                 () -> function.invokeFunction("scoped", queryParams, data, headers),
                 true);
     }
@@ -282,7 +270,7 @@ public class WebHookHttpService
             int execute = handle.createStatement("DELETE FROM webhook WHERE project = :project AND identifier = :identifier")
                     .bind("project", project)
                     .bind("identifier", identifier).execute();
-            if(execute == 0) {
+            if (execute == 0) {
                 throw new RakamException(NOT_FOUND);
             }
             return SuccessMessage.success();
@@ -330,6 +318,14 @@ public class WebHookHttpService
         }
     }
 
+    @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
+    @JsonRequest
+    @Path("/get_logs")
+    public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("identifier") String identifier, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
+    {
+        return loggerService.getLogs(project, start, end, "webhook." + project + "." + identifier);
+    }
+
     @ApiOperation(value = "Test a webhook", authorizations = @Authorization(value = "master_key"))
     @Path("/test")
     @JsonRequest
@@ -341,12 +337,13 @@ public class WebHookHttpService
             @ApiParam(value = "parameters", required = false) Map<String, Object> params,
             @ApiParam(value = "body", required = false) Object body)
     {
-        ScriptEngine engine;
+        JSCodeCompiler.TestLogger testLogger = new JSCodeCompiler.TestLogger();
+        JSCodeCompiler.MemoryConfigManager configManager = new JSCodeCompiler.MemoryConfigManager();
+        Invocable engine;
         try {
-            engine = getEngine(JsonHelper.encode(params));
-            engine.eval(script);
+            engine = jsCodeCompiler.createEngine(createCode(script, params), testLogger, null, configManager);
         }
-        catch (ScriptException e) {
+        catch (Exception e) {
             throw new RakamException("Unable to compile Javascript code: " + e.getMessage(), INTERNAL_SERVER_ERROR);
         }
 
@@ -368,7 +365,7 @@ public class WebHookHttpService
                     finalBody = "{}";
                 }
 
-                Object scoped = ((Invocable) engine).invokeFunction("scoped",
+                Object scoped = engine.invokeFunction("scoped",
                         request.params(),
                         finalBody,
                         request.headers());
@@ -415,7 +412,7 @@ public class WebHookHttpService
         });
     }
 
-    private void handleFunction(RakamHttpRequest request, String project, Callable<Object> callable, boolean store)
+    private void handleFunction(RakamHttpRequest request, WebHookIdentifier id, Callable<Object> callable, boolean store)
     {
         Future<Object> f = executor.submit(callable);
 
@@ -426,8 +423,19 @@ public class WebHookHttpService
             public void operationComplete(Future<Object> future)
                     throws Exception
             {
-                if (future.await(1, TimeUnit.SECONDS)) {
-                    Object body = future.getNow();
+                if (future.await(3, TimeUnit.SECONDS)) {
+                    Object body;
+                    try {
+                        body = future.get();
+                    }
+                    catch (Throwable e) {
+                        returnError(request, "Error executing callback code", INTERNAL_SERVER_ERROR);
+                        LOGGER.warn(e, "Error executing webhook callback");
+                        loggerService.createLogger(id.project, "webhook." + id.project + "." + id.identifier)
+                                .error(e.getMessage());
+                        return;
+                    }
+
                     boolean saved = false;
 
                     if (body == null || body.equals("null")) {
@@ -435,9 +443,9 @@ public class WebHookHttpService
                     }
                     else {
                         try {
-                            Event event = jsonMapper.reader(Event.class)
+                            Event event = jsonMapper.readerFor(Event.class)
                                     .with(ContextAttributes.getEmpty()
-                                            .withSharedAttribute("project", project))
+                                            .withSharedAttribute("project", id.project))
                                     .readValue(body.toString());
                             if (store && event != null) {
                                 saved = true;
@@ -491,14 +499,39 @@ public class WebHookHttpService
     {
         public final String project;
         public final String identifier;
+        private final String requestId;
 
-        @JsonCreator
-        public WebHookIdentifier(
-                @ApiParam("project") String project,
-                @ApiParam("identifier") String identifier)
+        public WebHookIdentifier(String project, String identifier, String requestId)
         {
             this.identifier = identifier;
             this.project = project;
+            this.requestId = requestId;
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            WebHookIdentifier that = (WebHookIdentifier) o;
+
+            if (!project.equals(that.project)) {
+                return false;
+            }
+            return identifier.equals(that.identifier);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            int result = project.hashCode();
+            result = 31 * result + identifier.hashCode();
+            return result;
         }
     }
 
@@ -508,7 +541,7 @@ public class WebHookHttpService
         public final boolean active;
         public final String script;
         public final String image;
-        public final Map<String, String> parameters;
+        public final Map<String, Object> parameters;
 
         @JsonCreator
         public WebHook(
@@ -516,7 +549,7 @@ public class WebHookHttpService
                 @ApiParam(value = "script") String script,
                 @ApiParam(value = "image", required = false) String image,
                 @ApiParam(value = "active", required = false) Boolean active,
-                @ApiParam(value = "parameters", required = false) Map<String, String> parameters)
+                @ApiParam(value = "parameters", required = false) Map<String, Object> parameters)
         {
             this.identifier = identifier;
             this.active = !Boolean.FALSE.equals(active);

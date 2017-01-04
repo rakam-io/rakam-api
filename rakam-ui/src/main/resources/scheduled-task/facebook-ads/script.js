@@ -65,8 +65,7 @@ var fetch = function (parameters, url, events, startDate, endDate) {
             }
             campaign[type] = object;
         });
-        campaign._time = campaign.date_start;
-        campaign._time = undefined;
+        campaign._time = campaign.date_start + "T00:00:00";
 
         campaign._user = campaign.account_id + "";
         campaign.account_id = undefined;

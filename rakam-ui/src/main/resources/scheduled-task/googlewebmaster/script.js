@@ -53,7 +53,7 @@ var fetch = function (parameters, events, startDate, endDate) {
     var data = JSON.parse(response.getResponseBody());
     var events = data.rows.map(function (row) {
         var properties = {
-            '_time': row.keys[0],
+            '_time': row.keys[0] + "T00:00:00",
             country: row.keys[1],
             device: row.keys[2],
             page: row.keys[3],

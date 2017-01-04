@@ -266,7 +266,7 @@ public class WebUserHttpService
         }
 
         service.giveAccessToUser(project.project, user.get().id, email, keys, scopeExpression,
-                readPermission, writePermission, masterPermission);
+                readPermission, writePermission, masterPermission, Optional.empty());
         return SuccessMessage.success();
     }
 

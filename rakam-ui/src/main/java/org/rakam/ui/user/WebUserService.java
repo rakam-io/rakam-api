@@ -6,9 +6,6 @@ import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
@@ -21,9 +18,9 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.rakam.analysis.ApiKeyService.AccessKeyType;
 import org.rakam.analysis.ApiKeyService.ProjectApiKeys;
 import org.rakam.analysis.JDBCPoolDataSource;
-import org.rakam.analysis.metadata.Metastore;
 import org.rakam.config.EncryptionConfig;
 import org.rakam.report.EmailClientConfig;
+import org.rakam.server.http.annotations.Api;
 import org.rakam.server.http.annotations.ApiParam;
 import org.rakam.ui.RakamUIConfig;
 import org.rakam.ui.UIEvents;
@@ -34,12 +31,10 @@ import org.rakam.util.RakamException;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.ResultIterator;
-import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.IntegerMapper;
-import org.skife.jdbi.v2.util.LongMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
 import javax.mail.MessagingException;
@@ -81,13 +76,11 @@ public class WebUserService
     private final static Logger LOGGER = Logger.get(WebUserService.class);
 
     private final DBI dbi;
-    private final Metastore metastore;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
             + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{8,}$");
     private final RakamUIConfig config;
     private final EncryptionConfig encryptionConfig;
-    private final LoadingCache<ApiKey, Project> apiKeyReverseCache;
     private final EventBus eventBus;
     private MailSender mailSender;
     private final EmailClientConfig mailConfig;
@@ -198,38 +191,16 @@ public class WebUserService
 
     @Inject
     public WebUserService(@Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource,
-            Metastore metastore,
             EventBus eventBus,
             RakamUIConfig config,
             EncryptionConfig encryptionConfig,
             EmailClientConfig mailConfig)
     {
         dbi = new DBI(dataSource);
-        this.metastore = metastore;
         this.eventBus = eventBus;
         this.config = config;
         this.encryptionConfig = encryptionConfig;
         this.mailConfig = mailConfig;
-        apiKeyReverseCache = CacheBuilder.newBuilder().build(new CacheLoader<ApiKey, Project>()
-        {
-            @Override
-            public Project load(ApiKey apiKey)
-                    throws Exception
-            {
-                try (Connection conn = dbi.open().getConnection()) {
-                    PreparedStatement ps = conn.prepareStatement(format("SELECT project, api_url FROM web_user_api_key WHERE %s = ?", apiKey.type.name()));
-                    ps.setString(1, apiKey.key);
-                    ResultSet resultSet = ps.executeQuery();
-                    if (!resultSet.next()) {
-                        throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
-                    }
-                    return new Project(resultSet.getString(1), resultSet.getString(2));
-                }
-                catch (SQLException e) {
-                    throw Throwables.propagate(e);
-                }
-            }
-        });
     }
 
     public WebUser createUser(String email, String password, String name, String gender, String locale, String googleId)
@@ -599,8 +570,33 @@ public class WebUserService
                         mailConfig.getSiteUrl(), getRecoverUrl(email, 24))));
     }
 
-    public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression, boolean readPermission, boolean writePermission, boolean masterPermisson)
+    public static final class Access {
+        public final List<TableAccess> tableAccessList;
+
+        @JsonCreator
+        public Access(@ApiParam("tableAccessList") List<TableAccess> tableAccessList) {
+            this.tableAccessList = tableAccessList;
+        }
+
+        public static class TableAccess {
+            public final String tableName;
+            public final String expression;
+
+            @JsonCreator
+            public TableAccess(@ApiParam("tableName") String tableName, @ApiParam("expression") String expression) {
+                this.tableName = tableName;
+                this.expression = expression;
+            }
+        }
+    }
+
+    public void giveAccessToUser(int projectId, int userId, String email, ProjectApiKeys keys, String scope_expression,
+            boolean readPermission, boolean writePermission, boolean masterPermission,
+            Optional<Access> access)
     {
+        if(masterPermission && access.isPresent()) {
+            throw new RakamException("Scoped keys cannot have access to master_key", BAD_REQUEST);
+        }
         Optional<WebUser.Project> projectStream = getUser(userId).get().projects.stream().filter(a -> a.id == projectId).findAny();
         if (!projectStream.isPresent()) {
             throw new RakamException(FORBIDDEN);
@@ -648,7 +644,7 @@ public class WebUserService
                     .bind("newUserId", finalNewUserId)
                     .bind("readPermission", readPermission)
                     .bind("writePermission", writePermission)
-                    .bind("masterPermission", masterPermisson)
+                    .bind("masterPermission", masterPermission)
                     .bind("project", projectId).execute();
 
             if (exists == 0) {
@@ -658,7 +654,7 @@ public class WebUserService
                         .bind("newUserId", finalNewUserId)
                         .bind("readPermission", readPermission)
                         .bind("writePermission", writePermission)
-                        .bind("masterPermission", masterPermisson)
+                        .bind("masterPermission", masterPermission)
                         .bind("scope", scope_expression).execute();
             }
 

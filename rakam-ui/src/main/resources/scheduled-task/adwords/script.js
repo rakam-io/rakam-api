@@ -65,7 +65,7 @@ var fetch = function (parameters, events, startDate, endDate) {
             properties[columns[c]] = value;
         }
         if (properties.date) {
-            properties._time = properties.date;
+            properties._time = properties.date + "T00:00:00";
             properties.date = undefined;
         }
         events.push({collection: parameters.collection, properties: properties});

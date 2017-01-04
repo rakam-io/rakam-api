@@ -86,7 +86,7 @@ public class CustomEventMapperUIHttpService
     @Path("/image/*")
     public void image(RakamHttpRequest request)
     {
-        String substring = request.path().substring(25);
+        String substring = request.path().substring("/ui/custom-event-mapper/image".length() + 1);
         if (!substring.matches("^[A-Za-z0-9-]+$")) {
             throw new RakamException(FORBIDDEN);
         }

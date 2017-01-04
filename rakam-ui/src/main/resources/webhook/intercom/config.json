@@ -3,18 +3,17 @@
   "description": "Collects data from Intercom",
   "parameters": {
     "collection_prefix": {
-      "type": "text",
+      "type": "string",
       "placeholder": "intercom",
-      "default": "intercom",
       "description": "The collection prefix of Intercom events, for example conversation events will be collected as intercom_conversation if the prefix is 'intercom'"
     },
     "app_id": {
-      "type": "text",
+      "type": "string",
       "placeholder": "pyjppnbq",
       "description": "Intercom app id"
     },
     "hub_secret": {
-      "type": "text",
+      "type": "string",
       "placeholder": "",
       "description": "Hub secret that you entered in Intercom"
     }

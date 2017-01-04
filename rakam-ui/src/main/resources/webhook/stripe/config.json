@@ -3,7 +3,7 @@
   "description": "Collects data from Stripe payments",
   "parameters": {
     "collection_prefix": {
-      "type": "text",
+      "type": "string",
       "placeholder": "stripe",
       "description": "The collection prefix of Stripe events, for example invoice events will be collected as stripe_invoice if the prefix is 'stripe'"
     }

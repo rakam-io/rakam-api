@@ -32,6 +32,7 @@ import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventList;
 import org.rakam.collection.FieldType;
+import org.rakam.collection.JSCodeLoggerService;
 import org.rakam.collection.SchemaField;
 import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.server.http.HttpService;
@@ -61,6 +62,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
 import java.net.InetAddress;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -73,7 +75,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
@@ -94,15 +95,18 @@ public class CustomEventMapperHttpService
     private final ThreadPoolExecutor executor;
     private final JSCodeCompiler jsCodeCompiler;
     private final Metastore metastore;
+    private final JSCodeLoggerService loggerService;
 
     @Inject
     public CustomEventMapperHttpService(
             @Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource,
             Metastore metastore,
-            JSCodeCompiler jsCodeCompiler)
+            JSCodeCompiler jsCodeCompiler,
+            JSCodeLoggerService loggerService)
     {
         this.dbi = new DBI(dataSource);
         this.jsCodeCompiler = jsCodeCompiler;
+        this.loggerService = loggerService;
         this.metastore = metastore;
         this.executor = new ThreadPoolExecutor(
                 0,
@@ -202,6 +206,14 @@ public class CustomEventMapperHttpService
                     .execute();
             return SuccessMessage.success();
         }
+    }
+
+    @ApiOperation(value = "Get logs", authorizations = @Authorization(value = "master_key"))
+    @JsonRequest
+    @Path("/get_logs")
+    public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam("id") int id, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end)
+    {
+        return loggerService.getLogs(project, start, end, "custom-event-mapper." + id);
     }
 
     public static class TestEventMapperResult

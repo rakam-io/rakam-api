@@ -91,7 +91,7 @@ var fetch = function (parameters, events, startDate, endDate) {
 
                 if (dimension == 'ga:date') {
                     dimension = '_time';
-                    value = value.substring(0, 4) + '-' + value.substring(4, 6) + '-' + value.substring(6, 8);
+                    value = value.substring(0, 4) + '-' + value.substring(4, 6) + '-' + value.substring(6, 8) + "T00:00:00";
                 }
                 if (value !== '(not set)') {
                     properties[dimension] = value;

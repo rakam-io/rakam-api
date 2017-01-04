@@ -55,7 +55,7 @@ public class JSCodeLoggerService
     @Path("/test")
     public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix)
     {
-        String sql = "SELECT type, error, created_at FROM javascript_logs WHERE project = :project AND prefix = :prefix";
+        String sql = "SELECT id, type, error, created_at FROM javascript_logs WHERE project = :project AND prefix = :prefix";
         if (start != null) {
             sql += " AND created_at > :start";
         }
@@ -78,19 +78,21 @@ public class JSCodeLoggerService
             }
 
             return query.map((index, r, ctx) -> {
-                return new LogEntry(Level.valueOf(r.getString(1)), r.getString(2), r.getTimestamp(3).toInstant());
+                return new LogEntry(r.getString(1), Level.valueOf(r.getString(2)), r.getString(3), r.getTimestamp(4).toInstant());
             }).list();
         }
     }
 
     public static class LogEntry
     {
+        public final String id;
         public final Level level;
         public final String message;
         public final Instant timestamp;
 
-        public LogEntry(Level level, String message, Instant timestamp)
+        public LogEntry(String id, Level level, String message, Instant timestamp)
         {
+            this.id = id;
             this.level = level;
             this.message = message;
             this.timestamp = timestamp;
@@ -100,6 +102,11 @@ public class JSCodeLoggerService
     public PersistentLogger createLogger(String project, String prefix)
     {
         return new PersistentLogger(project, prefix, UUID.randomUUID().toString());
+    }
+
+    public PersistentLogger createLogger(String project, String prefix, String identifier)
+    {
+        return new PersistentLogger(project, prefix, identifier);
     }
 
     public class PersistentLogger

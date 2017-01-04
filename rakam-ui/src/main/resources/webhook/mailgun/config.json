@@ -3,12 +3,12 @@
   "description": "Collects email event data (opens, clicks, unsubscribes, bounces etc.) from Mailgun",
   "parameters": {
     "collection": {
-      "type": "text",
+      "type": "string",
       "placeholder": "mailgun",
       "description": "The collection name of mailgun events"
     },
     "API key": {
-      "type": "text",
+      "type": "string",
       "placeholder": "key-37gdgks1b7gbszx9j1a43jffsc5yqlx0",
       "description": "The api-key of your Mailgun"
     }

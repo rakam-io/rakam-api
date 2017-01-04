@@ -1,0 +1,109 @@
+{
+  "created": 1326853478,
+  "livemode": false,
+  "id": "evt_00000000000000",
+  "type": "invoice.payment_succeeded",
+  "object": "event",
+  "request": null,
+  "pending_webhooks": 1,
+  "api_version": "2016-10-19",
+  "data": {
+    "object": {
+      "id": "in_00000000000000",
+      "object": "invoice",
+      "amount_due": 20000,
+      "application_fee": null,
+      "attempt_count": 1,
+      "attempted": true,
+      "charge": "_00000000000000",
+      "closed": true,
+      "currency": "usd",
+      "customer": "cus_00000000000000",
+      "date": 1483392117,
+      "description": null,
+      "discount": {
+        "object": "discount",
+        "coupon": {
+          "id": "scorp_00000000000000",
+          "object": "coupon",
+          "amount_off": null,
+          "created": 1475443231,
+          "currency": null,
+          "duration": "forever",
+          "duration_in_months": null,
+          "livemode": false,
+          "max_redemptions": 10,
+          "metadata": {
+          },
+          "percent_off": 50,
+          "redeem_by": null,
+          "times_redeemed": 1,
+          "valid": true
+        },
+        "customer": "cus_00000000000000",
+        "end": null,
+        "start": 1475443240,
+        "subscription": "sub_00000000000000"
+      },
+      "ending_balance": 0,
+      "forgiven": false,
+      "lines": {
+        "data": [
+          {
+            "id": "sub_9ItA0sPscw1MAM",
+            "object": "line_item",
+            "amount": 40000,
+            "currency": "usd",
+            "description": null,
+            "discountable": true,
+            "livemode": true,
+            "metadata": {
+            },
+            "period": {
+              "start": 1486070440,
+              "end": 1488489640
+            },
+            "plan": {
+              "id": "startup1",
+              "object": "plan",
+              "amount": 40000,
+              "created": 1475412954,
+              "currency": "usd",
+              "interval": "month",
+              "interval_count": 1,
+              "livemode": false,
+              "metadata": {
+              },
+              "name": "Startup",
+              "statement_descriptor": "Rakam.IO - Startup",
+              "trial_period_days": null
+            },
+            "proration": false,
+            "quantity": 1,
+            "subscription": null,
+            "type": "subscription"
+          }
+        ],
+        "total_count": 1,
+        "object": "list",
+        "url": "/v1/invoices/in_19XdFhJ2Wv1WpBbq6D8LDBjj/lines"
+      },
+      "livemode": false,
+      "metadata": {
+      },
+      "next_payment_attempt": null,
+      "paid": true,
+      "period_end": 1483392040,
+      "period_start": 1480713640,
+      "receipt_number": null,
+      "starting_balance": 0,
+      "statement_descriptor": null,
+      "subscription": "sub_00000000000000",
+      "subtotal": 40000,
+      "tax": null,
+      "tax_percent": null,
+      "total": 20000,
+      "webhooks_delivered_at": 1483392117
+    }
+  }
+}

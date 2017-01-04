@@ -64,8 +64,18 @@ public class WebHookUIHttpService
             try {
                 URL config = getClass().getResource("/webhook/" + e + "/config.json");
                 byte[] script = ByteStreams.toByteArray(getClass().getResource("/webhook/" + e + "/script.js").openStream());
+                String test = null;
+                try {
+                    test = new String(ByteStreams.toByteArray(getClass()
+                            .getResource("/webhook/" + e + "/test.txt").openStream()),
+                            StandardCharsets.UTF_8);
+                }
+                catch (Exception e1) {
+                    test = null;
+                }
                 resource = JsonHelper.read(ByteStreams.toByteArray(config.openStream()), UIWebHook.class);
                 resource.script = new String(script, StandardCharsets.UTF_8);
+                resource.testCode = test;
                 resource.image = "/ui/webhook/image/" + e;
             }
             catch (IOException ex) {
@@ -81,7 +91,7 @@ public class WebHookUIHttpService
     @Path("/image/*")
     public void image(RakamHttpRequest request)
     {
-        String substring = request.path().substring(25);
+        String substring = request.path().substring("/ui/webhook/image".length() + 1);
         if (!substring.matches("^[A-Za-z0-9-]+$")) {
             throw new RakamException(FORBIDDEN);
         }
@@ -157,17 +167,20 @@ public class WebHookUIHttpService
         public final String description;
         public String script;
         public final Map<String, Parameter> parameters;
+        public String testCode;
 
         @JsonCreator
         public UIWebHook(@ApiParam("name") String name,
-                @ApiParam("image") String image,
+                @ApiParam(value = "image", required = false) String image,
                 @ApiParam("description") String description,
-                @ApiParam("script") String script,
+                @ApiParam(value = "script", required = false) String script,
+                @ApiParam(value = "testCode", required = false) String testCode,
                 @ApiParam("parameters") Map<String, Parameter> parameters)
         {
             this.name = name;
             this.image = image;
             this.description = description;
+            this.testCode = testCode;
             this.script = script;
             this.parameters = parameters;
         }

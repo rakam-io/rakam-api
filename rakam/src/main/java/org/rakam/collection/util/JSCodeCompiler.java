@@ -10,8 +10,8 @@ import io.netty.handler.codec.http.HttpHeaders;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.api.scripting.ScriptUtils;
 import org.rakam.analysis.ConfigManager;
-import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.Event;
 import org.rakam.collection.EventCollectionHttpService;
 import org.rakam.collection.EventList;
@@ -25,7 +25,6 @@ import org.rakam.plugin.RAsyncHttpClient;
 import org.rakam.util.CryptUtil;
 import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
-import org.skife.jdbi.v2.DBI;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -54,10 +53,13 @@ public class JSCodeCompiler
     private final static Logger LOGGER = Logger.get(JSCodeCompiler.class);
     private final @Named("rakam-client") RAsyncHttpClient httpClient;
     private final ConfigManager configManager;
-    private final String[] args = {"-strict", "--no-syntax-extensions"};
     private final boolean loadAllowed;
     private final InetAddress localhost;
     private final JSCodeLoggerService loggerService;
+    private static final NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
+    private static final String[] args = {"-strict", "--no-syntax-extensions"};
+    private static final NashornEngineFilter classFilter = new NashornEngineFilter();
+    private static final ClassLoader classLoader = CustomEventMapperHttpService.class.getClassLoader();
 
     @Inject
     public JSCodeCompiler(
@@ -91,28 +93,24 @@ public class JSCodeCompiler
         private final EventStore eventStore;
         private final String project;
         private final JsonEventDeserializer jsonEventDeserializer;
-        private final ScriptObjectMirror jsonObject;
         private final List<EventMapper> eventMapperSet;
 
-        public JSEventStore(String project, ScriptObjectMirror jsonObject, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMapperSet)
+        public JSEventStore(String project, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMapperSet)
         {
             this.project = project;
             this.jsonEventDeserializer = jsonEventDeserializer;
             this.eventStore = eventStore;
-            this.jsonObject = jsonObject;
             this.eventMapperSet = eventMapperSet;
         }
 
-        public void store(Object json)
+        public void store(String jsonRaw)
                 throws IOException
         {
             if (jsonEventDeserializer == null) {
                 throw new RakamException("Event store is not supported.", BAD_REQUEST);
             }
-            String jsonRaw = jsonObject.callMember("stringify", json).toString();
 
-            JsonParser jp = JsonHelper.getMapper().getFactory()
-                    .createParser(jsonRaw);
+            JsonParser jp = JsonHelper.getMapper().getFactory().createParser(jsonRaw);
             JsonToken t = jp.nextToken();
 
             if (t != JsonToken.START_ARRAY) {
@@ -153,27 +151,22 @@ public class JSCodeCompiler
             throws ScriptException
     {
         return createEngine(
-                project,
                 code,
                 loggerService.createLogger(project, prefix),
-                null,
-                null,
                 null,
                 prefix == null ? new MemoryConfigManager() : new JSConfigManager(configManager, project, prefix));
     }
 
-    public Invocable createEngine(String project, String code, ILogger logger, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMappers, IJSConfigManager configManager)
+    public JSEventStore getEventStore(String project, JsonEventDeserializer jsonEventDeserializer, EventStore eventStore, List<EventMapper> eventMappers)
+    {
+        return new JSEventStore(project, jsonEventDeserializer, eventStore, eventMappers);
+    }
+
+    public Invocable createEngine(String code, ILogger logger, JSEventStore eventStore, IJSConfigManager configManager)
             throws ScriptException
     {
-        NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
-
-        ScriptEngine engine = factory
-                .getScriptEngine(args,
-                        CustomEventMapperHttpService.class.getClassLoader(), new NashornEngineFilter());
-
+        ScriptEngine engine = factory.getScriptEngine(args, classLoader, classFilter);
         Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
-        ScriptObjectMirror json = (ScriptObjectMirror) bindings.get("JSON");
-        JSEventStore value = new JSEventStore(project, json, jsonEventDeserializer, eventStore, eventMappers);
 
         bindings.remove("print");
         if (!loadAllowed) {
@@ -185,7 +178,8 @@ public class JSCodeCompiler
         bindings.remove("quit");
         bindings.put("logger", logger);
         bindings.put("config", configManager);
-        bindings.put("eventStore", value);
+        bindings.put("$$eventStore", eventStore);
+        engine.eval("var eventStore = {store: function(call) { $$eventStore.store(JSON.stringify(call)); }}");
         bindings.put("http", httpClient);
 
         engine.eval(code);
@@ -217,25 +211,25 @@ public class JSCodeCompiler
         @Override
         public void debug(String value)
         {
-            entries.add(new LogEntry(Level.DEBUG, value, Instant.now()));
+            entries.add(new LogEntry("", Level.DEBUG, value, Instant.now()));
         }
 
         @Override
         public void warn(String value)
         {
-            entries.add(new LogEntry(Level.WARN, value, Instant.now()));
+            entries.add(new LogEntry("", Level.WARN, value, Instant.now()));
         }
 
         @Override
         public void info(String value)
         {
-            entries.add(new LogEntry(Level.INFO, value, Instant.now()));
+            entries.add(new LogEntry("", Level.INFO, value, Instant.now()));
         }
 
         @Override
         public void error(String value)
         {
-            entries.add(new LogEntry(Level.ERROR, value, Instant.now()));
+            entries.add(new LogEntry("", Level.ERROR, value, Instant.now()));
         }
     }
 

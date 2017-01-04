@@ -169,7 +169,7 @@ public class ScheduledTaskHttpService
             catch (Exception e) {
                 LOGGER.error(e);
             }
-        }, 0, 1, MINUTES);
+        }, 0, 5, MINUTES);
     }
 
     @PostConstruct
@@ -371,8 +371,8 @@ public class ScheduledTaskHttpService
     {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                Invocable engine = jsCodeCompiler.createEngine(project, script,
-                        logger, deserializer, eventStore, eventMappers, configManager);
+                JSCodeCompiler.JSEventStore eventStore1 = jsCodeCompiler.getEventStore(project, deserializer, eventStore, eventMappers);
+                Invocable engine = jsCodeCompiler.createEngine(script, logger, eventStore1, configManager);
 
                 Map<String, Object> collect = Optional.ofNullable(parameters)
                         .map(v -> v.entrySet().stream()
