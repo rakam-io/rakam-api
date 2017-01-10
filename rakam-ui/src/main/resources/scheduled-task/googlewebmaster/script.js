@@ -1,3 +1,5 @@
+//@ sourceURL=rakam-ui/src/main/resources/scheduled-task/googlewebmaster/script.js
+
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://content.googleapis.com/webmasters/v3/sites/%s/searchAnalytics/query?fields=rows&alt=json";
 var mainProperties = ["clicks", "impressions", "ctr", "position"];

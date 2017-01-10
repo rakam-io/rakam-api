@@ -28,12 +28,18 @@ public class PostgresqlLockService
     }
 
     @Override
-    public Lock tryLock(String name)
+    public synchronized Lock tryLock(String name)
     {
         if (!locks.add(name)) {
             return null;
         }
-        return tryLock(name, 4);
+        try {
+            return tryLock(name, 4);
+        }
+        catch (Exception e) {
+            locks.remove(name);
+            throw Throwables.propagate(e);
+        }
     }
 
     private Lock tryLock(String name, int tryCount)
@@ -51,6 +57,7 @@ public class PostgresqlLockService
                     .first();
 
             if (!Boolean.TRUE.equals(first)) {
+                locks.remove(name);
                 return null;
             }
 

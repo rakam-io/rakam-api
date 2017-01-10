@@ -1,3 +1,5 @@
+//@ sourceURL=rakam-ui/src/main/resources/scheduled-task/facebook-ads/script.js
+
 var nested_properties = [
     'cost_per_action_type', 'cost_per_10_sec_video_view', 'action_values', 'cost_per_unique_action_type',
     'unique_actions', 'actions', 'website_ctr', 'video_10_sec_watched_actions',

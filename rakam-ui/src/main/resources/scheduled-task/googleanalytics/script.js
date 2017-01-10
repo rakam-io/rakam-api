@@ -1,8 +1,10 @@
+//@ sourceURL=rakam-ui/src/main/resources/scheduled-task/googleanalytics/script.js
+
 var oauth_url = "https://d2p3wisckg.execute-api.us-east-2.amazonaws.com/prod/google";
 var report_url = "https://analyticsreporting.googleapis.com/v4/reports:batchGet";
 
-var fetch = function (parameters, events, startDate, endDate) {
-    logger.debug("Fetching between " + startDate + " and " + (endDate || 'now'));
+var fetch = function (parameters, events, startDate, endDate, nextToken) {
+    logger.debug("Fetching between " + startDate + " and " + (endDate || 'now') + (nextToken ? ('with token ' + nextToken) : ''));
     if (endDate == null) {
         endDate = new Date();
         endDate.setDate(endDate.getDate() - 1);
@@ -43,6 +45,7 @@ var fetch = function (parameters, events, startDate, endDate) {
             reportRequests: [
                 {
                     viewId: parameters.profile_id,
+                    pageToken: nextToken,
                     dateRanges: [{"startDate": startDate, "endDate": endDate}],
                     metrics: metrics.map(function (metric) { return {"expression": metric} }),
                     dimensions: dimensions.map(function (dim) { return {"name": dim} }),
@@ -69,7 +72,6 @@ var fetch = function (parameters, events, startDate, endDate) {
 
     var data = JSON.parse(response.getResponseBody());
 
-    var events = [];
     var metricMappers = data.reports[0].columnHeader
         .metricHeader.metricHeaderEntries.map(function (item) {
             if (item.type == 'INTEGER') {
@@ -82,16 +84,18 @@ var fetch = function (parameters, events, startDate, endDate) {
                 return function (a) { return a };
             }
         });
-    data.reports[0].data.rows.forEach(function (row) {
+    
+    var report = data.reports[0];
+    (report.data.rows || []).forEach(function (row) {
         row.metrics.forEach(function (metricValues) {
 
             var properties = {};
             dimensions.forEach(function (dimension, idx) {
                 var value = row.dimensions[idx];
 
-                if (dimension == 'ga:date') {
+                if (dimension == 'ga:dateHour') {
                     dimension = '_time';
-                    value = value.substring(0, 4) + '-' + value.substring(4, 6) + '-' + value.substring(6, 8) + "T00:00:00";
+                    value = value.substring(0, 4) + '-' + value.substring(4, 6) + '-' + value.substring(6, 8) + "T" + value.substring(8, 10) + ":00:00";
                 }
                 if (value !== '(not set)') {
                     properties[dimension] = value;
@@ -105,7 +109,11 @@ var fetch = function (parameters, events, startDate, endDate) {
 
             events.push({collection: parameters.collection, properties: properties});
         });
-    })
+    });
+
+    if (report.nextPageToken) {
+        return fetch(parameters, events, startDate, endDate, report.nextPageToken);
+    }
 
     eventStore.store(events);
     config.set('start_date', endDate);

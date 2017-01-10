@@ -105,7 +105,9 @@ public class RAsyncHttpClient
 
         public NashornHttpRequest header(String key, String value)
         {
-            requestBuilder.addHeader(key, value);
+            if(value != null) {
+                requestBuilder.addHeader(key, value);
+            }
             return this;
         }
 

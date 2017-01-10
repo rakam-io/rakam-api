@@ -15,13 +15,13 @@
     },
     "metrics": {
       "type": "string",
-      "value": "ga:users,ga:sessions,ga:newUsers,ga:pageviews,ga:bounces,ga:organicSearches,ga:impressions,ga:adClicks,ga:adCost,ga:CPM",
+      "value": "ga:users,ga:newUsers,ga:sessions,ga:pageviews,ga:avgTimeOnPage,ga:bounces,ga:goalValueAll,ga:goalCompletionsAll,ga:transactions,ga:transactionRevenue",
       "placeholder": "ga:users,ga:sessions",
-      "description": "The metrics of report. Please see https://developers.google.com/analytics/devguides/reporting/core/dimsmets#segments=true"
+      "description": "The metrics of report. Please see https://developers.google.com/analytics/devguides/reporting/core/dimsmets"
     },
     "dimensions": {
       "type": "string",
-      "value": "ga:adwordsCustomerID,ga:adwordsCampaignID,ga:date",
+      "value": "ga:dateHour,ga:country,ga:city,ga:hostname,ga:pagePath",
       "placeholder": "ga:date",
       "description": "The dimensions of report. Please see https://developers.google.com/analytics/devguides/reporting/core/dimsmets#segments=true"
     },

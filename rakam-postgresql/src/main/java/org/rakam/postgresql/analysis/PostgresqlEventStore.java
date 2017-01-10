@@ -189,7 +189,7 @@ public class PostgresqlEventStore
                     ps.setTime(i + 1, Time.valueOf(LocalTime.ofSecondOfDay(((Number) value).intValue())), UTC_CALENDAR);
                     break;
                 case DATE:
-                    ps.setDate(i + 1, Date.valueOf(LocalDate.ofEpochDay(((Number) value).intValue())), UTC_CALENDAR);
+                    ps.setDate(i + 1, Date.valueOf(LocalDate.ofEpochDay(((Number) value).intValue())));
                     break;
                 case BOOLEAN:
                     ps.setBoolean(i + 1, (Boolean) value);

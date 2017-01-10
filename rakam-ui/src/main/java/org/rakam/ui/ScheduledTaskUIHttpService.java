@@ -145,7 +145,7 @@ public class ScheduledTaskUIHttpService
     public static class Parameter
     {
         public final FieldType type;
-        public final Object value;
+        public Object value;
         public final String placeholder;
         public final String description;
         public final List<Choice> choices;

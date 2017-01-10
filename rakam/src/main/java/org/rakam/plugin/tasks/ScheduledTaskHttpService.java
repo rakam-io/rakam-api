@@ -57,6 +57,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -140,36 +141,29 @@ public class ScheduledTaskHttpService
                     if (lock == null) {
                         continue;
                     }
-                    String prefix = "scheduled-task." + task.id;
-                    JSConfigManager jsConfigManager = new JSConfigManager(configManager, task.project, prefix);
-                    JSCodeLoggerService.PersistentLogger logger = service.createLogger(task.project, prefix);
                     long now = System.currentTimeMillis();
-                    CompletableFuture<Void> run = null;
+                    CompletableFuture<Void> run;
+                    JSCodeLoggerService.PersistentLogger logger;
                     try {
+                        String prefix = "scheduled-task." + task.id;
+                        JSConfigManager jsConfigManager = new JSConfigManager(configManager, task.project, prefix);
+                        logger = service.createLogger(task.project, prefix);
+
                         run = run(jsCodeCompiler, executor, task.project, task.script, task.parameters,
                                 logger, jsConfigManager, eventDeserializer, eventStore, eventMappers);
                     }
-                    catch (Exception e) {
+                    catch (Throwable e) {
                         lock.release();
                         throw e;
                     }
 
-                    run.whenComplete((result, ex) -> {
-                        lock.release();
-                        long gapInMillis = System.currentTimeMillis() - now;
-                        if (ex != null) {
-                            logger.error(format("Failed to run the script in %d : %s", gapInMillis, ex.getMessage()));
-                        }
-                        else {
-                            logger.debug(format("Successfully run in %d milliseconds", gapInMillis));
-                        }
-                    });
+                    run.whenComplete((events, ex) -> updateTask(task.project, task.id, lock, logger, now, ex));
                 }
             }
             catch (Exception e) {
                 LOGGER.error(e);
             }
-        }, 0, 5, MINUTES);
+        }, 0, 1, MINUTES);
     }
 
     @PostConstruct
@@ -208,6 +202,18 @@ public class ScheduledTaskHttpService
     @Path("/get_logs")
     public List<JSCodeLoggerService.LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam("id") int id)
     {
+        LockService.Lock lock = null;
+        boolean running;
+        try {
+            lock = lockService.tryLock(String.valueOf(id));
+            running = lock == null;
+        }
+        finally {
+            if (lock != null) {
+                lock.release();
+            }
+        }
+
         return service.getLogs(project, start, end, "scheduled-task." + id);
     }
 
@@ -254,6 +260,8 @@ public class ScheduledTaskHttpService
             return SuccessMessage.success("The task is already running");
         }
 
+        String prefix = "scheduled-task." + id;
+        JSCodeLoggerService.PersistentLogger logger = service.createLogger(project, prefix);
         CompletableFuture<Void> future;
         try {
             Map<String, Object> first;
@@ -263,38 +271,48 @@ public class ScheduledTaskHttpService
                         .bind("id", id).first();
             }
 
-            String prefix = "scheduled-task." + id;
-
             JSConfigManager jsConfigManager = new JSConfigManager(configManager, project, prefix);
 
             future = run(jsCodeCompiler, executor, project,
                     first.get("code").toString(),
                     JsonHelper.read(first.get("parameters").toString(),
                             new TypeReference<Map<String, Parameter>>() {}),
-                    service.createLogger(project, prefix),
+                    logger,
                     jsConfigManager, eventDeserializer, eventStore, eventMappers);
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             lock.release();
             throw e;
         }
 
-        future.whenComplete((events, ex) -> {
-            if (ex == null) {
-                try (Handle handle = dbi.open()) {
-                    handle.createStatement(format("UPDATE custom_scheduled_tasks SET last_executed_at = %s WHERE project = :project AND id = :id", timestampToEpoch))
-                            .bind("project", project)
-                            .bind("id", id).execute();
-                } finally {
-                    lock.release();
-                }
-            }
-            else {
-                lock.release();
-            }
-        });
+        future.whenComplete((events, ex) -> updateTask(project, id, lock, logger, System.currentTimeMillis(), ex));
 
         return SuccessMessage.success("The task is running");
+    }
+
+    private void updateTask(String project, int id, LockService.Lock lock, JSCodeCompiler.ILogger logger, long now, Throwable ex)
+    {
+        if (ex == null) {
+            try (Handle handle = dbi.open()) {
+                handle.createStatement(format("UPDATE custom_scheduled_tasks SET last_executed_at = %s WHERE project = :project AND id = :id", timestampToEpoch))
+                        .bind("project", project)
+                        .bind("id", id).execute();
+            }
+            finally {
+                lock.release();
+            }
+        }
+        else {
+            lock.release();
+        }
+
+        long gapInMillis = System.currentTimeMillis() - now;
+        if (ex != null) {
+            logger.error(format("Failed to run the script in %d : %s", gapInMillis, ex.getMessage()));
+        }
+        else {
+            logger.debug(format("Successfully run in %d milliseconds", gapInMillis));
+        }
     }
 
     @JsonRequest
@@ -336,10 +354,28 @@ public class ScheduledTaskHttpService
         InMemoryEventStore eventStore = new InMemoryEventStore();
         metastore.createProject(project);
 
-        return run(jsCodeCompiler, executor,
+        CompletableFuture<Void> run = run(jsCodeCompiler, executor,
                 project, script, parameters,
                 logger, ijsConfigManager,
-                testingEventDeserializer, eventStore, ImmutableList.of()).thenApply(eventList -> {
+                testingEventDeserializer, eventStore, ImmutableList.of());
+
+        scheduler.schedule(() -> {
+            if (!run.isDone()) {
+                run.completeExceptionally(new TimeoutException());
+            }
+        }, 2, MINUTES);
+
+        CompletableFuture<Environment> resultFuture = new CompletableFuture<>();
+
+        run.whenComplete((eventList, ex) -> {
+            if (ex != null) {
+                logger.info(format("Got %d events: %s: %s",
+                        eventStore.getEvents().size(),
+                        eventStore.getEvents().get(0).collection(),
+                        eventStore.getEvents().get(0).properties()));
+                logger.error("Timeouts after 120 seconds (The test execution is limited to 120 seconds)");
+                return;
+            }
 
             if (eventStore.getEvents().isEmpty()) {
                 logger.info("No event is returned");
@@ -351,8 +387,10 @@ public class ScheduledTaskHttpService
                         eventStore.getEvents().get(0).properties()));
             }
 
-            return new Environment(logger.getEntries(), testingConfigManager.getTable().row(project));
+            resultFuture.complete(new Environment(logger.getEntries(), testingConfigManager.getTable().row(project)));
         });
+
+        return resultFuture;
     }
 
     public static class Environment
