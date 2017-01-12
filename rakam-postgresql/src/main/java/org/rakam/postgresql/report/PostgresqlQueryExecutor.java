@@ -29,6 +29,7 @@ import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
 import static org.rakam.util.ValidationUtil.checkTableColumn;
 
+// forbid crosstab, dblink
 public class PostgresqlQueryExecutor
         implements QueryExecutor
 {

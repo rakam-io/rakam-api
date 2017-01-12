@@ -33,7 +33,7 @@ var fetch = function (parameters, url, events, startDate, endDate) {
     }
 
     if (url == null) {
-        url = "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&limit=250&method=get&time_range={\"since\":\"" + startDate + "\",\"until\":\"" + endDate + "\"}";
+        url = "https://graph.facebook.com/v2.8/act_" + parameters.account_id + "/insights?level=ad&time_increment=1&access_token=" + parameters.access_token + "&fields=" + fields + "&format=json&limit=250&breakdowns=age,gender&time_range={\"since\":\"" + startDate + "\",\"until\":\"" + endDate + "\"}";
     }
     var response = http.get(url).send();
     if (response.getStatusCode() == 0) {

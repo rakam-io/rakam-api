@@ -91,9 +91,6 @@ public class EventListDeserializer
             if (eventsBuffer != null) {
                 throw new RakamException("multiple 'api' property", BAD_REQUEST);
             }
-            if (context == null) {
-                throw new IllegalStateException();
-            }
 
             return readEvents(jp, context, deserializationContext);
         }
@@ -118,6 +115,9 @@ public class EventListDeserializer
         boolean masterKey = false;
 
         if (apiKey == null || apiKey == WRITE_KEY) {
+            if(context == null) {
+                throw new RakamException("api parameter is required", BAD_REQUEST);
+            }
             try {
                 project = apiKeyService.getProjectOfApiKey(context.apiKey,
                         apiKey == null ? WRITE_KEY : (ApiKeyService.AccessKeyType) apiKey);

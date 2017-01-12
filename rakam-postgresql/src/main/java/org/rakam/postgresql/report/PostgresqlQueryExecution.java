@@ -155,6 +155,7 @@ public class PostgresqlQueryExecution
                     type = fromSql(metaData.getColumnType(i), metaData.getColumnTypeName(i));
                 }
                 catch (UnsupportedOperationException e) {
+                    LOGGER.warn(e.getMessage());
                     columns.add(null);
                     continue;
                 }

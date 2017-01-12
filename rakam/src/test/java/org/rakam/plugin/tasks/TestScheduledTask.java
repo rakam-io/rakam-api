@@ -64,12 +64,15 @@ public class TestScheduledTask
         JDBCPoolDataSource sa = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase)
                 .setUsername("sa").setPassword(""));
 
-        ScheduledTaskUIHttpService.ScheduledTask task = JsonHelper.read(toByteArray(this.getClass().getResource("/scheduled-task/adwords/config.json").openStream()), ScheduledTaskUIHttpService.ScheduledTask.class);
+        ScheduledTaskUIHttpService.ScheduledTask task = JsonHelper.read(toByteArray(this.getClass().getResource("/scheduled-task/facebook-ads/config.json").openStream()), ScheduledTaskUIHttpService.ScheduledTask.class);
 
         task.parameters.get("collection").value = "test";
-        task.parameters.computeIfAbsent("developer_token", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
-        task.parameters.computeIfAbsent("customer_id", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
-        task.parameters.computeIfAbsent("refresh_token", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
+//        task.parameters.computeIfAbsent("developer_token", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
+//        task.parameters.computeIfAbsent("customer_id", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
+//        task.parameters.computeIfAbsent("refresh_token", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
+
+        task.parameters.computeIfAbsent("account_id", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
+        task.parameters.computeIfAbsent("access_token", (k) -> new Parameter(STRING, null, null, null, null)).value = "";
 
         InMemoryEventStore eventStore = new InMemoryEventStore();
 
@@ -79,7 +82,7 @@ public class TestScheduledTask
                 true);
 
         CompletableFuture<ScheduledTaskHttpService.Environment> future =
-                run(jsCodeCompiler, Runnable::run, "test", "load('../rakam-ui/src/main/resources/scheduled-task/adwords/script.js')",
+                run(jsCodeCompiler, Runnable::run, "test", "load('../rakam-ui/src/main/resources/scheduled-task/facebook-ads/script.js')",
                         task.parameters, logger, ijsConfigManager, testingEventDeserializer, eventStore, ImmutableList.of()).thenApply(eventList -> {
                     if (eventStore.getEvents().isEmpty()) {
                         logger.info("No event is returned");
