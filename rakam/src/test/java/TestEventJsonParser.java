@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import org.apache.avro.generic.GenericArray;
 import org.rakam.EventBuilder;
 import org.rakam.TestingConfigManager;
 import org.rakam.analysis.ApiKeyService;
@@ -28,6 +29,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -243,11 +245,13 @@ public class TestEventJsonParser
                         "test1", ImmutableList.of("test", ImmutableMap.of("test", 2)),
                         "test2", false)));
 
-        mapper.readValue(bytes, Event.class);
+        Event event = mapper.readValue(bytes, Event.class);
+        GenericArray test1 = event.getAttribute("test1");
+        assertEquals(test1.get(0), "test");
+        assertEquals(test1.get(1), "{\"test\":2}");
     }
 
-    @Test(expectedExceptions = RakamException.class,
-            expectedExceptionsMessageRegExp = "Nested properties are not supported\\. \\(non-scalar value in object property\\)")
+    @Test
     public void testInvalidMapRecursiveType()
             throws Exception
     {
@@ -255,11 +259,13 @@ public class TestEventJsonParser
         byte[] bytes = mapper.writeValueAsBytes(ImmutableMap.of(
                 "collection", "test",
                 "api", api,
-                "properties", ImmutableMap.of("test0", "test",
-                        "test1", ImmutableMap.of("test", ImmutableList.of("test")),
+                "properties", ImmutableMap.of("test0", "test0",
+                        "test1", ImmutableMap.of("test", ImmutableList.of("test4")),
                         "test2", false)));
 
-        mapper.readValue(bytes, Event.class);
+        Event event = mapper.readValue(bytes, Event.class);
+        Map test1 = event.getAttribute("test1");
+        assertEquals(test1.get("test"), "[\"test4\"]");
     }
 
     @Test

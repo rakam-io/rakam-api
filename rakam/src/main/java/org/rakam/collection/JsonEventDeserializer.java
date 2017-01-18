@@ -461,8 +461,15 @@ public class JsonEventDeserializer
                 else {
                     // In order to determine the value type of map, getTypeForUnknown method performed an extra
                     // jp.nextToken() so the cursor should be at VALUE_STRING token.
-                    String key = jp.getParsingContext().getCurrentName();
-                    map.put(key, getValue(jp, type.getMapValueType(), null, false));
+                    String key = jp.getCurrentName();
+                    Object value;
+                    if (t.isScalarValue()) {
+                        value = getValue(jp, type.getMapValueType(), null, false);
+                    }
+                    else {
+                        value = JsonHelper.encode(jp.readValueAsTree());
+                    }
+                    map.put(key, value);
                     t = jp.nextToken();
                 }
 
@@ -498,7 +505,8 @@ public class JsonEventDeserializer
                         }
 
                         objects.add(JsonHelper.encode(jp.readValueAsTree()));
-                    } else {
+                    }
+                    else {
                         objects.add(getValue(jp, type.getArrayElementType(), null, false));
                     }
                 }
@@ -557,9 +565,10 @@ public class JsonEventDeserializer
                 }
 
                 FieldType type;
-                if(t.isScalarValue()) {
+                if (t.isScalarValue()) {
                     type = getTypeForUnknown(jp);
-                } else {
+                }
+                else {
                     type = MAP_STRING;
                 }
                 if (type == null) {
@@ -567,7 +576,8 @@ public class JsonEventDeserializer
                     while (t != END_ARRAY) {
                         if (!t.isScalarValue()) {
                             return ARRAY_STRING;
-                        } else {
+                        }
+                        else {
                             t = jp.nextToken();
                         }
                     }
@@ -588,13 +598,17 @@ public class JsonEventDeserializer
                     throw new IllegalArgumentException();
                 }
                 t = jp.nextToken();
+                if (!t.isScalarValue()) {
+                    return MAP_STRING;
+                }
                 type = getTypeForUnknown(jp);
                 if (type == null) {
                     // TODO: what if the other values are not null?
                     while (t != END_OBJECT) {
                         if (!t.isScalarValue()) {
                             return MAP_STRING;
-                        } else {
+                        }
+                        else {
                             t = jp.nextToken();
                         }
                     }
