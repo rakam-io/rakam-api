@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.fasterxml.jackson.core.JsonToken.END_ARRAY;
 import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
+import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_STRING;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -55,6 +56,8 @@ import static org.rakam.analysis.ApiKeyService.AccessKeyType.MASTER_KEY;
 import static org.rakam.analysis.ApiKeyService.AccessKeyType.WRITE_KEY;
 import static org.rakam.analysis.InternalConfig.FIXED_SCHEMA;
 import static org.rakam.analysis.InternalConfig.USER_TYPE;
+import static org.rakam.collection.FieldType.ARRAY_STRING;
+import static org.rakam.collection.FieldType.MAP_STRING;
 import static org.rakam.collection.FieldType.STRING;
 import static org.rakam.collection.SchemaField.stripName;
 import static org.rakam.util.AvroUtil.convertAvroSchema;
@@ -131,12 +134,17 @@ public class JsonEventDeserializer
                     api = jp.readValueAs(EventContext.class);
                     break;
                 case "properties":
+                    t = jp.getCurrentToken();
+                    if (t != START_OBJECT) {
+                        throw new RakamException("properties must be an object", BAD_REQUEST);
+                    }
+
                     if (collection == null) {
                         propertiesBuffer = jp.readValueAs(TokenBuffer.class);
                     }
                     else {
                         if (project == null) {
-                            if(api == null) {
+                            if (api == null) {
                                 throw new RakamException("api parameter is required", BAD_REQUEST);
                             }
 
@@ -169,7 +177,7 @@ public class JsonEventDeserializer
 
                         t = jp.getCurrentToken();
 
-                        if (jp.getCurrentToken() != END_OBJECT) {
+                        if (t != END_OBJECT) {
                             if (t == JsonToken.START_OBJECT) {
                                 throw new RakamException("Nested properties are not supported.", BAD_REQUEST);
                             }
@@ -462,7 +470,7 @@ public class JsonEventDeserializer
                     String key = jp.getCurrentName();
 
                     if (!jp.nextToken().isScalarValue()) {
-                        throw new JsonMappingException(String.format("Nested properties are not supported. ('%s' field)", field.name()));
+                        throw new JsonMappingException(jp, String.format("Nested properties are not supported. ('%s' field)", field.name()));
                     }
 
                     map.put(key, getValue(jp, type.getMapValueType(), null, false));
@@ -472,7 +480,7 @@ public class JsonEventDeserializer
             else if (type.isArray()) {
                 JsonToken t = jp.getCurrentToken();
                 // if the passStartArrayToken is true, we already performed jp.nextToken
-                // so there is no need to check if the current token is
+                // so there is no need to check if the current token is START_ARRAY
                 if (!passInitialToken) {
                     if (t != JsonToken.START_ARRAY) {
                         return null;
@@ -485,9 +493,14 @@ public class JsonEventDeserializer
                 List<Object> objects = new ArrayList<>();
                 for (; t != JsonToken.END_ARRAY; t = jp.nextToken()) {
                     if (!t.isScalarValue()) {
-                        throw new JsonMappingException(jp, String.format("Nested properties are not supported. ('%s' field)", field.name()));
+                        if (type.getArrayElementType() != STRING) {
+                            throw new JsonMappingException(jp, String.format("Nested properties are not supported if the type is not MAP_STRING. ('%s' field)", field.name()));
+                        }
+
+                        objects.add(JsonHelper.encode(jp.readValueAsTree()));
+                    } else {
+                        objects.add(getValue(jp, type.getArrayElementType(), null, false));
                     }
-                    objects.add(getValue(jp, type.getArrayElementType(), null, false));
                 }
                 return new GenericData.Array(actualSchema, objects);
             }
@@ -542,19 +555,26 @@ public class JsonEventDeserializer
                     // TODO: if the key already has a type, return that type instead of null.
                     return null;
                 }
-                FieldType type = getTypeForUnknown(jp);
+
+                FieldType type;
+                if(t.isScalarValue()) {
+                    type = getTypeForUnknown(jp);
+                } else {
+                    type = MAP_STRING;
+                }
                 if (type == null) {
                     // TODO: what if the other values are not null?
                     while (t != END_ARRAY) {
                         if (!t.isScalarValue()) {
-                            throw new RakamException("Nested properties are not supported. (non-scalar value in array property)", BAD_REQUEST);
+                            return ARRAY_STRING;
+                        } else {
+                            t = jp.nextToken();
                         }
-                        t = jp.nextToken();
                     }
                     return null;
                 }
                 if (type.isArray() || type.isMap()) {
-                    throw new RakamException("Nested properties are not supported. (non-scalar value in array property)", BAD_REQUEST);
+                    return ARRAY_STRING;
                 }
                 return type.convertToArrayType();
             case START_OBJECT:
@@ -573,9 +593,10 @@ public class JsonEventDeserializer
                     // TODO: what if the other values are not null?
                     while (t != END_OBJECT) {
                         if (!t.isScalarValue()) {
-                            throw new RakamException("Nested properties are not supported. (non-scalar value in object property)", BAD_REQUEST);
+                            return MAP_STRING;
+                        } else {
+                            t = jp.nextToken();
                         }
-                        t = jp.nextToken();
                     }
                     jp.nextToken();
 
@@ -583,7 +604,7 @@ public class JsonEventDeserializer
                 }
 
                 if (type.isArray() || type.isMap()) {
-                    throw new RakamException("Nested properties are not supported. (non-scalar value in object property)", BAD_REQUEST);
+                    return MAP_STRING;
                 }
                 return type.convertToMapValueType();
             default:

@@ -124,7 +124,7 @@ public class AWSKinesisEventStore
         }
         String project = events.get(0).project();
         try {
-            bulkClient.upload(project, events);
+            bulkClient.upload(project, events, 3);
         }
         catch (OutOfMemoryError e) {
             LOGGER.error(e, "OOM error while uploading bulk");

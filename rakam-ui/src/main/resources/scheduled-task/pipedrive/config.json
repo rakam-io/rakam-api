@@ -1,0 +1,17 @@
+{
+  "name": "Pipedrive",
+  "description": "Collects data from Pipedrive API",
+  "defaultDuration": "PT1H",
+  "parameters": {
+    "collection_prefix": {
+      "type": "string",
+      "placeholder": "pipedrive",
+      "description": "The collection prefix for result data"
+    },
+    "api_token": {
+      "type": "string",
+      "placeholder": "93e37815286b792ebob95d19a26912f1c416b181",
+      "description": "The API token for Pipedrive. Get it from here: https://mycompany.pipedrive.com/settings#api"
+    }
+  }
+}

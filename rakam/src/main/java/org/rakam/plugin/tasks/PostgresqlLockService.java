@@ -36,7 +36,7 @@ public class PostgresqlLockService
         try {
             return tryLock(name, 4);
         }
-        catch (Exception e) {
+        catch (Throwable e) {
             locks.remove(name);
             throw Throwables.propagate(e);
         }

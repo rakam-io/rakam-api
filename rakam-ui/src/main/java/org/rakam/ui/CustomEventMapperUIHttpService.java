@@ -142,8 +142,8 @@ public class CustomEventMapperUIHttpService
 
         @JsonCreator
         public UIEventMapper(@ApiParam("name") String name,
-                @ApiParam("image") String image,
-                @ApiParam("description") String description,
+                @ApiParam(value = "image", required = false) String image,
+                @ApiParam(value = "description", required = false) String description,
                 @ApiParam("code") String code,
                 @ApiParam("parameters") Map<String, Parameter> parameters)
         {

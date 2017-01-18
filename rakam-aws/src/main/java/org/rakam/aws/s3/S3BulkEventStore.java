@@ -70,7 +70,7 @@ public class S3BulkEventStore
         this.conditionalMagicFieldsSize = fieldDependency.dependentFields.size();
     }
 
-    public void upload(String project, List<Event> events)
+    public void upload(String project, List<Event> events, int tryCount)
     {
         GenericData data = GenericData.get();
 
@@ -153,7 +153,11 @@ public class S3BulkEventStore
             for (String uploadedFile : uploadedFiles) {
                 s3Client.deleteObject(config.getEventStoreBulkS3Bucket(), uploadedFile);
             }
-            throw Throwables.propagate(e);
+            if(tryCount <= 0) {
+                throw Throwables.propagate(e);
+            }
+
+            upload(project, events, tryCount - 1);
         }
     }
 

@@ -52,32 +52,43 @@ public class RAsyncHttpClient
 
     public NashornHttpRequest get(String url)
     {
-        return new NashornHttpRequest(new RequestBuilder(GET).setUrl(url));
+        return request(GET, url);
     }
 
     public NashornHttpRequest delete(String url)
     {
-        return new NashornHttpRequest(new RequestBuilder(DELETE).setUrl(url));
+        return request(DELETE, url);
     }
 
     public NashornHttpRequest post(String url, String body)
     {
-        return new NashornHttpRequest(new RequestBuilder(POST).setUrl(url).setBody(body));
+        return request(POST, url).data(body);
     }
 
     public NashornHttpRequest post(String url)
     {
-        return new NashornHttpRequest(new RequestBuilder(POST).setUrl(url));
+        return request(POST, url);
     }
 
     public NashornHttpRequest put(String url, String body)
     {
-        return new NashornHttpRequest(new RequestBuilder(PUT).setUrl(url).setBody(body));
+        return request(PUT, url).data(body);
     }
 
     public NashornHttpRequest request(String type, String url)
     {
-        return new NashornHttpRequest(new RequestBuilder(type).setUrl(url));
+        RequestBuilder requestBuilder = new RequestBuilder(type);
+        if (url == null || url.isEmpty()) {
+            throw new IllegalArgumentException("URL is not set: " + url);
+        }
+
+        try {
+            requestBuilder.setUrl(url);
+        } catch (NullPointerException e) {
+            throw new IllegalArgumentException(e.getMessage()+" is not set");
+        }
+
+        return new NashornHttpRequest(requestBuilder);
     }
 
     public class NashornHttpRequest
@@ -105,7 +116,7 @@ public class RAsyncHttpClient
 
         public NashornHttpRequest header(String key, String value)
         {
-            if(value != null) {
+            if (value != null) {
                 requestBuilder.addHeader(key, value);
             }
             return this;

@@ -4,6 +4,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.airlift.log.Logger;
 import org.rakam.ServiceStarter;
@@ -14,6 +19,7 @@ import org.rakam.analysis.InMemoryEventStore;
 import org.rakam.analysis.InMemoryMetastore;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.analysis.metadata.SchemaChecker;
+import org.rakam.collection.Event;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.collection.JSCodeLoggerService;
 import org.rakam.collection.JsonEventDeserializer;
@@ -36,6 +42,7 @@ import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.GeneratedKeys;
 import org.skife.jdbi.v2.Handle;
 
+import javax.annotation.Nullable;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -50,20 +57,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
-import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.rakam.util.SuccessMessage.success;
 
@@ -76,7 +80,7 @@ public class ScheduledTaskHttpService
 
     private final DBI dbi;
     private final ScheduledExecutorService scheduler;
-    private final ExecutorService executor;
+    private final ListeningExecutorService executor;
     private final JSCodeCompiler jsCodeCompiler;
     private final JsonEventDeserializer eventDeserializer;
     private final FieldDependencyBuilder.FieldDependency fieldDependency;
@@ -106,14 +110,14 @@ public class ScheduledTaskHttpService
                 .setNameFormat("scheduled-task-scheduler")
                 .setUncaughtExceptionHandler((t, e) -> LOGGER.error(e))
                 .build());
-        this.executor = new ForkJoinPool
+        this.executor = MoreExecutors.listeningDecorator(new ForkJoinPool
                 (Runtime.getRuntime().availableProcessors(),
                         pool -> {
                             ForkJoinWorkerThread forkJoinWorkerThread = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
                             forkJoinWorkerThread.setName("scheduled-task-worker");
                             return forkJoinWorkerThread;
                         },
-                        null, true);
+                        null, true));
         this.jsCodeCompiler = jsCodeCompiler;
         this.eventMappers = ImmutableList.copyOf(eventMapperSet);
         this.eventDeserializer = eventDeserializer;
@@ -142,7 +146,7 @@ public class ScheduledTaskHttpService
                         continue;
                     }
                     long now = System.currentTimeMillis();
-                    CompletableFuture<Void> run;
+                    ListenableFuture<Void> run;
                     JSCodeLoggerService.PersistentLogger logger;
                     try {
                         String prefix = "scheduled-task." + task.id;
@@ -157,7 +161,19 @@ public class ScheduledTaskHttpService
                         throw e;
                     }
 
-                    run.whenComplete((events, ex) -> updateTask(task.project, task.id, lock, logger, now, ex));
+                    Futures.addCallback(run, new FutureCallback<Void>() {
+                        @Override
+                        public void onSuccess(@Nullable Void result)
+                        {
+                            updateTask(task.project, task.id, lock, logger, now, null);
+                        }
+
+                        @Override
+                        public void onFailure(Throwable t)
+                        {
+                            updateTask(task.project, task.id, lock, logger, now, t);
+                        }
+                    });
                 }
             }
             catch (Exception e) {
@@ -262,7 +278,7 @@ public class ScheduledTaskHttpService
 
         String prefix = "scheduled-task." + id;
         JSCodeLoggerService.PersistentLogger logger = service.createLogger(project, prefix);
-        CompletableFuture<Void> future;
+        ListenableFuture<Void> future;
         try {
             Map<String, Object> first;
             try (Handle handle = dbi.open()) {
@@ -285,7 +301,20 @@ public class ScheduledTaskHttpService
             throw e;
         }
 
-        future.whenComplete((events, ex) -> updateTask(project, id, lock, logger, System.currentTimeMillis(), ex));
+        Futures.addCallback(future, new FutureCallback<Void>() {
+
+            @Override
+            public void onSuccess(@Nullable Void result)
+            {
+                updateTask(project, id, lock, logger, System.currentTimeMillis(), null);
+            }
+
+            @Override
+            public void onFailure(Throwable t)
+            {
+                updateTask(project, id, lock, logger, System.currentTimeMillis(), t);
+            }
+        });
 
         return SuccessMessage.success("The task is running");
     }
@@ -354,40 +383,57 @@ public class ScheduledTaskHttpService
         InMemoryEventStore eventStore = new InMemoryEventStore();
         metastore.createProject(project);
 
-        CompletableFuture<Void> run = run(jsCodeCompiler, executor,
+        ListenableFuture<Void> run = run(jsCodeCompiler, executor,
                 project, script, parameters,
                 logger, ijsConfigManager,
                 testingEventDeserializer, eventStore, ImmutableList.of());
 
         scheduler.schedule(() -> {
             if (!run.isDone()) {
-                run.completeExceptionally(new TimeoutException());
+                run.cancel(true);
             }
         }, 2, MINUTES);
 
         CompletableFuture<Environment> resultFuture = new CompletableFuture<>();
 
-        run.whenComplete((eventList, ex) -> {
-            if (ex != null) {
-                logger.info(format("Got %d events: %s: %s",
-                        eventStore.getEvents().size(),
-                        eventStore.getEvents().get(0).collection(),
-                        eventStore.getEvents().get(0).properties()));
-                logger.error("Timeouts after 120 seconds (The test execution is limited to 120 seconds)");
-                return;
+        Futures.addCallback(run, new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(Void v)
+            {
+                done();
             }
 
-            if (eventStore.getEvents().isEmpty()) {
-                logger.info("No event is returned");
-            }
-            else {
-                logger.info(format("Successfully got %d events: %s: %s",
-                        eventStore.getEvents().size(),
-                        eventStore.getEvents().get(0).collection(),
-                        eventStore.getEvents().get(0).properties()));
+            @Override
+            public void onFailure(Throwable ex)
+            {
+                if(ex instanceof CancellationException) {
+                    logger.error("Timeouts after 120 seconds (The test execution is limited to 120 seconds)");
+                } else {
+                    logger.error(ex.getMessage());
+                }
+                done();
             }
 
-            resultFuture.complete(new Environment(logger.getEntries(), testingConfigManager.getTable().row(project)));
+            private void done() {
+                List<Event> events = eventStore.getEvents();
+
+                if (events.isEmpty()) {
+                    logger.info("No event is returned");
+                }
+                else {
+                    if (events.isEmpty()) {
+                        logger.info(format("Got %d events", events.size()));
+                    }
+                    else {
+                        logger.info(format("Successfully got %d events: %s: %s",
+                                events.size(),
+                                events.get(0).collection(),
+                                events.get(0).properties()));
+                    }
+                }
+
+                resultFuture.complete(new Environment(logger.getEntries(), testingConfigManager.getTable().row(project)));
+            }
         });
 
         return resultFuture;
@@ -405,9 +451,9 @@ public class ScheduledTaskHttpService
         }
     }
 
-    static CompletableFuture<Void> run(JSCodeCompiler jsCodeCompiler, Executor executor, String project, String script, Map<String, Parameter> parameters, JSCodeCompiler.ILogger logger, JSCodeCompiler.IJSConfigManager configManager, JsonEventDeserializer deserializer, EventStore eventStore, List<EventMapper> eventMappers)
+    static ListenableFuture<Void> run(JSCodeCompiler jsCodeCompiler, ListeningExecutorService executor, String project, String script, Map<String, Parameter> parameters, JSCodeCompiler.ILogger logger, JSCodeCompiler.IJSConfigManager configManager, JsonEventDeserializer deserializer, EventStore eventStore, List<EventMapper> eventMappers)
     {
-        return CompletableFuture.supplyAsync(() -> {
+        return executor.submit(() -> {
             try {
                 JSCodeCompiler.JSEventStore eventStore1 = jsCodeCompiler.getEventStore(project, deserializer, eventStore, eventMappers);
                 Invocable engine = jsCodeCompiler.createEngine(script, logger, eventStore1, configManager);
@@ -430,7 +476,7 @@ public class ScheduledTaskHttpService
             catch (Throwable e) {
                 throw new RakamException("Unknown error executing 'main': " + e.getMessage(), BAD_REQUEST);
             }
-        }, executor);
+        });
     }
 
     public static class ScheduledTask

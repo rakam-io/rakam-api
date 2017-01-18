@@ -1,7 +1,11 @@
 package org.rakam.plugin.tasks;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.epoll.Epoll;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -18,6 +22,7 @@ import org.rakam.collection.JsonEventDeserializer;
 import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.config.JDBCConfig;
 import org.rakam.plugin.RAsyncHttpClient;
+import org.rakam.plugin.tasks.ScheduledTaskHttpService.Environment;
 import org.rakam.ui.ScheduledTaskUIHttpService;
 import org.rakam.ui.ScheduledTaskUIHttpService.Parameter;
 import org.rakam.util.JsonHelper;
@@ -81,20 +86,32 @@ public class TestScheduledTask
                 new JSCodeLoggerService(sa),
                 true);
 
-        CompletableFuture<ScheduledTaskHttpService.Environment> future =
-                run(jsCodeCompiler, Runnable::run, "test", "load('../rakam-ui/src/main/resources/scheduled-task/facebook-ads/script.js')",
-                        task.parameters, logger, ijsConfigManager, testingEventDeserializer, eventStore, ImmutableList.of()).thenApply(eventList -> {
-                    if (eventStore.getEvents().isEmpty()) {
-                        logger.info("No event is returned");
-                    }
-                    else {
-                        logger.info(format("Successfully got %d events: %s: %s", eventStore.getEvents().size(),
-                                eventStore.getEvents().get(0).collection(),
-                                eventStore.getEvents().get(0).properties()));
-                    }
+        ListenableFuture<Void> test = run(jsCodeCompiler, MoreExecutors.listeningDecorator(MoreExecutors.newDirectExecutorService()), "test", "load('../rakam-ui/src/main/resources/scheduled-task/facebook-ads/script.js')",
+                task.parameters, logger, ijsConfigManager, testingEventDeserializer, eventStore, ImmutableList.of());
 
-                    return new ScheduledTaskHttpService.Environment(logger.getEntries(), testingConfigManager.getTable().row("test"));
-                });
+        CompletableFuture<Environment> future = new CompletableFuture<>();
+        Futures.addCallback(test, new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(Void v)
+            {
+                if (eventStore.getEvents().isEmpty()) {
+                    logger.info("No event is returned");
+                }
+                else {
+                    logger.info(format("Successfully got %d events: %s: %s", eventStore.getEvents().size(),
+                            eventStore.getEvents().get(0).collection(),
+                            eventStore.getEvents().get(0).properties()));
+                }
+
+                future.complete(new Environment(logger.getEntries(), testingConfigManager.getTable().row("test")));
+            }
+
+            @Override
+            public void onFailure(Throwable throwable)
+            {
+                future.completeExceptionally(throwable);
+            }
+        });
 
         System.out.println(future.join());
     }

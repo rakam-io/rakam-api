@@ -94,7 +94,7 @@ public class ClusterService
                 int execute = handle.createStatement("UPDATE rakam_cluster SET lock_key = :lock_key WHERE user_id = :userId AND api_url = :apiUrl")
                         .bind("userId", userId)
                         .bind("apiUrl", cluster.apiUrl)
-                        .bind("lockKey", cluster.lockKey).execute();
+                        .bind("lock_key", cluster.lockKey).execute();
 
                 if (execute == 0) {
                     throw new IllegalStateException();

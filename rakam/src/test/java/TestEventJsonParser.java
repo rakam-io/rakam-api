@@ -231,7 +231,7 @@ public class TestEventJsonParser
                 .createEvent("test", ImmutableMap.of()).properties(), event.properties());
     }
 
-    @Test(expectedExceptions = JsonMappingException.class, expectedExceptionsMessageRegExp = "Nested properties are not supported. \\(\'test1\\' field\\).*")
+    @Test()
     public void testInvalidArrayRecursiveType()
             throws Exception
     {
