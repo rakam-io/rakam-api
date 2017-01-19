@@ -1,8 +1,6 @@
 package org.rakam.event;
 
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.dynamodbv2.local.server.DynamoDBProxyServer;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.facebook.presto.rakam.RakamRaptorPlugin;
 import com.facebook.presto.rakam.stream.StreamPlugin;
 import com.facebook.presto.rakam.stream.metadata.ForMetadata;

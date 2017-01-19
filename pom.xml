@@ -39,7 +39,7 @@
         <repository>
             <id>dynamodb-local</id>
             <name>DynamoDB Local Release Repository</name>
-            <url>http://dynamodb-local.s3-website-us-west-2.amazonaws.com/release</url>
+            <url>https://s3-us-west-2.amazonaws.com/dynamodb-local/release</url>
         </repository>
     </repositories>
 
@@ -591,9 +591,15 @@
             </dependency>
 
             <dependency>
+                <groupId>com.microsoft.sqlserver</groupId>
+                <artifactId>mssql-jdbc</artifactId>
+                <version>6.1.0.jre8</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.amazonaws</groupId>
                 <artifactId>DynamoDBLocal</artifactId>
-                <version>1.11.79</version>
+                <version>1.10.5.1</version>
                 <scope>test</scope>
                 <exclusions>
                     <exclusion>
