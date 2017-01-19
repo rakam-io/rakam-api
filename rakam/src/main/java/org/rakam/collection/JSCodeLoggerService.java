@@ -1,6 +1,8 @@
 package org.rakam.collection;
 
+import com.mysql.jdbc.MySQLConnection;
 import io.airlift.log.Level;
+import org.postgresql.PGConnection;
 import org.rakam.analysis.JDBCPoolDataSource;
 import org.rakam.collection.util.JSCodeCompiler;
 import org.rakam.server.http.annotations.Api;
@@ -55,7 +57,7 @@ public class JSCodeLoggerService
     @Path("/test")
     public List<LogEntry> getLogs(@Named("project") String project, @ApiParam(value = "start", required = false) Instant start, @ApiParam(value = "end", required = false) Instant end, @ApiParam(value = "prefix") String prefix)
     {
-        String sql = "SELECT id, type, error, created_at FROM javascript_logs WHERE project = :project AND prefix = :prefix";
+        String sql = "SELECT id, type, error, %s(created_at) FROM javascript_logs WHERE project = :project AND prefix = :prefix";
         if (start != null) {
             sql += " AND created_at > :start";
         }
@@ -66,6 +68,17 @@ public class JSCodeLoggerService
         sql += " ORDER BY created_at DESC";
 
         try (Handle handle = dbi.open()) {
+
+            if (handle.getConnection() instanceof MySQLConnection) {
+                sql = String.format(sql, "unix_timestamp");
+            }
+            else if (handle.getConnection() instanceof PGConnection) {
+                sql = String.format(sql, "to_unixtime");
+            }
+            else {
+                throw new RuntimeException("JsCodeLogger service requires Postgresql or Mysql as dependency.");
+            }
+
             Query<Map<String, Object>> query = handle.createQuery(sql + " LIMIT 100");
             query.bind("project", project);
             query.bind("prefix", prefix);
@@ -78,7 +91,7 @@ public class JSCodeLoggerService
             }
 
             return query.map((index, r, ctx) -> {
-                return new LogEntry(r.getString(1), Level.valueOf(r.getString(2)), r.getString(3), r.getTimestamp(4).toInstant());
+                return new LogEntry(r.getString(1), Level.valueOf(r.getString(2)), r.getString(3), Instant.ofEpochSecond(r.getInt(4)));
             }).list();
         }
     }
@@ -132,13 +145,14 @@ public class JSCodeLoggerService
         private void log(String type, String value)
         {
             try (Handle handle = dbi.open()) {
-                handle.createStatement("INSERT INTO javascript_logs (project, id, type, prefix, error) " +
-                        "VALUES (:project, :id, :type, :prefix, :error)")
+                handle.createStatement("INSERT INTO javascript_logs (project, id, type, prefix, error, created_at) " +
+                        "VALUES (:project, :id, :type, :prefix, :error, :created_at)")
                         .bind("project", project)
                         .bind("id", id)
                         .bind("type", type)
                         .bind("prefix", prefix)
                         .bind("error", value)
+                        .bind("created_at", Timestamp.from(Instant.now()))
                         .execute();
             }
         }

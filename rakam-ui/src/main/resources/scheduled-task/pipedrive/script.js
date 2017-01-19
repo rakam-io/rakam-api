@@ -4,14 +4,13 @@ var url = "https://api.pipedrive.com/v1/recents";
 
 var fetch = function (parameters, events, startDate, offset) {
     logger.debug("Fetching from " + startDate + " with offset " + offset);
-
     startDate = startDate || config.get('start_timestamp');
 
     if (startDate == null) {
         startDate = new Date(0).toISOString();
     }
 
-    if(offset == null) {
+    if (offset == null) {
         offset = 0;
     }
 
@@ -33,15 +32,35 @@ var fetch = function (parameters, events, startDate, offset) {
     }
 
     data.data.forEach(function (activities) {
-        var callback = function(item) {
+        var callback = function (item) {
+            if (!item) {
+                return;
+            }
+            if (activities.item == 'person') {
+                if (typeof item.email === 'object') {
+                    item.email = item.email.value;
+                }
+                if (Array.isArray(item.phone)) {
+                    var phone;
+                    for (var i = 0; i < item.phone.length; i++) {
+                        var p = item.phone[i];
+                        phone = p.value;
+                        if (p.primary) {
+                            break;
+                        }
+                    }
+                    item.phone = phone
+                }
+            }
             item._time = item.update_time || item.created;
             item._user = activities.id;
             events.push({collection: parameters.collection_prefix + "_" + activities.item, properties: item});
         };
 
-        if(Array.isArray(activities.data)) {
+        if (Array.isArray(activities.data)) {
             activities.data.forEach(callback)
-        } else {
+        }
+        else {
             callback(activities.data);
         }
     });

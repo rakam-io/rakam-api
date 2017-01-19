@@ -247,6 +247,7 @@ public class JsonEventDeserializer
                 field = avroSchema.getField(stripName(fieldName, "field name"));
 
                 if (field == null) {
+
                     FieldType type = getTypeForUnknown(jp);
                     if (type != null) {
                         if (newFields == null) {
@@ -414,12 +415,16 @@ public class JsonEventDeserializer
                                 .get(ChronoField.MILLI_OF_DAY);
                     }
                     catch (Exception e) {
-                        throw new RakamException(String.format("Unable to parse TIME value '%s'", jp.getValueAsString()),
-                                BAD_REQUEST);
+                        return null;
+//                        throw new RakamException(String.format("Unable to parse TIME value '%s'", jp.getValueAsString()),
+//                                BAD_REQUEST);
                     }
                 case DOUBLE:
                     return jp.getValueAsDouble();
                 case TIMESTAMP:
+                    if(jp.getValueAsString().isEmpty()) {
+                        return null;
+                    }
                     if (jp.getCurrentToken().isNumeric()) {
                         return jp.getValueAsLong();
                     }
@@ -427,16 +432,21 @@ public class JsonEventDeserializer
                         return DateTimeUtils.parseTimestamp(jp.getValueAsString());
                     }
                     catch (Exception e) {
-                        throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s'", jp.getValueAsString()),
-                                BAD_REQUEST);
+                        return null;
+//                        throw new RakamException(String.format("Unable to parse TIMESTAMP value '%s'", jp.getValueAsString()),
+//                                BAD_REQUEST);
                     }
                 case DATE:
+                    if(jp.getValueAsString().isEmpty()) {
+                        return null;
+                    }
                     try {
                         return DateTimeUtils.parseDate(jp.getValueAsString());
                     }
                     catch (Exception e) {
-                        throw new RakamException(String.format("Unable to parse DATE value '%s'", jp.getValueAsString()),
-                                BAD_REQUEST);
+                        return null;
+//                        throw new RakamException(String.format("Unable to parse DATE value '%s'", jp.getValueAsString()),
+//                                BAD_REQUEST);
                     }
                 default:
                     throw new JsonMappingException(jp, format("Scalar value '%s' cannot be cast to %s type for '%s' field.",
@@ -452,6 +462,7 @@ public class JsonEventDeserializer
 
                 if (!passInitialToken) {
                     if (t != JsonToken.START_OBJECT) {
+                        jp.skipChildren();
                         return null;
                     }
                     else {
@@ -476,11 +487,17 @@ public class JsonEventDeserializer
                 for (; t == JsonToken.FIELD_NAME; t = jp.nextToken()) {
                     String key = jp.getCurrentName();
 
+                    Object value;
                     if (!jp.nextToken().isScalarValue()) {
-                        throw new JsonMappingException(jp, String.format("Nested properties are not supported. ('%s' field)", field.name()));
+                        if (type.getMapValueType() != STRING) {
+                            throw new JsonMappingException(jp, String.format("Nested properties are not supported if the type is not MAP_STRING. ('%s' field)", field.name()));
+                        }
+                        value = JsonHelper.encode(jp.readValueAsTree());
+                    } else {
+                        value = getValue(jp, type.getMapValueType(), null, false);
                     }
 
-                    map.put(key, getValue(jp, type.getMapValueType(), null, false));
+                    map.put(key, value);
                 }
                 return map;
             }
