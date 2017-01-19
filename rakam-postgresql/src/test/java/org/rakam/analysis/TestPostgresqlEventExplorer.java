@@ -2,6 +2,7 @@ package org.rakam.analysis;
 
 import com.google.common.eventbus.EventBus;
 import org.rakam.TestingEnvironment;
+import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
@@ -39,7 +40,7 @@ public class TestPostgresqlEventExplorer
         EventBus eventBus = new EventBus();
 
         metastore = new PostgresqlMetastore(dataSource, eventBus);
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, new CustomDataSourceService(dataSource), false);
 
         QueryExecutorService executorService = new QueryExecutorService(queryExecutor, metastore,
                 new PostgresqlMaterializedViewService(queryExecutor, queryMetadataStore), Clock.systemUTC(), '"');

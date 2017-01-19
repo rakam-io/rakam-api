@@ -1,7 +1,6 @@
 package org.rakam.analysis.datasource;
 
 import com.google.common.base.Throwables;
-import com.microsoft.sqlserver.jdbc.SQLServerDriver;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -54,50 +53,6 @@ public enum SupportedCustomDatabase
                     format("jdbc:postgresql://%s:%s/%s",
                             factory.getHost(),
                             Optional.ofNullable(factory.getPort()).orElse(5432),
-                            factory.getDatabase()), properties);
-        }
-    }),
-    MSSQL(new CDataSource<JDBCSchemaConfig>()
-    {
-        @Override
-        public Optional<String> test(JDBCSchemaConfig factory)
-        {
-            Connection connect = null;
-            try {
-                connect = openConnection(factory);
-                String schemaPattern = connect.getSchema() == null ? "dbo" : factory.getSchema();
-                ResultSet schemas = connect.getMetaData().getSchemas(null, schemaPattern);
-                return schemas.next() ? Optional.empty() : Optional.of(format("Schema '%s' does not exist", schemaPattern));
-            }
-            catch (SQLException e) {
-                return Optional.of(e.getMessage());
-            }
-            finally {
-                if (connect != null) {
-                    try {
-                        connect.close();
-                    }
-                    catch (SQLException e) {
-                        throw Throwables.propagate(e);
-                    }
-                }
-            }
-        }
-
-        @Override
-        public Connection openConnection(JDBCSchemaConfig factory)
-                throws SQLException
-        {
-            Properties properties = new Properties();
-            Optional.ofNullable(factory.getPassword())
-                    .ifPresent(pass -> properties.setProperty("password", pass));
-            Optional.ofNullable(factory.getUsername())
-                    .ifPresent(user -> properties.setProperty("user", user));
-
-            return new SQLServerDriver().connect(
-                    format("jdbc:sqlserver://%s:%s/%s",
-                            factory.getHost(),
-                            Optional.ofNullable(factory.getPort()).orElse(1433),
                             factory.getDatabase()), properties);
         }
     }),

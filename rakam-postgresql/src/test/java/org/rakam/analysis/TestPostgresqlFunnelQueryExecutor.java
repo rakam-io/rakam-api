@@ -2,6 +2,7 @@ package org.rakam.analysis;
 
 import com.google.common.eventbus.EventBus;
 import org.rakam.TestingEnvironment;
+import org.rakam.analysis.datasource.CustomDataSourceService;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.FieldDependencyBuilder;
 import org.rakam.plugin.EventStore;
@@ -28,7 +29,7 @@ public class TestPostgresqlFunnelQueryExecutor extends TestFunnelQueryExecutor {
         FieldDependencyBuilder.FieldDependency build = new FieldDependencyBuilder().build();
         metastore = new PostgresqlMetastore(dataSource, new EventBus());
 
-        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, false);
+        PostgresqlQueryExecutor queryExecutor = new PostgresqlQueryExecutor(dataSource, metastore, new CustomDataSourceService(dataSource), false);
         eventStore = new PostgresqlEventStore(dataSource, build);
         funnelQueryExecutor = new PostgresqlFunnelQueryExecutor(queryExecutor);
         funnelQueryExecutor.setup();

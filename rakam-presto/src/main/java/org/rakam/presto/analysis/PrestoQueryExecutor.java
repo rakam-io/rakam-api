@@ -50,6 +50,7 @@ import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Base64.getDecoder;
 import static java.util.Base64.getEncoder;
+import static org.rakam.postgresql.report.PostgresqlQueryExecutor.dbSeparator;
 import static org.rakam.presto.analysis.PrestoMaterializedViewService.MATERIALIZED_VIEW_PREFIX;
 import static org.rakam.presto.analysis.PrestoMetastore.toType;
 import static org.rakam.util.JsonHelper.encodeAsBytes;
@@ -147,18 +148,6 @@ public class PrestoQueryExecutor
         return executeRawStatement(query, sessionProperties, catalog);
     }
 
-    private char dbSeparator(String externalType)
-    {
-        switch (externalType) {
-            case PostgresqlDataSource.NAME:
-                return '"';
-            case MysqlDataSource.NAME:
-                return '`';
-            default:
-                return '"';
-        }
-    }
-
     private QueryExecution getSingleQueryExecution(String query, String key, DataSourceType type)
     {
         Optional<String> schema;
@@ -246,7 +235,7 @@ public class PrestoQueryExecutor
                 params = new HashMap<>();
             }
 
-            DataSourceType dataSourceType = null;
+            DataSourceType dataSourceType;
 
             if (prefix == null && userJdbcConfig != null && suffix.equals("users")) {
                 URI uri = URI.create(userJdbcConfig.getUrl().substring(5));

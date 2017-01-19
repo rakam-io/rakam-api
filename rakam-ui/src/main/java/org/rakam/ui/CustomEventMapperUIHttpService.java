@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.net.HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static com.google.common.net.HttpHeaders.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
@@ -43,6 +44,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERR
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 import static org.rakam.ui.ScheduledTaskUIHttpService.getResourceFiles;
 
@@ -69,9 +71,9 @@ public class CustomEventMapperUIHttpService
             UIEventMapper resource;
             try {
                 URL config = getClass().getResource("/custom-event-mapper/" + e + "/config.json");
-                byte[] script = ByteStreams.toByteArray(getClass().getResource("/custom-event-mapper/" + e + "/script.js").openStream());
-                resource = JsonHelper.read(ByteStreams.toByteArray(config.openStream()), UIEventMapper.class);
-                resource.script = new String(script, StandardCharsets.UTF_8);
+                byte[] script = toByteArray(getClass().getResource("/custom-event-mapper/" + e + "/script.js").openStream());
+                resource = JsonHelper.read(toByteArray(config.openStream()), UIEventMapper.class);
+                resource.script = new String(script, UTF_8);
                 resource.image = "/ui/custom-event-mapper/image/" + e;
             }
             catch (IOException ex) {
@@ -98,7 +100,7 @@ public class CustomEventMapperUIHttpService
         }
         byte[] script;
         try {
-            script = ByteStreams.toByteArray(resource.openStream());
+            script = toByteArray(resource.openStream());
         }
         catch (IOException e) {
             throw Throwables.propagate(e);
@@ -144,7 +146,7 @@ public class CustomEventMapperUIHttpService
         public UIEventMapper(@ApiParam("name") String name,
                 @ApiParam(value = "image", required = false) String image,
                 @ApiParam(value = "description", required = false) String description,
-                @ApiParam("code") String code,
+                @ApiParam(value = "code", required = false) String code,
                 @ApiParam("parameters") Map<String, Parameter> parameters)
         {
             this.name = name;

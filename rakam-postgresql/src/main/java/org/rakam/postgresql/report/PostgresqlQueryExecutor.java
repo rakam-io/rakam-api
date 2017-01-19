@@ -1,16 +1,27 @@
 package org.rakam.postgresql.report;
 
+import com.facebook.presto.sql.RakamSqlFormatter;
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.Query;
+import com.facebook.presto.sql.tree.Statement;
 import com.google.inject.name.Named;
+import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import io.airlift.log.Logger;
 import org.rakam.analysis.JDBCPoolDataSource;
+import org.rakam.analysis.datasource.CustomDataSource;
+import org.rakam.analysis.datasource.CustomDataSourceService;
+import org.rakam.analysis.datasource.JDBCSchemaConfig;
+import org.rakam.analysis.datasource.SupportedCustomDatabase;
 import org.rakam.analysis.metadata.Metastore;
 import org.rakam.collection.SchemaField;
 import org.rakam.report.QueryExecution;
 import org.rakam.report.QueryExecutor;
 import org.rakam.report.QuerySampling;
+import org.rakam.util.JsonHelper;
 import org.rakam.util.RakamException;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import java.sql.Connection;
@@ -20,10 +31,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.EXPECTATION_FAILED;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static java.lang.String.format;
 import static org.rakam.util.ValidationUtil.checkCollection;
 import static org.rakam.util.ValidationUtil.checkLiteral;
@@ -41,11 +54,18 @@ public class PostgresqlQueryExecutor
     protected static final ExecutorService QUERY_EXECUTOR = Executors.newWorkStealingPool();
     private final Metastore metastore;
     private final boolean userServiceIsPostgresql;
+    private final CustomDataSourceService customDataSource;
+    private SqlParser sqlParser = new SqlParser();
 
     @Inject
-    public PostgresqlQueryExecutor(@Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool, Metastore metastore, @Named("user.storage.postgresql") boolean userServiceIsPostgresql)
+    public PostgresqlQueryExecutor(
+            @Named("store.adapter.postgresql") JDBCPoolDataSource connectionPool,
+            Metastore metastore,
+            @Nullable CustomDataSourceService customDataSource,
+            @Named("user.storage.postgresql") boolean userServiceIsPostgresql)
     {
         this.connectionPool = connectionPool;
+        this.customDataSource = customDataSource;
         this.metastore = metastore;
         this.userServiceIsPostgresql = userServiceIsPostgresql;
 
@@ -68,6 +88,16 @@ public class PostgresqlQueryExecutor
     }
 
     @Override
+    public QueryExecution executeRawQuery(String query, Map<String, String> sessionParameters)
+    {
+        String remotedb = sessionParameters.get("remotedb");
+        if(remotedb != null) {
+            return getSingleQueryExecution(query, JsonHelper.read(remotedb, CustomDataSource.class));
+        }
+        return new PostgresqlQueryExecution(connectionPool::getConnection, query, false);
+    }
+
+    @Override
     public QueryExecution executeRawStatement(String query)
     {
         return new PostgresqlQueryExecution(connectionPool::getConnection, query, true);
@@ -77,7 +107,8 @@ public class PostgresqlQueryExecutor
     public String formatTableReference(String project, QualifiedName name, Optional<QuerySampling> sample, Map<String, String> sessionParameters, String defaultSchema)
     {
         if (name.getPrefix().isPresent()) {
-            switch (name.getPrefix().get().toString()) {
+            String prefix = name.getPrefix().get().toString();
+            switch (prefix) {
                 case "collection":
                     return project + "." + checkCollection(name.getSuffix()) +
                             sample.map(e -> " TABLESAMPLE " + e.method.name() + "(" + e.percentage + ")").orElse("");
@@ -86,7 +117,32 @@ public class PostgresqlQueryExecutor
                 case "materialized":
                     return project + "." + checkCollection(MATERIALIZED_VIEW_PREFIX + name.getSuffix());
                 default:
-                    throw new RakamException("Schema does not exist: " + name.getPrefix().get().toString(), BAD_REQUEST);
+                    if (customDataSource == null) {
+                        throw new RakamException("Schema does not exist: " + name.getPrefix().get().toString(), BAD_REQUEST);
+                    }
+
+                    if (prefix.equals("remotefile")) {
+                        throw new RakamException("remotefile schema doesn't exist in Postgresql deployment", BAD_REQUEST);
+                    }
+
+
+                    CustomDataSource dataSource;
+                    try {
+                        dataSource = customDataSource.getDatabase(project, prefix);
+                    }
+                    catch (RakamException e) {
+                        if (e.getStatusCode() == NOT_FOUND) {
+                            throw new RakamException("Schema does not exist: " + prefix, BAD_REQUEST);
+                        }
+                        throw e;
+                    }
+
+                    String remotedb = sessionParameters.get("remotedb");
+                    if(remotedb != null) {
+                        throw new RakamException("Cross db queries are not supported in Postgresql deplotment type ", BAD_REQUEST);
+                    }
+
+                    sessionParameters.put("remotedb", JsonHelper.encode(dataSource));
             }
         }
         else if (name.getSuffix().equals("users") || name.getSuffix().equals("_users")) {
@@ -125,5 +181,51 @@ public class PostgresqlQueryExecutor
             throws SQLException
     {
         return connectionPool.getConnection();
+    }
+
+    public static char dbSeparator(String externalType)
+    {
+        switch (externalType) {
+            case "POSTGRESQL":
+                return '"';
+            case "MYSQL":
+                return '`';
+            default:
+                return '"';
+        }
+    }
+
+    private QueryExecution getSingleQueryExecution(String query, CustomDataSource type)
+    {
+        Optional<String> schema;
+
+        SupportedCustomDatabase source;
+        try {
+            source = SupportedCustomDatabase.getAdapter(type.type);
+        }
+        catch (IllegalArgumentException e) {
+            return null;
+        }
+        char seperator = dbSeparator(type.type);
+
+        switch (type.type) {
+            case "POSTGRESQL":
+            case "MYSQL":
+                schema = Optional.empty();
+                break;
+            default:
+                return null;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        Statement statement = sqlParser.createStatement(query);
+        ((Query) statement).getLimit();
+
+        new RakamSqlFormatter.Formatter(builder, qualifiedName -> schema.map(e -> e + "." + qualifiedName.getSuffix())
+                .orElse(qualifiedName.getSuffix()), seperator) {
+
+        }.process(statement, 1);
+
+        return new PostgresqlQueryExecution(() -> source.getDataSource().openConnection(type.options), builder.toString(), false);
     }
 }
