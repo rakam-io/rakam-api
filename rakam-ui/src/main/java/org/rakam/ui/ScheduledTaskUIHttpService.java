@@ -1,6 +1,7 @@
 package org.rakam.ui;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
@@ -146,8 +147,10 @@ public class ScheduledTaskUIHttpService
     {
         public final FieldType type;
         public Object value;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         public final String placeholder;
         public final String description;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         public final List<Choice> choices;
 
         @JsonCreator

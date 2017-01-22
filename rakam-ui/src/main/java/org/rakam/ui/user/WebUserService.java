@@ -34,6 +34,7 @@ import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.skife.jdbi.v2.exceptions.UnableToExecuteStatementException;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
+import org.skife.jdbi.v2.util.BooleanMapper;
 import org.skife.jdbi.v2.util.IntegerMapper;
 import org.skife.jdbi.v2.util.StringMapper;
 
@@ -101,13 +102,13 @@ public class WebUserService
     public ProjectConfiguration getProjectConfigurations(int project)
     {
         try (Connection conn = dbi.open().getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("SELECT timezone FROM web_user_project WHERE id = ?");
+            PreparedStatement ps = conn.prepareStatement("SELECT project, timezone FROM web_user_project WHERE id = ?");
             ps.setInt(1, project);
             ResultSet resultSet = ps.executeQuery();
             if (!resultSet.next()) {
                 throw new RakamException("API key is invalid", HttpResponseStatus.FORBIDDEN);
             }
-            return new ProjectConfiguration(resultSet.getString(1));
+            return new ProjectConfiguration(resultSet.getString(1), resultSet.getString(2));
         }
         catch (SQLException e) {
             throw Throwables.propagate(e);
@@ -143,12 +144,19 @@ public class WebUserService
 
     public static class ProjectConfiguration
     {
+        public final String name;
         public final String timezone;
 
         @JsonCreator
         public ProjectConfiguration(@ApiParam(value = "timezone", required = false) String timezone)
         {
+            this(null, timezone);
+        }
+
+        public ProjectConfiguration(String name, String timezone)
+        {
             this.timezone = timezone;
+            this.name = name;
         }
     }
 
@@ -321,11 +329,11 @@ public class WebUserService
 
     public List<String> revokeUserAccess(int userId, int project, String email)
     {
-        if (!getUser(userId).get().projects.stream().anyMatch(a -> a.id == project)) {
-            throw new RakamException(FORBIDDEN);
-        }
-
         try (Handle handle = dbi.open()) {
+            if(!hasMasterAccess(handle, project, userId)) {
+                throw new RakamException("You do not have master key permission", UNAUTHORIZED);
+            }
+
             List<Map<String, Object>> list = handle.createQuery("SELECT api_key.id, api_key.master_key FROM web_user_api_key_permission permission " +
                     "JOIN web_user_api_key api_key ON (api_key.id = permission.api_key_id) " +
                     "WHERE project_id = :project AND permission.user_id = " +
@@ -490,6 +498,8 @@ public class WebUserService
     {
         @JsonProperty("project")
         public final int project;
+        @JsonProperty("id")
+        public final int id;
         @JsonProperty("email")
         public final String email;
         @JsonProperty("scope_expression")
@@ -501,9 +511,10 @@ public class WebUserService
         @JsonProperty("master_key")
         public final boolean masterKey;
 
-        public UserAccess(int project, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey)
+        public UserAccess(int project, int id, String email, String scope_expression, boolean readKey, boolean writeKey, boolean masterKey)
         {
             this.project = project;
+            this.id = id;
             this.email = email;
             this.scope_expression = scope_expression;
             this.readKey = readKey;
@@ -515,16 +526,20 @@ public class WebUserService
     public List<UserAccess> getUserAccessForProject(int user, int project)
     {
         try (Handle handle = dbi.open()) {
+            if(!hasMasterAccess(handle, project, user)) {
+                throw new RakamException("You do not have master key permission", UNAUTHORIZED);
+            }
+
             return handle.createQuery("SELECT web_user.email, keys.scope_expression, " +
-                    "read_permission, write_permission, master_permission " +
+                    "read_permission, write_permission, master_permission, web_user.id " +
                     "FROM web_user_api_key_permission keys " +
                     "JOIN web_user_api_key ON (web_user_api_key.id = keys.api_key_id) " +
                     "JOIN web_user ON (web_user.id = keys.user_id) " +
-                    "WHERE web_user_api_key.user_id = :user AND web_user.id != :user AND web_user_api_key.project_id = :project " +
+                    "WHERE web_user.id != :user AND web_user_api_key.project_id = :project " +
                     "ORDER BY keys.created_at")
                     .bind("user", user)
                     .bind("project", project).map((i, resultSet, statementContext) -> {
-                        return new UserAccess(project, resultSet.getString(1), resultSet.getString(2),
+                        return new UserAccess(project, resultSet.getInt(6), resultSet.getString(1), resultSet.getString(2),
                                 resultSet.getBoolean(3), resultSet.getBoolean(4), resultSet.getBoolean(5));
                     }).list();
         }
@@ -532,12 +547,11 @@ public class WebUserService
 
     public void giveAccessToExistingUser(int projectId, int userId, String email, boolean readPermission, boolean writePermission, boolean masterPermisson)
     {
-        Optional<WebUser.Project> projectStream = getUser(userId).get().projects.stream().filter(a -> a.id == projectId).findAny();
-        if (!projectStream.isPresent()) {
-            throw new RakamException(FORBIDDEN);
-        }
-
         try (Handle handle = dbi.open()) {
+            if(!hasMasterAccess(handle, projectId, userId)) {
+                throw new RakamException("You do not have master key permission", UNAUTHORIZED);
+            }
+
             Integer newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
                     .map(IntegerMapper.FIRST).first();
 
@@ -570,20 +584,24 @@ public class WebUserService
                         mailConfig.getSiteUrl(), getRecoverUrl(email, 24))));
     }
 
-    public static final class Access {
+    public static final class Access
+    {
         public final List<TableAccess> tableAccessList;
 
         @JsonCreator
-        public Access(@ApiParam("tableAccessList") List<TableAccess> tableAccessList) {
+        public Access(@ApiParam("tableAccessList") List<TableAccess> tableAccessList)
+        {
             this.tableAccessList = tableAccessList;
         }
 
-        public static class TableAccess {
+        public static class TableAccess
+        {
             public final String tableName;
             public final String expression;
 
             @JsonCreator
-            public TableAccess(@ApiParam("tableName") String tableName, @ApiParam("expression") String expression) {
+            public TableAccess(@ApiParam("tableName") String tableName, @ApiParam("expression") String expression)
+            {
                 this.tableName = tableName;
                 this.expression = expression;
             }
@@ -594,21 +612,22 @@ public class WebUserService
             boolean readPermission, boolean writePermission, boolean masterPermission,
             Optional<Access> access)
     {
-        if(masterPermission && access.isPresent()) {
+        if (masterPermission && access.isPresent()) {
             throw new RakamException("Scoped keys cannot have access to master_key", BAD_REQUEST);
         }
-        Optional<WebUser.Project> projectStream = getUser(userId).get().projects.stream().filter(a -> a.id == projectId).findAny();
-        if (!projectStream.isPresent()) {
-            throw new RakamException(FORBIDDEN);
-        }
+        ProjectConfiguration projectConfigurations = getProjectConfigurations(projectId);
 
         Integer newUserId;
         try (Handle handle = dbi.open()) {
+            if(!hasMasterAccess(handle, projectId, userId)) {
+                throw new RakamException("You do not have master key permission", UNAUTHORIZED);
+            }
+
             try {
                 newUserId = handle.createStatement("INSERT INTO web_user (email, created_at) VALUES (:email, now())")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
 
-                sendNewUserMail(projectStream.get().name, email);
+                sendNewUserMail(projectConfigurations.name, email);
             }
             catch (Exception e) {
                 Map.Entry<Integer, Boolean> element = handle.createQuery("SELECT id, password is null FROM web_user WHERE email = :email").bind("email", email)
@@ -618,12 +637,12 @@ public class WebUserService
                 boolean passwordIsNull = element.getValue();
 
                 if (passwordIsNull) {
-                    sendNewUserMail(projectStream.get().name, email);
+                    sendNewUserMail(projectConfigurations.name, email);
                 }
                 else {
                     sendMail(userAccessTitleCompiler, userAccessTxtCompiler, userAccessHtmlCompiler, email, ImmutableMap.of(
                             "product_name", "Rakam",
-                            "project", projectStream.get().name,
+                            "project", projectConfigurations.name,
                             "action_url", mailConfig.getSiteUrl()));
                 }
             }
@@ -671,13 +690,9 @@ public class WebUserService
 
     public Integer saveApiKeys(Handle handle, int user, int projectId, String readKey, String writeKey, String masterKey)
     {
-        Optional<String> any = getUserApiKeys(handle, user).stream()
-                .filter(a -> a.id == projectId && a.apiKeys.stream().anyMatch(e -> e.masterKey() != null))
-                .map(z -> z.apiKeys.stream().filter(g -> g.masterKey() != null).findFirst().map(c -> c.masterKey()).get())
-                .findAny();
-
-        // TODO: check scope permission keys
-        any.orElseThrow(() -> new RakamException(UNAUTHORIZED));
+        if(!hasMasterAccess(handle, projectId, user)) {
+            throw new RakamException("You do not have master key permission", UNAUTHORIZED);
+        }
 
         return handle.createStatement("INSERT INTO web_user_api_key " +
                 "(user_id, project_id, read_key, write_key, master_key) " +
@@ -688,6 +703,14 @@ public class WebUserService
                 .bind("writeKey", writeKey)
                 .bind("masterKey", masterKey)
                 .executeAndReturnGeneratedKeys((index, r, ctx) -> r.getInt("id")).first();
+    }
+
+    public boolean hasMasterAccess(Handle handle, int project, int user)
+    {
+        return handle.createQuery("select user_id = :user or (select bool_or(master_permission) from web_user_api_key_permission p join web_user_api_key a on (p.api_key_id = a.id) where p.user_id = :user and a.project_id = :project) from web_user_project where id = :project")
+                .bind("user", user)
+                .bind("project", project).map(BooleanMapper.FIRST)
+                .first();
     }
 
     public Optional<WebUser> login(String email, String password)
@@ -822,11 +845,8 @@ public class WebUserService
     public void revokeApiKeys(int user, int project, String masterKey)
     {
         try (Handle handle = dbi.open()) {
-            boolean hasPermission = getUserApiKeys(handle, user).stream()
-                    .anyMatch(e -> e.id == project && e.apiKeys.stream().anyMatch(a -> a.masterKey() != null));
-
-            if (!hasPermission) {
-                throw new RakamException(FORBIDDEN);
+            if(!hasMasterAccess(handle, project, user)) {
+                throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
             try {
@@ -863,44 +883,6 @@ public class WebUserService
         {
             this.project = project;
             this.apiUrl = apiUrl;
-        }
-    }
-
-    public static final class ApiKey
-    {
-        public final String key;
-        public final AccessKeyType type;
-
-        public ApiKey(String key, AccessKeyType type)
-        {
-            this.key = key;
-            this.type = type;
-        }
-
-        @Override
-        public boolean equals(Object o)
-        {
-            if (this == o) {
-                return true;
-            }
-            if (!(o instanceof ApiKey)) {
-                return false;
-            }
-
-            ApiKey apiKey = (ApiKey) o;
-
-            if (!key.equals(apiKey.key)) {
-                return false;
-            }
-            return type == apiKey.type;
-        }
-
-        @Override
-        public int hashCode()
-        {
-            int result = key.hashCode();
-            result = 31 * result + type.hashCode();
-            return result;
         }
     }
 }

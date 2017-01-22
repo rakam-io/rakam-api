@@ -48,6 +48,9 @@ public enum SupportedCustomDatabase
                     .ifPresent(pass -> properties.setProperty("password", pass));
             Optional.ofNullable(factory.getUsername())
                     .ifPresent(user -> properties.setProperty("user", user));
+            properties.setProperty("loginTimeout", "10");
+            properties.setProperty("socketTimeout", "10");
+            properties.setProperty("connectTimeout", "10");
 
             return new org.postgresql.Driver().connect(
                     format("jdbc:postgresql://%s:%s/%s",
@@ -89,6 +92,8 @@ public enum SupportedCustomDatabase
             Properties info = new Properties();
             Optional.ofNullable(factory.getUsername()).map(value -> info.put("user", value));
             Optional.ofNullable(factory.getPassword()).map(value -> info.put("password", value));
+            info.setProperty("socketTimeout", "10");
+            info.setProperty("connectTimeout", "10");
 
             return new com.mysql.jdbc.Driver().connect(format("jdbc:mysql://%s:%s/%s",
                     factory.getHost(),

@@ -123,12 +123,12 @@ public class UIRecipeHandler
                 .forEach(report -> {
                     int dashboard;
                     try {
-                        dashboard = dashboardService.get().create(p, report.name, ImmutableMap.of()).id;
+                        dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of()).id;
                     }
                     catch (AlreadyExistsException e) {
                         dashboard = dashboardService.get().list(p).stream().filter(a -> a.name.equals(report.name)).findAny().get().id;
                         dashboardService.get().delete(p, dashboard);
-                        dashboard = dashboardService.get().create(p, report.name, ImmutableMap.of()).id;
+                        dashboard = dashboardService.get().create(p, report.name, null, ImmutableMap.of()).id;
                     }
 
                     for (DashboardService.DashboardItem item : report.items) {

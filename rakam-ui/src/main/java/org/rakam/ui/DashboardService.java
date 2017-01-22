@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
+import static java.lang.Boolean.TRUE;
 
 // todo check permissions
 @Path("/ui/dashboard")
@@ -65,13 +66,15 @@ public class DashboardService
     public Dashboard create(
             @Named("user_id") Project project,
             @ApiParam("name") String name,
+            @ApiParam(value = "shared_everyone", required = false) Boolean sharedEveryone,
             @ApiParam(value = "options", required = false) Map<String, Object> options)
     {
         try (Handle handle = dbi.open()) {
             int id;
             try {
-                id = handle.createQuery("INSERT INTO dashboard (project_id, name, options) VALUES (:project, :name, :options) RETURNING id")
+                id = handle.createQuery("INSERT INTO dashboard (project_id, name, user_id, options) VALUES (:project, :name, :user, :options) RETURNING id")
                         .bind("project", project.project)
+                        .bind("user", project.userId)
                         .bind("options", JsonHelper.encode(options))
                         .bind("name", name).map(IntegerMapper.FIRST).first();
             }
@@ -84,7 +87,7 @@ public class DashboardService
 
                 throw e;
             }
-            return new Dashboard(id, name, null, options);
+            return new Dashboard(id, project.userId, name, null, options, TRUE.equals(sharedEveryone));
         }
     }
 
@@ -106,6 +109,69 @@ public class DashboardService
                                 r.getObject(5) == null ? null : Duration.ofSeconds(r.getInt(5)),
                                 r.getTimestamp(6) != null ? r.getTimestamp(6).toInstant() : null, r.getBytes(7));
                     }).list();
+        }
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Get dashboard users")
+    @Path("/users")
+    public List<DashboardPermission> getUsers(@Named("user_id") Project project, @ApiParam("id") int id)
+    {
+        try (Handle handle = dbi.open()) {
+            return handle.createQuery("SELECT web_user.id, web_user.email, permission.shared_at" +
+                    " FROM dashboard_permission permission " +
+                    " JOIN web_user ON (permission.user_id = web_user.id) " +
+                    " WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND id = :id)")
+                    .bind("project", project.project)
+                    .bind("id", id)
+                    .map((i, r, statementContext) -> {
+                        return new DashboardPermission(r.getInt(1), r.getString(2), r.getTimestamp(3).toInstant());
+                    }).list();
+        }
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Get dashboard users")
+    @Path("/users/add")
+    public SuccessMessage addUser(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_id") int user)
+    {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("INSERT INTO dashboard_permission (dashboard, user_id) SELECT :dashboard, :shared_user FROM dashboard WHERE id = :dashboard AND user_id = :dashboard_user AND (select count(*) from dashboard_permission where dashboard = :dashboard and user_id = :shared_user) = 0")
+                    .bind("dashboard", id)
+                    .bind("shared_user", user)
+                    .bind("dashboard_user", project.userId)
+                    .execute();
+            return SuccessMessage.success();
+        }
+    }
+
+    @JsonRequest
+    @ApiOperation(value = "Get dashboard users")
+    @Path("/users/remove")
+    public SuccessMessage removeUser(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_id") int user)
+    {
+        try (Handle handle = dbi.open()) {
+            handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard AND user_id = :user AND (select bool_or(true) from dashboard where user_id = :dashboard_user and id = :dashboard)")
+                    .bind("shared_user", user)
+                    .bind("dashboard", id)
+                    .bind("dashboard_user", project.userId)
+                    .bind("user", user)
+                    .execute();
+            return SuccessMessage.success();
+        }
+    }
+
+    public static class DashboardPermission
+    {
+        public final int id;
+        public final String email;
+        public final Instant sharedAt;
+
+        public DashboardPermission(int id, String email, Instant sharedAt)
+        {
+            this.id = id;
+            this.email = email;
+            this.sharedAt = sharedAt;
         }
     }
 
@@ -136,9 +202,9 @@ public class DashboardService
             return handle.createQuery("SELECT id, name, refresh_interval, options FROM dashboard WHERE project_id = :project ORDER BY id")
                     .bind("project", project.project).map((i, resultSet, statementContext) -> {
                         Map options = JsonHelper.read(resultSet.getString(4), Map.class);
-                        return new Dashboard(resultSet.getInt(1), resultSet.getString(2),
+                        return new Dashboard(resultSet.getInt(1), project.userId, resultSet.getString(2),
                                 resultSet.getObject(3) == null ? null : Duration.ofSeconds(resultSet.getInt(3)),
-                                options == null ? null : options);
+                                options == null ? null : options, resultSet.getBoolean(4));
                     }).list();
         }
     }
@@ -146,17 +212,21 @@ public class DashboardService
     public static class Dashboard
     {
         public final int id;
+        public final int userId;
         public final String name;
         public final Map<String, Object> options;
         public final Duration refresh_interval;
+        public final boolean sharedEveryone;
 
         @JsonCreator
-        public Dashboard(int id, String name, Duration refresh_interval, Map<String, Object> options)
+        public Dashboard(int id, int userId, String name, Duration refresh_interval, Map<String, Object> options, boolean sharedEveryone)
         {
             this.id = id;
             this.name = name;
+            this.userId = userId;
             this.refresh_interval = refresh_interval;
             this.options = options;
+            this.sharedEveryone = sharedEveryone;
         }
     }
 
@@ -261,12 +331,16 @@ public class DashboardService
             @ApiParam("dashboard") int dashboard,
             @ApiParam("name") String name,
             @ApiParam("refresh_interval") Duration refreshDuration,
+            @ApiParam(value = "sharedEveryone", required = false) Boolean sharedEveryone,
             @ApiParam("options") Map<String, Object> options)
     {
         dbi.inTransaction((handle, transactionStatus) -> {
-            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name WHERE id = :id AND project_id = :project")
+            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name," +
+                    " shared_everyone = (case :shared is null then shared_everyone else :shared end)" +
+                    " WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("name", name)
+                    .bind("shared", sharedEveryone)
                     .bind("refreshDuration", refreshDuration.getSeconds())
                     .bind("options", JsonHelper.encode(options))
                     .bind("project", project.project)

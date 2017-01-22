@@ -39,6 +39,7 @@ import org.rakam.util.ConditionalModule;
 import org.rakam.util.NotFoundHandler;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.util.IntegerMapper;
 
 import javax.inject.Inject;
 
@@ -135,23 +136,29 @@ public class RakamUIModule
     {
 
         private final DashboardService service;
+        private final DBI dbi;
 
         @Inject
-        public DefaultDashboardCreator(DashboardService service)
+        public DefaultDashboardCreator(DashboardService service, @javax.inject.Named("ui.metadata.jdbc") JDBCPoolDataSource dataSource)
         {
             this.service = service;
+            this.dbi = new DBI(dataSource);
         }
 
         @Subscribe
         public void onCreateProject(ProjectCreatedEvent event)
         {
-            service.create(new Project(event.project, 0), "My dashboard", null);
+            Integer id;
+            try (Handle handle = dbi.open()) {
+                id = handle.createQuery("select user_id from web_user_project where id = :id")
+                        .bind("id", event.project).map(IntegerMapper.FIRST).first();
+            }
+            service.create(new Project(event.project, id), "My dashboard", true, null);
         }
     }
 
     public static class ProjectDeleteEventListener
     {
-
         private final DashboardService dashboardService;
         private final CustomPageDatabase customPageDatabase;
         private final ReportMetadata reportMetadata;

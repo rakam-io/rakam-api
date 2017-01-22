@@ -345,7 +345,7 @@ public class EventCollectionHttpService
                                 events.add(new Event(project, collection, null, entry.getKey(), entry.getValue()));
                             }
                         } else {
-                            throw new RakamException("The body must be an array of events or line-seperated events", BAD_REQUEST);
+                            throw new RakamException("The body must be an array of events or line-separated events", BAD_REQUEST);
                         }
 
                         return new EventList(EventContext.apiKey(apiKey), project, events);

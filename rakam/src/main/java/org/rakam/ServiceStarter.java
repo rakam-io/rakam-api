@@ -252,7 +252,7 @@ public final class ServiceStarter
             binder.bind(RAsyncHttpClient.class)
                     .annotatedWith(Names.named("rakam-client"))
                     .toProvider(() -> {
-                        return RAsyncHttpClient.create(120000, "rakam-custom-script");
+                        return RAsyncHttpClient.create(480000, "rakam-custom-script");
                     })
                     .in(Scopes.SINGLETON);
 

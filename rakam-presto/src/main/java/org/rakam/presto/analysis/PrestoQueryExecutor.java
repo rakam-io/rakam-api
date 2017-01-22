@@ -181,10 +181,6 @@ public class PrestoQueryExecutor
                 hasOutsideReference.set(true);
             }
             else {
-                if (!key.equals(qualifiedName.getPrefix().get().getSuffix())) {
-                    throw new IllegalStateException();
-                }
-
                 return schema.map(e -> e + "." + qualifiedName.getSuffix())
                         .orElse(qualifiedName.getSuffix());
             }

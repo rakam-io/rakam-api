@@ -116,7 +116,6 @@ public class CustomDataSourceService
             Map<String, List<SchemaField>> builder = new HashMap<>();
 
             SupportedCustomDatabase source = SupportedCustomDatabase.getAdapter(customDataSource.type);
-
             try (Connection conn = source.getDataSource().openConnection(customDataSource.options)) {
                 ResultSet dbColumns = conn.getMetaData().getColumns(null, customDataSource.options.getSchema(), null, null);
 
@@ -134,6 +133,7 @@ public class CustomDataSourceService
                 }
             }
             catch (SQLException e) {
+                // TODO: report error
                 continue;
             }
 
