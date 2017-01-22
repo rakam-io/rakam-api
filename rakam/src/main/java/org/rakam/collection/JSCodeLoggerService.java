@@ -1,6 +1,8 @@
 package org.rakam.collection;
 
+import com.google.common.base.Throwables;
 import com.mysql.jdbc.MySQLConnection;
+import com.zaxxer.hikari.pool.HikariProxyConnection;
 import io.airlift.log.Level;
 import org.postgresql.PGConnection;
 import org.rakam.analysis.JDBCPoolDataSource;
@@ -19,6 +21,8 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.ws.rs.Path;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -30,10 +34,23 @@ import java.util.UUID;
 public class JSCodeLoggerService
 {
     private final DBI dbi;
+    private final boolean postgresOrMysql;
 
     @Inject
     public JSCodeLoggerService(@Named("report.metadata.store.jdbc") JDBCPoolDataSource dataSource)
     {
+        try (Connection handle = dataSource.getConnection(true)) {
+            if(handle instanceof MySQLConnection) {
+                postgresOrMysql = false;
+            } else if (handle instanceof PGConnection) {
+                postgresOrMysql = true;
+            } else {
+                throw new RuntimeException("JsCodeLogger service requires Postgresql or Mysql as dependency.");
+            }
+        }
+        catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
         this.dbi = new DBI(dataSource);
     }
 
@@ -68,15 +85,10 @@ public class JSCodeLoggerService
         sql += " ORDER BY created_at DESC";
 
         try (Handle handle = dbi.open()) {
-
-            if (handle.getConnection() instanceof MySQLConnection) {
-                sql = String.format(sql, "unix_timestamp");
-            }
-            else if (handle.getConnection() instanceof PGConnection) {
+            if (postgresOrMysql) {
                 sql = String.format(sql, "to_unixtime");
-            }
-            else {
-                throw new RuntimeException("JsCodeLogger service requires Postgresql or Mysql as dependency.");
+            } else {
+                sql = String.format(sql, "unix_timestamp");
             }
 
             Query<Map<String, Object>> query = handle.createQuery(sql + " LIMIT 100");
