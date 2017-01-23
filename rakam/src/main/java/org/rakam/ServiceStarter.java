@@ -71,10 +71,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 
+import static com.google.common.primitives.Chars.checkedCast;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.lang.String.format;
 
@@ -252,7 +254,7 @@ public final class ServiceStarter
             binder.bind(RAsyncHttpClient.class)
                     .annotatedWith(Names.named("rakam-client"))
                     .toProvider(() -> {
-                        return RAsyncHttpClient.create(480000, "rakam-custom-script");
+                        return RAsyncHttpClient.create(1000 * 60 * 60, "rakam-custom-script");
                     })
                     .in(Scopes.SINGLETON);
 

@@ -276,6 +276,7 @@ public class ScheduledTaskHttpService
             return SuccessMessage.success("The task is already running");
         }
 
+        long now = System.currentTimeMillis();
         String prefix = "scheduled-task." + id;
         JSCodeLoggerService.PersistentLogger logger = service.createLogger(project, prefix);
         ListenableFuture<Void> future;
@@ -306,13 +307,13 @@ public class ScheduledTaskHttpService
             @Override
             public void onSuccess(@Nullable Void result)
             {
-                updateTask(project, id, lock, logger, System.currentTimeMillis(), null);
+                updateTask(project, id, lock, logger, now, null);
             }
 
             @Override
             public void onFailure(Throwable t)
             {
-                updateTask(project, id, lock, logger, System.currentTimeMillis(), t);
+                updateTask(project, id, lock, logger, now, t);
             }
         });
 
@@ -337,7 +338,7 @@ public class ScheduledTaskHttpService
 
         long gapInMillis = System.currentTimeMillis() - now;
         if (ex != null) {
-            logger.error(format("Failed to run the script in %d : %s", gapInMillis, ex.getMessage()));
+            logger.error(format("Failed to run the script in %d ms : %s", gapInMillis, ex.getMessage()));
         }
         else {
             logger.debug(format("Successfully run in %d milliseconds", gapInMillis));
