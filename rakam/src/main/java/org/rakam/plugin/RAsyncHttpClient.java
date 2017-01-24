@@ -1,27 +1,31 @@
 package org.rakam.plugin;
 
-import io.netty.channel.epoll.Epoll;
+import com.google.common.base.Throwables;
 import io.netty.handler.codec.http.HttpHeaders;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.HttpResponseStatus;
-import org.asynchttpclient.Param;
-import org.asynchttpclient.RequestBuilder;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import okhttp3.FormBody;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.cookie.Cookie;
 import org.asynchttpclient.uri.Uri;
+import org.rakam.util.RakamException;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.SocketAddress;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
+import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.asynchttpclient.util.HttpConstants.Methods.DELETE;
@@ -31,23 +35,22 @@ import static org.asynchttpclient.util.HttpConstants.Methods.PUT;
 
 public class RAsyncHttpClient
 {
-    private final AsyncHttpClient asyncHttpClient;
+    private final OkHttpClient asyncHttpClient;
 
-    public RAsyncHttpClient(AsyncHttpClient asyncHttpClient)
+    public RAsyncHttpClient(OkHttpClient asyncHttpClient)
     {
         this.asyncHttpClient = asyncHttpClient;
     }
 
     public static RAsyncHttpClient create(int timeoutInMillis, String userAgent)
     {
-        AsyncHttpClientConfig cf = new DefaultAsyncHttpClientConfig.Builder()
-                .setRequestTimeout(timeoutInMillis)
-                .setUserAgent(userAgent)
-                .setUseNativeTransport(Epoll.isAvailable())
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
+                .writeTimeout(timeoutInMillis, TimeUnit.MILLISECONDS)
                 .build();
 
-        org.asynchttpclient.AsyncHttpClient asyncHttpClient = new DefaultAsyncHttpClient(cf);
-        return new RAsyncHttpClient(asyncHttpClient);
+        return new RAsyncHttpClient(client);
     }
 
     public NashornHttpRequest get(String url)
@@ -75,42 +78,46 @@ public class RAsyncHttpClient
         return request(PUT, url).data(body);
     }
 
-    public NashornHttpRequest request(String type, String url)
+    public NashornHttpRequest request(String method, String url)
     {
-        RequestBuilder requestBuilder = new RequestBuilder(type);
         if (url == null || url.isEmpty()) {
             throw new IllegalArgumentException("URL is not set: " + url);
         }
 
-        try {
-            requestBuilder.setUrl(url);
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException(e.getMessage()+" is not set");
-        }
-
-        return new NashornHttpRequest(requestBuilder);
+        return new NashornHttpRequest(new Request.Builder(), method, url);
     }
 
     public class NashornHttpRequest
     {
-        private final RequestBuilder requestBuilder;
+        private final Request.Builder requestBuilder;
+        private HttpUrl url;
+        private final String method;
         private CompletableFuture<Response> future;
+        private FormBody.Builder formParams;
 
-        public NashornHttpRequest(RequestBuilder requestBuilder)
+        public NashornHttpRequest(Request.Builder requestBuilder, String method, String url)
         {
             this.requestBuilder = requestBuilder;
+            this.method = method;
+            try {
+                this.url = HttpUrl.get(new URL(url));
+            }
+            catch (MalformedURLException e) {
+                throw new RakamException("URL is not valid", HttpResponseStatus.BAD_REQUEST);
+            }
         }
 
         public NashornHttpRequest form(String key, String value)
         {
-            requestBuilder.addFormParam(key, value);
+            formParams = new FormBody.Builder().add(key, value);
             requestBuilder.addHeader("Content-type", "application/x-www-form-urlencoded");
             return this;
         }
 
         public NashornHttpRequest data(String data)
         {
-            requestBuilder.setBody(data);
+            RequestBody body = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), data);
+            requestBuilder.method(method, body);
             return this;
         }
 
@@ -124,55 +131,56 @@ public class RAsyncHttpClient
 
         public NashornHttpRequest query(String key, String value)
         {
-            requestBuilder.addQueryParam(key, value);
+            url = url.newBuilder().addQueryParameter(key, value).build();
             return this;
         }
 
-        public NashornHttpRequest cookie(String key, String value, String domain, String path, boolean secure, boolean httpOnly)
-        {
-            requestBuilder.addCookie(Cookie.newValidCookie(key, value, true, domain, path, System.currentTimeMillis() + 1000, secure, httpOnly));
-            return this;
-        }
-
-        public NashornHttpRequest cookie(String key, String value)
-        {
-            requestBuilder.addCookie(Cookie.newValidCookie(key, value, true, null, null, System.currentTimeMillis() + 1000, true, true));
-            return this;
-        }
+//        public NashornHttpRequest cookie(String key, String value, String domain, String path, boolean secure, boolean httpOnly)
+//        {
+//            requestBuilder.addCookie(Cookie.newValidCookie(key, value, true, domain, path, System.currentTimeMillis() + 1000, secure, httpOnly));
+//            return this;
+//        }
+//
+//        public NashornHttpRequest cookie(String key, String value)
+//        {
+//            requestBuilder.addCookie(Cookie.newValidCookie(key, value, true, null, null, System.currentTimeMillis() + 1000, true, true));
+//            return this;
+//        }
 
         public Response send()
         {
+            requestBuilder.url(url);
             try {
-                return asyncHttpClient.prepareRequest(requestBuilder).execute().get();
+                return new SuccessResponse(asyncHttpClient.newCall(requestBuilder.url(url).build()).execute());
             }
-            catch (InterruptedException | ExecutionException e) {
+            catch (IOException e) {
                 return new ExceptionResponse(e);
             }
         }
 
-        private NashornHttpRequest then(Function<Response, Object> successConsumer, Function<Response, Object> errorConsumer)
-        {
-            if (future == null) {
-                future = asyncHttpClient.prepareRequest(requestBuilder).execute().toCompletableFuture();
-            }
-
-            future = future.whenComplete((response, ex) -> {
-                if (ex != null) {
-                    Response t = new ExceptionResponse(ex);
-                    errorConsumer.apply(t);
-                }
-                else {
-                    if (response.getStatusCode() == 200) {
-                        successConsumer.apply(response);
-                    }
-                    else {
-                        errorConsumer.apply(response);
-                    }
-                }
-            });
-
-            return this;
-        }
+//        private NashornHttpRequest then(Function<Response, Object> successConsumer, Function<Response, Object> errorConsumer)
+//        {
+//            if (future == null) {
+//                future = asyncHttpClient.prepareRequest(requestBuilder).execute().toCompletableFuture();
+//            }
+//
+//            future = future.whenComplete((response, ex) -> {
+//                if (ex != null) {
+//                    Response t = new ExceptionResponse(ex);
+//                    errorConsumer.apply(t);
+//                }
+//                else {
+//                    if (response.getStatusCode() == 200) {
+//                        successConsumer.apply(response);
+//                    }
+//                    else {
+//                        errorConsumer.apply(response);
+//                    }
+//                }
+//            });
+//
+//            return this;
+//        }
 
         private class ExceptionResponse
                 implements Response
@@ -294,6 +302,146 @@ public class RAsyncHttpClient
             {
                 return null;
             }
+        }
+    }
+
+    private class SuccessResponse
+            implements Response
+    {
+        private final okhttp3.Response response;
+
+        public SuccessResponse(okhttp3.Response response)
+        {
+            this.response = response;
+        }
+
+        @Override
+        public int getStatusCode()
+        {
+            return response.code();
+        }
+
+        @Override
+        public String getStatusText()
+        {
+            return HttpResponseStatus.valueOf(response.code()).reasonPhrase();
+        }
+
+        @Override
+        public byte[] getResponseBodyAsBytes()
+        {
+            try {
+                return response.body().bytes();
+            }
+            catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        @Override
+        public ByteBuffer getResponseBodyAsByteBuffer()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public InputStream getResponseBodyAsStream()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String getResponseBody(Charset charset)
+        {
+            try {
+                return new String(response.body().bytes(), charset);
+            }
+            catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        @Override
+        public String getResponseBody()
+        {
+            try {
+                return new String(response.body().bytes(), StandardCharsets.UTF_8);
+            }
+            catch (IOException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+
+        @Override
+        public Uri getUri()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String getContentType()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String getHeader(String s)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<String> getHeaders(String s)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public HttpHeaders getHeaders()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean isRedirected()
+        {
+            return false;
+        }
+
+        @Override
+        public List<Cookie> getCookies()
+        {
+            return null;
+        }
+
+        @Override
+        public boolean hasResponseStatus()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean hasResponseHeaders()
+        {
+            return false;
+        }
+
+        @Override
+        public boolean hasResponseBody()
+        {
+            return false;
+        }
+
+        @Override
+        public SocketAddress getRemoteAddress()
+        {
+            return null;
+        }
+
+        @Override
+        public SocketAddress getLocalAddress()
+        {
+            return null;
         }
     }
 }

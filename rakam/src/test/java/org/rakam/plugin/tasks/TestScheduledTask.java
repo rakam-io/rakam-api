@@ -57,13 +57,6 @@ public class TestScheduledTask
                 schemaChecker,
                 fieldDependency);
         metastore.createProject("test");
-
-        AsyncHttpClientConfig cf = new DefaultAsyncHttpClientConfig.Builder()
-                .setRequestTimeout(100000)
-                .setUserAgent("test")
-                .setUseNativeTransport(Epoll.isAvailable())
-                .build();
-
         String metadataDatabase = Files.createTempDir().getAbsolutePath();
 
         JDBCPoolDataSource sa = JDBCPoolDataSource.getOrCreateDataSource(new JDBCConfig().setUrl("jdbc:h2:" + metadataDatabase)
@@ -82,7 +75,7 @@ public class TestScheduledTask
         InMemoryEventStore eventStore = new InMemoryEventStore();
 
         JSCodeCompiler jsCodeCompiler = new JSCodeCompiler(testingConfigManager,
-                new RAsyncHttpClient(new DefaultAsyncHttpClient(cf)),
+                RAsyncHttpClient.create(1000, ""),
                 new JSCodeLoggerService(sa),
                 true);
 
