@@ -40,11 +40,6 @@ public interface EventStore
         storeBatch(events);
     }
 
-    default QueryExecution commit(String project, String collection)
-    {
-        return QueryExecution.completedQueryExecution(null, QueryResult.empty());
-    }
-
     enum CopyType
     {
         AVRO, CSV, JSON;
