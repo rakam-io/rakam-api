@@ -35,12 +35,6 @@
             <name>bintray</name>
             <url>http://dl.bintray.com/buremba/maven</url>
         </repository>
-
-        <repository>
-            <id>dynamodb-local</id>
-            <name>DynamoDB Local Release Repository</name>
-            <url>https://s3-us-west-2.amazonaws.com/dynamodb-local/release</url>
-        </repository>
     </repositories>
 
     <licenses>

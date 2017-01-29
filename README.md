@@ -111,10 +111,12 @@ Note that you need to modify `config.properties` file in order to be able to sta
 ##### Running Rakam in your IDE
 Since we already use Maven, you can import Rakam to your IDE using the root pom.xml file. We recommend using Intellij IDEA since the core team uses it when developing Rakam. Here is a sample configuration for executing Rakam in your IDE:
 
+```
 Main Class: org.rakam.ServiceStarter
 VM Options: -ea -Xmx2G -Dconfig=etc/config.properties -Dlog.levels-file=etc/log.properties
 Working directory: $MODULE_DIR$
 Use classpath of module: rakam
+```
 
 ### Managed
 

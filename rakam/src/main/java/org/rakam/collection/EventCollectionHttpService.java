@@ -184,10 +184,11 @@ public class EventCollectionHttpService
             EventMapper mapper = eventMappers.get(i);
             CompletableFuture<List<Cookie>> mapperCookies = mapperFunction.apply(mapper);
             if (COMPLETED_EMPTY_FUTURE.equals(mapperCookies)) {
-                if(futures != null) {
+                if (futures != null) {
                     futures[futureIndex++] = COMPLETED_FUTURE;
                 }
-            } else {
+            }
+            else {
                 CompletableFuture<Void> future = mapperCookies.thenAccept(cookies::addAll);
 
                 if (futures == null) {
@@ -290,7 +291,7 @@ public class EventCollectionHttpService
             }
 
             cookiesFuture.thenAccept(cookies -> {
-                if(cookies != null) {
+                if (cookies != null) {
                     response.headers().add(SET_COOKIE, STRICT.encode(cookies));
                 }
                 request.response(response).end();
@@ -331,20 +332,22 @@ public class EventCollectionHttpService
                         ArrayList<Event> events = new ArrayList<>();
 
                         JsonToken t = parser.nextToken();
-                        if(t == JsonToken.START_OBJECT) {
+                        if (t == JsonToken.START_OBJECT) {
                             while (t == JsonToken.START_OBJECT) {
                                 Map.Entry<List<SchemaField>, GenericData.Record> entry = jsonEventDeserializer.parseProperties(project, collection, parser, true);
                                 events.add(new Event(project, collection, null, entry.getKey(), entry.getValue()));
                                 t = parser.nextToken();
                             }
-                        } else if(t == JsonToken.START_ARRAY) {
+                        }
+                        else if (t == JsonToken.START_ARRAY) {
                             t = parser.nextToken();
 
                             for (; t == START_OBJECT; t = parser.nextToken()) {
                                 Map.Entry<List<SchemaField>, GenericData.Record> entry = jsonEventDeserializer.parseProperties(project, collection, parser, true);
                                 events.add(new Event(project, collection, null, entry.getKey(), entry.getValue()));
                             }
-                        } else {
+                        }
+                        else {
                             throw new RakamException("The body must be an array of events or line-separated events", BAD_REQUEST);
                         }
 
@@ -395,7 +398,8 @@ public class EventCollectionHttpService
                         }
                         catch (Throwable e) {
                             List<Event> sample = events.size() > 5 ? events.subList(0, 2) : events;
-                            LOGGER.error(new RuntimeException("Error executing EventStore bulk method: " + sample, e),
+                            LOGGER.error(new RuntimeException("Error executing EventStore bulk method.",
+                                            new RuntimeException(sample.toString().substring(0, 200), e)),
                                     "Error while storing event.");
 
                             return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
@@ -509,7 +513,8 @@ public class EventCollectionHttpService
                     }
                     catch (Exception e) {
                         List<Event> sample = events.size() > 5 ? events.subList(0, 5) : events;
-                        LOGGER.error(new RuntimeException("Error executing EventStore bulkRemote method: " + sample, e),
+                        LOGGER.error(new RuntimeException("Error executing EventStore bulkRemote method.",
+                                        new RuntimeException(sample.toString().substring(0, 200), e)),
                                 "Error while storing event.");
                         return new HeaderDefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR,
                                 Unpooled.wrappedBuffer(encodeAsBytes(errorMessage("An error occurred", INTERNAL_SERVER_ERROR))),
@@ -659,7 +664,7 @@ public class EventCollectionHttpService
             responseHeaders.add(CONTENT_TYPE, "application/json");
 
             entries.thenAccept(value -> {
-                if(value != null) {
+                if (value != null) {
                     responseHeaders.add(SET_COOKIE, STRICT.encode(value));
                 }
                 if (response.isDone()) {
@@ -670,7 +675,7 @@ public class EventCollectionHttpService
             response.thenAccept(resp -> {
                 if (entries.isDone()) {
                     List<Cookie> join = entries.join();
-                    if(join != null) {
+                    if (join != null) {
                         responseHeaders.add(SET_COOKIE, STRICT.encode(join));
                     }
                 }

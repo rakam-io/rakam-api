@@ -101,8 +101,6 @@ public class PostgresqlRetentionQueryExecutor
                 }
             }
 
-            conn.createStatement().execute("create extension if not exists tablefunc");
-
             try {
                 conn.createStatement().execute("CREATE TYPE retention_action AS (is_first boolean, _time timestamp)");
             }

@@ -31,39 +31,43 @@ var fetch = function (parameters, events, startDate, offset) {
         return;
     }
 
-    data.data.forEach(function (activities) {
-        var callback = function (item) {
-            if (!item) {
-                return;
-            }
-            if (activities.item == 'person') {
-                if (typeof item.email === 'object') {
-                    item.email = item.email.value;
+    if (data.data) {
+        data.data.forEach(function (activities) {
+            var callback = function (item) {
+                if (!item) {
+                    return;
                 }
-                if (Array.isArray(item.phone)) {
-                    var phone;
-                    for (var i = 0; i < item.phone.length; i++) {
-                        var p = item.phone[i];
-                        phone = p.value;
-                        if (p.primary) {
-                            break;
-                        }
+                if (activities.item == 'person') {
+                    if (typeof item.email === 'object') {
+                        item.email = item.email.value;
                     }
-                    item.phone = phone
+                    if (Array.isArray(item.phone)) {
+                        var phone;
+                        for (var i = 0; i < item.phone.length; i++) {
+                            var p = item.phone[i];
+                            phone = p.value;
+                            if (p.primary) {
+                                break;
+                            }
+                        }
+                        item.phone = phone
+                    }
                 }
-            }
-            item._time = item.update_time || item.created;
-            item._user = activities.id;
-            events.push({collection: parameters.collection_prefix + "_" + activities.item, properties: item});
-        };
+                item._time = item.update_time || item.created;
+                item._user = activities.id;
+                events.push({
+                    collection: parameters.collection_prefix + "_" + activities.item,
+                    properties: item});
+            };
 
-        if (Array.isArray(activities.data)) {
-            activities.data.forEach(callback)
-        }
-        else {
-            callback(activities.data);
-        }
-    });
+            if (Array.isArray(activities.data)) {
+                activities.data.forEach(callback)
+            }
+            else {
+                callback(activities.data);
+            }
+        });
+    }
 
     eventStore.store(events);
     config.set('start_timestamp', data.additional_data.last_timestamp_on_page);

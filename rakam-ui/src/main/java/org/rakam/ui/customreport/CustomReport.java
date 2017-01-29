@@ -23,7 +23,7 @@ public class CustomReport {
     public final Object data;
 
     @JsonCreator
-    public CustomReport(@ApiParam("report_type") String reportType,
+    public CustomReport(@ApiParam("reportType") String reportType,
                         @ApiParam("name") String name,
                         @ApiParam("data") Object data) {
         this.reportType = reportType;
