@@ -72,14 +72,14 @@ public class DashboardService
         try (Handle handle = dbi.open()) {
             int id;
             try {
-                id = handle.createQuery("INSERT INTO dashboard (project_id, name, user_id, options) VALUES (:project, :name, :user, :options) RETURNING id")
+                id = handle.createQuery("INSERT INTO public.dashboard (project_id, name, user_id, options) VALUES (:project, :name, :user, :options) RETURNING id")
                         .bind("project", project.project)
                         .bind("user", project.userId)
                         .bind("options", JsonHelper.encode(options))
                         .bind("name", name).map(IntegerMapper.FIRST).first();
             }
             catch (Exception e) {
-                if (handle.createQuery("SELECT 1 FROM dashboard WHERE (project_id, name) = (:project, :name)")
+                if (handle.createQuery("SELECT 1 FROM public.dashboard WHERE (project_id, name) = (:project, :name)")
                         .bind("project", project.project)
                         .bind("name", name).first() != null) {
                     throw new AlreadyExistsException("Dashboard", BAD_REQUEST);
@@ -99,7 +99,7 @@ public class DashboardService
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT id, name, directive, options, refresh_interval, last_updated," +
                     "(case when refresh_interval is null or now() - last_updated > refresh_interval * INTERVAL '1 second' then null else data end)" +
-                    " FROM dashboard_items WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND id = :id)")
+                    " FROM public.dashboard_items WHERE dashboard = (SELECT id FROM public.dashboard WHERE project_id = :project AND id = :id)")
                     .bind("project", project.project)
                     .bind("id", id)
                     .map((i, r, statementContext) -> {
@@ -119,9 +119,9 @@ public class DashboardService
     {
         try (Handle handle = dbi.open()) {
             return handle.createQuery("SELECT web_user.id, web_user.email, permission.shared_at" +
-                    " FROM dashboard_permission permission " +
-                    " JOIN web_user ON (permission.user_id = web_user.id) " +
-                    " WHERE dashboard = (SELECT id FROM dashboard WHERE project_id = :project AND id = :id)")
+                    " FROM public.dashboard_permission permission " +
+                    " JOIN public.web_user ON (permission.user_id = web_user.id) " +
+                    " WHERE dashboard = (SELECT id FROM public.dashboard WHERE project_id = :project AND id = :id)")
                     .bind("project", project.project)
                     .bind("id", id)
                     .map((i, r, statementContext) -> {
@@ -136,7 +136,7 @@ public class DashboardService
     public SuccessMessage addUser(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_id") int user)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO dashboard_permission (dashboard, user_id) SELECT :dashboard, :shared_user FROM dashboard WHERE id = :dashboard AND user_id = :dashboard_user AND (select count(*) from dashboard_permission where dashboard = :dashboard and user_id = :shared_user) = 0")
+            handle.createStatement("INSERT INTO public.dashboard_permission (dashboard, user_id) SELECT :dashboard, :shared_user FROM public.dashboard WHERE id = :dashboard AND user_id = :dashboard_user AND (select count(*) from dashboard_permission where dashboard = :dashboard and user_id = :shared_user) = 0")
                     .bind("dashboard", id)
                     .bind("shared_user", user)
                     .bind("dashboard_user", project.userId)
@@ -151,7 +151,7 @@ public class DashboardService
     public SuccessMessage removeUser(@Named("user_id") Project project, @ApiParam("dashboard") int id, @ApiParam("user_id") int user)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM dashboard_permission WHERE dashboard = :dashboard AND user_id = :user AND (select bool_or(true) from dashboard where user_id = :dashboard_user and id = :dashboard)")
+            handle.createStatement("DELETE FROM public.dashboard_permission WHERE dashboard = :dashboard AND user_id = :user AND (select bool_or(true) from public.dashboard where user_id = :dashboard_user and id = :dashboard)")
                     .bind("shared_user", user)
                     .bind("dashboard", id)
                     .bind("dashboard_user", project.userId)
@@ -184,8 +184,8 @@ public class DashboardService
             @ApiParam("data") byte[] data)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE dashboard_items SET data = :data, last_updated = now() WHERE id = :id AND" +
-                    " (SELECT project_id FROM dashboard_items item JOIN dashboard ON (dashboard.id = item.dashboard) WHERE item.id = :id AND dashboard.project_id = :project) is not null")
+            handle.createStatement("UPDATE public.dashboard_items SET data = :data, last_updated = now() WHERE id = :id AND" +
+                    " (SELECT project_id FROM public.dashboard_items item JOIN public.dashboard ON (dashboard.id = item.dashboard) WHERE item.id = :id AND dashboard.project_id = :project) is not null")
                     .bind("id", item_id)
                     .bind("project", project.project)
                     .bind("data", data).execute();
@@ -199,7 +199,7 @@ public class DashboardService
     public List<Dashboard> list(@Named("user_id") Project project)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT id, name, refresh_interval, options FROM dashboard WHERE project_id = :project ORDER BY id")
+            return handle.createQuery("SELECT id, name, refresh_interval, options FROM public.dashboard WHERE project_id = :project ORDER BY id")
                     .bind("project", project.project).map((i, resultSet, statementContext) -> {
                         Map options = JsonHelper.read(resultSet.getString(4), Map.class);
                         return new Dashboard(resultSet.getInt(1), project.userId, resultSet.getString(2),
@@ -278,7 +278,7 @@ public class DashboardService
             @ApiParam("options") Map options)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("INSERT INTO dashboard_items (dashboard, name, directive, options, refresh_interval) VALUES (:dashboard, :name, :directive, :options, :refreshInterval)")
+            handle.createStatement("INSERT INTO public.dashboard_items (dashboard, name, directive, options, refresh_interval) VALUES (:dashboard, :name, :directive, :options, :refreshInterval)")
                     .bind("project", project.project)
                     .bind("dashboard", dashboard)
                     .bind("name", itemName)
@@ -299,7 +299,7 @@ public class DashboardService
             @ApiParam("items") List<DashboardItem> items)
     {
         dbi.inTransaction((handle, transactionStatus) -> {
-            Long execute = handle.createQuery("SELECT id FROM dashboard WHERE id = :id AND project_id = :project")
+            Long execute = handle.createQuery("SELECT id FROM public.dashboard WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("project", project.project)
                     .map(LongMapper.FIRST).first();
@@ -310,7 +310,7 @@ public class DashboardService
 
             for (DashboardItem item : items) {
                 // TODO: verify dashboard is in project
-                handle.createStatement("UPDATE dashboard_items SET name = :name, directive = :directive, options = :options WHERE id = :id")
+                handle.createStatement("UPDATE public.dashboard_items SET name = :name, directive = :directive, options = :options WHERE id = :id")
                         .bind("id", item.id)
                         .bind("name", item.name)
                         .bind("directive", item.directive)
@@ -335,12 +335,12 @@ public class DashboardService
             @ApiParam("options") Map<String, Object> options)
     {
         dbi.inTransaction((handle, transactionStatus) -> {
-            handle.createStatement("UPDATE dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name," +
-                    " shared_everyone = (case :shared is null then shared_everyone else :shared end)" +
+            handle.createStatement("UPDATE public.dashboard SET options = :options, refresh_interval = :refreshDuration, name = :name," +
+                    " shared_everyone = (case when :shared is null then shared_everyone else :shared end)" +
                     " WHERE id = :id AND project_id = :project")
                     .bind("id", dashboard)
                     .bind("name", name)
-                    .bind("shared", sharedEveryone)
+                    .bind("shared", TRUE.equals(sharedEveryone))
                     .bind("refreshDuration", refreshDuration.getSeconds())
                     .bind("options", JsonHelper.encode(options))
                     .bind("project", project.project)
@@ -362,7 +362,7 @@ public class DashboardService
     {
         try (Handle handle = dbi.open()) {
             // todo: check project
-            handle.createStatement("UPDATE dashboard_items SET name = :name WHERE id = :id")
+            handle.createStatement("UPDATE public.dashboard_items SET name = :name WHERE id = :id")
                     .bind("id", id)
                     .bind("name", name).execute();
         }
@@ -379,7 +379,7 @@ public class DashboardService
             @ApiParam("id") int id)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM dashboard_items " +
+            handle.createStatement("DELETE FROM public.dashboard_items " +
                     "WHERE dashboard = :dashboard AND id = :id")
                     .bind("project", project.project)
                     .bind("dashboard", dashboard)
@@ -396,8 +396,8 @@ public class DashboardService
             @ApiParam("id") int dashboard)
     {
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("DELETE FROM dashboard WHERE id = :id and project_id = :project AND " +
-                    "(select count(*) FROM dashboard WHERE project_id = :project) > 1")
+            int execute = handle.createStatement("DELETE FROM public.dashboard WHERE id = :id and project_id = :project AND " +
+                    "(select count(*) FROM public.dashboard WHERE project_id = :project) > 1")
                     .bind("id", dashboard).bind("project", project.project).execute();
             if (execute == 0) {
                 throw new RakamException("You cannot remove the single dashboard.", BAD_REQUEST);

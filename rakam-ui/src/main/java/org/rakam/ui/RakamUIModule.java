@@ -216,7 +216,7 @@ public class RakamUIModule
         {
             try (Handle handle = dbi.open()) {
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user (" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.web_user (" +
                         "  id SERIAL PRIMARY KEY,\n" +
                         "  email TEXT NOT NULL UNIQUE,\n" +
                         "  is_activated BOOLEAN DEFAULT false NOT NULL,\n" +
@@ -226,22 +226,22 @@ public class RakamUIModule
                         "  )")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_project (\n" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.web_user_project (\n" +
                         "  id serial NOT NULL,\n" +
                         "  project varchar(150) NOT NULL,\n" +
                         "  api_url varchar(250),\n" +
-                        "  user_id INT REFERENCES web_user(id),\n" +
+                        "  user_id INT REFERENCES public.web_user(id),\n" +
                         "  created_at timestamp DEFAULT now() NOT NULL,\n" +
                         "  CONSTRAINT project_check UNIQUE(project, api_url, user_id),\n" +
                         "  PRIMARY KEY (id, user_id)\n" +
                         ")")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_api_key (" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.web_user_api_key (" +
                         "  id SERIAL NOT NULL,\n" +
-                        "  project_id INTEGER REFERENCES web_user_project(id),\n" +
+                        "  project_id INTEGER REFERENCES public.web_user_project(id),\n" +
                         "  scope_expression TEXT,\n" +
-                        "  user_id INT REFERENCES web_user(id),\n" +
+                        "  user_id INT REFERENCES public.web_user(id),\n" +
                         "  write_key TEXT,\n" +
                         "  read_key TEXT,\n" +
                         "  master_key TEXT,\n" +
@@ -250,7 +250,7 @@ public class RakamUIModule
                         "  )")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS web_user_api_key_permission (\n" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.web_user_api_key_permission (\n" +
                         " api_key_id int4 NOT NULL,\n" +
                         " user_id int4 NOT NULL,\n" +
                         " read_permission boolean not null,\n" +
@@ -259,14 +259,14 @@ public class RakamUIModule
                         " scope_expression text,\n" +
                         " created_at timestamp NOT NULL DEFAULT now(),\n" +
                         " PRIMARY KEY (api_key_id, user_id),\n" +
-                        " FOREIGN KEY (user_id) REFERENCES web_user (id),\n" +
-                        " FOREIGN KEY (api_key_id) REFERENCES web_user_api_key (id)\n" +
+                        " FOREIGN KEY (user_id) REFERENCES public.web_user (id),\n" +
+                        " FOREIGN KEY (api_key_id) REFERENCES public.web_user_api_key (id)\n" +
                         ")")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS reports (" +
-                        "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
-                        "  user_id INT REFERENCES web_user(id)," +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.reports (" +
+                        "  project_id INT REFERENCES public.web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
+                        "  user_id INT REFERENCES public.web_user(id)," +
                         "  slug VARCHAR(255) NOT NULL," +
                         "  category VARCHAR(255)," +
                         "  name VARCHAR(255) NOT NULL," +
@@ -278,37 +278,37 @@ public class RakamUIModule
                         "  )")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS custom_reports (" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.custom_reports (" +
                         "  report_type VARCHAR(255) NOT NULL," +
-                        "  user_id INT REFERENCES web_user(id)," +
-                        "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
+                        "  user_id INT REFERENCES public.web_user(id)," +
+                        "  project_id INT REFERENCES public.web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  data TEXT NOT NULL," +
                         "  PRIMARY KEY (project_id, report_type, name)" +
                         "  )")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS rakam_cluster (" +
-                        "  user_id INT REFERENCES web_user(id)," +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.rakam_cluster (" +
+                        "  user_id INT REFERENCES public.web_user(id)," +
                         "  api_url VARCHAR(255) NOT NULL," +
                         "  lock_key VARCHAR(255)," +
                         "  PRIMARY KEY (user_id, api_url)" +
                         "  )")
                         .execute();
 
-                handle.createStatement("CREATE TABLE IF NOT EXISTS dashboard (" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.dashboard (" +
                         "  id SERIAL," +
-                        "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
-                        "  user_id INT REFERENCES web_user(id)," +
+                        "  project_id INT REFERENCES public.web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
+                        "  user_id INT REFERENCES public.web_user(id)," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  options TEXT," +
                         "  UNIQUE (project_id, name)," +
                         "  PRIMARY KEY (id)" +
                         "  )")
                         .execute();
-                handle.createStatement("CREATE TABLE IF NOT EXISTS dashboard_items (" +
+                handle.createStatement("CREATE TABLE IF NOT EXISTS public.dashboard_items (" +
                         "  id SERIAL," +
-                        "  dashboard int NOT NULL REFERENCES dashboard(id) ON DELETE CASCADE," +
+                        "  dashboard int NOT NULL REFERENCES public.dashboard(id) ON DELETE CASCADE," +
                         "  name VARCHAR(255) NOT NULL," +
                         "  directive VARCHAR(255) NOT NULL," +
                         "  data TEXT NOT NULL," +
@@ -317,10 +317,10 @@ public class RakamUIModule
                         .execute();
 
                 if (config.getCustomPageBackend() == CustomPageBackend.JDBC) {
-                    handle.createStatement("CREATE TABLE IF NOT EXISTS custom_page (" +
-                            "  project_id INT REFERENCES web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
+                    handle.createStatement("CREATE TABLE IF NOT EXISTS public.custom_page (" +
+                            "  project_id INT REFERENCES public.web_user_project(id) ON UPDATE NO ACTION ON DELETE CASCADE," +
                             "  name VARCHAR(255) NOT NULL," +
-                            "  user_id INT REFERENCES web_user(id)," +
+                            "  user_id INT REFERENCES public.web_user(id)," +
                             "  slug VARCHAR(255) NOT NULL," +
                             "  category VARCHAR(255)," +
                             "  data TEXT NOT NULL," +

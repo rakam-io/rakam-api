@@ -102,7 +102,7 @@ public class WebUserService
     public ProjectConfiguration getProjectConfigurations(int project)
     {
         try (Connection conn = dbi.open().getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("SELECT project, timezone FROM web_user_project WHERE id = ?");
+            PreparedStatement ps = conn.prepareStatement("SELECT project, timezone FROM public.web_user_project WHERE id = ?");
             ps.setInt(1, project);
             ResultSet resultSet = ps.executeQuery();
             if (!resultSet.next()) {
@@ -133,7 +133,7 @@ public class WebUserService
     {
         try (Handle handle = dbi.open()) {
             int execute = handle
-                    .createStatement("UPDATE web_user SET stripe_id = :stripeId WHERE id = :userId")
+                    .createStatement("UPDATE public.web_user SET stripe_id = :stripeId WHERE id = :userId")
                     .bind("stripeId", stripeId)
                     .bind("userId", userId).execute();
             if (execute != 1) {
@@ -242,7 +242,7 @@ public class WebUserService
 
         try (Handle handle = dbi.open()) {
             try {
-                int id = handle.createStatement("INSERT INTO web_user (email, password, name, created_at, gender, user_locale, google_id) VALUES (:email, :password, :name, now(), :gender, :locale, :googleId)")
+                int id = handle.createStatement("INSERT INTO public.web_user (email, password, name, created_at, gender, user_locale, google_id) VALUES (:email, :password, :name, now(), :gender, :locale, :googleId)")
                         .bind("email", email)
                         .bind("name", name)
                         .bind("gender", gender)
@@ -252,14 +252,14 @@ public class WebUserService
                 webuser = new WebUser(id, email, name, false, ImmutableList.of());
             }
             catch (UnableToExecuteStatementException e) {
-                Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM web_user WHERE email = :email").bind("email", email).first();
+                Map<String, Object> existingUser = handle.createQuery("SELECT created_at FROM public.web_user WHERE email = :email").bind("email", email).first();
                 if (existingUser != null) {
                     if (existingUser.get("created_at") != null) {
                         throw new AlreadyExistsException("A user with same email address", EXPECTATION_FAILED);
                     }
                     else {
                         // somebody gave access for a project to this email address
-                        int id = handle.createStatement("UPDATE web_user SET password = :password, name = :name, created_at = now() WHERE email = :email")
+                        int id = handle.createStatement("UPDATE public.web_user SET password = :password, name = :name, created_at = now() WHERE email = :email")
                                 .bind("email", email)
                                 .bind("name", name)
                                 .bind("password", scrypt).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
@@ -284,7 +284,7 @@ public class WebUserService
     public void updateUserInfo(int id, String name)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("UPDATE web_user SET name = :name WHERE id = :id")
+            handle.createStatement("UPDATE public.web_user SET name = :name WHERE id = :id")
                     .bind("id", id)
                     .bind("name", name)
                     .executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
@@ -304,7 +304,7 @@ public class WebUserService
         }
 
         try (Handle handle = dbi.open()) {
-            String hashedPass = handle.createQuery("SELECT password FROM web_user WHERE id = :id")
+            String hashedPass = handle.createQuery("SELECT password FROM public.web_user WHERE id = :id")
                     .bind("id", id).map(StringMapper.FIRST).first();
             if (hashedPass == null) {
                 throw new RakamException("User does not exist", BAD_REQUEST);
@@ -312,7 +312,7 @@ public class WebUserService
             if (!SCryptUtil.check(oldPassword, hashedPass)) {
                 throw new RakamException("Password is wrong", BAD_REQUEST);
             }
-            handle.createStatement("UPDATE web_user SET password = :password WHERE id = :id")
+            handle.createStatement("UPDATE public.web_user SET password = :password WHERE id = :id")
                     .bind("id", id)
                     .bind("password", scrypt).execute();
         }
@@ -321,7 +321,7 @@ public class WebUserService
     public String getLockKeyForAPI(int user, String apiUrl)
     {
         try (Handle handle = dbi.open()) {
-            return handle.createQuery("SELECT lock_key FROM rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
+            return handle.createQuery("SELECT lock_key FROM public.rakam_cluster WHERE user_id = :userId AND api_url = :apiUrl")
                     .bind("userId", user).bind("apiUrl", apiUrl)
                     .map(StringMapper.FIRST).first();
         }
@@ -334,10 +334,10 @@ public class WebUserService
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
-            List<Map<String, Object>> list = handle.createQuery("SELECT api_key.id, api_key.master_key FROM web_user_api_key_permission permission " +
-                    "JOIN web_user_api_key api_key ON (api_key.id = permission.api_key_id) " +
+            List<Map<String, Object>> list = handle.createQuery("SELECT api_key.id, api_key.master_key FROM public.web_user_api_key_permission permission " +
+                    "JOIN public.web_user_api_key api_key ON (api_key.id = permission.api_key_id) " +
                     "WHERE project_id = :project AND permission.user_id = " +
-                    "(SELECT id FROM web_user WHERE email = :email)")
+                    "(SELECT id FROM public.web_user WHERE email = :email)")
                     .bind("project", project)
                     .bind("email", email).list();
 
@@ -345,7 +345,7 @@ public class WebUserService
                 throw new RakamException(NOT_FOUND);
             }
 
-            handle.createStatement("DELETE FROM web_user_api_key_permission WHERE api_key_id in (" +
+            handle.createStatement("DELETE FROM public.web_user_api_key_permission WHERE api_key_id in (" +
                     list.stream().map(a -> a.get("id").toString()).collect(Collectors.joining(", ")) + ")")
                     .execute();
 
@@ -381,7 +381,7 @@ public class WebUserService
         final String scrypt = SCryptUtil.scrypt(newPassword, 2 << 14, 8, 1);
 
         try (Handle handle = dbi.open()) {
-            int execute = handle.createStatement("UPDATE web_user SET password = :password WHERE email = :email")
+            int execute = handle.createStatement("UPDATE public.web_user SET password = :password WHERE email = :email")
                     .bind("email", split[1])
                     .bind("password", scrypt).execute();
             if (execute == 0) {
@@ -452,7 +452,7 @@ public class WebUserService
     public void deleteProject(int user, int projectId)
     {
         try (Handle handle = dbi.open()) {
-            handle.createStatement("DELETE FROM web_user_project WHERE id = :project and user_id = :userId")
+            handle.createStatement("DELETE FROM public.web_user_project WHERE id = :project and user_id = :userId")
                     .bind("userId", user)
                     .bind("project", projectId)
                     .execute();
@@ -464,7 +464,7 @@ public class WebUserService
         int projectId;
         try (Handle handle = dbi.open()) {
             try {
-                projectId = (Integer) handle.createStatement("INSERT INTO web_user_project " +
+                projectId = (Integer) handle.createStatement("INSERT INTO public.web_user_project " +
                         "(project, api_url, user_id) " +
                         "VALUES (:project, :apiUrl, :userId)")
                         .bind("userId", user)
@@ -479,7 +479,7 @@ public class WebUserService
                 throw e;
             }
 
-            handle.createStatement("INSERT INTO web_user_api_key " +
+            handle.createStatement("INSERT INTO public.web_user_api_key " +
                     "(user_id, project_id, read_key, write_key, master_key) " +
                     "VALUES (:userId, :project, :readKey, :writeKey, :masterKey)")
                     .bind("userId", user)
@@ -532,9 +532,9 @@ public class WebUserService
 
             return handle.createQuery("SELECT web_user.email, keys.scope_expression, " +
                     "read_permission, write_permission, master_permission, web_user.id " +
-                    "FROM web_user_api_key_permission keys " +
-                    "JOIN web_user_api_key ON (web_user_api_key.id = keys.api_key_id) " +
-                    "JOIN web_user ON (web_user.id = keys.user_id) " +
+                    "FROM public.web_user_api_key_permission keys " +
+                    "JOIN public.web_user_api_key ON (web_user_api_key.id = keys.api_key_id) " +
+                    "JOIN public.web_user ON (web_user.id = keys.user_id) " +
                     "WHERE web_user.id != :user AND web_user_api_key.project_id = :project " +
                     "ORDER BY keys.created_at")
                     .bind("user", user)
@@ -552,14 +552,14 @@ public class WebUserService
                 throw new RakamException("You do not have master key permission", UNAUTHORIZED);
             }
 
-            Integer newUserId = handle.createQuery("SELECT id FROM web_user WHERE email = :email").bind("email", email)
+            Integer newUserId = handle.createQuery("SELECT id FROM public.web_user WHERE email = :email").bind("email", email)
                     .map(IntegerMapper.FIRST).first();
 
             if (newUserId == null) {
                 throw new RakamException(NOT_FOUND);
             }
 
-            int exists = handle.createStatement("UPDATE web_user_api_key_permission SET " +
+            int exists = handle.createStatement("UPDATE public.web_user_api_key_permission SET " +
                     "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission " +
                     "WHERE user_id = :newUserId")
                     .bind("mainUser", userId)
@@ -624,13 +624,13 @@ public class WebUserService
             }
 
             try {
-                newUserId = handle.createStatement("INSERT INTO web_user (email, created_at) VALUES (:email, now())")
+                newUserId = handle.createStatement("INSERT INTO public.web_user (email, created_at) VALUES (:email, now())")
                         .bind("email", email).executeAndReturnGeneratedKeys(IntegerMapper.FIRST).first();
 
                 sendNewUserMail(projectConfigurations.name, email);
             }
             catch (Exception e) {
-                Map.Entry<Integer, Boolean> element = handle.createQuery("SELECT id, password is null FROM web_user WHERE email = :email").bind("email", email)
+                Map.Entry<Integer, Boolean> element = handle.createQuery("SELECT id, password is null FROM public.web_user WHERE email = :email").bind("email", email)
                         .map((ResultSetMapper<Map.Entry<Integer, Boolean>>) (index, r, ctx) -> new AbstractMap.SimpleImmutableEntry<>(r.getInt(1), r.getBoolean(2))).first();
                 newUserId = element.getKey();
 
@@ -658,7 +658,7 @@ public class WebUserService
 
             int exists = handle.createStatement("UPDATE web_user_api_key_permission SET " +
                     "read_permission = :readPermission, write_permission = :writePermission, master_permission = :masterPermission " +
-                    "WHERE user_id = :newUserId AND (SELECT bool_or(true) FROM web_user_api_key WHERE user_id = :newUserId AND project_id = :project)")
+                    "WHERE user_id = :newUserId AND (SELECT bool_or(true) FROM public.web_user_api_key WHERE user_id = :newUserId AND project_id = :project)")
                     .bind("mainUser", userId)
                     .bind("newUserId", finalNewUserId)
                     .bind("readPermission", readPermission)
@@ -707,7 +707,7 @@ public class WebUserService
 
     public boolean hasMasterAccess(Handle handle, int project, int user)
     {
-        return handle.createQuery("select user_id = :user or (select bool_or(master_permission) from web_user_api_key_permission p join web_user_api_key a on (p.api_key_id = a.id) where p.user_id = :user and a.project_id = :project) from web_user_project where id = :project")
+        return handle.createQuery("select user_id = :user or (select bool_or(master_permission) from public.web_user_api_key_permission p join web_user_api_key a on (p.api_key_id = a.id) where p.user_id = :user and a.project_id = :project) from web_user_project where id = :project")
                 .bind("user", user)
                 .bind("project", project).map(BooleanMapper.FIRST)
                 .first();
@@ -723,7 +723,7 @@ public class WebUserService
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, password, read_only FROM web_user WHERE email = :email")
+                    .createQuery("SELECT id, name, password, read_only FROM public.web_user WHERE email = :email")
                     .bind("email", email).first();
             if (data == null) {
                 return Optional.empty();
@@ -754,7 +754,7 @@ public class WebUserService
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, read_only FROM web_user WHERE email = :email")
+                    .createQuery("SELECT id, name, read_only FROM public.web_user WHERE email = :email")
                     .bind("email", email).first();
             if (data == null) {
                 return Optional.empty();
@@ -774,7 +774,7 @@ public class WebUserService
 
         try (Handle handle = dbi.open()) {
             final Map<String, Object> data = handle
-                    .createQuery("SELECT id, name, email, read_only FROM web_user WHERE id = :id")
+                    .createQuery("SELECT id, name, email, read_only FROM public.web_user WHERE id = :id")
                     .bind("id", id).first();
             if (data == null) {
                 return Optional.empty();
@@ -793,7 +793,7 @@ public class WebUserService
     {
         try (Handle handle = dbi.open()) {
             return handle
-                    .createQuery("SELECT stripe_id FROM web_user WHERE id = :id")
+                    .createQuery("SELECT stripe_id FROM public.web_user WHERE id = :id")
                     .bind("id", id).map(StringMapper.FIRST).first();
         }
     }
@@ -802,13 +802,13 @@ public class WebUserService
     {
         List<WebUser.Project> list = new ArrayList<>();
         ResultIterator<Object> user = handle.createQuery("SELECT project.id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key " +
-                " FROM web_user_project project " +
-                " JOIN web_user_api_key api_key ON (api_key.project_id = project.id)" +
+                " FROM public.web_user_project project " +
+                " JOIN public.web_user_api_key api_key ON (api_key.project_id = project.id)" +
                 " WHERE api_key.user_id = :user " +
                 " UNION ALL SELECT api_key.project_id, project.project, project.api_url, project.timezone, api_key.master_key, api_key.read_key, api_key.write_key\n" +
-                "FROM web_user_api_key_permission permission \n" +
-                "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
-                "JOIN web_user_project project ON (project.id = api_key.project_id)\n" +
+                "FROM public.web_user_api_key_permission permission \n" +
+                "JOIN public.web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
+                "JOIN public.web_user_project project ON (project.id = api_key.project_id)\n" +
                 "WHERE permission.user_id = :user" +
                 " ORDER BY id NULLS LAST")
                 .bind("user", userId)
@@ -850,7 +850,7 @@ public class WebUserService
             }
 
             try {
-                handle.createStatement("DELETE FROM web_user_api_key " +
+                handle.createStatement("DELETE FROM public.web_user_api_key " +
                         "WHERE user_id = :user_id AND project_id = :project AND master_key = :masterKey")
                         .bind("user_id", user)
                         .bind("project", project)
@@ -858,7 +858,7 @@ public class WebUserService
             }
             catch (Throwable e) {
                 if (e.getMessage().contains("web_user_api_key_permission")) {
-                    List<String> list = handle.createQuery("SELECT web_user.email FROM web_user_api_key_permission permission " +
+                    List<String> list = handle.createQuery("SELECT web_user.email FROM public.web_user_api_key_permission permission " +
                             "JOIN web_user ON (web_user.id = permission.user_id) " +
                             "WHERE api_key_id in (SELECT id FROM web_user_api_key WHERE master_key = :masterKey and user_id = :userId and project_id = :project)")
                             .bind("masterKey", masterKey).bind("userId", user).bind("project", project).map(StringMapper.FIRST).list();

@@ -81,13 +81,13 @@ public class UIPermissionParameterProvider
 
                 if (readOnly) {
                     try (Handle handle = dbi.open()) {
-                        boolean hasPermission = handle.createQuery("SELECT true FROM web_user_api_key key " +
-                                "JOIN web_user_project project ON (key.project_id = project.id) " +
+                        boolean hasPermission = handle.createQuery("SELECT true FROM public.web_user_api_key key " +
+                                "JOIN public.web_user_project project ON (key.project_id = project.id) " +
                                 "WHERE key.user_id = :user AND project.id = :id " +
                                 " UNION ALL " +
                                 " SELECT true " +
-                                "FROM web_user_api_key_permission permission \n" +
-                                "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
+                                "FROM public.web_user_api_key_permission permission \n" +
+                                "JOIN public.web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
                                 "WHERE permission.user_id = :user AND api_key.project_id = :id AND permission.read_permission")
                                 .map(BooleanMapper.FIRST)
                                 .bind("user", userId)
@@ -100,14 +100,14 @@ public class UIPermissionParameterProvider
                 }
                 else {
                     try (Handle handle = dbi.open()) {
-                        Boolean readOnlyUser = handle.createQuery("SELECT web_user.read_only FROM web_user_api_key key " +
-                                "JOIN web_user_project project ON (key.project_id = project.id) " +
-                                "JOIN web_user ON (web_user.id = key.user_id) " +
+                        Boolean readOnlyUser = handle.createQuery("SELECT web_user.read_only FROM public.web_user_api_key key " +
+                                "JOIN public.web_user_project project ON (key.project_id = project.id) " +
+                                "JOIN public.web_user ON (web_user.id = key.user_id) " +
                                 "WHERE key.user_id = :user AND project.id = :id" +
                                 " UNION ALL " +
                                 " SELECT false " +
-                                "FROM web_user_api_key_permission permission \n" +
-                                "JOIN web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
+                                "FROM public.web_user_api_key_permission permission \n" +
+                                "JOIN public.web_user_api_key api_key ON (permission.api_key_id = api_key.id) \n" +
                                 "WHERE permission.user_id = :user AND api_key.project_id = :id AND permission.master_permission")
                                 .map(BooleanMapper.FIRST)
                                 .bind("user", userId)
