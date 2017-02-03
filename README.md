@@ -37,7 +37,7 @@ You can deploy Rakam to Heroku using Heroku button, it uses Heroku Postgresql ad
 
 ### Digitalocean
 
-Digitalocean installer uses Docker under the hood. It will install Docker on your droplet and run docker image of Postgresql and link it with your Rakam container. The API the image exposes is `9999`, you may visit your Rakam API address from `YOUR_DROPLET_IP:80`. The default lock key is `mylockkey`.
+Digitalocean installer uses Docker under the hood. It will install Docker on your droplet and run docker image of Postgresql and link it with your Rakam container. The API the image exposes is `9999`, you may visit your Rakam API address from `YOUR_DROPLET_IP:80`. The default lock key is `mylockKey`.
 
 [![Install on DigitalOcean](http://installer.71m.us/button.svg)](http://installer.71m.us/install?url=https://github.com/rakam-io/rakam)
 
