@@ -59,7 +59,7 @@ public class JDBCApiKeyService
                     throws Exception
             {
                 try (Connection conn = connectionPool.getConnection()) {
-                    PreparedStatement ps = conn.prepareStatement(format("SELECT lower(project) FROM api_key WHERE %s = ?", apiKey.type.name()));
+                    PreparedStatement ps = conn.prepareStatement(format("SELECT lower(project) FROM public.api_key WHERE %s = ?", apiKey.type.name()));
                     ps.setString(1, apiKey.key);
                     ResultSet resultSet = ps.executeQuery();
                     if (!resultSet.next()) {
@@ -79,7 +79,7 @@ public class JDBCApiKeyService
     {
         try (Connection connection = connectionPool.getConnection()) {
             Statement statement = connection.createStatement();
-            statement.execute("CREATE TABLE IF NOT EXISTS api_key (" +
+            statement.execute("CREATE TABLE IF NOT EXISTS public.api_key (" +
                     "  id MEDIUMINT NOT NULL AUTO_INCREMENT,\n" +
                     "  project VARCHAR(255) NOT NULL,\n" +
                     "  read_key VARCHAR(255) NOT NULL,\n" +
@@ -102,7 +102,7 @@ public class JDBCApiKeyService
         String writeKey = CryptUtil.generateRandomKey(64);
 
         try (Connection connection = connectionPool.getConnection()) {
-            PreparedStatement ps = connection.prepareStatement("INSERT INTO api_key " +
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO public.api_key " +
                             "(master_key, read_key, write_key, project) VALUES (?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, masterKey);
@@ -141,7 +141,7 @@ public class JDBCApiKeyService
     public void revokeApiKeys(String project, String masterKey)
     {
         try (Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ? AND master_key = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM public.api_key WHERE project = ? AND master_key = ?");
             ps.setString(1, project);
             ps.setString(2, masterKey);
             ps.execute();
@@ -155,7 +155,7 @@ public class JDBCApiKeyService
     public void revokeAllKeys(String project)
     {
         try (Connection conn = connectionPool.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM api_key WHERE project = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM public.api_key WHERE project = ?");
             ps.setString(1, project);
             ps.execute();
         }
@@ -174,7 +174,7 @@ public class JDBCApiKeyService
         Set<String>[] keys =
                 Arrays.stream(AccessKeyType.values()).map(key -> new HashSet<String>()).toArray(Set[]::new);
 
-        PreparedStatement ps = conn.prepareStatement("SELECT master_key, read_key, write_key from api_key WHERE project = ?");
+        PreparedStatement ps = conn.prepareStatement("SELECT master_key, read_key, write_key from public.api_key WHERE project = ?");
         ps.setString(1, project);
         ResultSet resultSet = ps.executeQuery();
         while (resultSet.next()) {

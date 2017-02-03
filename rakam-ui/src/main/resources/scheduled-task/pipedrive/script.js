@@ -7,12 +7,43 @@ var fetch = function (parameters, events, startDate, offset) {
     startDate = startDate || config.get('start_timestamp');
 
     if (startDate == null) {
-        startDate = new Date(0).toISOString();
+        startDate = '1970-01-01 00:00:00';
     }
 
     if (offset == null) {
         offset = 0;
     }
+
+    var personFieldsRequest = http.get("https://api.pipedrive.com/v1/personFields:(key,name)")
+        .query("api_token", parameters.api_token)
+        .query("limit", "500")
+        .send();
+
+    var personFieldsRequestData = JSON.parse(personFieldsRequest.getResponseBody());
+    if (personFieldsRequest.getStatusCode() != 200 || !personFieldsRequestData.success) {
+        logger.error("Error fetching person fields: " + personFieldsRequest.getResponseBody());
+        return;
+    }
+    var peopleFields = {};
+    personFieldsRequestData.data.forEach(function(field) {
+        peopleFields[field.key] = field.name;
+    });
+
+    var organizationFieldsRequest = http.get("https://api.pipedrive.com/v1/organizationFields:(key,name)")
+        .query("api_token", parameters.api_token)
+        .query("limit", "500")
+        .send();
+
+    var organizationFieldsRequestData = JSON.parse(organizationFieldsRequest.getResponseBody());
+    if (organizationFieldsRequest.getStatusCode() != 200 || !organizationFieldsRequestData.success) {
+        logger.error("Error fetching organization fields: " + personFieldsRequest.getResponseBody());
+        return;
+    }
+
+    var organizationFields = {};
+    organizationFieldsRequestData.data.forEach(function(field) {
+        organizationFields[field.key] = field.name;
+    });
 
     var response = http.get(url)
         .query("api_token", parameters.api_token)
@@ -37,6 +68,8 @@ var fetch = function (parameters, events, startDate, offset) {
                 if (!item) {
                     return;
                 }
+
+                var newItem = {};
                 if (activities.item == 'person') {
                     if (typeof item.email === 'object') {
                         item.email = item.email.value;
@@ -52,12 +85,38 @@ var fetch = function (parameters, events, startDate, offset) {
                         }
                         item.phone = phone
                     }
+
+                    for (var key in item) {
+                        if (item.hasOwnProperty(key)) {
+                            var peopleField = peopleFields[key];
+                            if(!peopleField) {
+                                newItem[key] = item[key];
+                            } else {
+                                newItem[peopleField] = item[key];
+                            }
+                        }
+                    }
+                } else
+                if (activities.item == 'organization') {
+                    for (var key in item) {
+                        if (item.hasOwnProperty(key)) {
+                            var organizationField = organizationFields[key];
+                            if(!organizationField) {
+                                newItem[key] = item[key];
+                            } else {
+                                newItem[organizationField] = item[key];
+                            }
+                        }
+                    }
+                } else {
+                    newItem = item;
                 }
+
                 item._time = item.update_time || item.created;
                 item._user = activities.id;
                 events.push({
                     collection: parameters.collection_prefix + "_" + activities.item,
-                    properties: item});
+                    properties: newItem});
             };
 
             if (Array.isArray(activities.data)) {

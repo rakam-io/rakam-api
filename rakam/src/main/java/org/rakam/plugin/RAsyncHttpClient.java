@@ -92,7 +92,6 @@ public class RAsyncHttpClient
         private final Request.Builder requestBuilder;
         private HttpUrl url;
         private final String method;
-        private CompletableFuture<Response> future;
         private FormBody.Builder formParams;
 
         public NashornHttpRequest(Request.Builder requestBuilder, String method, String url)
@@ -107,10 +106,14 @@ public class RAsyncHttpClient
             }
         }
 
-        public NashornHttpRequest form(String key, String value)
+        public synchronized NashornHttpRequest form(String key, String value)
         {
-            formParams = new FormBody.Builder().add(key, value);
-            requestBuilder.addHeader("Content-type", "application/x-www-form-urlencoded");
+            if(formParams == null) {
+                requestBuilder.addHeader("Content-type", "application/x-www-form-urlencoded");
+                formParams = new FormBody.Builder();
+            }
+
+            formParams.add(key, value);
             return this;
         }
 
@@ -150,44 +153,25 @@ public class RAsyncHttpClient
         public Response send()
         {
             requestBuilder.url(url);
+            if (formParams != null) {
+                requestBuilder.method(method, formParams.build());
+            }
             try {
-                return new SuccessResponse(asyncHttpClient.newCall(requestBuilder.url(url).build()).execute());
+                return new SuccessResponse(asyncHttpClient.newCall(requestBuilder.build()).execute());
             }
             catch (IOException e) {
                 return new ExceptionResponse(e);
             }
         }
 
-//        private NashornHttpRequest then(Function<Response, Object> successConsumer, Function<Response, Object> errorConsumer)
-//        {
-//            if (future == null) {
-//                future = asyncHttpClient.prepareRequest(requestBuilder).execute().toCompletableFuture();
-//            }
-//
-//            future = future.whenComplete((response, ex) -> {
-//                if (ex != null) {
-//                    Response t = new ExceptionResponse(ex);
-//                    errorConsumer.apply(t);
-//                }
-//                else {
-//                    if (response.getStatusCode() == 200) {
-//                        successConsumer.apply(response);
-//                    }
-//                    else {
-//                        errorConsumer.apply(response);
-//                    }
-//                }
-//            });
-//
-//            return this;
-//        }
-
         private class ExceptionResponse
                 implements Response
         {
             private final Throwable ex;
 
-            public ExceptionResponse(Throwable ex) {this.ex = ex;}
+            public ExceptionResponse(Throwable ex) {
+                this.ex = ex;
+            }
 
             @Override
             public int getStatusCode()
